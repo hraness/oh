@@ -68,8 +68,8 @@
     "build": "bun run build:js && bun run build:types",
     "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts ./src/semantic.ts ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
     "build:types": "tsc -p tsconfig.build.json",
-    "check": "bun run typecheck && bun test && bun run build",
-    "test": "bun test",
+    "check": "bun run typecheck && bun run test && bun run build",
+    "test": "bun test ./src ./tests ./site/tests/source.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

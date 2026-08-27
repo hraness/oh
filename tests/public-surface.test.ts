@@ -336,6 +336,17 @@ describe("versioned public contract", () => {
 });
 
 describe("repository policy", () => {
+  test("orders source tests before build-dependent site runtime tests", async () => {
+    const packageJson = await json("package.json");
+    const sitePackageJson = await json("site/package.json");
+    const scripts = packageJson.scripts as Record<string, string>;
+    const siteScripts = sitePackageJson.scripts as Record<string, string>;
+    expect(scripts.check).toContain("bun run test");
+    expect(scripts.test).toBe("bun test ./src ./tests ./site/tests/source.test.ts");
+    expect(scripts.test).not.toContain("runtime.test.ts");
+    expect(siteScripts.postbuild).toBe("bun test ./tests/runtime.test.ts");
+  });
+
   test("pins workflow actions to immutable commits", async () => {
     for (const path of [".github/workflows/ci.yml", ".github/workflows/release.yml"]) {
       const workflow = await readFile(join(root, path), "utf8");
