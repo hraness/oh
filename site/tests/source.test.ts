@@ -21,6 +21,22 @@ function sha256(value: string): string {
 }
 
 describe("Oh site source contract", () => {
+  test("uses Nebula Sans for ordinary text while preserving serif and monospace roles", async () => {
+    const [packageJson, globals] = await Promise.all([
+      read("package.json"),
+      read("app/globals.css"),
+    ]);
+
+    expect(packageJson).toContain(
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.2.1"',
+    );
+    expect(globals).toContain('@import "@hraness/design-kit/fonts.css"');
+    expect(globals).toContain('--font-text: "Nebula Sans"');
+    expect(globals).toContain("font-family: var(--font-text)");
+    expect(globals).toContain('font-family: Georgia, "Times New Roman", serif');
+    expect(globals).toContain("font-family: ui-monospace, SFMono-Regular, Menlo, monospace");
+  });
+
   test("publishes one canonical specification page without redirecting links", async () => {
     const [home, specification, redirect, sitemap] = await Promise.all([
       read("app/page.tsx"),
