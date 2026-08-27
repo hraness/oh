@@ -146,7 +146,7 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.1.0");
+    expect(packageJson.version).toBe("0.1.1");
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");
     expect(packageJson.license).toBe("MIT");

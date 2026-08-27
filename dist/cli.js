@@ -1349,9 +1349,46 @@ import { mkdirSync } from "fs";
 import { dirname } from "path";
 
 // src/sqlite/driver.ts
+import { existsSync } from "fs";
 import { Database } from "bun:sqlite";
+
+// src/sqlite/runtime.ts
+var MACOS_SQLITE_LIBRARY_CANDIDATES = Object.freeze([
+  "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib",
+  "/usr/local/opt/sqlite/lib/libsqlite3.dylib"
+]);
+function macosSqliteLibraryCandidates() {
+  return MACOS_SQLITE_LIBRARY_CANDIDATES;
+}
+function createOhSqliteRuntime(dependencies) {
+  let customLibrary = null;
+  if (dependencies.platform === "darwin") {
+    for (const candidate of macosSqliteLibraryCandidates()) {
+      if (!dependencies.exists(candidate))
+        continue;
+      try {
+        if (!dependencies.setCustomSQLite(candidate))
+          continue;
+        customLibrary = candidate;
+        break;
+      } catch {}
+    }
+  }
+  return Object.freeze({
+    customLibrary,
+    open: (path) => dependencies.open(path, { create: true, strict: true })
+  });
+}
+
+// src/sqlite/driver.ts
+var SQLITE_RUNTIME = createOhSqliteRuntime({
+  exists: existsSync,
+  open: (path, options) => new Database(path, options),
+  platform: process.platform,
+  setCustomSQLite: (path) => Database.setCustomSQLite(path)
+});
 function openOhSqliteDatabase(path) {
-  const database = new Database(path, { create: true, strict: true });
+  const database = SQLITE_RUNTIME.open(path);
   database.exec("PRAGMA foreign_keys = ON");
   database.exec("PRAGMA journal_mode = WAL");
   database.exec("PRAGMA synchronous = NORMAL");
@@ -2144,7 +2181,7 @@ class Oh {
 
 // src/cli.ts
 import { readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.1.0";
+var OH_PACKAGE_VERSION = "0.1.1";
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",

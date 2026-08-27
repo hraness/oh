@@ -1,5 +1,5 @@
 import { type Sha256Hex } from "./canonical";
-import type { KnowledgeGraphRecordV1 } from "./graph";
+import { type KnowledgeGraphRecordV1 } from "./graph";
 import type { OhSqliteStore } from "./sqlite/store";
 export declare const OH_EMBEDDING_PROFILE_V1: Readonly<{
     readonly dimensions: 768;
@@ -32,10 +32,6 @@ export interface OhSemanticSearchBackendV1 {
     }>>;
     search(query: string, limit: number, authority: OhSqliteStore): Promise<readonly OhSemanticSearchResultV1[]>;
 }
-type QmdSearchResult = Readonly<{
-    file: string;
-    score: number;
-}>;
 type QmdStore = {
     close(): Promise<void>;
     embed(options: Readonly<{
@@ -45,7 +41,7 @@ type QmdStore = {
     searchVector(query: string, options: Readonly<{
         collection: string;
         limit: number;
-    }>): Promise<readonly QmdSearchResult[]>;
+    }>): Promise<unknown>;
     update(options: Readonly<{
         collections: readonly string[];
     }>): Promise<unknown>;

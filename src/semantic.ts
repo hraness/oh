@@ -1,9 +1,9 @@
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 import { canonicalJson, canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex,
   safeCode, sha256Hex, type Sha256Hex } from "./canonical";
-import type { KnowledgeGraphRecordV1 } from "./graph";
+import { OH_GRAPH_LIMITS_V1, type KnowledgeGraphRecordV1 } from "./graph";
 import type { OhSqliteStore } from "./sqlite/store";
 
 export const OH_EMBEDDING_PROFILE_V1 = Object.freeze({
@@ -58,11 +58,10 @@ export interface OhSemanticSearchBackendV1 {
   search(query: string, limit: number, authority: OhSqliteStore): Promise<readonly OhSemanticSearchResultV1[]>;
 }
 
-type QmdSearchResult = Readonly<{ file: string; score: number }>;
 type QmdStore = {
   close(): Promise<void>;
   embed(options: Readonly<{ collection: string; model: string }>): Promise<unknown>;
-  searchVector(query: string, options: Readonly<{ collection: string; limit: number }>): Promise<readonly QmdSearchResult[]>;
+  searchVector(query: string, options: Readonly<{ collection: string; limit: number }>): Promise<unknown>;
   update(options: Readonly<{ collections: readonly string[] }>): Promise<unknown>;
 };
 export type QmdStoreFactoryV1 = (options: Readonly<{
@@ -91,19 +90,57 @@ function recordDocument(record: KnowledgeGraphRecordV1): string {
   return `# ${record.key}\n\nkind: ${record.kind}\n\n${canonicalJson(record.value)}\n`;
 }
 
-function qmdResultFilename(file: unknown): string | null {
-  if (typeof file !== "string") return null;
-  if (file.startsWith("qmd://")) {
-    let url: URL;
-    try { url = new URL(file); } catch { return null; }
-    if (url.protocol !== "qmd:" || url.hostname !== "oh" || url.search !== "" || url.hash !== "") return null;
-    let path: string;
-    try { path = decodeURIComponent(url.pathname); } catch { return null; }
-    if (!/^\/[a-f0-9]{64}\.md$/u.test(path)) return null;
-    return path.slice(1);
+const QMD_VECTOR_RESULT_KEYS = [
+  "body", "bodyLength", "chunkPos", "collectionName", "context", "displayPath", "docid",
+  "filepath", "hash", "modifiedAt", "score", "source", "title",
+] as const;
+type ParsedQmdVectorResult = Readonly<{
+  body: string;
+  filename: string;
+  hash: Sha256Hex;
+  score: number;
+  title: string;
+}>;
+
+function semanticManifest(entries: Record<string, { key: string; recordSha256: Sha256Hex }>): SemanticManifestV1 {
+  const immutableEntries: Record<string, Readonly<{ key: string; recordSha256: Sha256Hex }>> = {};
+  for (const [filename, entry] of Object.entries(entries)) {
+    immutableEntries[filename] = Object.freeze({ ...entry });
   }
-  const filename = basename(file);
-  return /^[a-f0-9]{64}\.md$/u.test(filename) ? filename : null;
+  return Object.freeze({
+    entries: Object.freeze(immutableEntries),
+    profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1),
+    v: 1,
+  });
+}
+
+function parseQmdVectorResult(value: unknown): ParsedQmdVectorResult | null {
+  if (!isPlainRecord(value) || !hasExactKeys(value, QMD_VECTOR_RESULT_KEYS)) return null;
+  const pathMatch = typeof value.filepath === "string"
+    ? /^qmd:\/\/oh\/([a-f0-9]{64}\.md)$/u.exec(value.filepath)
+    : null;
+  const filename = pathMatch?.[1];
+  const hash = parseSha256Hex(value.hash);
+  const title = safeCode(value.title, 512);
+  if (filename === undefined || value.displayPath !== `oh/${filename}` || value.collectionName !== "oh"
+    || value.source !== "vec" || value.context !== null || value.modifiedAt !== ""
+    || hash === null || value.docid !== hash.slice(0, 6) || title === null
+    || typeof value.body !== "string" || typeof value.bodyLength !== "number" || !Number.isSafeInteger(value.bodyLength)
+    || value.bodyLength < 0 || value.bodyLength > OH_GRAPH_LIMITS_V1.recordBytes + 4096
+    || value.body.length !== value.bodyLength || hash !== sha256Hex(value.body) || typeof value.chunkPos !== "number"
+    || !Number.isSafeInteger(value.chunkPos) || value.chunkPos < 0
+    || typeof value.score !== "number" || !Number.isFinite(value.score) || value.score < 0 || value.score > 1) {
+    return null;
+  }
+  return { body: value.body, filename, hash, score: value.score, title };
+}
+
+function parseQmdVectorResults(value: unknown): readonly ParsedQmdVectorResult[] {
+  if (!Array.isArray(value) || value.length > 100) {
+    throw new Error("QMD returned an invalid vector result batch.");
+  }
+  return value.map(parseQmdVectorResult)
+    .filter((result): result is ParsedQmdVectorResult => result !== null);
 }
 
 /**
@@ -115,9 +152,13 @@ export class OhQmdSemanticBackendV1 implements OhSemanticSearchBackendV1 {
   readonly #cacheDirectory: string;
   readonly #databasePath: string;
   readonly #factory: QmdStoreFactoryV1;
-  #manifest: SemanticManifestV1 = { entries: {}, profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1), v: 1 };
-  #manifestLoaded = false;
+  #manifest: SemanticManifestV1 = semanticManifest({});
+  #manifestLoad: Promise<void> | null = null;
   #store: Promise<QmdStore> | null = null;
+  #storeClose: Promise<void> | null = null;
+  #closure: Promise<void> | null = null;
+  #indexQueue: Promise<void> = Promise.resolve();
+  readonly #activeSearches = new Set<Promise<unknown>>();
   #closed = false;
 
   constructor(options: Readonly<{ cacheDirectory: string; databasePath?: string; storeFactory?: QmdStoreFactoryV1 }>) {
@@ -128,22 +169,45 @@ export class OhQmdSemanticBackendV1 implements OhSemanticSearchBackendV1 {
 
   async #open(): Promise<QmdStore> {
     if (this.#closed) throw new Error("The semantic backend is closed.");
+    this.#store ??= this.#initializeStore();
+    const store = await this.#store;
+    if (this.#closed) {
+      await this.#closeStore(store);
+      throw new Error("The semantic backend is closed.");
+    }
+    return store;
+  }
+
+  async #initializeStore(): Promise<QmdStore> {
     const documents = join(this.#cacheDirectory, "documents");
     await mkdir(documents, { recursive: true });
     await this.#loadManifest();
-    this.#store ??= this.#factory({
+    if (this.#closed) throw new Error("The semantic backend is closed.");
+    const store = await this.#factory({
       dbPath: this.#databasePath,
       config: {
         collections: { oh: { path: documents, pattern: "*.md" } },
         models: { embed: OH_EMBEDDING_PROFILE_V1.model },
       },
     });
-    return this.#store;
+    if (this.#closed) {
+      await this.#closeStore(store);
+      throw new Error("The semantic backend is closed.");
+    }
+    return store;
   }
 
-  async #loadManifest(): Promise<void> {
-    if (this.#manifestLoaded) return;
-    this.#manifestLoaded = true;
+  #closeStore(store: QmdStore): Promise<void> {
+    this.#storeClose ??= Promise.resolve().then(() => store.close());
+    return this.#storeClose;
+  }
+
+  #loadManifest(): Promise<void> {
+    this.#manifestLoad ??= this.#readManifest();
+    return this.#manifestLoad;
+  }
+
+  async #readManifest(): Promise<void> {
     let text: string;
     try { text = await readFile(join(this.#cacheDirectory, "manifest.json"), "utf8"); }
     catch (error) {
@@ -167,13 +231,25 @@ export class OhQmdSemanticBackendV1 implements OhSemanticSearchBackendV1 {
       }
       entries[filename] = { key, recordSha256 };
     }
-    this.#manifest = { entries, profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1), v: 1 };
+    this.#manifest = semanticManifest(entries);
   }
 
-  async index(records: readonly KnowledgeGraphRecordV1[]): Promise<Readonly<{ indexed: number; v: 1 }>> {
-    if (records.length > 65_536) throw new RangeError("A semantic snapshot may contain at most 65,536 records.");
+  index(records: readonly KnowledgeGraphRecordV1[]): Promise<Readonly<{ indexed: number; v: 1 }>> {
+    if (records.length > 65_536) {
+      return Promise.reject(new RangeError("A semantic snapshot may contain at most 65,536 records."));
+    }
+    if (this.#closed) return Promise.reject(new Error("The semantic backend is closed."));
+    const snapshot = [...records];
+    const operation = this.#indexQueue.then(() => this.#indexSnapshot(snapshot));
+    this.#indexQueue = operation.then(() => undefined, () => undefined);
+    return operation;
+  }
+
+  async #indexSnapshot(records: readonly KnowledgeGraphRecordV1[]): Promise<Readonly<{ indexed: number; v: 1 }>> {
+    if (this.#closed) throw new Error("The semantic backend is closed.");
     const documents = join(this.#cacheDirectory, "documents");
     await mkdir(documents, { recursive: true });
+    await this.#loadManifest();
     const entries: Record<string, { key: string; recordSha256: Sha256Hex }> = {};
     for (const record of records) {
       const filename = `${sha256Hex(record.key)}.md`;
@@ -187,32 +263,47 @@ export class OhQmdSemanticBackendV1 implements OhSemanticSearchBackendV1 {
     for (const filename of await readdir(documents)) {
       if (/^[a-f0-9]{64}\.md$/u.test(filename) && !retained.has(filename)) await unlink(join(documents, filename));
     }
-    this.#manifest = { entries, profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1), v: 1 };
-    this.#manifestLoaded = true;
-    const manifestPath = join(this.#cacheDirectory, "manifest.json");
-    const temporaryManifest = `${manifestPath}.${process.pid}.tmp`;
-    await writeFile(temporaryManifest, canonicalJson(this.#manifest), { encoding: "utf8", mode: 0o600 });
-    await rename(temporaryManifest, manifestPath);
+    const nextManifest = semanticManifest(entries);
     const store = await this.#open();
     await store.update({ collections: ["oh"] });
     await store.embed({ collection: "oh", model: OH_EMBEDDING_PROFILE_V1.model });
+    const manifestPath = join(this.#cacheDirectory, "manifest.json");
+    const temporaryManifest = `${manifestPath}.${process.pid}.tmp`;
+    await writeFile(temporaryManifest, canonicalJson(nextManifest), { encoding: "utf8", mode: 0o600 });
+    await rename(temporaryManifest, manifestPath);
+    this.#manifest = nextManifest;
     return { indexed: records.length, v: 1 };
   }
 
-  async search(query: string, limit: number, authority: OhSqliteStore): Promise<readonly OhSemanticSearchResultV1[]> {
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new RangeError("Semantic limit must be 1 through 100.");
+  search(query: string, limit: number, authority: OhSqliteStore): Promise<readonly OhSemanticSearchResultV1[]> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      return Promise.reject(new RangeError("Semantic limit must be 1 through 100."));
+    }
+    if (this.#closed) return Promise.reject(new Error("The semantic backend is closed."));
+    const operation = this.#searchSnapshot(query, limit, authority);
+    this.#activeSearches.add(operation);
+    void operation.then(
+      () => { this.#activeSearches.delete(operation); },
+      () => { this.#activeSearches.delete(operation); },
+    );
+    return operation;
+  }
+
+  async #searchSnapshot(query: string, limit: number,
+    authority: OhSqliteStore): Promise<readonly OhSemanticSearchResultV1[]> {
     const store = await this.#open();
-    const results = await store.searchVector(query, { collection: "oh", limit: Math.min(100, limit * 3) });
+    const manifest = this.#manifest;
+    const results = parseQmdVectorResults(await store.searchVector(query,
+      { collection: "oh", limit: Math.min(100, limit * 3) }));
     const output: OhSemanticSearchResultV1[] = [];
     const seen = new Set<string>();
     for (const result of results) {
-      const filename = qmdResultFilename(result.file);
-      if (filename === null) continue;
-      const entry = this.#manifest.entries[filename];
-      if (entry === undefined || seen.has(entry.key) || !Number.isFinite(result.score)
-        || result.score < 0 || result.score > 1) continue;
+      const entry = manifest.entries[result.filename];
+      if (entry === undefined || result.title !== entry.key || seen.has(entry.key)) continue;
       const current = authority.get(entry.key);
       if (current === null || current.recordSha256 !== entry.recordSha256) continue;
+      const expectedDocument = recordDocument(current);
+      if (result.body !== expectedDocument || result.hash !== sha256Hex(expectedDocument)) continue;
       seen.add(entry.key);
       output.push({ key: entry.key, recordSha256: entry.recordSha256, score: result.score, v: 1 });
       if (output.length === limit) break;
@@ -220,9 +311,23 @@ export class OhQmdSemanticBackendV1 implements OhSemanticSearchBackendV1 {
     return output;
   }
 
-  async close(): Promise<void> {
-    if (this.#closed) return;
+  async #finishClose(): Promise<void> {
+    await this.#indexQueue;
+    await Promise.allSettled([...this.#activeSearches]);
+    if (this.#store === null) return;
+    try {
+      const store = await this.#store;
+      await this.#closeStore(store);
+    } catch {
+      // Initialization failures are not close failures. A close initiated by
+      // late initialization is shared separately and must still be observed.
+      if (this.#storeClose !== null) await this.#storeClose;
+    }
+  }
+
+  close(): Promise<void> {
     this.#closed = true;
-    if (this.#store !== null) await (await this.#store).close();
+    this.#closure ??= this.#finishClose();
+    return this.#closure;
   }
 }

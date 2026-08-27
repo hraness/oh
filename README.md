@@ -11,10 +11,10 @@ indexes derived and replaceable.
 ## Install
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required. Install
-the initial immutable release directly from GitHub:
+the current immutable release directly from GitHub:
 
 ```sh
-bun add --global github:hraness/oh#v0.1.0
+bun add --global github:hraness/oh#v0.1.1
 oh --help
 ```
 
@@ -23,7 +23,7 @@ For a project dependency, pin the same release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "github:hraness/oh#v0.1.0"
+    "@hraness/oh": "github:hraness/oh#v0.1.1"
   }
 }
 ```
@@ -194,7 +194,7 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install hraness/oh and its Oh Agent Skill from the immutable v0.1.0 tag at
+Install hraness/oh and its Oh Agent Skill from the immutable v0.1.1 tag at
 https://github.com/hraness/oh. Verify the CLI with `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

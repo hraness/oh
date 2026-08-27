@@ -30,7 +30,7 @@ oh --help
 oh version
 ```
 
-The supported CLI is `@hraness/oh@0.1.0` from the immutable `v0.1.0` GitHub
+The supported CLI is `@hraness/oh@0.1.1` from the immutable `v0.1.1` GitHub
 tag. It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 

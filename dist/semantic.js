@@ -1,7 +1,7 @@
 // @bun
 // src/semantic.ts
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from "fs/promises";
-import { basename, join, resolve } from "path";
+import { join, resolve } from "path";
 
 // src/canonical.ts
 import { createHash, randomBytes } from "crypto";
@@ -181,6 +181,234 @@ function sortUnique(values, key) {
   return sorted;
 }
 
+// src/graph.ts
+var OH_GRAPH_FORMAT_VERSION_V1 = 1;
+var OH_GRAPH_LIMITS_V1 = Object.freeze({
+  changesPerOperation: 8192,
+  dependenciesPerRecord: 4096,
+  recordBytes: 1024 * 1024,
+  recordsPerSnapshot: 65536
+});
+var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
+  "activity",
+  "assertion",
+  "context",
+  "dependency-manifest",
+  "edition",
+  "entity",
+  "evidence",
+  "identity-operation",
+  "inquiry",
+  "inquiry-event",
+  "review-decision",
+  "rights-decision",
+  "schema",
+  "shape",
+  "statement",
+  "type-membership",
+  "view",
+  "vocabulary"
+];
+function recordKey(value) {
+  return typeof value === "string" && value.length <= 512 && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
+}
+function createKnowledgeGraphRecordV1(input) {
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["dependencies", "key", "kind", "v", "value"]) || input.v !== 1 || !Array.isArray(input.dependencies))
+    throw new TypeError("Invalid graph record input.");
+  const key = recordKey(input.key);
+  const kind = OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.find((candidate) => candidate === input.kind);
+  if (key === null || kind === undefined || input.dependencies.length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord)
+    throw new TypeError("Invalid graph record identity.");
+  const dependencies = input.dependencies.map(recordKey);
+  if (dependencies.some((dependency) => dependency === null) || !orderedUnique(dependencies, String) || dependencies.includes(key)) {
+    throw new TypeError("Graph dependencies must be ordered, unique, and non-reflexive.");
+  }
+  const valueJson = canonicalJson(input.value);
+  if (Buffer.byteLength(valueJson, "utf8") > OH_GRAPH_LIMITS_V1.recordBytes) {
+    throw new RangeError("Graph record value exceeds its canonical byte limit.");
+  }
+  const payload = { dependencies, key, kind, v: 1, value: input.value };
+  return { ...payload, recordSha256: canonicalSha256(payload) };
+}
+function parseKnowledgeGraphRecordV1(value) {
+  if (!isPlainRecord(value) || !Object.hasOwn(value, "recordSha256"))
+    return null;
+  const recordSha256 = parseSha256Hex(value.recordSha256);
+  const { recordSha256: _digest, ...input } = value;
+  try {
+    const created = createKnowledgeGraphRecordV1(input);
+    return recordSha256 !== null && created.recordSha256 === recordSha256 ? { ...created, recordSha256 } : null;
+  } catch {
+    return null;
+  }
+}
+function knowledgeGraphRecordRefV1(record) {
+  return {
+    dependencies: record.dependencies,
+    key: record.key,
+    kind: record.kind,
+    sha256: record.recordSha256,
+    v: 1
+  };
+}
+function changeKey(change) {
+  return change.kind === "put" ? change.record.key : change.key;
+}
+function canonicalKnowledgeGraphChangesV1(changes) {
+  const normalized = [];
+  for (const change of changes) {
+    if (!isPlainRecord(change) || change.v !== 1)
+      throw new TypeError("Invalid graph change.");
+    if (change.kind === "put") {
+      const record = parseKnowledgeGraphRecordV1(change.record);
+      if (record === null)
+        throw new TypeError("Invalid graph record in change.");
+      normalized.push({ kind: "put", record, v: 1 });
+    } else if (change.kind === "tombstone") {
+      const key = recordKey(change.key);
+      const priorSha256 = parseSha256Hex(change.priorSha256);
+      if (key === null || priorSha256 === null)
+        throw new TypeError("Invalid graph tombstone.");
+      normalized.push({ key, kind: "tombstone", priorSha256, v: 1 });
+    } else
+      throw new TypeError("Unknown graph change kind.");
+  }
+  return sortUnique(normalized, changeKey);
+}
+function graphRevisionSha256V1(input) {
+  const changes = canonicalKnowledgeGraphChangesV1(input.changes);
+  const operationId = safeCode(input.operationId);
+  const parentGraphRevisionSha256 = input.parentGraphRevisionSha256 === null ? null : parseSha256Hex(input.parentGraphRevisionSha256);
+  const recordsSha256 = parseSha256Hex(input.recordsSha256);
+  const revision = Number.isSafeInteger(input.revision) && input.revision > 0 ? input.revision : null;
+  if (changes.length === 0 || changes.length > OH_GRAPH_LIMITS_V1.changesPerOperation || operationId === null || recordsSha256 === null || revision === null || input.parentGraphRevisionSha256 !== null && parentGraphRevisionSha256 === null || revision === 1 !== (parentGraphRevisionSha256 === null)) {
+    throw new TypeError("Invalid graph revision digest input.");
+  }
+  return canonicalSha256({ changes, operationId, parentGraphRevisionSha256, recordsSha256, revision, v: 1 });
+}
+function createKnowledgeGraphRevisionV1(input) {
+  if (input.parent !== null && parseKnowledgeGraphRevisionV1(input.parent) === null) {
+    throw new TypeError("Invalid parent graph revision.");
+  }
+  const operationId = safeCode(input.operationId);
+  const changes = canonicalKnowledgeGraphChangesV1(input.changes);
+  if (operationId === null || changes.length === 0 || changes.length > OH_GRAPH_LIMITS_V1.changesPerOperation)
+    throw new TypeError("Invalid graph revision.");
+  const byKey = new Map((input.parent?.recordRefs ?? []).map((ref) => [ref.key, ref]));
+  for (const change of changes) {
+    if (change.kind === "put") {
+      for (const dependency of change.record.dependencies) {
+        if (!byKey.has(dependency) && !changes.some((candidate) => candidate.kind === "put" && candidate.record.key === dependency)) {
+          throw new TypeError(`Missing graph dependency: ${dependency}`);
+        }
+      }
+      byKey.set(change.record.key, knowledgeGraphRecordRefV1(change.record));
+    } else {
+      const prior = byKey.get(change.key);
+      if (prior === undefined || prior.sha256 !== change.priorSha256)
+        throw new TypeError("Tombstone prior digest does not match.");
+      byKey.delete(change.key);
+    }
+  }
+  if (byKey.size > OH_GRAPH_LIMITS_V1.recordsPerSnapshot) {
+    throw new RangeError("Graph revision exceeds its record snapshot limit.");
+  }
+  for (const ref of byKey.values()) {
+    if (ref.dependencies.some((dependency) => !byKey.has(dependency))) {
+      throw new TypeError(`Missing graph dependency after revision: ${ref.key}`);
+    }
+  }
+  const recordRefs = [...byKey.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0);
+  const recordsSha256 = canonicalSha256(recordRefs);
+  const payload = {
+    changes,
+    operationId,
+    parentGraphRevisionSha256: input.parent?.graphRevisionSha256 ?? null,
+    recordRefs,
+    recordsSha256,
+    revision: (input.parent?.revision ?? 0) + 1,
+    v: 1
+  };
+  return { ...payload, graphRevisionSha256: graphRevisionSha256V1(payload) };
+}
+function parseKnowledgeGraphRevisionV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, [
+    "changes",
+    "graphRevisionSha256",
+    "operationId",
+    "parentGraphRevisionSha256",
+    "recordRefs",
+    "recordsSha256",
+    "revision",
+    "v"
+  ]) || value.v !== 1 || !Array.isArray(value.changes) || !Array.isArray(value.recordRefs) || value.recordRefs.length > OH_GRAPH_LIMITS_V1.recordsPerSnapshot)
+    return null;
+  const graphRevisionSha256 = parseSha256Hex(value.graphRevisionSha256);
+  const recordsSha256 = parseSha256Hex(value.recordsSha256);
+  const parentGraphRevisionSha256 = value.parentGraphRevisionSha256 === null ? null : parseSha256Hex(value.parentGraphRevisionSha256);
+  const operationId = safeCode(value.operationId);
+  const revision = Number.isSafeInteger(value.revision) && value.revision > 0 ? value.revision : null;
+  let changes;
+  try {
+    changes = canonicalKnowledgeGraphChangesV1(value.changes);
+  } catch {
+    return null;
+  }
+  const refs = [];
+  for (const item of value.recordRefs) {
+    if (!isPlainRecord(item) || !hasExactKeys(item, ["dependencies", "key", "kind", "sha256", "v"]) || item.v !== 1 || !Array.isArray(item.dependencies))
+      return null;
+    const dependencies = item.dependencies.map(recordKey);
+    const key = recordKey(item.key);
+    const kind = OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.find((candidate) => candidate === item.kind);
+    const sha256 = parseSha256Hex(item.sha256);
+    if (key === null || kind === undefined || sha256 === null || dependencies.some((dependency) => dependency === null) || dependencies.length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord || !orderedUnique(dependencies, String) || dependencies.includes(key))
+      return null;
+    refs.push({ dependencies, key, kind, sha256, v: 1 });
+  }
+  if (graphRevisionSha256 === null || recordsSha256 === null || operationId === null || revision === null || value.parentGraphRevisionSha256 !== null && parentGraphRevisionSha256 === null || !orderedUnique(refs, (ref) => ref.key) || canonicalSha256(refs) !== recordsSha256)
+    return null;
+  const keys = new Set(refs.map((ref) => ref.key));
+  if (refs.some((ref) => ref.dependencies.some((dependency) => !keys.has(dependency))))
+    return null;
+  const payload = {
+    changes,
+    operationId,
+    parentGraphRevisionSha256,
+    recordRefs: refs,
+    recordsSha256,
+    revision,
+    v: 1
+  };
+  try {
+    return graphRevisionSha256V1(payload) === graphRevisionSha256 ? { ...payload, graphRevisionSha256 } : null;
+  } catch {
+    return null;
+  }
+}
+function reduceKnowledgeGraphRevisionsV1(revisions) {
+  if (revisions.length === 0 || revisions.length > 65536)
+    return null;
+  const ordered = [...revisions].sort((left, right) => left.revision - right.revision);
+  let parent = null;
+  const operationIds = new Set;
+  for (const candidate of ordered) {
+    const current = parseKnowledgeGraphRevisionV1(candidate);
+    if (current === null || current.revision !== (parent?.revision ?? 0) + 1 || current.parentGraphRevisionSha256 !== (parent?.graphRevisionSha256 ?? null) || operationIds.has(current.operationId))
+      return null;
+    try {
+      const rebuilt = createKnowledgeGraphRevisionV1({ changes: current.changes, operationId: current.operationId, parent });
+      if (rebuilt.graphRevisionSha256 !== current.graphRevisionSha256)
+        return null;
+    } catch {
+      return null;
+    }
+    operationIds.add(current.operationId);
+    parent = current;
+  }
+  return parent;
+}
+
 // src/semantic.ts
 var OH_EMBEDDING_PROFILE_V1 = Object.freeze({
   dimensions: 768,
@@ -234,30 +462,49 @@ kind: ${record.kind}
 ${canonicalJson(record.value)}
 `;
 }
-function qmdResultFilename(file) {
-  if (typeof file !== "string")
-    return null;
-  if (file.startsWith("qmd://")) {
-    let url;
-    try {
-      url = new URL(file);
-    } catch {
-      return null;
-    }
-    if (url.protocol !== "qmd:" || url.hostname !== "oh" || url.search !== "" || url.hash !== "")
-      return null;
-    let path;
-    try {
-      path = decodeURIComponent(url.pathname);
-    } catch {
-      return null;
-    }
-    if (!/^\/[a-f0-9]{64}\.md$/u.test(path))
-      return null;
-    return path.slice(1);
+var QMD_VECTOR_RESULT_KEYS = [
+  "body",
+  "bodyLength",
+  "chunkPos",
+  "collectionName",
+  "context",
+  "displayPath",
+  "docid",
+  "filepath",
+  "hash",
+  "modifiedAt",
+  "score",
+  "source",
+  "title"
+];
+function semanticManifest(entries) {
+  const immutableEntries = {};
+  for (const [filename, entry] of Object.entries(entries)) {
+    immutableEntries[filename] = Object.freeze({ ...entry });
   }
-  const filename = basename(file);
-  return /^[a-f0-9]{64}\.md$/u.test(filename) ? filename : null;
+  return Object.freeze({
+    entries: Object.freeze(immutableEntries),
+    profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1),
+    v: 1
+  });
+}
+function parseQmdVectorResult(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, QMD_VECTOR_RESULT_KEYS))
+    return null;
+  const pathMatch = typeof value.filepath === "string" ? /^qmd:\/\/oh\/([a-f0-9]{64}\.md)$/u.exec(value.filepath) : null;
+  const filename = pathMatch?.[1];
+  const hash = parseSha256Hex(value.hash);
+  const title = safeCode(value.title, 512);
+  if (filename === undefined || value.displayPath !== `oh/${filename}` || value.collectionName !== "oh" || value.source !== "vec" || value.context !== null || value.modifiedAt !== "" || hash === null || value.docid !== hash.slice(0, 6) || title === null || typeof value.body !== "string" || typeof value.bodyLength !== "number" || !Number.isSafeInteger(value.bodyLength) || value.bodyLength < 0 || value.bodyLength > OH_GRAPH_LIMITS_V1.recordBytes + 4096 || value.body.length !== value.bodyLength || hash !== sha256Hex(value.body) || typeof value.chunkPos !== "number" || !Number.isSafeInteger(value.chunkPos) || value.chunkPos < 0 || typeof value.score !== "number" || !Number.isFinite(value.score) || value.score < 0 || value.score > 1) {
+    return null;
+  }
+  return { body: value.body, filename, hash, score: value.score, title };
+}
+function parseQmdVectorResults(value) {
+  if (!Array.isArray(value) || value.length > 100) {
+    throw new Error("QMD returned an invalid vector result batch.");
+  }
+  return value.map(parseQmdVectorResult).filter((result) => result !== null);
 }
 
 class OhQmdSemanticBackendV1 {
@@ -265,9 +512,13 @@ class OhQmdSemanticBackendV1 {
   #cacheDirectory;
   #databasePath;
   #factory;
-  #manifest = { entries: {}, profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1), v: 1 };
-  #manifestLoaded = false;
+  #manifest = semanticManifest({});
+  #manifestLoad = null;
   #store = null;
+  #storeClose = null;
+  #closure = null;
+  #indexQueue = Promise.resolve();
+  #activeSearches = new Set;
   #closed = false;
   constructor(options) {
     this.#cacheDirectory = resolve(options.cacheDirectory);
@@ -277,22 +528,42 @@ class OhQmdSemanticBackendV1 {
   async#open() {
     if (this.#closed)
       throw new Error("The semantic backend is closed.");
+    this.#store ??= this.#initializeStore();
+    const store = await this.#store;
+    if (this.#closed) {
+      await this.#closeStore(store);
+      throw new Error("The semantic backend is closed.");
+    }
+    return store;
+  }
+  async#initializeStore() {
     const documents = join(this.#cacheDirectory, "documents");
     await mkdir(documents, { recursive: true });
     await this.#loadManifest();
-    this.#store ??= this.#factory({
+    if (this.#closed)
+      throw new Error("The semantic backend is closed.");
+    const store = await this.#factory({
       dbPath: this.#databasePath,
       config: {
         collections: { oh: { path: documents, pattern: "*.md" } },
         models: { embed: OH_EMBEDDING_PROFILE_V1.model }
       }
     });
-    return this.#store;
+    if (this.#closed) {
+      await this.#closeStore(store);
+      throw new Error("The semantic backend is closed.");
+    }
+    return store;
   }
-  async#loadManifest() {
-    if (this.#manifestLoaded)
-      return;
-    this.#manifestLoaded = true;
+  #closeStore(store) {
+    this.#storeClose ??= Promise.resolve().then(() => store.close());
+    return this.#storeClose;
+  }
+  #loadManifest() {
+    this.#manifestLoad ??= this.#readManifest();
+    return this.#manifestLoad;
+  }
+  async#readManifest() {
     let text;
     try {
       text = await readFile(join(this.#cacheDirectory, "manifest.json"), "utf8");
@@ -320,13 +591,29 @@ class OhQmdSemanticBackendV1 {
       }
       entries[filename] = { key, recordSha256 };
     }
-    this.#manifest = { entries, profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1), v: 1 };
+    this.#manifest = semanticManifest(entries);
   }
-  async index(records) {
-    if (records.length > 65536)
-      throw new RangeError("A semantic snapshot may contain at most 65,536 records.");
+  index(records) {
+    if (records.length > 65536) {
+      return Promise.reject(new RangeError("A semantic snapshot may contain at most 65,536 records."));
+    }
+    if (this.#closed)
+      return Promise.reject(new Error("The semantic backend is closed."));
+    const snapshot = [...records];
+    const operation = this.#indexQueue.then(() => this.#indexSnapshot(snapshot));
+    this.#indexQueue = operation.then(() => {
+      return;
+    }, () => {
+      return;
+    });
+    return operation;
+  }
+  async#indexSnapshot(records) {
+    if (this.#closed)
+      throw new Error("The semantic backend is closed.");
     const documents = join(this.#cacheDirectory, "documents");
     await mkdir(documents, { recursive: true });
+    await this.#loadManifest();
     const entries = {};
     for (const record of records) {
       const filename = `${sha256Hex(record.key)}.md`;
@@ -341,33 +628,47 @@ class OhQmdSemanticBackendV1 {
       if (/^[a-f0-9]{64}\.md$/u.test(filename) && !retained.has(filename))
         await unlink(join(documents, filename));
     }
-    this.#manifest = { entries, profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1), v: 1 };
-    this.#manifestLoaded = true;
-    const manifestPath = join(this.#cacheDirectory, "manifest.json");
-    const temporaryManifest = `${manifestPath}.${process.pid}.tmp`;
-    await writeFile(temporaryManifest, canonicalJson(this.#manifest), { encoding: "utf8", mode: 384 });
-    await rename(temporaryManifest, manifestPath);
+    const nextManifest = semanticManifest(entries);
     const store = await this.#open();
     await store.update({ collections: ["oh"] });
     await store.embed({ collection: "oh", model: OH_EMBEDDING_PROFILE_V1.model });
+    const manifestPath = join(this.#cacheDirectory, "manifest.json");
+    const temporaryManifest = `${manifestPath}.${process.pid}.tmp`;
+    await writeFile(temporaryManifest, canonicalJson(nextManifest), { encoding: "utf8", mode: 384 });
+    await rename(temporaryManifest, manifestPath);
+    this.#manifest = nextManifest;
     return { indexed: records.length, v: 1 };
   }
-  async search(query, limit, authority) {
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
-      throw new RangeError("Semantic limit must be 1 through 100.");
+  search(query, limit, authority) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      return Promise.reject(new RangeError("Semantic limit must be 1 through 100."));
+    }
+    if (this.#closed)
+      return Promise.reject(new Error("The semantic backend is closed."));
+    const operation = this.#searchSnapshot(query, limit, authority);
+    this.#activeSearches.add(operation);
+    operation.then(() => {
+      this.#activeSearches.delete(operation);
+    }, () => {
+      this.#activeSearches.delete(operation);
+    });
+    return operation;
+  }
+  async#searchSnapshot(query, limit, authority) {
     const store = await this.#open();
-    const results = await store.searchVector(query, { collection: "oh", limit: Math.min(100, limit * 3) });
+    const manifest = this.#manifest;
+    const results = parseQmdVectorResults(await store.searchVector(query, { collection: "oh", limit: Math.min(100, limit * 3) }));
     const output = [];
     const seen = new Set;
     for (const result of results) {
-      const filename = qmdResultFilename(result.file);
-      if (filename === null)
-        continue;
-      const entry = this.#manifest.entries[filename];
-      if (entry === undefined || seen.has(entry.key) || !Number.isFinite(result.score) || result.score < 0 || result.score > 1)
+      const entry = manifest.entries[result.filename];
+      if (entry === undefined || result.title !== entry.key || seen.has(entry.key))
         continue;
       const current = authority.get(entry.key);
       if (current === null || current.recordSha256 !== entry.recordSha256)
+        continue;
+      const expectedDocument = recordDocument(current);
+      if (result.body !== expectedDocument || result.hash !== sha256Hex(expectedDocument))
         continue;
       seen.add(entry.key);
       output.push({ key: entry.key, recordSha256: entry.recordSha256, score: result.score, v: 1 });
@@ -376,12 +677,23 @@ class OhQmdSemanticBackendV1 {
     }
     return output;
   }
-  async close() {
-    if (this.#closed)
+  async#finishClose() {
+    await this.#indexQueue;
+    await Promise.allSettled([...this.#activeSearches]);
+    if (this.#store === null)
       return;
+    try {
+      const store = await this.#store;
+      await this.#closeStore(store);
+    } catch {
+      if (this.#storeClose !== null)
+        await this.#storeClose;
+    }
+  }
+  close() {
     this.#closed = true;
-    if (this.#store !== null)
-      await (await this.#store).close();
+    this.#closure ??= this.#finishClose();
+    return this.#closure;
   }
 }
 export {
