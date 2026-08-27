@@ -1,6 +1,8 @@
 @import "tailwindcss";
+@import "@hraness/design-kit/fonts.css";
 
 :root {
+  --font-text: "Nebula Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ink: #13211b;
   --muted: #5c6962;
   --paper: #f3f2eb;
@@ -16,7 +18,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-text);
   text-rendering: optimizeLegibility;
 }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.22em; }

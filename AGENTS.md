@@ -12,6 +12,7 @@
 # Guidelines
 
 - Use Bun 1.3.14 for installs, scripts, tests, builds, and package checks. Keep the base package free of required runtime dependencies.
+- Use Nebula Sans for the site's ordinary proportional interface text through the pinned Hraness design-kit font release. Preserve explicit Georgia display type and true monospace code and data surfaces.
 - Treat this repository as the complete public project. Use only its public identities, paths, commands, examples, and contributor workflow.
 - Preserve canonical JSON, digest preimages, V1 identifier grammars, record kinds, limits, operation ordering, protocol literals, and applied SQLite migration bytes. Version a wire change instead of mutating an existing contract.
 - Parse external values from `unknown`, require exact keys where the contract does, reject noncanonical values, and enforce byte, item, recursion, path, and response limits before expensive work.
