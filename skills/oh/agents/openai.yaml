@@ -1,0 +1,4 @@
+interface:
+  display_name: "Oh"
+  short_description: "Operate local agentic research records"
+  default_prompt: "Use $oh to inspect and safely update my local research space."

@@ -1,0 +1,27 @@
+{
+  "current": "v1",
+  "homepage": "https://oh.computer",
+  "package": "@hraness/oh",
+  "repository": "https://github.com/hraness/oh",
+  "v": 1,
+  "versions": [
+    {
+      "contract": "./v1/contract.json",
+      "contractId": "oh.ontology.v1",
+      "contractSha256": "e53ae573c2af417082be9f554d0f6f3e317f054daf745181f462608e3f622594",
+      "embeddingProfile": "./v1/embedding-profile.json",
+      "id": "v1",
+      "ontology": "./v1/ontology.json",
+      "schemas": [
+        "./v1/contract.schema.json",
+        "./v1/record.schema.json",
+        "./v1/schema-revision.schema.json",
+        "./v1/operation.schema.json",
+        "./v1/sync-bundle.schema.json"
+      ],
+      "specification": "./v1/ontology.md",
+      "status": "current",
+      "v": 1
+    }
+  ]
+}

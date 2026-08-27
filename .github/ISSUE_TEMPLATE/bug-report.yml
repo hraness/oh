@@ -1,0 +1,62 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Oh
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, private research records, or an unpatched vulnerability. Use the private security advisory link for security reports.
+  - type: input
+    id: version
+    attributes:
+      label: Oh version
+      description: Paste the output of `oh version`.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the Bun version and operating system.
+      placeholder: Bun 1.3.14 on macOS 15.6
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest commands or public fixture that reproduce the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized output and exit status. Do not attach a sensitive database.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Replay verification
+      description: If safe, include the sanitized result of `oh verify`.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I reproduced this on the latest stable release.
+          required: true
+        - label: This report contains no secrets or private research data.
+          required: true
+        - label: This is not an unpatched security vulnerability.
+          required: true

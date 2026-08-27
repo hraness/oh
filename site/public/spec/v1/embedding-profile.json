@@ -1,0 +1,11 @@
+{
+  "dimensions": 768,
+  "distance": "cosine",
+  "documentFormat": "title: {title} | text: {content}",
+  "documentation": "https://ai.google.dev/gemma/docs/embeddinggemma",
+  "engine": "@tobilu/qmd@2.5.3",
+  "model": "hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf",
+  "normalization": "l2",
+  "queryFormat": "task: search result | query: {query}",
+  "v": 1
+}

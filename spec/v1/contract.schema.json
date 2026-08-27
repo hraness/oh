@@ -1,0 +1,58 @@
+{
+  "$id": "https://oh.computer/spec/v1/contract.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "contractId": {
+      "const": "oh.ontology.v1"
+    },
+    "contractSha256": {
+      "const": "e53ae573c2af417082be9f554d0f6f3e317f054daf745181f462608e3f622594"
+    },
+    "graphFormatVersion": {
+      "const": 1
+    },
+    "ontologyVersion": {
+      "const": "1.0.0"
+    },
+    "recordKinds": {
+      "const": [
+        "activity",
+        "assertion",
+        "context",
+        "dependency-manifest",
+        "edition",
+        "entity",
+        "evidence",
+        "identity-operation",
+        "inquiry",
+        "inquiry-event",
+        "review-decision",
+        "rights-decision",
+        "schema",
+        "shape",
+        "statement",
+        "type-membership",
+        "view",
+        "vocabulary"
+      ]
+    },
+    "schemaFormatVersion": {
+      "const": 1
+    },
+    "v": {
+      "const": 1
+    }
+  },
+  "required": [
+    "contractId",
+    "contractSha256",
+    "graphFormatVersion",
+    "ontologyVersion",
+    "recordKinds",
+    "schemaFormatVersion",
+    "v"
+  ],
+  "title": "Oh contract manifest V1",
+  "type": "object"
+}

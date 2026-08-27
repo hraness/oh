@@ -1,0 +1,28 @@
+{
+  "contractId": "oh.ontology.v1",
+  "contractSha256": "e53ae573c2af417082be9f554d0f6f3e317f054daf745181f462608e3f622594",
+  "graphFormatVersion": 1,
+  "ontologyVersion": "1.0.0",
+  "recordKinds": [
+    "activity",
+    "assertion",
+    "context",
+    "dependency-manifest",
+    "edition",
+    "entity",
+    "evidence",
+    "identity-operation",
+    "inquiry",
+    "inquiry-event",
+    "review-decision",
+    "rights-decision",
+    "schema",
+    "shape",
+    "statement",
+    "type-membership",
+    "view",
+    "vocabulary"
+  ],
+  "schemaFormatVersion": 1,
+  "v": 1
+}

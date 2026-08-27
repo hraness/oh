@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "change": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "put"
+            },
+            "record": {
+              "$ref": "./record.schema.json"
+            },
+            "v": {
+              "const": 1
+            }
+          },
+          "required": [
+            "kind",
+            "record",
+            "v"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/recordKey"
+            },
+            "kind": {
+              "const": "tombstone"
+            },
+            "priorSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "v": {
+              "const": 1
+            }
+          },
+          "required": [
+            "key",
+            "kind",
+            "priorSha256",
+            "v"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "recordKey": {
+      "maxLength": 512,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "safeCode": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/operation.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Runtime conformance additionally requires canonical ordered unique changes, a contiguous parent chain, exact graph and record-set digests, the 64 MiB byte bound, and a recomputed operationSha256.",
+  "additionalProperties": false,
+  "properties": {
+    "actorId": {
+      "$ref": "#/$defs/safeCode"
+    },
+    "changes": {
+      "items": {
+        "$ref": "#/$defs/change"
+      },
+      "maxItems": 8192,
+      "minItems": 1,
+      "type": "array"
+    },
+    "contractId": {
+      "const": "oh.ontology.v1"
+    },
+    "graphRevisionSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "instant": {
+      "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z$",
+      "type": "string"
+    },
+    "operationId": {
+      "$ref": "#/$defs/safeCode"
+    },
+    "operationSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "parentOperationSha256": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/sha256"
+        }
+      ]
+    },
+    "recordsSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sequence": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "spaceId": {
+      "$ref": "#/$defs/safeCode"
+    },
+    "v": {
+      "const": 1
+    }
+  },
+  "required": [
+    "actorId",
+    "changes",
+    "contractId",
+    "graphRevisionSha256",
+    "instant",
+    "operationId",
+    "operationSha256",
+    "parentOperationSha256",
+    "recordsSha256",
+    "sequence",
+    "spaceId",
+    "v"
+  ],
+  "title": "Oh operation V1",
+  "type": "object"
+}

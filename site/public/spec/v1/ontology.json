@@ -1,0 +1,55 @@
+{
+  "contractId": "oh.ontology.v1",
+  "idPatterns": {
+    "assertion": "^kast_[a-z0-9]{24}$",
+    "entity": "^kent_[a-z0-9]{24}$",
+    "evidence": "^kevd_[a-z0-9]{24}$",
+    "inquiry": "^kinq_[a-z0-9]{24}$"
+  },
+  "kernelConcepts": [
+    {
+      "code": "entity",
+      "description": "A stable identity anchor for something that can be referred to.",
+      "label": "Entity"
+    },
+    {
+      "code": "statement",
+      "description": "An immutable proposition with a subject, predicate, object, and qualifiers.",
+      "label": "Statement"
+    },
+    {
+      "code": "assertion",
+      "description": "An attributable stance toward a statement.",
+      "label": "Assertion"
+    },
+    {
+      "code": "evidence",
+      "description": "A typed account of how an observation bears on an assertion.",
+      "label": "Evidence"
+    },
+    {
+      "code": "context",
+      "description": "The scenario and dimensions in which knowledge applies.",
+      "label": "Context"
+    },
+    {
+      "code": "inquiry",
+      "description": "A question and its durable investigation trail.",
+      "label": "Inquiry"
+    },
+    {
+      "code": "projection",
+      "description": "A reproducible view derived from exact knowledge.",
+      "label": "Projection"
+    }
+  ],
+  "limits": {
+    "dimensions": 64,
+    "listValues": 256,
+    "qualifiers": 128,
+    "statementBytes": 262144,
+    "textBytes": 65536
+  },
+  "ontologyVersion": "1.0.0",
+  "v": 1
+}

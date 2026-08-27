@@ -1,0 +1,178 @@
+{
+  "$defs": {
+    "jsonValue": {
+      "oneOf": [
+        {
+          "type": [
+            "null",
+            "boolean",
+            "number",
+            "string"
+          ]
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "localizedText": {
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "maxLength": 64,
+          "pattern": "^(?:und|[a-z]{2,3}(?:-[a-z0-9]{2,8})*)$",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "language",
+        "text",
+        "v"
+      ],
+      "type": "object"
+    },
+    "safeCode": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/schema-revision.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Runtime conformance additionally requires NFC bounded text, canonical ordering, unique localized values, canonical body JSON, and a recomputed schemaSha256.",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "previousSchemaSha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "revision": {
+            "const": 1
+          }
+        },
+        "required": [
+          "revision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "compatibility": {
+            "const": "additive"
+          },
+          "previousSchemaSha256": {
+            "const": null
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "body": {
+      "additionalProperties": {
+        "$ref": "#/$defs/jsonValue"
+      },
+      "type": "object"
+    },
+    "code": {
+      "$ref": "#/$defs/safeCode"
+    },
+    "compatibility": {
+      "enum": [
+        "additive",
+        "breaking"
+      ]
+    },
+    "description": {
+      "items": {
+        "$ref": "#/$defs/localizedText"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "kind": {
+      "enum": [
+        "concept",
+        "mapping",
+        "predicate",
+        "shape",
+        "unit",
+        "vocabulary"
+      ]
+    },
+    "labels": {
+      "items": {
+        "$ref": "#/$defs/localizedText"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "namespace": {
+      "$ref": "#/$defs/safeCode"
+    },
+    "previousSchemaSha256": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/sha256"
+        }
+      ]
+    },
+    "revision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schemaSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "v": {
+      "const": 1
+    }
+  },
+  "required": [
+    "body",
+    "code",
+    "compatibility",
+    "description",
+    "kind",
+    "labels",
+    "namespace",
+    "previousSchemaSha256",
+    "revision",
+    "schemaSha256",
+    "v"
+  ],
+  "title": "Oh knowledge schema revision V1",
+  "type": "object"
+}

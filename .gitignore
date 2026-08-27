@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+site/node_modules/
+site/.next/
+site/.vinext/
+site/out/
+site/dist/
+coverage/
+.oh/
+.cache/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

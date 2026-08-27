@@ -1,0 +1,95 @@
+{
+  "$defs": {
+    "jsonValue": {
+      "oneOf": [
+        {
+          "type": [
+            "null",
+            "boolean",
+            "number",
+            "string"
+          ]
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "recordKey": {
+      "maxLength": 512,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/record.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Runtime conformance additionally requires canonical UTF-8 JSON, strictly ordered unique dependencies, a non-reflexive dependency set, the 1 MiB value bound, and a recomputed recordSha256.",
+  "additionalProperties": false,
+  "properties": {
+    "dependencies": {
+      "items": {
+        "$ref": "#/$defs/recordKey"
+      },
+      "maxItems": 4096,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "key": {
+      "$ref": "#/$defs/recordKey"
+    },
+    "kind": {
+      "enum": [
+        "activity",
+        "assertion",
+        "context",
+        "dependency-manifest",
+        "edition",
+        "entity",
+        "evidence",
+        "identity-operation",
+        "inquiry",
+        "inquiry-event",
+        "review-decision",
+        "rights-decision",
+        "schema",
+        "shape",
+        "statement",
+        "type-membership",
+        "view",
+        "vocabulary"
+      ]
+    },
+    "recordSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "v": {
+      "const": 1
+    },
+    "value": {
+      "$ref": "#/$defs/jsonValue"
+    }
+  },
+  "required": [
+    "dependencies",
+    "key",
+    "kind",
+    "recordSha256",
+    "v",
+    "value"
+  ],
+  "title": "Oh knowledge graph record V1",
+  "type": "object"
+}
