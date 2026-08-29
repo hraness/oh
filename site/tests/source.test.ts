@@ -7,6 +7,14 @@ const site = join(import.meta.dir, "..");
 const read = async (path: string): Promise<string> =>
   await readFile(join(site, path), "utf8");
 
+function githubHeadingFragment(heading: string): string {
+  return heading
+    .trim()
+    .toLocaleLowerCase("en-US")
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/gu, "-");
+}
+
 function record(value: unknown, label: string): Readonly<Record<string, unknown>> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new TypeError(`${label} must be an object.`);
@@ -128,6 +136,22 @@ describe("Oh site source contract", () => {
     );
     expect(home).toContain("Install and start");
     expect(home).toContain('className="text-action" href="/spec"');
+  });
+
+  test("links the install action to an existing README heading", async () => {
+    const [home, readme] = await Promise.all([
+      read("app/page.tsx"),
+      readFile(join(site, "..", "README.md"), "utf8"),
+    ]);
+    const installLink = home.match(
+      /href="https:\/\/github\.com\/hraness\/oh#([^"#]+)"/u,
+    );
+    const installFragment = installLink?.[1] ?? "";
+    const readmeFragments = [...readme.matchAll(/^#{1,6}\s+(.+?)\s*#*$/gmu)]
+      .map(([, heading]) => githubHeadingFragment(heading ?? ""));
+
+    expect(installFragment).toBe("install-and-first-run");
+    expect(readmeFragments).toContain(installFragment);
   });
 
   test("derives public contract identity, version, and status from mirrored data", async () => {
