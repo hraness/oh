@@ -1,5 +1,7 @@
 # open-source tools for agentic research
 
+[![skills.sh](https://skills.sh/b/hraness/oh)](https://skills.sh/hraness/oh)
+
 Oh is a local-first ontology kernel, SQLite store, CLI, TypeScript SDK, and
 Agent Skill for building durable, inspectable research graphs. It stores
 content-addressed records and an append-only operation log, checks every
