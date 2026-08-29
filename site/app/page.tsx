@@ -1,3 +1,5 @@
+import { AskAiAboutThis } from "@hraness/ui";
+
 import manifest from "../public/spec/manifest.json";
 
 const currentVersion = manifest.versions.find((version) => version.id === manifest.current);
@@ -111,6 +113,8 @@ $ oh verify --db research.db`}</code></pre>
           </div>
         </section>
       </main>
+
+      <AskAiAboutThis className="ask-ai" url="https://oh.computer" />
 
       <footer>
         <p>Oh is open source for researchers and the agents working beside them.</p>

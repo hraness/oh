@@ -21,6 +21,28 @@ function sha256(value: string): string {
 }
 
 describe("Oh site source contract", () => {
+  test("renders the shared Ask AI links for both canonical pages", async () => {
+    const [packageJson, home, specification, redirect] = await Promise.all([
+      read("package.json"),
+      read("app/page.tsx"),
+      read("app/spec/page.tsx"),
+      read("app/spec/v1/page.tsx"),
+    ]);
+
+    expect(packageJson).toContain(
+      '"@hraness/ui": "github:hraness/ui#v0.4.10"',
+    );
+    expect(home).toContain('import { AskAiAboutThis } from "@hraness/ui"');
+    expect(home).toContain(
+      '<AskAiAboutThis className="ask-ai" url="https://oh.computer" />',
+    );
+    expect(specification).toContain('import { AskAiAboutThis } from "@hraness/ui"');
+    expect(specification).toContain(
+      '<AskAiAboutThis className="ask-ai" url="https://oh.computer/spec" />',
+    );
+    expect(redirect).not.toContain("AskAiAboutThis");
+  });
+
   test("uses Nebula Sans for ordinary text while preserving serif and monospace roles", async () => {
     const [packageJson, globals] = await Promise.all([
       read("package.json"),
