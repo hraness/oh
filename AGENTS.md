@@ -5,6 +5,7 @@
 - `spec/` – versioned human and machine-readable ontology, wire, storage, sync, embedding, and migration contracts.
 - `skills/oh/` – installable Agent Skill for operating Oh from a coding-agent workflow.
 - `site/` – the public Next.js website for `https://oh.computer`, deployed from the existing Hraness Vercel project.
+- `.agents/skills/` – portable plan authoring, phased execution, implementation, and independent review workflows.
 - `.github/` – public contribution templates, read-only branch validation, dependency updates, and post-publication release verification.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` – public usage, project policy, threat model, and terms.
 - `package.json`, `tsconfig.json`, and `bun.lock` – package identity, exported surfaces, and frozen Bun toolchain.
