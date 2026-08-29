@@ -7,6 +7,13 @@ const site = join(import.meta.dir, "..");
 const read = async (path: string): Promise<string> =>
   await readFile(join(site, path), "utf8");
 
+function record(value: unknown, label: string): Readonly<Record<string, unknown>> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError(`${label} must be an object.`);
+  }
+  return value as Readonly<Record<string, unknown>>;
+}
+
 const prohibitedPublicIdentifierSha256 = new Set([
   "46248ac689828800502186d8753cc5717c5c2b47712e8158705a510dc892f00b",
   "763268b8dbdcf327570527acbf826901b855f9bb1921e7d92b3b69a3d69052b6",
@@ -129,28 +136,62 @@ describe("Oh site source contract", () => {
     expect(specification).toContain("contract.ontologyVersion");
   });
 
-  test("contains no private paths or unpublished identifiers and carries the Oh site identity", async () => {
-    const paths = [
+  test("contains no private paths or unpublished identifiers and uses the Vercel Next.js boundary", async () => {
+    const publicPaths = [
       "app/layout.tsx",
       "app/page.tsx",
       "app/spec/page.tsx",
-      "package.json",
       "public/spec/v1/migration.md",
-      "vite.config.ts",
     ];
-    const [packageJson, viteConfig, ...otherSources] = await Promise.all([
+    const providerBoundaryPaths = [
+      ".gitignore",
+      "bun.lock",
+      "next.config.ts",
+      "package.json",
+      "postcss.config.mjs",
+      "tsconfig.json",
+      "vercel.json",
+    ];
+    const [packageJsonSource, vercelConfigSource, repositoryIgnore, ...publicSources] =
+      await Promise.all([
       read("package.json"),
-      read("vite.config.ts"),
-      ...paths.filter((path) => path !== "package.json" && path !== "vite.config.ts").map(read),
+      read("vercel.json"),
+      readFile(join(site, "..", ".gitignore"), "utf8"),
+      ...publicPaths.map(read),
     ]);
-    const publicSource = [packageJson, viteConfig, ...otherSources].join("\n");
+    const packageJson = record(JSON.parse(packageJsonSource) as unknown, "package.json");
+    const scripts = record(packageJson.scripts, "package.json scripts");
+    const vercelConfig = JSON.parse(vercelConfigSource) as unknown;
+    const providerBoundary = (await Promise.all(providerBoundaryPaths.map(read))).join("\n");
+    const publicSource = [packageJsonSource, vercelConfigSource, ...publicSources].join("\n");
     const tokens = new Set(
       publicSource.toLocaleLowerCase("en-US").match(/[a-z][a-z0-9-]*/gu) ?? [],
     );
 
-    expect(packageJson).toContain('"name": "oh-site"');
-    expect(viteConfig).toContain("database_name: 'oh-local-d1'");
-    expect(viteConfig).toContain("bucket_name: 'oh-local-r2'");
+    expect(packageJson.name).toBe("oh-site");
+    expect(packageJson.packageManager).toBe("bun@1.3.14");
+    expect(packageJson.engines).toEqual({ node: "24.x" });
+    expect(scripts).toEqual({
+      build: "next build --webpack",
+      dev: "next dev --webpack",
+      lint: "eslint . --ignore-pattern .next",
+      postbuild: "bun test ./tests/runtime.test.ts",
+      prebuild: "bun run test",
+      start: "next start",
+      test: "bun test ./tests/source.test.ts",
+      typecheck: "tsc --noEmit",
+    });
+    expect(vercelConfig).toEqual({
+      $schema: "https://openapi.vercel.sh/vercel.json",
+      buildCommand: "bun run build",
+      framework: "nextjs",
+      installCommand: "bun install --frozen-lockfile --ignore-scripts",
+    });
+    expect(`${repositoryIgnore}\n${providerBoundary}`).not.toMatch(
+      /(?:^|[\/])\.vinext(?:[\/]|$)|site\/dist\/|@openai\/sites|cloudflare|wrangler|hosting\.json|\bvinext\b/imu,
+    );
+    expect(await Bun.file(join(site, ".openai/hosting.json")).exists()).toBe(false);
+    expect(await Bun.file(join(site, "vite.config.ts")).exists()).toBe(false);
     expect(publicSource).not.toMatch(/\/Users\/[^/\s]+|\/private\/tmp\/[^\s)]+/iu);
     expect([...tokens].filter((token) => prohibitedPublicIdentifierSha256.has(sha256(token))))
       .toEqual([]);

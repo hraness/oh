@@ -2,10 +2,10 @@ import { AskAiAboutThis } from "@hraness/ui";
 
 import manifest from "../public/spec/manifest.json";
 
-const currentVersion = manifest.versions.find((version) => version.id === manifest.current);
-if (currentVersion === undefined) {
-  throw new Error("The public specification manifest has no current version.");
-}
+const currentVersion = manifest.versions.find((version) => version.id === manifest.current) ??
+  (() => {
+    throw new Error("The public specification manifest has no current version.");
+  })();
 
 const principles = [
   {

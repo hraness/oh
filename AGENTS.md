@@ -4,7 +4,7 @@
 - `dist/` – committed Bun-targeted ESM, executable CLI, and TypeScript declarations built from `src/`.
 - `spec/` – versioned human and machine-readable ontology, wire, storage, sync, embedding, and migration contracts.
 - `skills/oh/` – installable Agent Skill for operating Oh from a coding-agent workflow.
-- `site/` – the public website for `https://oh.computer`, with its own package and hosting configuration.
+- `site/` – the public Next.js website for `https://oh.computer`, deployed from the existing Hraness Vercel project.
 - `.github/` – public contribution templates, read-only branch validation, dependency updates, and post-publication release verification.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` – public usage, project policy, threat model, and terms.
 - `package.json`, `tsconfig.json`, and `bun.lock` – package identity, exported surfaces, and frozen Bun toolchain.
@@ -12,6 +12,7 @@
 # Guidelines
 
 - Use Bun 1.3.14 for installs, scripts, tests, builds, and package checks. Keep the base package free of required runtime dependencies.
+- Keep `site/` deployable as an ordinary Vercel Next.js root. Do not add OpenAI Sites, Vinext, Cloudflare Worker, Wrangler, or alternate hosting configuration.
 - Use Nebula Sans for the site's ordinary proportional interface text through the pinned Hraness design-kit font release. Preserve explicit Georgia display type and true monospace code and data surfaces.
 - Treat this repository as the complete public project. Use only its public identities, paths, commands, examples, and contributor workflow.
 - Preserve canonical JSON, digest preimages, V1 identifier grammars, record kinds, limits, operation ordering, protocol literals, and applied SQLite migration bytes. Version a wire change instead of mutating an existing contract.

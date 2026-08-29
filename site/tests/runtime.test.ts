@@ -1,32 +1,101 @@
 import { describe, expect, test } from "bun:test";
 import { buildAskAiProviderLinks } from "@hraness/ui";
+import { join } from "node:path";
 
-type BuiltWorker = Readonly<{
-  fetch(
-    request: Request,
-    environment: Record<string, never>,
-    context: Readonly<{ passThroughOnException(): void; waitUntil(promise: Promise<unknown>): void }>,
-  ): Promise<Response>;
-}>;
+const site = join(import.meta.dir, "..");
 
-const serverUrl = new URL("../dist/server/index.js", import.meta.url).href;
+async function startBuiltSite() {
+  const process_ = Bun.spawn([
+    join(site, "node_modules/.bin/next"),
+    "start",
+    "--hostname",
+    "127.0.0.1",
+    "--port",
+    "0",
+  ], {
+    cwd: site,
+    env: { ...process.env, NODE_ENV: "production" },
+    stderr: "pipe",
+    stdout: "pipe",
+  });
+  let output = "";
+  let startupSettled = false;
+  let rejectStartup: (error: Error) => void = () => {};
+  let resolveStartup: (origin: string) => void = () => {};
+  const startup = new Promise<string>((resolve, reject) => {
+    rejectStartup = reject;
+    resolveStartup = resolve;
+  });
+  const settleFromOutput = (): void => {
+    const match = output.match(/http:\/\/127\.0\.0\.1:(\d+)/u);
+    if (match === null || !output.includes("Ready in") || startupSettled) return;
+    startupSettled = true;
+    resolveStartup(`http://127.0.0.1:${match[1]}`);
+  };
+  const capture = async (stream: ReadableStream<Uint8Array>): Promise<void> => {
+    const decoder = new TextDecoder();
+    const reader = stream.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        output += decoder.decode(value, { stream: true });
+        settleFromOutput();
+      }
+      output += decoder.decode();
+      settleFromOutput();
+    } catch (error) {
+      if (!startupSettled) {
+        startupSettled = true;
+        rejectStartup(error instanceof Error ? error : new Error(String(error)));
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+  const captureTasks = [capture(process_.stdout), capture(process_.stderr)];
+  const exitTask = process_.exited.then((exitCode) => {
+    if (startupSettled) return;
+    startupSettled = true;
+    rejectStartup(new Error(`Next exited with code ${exitCode} before startup.\n${output}`));
+  });
+  const timeout = setTimeout(() => {
+    if (startupSettled) return;
+    startupSettled = true;
+    rejectStartup(new Error(`Next did not start within 10 seconds.\n${output}`));
+  }, 10_000);
 
-async function fetchBuilt(path: string): Promise<Response> {
-  const builtModule = await import(serverUrl) as Readonly<{ default: BuiltWorker }>;
-  return await builtModule.default.fetch(
-    new Request(`https://oh.computer${path}`),
-    {},
-    {
-      passThroughOnException() {},
-      waitUntil() {},
-    },
-  );
+  try {
+    const origin = await startup;
+    clearTimeout(timeout);
+    return { captureTasks, exitTask, origin, process_ };
+  } catch (error) {
+    clearTimeout(timeout);
+    if (process_.exitCode === null) process_.kill("SIGTERM");
+    await process_.exited;
+    await Promise.allSettled(captureTasks);
+    throw error;
+  }
 }
 
-function metadataContent(html: string, attribute: "name" | "property", key: string): string | null {
+async function stopBuiltSite(server: Awaited<ReturnType<typeof startBuiltSite>>): Promise<void> {
+  if (server.process_.exitCode === null) server.process_.kill("SIGTERM");
+  const stoppedGracefully = await Promise.race([
+    server.process_.exited.then(() => true),
+    Bun.sleep(2_000).then(() => false),
+  ]);
+  if (!stoppedGracefully && server.process_.exitCode === null) {
+    server.process_.kill("SIGKILL");
+    await server.process_.exited;
+  }
+  await server.exitTask;
+  await Promise.allSettled(server.captureTasks);
+}
+
+function metadataContent(html: string, attributeName: "name" | "property", key: string): string | null {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
   return html.match(new RegExp(
-    `<meta ${attribute}="${escaped}" content="([^"]+)"`,
+    `<meta ${attributeName}="${escaped}" content="([^"]+)"`,
     "u",
   ))?.[1] ?? null;
 }
@@ -61,71 +130,60 @@ function expectAskAiMarkup(html: string, canonicalUrl: string): void {
 }
 
 describe("built Oh site", () => {
-  test("server-renders exact Ask AI links only on canonical public pages", async () => {
-    const [homeResponse, specificationResponse, redirectResponse, missingResponse] =
-      await Promise.all([
-        fetchBuilt("/"),
-        fetchBuilt("/spec"),
-        fetchBuilt("/spec/v1"),
-        fetchBuilt("/missing"),
+  test("serves canonical pages, redirects, and metadata through Next", async () => {
+    const server = await startBuiltSite();
+    try {
+      const [homeResponse, specificationResponse, slashAliasResponse, versionAliasResponse,
+        missingResponse] = await Promise.all([
+        fetch(`${server.origin}/`, { redirect: "manual" }),
+        fetch(`${server.origin}/spec`, { redirect: "manual" }),
+        fetch(`${server.origin}/spec/`, { redirect: "manual" }),
+        fetch(`${server.origin}/spec/v1`, { redirect: "manual" }),
+        fetch(`${server.origin}/missing`, { redirect: "manual" }),
       ]);
-    const [home, specification, redirect, missing] = await Promise.all([
-      homeResponse.text(),
-      specificationResponse.text(),
-      redirectResponse.text(),
-      missingResponse.text(),
-    ]);
+      const [home, specification, slashAlias, versionAlias, missing] = await Promise.all([
+        homeResponse.text(),
+        specificationResponse.text(),
+        slashAliasResponse.text(),
+        versionAliasResponse.text(),
+        missingResponse.text(),
+      ]);
 
-    expect(homeResponse.status).toBe(200);
-    expect(specificationResponse.status).toBe(200);
-    expect(redirectResponse.status).toBe(308);
-    expect(missingResponse.status).toBe(404);
-    expectAskAiMarkup(home, "https://oh.computer");
-    expectAskAiMarkup(specification, "https://oh.computer/spec");
-    expect(redirect).not.toContain('aria-label="Ask AI about this"');
-    expect(missing).not.toContain('aria-label="Ask AI about this"');
-  });
+      expect(homeResponse.status).toBe(200);
+      expect(specificationResponse.status).toBe(200);
+      expect(slashAliasResponse.status).toBe(308);
+      expect(slashAliasResponse.headers.get("location")).toBe("/spec");
+      expect(versionAliasResponse.status).toBe(308);
+      expect(versionAliasResponse.headers.get("location")).toBe("/spec");
+      expect(missingResponse.status).toBe(404);
+      expect(homeResponse.headers.get("x-frame-options")).toBeNull();
+      expect(homeResponse.headers.get("content-security-policy") ?? "")
+        .not.toContain("frame-ancestors 'none'");
 
-  test("serves the canonical specification URL and permanently redirects aliases", async () => {
-    const [canonical, slashAlias, versionAlias] = await Promise.all([
-      fetchBuilt("/spec"),
-      fetchBuilt("/spec/"),
-      fetchBuilt("/spec/v1"),
-    ]);
-
-    expect(canonical.status).toBe(200);
-    expect(slashAlias.status).toBe(308);
-    expect(slashAlias.headers.get("location")).toBe("/spec");
-    expect(versionAlias.status).toBe(308);
-    expect(versionAlias.headers.get("location")).toBe("/spec");
-  });
-
-  test("renders canonical, social, icon, and internal-link metadata without inheritance drift", async () => {
-    const [homeResponse, specificationResponse] = await Promise.all([
-      fetchBuilt("/"),
-      fetchBuilt("/spec"),
-    ]);
-    const [home, specification] = await Promise.all([
-      homeResponse.text(),
-      specificationResponse.text(),
-    ]);
-
-    expect(home).toContain('rel="icon" href="/favicon.svg" type="image/svg+xml"');
-    expect(home).not.toContain('href="/spec/"');
-    expect(specification).toContain(
-      '<link rel="canonical" href="https://oh.computer/spec"',
-    );
-    expect(metadataContent(specification, "property", "og:title")).toBe(
-      "Oh ontology specification v1",
-    );
-    expect(metadataContent(specification, "property", "og:image")).toBe(
-      "https://oh.computer/og.png",
-    );
-    expect(metadataContent(specification, "name", "twitter:title")).toBe(
-      "Oh ontology specification v1",
-    );
-    expect(metadataContent(specification, "name", "twitter:description")).toBe(
-      "The current, local-first ontology and storage contract behind Oh.",
-    );
-  });
+      expectAskAiMarkup(home, "https://oh.computer");
+      expectAskAiMarkup(specification, "https://oh.computer/spec");
+      expect(slashAlias).not.toContain('aria-label="Ask AI about this"');
+      expect(versionAlias).not.toContain('aria-label="Ask AI about this"');
+      expect(missing).not.toContain('aria-label="Ask AI about this"');
+      expect(home).toContain('rel="icon" href="/favicon.svg" type="image/svg+xml"');
+      expect(home).not.toContain('href="/spec/"');
+      expect(specification).toContain(
+        '<link rel="canonical" href="https://oh.computer/spec"',
+      );
+      expect(metadataContent(specification, "property", "og:title")).toBe(
+        "Oh ontology specification v1",
+      );
+      expect(metadataContent(specification, "property", "og:image")).toBe(
+        "https://oh.computer/og.png",
+      );
+      expect(metadataContent(specification, "name", "twitter:title")).toBe(
+        "Oh ontology specification v1",
+      );
+      expect(metadataContent(specification, "name", "twitter:description")).toBe(
+        "The current, local-first ontology and storage contract behind Oh.",
+      );
+    } finally {
+      await stopBuiltSite(server);
+    }
+  }, 20_000);
 });
