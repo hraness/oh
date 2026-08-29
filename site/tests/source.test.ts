@@ -152,11 +152,14 @@ describe("Oh site source contract", () => {
       "tsconfig.json",
       "vercel.json",
     ];
+    const repositoryIgnoreFile = Bun.file(join(site, "..", ".gitignore"));
     const [packageJsonSource, vercelConfigSource, repositoryIgnore, ...publicSources] =
       await Promise.all([
       read("package.json"),
       read("vercel.json"),
-      readFile(join(site, "..", ".gitignore"), "utf8"),
+      repositoryIgnoreFile.exists().then(async (exists) => exists
+        ? await repositoryIgnoreFile.text()
+        : ""),
       ...publicPaths.map(read),
     ]);
     const packageJson = record(JSON.parse(packageJsonSource) as unknown, "package.json");
