@@ -16,6 +16,7 @@
 - Keep `site/` deployable as an ordinary Vercel Next.js root. Do not add OpenAI Sites, Vinext, Cloudflare Worker, Wrangler, or alternate hosting configuration.
 - Use Nebula Sans for the site's ordinary proportional interface text through the pinned Hraness design-kit font release. Preserve explicit Georgia display type and true monospace code and data surfaces.
 - Treat this repository as the complete public project. Use only its public identities, paths, commands, examples, and contributor workflow.
+- Follow the shared [Hraness README guidelines](https://github.com/hraness/.github/blob/main/README_GUIDELINES.md). Keep the durable definition, mechanism-backed rationale, shortest verified first task, observable behavior, boundaries, verification, and task-oriented documentation path current.
 - Preserve canonical JSON, digest preimages, V1 identifier grammars, record kinds, limits, operation ordering, protocol literals, and applied SQLite migration bytes. Version a wire change instead of mutating an existing contract.
 - Parse external values from `unknown`, require exact keys where the contract does, reject noncanonical values, and enforce byte, item, recursion, path, and response limits before expensive work.
 - Keep SQLite records and the append-only operation log authoritative. FTS and semantic state are derived, optional, rebuildable, and joined back to the current record digest.

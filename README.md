@@ -1,14 +1,30 @@
 # open-source tools for agentic research
 
-Oh gives coding agents a local, inspectable place to keep research knowledge.
-It stores content-addressed records and an append-only operation log in SQLite,
-checks every mutation against an explicit ontology contract, and keeps search
+Oh is a local-first ontology kernel, SQLite store, CLI, TypeScript SDK, and
+Agent Skill for building durable, inspectable research graphs. It stores
+content-addressed records and an append-only operation log, checks every
+mutation against an explicit versioned contract, and keeps keyword and semantic
 indexes derived and replaceable.
 
 [Website](https://oh.computer) · [Versioned specification](spec/README.md) ·
 [Agent Skill](skills/oh/SKILL.md)
 
-## Install
+## Why Oh
+
+- **Make meaning explicit.** Every record declares a kind, stable logical key,
+  ordered dependencies, and canonical JSON content under a versioned ontology
+  and schema contract.
+- **Keep changes accountable.** Content digests, append-only operations,
+  compare-and-swap writes, and replay verification make accepted graph changes
+  inspectable and stale writes visible.
+- **Keep local state authoritative.** Records and operations live in one SQLite
+  file you control. Sync is an explicit transport seam and accepts only
+  fast-forward histories after an exact contract handshake.
+- **Treat search as a view.** FTS5 documents and optional local embeddings are
+  derived from current record digests, so either index can be rebuilt without
+  becoming graph authority.
+
+## Install and first run
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required. Install
 the current immutable release directly from GitHub:
@@ -17,23 +33,6 @@ the current immutable release directly from GitHub:
 bun add --global github:hraness/oh#v0.1.1
 oh --help
 ```
-
-For a project dependency, pin the same release in `package.json`:
-
-```json
-{
-  "dependencies": {
-    "@hraness/oh": "github:hraness/oh#v0.1.1"
-  }
-}
-```
-
-The base package has no required runtime dependencies. Local semantic search
-uses the optional `@tobilu/qmd@2.5.3` peer and its pinned EmbeddingGemma model.
-Keyword search, ontology parsing, SQLite storage, replay verification, and sync
-need no hosted model.
-
-## Start a local research space
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -49,6 +48,12 @@ oh search "mathematician" --mode keyword
 oh verify
 ```
 
+This first task creates one entity, reads it back, finds it through the derived
+keyword index, and verifies the authoritative operation chain. It needs no
+account, hosted model, remote database, or semantic-search dependency.
+
+## What becomes observable
+
 Commands print canonical JSON, except `oh version` and help. A missing `oh get`
 record exits with status 3. Invalid input, an integrity failure, or a concurrent
 head conflict exits with status 1 and leaves the current log intact.
@@ -57,7 +62,7 @@ Run `oh contract` to inspect the ontology, graph, schema, and SQLite versions
 compiled into the installed runtime. Opening an Oh database separately checks
 that its stored contract manifest matches that runtime.
 
-## Model
+## How Oh works
 
 An Oh space has one current graph and one append-only operation chain:
 
@@ -79,6 +84,20 @@ Product-specific meaning belongs in registered codecs and versioned schema
 records, not in hidden storage conventions.
 
 ## Use the SDK
+
+For a project dependency, pin the same immutable release in `package.json`:
+
+```json
+{
+  "dependencies": {
+    "@hraness/oh": "github:hraness/oh#v0.1.1"
+  }
+}
+```
+
+The base package has no required runtime dependencies. Keyword search,
+ontology parsing, SQLite storage, replay verification, and sync need no hosted
+model.
 
 ```ts
 import { Oh } from "@hraness/oh/sdk";
@@ -183,6 +202,24 @@ different contract or a non-fast-forward history.
 For offline transfer, `oh sync export` writes a bounded bundle to stdout and
 `oh sync import --file <path>` verifies and imports it idempotently.
 
+## Boundaries and limitations
+
+- Digests detect changed contract, record, operation, and bundle bytes. They do
+  not encrypt data, authenticate an actor, authorize a write, or prove that a
+  research statement is true.
+- Oh does not redact record values. Protect the database, filesystem, backups,
+  and any sync destination according to the sensitivity of the research graph.
+- The optional QMD cache contains derived record text. Its pinned model and
+  inference stay local, but the cache still needs the same deliberate handling
+  as its source data.
+- The libSQL seam validates exact contracts and fast-forward history. The
+  consumer remains responsible for credentials, transport security, access
+  control, tenant isolation, backup, retry, and remote availability.
+- Divergent histories do not merge automatically. Oh returns an explicit
+  conflict and leaves reconciliation policy to the consumer.
+
+Read [SECURITY.md](SECURITY.md) for the complete public threat model.
+
 ## Give Oh to a coding agent
 
 The repository includes an installable Agent Skill at
@@ -198,6 +235,21 @@ Install hraness/oh and its Oh Agent Skill from the immutable v0.1.1 tag at
 https://github.com/hraness/oh. Verify the CLI with `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```
+
+## Find the right documentation
+
+- **Install and prove the local path:** follow
+  [Install and first run](#install-and-first-run).
+- **Embed Oh in a tool:** use [the SDK](#use-the-sdk), then select the narrow
+  package subpath for SQLite, sync, or optional semantics.
+- **Give Oh to an agent:** install the [Oh Agent Skill](skills/oh/SKILL.md) and
+  keep its database, space, sync target, and mutation authority explicit.
+- **Implement or change a contract:** begin with the
+  [specification map](spec/README.md), then read the applicable V1 narrative and
+  machine-readable schema together.
+- **Contribute or report a vulnerability:** follow
+  [CONTRIBUTING.md](CONTRIBUTING.md) or the private process in
+  [SECURITY.md](SECURITY.md).
 
 ## Specification
 
@@ -216,6 +268,17 @@ document. The current contract is V1:
 The JSON Schemas describe exchange envelopes. Runtime parsers additionally
 enforce canonical ordering, byte limits, referential integrity, and digest
 preimages that JSON Schema cannot express.
+
+## Verify a checkout
+
+```sh
+bun install --frozen-lockfile --ignore-scripts
+bun run check
+```
+
+The complete gate type-checks the package, runs the complete test suite,
+rebuilds the committed `dist/` entrypoints, and must leave tracked files
+unchanged.
 
 ## Contribute
 

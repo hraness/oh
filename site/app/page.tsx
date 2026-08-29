@@ -68,9 +68,11 @@ export default function Home() {
               file to synchronized research systems.
             </p>
             <div className="hero-actions">
-              <a className="primary-action" href="/spec">Read the specification</a>
-              <a className="text-action" href="https://github.com/hraness/oh">
-                View the source <span aria-hidden="true">↗</span>
+              <a className="primary-action" href="https://github.com/hraness/oh#install-and-first-run">
+                Install and start
+              </a>
+              <a className="text-action" href="/spec">
+                Read the specification <span aria-hidden="true">→</span>
               </a>
             </div>
           </div>
