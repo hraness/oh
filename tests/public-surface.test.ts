@@ -29,6 +29,7 @@ const markdownFiles = [
   "spec/v1/storage.md",
   "spec/v1/sync.md",
   "spec/v1/embedding.md",
+  "spec/v1/projection.md",
   "spec/v1/migration.md",
   "skills/oh/SKILL.md",
 ] as const;
@@ -257,7 +258,7 @@ describe("versioned public contract", () => {
     const claims = new Set<string>();
     for (const path of markdownFiles) {
       const markdown = await readFile(join(root, path), "utf8");
-      for (const match of markdown.matchAll(/@hraness\/oh(?:\/[a-z0-9-]+)?/gu)) claims.add(match[0]);
+      for (const match of markdown.matchAll(/@hraness\/oh(?:\/[a-z0-9-]+)*/gu)) claims.add(match[0]);
     }
     expect(claims.size).toBeGreaterThan(1);
     for (const claim of claims) {
@@ -276,7 +277,9 @@ describe("versioned public contract", () => {
     const exports = packageJson.exports as Record<string, unknown>;
     expect(Object.keys(exports).sort()).toEqual([
       ".",
+      "./experimental/projection-suss",
       "./package.json",
+      "./projection",
       "./sdk",
       "./semantic",
       "./sqlite",
@@ -299,7 +302,8 @@ describe("versioned public contract", () => {
 
     const peers = packageJson.peerDependencies as Record<string, string>;
     const peerMetadata = packageJson.peerDependenciesMeta as Record<string, Readonly<{ optional?: boolean }>>;
-    expect(peers).toEqual({ "@libsql/client": ">=0.17.4 <1", "@tobilu/qmd": "2.5.3" });
+    expect(peers).toEqual({ "@libsql/client": ">=0.17.4 <1", "@suss/datalog": "0.20.0",
+      "@tobilu/qmd": "2.5.3" });
     expect(Object.keys(peers).every((name) => peerMetadata[name]?.optional === true)).toBe(true);
   });
 

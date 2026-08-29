@@ -43,6 +43,7 @@ const sections = [
   ["sqlite", "SQLite"],
   ["sync", "Sync"],
   ["semantic", "Semantic search"],
+  ["projection", "Derived projection"],
   ["versioning", "Versioning"],
 ] as const;
 
@@ -206,8 +207,26 @@ export default function Specification() {
             </div>
           </section>
 
-          <section id="versioning" className="spec-section">
+          <section id="projection" className="spec-section">
             <div className="spec-number">07</div>
+            <div>
+              <h2>Derived projection</h2>
+              <p>
+                Typed positive rules derive recursive views from one exact
+                graph head and content-addressed fact pack. Rule, query, input,
+                and result identities use canonical bytes, while explicit work
+                limits bound tuples, rounds, joins, and proof trees.
+              </p>
+              <p className="callout">
+                Projection rows always remain derived cache output. They do not
+                become assertions, review decisions, or operation history until
+                an application submits new records through its authority path.
+              </p>
+            </div>
+          </section>
+
+          <section id="versioning" className="spec-section">
+            <div className="spec-number">08</div>
             <div>
               <h2>Versioning and evolution</h2>
               <p>

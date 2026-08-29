@@ -25,6 +25,9 @@ indexes derived and replaceable.
 - **Treat search as a view.** FTS5 documents and optional local embeddings are
   derived from current record digests, so either index can be rebuilt without
   becoming graph authority.
+- **Derive without silently asserting.** Positive recursive rules run against
+  one exact graph head and fact-pack digest. Their tuples and bounded proofs
+  are deterministic, disposable output rather than accepted graph records.
 
 ## Install and first run
 
@@ -133,7 +136,107 @@ intended change, then submit a new operation.
 The root entrypoint exports canonical JSON, ontology, schema, graph, operation,
 and sync contracts. Use `@hraness/oh/sqlite` for the local store,
 `@hraness/oh/sdk` for the `Oh` facade, `@hraness/oh/sync` for transport seams,
-and `@hraness/oh/semantic` for the optional local embedding backend.
+`@hraness/oh/projection` for recursive derived views, and
+`@hraness/oh/semantic` for the optional local embedding backend.
+
+## Derive an exact projection
+
+The projection subpath is pure TypeScript and runs in Node 24 serverless
+functions without loading SQLite. A snapshot binds the current space head and
+complete record-reference set. A fact pack binds the deterministic extractor
+that translated those records into relations. Rules and queries are typed data,
+not strings or executable callbacks.
+
+```ts
+import {
+  OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1,
+  createOhProjectionDatasetV1,
+  createOhProjectionLiteralV1,
+  createOhProjectionQueryV1,
+  createOhProjectionRecordFactsV1,
+  createOhProjectionRulePackV1,
+  createOhProjectionRuleV1,
+  createOhProjectionSnapshotV1,
+  evaluateOhProjectionV1,
+  ohProjectionVariableV1 as variable,
+} from "@hraness/oh/projection";
+
+const records = oh.store.snapshotRecords();
+const snapshot = createOhProjectionSnapshotV1({
+  head: oh.head(),
+  records,
+  spaceId: oh.store.spaceId,
+});
+const dataset = createOhProjectionDatasetV1({
+  extractorSha256: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.extractorSha256,
+  factPackId: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.factPackId,
+  factPackRevision: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.factPackRevision,
+  facts: createOhProjectionRecordFactsV1(records),
+  snapshot,
+});
+
+const x = variable("x");
+const y = variable("y");
+const z = variable("z");
+const literal = (relation: string, ...terms: ReturnType<typeof variable>[]) =>
+  createOhProjectionLiteralV1({ relation, terms });
+const rulePack = createOhProjectionRulePackV1({
+  rulePackId: "example.dependencies",
+  rulePackRevision: 1,
+  rules: [
+    createOhProjectionRuleV1({
+      body: [literal("oh.dependency", x, y)],
+      head: literal("depends", x, y),
+      ruleId: "depends.direct",
+    }),
+    createOhProjectionRuleV1({
+      body: [literal("depends", x, y), literal("oh.dependency", y, z)],
+      head: literal("depends", x, z),
+      ruleId: "depends.transitive",
+    }),
+  ],
+});
+const query = createOhProjectionQueryV1({
+  find: ["x", "z"],
+  queryId: "all.dependencies",
+  where: [literal("depends", x, z)],
+});
+
+const result = evaluateOhProjectionV1({ dataset, query, rulePack, snapshot });
+console.log(result.rows);
+```
+
+`result.authority` is always `derived`. Oh does not commit a result, elevate an
+agent assertion, or make a proof authoritative. Changing the snapshot,
+extracted fact set, rule pack, or query produces a new identity and requires a
+full rebuild.
+
+The reference evaluator favors bounded, transparent correctness. It supports
+positive recursion and set semantics; it does not yet support negation,
+aggregation, arithmetic, or incremental invalidation. An optional compatibility
+lane evaluates the same rules with exactly `@suss/datalog@0.20.0` and returns a
+result only after every relation agrees with the reference evaluator:
+
+```sh
+bun add @suss/datalog@0.20.0
+```
+
+```ts
+import { evaluateOhProjectionWithSussV1 } from "@hraness/oh/experimental/projection-suss";
+
+const checked = evaluateOhProjectionWithSussV1({
+  dataset,
+  query,
+  rulePack,
+  snapshot,
+});
+```
+
+Suss does not expose an execution-budget hook. Its adapter therefore applies a
+conservative finite-domain admission bound and refuses programs it cannot prove
+will stay inside the requested tuple ceiling. The built-in evaluator remains
+available for those programs. The compatibility lane deliberately runs both
+engines; it is an equivalence check, not a performance backend.
 
 ## Add local semantic search
 
@@ -219,6 +322,9 @@ For offline transfer, `oh sync export` writes a bounded bundle to stdout and
   control, tenant isolation, backup, retry, and remote availability.
 - Divergent histories do not merge automatically. Oh returns an explicit
   conflict and leaves reconciliation policy to the consumer.
+- Projection tuples and proofs are derived cache output. Persisting or
+  publishing them as knowledge requires an explicit application-level review
+  and a new authoritative graph operation.
 
 Read [SECURITY.md](SECURITY.md) for the complete public threat model.
 
@@ -243,7 +349,7 @@ Do not create or modify an Oh database until I name its path and ask you to.
 - **Install and prove the local path:** follow
   [Install and first run](#install-and-first-run).
 - **Embed Oh in a tool:** use [the SDK](#use-the-sdk), then select the narrow
-  package subpath for SQLite, sync, or optional semantics.
+  package subpath for SQLite, sync, projection, or optional semantics.
 - **Give Oh to an agent:** install the [Oh Agent Skill](skills/oh/SKILL.md) and
   keep its database, space, sync target, and mutation authority explicit.
 - **Implement or change a contract:** begin with the
@@ -265,6 +371,7 @@ document. The current contract is V1:
 - [SQLite storage](spec/v1/storage.md)
 - [Sync protocol](spec/v1/sync.md)
 - [Local embedding profile](spec/v1/embedding.md)
+- [Derived projections](spec/v1/projection.md)
 - [Compatibility and migration](spec/v1/migration.md)
 
 The JSON Schemas describe exchange envelopes. Runtime parsers additionally

@@ -27,6 +27,7 @@ binds these versions:
 - [SQLite storage](v1/storage.md)
 - [Sync protocol](v1/sync.md)
 - [Local embedding profile](v1/embedding.md)
+- [Derived projections](v1/projection.md)
 - [Compatibility and migration](v1/migration.md)
 
 Machine-readable V1 artifacts:
