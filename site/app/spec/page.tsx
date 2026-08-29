@@ -1,3 +1,4 @@
+import { AskAiAboutThis } from "@hraness/ui";
 import type { Metadata } from "next";
 import contract from "../../public/spec/v1/contract.json";
 import manifest from "../../public/spec/manifest.json";
@@ -224,6 +225,8 @@ export default function Specification() {
           </section>
         </article>
       </main>
+
+      <AskAiAboutThis className="ask-ai" url="https://oh.computer/spec" />
     </>
   );
 }
