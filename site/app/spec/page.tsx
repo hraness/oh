@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 import contract from "../../public/spec/v1/contract.json";
 import manifest from "../../public/spec/manifest.json";
 
-const currentVersion = manifest.versions.find((version) => version.id === manifest.current);
-if (currentVersion === undefined) {
-  throw new Error("The public specification manifest has no current version.");
-}
+const currentVersion = manifest.versions.find((version) => version.id === manifest.current) ??
+  (() => {
+    throw new Error("The public specification manifest has no current version.");
+  })();
 
 const specificationTitle = "Oh ontology specification v1";
 const specificationDescription =
