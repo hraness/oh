@@ -120,6 +120,16 @@ describe("Oh site source contract", () => {
     expect(specification).toContain("conflict errors");
   });
 
+  test("leads developers to the verified first task before reference depth", async () => {
+    const home = await read("app/page.tsx");
+
+    expect(home).toContain(
+      'href="https://github.com/hraness/oh#install-and-first-run"',
+    );
+    expect(home).toContain("Install and start");
+    expect(home).toContain('className="text-action" href="/spec"');
+  });
+
   test("derives public contract identity, version, and status from mirrored data", async () => {
     const [home, specification] = await Promise.all([
       read("app/page.tsx"),
