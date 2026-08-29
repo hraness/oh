@@ -8,11 +8,13 @@
 - `.agents/skills/` – portable plan authoring, phased execution, implementation, and independent review workflows.
 - `.github/` – public contribution templates, read-only branch validation, dependency updates, and post-publication release verification.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` – public usage, project policy, threat model, and terms.
+- `STYLE.md` – the public and reader-facing prose contract.
 - `package.json`, `tsconfig.json`, and `bun.lock` – package identity, exported surfaces, and frozen Bun toolchain.
 
 # Guidelines
 
 - Use Bun 1.3.14 for installs, scripts, tests, builds, and package checks. Keep the base package free of required runtime dependencies.
+- Follow `STYLE.md` for the public website, specifications, documentation, README, and Agent Skill prose.
 - Keep `site/` deployable as an ordinary Vercel Next.js root. Do not add OpenAI Sites, Vinext, Cloudflare Worker, Wrangler, or alternate hosting configuration.
 - Use Nebula Sans for the site's ordinary proportional interface text through the pinned Hraness design-kit font release. Preserve explicit Georgia display type and true monospace code and data surfaces.
 - Treat this repository as the complete public project. Use only its public identities, paths, commands, examples, and contributor workflow.
