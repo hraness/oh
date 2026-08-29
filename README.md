@@ -31,8 +31,10 @@ indexes derived and replaceable.
 
 ## Install and first run
 
-[Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required. Install
-the current immutable release directly from GitHub:
+[Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
+CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
+direct libSQL authority also support Node 24 serverless runtimes. Install the
+current immutable release directly from GitHub:
 
 ```sh
 bun add --global github:hraness/oh#v0.1.1
@@ -134,10 +136,58 @@ retry `OhConflictError` blindly. Read the new head and records, reconcile the
 intended change, then submit a new operation.
 
 The root entrypoint exports canonical JSON, ontology, schema, graph, operation,
-and sync contracts. Use `@hraness/oh/sqlite` for the local store,
-`@hraness/oh/sdk` for the `Oh` facade, `@hraness/oh/sync` for transport seams,
+store, and sync contracts. Use `@hraness/oh/store` for the runtime-neutral
+promise interface, `@hraness/oh/libsql` for a direct Node 24 or serverless
+authority, `@hraness/oh/sqlite` for the local Bun store, `@hraness/oh/sdk` for
+the local `Oh` facade, `@hraness/oh/sync` for transport seams,
 `@hraness/oh/projection` for recursive derived views, and
 `@hraness/oh/semantic` for the optional local embedding backend.
+
+## Open a scoped working store
+
+Working memory uses the same V1 graph and operation bytes under a different
+storage lifecycle. The host chooses and retains the realm binding. Application
+code receives the promise-based store and keeps the host object that can purge
+a working space out of agent tools. A model-facing adapter should expose strict
+semantic ingress and bounded query methods, not generic commit or change-feed
+access.
+
+```ts
+import { createClient } from "@libsql/client";
+import {
+  bootstrapOhLibSqlAuthorityV1,
+  createOhLibSqlStoreAuthorityV1,
+} from "@hraness/oh/libsql";
+import { OH_WORKING_STORE_PROFILE_V1 } from "@hraness/oh/store";
+
+// Run once during deployment with a short-lived schema credential.
+const schemaClient = createClient({
+  authToken: process.env.OH_SCHEMA_TOKEN!,
+  url: process.env.OH_DATABASE_URL!,
+});
+await bootstrapOhLibSqlAuthorityV1(schemaClient);
+schemaClient.close();
+
+// Runtime opens verify the schema and execute no DDL.
+const runtimeClient = createClient({
+  authToken: process.env.OH_RUNTIME_TOKEN!,
+  url: process.env.OH_DATABASE_URL!,
+});
+const authority = await createOhLibSqlStoreAuthorityV1(runtimeClient, {
+  profile: OH_WORKING_STORE_PROFILE_V1,
+  realmId: "tenant:example/thread:research",
+  spaceId: "thread:research",
+});
+
+const store = authority.store;
+console.log(await store.head());
+```
+
+The working profile disables operation replication. Dependency-closure export
+remains available for explicit reviewed adoption. `purgeWorkingSpace` exists
+only on `authority.host`; do not expose that object or raw database credentials
+through a model tool. Read the [store-port specification](spec/v1/store.md) for
+exact snapshot, change-feed, codec ingress, closure, and purge behavior.
 
 ## Derive an exact projection
 
@@ -369,6 +419,7 @@ document. The current contract is V1:
 - [Schema evolution](spec/v1/schema-evolution.md)
 - [Graph and operations](spec/v1/graph.md)
 - [SQLite storage](spec/v1/storage.md)
+- [Store ports, profiles, and direct libSQL authority](spec/v1/store.md)
 - [Sync protocol](spec/v1/sync.md)
 - [Local embedding profile](spec/v1/embedding.md)
 - [Derived projections](spec/v1/projection.md)

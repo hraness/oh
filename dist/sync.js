@@ -1024,10 +1024,13 @@ function parseOhContractManifestV1(value) {
 
 class OhRecordCodecRegistry {
   #codecs = new Map;
+  #sealed = false;
   register(codec) {
+    if (this.#sealed)
+      throw new TypeError("The codec registry is sealed.");
     if (this.#codecs.has(codec.kind))
       throw new TypeError(`A codec is already registered for ${codec.kind}.`);
-    this.#codecs.set(codec.kind, codec);
+    this.#codecs.set(codec.kind, Object.freeze({ kind: codec.kind, parse: codec.parse }));
     return this;
   }
   parse(kind, value) {
@@ -1043,6 +1046,27 @@ class OhRecordCodecRegistry {
   }
   has(kind) {
     return this.#codecs.has(kind);
+  }
+  parseRequired(kind, value) {
+    const codec = this.#codecs.get(kind);
+    if (codec === undefined)
+      return null;
+    try {
+      const parsed = codec.parse(value);
+      if (parsed === null)
+        return null;
+      canonicalJson(parsed);
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+  seal() {
+    this.#sealed = true;
+    return this;
+  }
+  get sealed() {
+    return this.#sealed;
   }
 }
 

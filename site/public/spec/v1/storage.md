@@ -1,6 +1,6 @@
 # SQLite storage V1
 
-SQLite schema version `1` is the local authority for an Oh space. The default
+SQLite schema version `2` is the local authority for an Oh space. The default
 CLI database is `.oh/oh.sqlite`; callers may select another path or use an
 in-memory database.
 
@@ -34,10 +34,37 @@ rolls back the transaction and preserves the original error.
 | `oh_sync_state` | Last settled state for a named remote. |
 | `oh_search_documents` | Derived keyword text bound to a record digest. |
 | `oh_search_fts` | Derived FTS5 index. |
+| `oh_space_bindings` | Host-selected realm, lifecycle profile, capabilities, and application-profile digest for a supported store port. |
+| `oh_space_purges` | Minimal receipt that permanently reserves the identifier of a purged working space. |
 
-The first migration is named `0001_oh_core`. An implementation MUST store and
-check the exact SHA-256 digest of applied migration SQL. It MUST refuse to run
-when the same migration version or name has different bytes.
+The first migration is named `0001_oh_core`; its released bytes remain
+unchanged. Schema version 2 adds `0002_store_realms`. An implementation MUST
+store and check the exact SHA-256 digest of applied migration SQL. It MUST
+refuse to run when the same migration version or name has different bytes.
+
+## Realm profiles and purge
+
+A promise-based store port MAY bind one space to one host-selected realm and
+profile. The binding includes the exact Oh contract digest, an optional
+application-profile digest, and declared capabilities. A supported runtime
+MUST reject a later attempt to open the same space under different binding
+bytes. A working profile disables operation replication and enables only
+host-controlled whole-space purge. A canonical profile cannot be purged by
+that API.
+
+Purge deletes the space head, complete operation history, current records,
+dependency and operation materializations, sync state, and derived keyword
+rows in one immediate transaction. It leaves only a content-free receipt with
+the prior head, binding digest, purge instant, and receipt digest. The purged
+space identifier cannot be reopened in the same database. A host that deletes
+an entire database file MUST retain any required deletion evidence in its own
+control plane.
+
+Realm and profile binding is additive store control metadata. V1 operation
+digest preimages do not contain the binding. It therefore protects supported
+opens and operations but is not a portable cryptographic claim about a V1
+history. Such a claim requires a new wire contract rather than a change to V1
+operation bytes.
 
 ## Authority and derivation
 

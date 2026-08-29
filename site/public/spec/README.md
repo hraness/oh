@@ -2,8 +2,8 @@
 
 This directory is the versioned public contract for Oh. It defines the
 canonical bytes, ontology identities, graph envelopes, schema revisions,
-SQLite state, operation sync, and local embedding profile that independent
-implementations need to interoperate.
+SQLite and direct libSQL authority, operation sync, store profiles, and local
+embedding profile that independent implementations need to interoperate.
 
 [`manifest.json`](manifest.json) is the discovery document. V1 is current and
 binds these versions:
@@ -14,7 +14,7 @@ binds these versions:
 | Contract ID | `oh.ontology.v1` |
 | Graph format | `1` |
 | Schema format | `1` |
-| SQLite schema | `1` |
+| SQLite schema | `2` |
 | Sync protocol | `oh.sync.v1` |
 | Embedding profile | `1` |
 
@@ -25,6 +25,7 @@ binds these versions:
 - [Schema evolution](v1/schema-evolution.md)
 - [Graph and operations](v1/graph.md)
 - [SQLite storage](v1/storage.md)
+- [Store ports, profiles, and direct libSQL authority](v1/store.md)
 - [Sync protocol](v1/sync.md)
 - [Local embedding profile](v1/embedding.md)
 - [Derived projections](v1/projection.md)

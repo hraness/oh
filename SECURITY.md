@@ -29,8 +29,21 @@ problem that has already been fixed there.
 - Contract, operation, record, and bundle digests detect accidental or hostile
   mutation. They do not encrypt data or authenticate an actor.
 - The libSQL sync seam validates contract bytes and fast-forward history. The
-  client application remains responsible for transport security, credentials,
-  access control, tenant isolation, backups, and service configuration.
+  direct libSQL authority additionally enforces compare-and-swap batches and
+  exact realm/profile bindings. The client application remains responsible for
+  transport security, credentials, access control, tenant isolation, backups,
+  and service configuration.
+- Direct libSQL schema creation is an explicit bootstrap API. Use a short-lived
+  schema credential for that step and a narrower data credential for runtime
+  opens, commits, reads, and host-controlled purge.
+- A working-store purge removes rows reachable through the supported authority
+  and leaves a content-free receipt. It does not erase provider backups,
+  replicas outside that authority, exported dependency closures, logs created
+  by the host, or bytes copied by a process that already held raw credentials.
+  Match retention claims to the complete custody and backup system.
+- Store profiles are host control metadata. V1 operation digests do not attest
+  to that profile, and callers with raw database or filesystem access remain
+  outside the profile API boundary.
 - Oh does not redact record values. Do not write secrets or sensitive research
   into a space unless the database, filesystem, backups, and sync destination
   have the required protection.

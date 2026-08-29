@@ -33,3 +33,15 @@ export function withImmediateTransaction<T>(database: OhSqliteDatabase, work: ()
     throw error;
   }
 }
+
+export function withReadTransaction<T>(database: OhSqliteDatabase, work: () => T): T {
+  database.exec("BEGIN");
+  try {
+    const result = work();
+    database.exec("COMMIT");
+    return result;
+  } catch (error) {
+    try { database.exec("ROLLBACK"); } catch { /* preserve the original failure */ }
+    throw error;
+  }
+}

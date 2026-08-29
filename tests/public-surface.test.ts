@@ -27,6 +27,7 @@ const markdownFiles = [
   "spec/v1/schema-evolution.md",
   "spec/v1/graph.md",
   "spec/v1/storage.md",
+  "spec/v1/store.md",
   "spec/v1/sync.md",
   "spec/v1/embedding.md",
   "spec/v1/projection.md",
@@ -153,7 +154,7 @@ describe("public identity and documentation", () => {
     expect(packageJson.license).toBe("MIT");
     expect(packageJson.private).toBe(false);
     expect(packageJson.packageManager).toBe("bun@1.3.14");
-    expect(packageJson.engines).toEqual({ bun: ">=1.3.14" });
+    expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
     expect(skill).toMatch(/^---\nname: oh\ndescription: .+\n---\n/u);
@@ -278,11 +279,13 @@ describe("versioned public contract", () => {
     expect(Object.keys(exports).sort()).toEqual([
       ".",
       "./experimental/projection-suss",
+      "./libsql",
       "./package.json",
       "./projection",
       "./sdk",
       "./semantic",
       "./sqlite",
+      "./store",
       "./sync",
     ]);
 
@@ -346,6 +349,7 @@ describe("repository policy", () => {
     const scripts = packageJson.scripts as Record<string, string>;
     const siteScripts = sitePackageJson.scripts as Record<string, string>;
     expect(scripts.check).toContain("bun run test");
+    expect(scripts.check).toContain("bun run test:node");
     expect(scripts.test).toBe("bun test ./src ./tests ./site/tests/source.test.ts");
     expect(scripts.test).not.toContain("runtime.test.ts");
     expect(siteScripts.postbuild).toBe("bun test ./tests/runtime.test.ts");

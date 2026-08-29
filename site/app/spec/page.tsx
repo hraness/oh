@@ -98,7 +98,7 @@ export default function Specification() {
                 <div><span>Ontology</span><strong>{contract.ontologyVersion}</strong></div>
                 <div><span>Graph format</span><strong>{contract.graphFormatVersion}</strong></div>
                 <div><span>Schema format</span><strong>{contract.schemaFormatVersion}</strong></div>
-                <div><span>SQLite schema</span><strong>1</strong></div>
+                <div><span>SQLite schema</span><strong>2</strong></div>
                 <div><span>Sync protocol</span><strong>oh.sync.v1</strong></div>
                 <div><span>Hash</span><strong>SHA-256</strong></div>
               </div>
@@ -182,8 +182,8 @@ export default function Specification() {
               <p>
                 The transport port is HTTP-friendly and compatible with a
                 libSQL/Turso implementation, while the local store remains the
-                source of truth. No cloud credential or endpoint appears in the
-                core package.
+                source of truth. A separate promise-based adapter can instead
+                use libSQL as the direct authority without importing Bun SQLite.
               </p>
             </div>
           </section>

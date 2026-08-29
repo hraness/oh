@@ -77,3 +77,16 @@ rollback depend on reversing a content or identifier rewrite.
 SQLite schema migrations are separate from space transfer. The store records
 each applied migration name and SQL digest in `oh_migrations` and refuses to
 open when an applied version has different migration bytes.
+
+SQLite schema version 2 appends `0002_store_realms` without changing the
+released `0001_oh_core` SQL. Existing spaces remain unbound after upgrade. A
+host may bind one through the promise-based store authority; once persisted,
+the exact realm and profile bytes cannot be replaced. A purged working space
+cannot be used as a migration source or recreated under the same identifier.
+
+The direct libSQL authority has its own `oh_authority_` schema digest. It emits
+the same V1 record and operation bytes, but it is not a destination for the
+offline CLI import procedure above. Applications moving authority between
+adapters MUST prove an exact complete operation chain and matching head through
+a separately reviewed migration workflow. A dependency-closure capsule is a
+selective content export for adoption, not proof of full authority migration.
