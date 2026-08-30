@@ -150,14 +150,18 @@ async function collectPublicTextFiles(): Promise<readonly string[]> {
 
 describe("public identity and documentation", () => {
   test("pins the exact public identity", async () => {
-    const [readme, packageJson, skill] = await Promise.all([
+    const [readme, packageJson, sitePackageJson, skill, cli] = await Promise.all([
       readFile(join(root, "README.md"), "utf8"),
       json("package.json"),
+      json("site/package.json"),
       readFile(join(root, "skills/oh/SKILL.md"), "utf8"),
+      readFile(join(root, "src/cli.ts"), "utf8"),
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.2.3");
+    expect(packageJson.version).toBe("0.2.4");
+    expect(sitePackageJson.version).toBe("0.2.4");
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.2.4"');
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");
     expect(packageJson.license).toBe("MIT");
@@ -171,6 +175,12 @@ describe("public identity and documentation", () => {
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
+    expect(readme).toContain("bun add --global @hraness/oh@0.2.4");
+    expect(readme).toContain('"@hraness/oh": "0.2.4"');
+    expect(readme).toContain("releases/download/v0.2.4/hraness-oh-0.2.4.tgz");
+    expect(readme).not.toContain("github:hraness/oh#");
+    expect(skill).toContain("`@hraness/oh@0.2.4`");
+    expect(skill).toContain("immutable GitHub Release `v0.2.4`");
     expect(skill).toMatch(/^---\nname: oh\ndescription: .+\n---\n/u);
     expect(skill).not.toMatch(/TODO|TBD|example skill/iu);
   });
