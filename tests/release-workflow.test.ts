@@ -27,6 +27,10 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
     "package-smoke.ts artifacts/*.tgz",
     "id-token: write",
     "contents: write",
+    "RELEASE_REPOSITORY_ID: ${{ github.repository_id }}",
+    "RELEASE_RUN_ATTEMPT: ${{ github.run_attempt }}",
+    "RELEASE_RUN_ID: ${{ github.run_id }}",
+    "RELEASE_WORKFLOW_REF: ${{ github.workflow_ref }}",
     "check-npm-trusted-publishing.ts",
     "publish-npm-release.ts artifacts/*.tgz",
     'publish-github-release.ts "$VERIFIED_TAG" artifacts/*.tgz artifacts/SHA256SUMS',
@@ -122,7 +126,19 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(provenance).toContain("publicReleaseEnvironment");
   expect(provenance).toContain("verify-npm-provenance-signer.mjs");
   expect(githubPublisher.match(/verifyRemoteReleaseAuthority\(\);/gu)).toHaveLength(2);
-  expect(githubPublisher).toContain('"--latest"');
+  expect(githubPublisher).toContain('"--raw-field", "make_latest=true"');
+  expect(githubPublisher).toContain('"--include", `/repos/${publicRepository}/releases/tags/${tagArgument}`');
+  expect(githubPublisher).toContain("lookup.state === \"draft\"");
+  expect(githubPublisher).toContain("planReleaseRecovery(lookup, initialDraftIds)");
+  expect(githubPublisher.indexOf("const initialDraftIds = await matchingDraftIds();")).toBeLessThan(
+    githubPublisher.indexOf('if (plan.state === "published")'),
+  );
+  expect(githubPublisher).toContain("retained an ambiguous residual draft after publication");
+  expect(githubPublisher).toContain("ambiguous residual draft at final admission");
+  expect(githubPublisher).toContain("assertExactReleaseAssetBytes");
+  expect(githubPublisher).toContain("`https://uploads.github.com/repos/${publicRepository}/releases/${String(current.id)}/assets?name=${encodeURIComponent(asset.name)}`");
+  expect(githubPublisher).not.toContain('"gh", "release", "upload"');
+  expect(githubPublisher).not.toContain("target_commitish");
   expect(githubPublisher).toContain("parseGitHubRelease");
   expect(authority).toContain('tagObject.type !== "tag"');
   expect(authority).toContain("target.sha !== input.sha");
@@ -171,4 +187,7 @@ test("release controls have explicit ownership and document the public MIT bound
   expect(guide).toContain("every later publication must use the tag");
   expect(guide).toContain("privileged job's trusted computing base");
   expect(guide).toContain("npm OIDC permission is job-scoped");
+  expect(guide).toContain("same workflow run may complete it");
+  expect(guide).toContain("actual publication attempt");
+  expect(guide).toContain("`target_commitish` is neither required nor consulted as authority");
 });
