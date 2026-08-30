@@ -69,6 +69,12 @@ Run it in a deployment or migration step with a short-lived schema credential.
 installed schema and contract before reading or creating a bound data space,
 so a runtime token does not need schema-change permission.
 
+Runtime open verifies the exact installed table, index, and trigger set, not
+only a schema marker. Every operation, binding, and purge receipt read parses
+its canonical JSON and cross-checks each duplicated SQL column. Current reads
+also prove contiguous operation coverage through the exact terminal head,
+record provenance puts, record digests, and dependency materialization.
+
 Its private implementation tables use the `oh_authority_` prefix:
 
 | Table | Role |
@@ -84,13 +90,28 @@ Its private implementation tables use the `oh_authority_` prefix:
 | `oh_authority_purges` | Minimal whole-space purge receipts. |
 | `oh_authority_commit_guards` | Empty constraint table used to abort a stale transactional batch. |
 
-A remote commit reads one exact snapshot, computes the ordinary V1 operation,
-then uses one write batch guarded by the expected head. The final guard aborts
-the complete transaction when compare-and-swap did not settle at the declared
-operation. The adapter re-reads and verifies the persisted canonical operation
-before returning success.
+A normal remote commit takes three atomic provider round trips: an idempotency,
+head, and purge preflight; one exact current-materialization read; and one
+guarded write batch. The final write guard aborts the complete transaction when
+compare-and-swap did not settle at the declared operation. Its write-batch
+readback must reproduce both the canonical operation and persisted head before
+the adapter returns success.
+
+Provider responses are bounded as part of the API. V1 accepts at most 64
+changes, 512 dependencies, and 512 KiB of canonical operation JSON per commit.
+A feed returns at most seven operations plus one checked sentinel and refuses a
+page whose conservative transport estimate exceeds 9,000,000 bytes. Historical
+replay is limited to 16,384 operations, 4 MiB of canonical operation JSON, and
+the same response estimate. Current snapshot and full-verification result sets
+are independently transport-estimated and SQL-gated before rows are returned.
+Sizing, rows, and the pinned head are read in the same transaction, so a
+concurrent append cannot grow an unchecked response between preflight and read.
 
 Remote purge similarly inserts a receipt only for the expected working head,
 deletes every payload and materialization row under that receipt in the same
 write batch, and aborts if either the receipt or deletion is incomplete. A
 later open returns the stored purge receipt instead of recreating the space.
+Operation-record deletion resolves ownership through the canonical operation;
+the purge postcondition also rejects any global orphan or cross-space owner
+mismatch. Purge receipts are immutable and intentionally retain only binding,
+prior-head, and purge-event evidence.

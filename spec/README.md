@@ -17,6 +17,8 @@ binds these versions:
 | SQLite schema | `2` |
 | Sync protocol | `oh.sync.v1` |
 | Embedding profile | `1` |
+| Projection semantics | `oh.projection.positive-datalog.v1` |
+| Composite memory | `experimental v1` |
 
 ## V1 documents
 
@@ -29,6 +31,7 @@ binds these versions:
 - [Sync protocol](v1/sync.md)
 - [Local embedding profile](v1/embedding.md)
 - [Derived projections](v1/projection.md)
+- [Experimental composite agent memory](v1/memory.md)
 - [Compatibility and migration](v1/migration.md)
 
 Machine-readable V1 artifacts:
@@ -41,6 +44,10 @@ Machine-readable V1 artifacts:
 - [`schema-revision.schema.json`](v1/schema-revision.schema.json)
 - [`operation.schema.json`](v1/operation.schema.json)
 - [`sync-bundle.schema.json`](v1/sync-bundle.schema.json)
+- [`projection-rule-pack.schema.json`](v1/projection-rule-pack.schema.json)
+- [`projection-query.schema.json`](v1/projection-query.schema.json)
+- [`projection-identity.schema.json`](v1/projection-identity.schema.json)
+- [`projection-result.schema.json`](v1/projection-result.schema.json)
 
 ## Conformance
 

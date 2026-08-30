@@ -14,6 +14,8 @@ import {
   createOhProjectionSnapshotV1,
   evaluateOhProjectionV1,
   ohProjectionVariableV1,
+  parseOhProjectionProofV1,
+  parseOhProjectionResultV1,
 } from "../dist/projection-public.js";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -36,6 +38,8 @@ test("the projection subpath runs under Node without loading the SQLite runtime"
   const result = evaluateOhProjectionV1({ dataset, query, rulePack, snapshot });
   assert.deepEqual(result.rows, []);
   assert.equal(result.authority, "derived");
+  assert.deepEqual(parseOhProjectionResultV1(result), result);
+  assert.equal(parseOhProjectionProofV1({ unexpected: true }), null);
   assert.equal(Object.hasOwn(projectionSurface, "evaluateOhProjectionWithMaterializerV1"), false);
 
   const sources = await Promise.all(["projection-public.js", "projection-suss.js"]

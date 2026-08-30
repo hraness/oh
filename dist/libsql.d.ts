@@ -21,6 +21,16 @@ export type OhLibSqlStoreAuthorityOptionsV1 = Readonly<{
     realmId?: string;
     spaceId?: string;
 }>;
+export declare const OH_LIBSQL_STORE_LIMITS_V1: Readonly<{
+    changesPerCommit: 64;
+    changeFeedLimit: 7;
+    dependenciesPerCommit: 512;
+    historyBytes: number;
+    historyOperations: 16384;
+    operationBytes: number;
+    providerResponseBytes: 9000000;
+    snapshotComponentBytes: number;
+}>;
 /** One-time schema operation for a client authorized to create authority tables. */
 export declare function bootstrapOhLibSqlAuthorityV1(client: OhLibSqlClientV1): Promise<Readonly<{
     schemaSha256: Sha256Hex;

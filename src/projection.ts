@@ -6,6 +6,7 @@ import {
   orderedUnique,
   parseSha256Hex,
   safeCode,
+  sha256Hex,
   sortUnique,
   utf8ByteLength,
   type JsonPrimitive,
@@ -38,10 +39,13 @@ export const OH_PROJECTION_LIMITS_V1 = Object.freeze({
   queryMatches: 262_144,
   queryResults: 65_536,
   relations: 4_096,
+  resultBytes: 16 * 1024 * 1024,
   rounds: 1_024,
   rules: 1_024,
   sourcesPerFact: 64,
+  totalProofNodes: 65_536,
   variables: 256,
+  workUnits: 16_777_216,
 });
 
 export type OhProjectionAtomV1 = JsonPrimitive;
@@ -138,6 +142,8 @@ export type OhProjectionQueryV1 = Readonly<{
 export type OhProjectionIdentityV1 = Readonly<{
   contractSha256: Sha256Hex;
   datasetSha256: Sha256Hex;
+  engineSha256: Sha256Hex;
+  evaluationSha256: Sha256Hex;
   projectionSha256: Sha256Hex;
   querySha256: Sha256Hex;
   rulePackSha256: Sha256Hex;
@@ -157,6 +163,7 @@ export type OhProjectionProofV1 =
   | Readonly<{
     kind: "derived";
     premises: readonly OhProjectionProofV1[];
+    premisesTruncated: boolean;
     relation: string;
     ruleId: string;
     ruleSha256: Sha256Hex;
@@ -173,6 +180,8 @@ export type OhProjectionProofV1 =
 
 export type OhProjectionResultRowV1 = Readonly<{
   proofs: readonly OhProjectionProofV1[];
+  proofsTruncated: boolean;
+  supportCount: number;
   values: readonly OhProjectionAtomV1[];
   v: 1;
 }>;
@@ -185,7 +194,10 @@ export type OhProjectionResultV1 = Readonly<{
     maximumDerivedTuples: number;
     maximumProofDepth: number;
     maximumProofNodes: number;
+    maximumResultBytes: number;
     maximumRounds: number;
+    maximumTotalProofNodes: number;
+    maximumWorkUnits: number;
     v: 1;
   }>;
   identity: OhProjectionIdentityV1;
@@ -194,10 +206,14 @@ export type OhProjectionResultV1 = Readonly<{
   stats: Readonly<{
     baseFacts: number;
     derivedFacts: number;
+    proofNodes: number;
     queryMatches: number;
     relations: number;
     rounds: number;
+    proofsTruncated: boolean;
     truncated: boolean;
+    truncationReasons: readonly ("query-limit" | "result-bytes")[];
+    workUnits: number;
     v: 1;
   }>;
   v: 1;
@@ -207,11 +223,16 @@ export type OhProjectionEvaluationOptionsV1 = Readonly<{
   maximumDerivedTuples?: number;
   maximumProofDepth?: number;
   maximumProofNodes?: number;
+  maximumResultBytes?: number;
   maximumRounds?: number;
+  maximumTotalProofNodes?: number;
+  maximumWorkUnits?: number;
 }>;
 
 export type OhProjectionInvalidationReasonV1 =
   | "dataset-changed"
+  | "engine-changed"
+  | "evaluation-changed"
   | "query-changed"
   | "rule-pack-changed"
   | "snapshot-changed";
@@ -646,6 +667,8 @@ export function parseOhProjectionQueryV1(value: unknown): OhProjectionQueryV1 | 
 
 export function createOhProjectionIdentityV1(input: Readonly<{
   dataset: OhProjectionDatasetV1;
+  engine?: string;
+  options?: OhProjectionEvaluationOptionsV1;
   query: OhProjectionQueryV1;
   rulePack: OhProjectionRulePackV1;
   snapshot: OhProjectionSnapshotV1;
@@ -657,9 +680,14 @@ export function createOhProjectionIdentityV1(input: Readonly<{
   if (snapshot === null || dataset === null || query === null || rulePack === null) {
     throw new TypeError("Invalid projection identity input.");
   }
+  const engine = safeCode(input.engine ?? OH_PROJECTION_INTERNAL_ENGINE_V1, 256);
+  if (engine === null) throw new TypeError("Invalid projection engine identity.");
+  const evaluation = { ...resolveEvaluationOptions(input.options ?? {}), v: 1 as const };
   const payload = {
     contractSha256: OH_CONTRACT_MANIFEST_V1.contractSha256,
     datasetSha256: dataset.datasetSha256,
+    engineSha256: canonicalSha256({ engine, v: 1 }),
+    evaluationSha256: canonicalSha256(evaluation),
     querySha256: query.querySha256,
     rulePackSha256: rulePack.rulePackSha256,
     semantics: OH_PROJECTION_SEMANTICS_V1,
@@ -671,18 +699,23 @@ export function createOhProjectionIdentityV1(input: Readonly<{
 
 export function parseOhProjectionIdentityV1(value: unknown): OhProjectionIdentityV1 | null {
   if (!isPlainRecord(value) || !hasExactKeys(value, ["contractSha256", "datasetSha256",
-    "projectionSha256", "querySha256", "rulePackSha256", "semantics", "snapshotSha256", "v"])
+    "engineSha256", "evaluationSha256", "projectionSha256", "querySha256", "rulePackSha256",
+    "semantics", "snapshotSha256", "v"])
     || value.v !== 1 || value.semantics !== OH_PROJECTION_SEMANTICS_V1) return null;
   const contractSha256 = parseSha256Hex(value.contractSha256);
   const datasetSha256 = parseSha256Hex(value.datasetSha256);
+  const engineSha256 = parseSha256Hex(value.engineSha256);
+  const evaluationSha256 = parseSha256Hex(value.evaluationSha256);
   const projectionSha256 = parseSha256Hex(value.projectionSha256);
   const querySha256 = parseSha256Hex(value.querySha256);
   const rulePackSha256 = parseSha256Hex(value.rulePackSha256);
   const snapshotSha256 = parseSha256Hex(value.snapshotSha256);
   if (contractSha256 !== OH_CONTRACT_MANIFEST_V1.contractSha256 || datasetSha256 === null
-    || projectionSha256 === null || querySha256 === null || rulePackSha256 === null
+    || engineSha256 === null || evaluationSha256 === null || projectionSha256 === null
+    || querySha256 === null || rulePackSha256 === null
     || snapshotSha256 === null) return null;
-  const payload = { contractSha256, datasetSha256, querySha256, rulePackSha256,
+  const payload = { contractSha256, datasetSha256, engineSha256, evaluationSha256,
+    querySha256, rulePackSha256,
     semantics: OH_PROJECTION_SEMANTICS_V1, snapshotSha256, v: 1 as const };
   return canonicalSha256(payload) === projectionSha256 ? { ...payload, projectionSha256 } : null;
 }
@@ -696,6 +729,8 @@ export function invalidationForOhProjectionV1(previous: OhProjectionIdentityV1,
   const reasons: OhProjectionInvalidationReasonV1[] = [];
   if (parsedPrevious.snapshotSha256 !== parsedNext.snapshotSha256) reasons.push("snapshot-changed");
   if (parsedPrevious.datasetSha256 !== parsedNext.datasetSha256) reasons.push("dataset-changed");
+  if (parsedPrevious.engineSha256 !== parsedNext.engineSha256) reasons.push("engine-changed");
+  if (parsedPrevious.evaluationSha256 !== parsedNext.evaluationSha256) reasons.push("evaluation-changed");
   if (parsedPrevious.rulePackSha256 !== parsedNext.rulePackSha256) reasons.push("rule-pack-changed");
   if (parsedPrevious.querySha256 !== parsedNext.querySha256) reasons.push("query-changed");
   return { kind: "full-rebuild", reasons, v: 1 };
@@ -777,14 +812,22 @@ function unifyLiteral(literal: OhProjectionLiteralV1, state: TupleState, binding
 
 type BodyMatch = Readonly<{ binding: Binding; premises: readonly TupleReference[] }>;
 
+type ProjectionWorkBudget = { maximum: number; units: number };
+
+function consumeWorkUnit(budget: ProjectionWorkBudget): void {
+  if (budget.units >= budget.maximum) throw new RangeError("Projection exceeds its work-unit bound.");
+  budget.units += 1;
+}
+
 function matchBody(relations: Map<string, RelationState>, body: readonly OhProjectionLiteralV1[],
-  maximumMatches: number): readonly BodyMatch[] {
+  maximumMatches: number, work: ProjectionWorkBudget): readonly BodyMatch[] {
   let matches: readonly BodyMatch[] = [{ binding: new Map(), premises: [] }];
   for (const literal of body) {
     const next: BodyMatch[] = [];
     const candidates = relationTuples(relations, literal.relation);
     for (const match of matches) {
       for (const candidate of candidates) {
+        consumeWorkUnit(work);
         const binding = unifyLiteral(literal, candidate, match.binding);
         if (binding === null) continue;
         next.push({ binding, premises: [...match.premises, { relation: literal.relation,
@@ -813,6 +856,7 @@ function materializeNaive(input: Readonly<{
   maximumDerivedTuples: number;
   maximumRounds: number;
   rulePack: OhProjectionRulePackV1;
+  work: ProjectionWorkBudget;
 }>): MaterializedProjection {
   const relations = new Map<string, RelationState>();
   for (const fact of input.dataset.facts) {
@@ -828,7 +872,7 @@ function materializeNaive(input: Readonly<{
   while (true) {
     const candidates = new Map<string, Readonly<{ relation: string; state: TupleState }>>();
     for (const rule of input.rulePack.rules) {
-      for (const match of matchBody(relations, rule.body, OH_PROJECTION_LIMITS_V1.queryMatches)) {
+      for (const match of matchBody(relations, rule.body, OH_PROJECTION_LIMITS_V1.queryMatches, input.work)) {
         const derivedTuple = instantiateHead(rule.head, match.binding);
         const relation = relations.get(rule.head.relation);
         const key = tupleKey(derivedTuple);
@@ -873,57 +917,341 @@ type ResolvedEvaluationOptions = Readonly<{
   maximumDerivedTuples: number;
   maximumProofDepth: number;
   maximumProofNodes: number;
+  maximumResultBytes: number;
   maximumRounds: number;
+  maximumTotalProofNodes: number;
+  maximumWorkUnits: number;
 }>;
 
 function resolveEvaluationOptions(options: OhProjectionEvaluationOptionsV1): ResolvedEvaluationOptions {
-  return {
+  const resolved = {
     maximumDerivedTuples: boundedOption(options.maximumDerivedTuples, OH_PROJECTION_LIMITS_V1.derivedTuples,
       OH_PROJECTION_LIMITS_V1.derivedTuples, "maximumDerivedTuples"),
     maximumProofDepth: boundedOption(options.maximumProofDepth, 32,
       OH_PROJECTION_LIMITS_V1.proofDepth, "maximumProofDepth"),
     maximumProofNodes: boundedOption(options.maximumProofNodes, 1_024,
       OH_PROJECTION_LIMITS_V1.proofNodes, "maximumProofNodes"),
+    maximumResultBytes: boundedOption(options.maximumResultBytes, OH_PROJECTION_LIMITS_V1.resultBytes,
+      OH_PROJECTION_LIMITS_V1.resultBytes, "maximumResultBytes"),
     maximumRounds: boundedOption(options.maximumRounds, OH_PROJECTION_LIMITS_V1.rounds,
       OH_PROJECTION_LIMITS_V1.rounds, "maximumRounds"),
+    maximumTotalProofNodes: boundedOption(options.maximumTotalProofNodes,
+      OH_PROJECTION_LIMITS_V1.totalProofNodes, OH_PROJECTION_LIMITS_V1.totalProofNodes,
+      "maximumTotalProofNodes"),
+    maximumWorkUnits: boundedOption(options.maximumWorkUnits, OH_PROJECTION_LIMITS_V1.workUnits,
+      OH_PROJECTION_LIMITS_V1.workUnits, "maximumWorkUnits"),
   };
+  if (resolved.maximumResultBytes < 64 * 1024) {
+    throw new RangeError("maximumResultBytes must be at least 65536.");
+  }
+  return resolved;
+}
+
+type ProjectionResultBudget = { bytes: number; maximumBytes: number; nodes: number };
+type ProjectionRowProofBudget = { nodes: number; result: ProjectionResultBudget };
+
+function reserveResultBytes(budget: ProjectionResultBudget, value: unknown): boolean {
+  const bytes = utf8ByteLength(canonicalJson(value));
+  if (budget.bytes + bytes > budget.maximumBytes) return false;
+  budget.bytes += bytes;
+  return true;
+}
+
+function reserveProofNode(budget: ProjectionRowProofBudget, options: ResolvedEvaluationOptions,
+  envelope: OhProjectionProofV1): boolean {
+  if (budget.nodes >= options.maximumProofNodes
+    || budget.result.nodes >= options.maximumTotalProofNodes
+    || !reserveResultBytes(budget.result, envelope)) return false;
+  budget.nodes += 1;
+  budget.result.nodes += 1;
+  return true;
 }
 
 function proofForReference(relations: Map<string, RelationState>, reference: TupleReference,
-  budget: { nodes: number }, options: ResolvedEvaluationOptions, depth: number,
+  budget: ProjectionRowProofBudget, options: ResolvedEvaluationOptions, depth: number,
   visiting: Set<string>): OhProjectionProofV1 | null {
-  if (budget.nodes >= options.maximumProofNodes) return null;
-  if (budget.nodes === options.maximumProofNodes - 1) {
-    budget.nodes += 1;
-    return { kind: "truncated", reason: "nodes", relation: reference.relation, tuple: reference.tuple, v: 1 };
-  }
-  budget.nodes += 1;
   if (depth >= options.maximumProofDepth) {
-    return { kind: "truncated", reason: "depth", relation: reference.relation, tuple: reference.tuple, v: 1 };
+    const proof = { kind: "truncated" as const, reason: "depth" as const,
+      relation: reference.relation, tuple: reference.tuple, v: 1 as const };
+    return reserveProofNode(budget, options, proof) ? proof : null;
   }
   const identity = referenceKey(reference);
   if (visiting.has(identity)) {
-    return { kind: "truncated", reason: "cycle", relation: reference.relation, tuple: reference.tuple, v: 1 };
+    const proof = { kind: "truncated" as const, reason: "cycle" as const,
+      relation: reference.relation, tuple: reference.tuple, v: 1 as const };
+    return reserveProofNode(budget, options, proof) ? proof : null;
   }
   const state = relations.get(reference.relation)?.get(tupleKey(reference.tuple));
   if (state === undefined) throw new Error("Projection proof references a tuple outside the materialized result.");
   if (state.witness.kind === "fact") {
-    return { kind: "fact", relation: reference.relation, sources: state.witness.sources,
-      tuple: reference.tuple, v: 1 };
+    const proof = { kind: "fact" as const, relation: reference.relation, sources: state.witness.sources,
+      tuple: reference.tuple, v: 1 as const };
+    return reserveProofNode(budget, options, proof) ? proof : null;
   }
+  const envelope = { kind: "derived" as const, premises: [], premisesTruncated: false,
+    relation: reference.relation, ruleId: state.witness.rule.ruleId,
+    ruleSha256: state.witness.rule.ruleSha256, tuple: reference.tuple, v: 1 as const };
+  if (!reserveProofNode(budget, options, envelope)) return null;
   visiting.add(identity);
   try {
     const premises: OhProjectionProofV1[] = [];
+    let premisesTruncated = false;
     for (const premise of state.witness.premises) {
       const proof = proofForReference(relations, premise, budget, options, depth + 1, visiting);
-      if (proof === null) break;
+      if (proof === null) { premisesTruncated = true; break; }
       premises.push(proof);
     }
-    return { kind: "derived", premises,
+    return { kind: "derived", premises, premisesTruncated,
     relation: reference.relation, ruleId: state.witness.rule.ruleId,
     ruleSha256: state.witness.rule.ruleSha256, tuple: reference.tuple, v: 1 };
   } finally {
     visiting.delete(identity);
+  }
+}
+
+function proofIsTruncated(proof: OhProjectionProofV1): boolean {
+  return proof.kind === "truncated" || (proof.kind === "derived"
+    && (proof.premisesTruncated || proof.premises.some(proofIsTruncated)));
+}
+
+type ProjectionParseBudget = {
+  bytes: number;
+  maximumBytes: number;
+  maximumDepth: number;
+  maximumNodes: number;
+  nodes: number;
+};
+
+function reserveProjectionParseBytes(budget: ProjectionParseBudget, value: unknown): boolean {
+  const bytes = utf8ByteLength(canonicalJson(value));
+  if (budget.bytes + bytes > budget.maximumBytes) return false;
+  budget.bytes += bytes;
+  return true;
+}
+
+function parseProjectionFactSource(value: unknown): OhProjectionFactSourceV1 | null {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["key", "recordSha256", "v"]) || value.v !== 1) {
+    return null;
+  }
+  const key = safeCode(value.key, 512);
+  const recordSha256 = parseSha256Hex(value.recordSha256);
+  return key === null || recordSha256 === null ? null : { key, recordSha256, v: 1 };
+}
+
+function parseProjectionProofWithBudget(value: unknown, budget: ProjectionParseBudget,
+  depth: number): OhProjectionProofV1 | null {
+  if (depth > budget.maximumDepth || budget.nodes >= budget.maximumNodes
+    || !isPlainRecord(value) || value.v !== 1) return null;
+  const relation = projectionName(value.relation);
+  const parsedTuple = tuple(value.tuple);
+  if (relation === null || parsedTuple === null) return null;
+
+  if (value.kind === "fact") {
+    if (!hasExactKeys(value, ["kind", "relation", "sources", "tuple", "v"])
+      || !Array.isArray(value.sources) || value.sources.length < 1
+      || value.sources.length > OH_PROJECTION_LIMITS_V1.sourcesPerFact) return null;
+    const sources = value.sources.map(parseProjectionFactSource);
+    if (sources.some((source) => source === null)) return null;
+    const parsedSources = sources as readonly OhProjectionFactSourceV1[];
+    if (!orderedUnique(parsedSources, (source) => source.key)) return null;
+    const proof = { kind: "fact" as const, relation, sources: parsedSources,
+      tuple: parsedTuple, v: 1 as const };
+    if (!reserveProjectionParseBytes(budget, proof)) return null;
+    budget.nodes += 1;
+    return proof;
+  }
+
+  if (value.kind === "truncated") {
+    if (!hasExactKeys(value, ["kind", "reason", "relation", "tuple", "v"])
+      || (value.reason !== "cycle" && value.reason !== "depth" && value.reason !== "nodes")) return null;
+    const reason = value.reason as "cycle" | "depth" | "nodes";
+    const proof = { kind: "truncated" as const, reason,
+      relation, tuple: parsedTuple, v: 1 as const };
+    if (!reserveProjectionParseBytes(budget, proof)) return null;
+    budget.nodes += 1;
+    return proof;
+  }
+
+  if (value.kind !== "derived" || !hasExactKeys(value, ["kind", "premises", "premisesTruncated",
+    "relation", "ruleId", "ruleSha256", "tuple", "v"]) || !Array.isArray(value.premises)
+    || value.premises.length > OH_PROJECTION_LIMITS_V1.literalsPerRule
+    || typeof value.premisesTruncated !== "boolean") return null;
+  const ruleId = projectionName(value.ruleId);
+  const ruleSha256 = parseSha256Hex(value.ruleSha256);
+  if (ruleId === null || ruleSha256 === null
+    || (!value.premisesTruncated && value.premises.length === 0)
+    || (value.premisesTruncated && value.premises.length === OH_PROJECTION_LIMITS_V1.literalsPerRule)) {
+    return null;
+  }
+  const skeleton = { kind: "derived" as const, premises: [],
+    premisesTruncated: value.premisesTruncated, relation, ruleId, ruleSha256,
+    tuple: parsedTuple, v: 1 as const };
+  if (!reserveProjectionParseBytes(budget, skeleton)) return null;
+  budget.nodes += 1;
+  const premises: OhProjectionProofV1[] = [];
+  for (const premise of value.premises) {
+    const parsed = parseProjectionProofWithBudget(premise, budget, depth + 1);
+    if (parsed === null) return null;
+    premises.push(parsed);
+  }
+  return { ...skeleton, premises };
+}
+
+/**
+ * Parses one untrusted proof tree under the public hard depth, node, and byte
+ * ceilings. Cached result envelopes should normally be parsed as a whole with
+ * `parseOhProjectionResultV1`, which also applies their smaller declared limits.
+ */
+export function parseOhProjectionProofV1(value: unknown): OhProjectionProofV1 | null {
+  try {
+    const budget: ProjectionParseBudget = { bytes: 0,
+      maximumBytes: OH_PROJECTION_LIMITS_V1.resultBytes,
+      maximumDepth: OH_PROJECTION_LIMITS_V1.proofDepth,
+      maximumNodes: OH_PROJECTION_LIMITS_V1.proofNodes, nodes: 0 };
+    const proof = parseProjectionProofWithBudget(value, budget, 0);
+    return proof !== null && utf8ByteLength(canonicalJson(proof)) <= budget.maximumBytes ? proof : null;
+  } catch {
+    return null;
+  }
+}
+
+type OhProjectionResolvedEvaluationV1 = ResolvedEvaluationOptions & Readonly<{ v: 1 }>;
+
+function parseProjectionEvaluation(value: unknown): OhProjectionResolvedEvaluationV1 | null {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["maximumDerivedTuples", "maximumProofDepth",
+    "maximumProofNodes", "maximumResultBytes", "maximumRounds", "maximumTotalProofNodes",
+    "maximumWorkUnits", "v"]) || value.v !== 1) return null;
+  const maximumDerivedTuples = positiveInteger(value.maximumDerivedTuples,
+    OH_PROJECTION_LIMITS_V1.derivedTuples);
+  const maximumProofDepth = positiveInteger(value.maximumProofDepth, OH_PROJECTION_LIMITS_V1.proofDepth);
+  const maximumProofNodes = positiveInteger(value.maximumProofNodes, OH_PROJECTION_LIMITS_V1.proofNodes);
+  const maximumResultBytes = positiveInteger(value.maximumResultBytes, OH_PROJECTION_LIMITS_V1.resultBytes);
+  const maximumRounds = positiveInteger(value.maximumRounds, OH_PROJECTION_LIMITS_V1.rounds);
+  const maximumTotalProofNodes = positiveInteger(value.maximumTotalProofNodes,
+    OH_PROJECTION_LIMITS_V1.totalProofNodes);
+  const maximumWorkUnits = positiveInteger(value.maximumWorkUnits, OH_PROJECTION_LIMITS_V1.workUnits);
+  if (maximumDerivedTuples === null || maximumProofDepth === null || maximumProofNodes === null
+    || maximumResultBytes === null || maximumResultBytes < 64 * 1024 || maximumRounds === null
+    || maximumTotalProofNodes === null || maximumWorkUnits === null) return null;
+  return { maximumDerivedTuples, maximumProofDepth, maximumProofNodes, maximumResultBytes,
+    maximumRounds, maximumTotalProofNodes, maximumWorkUnits, v: 1 };
+}
+
+function parseProjectionResultRow(value: unknown, evaluation: OhProjectionResolvedEvaluationV1,
+  resultBudget: ProjectionParseBudget): Readonly<{ nodes: number; row: OhProjectionResultRowV1 }> | null {
+  if (!isPlainRecord(value) || !hasExactKeys(value,
+    ["proofs", "proofsTruncated", "supportCount", "values", "v"]) || value.v !== 1
+    || !Array.isArray(value.proofs) || value.proofs.length > OH_PROJECTION_LIMITS_V1.queryLiterals
+    || typeof value.proofsTruncated !== "boolean") return null;
+  const values = tuple(value.values);
+  const supportCount = positiveInteger(value.supportCount, OH_PROJECTION_LIMITS_V1.queryMatches);
+  if (values === null || supportCount === null || (!value.proofsTruncated && value.proofs.length === 0)) return null;
+  if (!reserveProjectionParseBytes(resultBudget, { proofs: [], proofsTruncated: value.proofsTruncated,
+    supportCount, values, v: 1 })) return null;
+  const before = resultBudget.nodes;
+  resultBudget.maximumNodes = Math.min(resultBudget.maximumNodes, before + evaluation.maximumProofNodes);
+  const proofs: OhProjectionProofV1[] = [];
+  for (const proof of value.proofs) {
+    const parsed = parseProjectionProofWithBudget(proof, resultBudget, 0);
+    if (parsed === null) return null;
+    proofs.push(parsed);
+  }
+  resultBudget.maximumNodes = evaluation.maximumTotalProofNodes;
+  const containsTruncation = proofs.some(proofIsTruncated);
+  if ((!value.proofsTruncated && containsTruncation)
+    || (value.proofsTruncated && proofs.length === OH_PROJECTION_LIMITS_V1.queryLiterals
+      && !containsTruncation)) return null;
+  return { nodes: resultBudget.nodes - before,
+    row: { proofs, proofsTruncated: value.proofsTruncated, supportCount, values, v: 1 } };
+}
+
+/**
+ * Parses a cached projection result as untrusted data. It verifies exact keys,
+ * all aggregate and declared bounds, proof truncation markers, canonical row
+ * order, engine/evaluation identity links, and `resultSha256`. Pass the
+ * projection digest requested from a cache to reject identity substitution.
+ */
+export function parseOhProjectionResultV1(value: unknown,
+  expectedProjectionSha256?: Sha256Hex): OhProjectionResultV1 | null {
+  try {
+    if (!isPlainRecord(value) || !hasExactKeys(value, ["authority", "cache", "engine", "evaluation",
+      "identity", "resultSha256", "rows", "stats", "v"]) || value.v !== 1
+      || value.authority !== "derived" || !isPlainRecord(value.cache)
+      || !hasExactKeys(value.cache, ["strategy", "v"]) || value.cache.strategy !== "full-rebuild"
+      || value.cache.v !== 1 || !Array.isArray(value.rows)
+      || value.rows.length > OH_PROJECTION_LIMITS_V1.queryResults || !isPlainRecord(value.stats)
+      || !hasExactKeys(value.stats, ["baseFacts", "derivedFacts", "proofNodes", "proofsTruncated",
+        "queryMatches", "relations", "rounds", "truncated", "truncationReasons", "v", "workUnits"])
+      || value.stats.v !== 1 || !Array.isArray(value.stats.truncationReasons)
+      || typeof value.stats.proofsTruncated !== "boolean" || typeof value.stats.truncated !== "boolean") return null;
+    const engine = safeCode(value.engine, 256);
+    const evaluation = parseProjectionEvaluation(value.evaluation);
+    const identity = parseOhProjectionIdentityV1(value.identity);
+    const resultSha256 = parseSha256Hex(value.resultSha256);
+    const expected = expectedProjectionSha256 === undefined ? undefined
+      : parseSha256Hex(expectedProjectionSha256);
+    if (engine === null || evaluation === null || identity === null || resultSha256 === null
+      || (expectedProjectionSha256 !== undefined && expected === null)
+      || (expected !== undefined && identity.projectionSha256 !== expected)
+      || identity.engineSha256 !== canonicalSha256({ engine, v: 1 })
+      || identity.evaluationSha256 !== canonicalSha256(evaluation)) return null;
+
+    const baseFacts = nonnegativeInteger(value.stats.baseFacts);
+    const derivedFacts = nonnegativeInteger(value.stats.derivedFacts);
+    const proofNodes = nonnegativeInteger(value.stats.proofNodes);
+    const queryMatches = nonnegativeInteger(value.stats.queryMatches);
+    const relations = nonnegativeInteger(value.stats.relations);
+    const rounds = nonnegativeInteger(value.stats.rounds);
+    const workUnits = nonnegativeInteger(value.stats.workUnits);
+    if (baseFacts === null || baseFacts > OH_PROJECTION_LIMITS_V1.facts
+      || derivedFacts === null || derivedFacts > evaluation.maximumDerivedTuples
+      || proofNodes === null || proofNodes > evaluation.maximumTotalProofNodes
+      || queryMatches === null || queryMatches > OH_PROJECTION_LIMITS_V1.queryMatches
+      || relations === null || relations > OH_PROJECTION_LIMITS_V1.relations
+      || rounds === null || rounds > evaluation.maximumRounds
+      || workUnits === null || workUnits > evaluation.maximumWorkUnits
+      || relations > baseFacts + derivedFacts || rounds > derivedFacts
+      || ((rounds === 0) !== (derivedFacts === 0)) || queryMatches > workUnits) return null;
+    const truncationReasons = value.stats.truncationReasons;
+    if (truncationReasons.length > 2
+      || !orderedUnique(truncationReasons, (reason) => reason === "query-limit" ? "0" : reason === "result-bytes" ? "1" : "x")
+      || truncationReasons.some((reason) => reason !== "query-limit" && reason !== "result-bytes")
+      || value.stats.truncated !== (truncationReasons.length > 0)) return null;
+
+    const budget: ProjectionParseBudget = { bytes: 0, maximumBytes: evaluation.maximumResultBytes,
+      maximumDepth: evaluation.maximumProofDepth, maximumNodes: evaluation.maximumTotalProofNodes, nodes: 0 };
+    const rows: OhProjectionResultRowV1[] = [];
+    let supportCount = 0;
+    for (const row of value.rows) {
+      const parsed = parseProjectionResultRow(row, evaluation, budget);
+      if (parsed === null) return null;
+      rows.push(parsed.row);
+      supportCount += parsed.row.supportCount;
+      if (supportCount > queryMatches) return null;
+    }
+    if (!orderedUnique(rows, (row) => canonicalJson(row.values)) || budget.nodes !== proofNodes
+      || value.stats.proofsTruncated !== rows.some((row) => row.proofsTruncated)
+      || (value.stats.truncated ? supportCount >= queryMatches : supportCount !== queryMatches)) return null;
+
+    const reasons = truncationReasons as readonly ("query-limit" | "result-bytes")[];
+    const payload = {
+      authority: "derived" as const,
+      cache: { strategy: "full-rebuild" as const, v: 1 as const },
+      engine,
+      evaluation,
+      identity,
+      rows,
+      stats: { baseFacts, derivedFacts, proofNodes, proofsTruncated: value.stats.proofsTruncated,
+        queryMatches, relations, rounds, truncated: value.stats.truncated,
+        truncationReasons: reasons, v: 1 as const, workUnits },
+      v: 1 as const,
+    };
+    const serialized = canonicalJson(payload);
+    return utf8ByteLength(serialized) <= evaluation.maximumResultBytes
+        && sha256Hex(serialized) === resultSha256
+      ? { ...payload, resultSha256 } : null;
+  } catch {
+    return null;
   }
 }
 
@@ -935,31 +1263,49 @@ function buildProjectionResult(input: Readonly<{
   query: OhProjectionQueryV1;
   rulePack: OhProjectionRulePackV1;
   snapshot: OhProjectionSnapshotV1;
+  work: ProjectionWorkBudget;
 }>): OhProjectionResultV1 {
   const matches = matchBody(input.materialized.relations, input.query.where,
-    OH_PROJECTION_LIMITS_V1.queryMatches);
-  const byValues = new Map<string, BodyMatch>();
+    OH_PROJECTION_LIMITS_V1.queryMatches, input.work);
+  const byValues = new Map<string, { match: BodyMatch; supportCount: number }>();
   for (const match of matches) {
     const values = input.query.find.map((name) => match.binding.get(name) as OhProjectionAtomV1);
     const key = tupleKey(values);
     const existing = byValues.get(key);
-    if (existing === undefined || compareCanonical(match.premises, existing.premises) < 0) byValues.set(key, match);
+    if (existing === undefined) byValues.set(key, { match, supportCount: 1 });
+    else byValues.set(key, { match: compareCanonical(match.premises, existing.match.premises) < 0
+      ? match : existing.match, supportCount: existing.supportCount + 1 });
   }
   const ordered = [...byValues.entries()].sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
-  const truncated = ordered.length > input.query.limit;
-  const rows = ordered.slice(0, input.query.limit).map(([key, match]) => {
+  const resultBudget: ProjectionResultBudget = { bytes: 0,
+    maximumBytes: input.options.maximumResultBytes - 64 * 1024, nodes: 0 };
+  const rows: OhProjectionResultRowV1[] = [];
+  let resultBytesTruncated = false;
+  for (const [key, support] of ordered.slice(0, input.query.limit)) {
     const values = JSON.parse(key) as OhProjectionAtomV1[];
-    const budget = { nodes: 0 };
+    if (!reserveResultBytes(resultBudget, { proofs: [], proofsTruncated: false,
+      supportCount: support.supportCount, values, v: 1 })) {
+      resultBytesTruncated = true;
+      break;
+    }
+    const budget: ProjectionRowProofBudget = { nodes: 0, result: resultBudget };
     const proofs: OhProjectionProofV1[] = [];
-    for (const premise of match.premises) {
+    for (const premise of support.match.premises) {
       const proof = proofForReference(input.materialized.relations, premise, budget, input.options, 0, new Set());
       if (proof === null) break;
       proofs.push(proof);
     }
-    return { proofs, values, v: 1 as const };
-  });
+    const proofsTruncated = proofs.length !== support.match.premises.length || proofs.some(proofIsTruncated);
+    rows.push({ proofs, proofsTruncated, supportCount: support.supportCount, values, v: 1 });
+  }
+  const queryLimitTruncated = ordered.length > input.query.limit;
+  const truncationReasons = [
+    ...(queryLimitTruncated ? ["query-limit" as const] : []),
+    ...(resultBytesTruncated ? ["result-bytes" as const] : []),
+  ];
+  const truncated = truncationReasons.length > 0;
   const identity = createOhProjectionIdentityV1({ dataset: input.dataset, query: input.query,
-    rulePack: input.rulePack, snapshot: input.snapshot });
+    engine: input.engine, options: input.options, rulePack: input.rulePack, snapshot: input.snapshot });
   const payload = {
     authority: "derived" as const,
     cache: { strategy: "full-rebuild" as const, v: 1 as const },
@@ -968,11 +1314,17 @@ function buildProjectionResult(input: Readonly<{
     identity,
     rows,
     stats: { baseFacts: input.materialized.baseFacts, derivedFacts: input.materialized.derivedFacts,
-      queryMatches: matches.length, relations: input.materialized.relations.size,
-      rounds: input.materialized.rounds, truncated, v: 1 as const },
+      proofNodes: resultBudget.nodes, proofsTruncated: rows.some((row) => row.proofsTruncated),
+      queryMatches: matches.length,
+      relations: input.materialized.relations.size, rounds: input.materialized.rounds,
+      truncated, truncationReasons, v: 1 as const, workUnits: input.work.units },
     v: 1 as const,
   };
-  return { ...payload, resultSha256: canonicalSha256(payload) };
+  const serialized = canonicalJson(payload);
+  if (utf8ByteLength(serialized) > input.options.maximumResultBytes) {
+    throw new RangeError("Projection result exceeds its canonical byte bound.");
+  }
+  return { ...payload, resultSha256: sha256Hex(serialized) };
 }
 
 export function evaluateOhProjectionV1(input: Readonly<{
@@ -991,10 +1343,11 @@ export function evaluateOhProjectionV1(input: Readonly<{
   }
   const options = resolveEvaluationOptions(input.options ?? {});
   validateProgramArities(dataset, rulePack, query);
+  const work = { maximum: options.maximumWorkUnits, units: 0 };
   const materialized = materializeNaive({ dataset,
-    maximumDerivedTuples: options.maximumDerivedTuples, maximumRounds: options.maximumRounds, rulePack });
+    maximumDerivedTuples: options.maximumDerivedTuples, maximumRounds: options.maximumRounds, rulePack, work });
   return buildProjectionResult({ dataset, engine: OH_PROJECTION_INTERNAL_ENGINE_V1,
-    materialized, options, query, rulePack, snapshot });
+    materialized, options, query, rulePack, snapshot, work });
 }
 
 /**
@@ -1026,10 +1379,11 @@ export function evaluateOhProjectionWithMaterializerV1(input: Readonly<{
   }
   const options = resolveEvaluationOptions(input.options ?? {});
   validateProgramArities(dataset, rulePack, query);
+  const work = { maximum: options.maximumWorkUnits, units: 0 };
+  const witnessMaterialization = materializeNaive({ dataset,
+    maximumDerivedTuples: options.maximumDerivedTuples, maximumRounds: options.maximumRounds, rulePack, work });
   const external = input.materialize({ dataset,
     maximumDerivedTuples: options.maximumDerivedTuples, maximumRounds: options.maximumRounds, query, rulePack });
-  const witnessMaterialization = materializeNaive({ dataset,
-    maximumDerivedTuples: options.maximumDerivedTuples, maximumRounds: options.maximumRounds, rulePack });
   const externalCanonical = new Map<string, readonly string[]>();
   for (const [relationName, tuples] of external.relationFacts) {
     const relation = projectionName(relationName);
@@ -1054,7 +1408,7 @@ export function evaluateOhProjectionWithMaterializerV1(input: Readonly<{
     }
   }
   return buildProjectionResult({ dataset, engine,
-    materialized: witnessMaterialization, options, query, rulePack, snapshot });
+    materialized: witnessMaterialization, options, query, rulePack, snapshot, work });
 }
 
 export type OhProjectionRecordFactOptionsV1 = Readonly<{
@@ -1066,10 +1420,23 @@ export type OhProjectionRecordFactOptionsV1 = Readonly<{
 export function createOhProjectionRecordFactsV1(records: readonly KnowledgeGraphRecordV1[],
   options: OhProjectionRecordFactOptionsV1 = {}): readonly OhProjectionFactV1[] {
   if (records.length > OH_GRAPH_LIMITS_V1.recordsPerSnapshot) throw new RangeError("Too many records for projection facts.");
+  const parsedRecords = [...records]
+    .sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0)
+    .map((candidate) => {
+      const record = parseKnowledgeGraphRecordV1(candidate);
+      if (record === null) throw new TypeError("Invalid graph record for projection facts.");
+      return record;
+    });
+  let projectedFactCount = 0;
+  for (const record of parsedRecords) {
+    if (options.includeRecords !== false) projectedFactCount += 1;
+    if (options.includeDependencies !== false) projectedFactCount += record.dependencies.length;
+    if (projectedFactCount > OH_PROJECTION_LIMITS_V1.facts) {
+      throw new RangeError("Structural projection exceeds its fact bound.");
+    }
+  }
   const facts: OhProjectionFactV1[] = [];
-  for (const candidate of [...records].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0)) {
-    const record = parseKnowledgeGraphRecordV1(candidate);
-    if (record === null) throw new TypeError("Invalid graph record for projection facts.");
+  for (const record of parsedRecords) {
     const source = [{ key: record.key, recordSha256: record.recordSha256, v: 1 as const }];
     if (options.includeRecords !== false) {
       facts.push(createOhProjectionFactV1({ relation: "oh.record", sources: source,

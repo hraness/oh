@@ -1552,12 +1552,14 @@ function replayOhOperationsV1(spaceId, values, maximumRecords = OH_GRAPH_LIMITS_
     throw new TypeError("Invalid operation replay input.");
   }
   const records = new Map;
+  const operationIds = new Set;
   let head = emptyOhHeadV1();
   for (const value of values) {
     const operation = parseOhOperationV1(value);
-    if (operation === null || operation.spaceId !== parsedSpaceId || operation.sequence !== head.sequence + 1 || operation.parentOperationSha256 !== head.operationSha256) {
+    if (operation === null || operation.spaceId !== parsedSpaceId || operation.sequence !== head.sequence + 1 || operation.parentOperationSha256 !== head.operationSha256 || operationIds.has(operation.operationId)) {
       throw new OhIntegrityError("Operation replay chain is broken.");
     }
+    operationIds.add(operation.operationId);
     for (const change of operation.changes) {
       if (change.kind === "put")
         records.set(change.record.key, change.record);
@@ -1681,9 +1683,10 @@ function normalizeRoots(values) {
   }
   return sorted;
 }
-function closureRecords(available, roots, maximumRecords) {
+function closureRecords(available, roots, maximumRecords, maximumBytes = OH_DEPENDENCY_CLOSURE_LIMITS_V1.bytes - 64 * 1024) {
   const selected = new Map;
   const pending = [...roots];
+  let selectedBytes = 0;
   while (pending.length > 0) {
     const key = pending.pop();
     if (selected.has(key))
@@ -1691,6 +1694,9 @@ function closureRecords(available, roots, maximumRecords) {
     const record = available.get(key);
     if (record === undefined)
       throw new OhDependencyError(`Dependency closure record ${key} is missing.`);
+    selectedBytes += Buffer.byteLength(canonicalJson(record), "utf8") + 1;
+    if (selectedBytes > maximumBytes)
+      throw new RangeError("Dependency closure exceeds its canonical byte bound.");
     selected.set(key, record);
     if (selected.size > maximumRecords)
       throw new RangeError("Dependency closure exceeds its record bound.");
@@ -1763,6 +1769,20 @@ function parseOhDependencyClosureV1(value) {
 function verifyOhDependencyClosureV1(value) {
   const closure = parseOhDependencyClosureV1(value);
   return closure === null ? { ok: false, reason: "invalid-closure" } : { closure, ok: true };
+}
+function verifyOhDependencyClosureAgainstV1(value, expected) {
+  const binding = parseOhStoreBindingV1(expected.binding);
+  const head = parseOhHeadV1(expected.head);
+  if (binding === null || head === null)
+    return { ok: false, reason: "invalid-expectation" };
+  const closure = parseOhDependencyClosureV1(value);
+  if (closure === null)
+    return { ok: false, reason: "invalid-closure" };
+  if (closure.binding.bindingSha256 !== binding.bindingSha256)
+    return { ok: false, reason: "binding-mismatch" };
+  if (canonicalJson(closure.head) !== canonicalJson(head))
+    return { ok: false, reason: "head-mismatch" };
+  return { closure, ok: true, verification: "expected-authority-and-head" };
 }
 function createOhSpacePurgeReceiptV1(input) {
   const binding = parseOhStoreBindingV1(input.binding);
@@ -1867,6 +1887,7 @@ class OhSemanticBundleIngressV1 {
 }
 export {
   verifyOhDependencyClosureV1,
+  verifyOhDependencyClosureAgainstV1,
   verifyKnowledgeValueV1,
   verifyKnowledgeSchemaEvolutionV1,
   utf8ByteLength,

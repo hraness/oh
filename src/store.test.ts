@@ -17,6 +17,7 @@ import {
   replayOhOperationsV1,
   transitionOhSnapshotV1,
   verifyOhDependencyClosureV1,
+  verifyOhDependencyClosureAgainstV1,
 } from "./store";
 
 describe("runtime-neutral Oh store contracts", () => {
@@ -60,6 +61,11 @@ describe("runtime-neutral Oh store contracts", () => {
     expect(closure.records.map(({ key }) => key)).toEqual([child.key, parent.key].sort());
     expect(parseOhDependencyClosureV1(closure)).toEqual(closure);
     expect(verifyOhDependencyClosureV1(closure)).toEqual({ closure, ok: true });
+    expect(verifyOhDependencyClosureAgainstV1(closure, { binding, head: snapshot.head }))
+      .toEqual({ closure, ok: true, verification: "expected-authority-and-head" });
+    expect(verifyOhDependencyClosureAgainstV1(closure, { binding,
+      head: { ...snapshot.head, recordsSha256: "a".repeat(64) as typeof snapshot.head.recordsSha256 } }))
+      .toEqual({ ok: false, reason: "head-mismatch" });
     expect(parseOhDependencyClosureV1({ ...closure, records: [...closure.records, unrelated] })).toBeNull();
     expect(parseOhDependencyClosureV1({ ...closure,
       closureSha256: "a".repeat(64) })).toBeNull();
@@ -97,5 +103,19 @@ describe("runtime-neutral Oh store contracts", () => {
     expect((await authority.store.head()).sequence).toBe(1);
     expect(canonicalJson((await authority.store.snapshot()).records[0]?.value)).toBe('{"name":"Ada"}');
     await authority.store.close();
+  });
+
+  test("rejects duplicate operation IDs during generic replay", () => {
+    const first = transitionOhSnapshotV1({ actorId: "agent.test",
+      changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({ dependencies: [],
+        key: "entity:first", kind: "entity", v: 1, value: { name: "First" } }), v: 1 }],
+      instant: "2026-08-29T12:00:00.000Z", operationId: "op_duplicate",
+      snapshot: { head: emptyOhHeadV1(), records: [], v: 1 }, spaceId: "duplicate" });
+    const second = transitionOhSnapshotV1({ actorId: "agent.test",
+      changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({ dependencies: [],
+        key: "entity:second", kind: "entity", v: 1, value: { name: "Second" } }), v: 1 }],
+      instant: "2026-08-29T12:01:00.000Z", operationId: "op_duplicate",
+      snapshot: first.snapshot, spaceId: "duplicate" });
+    expect(() => replayOhOperationsV1("duplicate", [first.operation, second.operation])).toThrow("replay chain");
   });
 });

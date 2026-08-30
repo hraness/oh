@@ -15,16 +15,20 @@ import {
   createOhProjectionSnapshotV1,
   evaluateOhProjectionV1,
   invalidationForOhProjectionV1,
+  OH_PROJECTION_LIMITS_V1,
   OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1,
   ohProjectionConstantV1,
   ohProjectionVariableV1,
-  parseOhProjectionQueryV1,
   parseOhProjectionIdentityV1,
+  parseOhProjectionProofV1,
+  parseOhProjectionQueryV1,
+  parseOhProjectionResultV1,
   parseOhProjectionSnapshotV1,
   type OhProjectionAtomV1,
   type OhProjectionDatasetV1,
   type OhProjectionProofV1,
   type OhProjectionQueryV1,
+  type OhProjectionResultV1,
   type OhProjectionRulePackV1,
   type OhProjectionSnapshotV1,
 } from "./projection";
@@ -105,6 +109,21 @@ function expectedClosure(edges: readonly (readonly [string, string])[]): readonl
     }
   }
   return [...reachable].sort().map((value) => JSON.parse(value) as OhProjectionAtomV1[]);
+}
+
+function resignProjectionResult(value: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  const { resultSha256: _resultSha256, ...payload } = value;
+  return { ...payload, resultSha256: canonicalSha256(payload) };
+}
+
+function resultWithEvaluation(result: OhProjectionResultV1,
+  evaluation: OhProjectionResultV1["evaluation"]): Readonly<Record<string, unknown>> {
+  const { projectionSha256: _projectionSha256, ...identityPayload } = {
+    ...result.identity,
+    evaluationSha256: canonicalSha256(evaluation),
+  };
+  const identity = { ...identityPayload, projectionSha256: canonicalSha256(identityPayload) };
+  return resignProjectionResult({ ...result, evaluation, identity });
 }
 
 describe("projection identity and validation", () => {
@@ -194,6 +213,73 @@ describe("projection identity and validation", () => {
       rulePack: rules, snapshot: firstSnapshot });
     expect(invalidationForOhProjectionV1(first, third)).toEqual({ kind: "full-rebuild",
       reasons: ["query-changed"], v: 1 });
+    const fourth = createOhProjectionIdentityV1({ dataset: firstDataset,
+      options: { maximumProofNodes: 1 }, query, rulePack: rules, snapshot: firstSnapshot });
+    expect(invalidationForOhProjectionV1(first, fourth)).toEqual({ kind: "full-rebuild",
+      reasons: ["evaluation-changed"], v: 1 });
+  });
+});
+
+describe("cached projection ingress", () => {
+  test("round-trips complete result and proof envelopes", () => {
+    const records = [edgeRecord("a", "b"), edgeRecord("b", "c")];
+    const exact = snapshot(records);
+    const result = evaluateOhProjectionV1({ dataset: dataset(records, exact),
+      query: allPathsQuery(), rulePack: reachabilityRules(), snapshot: exact });
+    expect(parseOhProjectionResultV1(result)).toEqual(result);
+    expect(parseOhProjectionResultV1(result, result.identity.projectionSha256)).toEqual(result);
+    expect(parseOhProjectionResultV1(result, "f".repeat(64) as Sha256Hex)).toBeNull();
+    const proof = result.rows[0]?.proofs[0] as OhProjectionProofV1;
+    expect(parseOhProjectionProofV1(proof)).toEqual(proof);
+  });
+
+  test("rejects cache tampering even when an attacker recomputes the outer digest", () => {
+    const records = [edgeRecord("a", "b"), edgeRecord("b", "c")];
+    const exact = snapshot(records);
+    const result = evaluateOhProjectionV1({ dataset: dataset(records, exact),
+      query: allPathsQuery(), rulePack: reachabilityRules(), snapshot: exact });
+    expect(parseOhProjectionResultV1({ ...result, resultSha256: "f".repeat(64) })).toBeNull();
+    const first = result.rows[0] as OhProjectionResultV1["rows"][number];
+    const rows = [{ ...first, supportCount: first.supportCount + 1 }, ...result.rows.slice(1)];
+    expect(parseOhProjectionResultV1(resignProjectionResult({ ...result, rows }))).toBeNull();
+    expect(parseOhProjectionResultV1(resignProjectionResult({ ...result,
+      engine: "oh.attacker.engine.v1" }))).toBeNull();
+  });
+
+  test("applies declared per-row proof limits and public aggregate ceilings on ingress", () => {
+    const records = [edgeRecord("a", "b"), edgeRecord("b", "c")];
+    const exact = snapshot(records);
+    const query = createOhProjectionQueryV1({ find: ["z"], queryId: "paths.from-a",
+      where: [createOhProjectionLiteralV1({ relation: "path", terms: [c("a"), v("z")] })] });
+    const result = evaluateOhProjectionV1({ dataset: dataset(records, exact), query,
+      rulePack: reachabilityRules(), snapshot: exact });
+    const smallerEvaluation = { ...result.evaluation, maximumProofNodes: 1 };
+    expect(parseOhProjectionResultV1(resultWithEvaluation(result, smallerEvaluation))).toBeNull();
+    expect(parseOhProjectionResultV1(resignProjectionResult({ ...result,
+      stats: { ...result.stats, proofNodes: OH_PROJECTION_LIMITS_V1.totalProofNodes + 1 } }))).toBeNull();
+    expect(parseOhProjectionResultV1(resignProjectionResult({ ...result,
+      evaluation: { ...result.evaluation, maximumWorkUnits: OH_PROJECTION_LIMITS_V1.workUnits + 1 } })))
+      .toBeNull();
+  });
+
+  test("rejects malformed and over-depth standalone proof trees", () => {
+    const digest = "a".repeat(64) as Sha256Hex;
+    const malformed = { kind: "fact", relation: "edge",
+      sources: [{ key: "view:one", recordSha256: digest, v: 1 }], tuple: ["a", "b"],
+      unexpected: true, v: 1 };
+    expect(parseOhProjectionProofV1(malformed)).toBeNull();
+    expect(parseOhProjectionProofV1({ kind: "fact", relation: "edge",
+      sources: [{ key: "view:one", recordSha256: digest, v: 1 },
+        { key: "view:one", recordSha256: "b".repeat(64), v: 1 }],
+      tuple: ["a", "b"], v: 1 })).toBeNull();
+
+    let proof: unknown = { kind: "fact", relation: "edge",
+      sources: [{ key: "view:one", recordSha256: digest, v: 1 }], tuple: ["a", "b"], v: 1 };
+    for (let depth = 0; depth <= OH_PROJECTION_LIMITS_V1.proofDepth; depth += 1) {
+      proof = { kind: "derived", premises: [proof], premisesTruncated: false,
+        relation: "path", ruleId: "path.deep", ruleSha256: digest, tuple: ["a", "b"], v: 1 };
+    }
+    expect(parseOhProjectionProofV1(proof)).toBeNull();
   });
 });
 
@@ -226,6 +312,38 @@ describe("positive recursive evaluation", () => {
       where: [literal("path", v("x"))] });
     expect(() => evaluateOhProjectionV1({ dataset: dataset(records, exact), query: badQuery,
       rulePack: reachabilityRules(), snapshot: exact })).toThrow("conflicting arities");
+    expect(() => evaluateOhProjectionV1({ dataset: dataset(records, exact),
+      options: { maximumWorkUnits: 1 }, query: allPathsQuery(),
+      rulePack: reachabilityRules(), snapshot: exact })).toThrow("work-unit bound");
+  });
+
+  test("marks proof-prefix exhaustion at both the row and result level", () => {
+    const records = [edgeRecord("a", "b"), edgeRecord("b", "c")];
+    const exact = snapshot(records);
+    const result = evaluateOhProjectionV1({ dataset: dataset(records, exact),
+      options: { maximumProofNodes: 1 }, query: createOhProjectionQueryV1({ find: ["x", "z"],
+        queryId: "two.edges", where: [literal("edge", v("x"), v("y")),
+          literal("edge", v("y"), v("z"))] }), rulePack: reachabilityRules(), snapshot: exact });
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]).toMatchObject({ proofsTruncated: true, values: ["a", "c"] });
+    expect(result.rows[0]?.proofs).toHaveLength(1);
+    expect(result.stats.proofsTruncated).toBe(true);
+    expect(parseOhProjectionResultV1(result)).toEqual(result);
+  });
+
+  test("bounds proofs across rows and reports collapsed alternative support", () => {
+    const records = [edgeRecord("a", "b"), edgeRecord("a", "c"), edgeRecord("d", "e")];
+    const exact = snapshot(records);
+    const result = evaluateOhProjectionV1({ dataset: dataset(records, exact),
+      options: { maximumTotalProofNodes: 1 }, query: createOhProjectionQueryV1({ find: ["x"],
+        queryId: "edge.sources", where: [literal("edge", v("x"), v("y"))] }),
+      rulePack: reachabilityRules(), snapshot: exact });
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0]).toMatchObject({ proofsTruncated: false, supportCount: 2, values: ["a"] });
+    expect(result.rows[1]).toMatchObject({ proofs: [], proofsTruncated: true,
+      supportCount: 1, values: ["d"] });
+    expect(result.stats).toMatchObject({ proofNodes: 1, proofsTruncated: true });
+    expect(parseOhProjectionResultV1(result)).toEqual(result);
   });
 
   test("matches graph reachability across generated input orders", () => {
@@ -271,16 +389,30 @@ describe("optional Suss equivalence adapter", () => {
     const internal = evaluateOhProjectionV1(input);
     const external = evaluateOhProjectionWithSussV1(input);
     expect(external.engine).toBe(OH_PROJECTION_SUSS_ENGINE_V1);
-    expect(external.identity).toEqual(internal.identity);
+    expect(external.identity).toMatchObject({ datasetSha256: internal.identity.datasetSha256,
+      evaluationSha256: internal.identity.evaluationSha256,
+      querySha256: internal.identity.querySha256, rulePackSha256: internal.identity.rulePackSha256,
+      snapshotSha256: internal.identity.snapshotSha256 });
+    expect(invalidationForOhProjectionV1(internal.identity, external.identity)).toEqual({
+      kind: "full-rebuild", reasons: ["engine-changed"], v: 1 });
     expect(external.rows).toEqual(internal.rows);
     expect(external.stats).toEqual(internal.stats);
+    expect(parseOhProjectionResultV1(external)).toEqual(external);
   });
 
   test("rejects programs Suss cannot prove within the requested bound", () => {
+    const single = [edgeRecord("a", "b")];
+    const singleSnapshot = snapshot(single);
+    const direct = createOhProjectionRulePackV1({ rulePackId: "test.direct", rulePackRevision: 1,
+      rules: [createOhProjectionRuleV1({ body: [literal("edge", v("x"), v("y"))],
+        head: literal("path", v("x"), v("y")), ruleId: "path.direct" })] });
+    expect(() => evaluateOhProjectionWithSussV1({ dataset: dataset(single, singleSnapshot),
+      options: { maximumDerivedTuples: 1 }, query: allPathsQuery(),
+      rulePack: direct, snapshot: singleSnapshot })).toThrow("cannot prove");
     const records = [edgeRecord("a", "b"), edgeRecord("b", "c")];
     const exact = snapshot(records);
     expect(() => evaluateOhProjectionWithSussV1({ dataset: dataset(records, exact),
-      options: { maximumDerivedTuples: 1 }, query: allPathsQuery(),
-      rulePack: reachabilityRules(), snapshot: exact })).toThrow("cannot prove");
+      options: { maximumRounds: 1 }, query: allPathsQuery(),
+      rulePack: reachabilityRules(), snapshot: exact })).toThrow("evaluation round bound");
   });
 });

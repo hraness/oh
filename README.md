@@ -28,6 +28,9 @@ indexes derived and replaceable.
 - **Derive without silently asserting.** Positive recursive rules run against
   one exact graph head and fact-pack digest. Their tuples and bounded proofs
   are deterministic, disposable output rather than accepted graph records.
+- **Remember without conflating authority.** An experimental facade composes a
+  purgeable working authority with one pinned canonical head while preserving
+  lane, conflict, record, and proof provenance.
 
 ## Install and first run
 
@@ -37,7 +40,7 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 current immutable release directly from GitHub:
 
 ```sh
-bun add --global github:hraness/oh#v0.1.1
+bun add --global github:hraness/oh#v0.2.0
 oh --help
 ```
 
@@ -97,7 +100,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "github:hraness/oh#v0.1.1"
+    "@hraness/oh": "github:hraness/oh#v0.2.0"
   }
 }
 ```
@@ -141,7 +144,9 @@ promise interface, `@hraness/oh/libsql` for a direct Node 24 or serverless
 authority, `@hraness/oh/sqlite` for the local Bun store, `@hraness/oh/sdk` for
 the local `Oh` facade, `@hraness/oh/sync` for transport seams,
 `@hraness/oh/projection` for recursive derived views, and
-`@hraness/oh/semantic` for the optional local embedding backend.
+`@hraness/oh/semantic` for the optional local embedding backend. The
+`@hraness/oh/experimental/memory` subpath composes host-bound working and
+canonical stores behind a smaller agent-facing surface.
 
 ## Open a scoped working store
 
@@ -188,6 +193,63 @@ remains available for explicit reviewed adoption. `purgeWorkingSpace` exists
 only on `authority.host`; do not expose that object or raw database credentials
 through a model tool. Read the [store-port specification](spec/v1/store.md) for
 exact snapshot, change-feed, codec ingress, closure, and purge behavior.
+
+## Compose working and canonical memory
+
+The experimental memory facade uses the same Oh kernel twice, not a separate
+memory database model. Trusted host code supplies two distinct physical store
+handles, their expected binding digests, one exact canonical head, sealed
+working codecs, digest-identified fact extractors, and a closed registry of
+named projection programs:
+
+```ts
+import { createOhMemoryAgentV1 } from "@hraness/oh/experimental/memory";
+
+const memory = await createOhMemoryAgentV1({
+  actorId: "research.memory-agent",
+  canonical: {
+    authorityId: "project-reviewed",
+    expectedBindingSha256: canonical.store.binding.bindingSha256,
+    expectedHead: await canonical.store.head(),
+    store: canonical.store,
+  },
+  nominationRoutes: [{
+    destinationPurpose: "kb.review",
+    nominationId: "knowledge-review",
+  }],
+  programs: [{
+    programId: "project.dependencies",
+    purpose: "answer.research",
+    query,
+    rulePack,
+  }],
+  working: {
+    authorityId: "thread-working",
+    codecs,
+    expectedBindingSha256: working.store.binding.bindingSha256,
+    store: working.store,
+  },
+});
+
+const result = await memory.query({
+  programId: "project.dependencies",
+  v: 1,
+});
+```
+
+The returned object has only `remember`, `query`, `explain`, and `nominate`.
+The host fixes the working actor, each program purpose, and every nomination
+destination before exposing those methods. `remember` accepts an idempotency
+request plus semantic changes and returns a locator-free working-lane receipt;
+it does not accept caller-supplied actor or time claims. The object cannot
+select a store, install a rule, write canonical knowledge, sync, or purge.
+Query identity binds both exact physical lanes and all projection policy;
+conflicting same-key records remain visible. Explanation requires a bounded,
+short-lived opaque capability bound to the exact result. Nomination chooses
+only a host-registered route and creates a verified working dependency-closure
+proposal; it never promotes it. Read the
+[experimental memory specification](spec/v1/memory.md) for the complete
+authority and lifecycle boundary.
 
 ## Derive an exact projection
 
@@ -389,7 +451,7 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install hraness/oh and its Oh Agent Skill from the immutable v0.1.1 tag at
+Install hraness/oh and its Oh Agent Skill from the immutable v0.2.0 tag at
 https://github.com/hraness/oh. Verify the CLI with `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

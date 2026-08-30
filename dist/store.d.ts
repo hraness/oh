@@ -1,5 +1,6 @@
 import { type Sha256Hex } from "./canonical";
-import { type OhRecordCodecRegistry } from "./contract";
+import { OhRecordCodecRegistry } from "./contract";
+export { OhRecordCodecRegistry } from "./contract";
 import { type KnowledgeGraphChangeV1, type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
 import { type OhOperationV1 } from "./operation";
 export declare class OhConflictError extends Error {
@@ -186,6 +187,21 @@ export declare function verifyOhDependencyClosureV1(value: unknown): Readonly<{
     ok: false;
     reason: "invalid-closure";
 }>;
+/**
+ * Strong adoption check. Unlike structural self-verification, this also binds
+ * the capsule to the exact store binding and head selected by trusted host code.
+ */
+export declare function verifyOhDependencyClosureAgainstV1(value: unknown, expected: Readonly<{
+    binding: OhStoreBindingV1;
+    head: OhHeadV1;
+}>): Readonly<{
+    closure: OhDependencyClosureV1;
+    ok: true;
+    verification: "expected-authority-and-head";
+}> | Readonly<{
+    ok: false;
+    reason: "binding-mismatch" | "head-mismatch" | "invalid-closure" | "invalid-expectation";
+}>;
 export declare function createOhSpacePurgeReceiptV1(input: Readonly<{
     binding: OhStoreBindingV1;
     priorHead: OhHeadV1;
@@ -217,5 +233,4 @@ export declare class OhSemanticBundleIngressV1 {
     constructor(store: OhStoreV1, codecs: OhRecordCodecRegistry);
     commit(value: unknown): Promise<OhOperationV1>;
 }
-export {};
 //# sourceMappingURL=store.d.ts.map

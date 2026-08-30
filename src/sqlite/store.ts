@@ -103,9 +103,100 @@ type CurrentRecordRow = {
   record_sha256: string;
   sequence: number;
 };
-type OperationRow = { operation_json: string };
-type BindingRow = { binding_json: string };
-type PurgeRow = { receipt_json: string };
+type OperationRow = {
+  graph_revision_sha256: string;
+  instant: string;
+  operation_id: string;
+  operation_json: string;
+  operation_sha256: string;
+  parent_operation_sha256: string | null;
+  records_sha256: string;
+  sequence: number;
+  space_id: string;
+};
+type BindingRow = {
+  binding_json: string;
+  binding_sha256: string;
+  profile_id: string;
+  profile_kind: string;
+  profile_sha256: string;
+  realm_id: string;
+  space_id: string;
+};
+type PurgeRow = {
+  binding_sha256: string;
+  prior_operation_sha256: string | null;
+  prior_sequence: number;
+  purged_at: string;
+  receipt_json: string;
+  receipt_sha256: string;
+  space_id: string;
+};
+
+const OPERATION_COLUMNS = `operation_sha256, space_id, sequence, operation_id,
+  parent_operation_sha256, graph_revision_sha256, records_sha256, operation_json, instant`;
+const BINDING_COLUMNS = `space_id, realm_id, profile_id, profile_kind, profile_sha256,
+  binding_sha256, binding_json`;
+const PURGE_COLUMNS = `space_id, binding_sha256, prior_operation_sha256, prior_sequence,
+  purged_at, receipt_sha256, receipt_json`;
+
+function parseStoredOperationRow(
+  row: OperationRow,
+  expected: Readonly<{ operationId?: string; operationSha256?: string; spaceId?: string }> = {},
+): OhOperationV1 {
+  let value: unknown;
+  try { value = JSON.parse(row.operation_json); } catch { throw new OhIntegrityError("A stored operation is not JSON."); }
+  const operation = parseOhOperationV1(value);
+  if (operation === null || canonicalJson(operation) !== row.operation_json
+    || row.operation_sha256 !== operation.operationSha256
+    || row.space_id !== operation.spaceId
+    || row.sequence !== operation.sequence
+    || row.operation_id !== operation.operationId
+    || row.parent_operation_sha256 !== operation.parentOperationSha256
+    || row.graph_revision_sha256 !== operation.graphRevisionSha256
+    || row.records_sha256 !== operation.recordsSha256
+    || row.instant !== operation.instant
+    || (expected.spaceId !== undefined && operation.spaceId !== expected.spaceId)
+    || (expected.operationId !== undefined && operation.operationId !== expected.operationId)
+    || (expected.operationSha256 !== undefined && operation.operationSha256 !== expected.operationSha256)) {
+    throw new OhIntegrityError("Stored operation columns do not match their canonical envelope.");
+  }
+  return operation;
+}
+
+function parseStoredBindingRow(row: BindingRow, expectedSpaceId: string): OhStoreBindingV1 {
+  let value: unknown;
+  try { value = JSON.parse(row.binding_json); } catch { throw new OhIntegrityError("A store binding is not JSON."); }
+  const binding = parseOhStoreBindingV1(value);
+  if (binding === null || canonicalJson(binding) !== row.binding_json
+    || binding.spaceId !== expectedSpaceId
+    || row.space_id !== binding.spaceId
+    || row.realm_id !== binding.realmId
+    || row.profile_id !== binding.profile.profileId
+    || row.profile_kind !== binding.profile.profileKind
+    || row.profile_sha256 !== binding.profile.profileSha256
+    || row.binding_sha256 !== binding.bindingSha256) {
+    throw new OhIntegrityError("Stored binding columns do not match their canonical envelope.");
+  }
+  return binding;
+}
+
+function parseStoredPurgeRow(row: PurgeRow, expectedSpaceId: string): OhSpacePurgeReceiptV1 {
+  let value: unknown;
+  try { value = JSON.parse(row.receipt_json); } catch { throw new OhIntegrityError("A purge receipt is not JSON."); }
+  const receipt = parseOhSpacePurgeReceiptV1(value);
+  if (receipt === null || canonicalJson(receipt) !== row.receipt_json
+    || receipt.spaceId !== expectedSpaceId
+    || row.space_id !== receipt.spaceId
+    || row.binding_sha256 !== receipt.bindingSha256
+    || row.prior_operation_sha256 !== receipt.priorHead.operationSha256
+    || row.prior_sequence !== receipt.priorHead.sequence
+    || row.purged_at !== receipt.purgedAt
+    || row.receipt_sha256 !== receipt.receiptSha256) {
+    throw new OhIntegrityError("Stored purge columns do not match their canonical receipt.");
+  }
+  return receipt;
+}
 
 function parseHead(row: SpaceRow): OhHeadV1 {
   const operationSha256 = row.head_operation_sha256 === null ? null : parseSha256Hex(row.head_operation_sha256);
@@ -205,25 +296,21 @@ export class OhSqliteStore {
 
   ensureSpace(): OhHeadV1 {
     this.#assertOpen();
-    const purged = this.database.query<PurgeRow, [string]>(
-      "SELECT receipt_json FROM oh_space_purges WHERE space_id = ?",
-    ).get(this.spaceId);
-    if (purged !== null) {
-      let value: unknown;
-      try { value = JSON.parse(purged.receipt_json); } catch { throw new OhIntegrityError("A purge receipt is not JSON."); }
-      const receipt = parseOhSpacePurgeReceiptV1(value);
-      if (receipt === null || canonicalJson(receipt) !== purged.receipt_json) {
-        throw new OhIntegrityError("A stored purge receipt is invalid.");
+    return withImmediateTransaction(this.database, () => {
+      const purged = this.database.query<PurgeRow, [string]>(
+        `SELECT ${PURGE_COLUMNS} FROM oh_space_purges WHERE space_id = ?`,
+      ).get(this.spaceId);
+      if (purged !== null) {
+        throw new OhPurgedSpaceError(parseStoredPurgeRow(purged, this.spaceId));
       }
-      throw new OhPurgedSpaceError(receipt);
-    }
-    const now = canonicalNow();
-    this.database.query(`INSERT INTO oh_spaces(
-      space_id, contract_id, generation, head_operation_sha256, graph_revision_sha256,
-      records_sha256, sequence, created_at, updated_at
-    ) VALUES (?, ?, 0, NULL, NULL, ?, 0, ?, ?) ON CONFLICT(space_id) DO NOTHING`)
-      .run(this.spaceId, OH_CONTRACT_ID_V1, EMPTY_RECORDS_SHA256, now, now);
-    return this.head();
+      const now = canonicalNow();
+      this.database.query(`INSERT INTO oh_spaces(
+        space_id, contract_id, generation, head_operation_sha256, graph_revision_sha256,
+        records_sha256, sequence, created_at, updated_at
+      ) VALUES (?, ?, 0, NULL, NULL, ?, 0, ?, ?) ON CONFLICT(space_id) DO NOTHING`)
+        .run(this.spaceId, OH_CONTRACT_ID_V1, EMPTY_RECORDS_SHA256, now, now);
+      return this.head();
+    });
   }
 
   bind(bindingValue: OhStoreBindingV1): OhStoreBindingV1 {
@@ -241,9 +328,11 @@ export class OhSqliteStore {
       binding.profile.profileSha256, binding.bindingSha256, bindingJson, canonicalNow(),
     );
     const row = this.database.query<BindingRow, [string]>(
-      "SELECT binding_json FROM oh_space_bindings WHERE space_id = ?",
+      `SELECT ${BINDING_COLUMNS} FROM oh_space_bindings WHERE space_id = ?`,
     ).get(this.spaceId);
-    if (row === null || row.binding_json !== bindingJson) {
+    if (row === null) throw new OhIntegrityError("The persisted store binding disappeared.");
+    const persisted = parseStoredBindingRow(row, this.spaceId);
+    if (canonicalJson(persisted) !== bindingJson) {
       throw new OhProfileError("The space is already bound to a different realm or profile.");
     }
     return binding;
@@ -252,16 +341,10 @@ export class OhSqliteStore {
   binding(): OhStoreBindingV1 | null {
     this.#assertOpen();
     const row = this.database.query<BindingRow, [string]>(
-      "SELECT binding_json FROM oh_space_bindings WHERE space_id = ?",
+      `SELECT ${BINDING_COLUMNS} FROM oh_space_bindings WHERE space_id = ?`,
     ).get(this.spaceId);
     if (row === null) return null;
-    let value: unknown;
-    try { value = JSON.parse(row.binding_json); } catch { throw new OhIntegrityError("A store binding is not JSON."); }
-    const binding = parseOhStoreBindingV1(value);
-    if (binding === null || canonicalJson(binding) !== row.binding_json) {
-      throw new OhIntegrityError("A stored binding is invalid.");
-    }
-    return binding;
+    return parseStoredBindingRow(row, this.spaceId);
   }
 
   head(): OhHeadV1 {
@@ -319,6 +402,58 @@ export class OhSqliteStore {
     const graphRevisionSha256 = graphRevisionSha256V1({ changes, operationId,
       parentGraphRevisionSha256: head.graphRevisionSha256, recordsSha256, revision: head.sequence + 1 });
     return { graphRevisionSha256, records, recordsSha256 };
+  }
+
+  #assertCurrentHeadAuthority(head: OhHeadV1): void {
+    const summary = this.database.query<{ count: number; maximum: number | null; minimum: number | null }, [string]>(
+      `SELECT count(*) AS count, min(sequence) AS minimum, max(sequence) AS maximum
+       FROM oh_operations WHERE space_id = ?`,
+    ).get(this.spaceId);
+    if (summary === null || summary.count !== head.sequence
+      || (head.sequence === 0 && (summary.minimum !== null || summary.maximum !== null))
+      || (head.sequence > 0 && (summary.minimum !== 1 || summary.maximum !== head.sequence))) {
+      throw new OhIntegrityError("The operation history does not exactly cover the current space head.");
+    }
+    if (head.sequence === 0) return;
+    if (head.operationSha256 === null) throw new OhIntegrityError("A nonempty space head has no operation digest.");
+    const row = this.database.query<OperationRow, [string, number]>(
+      `SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? AND sequence = ?`,
+    ).get(this.spaceId, head.sequence);
+    if (row === null) throw new OhIntegrityError("The current space head operation is missing.");
+    const operation = parseStoredOperationRow(row, { spaceId: this.spaceId,
+      operationSha256: head.operationSha256 });
+    if (operation.sequence !== head.sequence
+      || operation.graphRevisionSha256 !== head.graphRevisionSha256
+      || operation.recordsSha256 !== head.recordsSha256) {
+      throw new OhIntegrityError("The current space head differs from its canonical operation.");
+    }
+  }
+
+  #assertOperationReachable(operation: OhOperationV1, head: OhHeadV1): void {
+    if (operation.sequence < 1 || operation.sequence > head.sequence) {
+      throw new OhIntegrityError("A stored idempotent operation is not reachable from the current head.");
+    }
+    const rows = this.database.query<{
+      operation_sha256: string; parent_operation_sha256: string | null; sequence: number;
+    }, [string, number, number]>(`SELECT operation_sha256, parent_operation_sha256, sequence
+      FROM oh_operations WHERE space_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence`)
+      .all(this.spaceId, operation.sequence, head.sequence);
+    if (rows.length !== head.sequence - operation.sequence + 1) {
+      throw new OhIntegrityError("A stored idempotent operation has an incomplete path to the current head.");
+    }
+    let priorSha256: string | null = operation.parentOperationSha256;
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      if (row === undefined || row.sequence !== operation.sequence + index
+        || row.parent_operation_sha256 !== priorSha256
+        || (index === 0 && row.operation_sha256 !== operation.operationSha256)) {
+        throw new OhIntegrityError("A stored idempotent operation is not on the current authority chain.");
+      }
+      priorSha256 = row.operation_sha256;
+    }
+    if (priorSha256 !== head.operationSha256) {
+      throw new OhIntegrityError("A stored idempotent operation does not reach the current head digest.");
+    }
   }
 
   #persist(operation: OhOperationV1): void {
@@ -390,18 +525,19 @@ export class OhSqliteStore {
     const changes = canonicalKnowledgeGraphChangesV1(input.changes);
     if (changes.length === 0 || changes.length > 8192) throw new TypeError("A commit needs 1 through 8192 changes.");
     return withImmediateTransaction(this.database, () => {
+      const head = this.head();
+      this.#assertCurrentHeadAuthority(head);
       const duplicate = this.database.query<OperationRow, [string, string]>(
-        "SELECT operation_json FROM oh_operations WHERE space_id = ? AND operation_id = ?",
+        `SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? AND operation_id = ?`,
       ).get(this.spaceId, operationId);
       if (duplicate !== null) {
-        const existing = parseOhOperationV1(JSON.parse(duplicate.operation_json));
-        if (existing === null) throw new OhIntegrityError("The stored idempotent operation is invalid.");
+        const existing = parseStoredOperationRow(duplicate, { operationId, spaceId: this.spaceId });
+        this.#assertOperationReachable(existing, head);
         if (existing.actorId !== actorId || canonicalJson(existing.changes) !== canonicalJson(changes)) {
           throw new OhConflictError("The operation ID is already bound to different content.");
         }
         return existing;
       }
-      const head = this.head();
       if (head.generation !== input.expectedHead.generation
         || head.operationSha256 !== input.expectedHead.operationSha256) {
         throw new OhConflictError("The expected head does not match the current space head.");
@@ -422,16 +558,20 @@ export class OhSqliteStore {
     const operation = parseOhOperationV1(value);
     if (operation === null || operation.spaceId !== this.spaceId) throw new OhIntegrityError("Invalid imported operation.");
     return withImmediateTransaction(this.database, () => {
+      const head = this.head();
+      this.#assertCurrentHeadAuthority(head);
       const duplicate = this.database.query<OperationRow, [string]>(
-        "SELECT operation_json FROM oh_operations WHERE operation_sha256 = ?",
+        `SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE operation_sha256 = ?`,
       ).get(operation.operationSha256);
       if (duplicate !== null) {
-        if (canonicalJson(JSON.parse(duplicate.operation_json)) !== canonicalJson(operation)) {
+        const existing = parseStoredOperationRow(duplicate, { operationSha256: operation.operationSha256,
+          spaceId: this.spaceId });
+        this.#assertOperationReachable(existing, head);
+        if (canonicalJson(existing) !== canonicalJson(operation)) {
           throw new OhIntegrityError("An operation digest is bound to different bytes.");
         }
         return { imported: false, operation };
       }
-      const head = this.head();
       if (operation.sequence !== head.sequence + 1 || operation.parentOperationSha256 !== head.operationSha256) {
         throw new OhConflictError("The imported operation does not extend the local head.");
       }
@@ -451,13 +591,10 @@ export class OhSqliteStore {
     if (!Number.isSafeInteger(afterSequence) || afterSequence < 0) throw new RangeError("afterSequence must be nonnegative.");
     const boundedLimit = normalizeLimit(limit);
     const rows = this.database.query<OperationRow, [string, number, number]>(
-      "SELECT operation_json FROM oh_operations WHERE space_id = ? AND sequence > ? ORDER BY sequence LIMIT ?",
+      `SELECT ${OPERATION_COLUMNS} FROM oh_operations
+       WHERE space_id = ? AND sequence > ? ORDER BY sequence LIMIT ?`,
     ).all(this.spaceId, afterSequence, boundedLimit);
-    return rows.map((row) => {
-      const operation = parseOhOperationV1(JSON.parse(row.operation_json));
-      if (operation === null || canonicalJson(operation) !== row.operation_json) throw new OhIntegrityError("A stored operation is invalid.");
-      return operation;
-    });
+    return rows.map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
   }
 
   #headAt(reference: OhHeadRefV1): OhHeadV1 {
@@ -465,16 +602,12 @@ export class OhSqliteStore {
     if (parsed === null) throw new TypeError("Invalid Oh head reference.");
     if (parsed.sequence === 0) return emptyOhHeadV1();
     const row = this.database.query<OperationRow, [string, number]>(
-      "SELECT operation_json FROM oh_operations WHERE space_id = ? AND sequence = ?",
+      `SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? AND sequence = ?`,
     ).get(this.spaceId, parsed.sequence);
     if (row === null) throw new OhConflictError("The requested head is not present in this space.");
-    let value: unknown;
-    try { value = JSON.parse(row.operation_json); } catch { throw new OhIntegrityError("A stored operation is not JSON."); }
-    const operation = parseOhOperationV1(value);
-    if (operation === null || canonicalJson(operation) !== row.operation_json) {
-      throw new OhIntegrityError("A stored operation is invalid.");
-    }
-    if (operation.operationSha256 !== parsed.operationSha256) {
+    const operation = parseStoredOperationRow(row, { spaceId: this.spaceId });
+    if (operation.spaceId !== this.spaceId || operation.sequence !== parsed.sequence
+      || operation.operationSha256 !== parsed.operationSha256) {
       throw new OhConflictError("The requested sequence identifies a different operation head.");
     }
     return { generation: operation.sequence, graphRevisionSha256: operation.graphRevisionSha256,
@@ -497,16 +630,10 @@ export class OhSqliteStore {
       const target = options.head === undefined ? current : this.#headAt(options.head);
       if (target.sequence > current.sequence) throw new OhConflictError("The requested head is ahead of this space.");
       const rows = this.database.query<OperationRow, [string, number]>(
-        "SELECT operation_json FROM oh_operations WHERE space_id = ? AND sequence <= ? ORDER BY sequence",
+        `SELECT ${OPERATION_COLUMNS} FROM oh_operations
+         WHERE space_id = ? AND sequence <= ? ORDER BY sequence`,
       ).all(this.spaceId, target.sequence);
-      const operations = rows.map((row) => {
-        let value: unknown;
-        try { value = JSON.parse(row.operation_json); } catch { throw new OhIntegrityError("A stored operation is not JSON."); }
-        if (canonicalJson(value) !== row.operation_json) throw new OhIntegrityError("A stored operation is not canonical JSON.");
-        const operation = parseOhOperationV1(value);
-        if (operation === null) throw new OhIntegrityError("A stored operation is invalid.");
-        return operation;
-      });
+      const operations = rows.map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
       const snapshot = replayOhOperationsV1(this.spaceId, operations, maximumRecords);
       if (snapshot.head.operationSha256 !== target.operationSha256
         || snapshot.head.recordsSha256 !== target.recordsSha256) {
@@ -532,33 +659,25 @@ export class OhSqliteStore {
         throw new OhConflictError("The change-feed bounds do not identify one local history prefix.");
       }
       const rows = this.database.query<OperationRow, [string, number, number, number]>(
-        `SELECT operation_json FROM oh_operations
+        `SELECT ${OPERATION_COLUMNS} FROM oh_operations
          WHERE space_id = ? AND sequence > ? AND sequence <= ?
          ORDER BY sequence LIMIT ?`,
       ).all(this.spaceId, fromHead.sequence, through.sequence, limit + 1);
-      const parsed = rows.map((row) => {
-        let value: unknown;
-        try { value = JSON.parse(row.operation_json); } catch { throw new OhIntegrityError("A stored operation is not JSON."); }
-        const operation = parseOhOperationV1(value);
-        if (operation === null || canonicalJson(operation) !== row.operation_json) {
-          throw new OhIntegrityError("A stored operation is invalid.");
-        }
-        return operation;
-      });
+      const parsed = rows.map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
+      if (parsed.length > limit + 1) throw new OhIntegrityError("The change feed exceeded its requested page bound.");
       const hasMore = parsed.length > limit;
       const operations = parsed.slice(0, limit);
-      const first = operations[0];
-      if (first !== undefined && (first.sequence !== fromHead.sequence + 1
-        || first.parentOperationSha256 !== fromHead.operationSha256)) {
-        throw new OhIntegrityError("The change feed does not extend its cursor.");
-      }
-      for (let index = 1; index < operations.length; index += 1) {
-        const prior = operations[index - 1] as OhOperationV1;
-        const operation = operations[index] as OhOperationV1;
+      let prior: OhHeadRefV1 = fromHead;
+      for (const operation of parsed) {
         if (operation.sequence !== prior.sequence + 1
           || operation.parentOperationSha256 !== prior.operationSha256) {
           throw new OhIntegrityError("The change feed contains a gap or fork.");
         }
+        prior = { operationSha256: operation.operationSha256, sequence: operation.sequence };
+      }
+      if (!hasMore && (prior.sequence !== through.sequence
+        || prior.operationSha256 !== through.operationSha256)) {
+        throw new OhIntegrityError("The change feed does not reach its pinned through head.");
       }
       const last = operations.at(-1);
       const to = last === undefined
@@ -645,13 +764,10 @@ export class OhSqliteStore {
   log(limit = 50): readonly OhOperationV1[] {
     this.#assertOpen();
     const rows = this.database.query<OperationRow, [string, number]>(
-      "SELECT operation_json FROM oh_operations WHERE space_id = ? ORDER BY sequence DESC LIMIT ?",
+      `SELECT ${OPERATION_COLUMNS} FROM oh_operations
+       WHERE space_id = ? ORDER BY sequence DESC LIMIT ?`,
     ).all(this.spaceId, normalizeLimit(limit));
-    return rows.map((row) => {
-      const operation = parseOhOperationV1(JSON.parse(row.operation_json));
-      if (operation === null) throw new OhIntegrityError("The stored operation is invalid.");
-      return operation;
-    });
+    return rows.map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
   }
 
   searchKeyword(query: string, limit = 20): readonly OhKeywordSearchResultV1[] {
@@ -707,15 +823,8 @@ export class OhSqliteStore {
       "SELECT count(*) AS count FROM oh_operations WHERE space_id = ?",
     ).get(this.spaceId)?.count ?? 0;
     const operations: readonly OhOperationV1[] = this.database.query<OperationRow, [string]>(
-      "SELECT operation_json FROM oh_operations WHERE space_id = ? ORDER BY sequence",
-    ).all(this.spaceId).map((row) => {
-        let value: unknown;
-        try { value = JSON.parse(row.operation_json); } catch { throw new OhIntegrityError("A stored operation is not JSON."); }
-        if (canonicalJson(value) !== row.operation_json) throw new OhIntegrityError("A stored operation is not canonical JSON.");
-        const parsed = parseOhOperationV1(value);
-        if (parsed === null) throw new OhIntegrityError("A stored operation is invalid.");
-        return parsed;
-      });
+      `SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? ORDER BY sequence`,
+    ).all(this.spaceId).map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
     if (operations.length !== storedCount) throw new OhIntegrityError("Operation count changed during verification.");
     return this.#verifyOperations(operations);
   }
@@ -723,11 +832,14 @@ export class OhSqliteStore {
   #verifyOperations(operations: readonly OhOperationV1[]): OhReplayVerificationV1 {
     const records = new Map<string, KnowledgeGraphRecordV1>();
     const materializedBy = new Map<string, Readonly<{ operationSha256: Sha256Hex; sequence: number }>>();
+    const operationIds = new Set<string>();
     let head: OhHeadV1 = { generation: 0, graphRevisionSha256: null, operationSha256: null,
       recordsSha256: EMPTY_RECORDS_SHA256, sequence: 0, v: 1 };
     for (const operation of operations) {
       if (operation.spaceId !== this.spaceId || operation.sequence !== head.sequence + 1
-        || operation.parentOperationSha256 !== head.operationSha256) throw new OhIntegrityError("Operation replay chain is broken.");
+        || operation.parentOperationSha256 !== head.operationSha256
+        || operationIds.has(operation.operationId)) throw new OhIntegrityError("Operation replay chain is broken.");
+      operationIds.add(operation.operationId);
       for (const change of operation.changes) {
         if (change.kind === "put") {
           records.set(change.record.key, change.record);
@@ -813,9 +925,13 @@ export class OhSqliteStore {
     }
     return withImmediateTransaction(this.database, () => {
       const row = this.database.query<BindingRow, [string]>(
-        "SELECT binding_json FROM oh_space_bindings WHERE space_id = ?",
+        `SELECT ${BINDING_COLUMNS} FROM oh_space_bindings WHERE space_id = ?`,
       ).get(this.spaceId);
-      if (row === null || row.binding_json !== canonicalJson(binding)) {
+      if (row === null) {
+        throw new OhProfileError("Whole-space purge requires the exact persisted store binding.");
+      }
+      const persistedBinding = parseStoredBindingRow(row, this.spaceId);
+      if (canonicalJson(persistedBinding) !== canonicalJson(binding)) {
         throw new OhProfileError("Whole-space purge requires the exact persisted store binding.");
       }
       const receipt = createOhSpacePurgeReceiptV1({ binding, priorHead: this.head(), purgedAt });
@@ -835,6 +951,31 @@ export class OhSqliteStore {
       this.database.query("DELETE FROM oh_operations WHERE space_id = ?").run(this.spaceId);
       this.database.query("DELETE FROM oh_space_bindings WHERE space_id = ?").run(this.spaceId);
       this.database.query("DELETE FROM oh_spaces WHERE space_id = ?").run(this.spaceId);
+      const directTables = ["oh_spaces", "oh_space_bindings", "oh_operations", "oh_records",
+        "oh_dependencies", "oh_search_documents", "oh_sync_outbox", "oh_sync_state"] as const;
+      for (const table of directTables) {
+        const count = this.database.query<{ count: number }, [string]>(
+          `SELECT count(*) AS count FROM ${table} WHERE space_id = ?`,
+        ).get(this.spaceId)?.count;
+        if (count !== 0) throw new OhIntegrityError(`Space purge left rows in ${table}.`);
+      }
+      const operationRecords = this.database.query<{ count: number }, [string]>(`SELECT count(*) AS count
+        FROM oh_operation_records AS materialized JOIN oh_operations AS operation
+          ON operation.operation_sha256 = materialized.operation_sha256
+        WHERE operation.space_id = ?`).get(this.spaceId)?.count;
+      const searchRows = this.database.query<{ count: number }, [string]>(
+        "SELECT count(*) AS count FROM oh_search_fts WHERE space_id = ?",
+      ).get(this.spaceId)?.count;
+      if (operationRecords !== 0 || searchRows !== 0) {
+        throw new OhIntegrityError("Space purge left derived private payload rows.");
+      }
+      const receiptRow = this.database.query<PurgeRow, [string]>(
+        `SELECT ${PURGE_COLUMNS} FROM oh_space_purges WHERE space_id = ?`,
+      ).get(this.spaceId);
+      if (receiptRow === null
+        || canonicalJson(parseStoredPurgeRow(receiptRow, this.spaceId)) !== canonicalJson(receipt)) {
+        throw new OhIntegrityError("The stored purge receipt differs from the requested purge.");
+      }
       return receipt;
     });
   }

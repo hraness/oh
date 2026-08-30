@@ -15,7 +15,7 @@ const specificationDescription =
 export const metadata: Metadata = {
   title: specificationTitle,
   description:
-    "The versioned contract for Oh records, graph revisions, local SQLite authority, synchronization, and semantic search.",
+    "The versioned contract for Oh records, graph revisions, SQLite and libSQL authority, projections, and composite memory.",
   alternates: { canonical: "/spec" },
   openGraph: {
     title: specificationTitle,
@@ -44,6 +44,7 @@ const sections = [
   ["sync", "Sync"],
   ["semantic", "Semantic search"],
   ["projection", "Derived projection"],
+  ["memory", "Composite memory"],
   ["versioning", "Versioning"],
 ] as const;
 
@@ -225,8 +226,27 @@ export default function Specification() {
             </div>
           </section>
 
-          <section id="versioning" className="spec-section">
+          <section id="memory" className="spec-section">
             <div className="spec-number">08</div>
+            <div>
+              <h2>Composite agent memory</h2>
+              <p>
+                One experimental facade composes a separately governed working
+                authority with one exact canonical head. Host-purposed named
+                programs see lane-tagged facts, visible conflicts, exact
+                physical authority and extractor digests, and bounded proofs
+                without receiving store locators or canonical mutation handles.
+              </p>
+              <p className="callout">
+                Working nominations are verified dependency-closure proposals.
+                Review and durable adoption remain destination-owned operations;
+                a derived result never promotes itself.
+              </p>
+            </div>
+          </section>
+
+          <section id="versioning" className="spec-section">
+            <div className="spec-number">09</div>
             <div>
               <h2>Versioning and evolution</h2>
               <p>

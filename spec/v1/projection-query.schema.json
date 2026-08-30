@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "safeCode": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/projection-query.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Runtime conformance additionally requires unique projected variables, binds every projected variable in the body, enforces the 256-variable aggregate ceiling, and recomputes querySha256.",
+  "additionalProperties": false,
+  "properties": {
+    "find": {
+      "items": {
+        "$ref": "#/$defs/safeCode"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "limit": {
+      "maximum": 65536,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "queryId": {
+      "$ref": "#/$defs/safeCode"
+    },
+    "querySha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "v": {
+      "const": 1
+    },
+    "where": {
+      "items": {
+        "$ref": "./projection-rule-pack.schema.json#/$defs/literal"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "find",
+    "limit",
+    "queryId",
+    "querySha256",
+    "where",
+    "v"
+  ],
+  "title": "Oh projection query V1",
+  "type": "object"
+}

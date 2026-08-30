@@ -15,10 +15,13 @@ export declare const OH_PROJECTION_LIMITS_V1: Readonly<{
     queryMatches: 262144;
     queryResults: 65536;
     relations: 4096;
+    resultBytes: number;
     rounds: 1024;
     rules: 1024;
     sourcesPerFact: 64;
+    totalProofNodes: 65536;
     variables: 256;
+    workUnits: 16777216;
 }>;
 export type OhProjectionAtomV1 = JsonPrimitive;
 export type OhProjectionSnapshotV1 = Readonly<{
@@ -105,6 +108,8 @@ export type OhProjectionQueryV1 = Readonly<{
 export type OhProjectionIdentityV1 = Readonly<{
     contractSha256: Sha256Hex;
     datasetSha256: Sha256Hex;
+    engineSha256: Sha256Hex;
+    evaluationSha256: Sha256Hex;
     projectionSha256: Sha256Hex;
     querySha256: Sha256Hex;
     rulePackSha256: Sha256Hex;
@@ -121,6 +126,7 @@ export type OhProjectionProofV1 = Readonly<{
 }> | Readonly<{
     kind: "derived";
     premises: readonly OhProjectionProofV1[];
+    premisesTruncated: boolean;
     relation: string;
     ruleId: string;
     ruleSha256: Sha256Hex;
@@ -135,6 +141,8 @@ export type OhProjectionProofV1 = Readonly<{
 }>;
 export type OhProjectionResultRowV1 = Readonly<{
     proofs: readonly OhProjectionProofV1[];
+    proofsTruncated: boolean;
+    supportCount: number;
     values: readonly OhProjectionAtomV1[];
     v: 1;
 }>;
@@ -149,7 +157,10 @@ export type OhProjectionResultV1 = Readonly<{
         maximumDerivedTuples: number;
         maximumProofDepth: number;
         maximumProofNodes: number;
+        maximumResultBytes: number;
         maximumRounds: number;
+        maximumTotalProofNodes: number;
+        maximumWorkUnits: number;
         v: 1;
     }>;
     identity: OhProjectionIdentityV1;
@@ -158,10 +169,14 @@ export type OhProjectionResultV1 = Readonly<{
     stats: Readonly<{
         baseFacts: number;
         derivedFacts: number;
+        proofNodes: number;
         queryMatches: number;
         relations: number;
         rounds: number;
+        proofsTruncated: boolean;
         truncated: boolean;
+        truncationReasons: readonly ("query-limit" | "result-bytes")[];
+        workUnits: number;
         v: 1;
     }>;
     v: 1;
@@ -170,9 +185,12 @@ export type OhProjectionEvaluationOptionsV1 = Readonly<{
     maximumDerivedTuples?: number;
     maximumProofDepth?: number;
     maximumProofNodes?: number;
+    maximumResultBytes?: number;
     maximumRounds?: number;
+    maximumTotalProofNodes?: number;
+    maximumWorkUnits?: number;
 }>;
-export type OhProjectionInvalidationReasonV1 = "dataset-changed" | "query-changed" | "rule-pack-changed" | "snapshot-changed";
+export type OhProjectionInvalidationReasonV1 = "dataset-changed" | "engine-changed" | "evaluation-changed" | "query-changed" | "rule-pack-changed" | "snapshot-changed";
 export type OhProjectionInvalidationV1 = Readonly<{
     kind: "reusable";
     v: 1;
@@ -237,12 +255,27 @@ export declare function createOhProjectionQueryV1(input: Readonly<{
 export declare function parseOhProjectionQueryV1(value: unknown): OhProjectionQueryV1 | null;
 export declare function createOhProjectionIdentityV1(input: Readonly<{
     dataset: OhProjectionDatasetV1;
+    engine?: string;
+    options?: OhProjectionEvaluationOptionsV1;
     query: OhProjectionQueryV1;
     rulePack: OhProjectionRulePackV1;
     snapshot: OhProjectionSnapshotV1;
 }>): OhProjectionIdentityV1;
 export declare function parseOhProjectionIdentityV1(value: unknown): OhProjectionIdentityV1 | null;
 export declare function invalidationForOhProjectionV1(previous: OhProjectionIdentityV1, next: OhProjectionIdentityV1): OhProjectionInvalidationV1;
+/**
+ * Parses one untrusted proof tree under the public hard depth, node, and byte
+ * ceilings. Cached result envelopes should normally be parsed as a whole with
+ * `parseOhProjectionResultV1`, which also applies their smaller declared limits.
+ */
+export declare function parseOhProjectionProofV1(value: unknown): OhProjectionProofV1 | null;
+/**
+ * Parses a cached projection result as untrusted data. It verifies exact keys,
+ * all aggregate and declared bounds, proof truncation markers, canonical row
+ * order, engine/evaluation identity links, and `resultSha256`. Pass the
+ * projection digest requested from a cache to reject identity substitution.
+ */
+export declare function parseOhProjectionResultV1(value: unknown, expectedProjectionSha256?: Sha256Hex): OhProjectionResultV1 | null;
 export declare function evaluateOhProjectionV1(input: Readonly<{
     dataset: OhProjectionDatasetV1;
     options?: OhProjectionEvaluationOptionsV1;

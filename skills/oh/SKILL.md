@@ -30,7 +30,7 @@ oh --help
 oh version
 ```
 
-The supported CLI is `@hraness/oh@0.1.1` from the immutable `v0.1.1` GitHub
+The supported CLI is `@hraness/oh@0.2.0` from the immutable `v0.2.0` GitHub
 tag. It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
@@ -166,6 +166,24 @@ Remote libSQL or Turso sync is an SDK workflow. The user must select the remote
 and credential source. Never print credentials or embed them in records. Oh
 settles fast-forward histories only; preserve both logs when it reports a
 divergence.
+
+## Use composite memory only through host bindings
+
+`@hraness/oh/experimental/memory` is an SDK-only surface. Do not let a model
+construct its options. Trusted application code must bind two distinct
+authority handles, exact binding digests, a pinned canonical head, working
+codecs, a working actor, domain extractor relation ownership and digests,
+host-purposed named rule/query programs, and named nomination routes before
+giving the returned object to an agent.
+
+The agent-facing object may call only `remember`, `query`, `explain`, and
+`nominate`. Never add a tool parameter for a database path or URL, authority,
+realm, space, store profile, rule pack, raw query, sync destination, canonical
+write, caller-asserted actor/time, or purge operation. Preserve lane, conflict,
+fact-policy, and premise-authority labels in query output. Treat every result
+as derived. A nomination may select only a host-registered route and is a
+prepared dependency-closure candidate for destination-owned review, not
+permission to write durable knowledge or import the working operation chain.
 
 ## Finish with evidence
 

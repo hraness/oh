@@ -1,6 +1,6 @@
 {
   "name": "@hraness/oh",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "open-source tools for agentic research",
   "type": "module",
   "license": "MIT",
@@ -68,6 +68,10 @@
       "types": "./dist/projection-suss.d.ts",
       "import": "./dist/projection-suss.js"
     },
+    "./experimental/memory": {
+      "types": "./dist/memory.d.ts",
+      "import": "./dist/memory.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -84,10 +88,11 @@
   "scripts": {
     "build": "bun run build:js && bun run build:portable && bun run build:types",
     "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts ./src/semantic.ts ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
-    "build:portable": "bun build ./src/store.ts ./src/libsql.ts ./src/projection-public.ts ./src/projection-suss.ts --outdir ./dist --target node --format esm --external @suss/datalog",
+    "build:portable": "bun build ./src/store.ts ./src/libsql.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog",
     "build:types": "tsc -p tsconfig.build.json",
-    "check": "bun run typecheck && bun run test && bun run build && bun run test:node && bun run test:node-projection",
+    "check": "bun run typecheck && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection",
     "test:node": "node ./tests/node-portable.mjs",
+    "test:types:node": "tsc -p tsconfig.node-portable.json --noEmit",
     "test": "bun test ./src ./tests ./site/tests/source.test.ts",
     "test:node-projection": "node --test ./scripts/projection-node.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -11,8 +11,9 @@ import {
 } from "./canonical";
 import {
   OH_CONTRACT_MANIFEST_V1,
-  type OhRecordCodecRegistry,
+  OhRecordCodecRegistry,
 } from "./contract";
+export { OhRecordCodecRegistry } from "./contract";
 import {
   canonicalKnowledgeGraphChangesV1,
   createKnowledgeGraphRecordV1,
@@ -366,14 +367,17 @@ export function replayOhOperationsV1(
     throw new TypeError("Invalid operation replay input.");
   }
   const records = new Map<string, KnowledgeGraphRecordV1>();
+  const operationIds = new Set<string>();
   let head = emptyOhHeadV1();
   for (const value of values) {
     const operation = parseOhOperationV1(value);
     if (operation === null || operation.spaceId !== parsedSpaceId
       || operation.sequence !== head.sequence + 1
-      || operation.parentOperationSha256 !== head.operationSha256) {
+      || operation.parentOperationSha256 !== head.operationSha256
+      || operationIds.has(operation.operationId)) {
       throw new OhIntegrityError("Operation replay chain is broken.");
     }
+    operationIds.add(operation.operationId);
     for (const change of operation.changes) {
       if (change.kind === "put") records.set(change.record.key, change.record);
       else {
@@ -482,14 +486,18 @@ function closureRecords(
   available: ReadonlyMap<string, KnowledgeGraphRecordV1>,
   roots: readonly string[],
   maximumRecords: number,
+  maximumBytes: number = OH_DEPENDENCY_CLOSURE_LIMITS_V1.bytes - 64 * 1024,
 ): readonly KnowledgeGraphRecordV1[] {
   const selected = new Map<string, KnowledgeGraphRecordV1>();
   const pending = [...roots];
+  let selectedBytes = 0;
   while (pending.length > 0) {
     const key = pending.pop() as string;
     if (selected.has(key)) continue;
     const record = available.get(key);
     if (record === undefined) throw new OhDependencyError(`Dependency closure record ${key} is missing.`);
+    selectedBytes += Buffer.byteLength(canonicalJson(record), "utf8") + 1;
+    if (selectedBytes > maximumBytes) throw new RangeError("Dependency closure exceeds its canonical byte bound.");
     selected.set(key, record);
     if (selected.size > maximumRecords) throw new RangeError("Dependency closure exceeds its record bound.");
     pending.push(...record.dependencies);
@@ -560,6 +568,26 @@ export function verifyOhDependencyClosureV1(value: unknown):
   | Readonly<{ ok: false; reason: "invalid-closure" }> {
   const closure = parseOhDependencyClosureV1(value);
   return closure === null ? { ok: false, reason: "invalid-closure" } : { closure, ok: true };
+}
+
+/**
+ * Strong adoption check. Unlike structural self-verification, this also binds
+ * the capsule to the exact store binding and head selected by trusted host code.
+ */
+export function verifyOhDependencyClosureAgainstV1(value: unknown, expected: Readonly<{
+  binding: OhStoreBindingV1;
+  head: OhHeadV1;
+}>):
+  | Readonly<{ closure: OhDependencyClosureV1; ok: true; verification: "expected-authority-and-head" }>
+  | Readonly<{ ok: false; reason: "binding-mismatch" | "head-mismatch" | "invalid-closure" | "invalid-expectation" }> {
+  const binding = parseOhStoreBindingV1(expected.binding);
+  const head = parseOhHeadV1(expected.head);
+  if (binding === null || head === null) return { ok: false, reason: "invalid-expectation" };
+  const closure = parseOhDependencyClosureV1(value);
+  if (closure === null) return { ok: false, reason: "invalid-closure" };
+  if (closure.binding.bindingSha256 !== binding.bindingSha256) return { ok: false, reason: "binding-mismatch" };
+  if (canonicalJson(closure.head) !== canonicalJson(head)) return { ok: false, reason: "head-mismatch" };
+  return { closure, ok: true, verification: "expected-authority-and-head" };
 }
 
 export function createOhSpacePurgeReceiptV1(input: Readonly<{

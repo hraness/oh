@@ -76,10 +76,16 @@ function assertConservativeOutputBound(input: Readonly<{
   const domainSize = BigInt(projectionDomainSize(input.dataset, input.rulePack, input.query));
   const heads = new Map<string, number>();
   for (const item of input.rulePack.rules) heads.set(item.head.relation, item.head.terms.length);
+  const baseCounts = new Map<string, number>();
+  for (const fact of input.dataset.facts) {
+    if (heads.has(fact.relation)) baseCounts.set(fact.relation, (baseCounts.get(fact.relation) ?? 0) + 1);
+  }
   let possible = 0n;
-  const maximum = BigInt(input.maximumDerivedTuples + input.dataset.facts.length);
-  for (const arity of heads.values()) {
-    possible += domainSize ** BigInt(arity);
+  const maximum = BigInt(input.maximumDerivedTuples);
+  for (const [relation, arity] of heads) {
+    const relationSpace = domainSize ** BigInt(arity);
+    const existing = BigInt(baseCounts.get(relation) ?? 0);
+    possible += relationSpace > existing ? relationSpace - existing : 0n;
     if (possible > maximum) {
       throw new RangeError("The Suss equivalence adapter cannot prove the requested derived-tuple bound before evaluation; use the bounded Oh evaluator.");
     }

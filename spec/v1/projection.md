@@ -64,6 +64,9 @@ Rule packs are sorted by rule ID and content-addressed. A query declares an
 ordered `find` variable list, a nonempty positive body, and an output limit.
 Query results use set semantics and sort tuples by canonical JSON. Declaration,
 fact, and insertion order do not affect rule-pack identity or output bytes.
+The projection identity also binds the selected engine and resolved evaluation
+limits, so results created with different engines, proof budgets, or work
+budgets cannot share a cache identity.
 
 ## Evaluation limits
 
@@ -79,31 +82,70 @@ The implementation checks hard ceilings before or during work:
 | Body literals per rule | 64 |
 | Evaluation rounds | 1,024 |
 | Join matches per rule or query body | 262,144 |
+| Tuple-unification work units per evaluation | 16,777,216 |
 | Returned query rows | 65,536 |
 | Proof depth | 128 |
 | Proof nodes per row | 4,096 |
+| Proof nodes across returned rows | 65,536 |
+| Canonical result bytes | 16 MiB |
 
-A caller may request smaller derived-tuple, round, proof-depth, and proof-node
-bounds. Exceeding a work bound fails closed. A query's declared output limit
-returns the first canonical tuples and reports `stats.truncated: true` when more
-distinct answers exist.
+A caller may request smaller derived-tuple, round, proof-depth, proof-node, and
+global tuple-unification work bounds. The global work counter spans every rule,
+round, and the final query, including unsuccessful candidate matches. Exceeding
+a work bound fails closed. Result construction additionally stops before the
+aggregate proof-node or canonical-byte ceilings. A query's declared output
+limit or the result-byte ceiling returns a canonical prefix, sets
+`stats.truncated: true`, and lists `query-limit` or `result-bytes` in
+`stats.truncationReasons`.
 
 ## Proofs
 
-Each returned row carries one proof for each query-body match. A fact leaf names
-its relation, tuple, and exact source record references. A derived node names
-the rule ID and digest and recursively contains its premises. Depth, node, and
-cycle guards emit an explicit `truncated` node. A proof establishes how the
-bounded evaluator derived a tuple from the supplied bytes; it does not establish
-that a proposition is true.
+Each returned row carries one proof for each literal in one canonical supporting
+query-body match. `supportCount` reports how many complete matches produced the
+same projected value tuple; V1 deliberately does not serialize every alternate
+witness. A fact leaf names its relation, tuple, and exact source record
+references. A derived node names the rule ID and digest and recursively contains
+its premises. Depth and cycle guards emit an explicit `truncated` node. If a
+node or byte budget ends between sibling premises, the enclosing derived node
+sets `premisesTruncated: true`; if it ends between query-body proofs, the row
+sets `proofsTruncated: true`.
+`stats.proofsTruncated` reports either form across all returned rows. A proof
+establishes how the bounded evaluator derived a tuple from the supplied bytes;
+it does not establish that a proposition is true.
+
+## Safe cached ingress
+
+Projection declarations and cache output are untrusted exchange data. The
+`parseOhProjectionRulePackV1`, `parseOhProjectionQueryV1`, and
+`parseOhProjectionIdentityV1` parsers reject unknown keys and invalid digest
+preimages. `parseOhProjectionProofV1` additionally applies the public proof
+depth, node, tuple, source, atom-byte, and aggregate-byte ceilings before
+returning a proof tree.
+
+`parseOhProjectionResultV1` is the cache-ingress boundary. It verifies the
+result digest; canonical row and source order; `supportCount`; proof-node,
+work-unit, relation, match, round, and byte totals; every proof and result
+truncation marker; and all declared evaluation ceilings. It also recomputes the
+engine and evaluation digests and requires them to match the projection
+identity. A valid SHA-256 string by itself is not enough to make an envelope
+acceptable. Cache readers SHOULD pass the projection digest they requested as
+the parser's second argument; an internally consistent envelope does not prove
+that a cache returned the requested identity.
+
+The discovery manifest publishes machine-readable schemas for rule packs,
+queries, identities, and result envelopes. JSON Schema describes the exchange
+shape and static maxima. The runtime parsers remain normative for canonical
+ordering, digest preimages, aggregate budgets, and cross-field consistency that
+the schemas cannot express.
 
 ## Cache invalidation
 
 `projectionSha256` binds the current contract, snapshot, dataset, rule pack,
-query, and positive-Datalog semantics. A cached result is reusable only when
-that digest is unchanged. Any snapshot, dataset, rule-pack, or query change has
-`kind: "full-rebuild"` and lists the changed identities. V1 does not claim
-incremental deletion or cross-snapshot maintenance.
+query, engine, resolved evaluation limits, and positive-Datalog semantics. A cached
+result is reusable only when that digest is unchanged. Any snapshot, dataset,
+rule-pack, query, engine, or evaluation-limit change has `kind: "full-rebuild"` and
+lists the changed identities. V1 does not claim incremental deletion or
+cross-snapshot maintenance.
 
 ## Optional Suss equivalence lane
 
@@ -114,8 +156,10 @@ every complete relation to the Oh reference semantics. It returns only after
 exact set agreement.
 
 Suss's public evaluator does not expose an execution-budget hook. Before calling
-it, the adapter computes a conservative finite-domain upper bound and refuses a
-program it cannot prove will remain under the requested derived-tuple ceiling.
-It then runs the bounded reference evaluator for equivalence and canonical proof
-construction. This lane evaluates compatibility, not performance. Refusal does
-not disable the built-in evaluator.
+it, the adapter first runs the bounded reference evaluator, then computes a
+conservative finite-domain upper bound on new tuples in rule-head relations and
+refuses a program it cannot prove will remain under the requested derived-tuple
+ceiling. It compares Suss's complete result to the reference materialization and
+uses the reference witnesses for canonical proof construction. This lane
+evaluates compatibility, not performance. Refusal does not disable the built-in
+evaluator.

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 import { createKnowledgeGraphRecordV1 } from "../graph";
+import { createOhStoreBindingV1, OH_WORKING_STORE_PROFILE_V1 } from "../store";
 import { OhConflictError, OhDependencyError, OhIntegrityError, OhSqliteStore } from "./store";
 
 const roots: string[] = [];
@@ -63,6 +64,67 @@ describe("Oh SQLite authority", () => {
     store.close();
   });
 
+  test("rejects orphaned and cross-space rows as idempotent operations", () => {
+    const changes = [{ kind: "put" as const, record: record("entity:orphan", "Orphan"), v: 1 as const }];
+    const source = new OhSqliteStore({ path: ":memory:", spaceId: "orphan-target" });
+    const operation = source.commit({ actorId: "agent.test", changes, expectedHead: source.head(),
+      operationId: "op_orphan" });
+    const target = new OhSqliteStore({ path: ":memory:", spaceId: "orphan-target" });
+    target.database.query(`INSERT INTO oh_operations(operation_sha256, space_id, sequence,
+      operation_id, parent_operation_sha256, graph_revision_sha256, records_sha256,
+      operation_json, instant) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      operation.operationSha256, operation.spaceId, operation.sequence, operation.operationId,
+      operation.parentOperationSha256, operation.graphRevisionSha256, operation.recordsSha256,
+      JSON.stringify(operation), operation.instant,
+    );
+    expect(() => target.commit({ actorId: operation.actorId, changes, expectedHead: target.head(),
+      operationId: operation.operationId })).toThrow(OhIntegrityError);
+    expect(() => target.importOperation(operation)).toThrow(OhIntegrityError);
+    expect(target.head().sequence).toBe(0);
+    source.close(); target.close();
+
+    const alienSource = new OhSqliteStore({ path: ":memory:", spaceId: "alien-source" });
+    const alien = alienSource.commit({ actorId: "agent.test", changes, expectedHead: alienSource.head(),
+      operationId: "op_alien" });
+    const alienTarget = new OhSqliteStore({ path: ":memory:", spaceId: "alien-target" });
+    alienTarget.database.query(`INSERT INTO oh_operations(operation_sha256, space_id, sequence,
+      operation_id, parent_operation_sha256, graph_revision_sha256, records_sha256,
+      operation_json, instant) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      alien.operationSha256, alienTarget.spaceId, alien.sequence, alien.operationId,
+      alien.parentOperationSha256, alien.graphRevisionSha256, alien.recordsSha256,
+      JSON.stringify(alien), alien.instant,
+    );
+    alienTarget.database.query(`UPDATE oh_spaces SET generation = 1, head_operation_sha256 = ?,
+      graph_revision_sha256 = ?, records_sha256 = ?, sequence = 1 WHERE space_id = ?`).run(
+      alien.operationSha256, alien.graphRevisionSha256, alien.recordsSha256, alienTarget.spaceId,
+    );
+    expect(() => alienTarget.commit({ actorId: alien.actorId, changes,
+      expectedHead: alienTarget.head(), operationId: alien.operationId })).toThrow(OhIntegrityError);
+    alienSource.close(); alienTarget.close();
+  });
+
+  test("refuses to advance a space whose duplicated binding or current head drifted", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "authority-drift" });
+    const binding = createOhStoreBindingV1({ profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:authority-drift", spaceId: store.spaceId, v: 1 });
+    store.bind(binding);
+    store.database.query("UPDATE oh_space_bindings SET realm_id = ? WHERE space_id = ?")
+      .run("realm:alien", store.spaceId);
+    expect(() => store.binding()).toThrow(OhIntegrityError);
+    store.database.query("UPDATE oh_space_bindings SET realm_id = ? WHERE space_id = ?")
+      .run(binding.realmId, store.spaceId);
+    store.commit({ actorId: "agent.test", changes: [{ kind: "put",
+      record: record("entity:one", "One"), v: 1 }], expectedHead: store.head(), operationId: "op_one" });
+    store.database.query("UPDATE oh_spaces SET graph_revision_sha256 = ? WHERE space_id = ?")
+      .run("f".repeat(64), store.spaceId);
+    const drifted = store.head();
+    expect(() => store.commit({ actorId: "agent.test", changes: [{ kind: "put",
+      record: record("entity:two", "Two"), v: 1 }], expectedHead: drifted,
+    operationId: "op_two" })).toThrow(OhIntegrityError);
+    expect(store.head().sequence).toBe(1);
+    store.close();
+  });
+
   test("checks final dependency closure before changing durable state", () => {
     const store = new OhSqliteStore({ path: ":memory:" });
     expect(() => store.commit({ actorId: "agent.test", changes: [{ kind: "put",
@@ -119,6 +181,16 @@ describe("Oh SQLite authority", () => {
     store.close();
   });
 
+  test("verifies duplicated operation columns against canonical envelopes", () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    store.commit({ actorId: "agent.test", changes: [{ kind: "put",
+      record: record("entity:a", "A"), v: 1 }], expectedHead: store.head(), operationId: "op_columns" });
+    store.database.query("UPDATE oh_operations SET operation_id = ? WHERE space_id = ?")
+      .run("op_alien", store.spaceId);
+    expect(() => store.verifyReplay()).toThrow(OhIntegrityError);
+    store.close();
+  });
+
   test("checks canonical operation bytes beyond the export batch ceiling", () => {
     const store = new OhSqliteStore({ path: ":memory:" });
     for (let index = 0; index < 1001; index += 1) {
@@ -128,7 +200,69 @@ describe("Oh SQLite authority", () => {
     }
     store.database.query(`UPDATE oh_operations SET operation_json = ' ' || operation_json
       WHERE space_id = ? AND sequence = 1`).run(store.spaceId);
-    expect(() => store.verifyReplay()).toThrow("not canonical JSON");
+    expect(() => store.verifyReplay()).toThrow(OhIntegrityError);
+    store.close();
+  });
+
+  test("never reports a feed page that omits its tail or hides a bad sentinel", () => {
+    const tail = new OhSqliteStore({ path: ":memory:", spaceId: "feed-tail" });
+    for (let index = 1; index <= 3; index += 1) {
+      tail.commit({ actorId: "agent.test", changes: [{ kind: "put",
+        record: record(`entity:tail-${index}`, `Tail ${index}`), v: 1 }], expectedHead: tail.head(),
+      operationId: `op_tail_${index}` });
+    }
+    tail.database.exec("PRAGMA foreign_keys = OFF");
+    tail.database.query("DELETE FROM oh_operations WHERE space_id = ? AND sequence = 3").run(tail.spaceId);
+    tail.database.exec("PRAGMA foreign_keys = ON");
+    expect(() => tail.changesSince({ operationSha256: null, sequence: 0 }, { limit: 3 }))
+      .toThrow(OhIntegrityError);
+    tail.close();
+
+    const sentinel = new OhSqliteStore({ path: ":memory:", spaceId: "feed-sentinel" });
+    for (let index = 1; index <= 3; index += 1) {
+      sentinel.commit({ actorId: "agent.test", changes: [{ kind: "put",
+        record: record(`entity:sentinel-${index}`, `Sentinel ${index}`), v: 1 }],
+      expectedHead: sentinel.head(), operationId: `op_sentinel_${index}` });
+    }
+    sentinel.database.exec("PRAGMA foreign_keys = OFF");
+    sentinel.database.query("DELETE FROM oh_operations WHERE space_id = ? AND sequence = 2")
+      .run(sentinel.spaceId);
+    sentinel.database.exec("PRAGMA foreign_keys = ON");
+    expect(() => sentinel.changesSince({ operationSha256: null, sequence: 0 }, { limit: 1 }))
+      .toThrow(OhIntegrityError);
+    sentinel.close();
+  });
+
+  test("rolls a working-space purge back when a payload delete is masked", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "purge-postcondition" });
+    const binding = createOhStoreBindingV1({ profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:purge-postcondition", spaceId: store.spaceId, v: 1 });
+    store.bind(binding);
+    store.commit({ actorId: "agent.test", changes: [{ kind: "put",
+      record: record("entity:private", "Private"), v: 1 }], expectedHead: store.head(),
+    operationId: "op_private" });
+    store.database.exec(`CREATE TRIGGER mask_private_operation_delete BEFORE DELETE ON oh_operations
+      BEGIN SELECT RAISE(IGNORE); END`);
+    store.database.exec(`CREATE TRIGGER mask_private_space_delete BEFORE DELETE ON oh_spaces
+      BEGIN SELECT RAISE(IGNORE); END`);
+    expect(() => store.purgeWorkingSpace(binding, "2026-08-29T13:00:00.000Z"))
+      .toThrow(OhIntegrityError);
+    expect(store.database.query<{ count: number }, []>(
+      "SELECT count(*) AS count FROM oh_space_purges").get()?.count).toBe(0);
+    expect(store.get("entity:private")).not.toBeNull();
+    expect(store.head().sequence).toBe(1);
+    store.close();
+  });
+
+  test("cross-checks every stored purge receipt column before refusing resurrection", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "purge-columns" });
+    const binding = createOhStoreBindingV1({ profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:purge-columns", spaceId: store.spaceId, v: 1 });
+    store.bind(binding);
+    store.purgeWorkingSpace(binding, "2026-08-29T13:00:00.000Z");
+    store.database.query("UPDATE oh_space_purges SET prior_sequence = 99 WHERE space_id = ?")
+      .run(store.spaceId);
+    expect(() => store.ensureSpace()).toThrow(OhIntegrityError);
     store.close();
   });
 

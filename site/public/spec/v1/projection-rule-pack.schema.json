@@ -1,0 +1,182 @@
+{
+  "$defs": {
+    "atom": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "maxLength": 16382,
+          "type": "string"
+        }
+      ]
+    },
+    "constantTerm": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "constant"
+        },
+        "v": {
+          "const": 1
+        },
+        "value": {
+          "$ref": "#/$defs/atom"
+        }
+      },
+      "required": [
+        "kind",
+        "v",
+        "value"
+      ],
+      "type": "object"
+    },
+    "literal": {
+      "additionalProperties": false,
+      "properties": {
+        "relation": {
+          "$ref": "#/$defs/safeCode"
+        },
+        "terms": {
+          "items": {
+            "$ref": "#/$defs/term"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "type": "array"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "relation",
+        "terms",
+        "v"
+      ],
+      "type": "object"
+    },
+    "rule": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "items": {
+            "$ref": "#/$defs/literal"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        },
+        "head": {
+          "$ref": "#/$defs/literal"
+        },
+        "ruleId": {
+          "$ref": "#/$defs/safeCode"
+        },
+        "ruleSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "body",
+        "head",
+        "ruleId",
+        "ruleSha256",
+        "v"
+      ],
+      "type": "object"
+    },
+    "safeCode": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "term": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/constantTerm"
+        },
+        {
+          "$ref": "#/$defs/variableTerm"
+        }
+      ]
+    },
+    "variableTerm": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "variable"
+        },
+        "name": {
+          "$ref": "#/$defs/safeCode"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "v"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/projection-rule-pack.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Runtime conformance additionally measures each atom's exact 16 KiB canonical-JSON byte ceiling, requires safe head variables, canonical rule ordering, unique rule IDs, and recomputed rule and pack digests.",
+  "additionalProperties": false,
+  "properties": {
+    "rulePackId": {
+      "$ref": "#/$defs/safeCode"
+    },
+    "rulePackRevision": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "rulePackSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "rules": {
+      "items": {
+        "$ref": "#/$defs/rule"
+      },
+      "maxItems": 1024,
+      "minItems": 1,
+      "type": "array"
+    },
+    "rulesSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "semantics": {
+      "const": "oh.projection.positive-datalog.v1"
+    },
+    "v": {
+      "const": 1
+    }
+  },
+  "required": [
+    "rulePackId",
+    "rulePackRevision",
+    "rulePackSha256",
+    "rules",
+    "rulesSha256",
+    "semantics",
+    "v"
+  ],
+  "title": "Oh projection rule pack V1",
+  "type": "object"
+}

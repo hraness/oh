@@ -13,10 +13,13 @@ export declare const OH_PROJECTION_LIMITS_V1: Readonly<{
     queryMatches: 262144;
     queryResults: 65536;
     relations: 4096;
+    resultBytes: number;
     rounds: 1024;
     rules: 1024;
     sourcesPerFact: 64;
+    totalProofNodes: 65536;
     variables: 256;
+    workUnits: 16777216;
 }>;
 export declare const OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1: Readonly<{
     extractorSha256: import("./canonical").Sha256Hex;
@@ -45,7 +48,9 @@ export declare const parseOhProjectionDatasetV1: typeof Projection.parseOhProjec
 export declare const parseOhProjectionFactV1: typeof Projection.parseOhProjectionFactV1;
 export declare const parseOhProjectionIdentityV1: typeof Projection.parseOhProjectionIdentityV1;
 export declare const parseOhProjectionLiteralV1: typeof Projection.parseOhProjectionLiteralV1;
+export declare const parseOhProjectionProofV1: typeof Projection.parseOhProjectionProofV1;
 export declare const parseOhProjectionQueryV1: typeof Projection.parseOhProjectionQueryV1;
+export declare const parseOhProjectionResultV1: typeof Projection.parseOhProjectionResultV1;
 export declare const parseOhProjectionRulePackV1: typeof Projection.parseOhProjectionRulePackV1;
 export declare const parseOhProjectionRuleV1: typeof Projection.parseOhProjectionRuleV1;
 export declare const parseOhProjectionSnapshotV1: typeof Projection.parseOhProjectionSnapshotV1;

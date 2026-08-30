@@ -1,6 +1,5 @@
-// @bun
 // src/canonical.ts
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 class OhValidationError extends Error {
   code;
@@ -138,29 +137,8 @@ function parseCanonicalInstantV1(value) {
 function canonicalNow() {
   return new Date().toISOString();
 }
-function opaqueId(prefix) {
-  if (!/^[a-z][a-z0-9_]{1,15}$/u.test(prefix)) {
-    throw new OhValidationError("invalid-prefix", "prefix", "must be a short lowercase code");
-  }
-  return `${prefix}${randomBytes(12).toString("hex")}`;
-}
 function safeCode(value, maximumLength = 128) {
   return typeof value === "string" && value.length <= maximumLength && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
-}
-function boundedText(value, maximumBytes = 64 * 1024) {
-  if (typeof value !== "string" || value.length === 0 || value.normalize("NFC") !== value || utf8ByteLength(value) > maximumBytes)
-    return null;
-  try {
-    assertUnicodeScalarString(value, "$text");
-  } catch {
-    return null;
-  }
-  for (const character of value) {
-    const code = character.codePointAt(0) ?? 0;
-    if (code <= 8 || code >= 11 && code <= 12 || code >= 14 && code <= 31 || code >= 127 && code <= 159)
-      return null;
-  }
-  return value;
 }
 function orderedUnique(values, key) {
   return values.every((value, index) => index === 0 || key(values[index - 1]) < key(value));
@@ -282,128 +260,6 @@ function graphRevisionSha256V1(input) {
   }
   return canonicalSha256({ changes, operationId, parentGraphRevisionSha256, recordsSha256, revision, v: 1 });
 }
-function createKnowledgeGraphRevisionV1(input) {
-  if (input.parent !== null && parseKnowledgeGraphRevisionV1(input.parent) === null) {
-    throw new TypeError("Invalid parent graph revision.");
-  }
-  const operationId = safeCode(input.operationId);
-  const changes = canonicalKnowledgeGraphChangesV1(input.changes);
-  if (operationId === null || changes.length === 0 || changes.length > OH_GRAPH_LIMITS_V1.changesPerOperation)
-    throw new TypeError("Invalid graph revision.");
-  const byKey = new Map((input.parent?.recordRefs ?? []).map((ref) => [ref.key, ref]));
-  for (const change of changes) {
-    if (change.kind === "put") {
-      for (const dependency of change.record.dependencies) {
-        if (!byKey.has(dependency) && !changes.some((candidate) => candidate.kind === "put" && candidate.record.key === dependency)) {
-          throw new TypeError(`Missing graph dependency: ${dependency}`);
-        }
-      }
-      byKey.set(change.record.key, knowledgeGraphRecordRefV1(change.record));
-    } else {
-      const prior = byKey.get(change.key);
-      if (prior === undefined || prior.sha256 !== change.priorSha256)
-        throw new TypeError("Tombstone prior digest does not match.");
-      byKey.delete(change.key);
-    }
-  }
-  if (byKey.size > OH_GRAPH_LIMITS_V1.recordsPerSnapshot) {
-    throw new RangeError("Graph revision exceeds its record snapshot limit.");
-  }
-  for (const ref of byKey.values()) {
-    if (ref.dependencies.some((dependency) => !byKey.has(dependency))) {
-      throw new TypeError(`Missing graph dependency after revision: ${ref.key}`);
-    }
-  }
-  const recordRefs = [...byKey.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0);
-  const recordsSha256 = canonicalSha256(recordRefs);
-  const payload = {
-    changes,
-    operationId,
-    parentGraphRevisionSha256: input.parent?.graphRevisionSha256 ?? null,
-    recordRefs,
-    recordsSha256,
-    revision: (input.parent?.revision ?? 0) + 1,
-    v: 1
-  };
-  return { ...payload, graphRevisionSha256: graphRevisionSha256V1(payload) };
-}
-function parseKnowledgeGraphRevisionV1(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, [
-    "changes",
-    "graphRevisionSha256",
-    "operationId",
-    "parentGraphRevisionSha256",
-    "recordRefs",
-    "recordsSha256",
-    "revision",
-    "v"
-  ]) || value.v !== 1 || !Array.isArray(value.changes) || !Array.isArray(value.recordRefs) || value.recordRefs.length > OH_GRAPH_LIMITS_V1.recordsPerSnapshot)
-    return null;
-  const graphRevisionSha256 = parseSha256Hex(value.graphRevisionSha256);
-  const recordsSha256 = parseSha256Hex(value.recordsSha256);
-  const parentGraphRevisionSha256 = value.parentGraphRevisionSha256 === null ? null : parseSha256Hex(value.parentGraphRevisionSha256);
-  const operationId = safeCode(value.operationId);
-  const revision = Number.isSafeInteger(value.revision) && value.revision > 0 ? value.revision : null;
-  let changes;
-  try {
-    changes = canonicalKnowledgeGraphChangesV1(value.changes);
-  } catch {
-    return null;
-  }
-  const refs = [];
-  for (const item of value.recordRefs) {
-    if (!isPlainRecord(item) || !hasExactKeys(item, ["dependencies", "key", "kind", "sha256", "v"]) || item.v !== 1 || !Array.isArray(item.dependencies))
-      return null;
-    const dependencies = item.dependencies.map(recordKey);
-    const key = recordKey(item.key);
-    const kind = OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.find((candidate) => candidate === item.kind);
-    const sha256 = parseSha256Hex(item.sha256);
-    if (key === null || kind === undefined || sha256 === null || dependencies.some((dependency) => dependency === null) || dependencies.length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord || !orderedUnique(dependencies, String) || dependencies.includes(key))
-      return null;
-    refs.push({ dependencies, key, kind, sha256, v: 1 });
-  }
-  if (graphRevisionSha256 === null || recordsSha256 === null || operationId === null || revision === null || value.parentGraphRevisionSha256 !== null && parentGraphRevisionSha256 === null || !orderedUnique(refs, (ref) => ref.key) || canonicalSha256(refs) !== recordsSha256)
-    return null;
-  const keys = new Set(refs.map((ref) => ref.key));
-  if (refs.some((ref) => ref.dependencies.some((dependency) => !keys.has(dependency))))
-    return null;
-  const payload = {
-    changes,
-    operationId,
-    parentGraphRevisionSha256,
-    recordRefs: refs,
-    recordsSha256,
-    revision,
-    v: 1
-  };
-  try {
-    return graphRevisionSha256V1(payload) === graphRevisionSha256 ? { ...payload, graphRevisionSha256 } : null;
-  } catch {
-    return null;
-  }
-}
-function reduceKnowledgeGraphRevisionsV1(revisions) {
-  if (revisions.length === 0 || revisions.length > 65536)
-    return null;
-  const ordered = [...revisions].sort((left, right) => left.revision - right.revision);
-  let parent = null;
-  const operationIds = new Set;
-  for (const candidate of ordered) {
-    const current = parseKnowledgeGraphRevisionV1(candidate);
-    if (current === null || current.revision !== (parent?.revision ?? 0) + 1 || current.parentGraphRevisionSha256 !== (parent?.graphRevisionSha256 ?? null) || operationIds.has(current.operationId))
-      return null;
-    try {
-      const rebuilt = createKnowledgeGraphRevisionV1({ changes: current.changes, operationId: current.operationId, parent });
-      if (rebuilt.graphRevisionSha256 !== current.graphRevisionSha256)
-        return null;
-    } catch {
-      return null;
-    }
-    operationIds.add(current.operationId);
-    parent = current;
-  }
-  return parent;
-}
 
 // src/ontology.ts
 var OH_ONTOLOGY_VERSION_V1 = "1.0.0";
@@ -415,591 +271,9 @@ var OH_KNOWLEDGE_LIMITS_V1 = Object.freeze({
   statementBytes: 256 * 1024,
   textBytes: 64 * 1024
 });
-var OH_KNOWLEDGE_KERNEL_CONCEPTS_V1 = [
-  { code: "entity", description: "A stable identity anchor for something that can be referred to.", label: "Entity" },
-  { code: "statement", description: "An immutable proposition with a subject, predicate, object, and qualifiers.", label: "Statement" },
-  { code: "assertion", description: "An attributable stance toward a statement.", label: "Assertion" },
-  { code: "evidence", description: "A typed account of how an observation bears on an assertion.", label: "Evidence" },
-  { code: "context", description: "The scenario and dimensions in which knowledge applies.", label: "Context" },
-  { code: "inquiry", description: "A question and its durable investigation trail.", label: "Inquiry" },
-  { code: "projection", description: "A reproducible view derived from exact knowledge.", label: "Projection" }
-];
-function success(value) {
-  return { ok: true, value };
-}
-function failure(field, code = "invalid-input") {
-  return { error: { code, field }, ok: false };
-}
-function parseOpaqueId(value, prefix) {
-  return typeof value === "string" && new RegExp(`^${prefix}[a-z0-9]{24}$`, "u").test(value) ? value : null;
-}
-function parseKnowledgeEntityId(value) {
-  return parseOpaqueId(value, "kent_");
-}
-function parseKnowledgeAssertionId(value) {
-  return parseOpaqueId(value, "kast_");
-}
-function parseKnowledgeEvidenceId(value) {
-  return parseOpaqueId(value, "kevd_");
-}
-function parseKnowledgeInquiryId(value) {
-  return parseOpaqueId(value, "kinq_");
-}
-var OH_KNOWLEDGE_ENTITY_STATES_V1 = ["active", "quarantined", "redirected", "tombstoned"];
-function parseKnowledgeEntityV1(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, [
-    "entityId",
-    "identityOperationId",
-    "identityRevision",
-    "redirectEntityId",
-    "state",
-    "v"
-  ]) || value.v !== 1)
-    return failure("entity");
-  const entityId = parseKnowledgeEntityId(value.entityId);
-  const identityOperationId = safeCode(value.identityOperationId);
-  const identityRevision = Number.isSafeInteger(value.identityRevision) && value.identityRevision > 0 ? value.identityRevision : null;
-  const redirectEntityId = value.redirectEntityId === null ? null : parseKnowledgeEntityId(value.redirectEntityId);
-  const state = OH_KNOWLEDGE_ENTITY_STATES_V1.find((candidate) => candidate === value.state);
-  return entityId !== null && identityOperationId !== null && identityRevision !== null && (value.redirectEntityId === null || redirectEntityId !== null) && state !== undefined && state === "redirected" === (redirectEntityId !== null) && redirectEntityId !== entityId ? success({ entityId, identityOperationId, identityRevision, redirectEntityId, state, v: 1 }) : failure("entity");
-}
-function parseKnowledgeSchemaRefV1(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["code", "namespace", "revision", "schemaSha256", "v"]) || value.v !== 1)
-    return failure("schemaRef");
-  const code = safeCode(value.code);
-  const namespace = safeCode(value.namespace);
-  const revision = Number.isSafeInteger(value.revision) && value.revision > 0 ? value.revision : null;
-  const schemaSha256 = parseSha256Hex(value.schemaSha256);
-  return code !== null && namespace !== null && revision !== null && schemaSha256 !== null ? success({ code, namespace, revision, schemaSha256, v: 1 }) : failure("schemaRef");
-}
-var INTEGER = /^(?:0|-[1-9][0-9]*|[1-9][0-9]*)$/u;
-var DECIMAL = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*[1-9])?$/u;
-function parseKnowledgeValueInternal(value, depth) {
-  if (!isPlainRecord(value) || value.v !== 1 || depth > 8)
-    return null;
-  switch (value.kind) {
-    case "entity": {
-      if (!hasExactKeys(value, ["entityId", "kind", "v"]))
-        return null;
-      const entityId = parseKnowledgeEntityId(value.entityId);
-      return entityId === null ? null : { entityId, kind: "entity", v: 1 };
-    }
-    case "text": {
-      if (!hasExactKeys(value, ["kind", "language", "text", "v"]))
-        return null;
-      const language = typeof value.language === "string" && /^(?:und|[a-z]{2,3}(?:-[a-z0-9]{2,8})*)$/u.test(value.language) ? value.language : null;
-      const text = boundedText(value.text);
-      return language !== null && text !== null ? { kind: "text", language, text, v: 1 } : null;
-    }
-    case "string": {
-      const parsed = boundedText(value.value);
-      return hasExactKeys(value, ["kind", "v", "value"]) && parsed !== null ? { kind: "string", v: 1, value: parsed } : null;
-    }
-    case "boolean":
-      return hasExactKeys(value, ["kind", "v", "value"]) && typeof value.value === "boolean" ? { kind: "boolean", v: 1, value: value.value } : null;
-    case "integer":
-    case "decimal": {
-      const valid = typeof value.value === "string" && value.value.length <= 1024 && (value.kind === "integer" ? INTEGER.test(value.value) : DECIMAL.test(value.value) && value.value !== "-0");
-      return hasExactKeys(value, ["kind", "v", "value"]) && valid ? { kind: value.kind, v: 1, value: value.value } : null;
-    }
-    case "uri": {
-      if (!hasExactKeys(value, ["kind", "uri", "v"]) || typeof value.uri !== "string" || value.uri.length > 4096)
-        return null;
-      try {
-        const url = new URL(value.uri);
-        return url.href === value.uri && url.username === "" && url.password === "" && !["data:", "file:", "javascript:"].includes(url.protocol) ? { kind: "uri", uri: value.uri, v: 1 } : null;
-      } catch {
-        return null;
-      }
-    }
-    case "list":
-    case "set": {
-      if (!hasExactKeys(value, ["kind", "v", "values"]) || !Array.isArray(value.values) || value.values.length > OH_KNOWLEDGE_LIMITS_V1.listValues)
-        return null;
-      const values = [];
-      for (const item of value.values) {
-        const parsed = parseKnowledgeValueInternal(item, depth + 1);
-        if (parsed === null)
-          return null;
-        values.push(parsed);
-      }
-      if (value.kind === "set" && !orderedUnique(values, canonicalJson))
-        return null;
-      return { kind: value.kind, v: 1, values };
-    }
-    case "extension": {
-      if (!hasExactKeys(value, ["canonicalizerSha256", "canonicalValue", "kind", "mediaType", "schema", "v", "valueSha256"]))
-        return null;
-      const canonicalizerSha256 = parseSha256Hex(value.canonicalizerSha256);
-      const canonicalValue = boundedText(value.canonicalValue, 64 * 1024);
-      const mediaType = typeof value.mediaType === "string" && /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/u.test(value.mediaType) ? value.mediaType : null;
-      const schema = parseKnowledgeSchemaRefV1(value.schema);
-      const valueSha256 = parseSha256Hex(value.valueSha256);
-      return canonicalizerSha256 !== null && canonicalValue !== null && mediaType !== null && schema.ok && valueSha256 !== null ? { canonicalizerSha256, canonicalValue, kind: "extension", mediaType, schema: schema.value, v: 1, valueSha256 } : null;
-    }
-    default:
-      return null;
-  }
-}
-function parseKnowledgeValueV1(value) {
-  const parsed = parseKnowledgeValueInternal(value, 0);
-  return parsed === null ? failure("value") : success(parsed);
-}
-function verifyKnowledgeValueV1(value) {
-  const parsed = parseKnowledgeValueV1(value);
-  if (!parsed.ok)
-    return parsed;
-  if (parsed.value.kind === "extension" && sha256Hex(parsed.value.canonicalValue) !== parsed.value.valueSha256) {
-    return failure("valueSha256", "digest-mismatch");
-  }
-  if (parsed.value.kind === "list" || parsed.value.kind === "set") {
-    for (const child of parsed.value.values) {
-      const verified = verifyKnowledgeValueV1(child);
-      if (!verified.ok)
-        return verified;
-    }
-  }
-  return success(parsed.value);
-}
-function parseDimension(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["predicate", "v", "value"]) || value.v !== 1)
-    return null;
-  const predicate = parseKnowledgeSchemaRefV1(value.predicate);
-  const parsedValue = parseKnowledgeValueV1(value.value);
-  return predicate.ok && parsedValue.ok ? { predicate: predicate.value, v: 1, value: parsedValue.value } : null;
-}
-function createKnowledgeContextV1(input) {
-  if (!isPlainRecord(input) || input.v !== 1 || !Array.isArray(input.dimensions) || input.dimensions.length > OH_KNOWLEDGE_LIMITS_V1.dimensions || !["actual", "counterfactual", "hypothetical", "planned"].includes(input.scenario))
-    return failure("context");
-  const dimensions = [];
-  for (const item of input.dimensions) {
-    const parsed = parseDimension(item);
-    if (parsed === null)
-      return failure("dimensions");
-    const verified = verifyKnowledgeValueV1(parsed.value);
-    if (!verified.ok)
-      return verified;
-    dimensions.push(parsed);
-  }
-  let canonicalDimensions;
-  try {
-    canonicalDimensions = sortUnique(dimensions, canonicalJson);
-  } catch {
-    return failure("dimensions", "noncanonical-input");
-  }
-  const payload = { dimensions: canonicalDimensions, scenario: input.scenario, v: 1 };
-  return success({ ...payload, contextSha256: canonicalSha256(payload) });
-}
-function parseKnowledgeContextV1(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["contextSha256", "dimensions", "scenario", "v"]))
-    return failure("context");
-  const digest = parseSha256Hex(value.contextSha256);
-  if (digest === null)
-    return failure("contextSha256");
-  const created = createKnowledgeContextV1({ dimensions: value.dimensions, scenario: value.scenario, v: value.v });
-  return created.ok && created.value.contextSha256 === digest && canonicalJson(created.value.dimensions) === canonicalJson(value.dimensions) ? success({ ...created.value, contextSha256: digest }) : failure("contextSha256", "digest-mismatch");
-}
-function createKnowledgeStatementV1(input) {
-  const object = parseKnowledgeValueV1(input.object);
-  const predicate = parseKnowledgeSchemaRefV1(input.predicate);
-  const subject = parseKnowledgeEntityId(input.subject);
-  if (input.v !== 1 || !object.ok || !predicate.ok || subject === null || !Array.isArray(input.qualifiers) || input.qualifiers.length > OH_KNOWLEDGE_LIMITS_V1.qualifiers)
-    return failure("statement");
-  const verifiedObject = verifyKnowledgeValueV1(object.value);
-  if (!verifiedObject.ok)
-    return verifiedObject;
-  const qualifiers = [];
-  for (const item of input.qualifiers) {
-    const parsed = parseDimension(item);
-    if (parsed === null)
-      return failure("qualifiers");
-    const verified = verifyKnowledgeValueV1(parsed.value);
-    if (!verified.ok)
-      return verified;
-    qualifiers.push(parsed);
-  }
-  let canonicalQualifiers;
-  try {
-    canonicalQualifiers = sortUnique(qualifiers, canonicalJson);
-  } catch {
-    return failure("qualifiers", "noncanonical-input");
-  }
-  const payload = { object: object.value, predicate: predicate.value, qualifiers: canonicalQualifiers, subject, v: 1 };
-  if (Buffer.byteLength(canonicalJson(payload), "utf8") > OH_KNOWLEDGE_LIMITS_V1.statementBytes)
-    return failure("statement", "limit-exceeded");
-  return success({ ...payload, statementSha256: canonicalSha256(payload) });
-}
-function parseKnowledgeStatementV1(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["object", "predicate", "qualifiers", "statementSha256", "subject", "v"]))
-    return failure("statement");
-  const digest = parseSha256Hex(value.statementSha256);
-  const created = createKnowledgeStatementV1(value);
-  return digest !== null && created.ok && created.value.statementSha256 === digest && canonicalJson(created.value.qualifiers) === canonicalJson(value.qualifiers) ? success({ ...created.value, statementSha256: digest }) : failure("statementSha256", "digest-mismatch");
-}
-function parseKnowledgeAgentRefV1(value) {
-  if (!isPlainRecord(value) || value.v !== 1)
-    return null;
-  if (value.kind === "entity" && hasExactKeys(value, ["entityId", "kind", "v"])) {
-    const entityId = parseKnowledgeEntityId(value.entityId);
-    return entityId === null ? null : { entityId, kind: "entity", v: 1 };
-  }
-  if (value.kind === "model" && hasExactKeys(value, ["kind", "model", "receiptSha256", "v"])) {
-    const model = parseKnowledgeSchemaRefV1(value.model);
-    const receiptSha256 = parseSha256Hex(value.receiptSha256);
-    return model.ok && receiptSha256 !== null ? { kind: "model", model: model.value, receiptSha256, v: 1 } : null;
-  }
-  if (value.kind === "system" && hasExactKeys(value, ["authority", "kind", "receiptSha256", "v"])) {
-    const authority = parseKnowledgeSchemaRefV1(value.authority);
-    const receiptSha256 = parseSha256Hex(value.receiptSha256);
-    return authority.ok && receiptSha256 !== null ? { authority: authority.value, kind: "system", receiptSha256, v: 1 } : null;
-  }
-  return null;
-}
-function parseDigestArray(value, maximum = 2048) {
-  if (!Array.isArray(value) || value.length > maximum)
-    return null;
-  const digests = value.map(parseSha256Hex);
-  return digests.every((digest) => digest !== null) && orderedUnique(digests, String) ? digests : null;
-}
-var OH_KNOWLEDGE_ACTIVITY_KINDS_V1 = [
-  "extraction",
-  "human-entry",
-  "human-review",
-  "import",
-  "model-proposal",
-  "normalization",
-  "publication",
-  "resolution",
-  "transformation"
-];
-function parseActivityInput(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, [
-    "actor",
-    "inputSha256s",
-    "kind",
-    "occurredAt",
-    "outputSha256s",
-    "policySha256",
-    "tool",
-    "v"
-  ]) || value.v !== 1)
-    return null;
-  const actor = parseKnowledgeAgentRefV1(value.actor);
-  const inputSha256s = parseDigestArray(value.inputSha256s);
-  const kind = OH_KNOWLEDGE_ACTIVITY_KINDS_V1.find((candidate) => candidate === value.kind);
-  const occurredAt = parseCanonicalInstantV1(value.occurredAt);
-  const outputSha256s = parseDigestArray(value.outputSha256s);
-  const policySha256 = parseSha256Hex(value.policySha256);
-  const tool = value.tool === null ? null : parseKnowledgeSchemaRefV1(value.tool);
-  const parsedTool = tool === null ? null : tool.ok ? tool.value : null;
-  return actor !== null && inputSha256s !== null && kind !== undefined && occurredAt !== null && outputSha256s !== null && policySha256 !== null && (value.tool === null || parsedTool !== null) ? { actor, inputSha256s, kind, occurredAt, outputSha256s, policySha256, tool: parsedTool, v: 1 } : null;
-}
-function createKnowledgeActivityV1(input) {
-  const parsed = parseActivityInput(input);
-  return parsed === null ? failure("activity") : success({ ...parsed, activitySha256: canonicalSha256(parsed) });
-}
-function parseKnowledgeActivityV1(value) {
-  if (!isPlainRecord(value) || !Object.hasOwn(value, "activitySha256"))
-    return failure("activity");
-  const activitySha256 = parseSha256Hex(value.activitySha256);
-  const { activitySha256: _digest, ...input } = value;
-  const parsed = parseActivityInput(input);
-  return activitySha256 !== null && parsed !== null && canonicalSha256(parsed) === activitySha256 ? success({ ...parsed, activitySha256 }) : failure("activitySha256", "digest-mismatch");
-}
-var OH_KNOWLEDGE_ASSERTION_STANCES_V1 = ["questions", "refutes", "reports", "supports", "undetermined"];
-var OH_KNOWLEDGE_ASSERTION_STATES_V1 = [
-  "accepted-for-purpose",
-  "disputed",
-  "proposed",
-  "reviewed",
-  "superseded",
-  "withdrawn"
-];
-function parseStringCodes(value, maximum) {
-  if (!Array.isArray(value) || value.length > maximum)
-    return null;
-  const codes = value.map((item) => safeCode(item));
-  return codes.every((code) => code !== null) && orderedUnique(codes, String) ? codes : null;
-}
-function parseAssertionInput(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, [
-    "acceptedPurposes",
-    "assertionId",
-    "assertor",
-    "confidence",
-    "contextSha256",
-    "provenanceActivitySha256",
-    "reviewActivitySha256",
-    "stance",
-    "state",
-    "statementSha256",
-    "v"
-  ]) || value.v !== 1)
-    return null;
-  const acceptedPurposes = parseStringCodes(value.acceptedPurposes, 32);
-  const assertionId = parseKnowledgeAssertionId(value.assertionId);
-  const assertor = parseKnowledgeAgentRefV1(value.assertor);
-  const confidence = value.confidence === null ? null : parseKnowledgeSchemaRefV1(value.confidence);
-  const parsedConfidence = confidence === null ? null : confidence.ok ? confidence.value : null;
-  const contextSha256 = value.contextSha256 === null ? null : parseSha256Hex(value.contextSha256);
-  const provenanceActivitySha256 = parseSha256Hex(value.provenanceActivitySha256);
-  const reviewActivitySha256 = value.reviewActivitySha256 === null ? null : parseSha256Hex(value.reviewActivitySha256);
-  const stance = OH_KNOWLEDGE_ASSERTION_STANCES_V1.find((candidate) => candidate === value.stance);
-  const state = OH_KNOWLEDGE_ASSERTION_STATES_V1.find((candidate) => candidate === value.state);
-  const statementSha256 = parseSha256Hex(value.statementSha256);
-  if (acceptedPurposes === null || assertionId === null || assertor === null || value.confidence !== null && parsedConfidence === null || value.contextSha256 !== null && contextSha256 === null || provenanceActivitySha256 === null || value.reviewActivitySha256 !== null && reviewActivitySha256 === null || stance === undefined || state === undefined || statementSha256 === null)
-    return null;
-  if (assertor.kind === "model" && (state !== "proposed" || acceptedPurposes.length !== 0 || reviewActivitySha256 !== null))
-    return null;
-  if (state === "accepted-for-purpose" !== acceptedPurposes.length > 0 || state !== "proposed" && reviewActivitySha256 === null)
-    return null;
-  return {
-    acceptedPurposes,
-    assertionId,
-    assertor,
-    confidence: parsedConfidence,
-    contextSha256,
-    provenanceActivitySha256,
-    reviewActivitySha256,
-    stance,
-    state,
-    statementSha256,
-    v: 1
-  };
-}
-function createKnowledgeAssertionV1(input) {
-  const parsed = parseAssertionInput(input);
-  return parsed === null ? failure("assertion") : success({ ...parsed, assertionSha256: canonicalSha256(parsed) });
-}
-function parseKnowledgeAssertionV1(value) {
-  if (!isPlainRecord(value) || !Object.hasOwn(value, "assertionSha256"))
-    return failure("assertion");
-  const assertionSha256 = parseSha256Hex(value.assertionSha256);
-  const { assertionSha256: _digest, ...input } = value;
-  const parsed = parseAssertionInput(input);
-  return assertionSha256 !== null && parsed !== null && canonicalSha256(parsed) === assertionSha256 ? success({ ...parsed, assertionSha256 }) : failure("assertionSha256", "digest-mismatch");
-}
-var OH_KNOWLEDGE_EVIDENCE_BEARINGS_V1 = [
-  "background",
-  "contradicts",
-  "corroborates",
-  "direct-observation",
-  "method",
-  "quotation",
-  "registry-record",
-  "supports"
-];
-function parseEvidenceInput(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, [
-    "assertionSha256",
-    "bearing",
-    "disclosure",
-    "evidenceId",
-    "observationSha256",
-    "provenanceActivitySha256",
-    "selector",
-    "sourceEntityId",
-    "v"
-  ]) || value.v !== 1)
-    return null;
-  const assertionSha256 = parseSha256Hex(value.assertionSha256);
-  const bearing = OH_KNOWLEDGE_EVIDENCE_BEARINGS_V1.find((candidate) => candidate === value.bearing);
-  const evidenceId = parseKnowledgeEvidenceId(value.evidenceId);
-  const observationSha256 = value.observationSha256 === null ? null : parseSha256Hex(value.observationSha256);
-  const provenanceActivitySha256 = parseSha256Hex(value.provenanceActivitySha256);
-  const selector = value.selector === null ? null : boundedText(value.selector, 8192);
-  const sourceEntityId = value.sourceEntityId === null ? null : parseKnowledgeEntityId(value.sourceEntityId);
-  return assertionSha256 !== null && bearing !== undefined && (value.disclosure === "private" || value.disclosure === "public" || value.disclosure === "shared") && evidenceId !== null && (value.observationSha256 === null || observationSha256 !== null) && provenanceActivitySha256 !== null && (value.selector === null || selector !== null) && (value.sourceEntityId === null || sourceEntityId !== null) && (observationSha256 !== null || sourceEntityId !== null) ? {
-    assertionSha256,
-    bearing,
-    disclosure: value.disclosure,
-    evidenceId,
-    observationSha256,
-    provenanceActivitySha256,
-    selector,
-    sourceEntityId,
-    v: 1
-  } : null;
-}
-function createKnowledgeEvidenceLinkV1(input) {
-  const parsed = parseEvidenceInput(input);
-  return parsed === null ? failure("evidence") : success({ ...parsed, evidenceSha256: canonicalSha256(parsed) });
-}
-function parseKnowledgeEvidenceLinkV1(value) {
-  if (!isPlainRecord(value) || !Object.hasOwn(value, "evidenceSha256"))
-    return failure("evidence");
-  const evidenceSha256 = parseSha256Hex(value.evidenceSha256);
-  const { evidenceSha256: _digest, ...input } = value;
-  const parsed = parseEvidenceInput(input);
-  return evidenceSha256 !== null && parsed !== null && canonicalSha256(parsed) === evidenceSha256 ? success({ ...parsed, evidenceSha256 }) : failure("evidenceSha256", "digest-mismatch");
-}
-function createKnowledgeInquiryV1(input) {
-  const answerForm = safeCode(input.answerForm);
-  const authorEntityId = parseKnowledgeEntityId(input.authorEntityId);
-  const contextSha256 = input.contextSha256 === null ? null : parseSha256Hex(input.contextSha256);
-  const createdAt = parseCanonicalInstantV1(input.createdAt);
-  const inquiryId = parseKnowledgeInquiryId(input.inquiryId);
-  const language = typeof input.language === "string" && /^(?:und|[a-z]{2,3}(?:-[a-z0-9]{2,8})*)$/u.test(input.language) ? input.language : null;
-  const parents = Array.isArray(input.parentInquiryIds) ? input.parentInquiryIds.map(parseKnowledgeInquiryId) : null;
-  const question = boundedText(input.question, 16384);
-  if (input.v !== 1 || answerForm === null || authorEntityId === null || input.contextSha256 !== null && contextSha256 === null || createdAt === null || inquiryId === null || language === null || parents === null || parents.some((item) => item === null) || !orderedUnique(parents, String) || !["private", "public", "shared"].includes(input.privacy) || question === null || !["abandoned", "open", "paused", "resolved"].includes(input.status))
-    return failure("inquiry");
-  const payload = {
-    answerForm,
-    authorEntityId,
-    contextSha256,
-    createdAt,
-    inquiryId,
-    language,
-    parentInquiryIds: parents,
-    privacy: input.privacy,
-    question,
-    status: input.status,
-    v: 1
-  };
-  return success({ ...payload, inquirySha256: canonicalSha256(payload) });
-}
-function parseKnowledgeInquiryV1(value) {
-  if (!isPlainRecord(value) || !Object.hasOwn(value, "inquirySha256"))
-    return failure("inquiry");
-  const digest = parseSha256Hex(value.inquirySha256);
-  const { inquirySha256: _digest, ...input } = value;
-  const created = createKnowledgeInquiryV1(input);
-  return digest !== null && created.ok && created.value.inquirySha256 === digest ? success({ ...created.value, inquirySha256: digest }) : failure("inquirySha256", "digest-mismatch");
-}
 
 // src/schema.ts
 var OH_SCHEMA_FORMAT_VERSION_V1 = 1;
-var OH_SCHEMA_KINDS_V1 = ["concept", "mapping", "predicate", "shape", "unit", "vocabulary"];
-function parseLocalizedTexts(value) {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 128)
-    return null;
-  const output = [];
-  for (const item of value) {
-    if (!isPlainRecord(item) || !hasExactKeys(item, ["language", "text", "v"]) || item.v !== 1)
-      return null;
-    const language = typeof item.language === "string" && /^(?:und|[a-z]{2,3}(?:-[a-z0-9]{2,8})*)$/u.test(item.language) ? item.language : null;
-    const text = boundedText(item.text, 16384);
-    if (language === null || text === null)
-      return null;
-    output.push({ language, text, v: 1 });
-  }
-  return orderedUnique(output, canonicalJson) ? output : null;
-}
-function parseSchemaInput(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, [
-    "body",
-    "code",
-    "compatibility",
-    "description",
-    "kind",
-    "labels",
-    "namespace",
-    "previousSchemaSha256",
-    "revision",
-    "v"
-  ]) || value.v !== 1 || !isPlainRecord(value.body))
-    return null;
-  try {
-    canonicalJson(value.body);
-  } catch {
-    return null;
-  }
-  const code = safeCode(value.code);
-  const namespace = safeCode(value.namespace);
-  const kind = OH_SCHEMA_KINDS_V1.find((candidate) => candidate === value.kind);
-  const labels = parseLocalizedTexts(value.labels);
-  const description = parseLocalizedTexts(value.description);
-  const previousSchemaSha256 = value.previousSchemaSha256 === null ? null : parseSha256Hex(value.previousSchemaSha256);
-  const revision = Number.isSafeInteger(value.revision) && value.revision > 0 ? value.revision : null;
-  const compatibility = value.compatibility === "additive" || value.compatibility === "breaking" ? value.compatibility : null;
-  return code !== null && namespace !== null && kind !== undefined && labels !== null && description !== null && (value.previousSchemaSha256 === null || previousSchemaSha256 !== null) && revision !== null && compatibility !== null && revision === 1 === (previousSchemaSha256 === null) && (revision !== 1 || compatibility === "additive") ? {
-    body: value.body,
-    code,
-    compatibility,
-    description,
-    kind,
-    labels,
-    namespace,
-    previousSchemaSha256,
-    revision,
-    v: 1
-  } : null;
-}
-function createKnowledgeSchemaRevisionV1(input) {
-  const parsed = parseSchemaInput(input);
-  if (parsed === null)
-    throw new TypeError("Invalid schema revision input.");
-  return { ...parsed, schemaSha256: canonicalSha256(parsed) };
-}
-function parseKnowledgeSchemaRevisionV1(value) {
-  if (!isPlainRecord(value) || !Object.hasOwn(value, "schemaSha256"))
-    return null;
-  const schemaSha256 = parseSha256Hex(value.schemaSha256);
-  const { schemaSha256: _digest, ...input } = value;
-  const parsed = parseSchemaInput(input);
-  return schemaSha256 !== null && parsed !== null && canonicalSha256(parsed) === schemaSha256 ? { ...parsed, schemaSha256 } : null;
-}
-function knowledgeSchemaRefV1(schema) {
-  return {
-    code: schema.code,
-    namespace: schema.namespace,
-    revision: schema.revision,
-    schemaSha256: schema.schemaSha256,
-    v: 1
-  };
-}
-function additiveBodyRetainsPrior(prior, next) {
-  return Object.entries(prior).every(([key, value]) => Object.hasOwn(next, key) && canonicalJson(next[key]) === canonicalJson(value));
-}
-function verifyKnowledgeSchemaEvolutionV1(prior, next) {
-  if (parseKnowledgeSchemaRevisionV1(prior) === null || parseKnowledgeSchemaRevisionV1(next) === null) {
-    return { ok: false, reason: "invalid-schema" };
-  }
-  if (prior.namespace !== next.namespace || prior.code !== next.code || prior.kind !== next.kind) {
-    return { ok: false, reason: "identity-changed" };
-  }
-  if (next.revision !== prior.revision + 1 || next.previousSchemaSha256 !== prior.schemaSha256) {
-    return { ok: false, reason: "chain-broken" };
-  }
-  if (next.compatibility === "additive" && !additiveBodyRetainsPrior(prior.body, next.body)) {
-    return { ok: false, reason: "false-additive-claim" };
-  }
-  return { ok: true };
-}
-function createKnowledgeVocabularyRevisionV1(input) {
-  const namespace = safeCode(input.namespace);
-  if (namespace === null || input.v !== 1 || !Number.isSafeInteger(input.revision) || input.revision < 1 || !Array.isArray(input.schemaRefs) || input.schemaRefs.length > 65536) {
-    throw new TypeError("Invalid vocabulary revision input.");
-  }
-  const refs = [];
-  for (const candidate of input.schemaRefs) {
-    const parsed = parseKnowledgeSchemaRefV1(candidate);
-    if (!parsed.ok || parsed.value.namespace !== namespace)
-      throw new TypeError("Invalid vocabulary schema reference.");
-    refs.push(parsed.value);
-  }
-  if (!orderedUnique(refs, canonicalJson))
-    throw new TypeError("Vocabulary schema references must be ordered and unique.");
-  const payload = { namespace, revision: input.revision, schemaRefs: refs, v: 1 };
-  return { ...payload, vocabularySha256: canonicalSha256(payload) };
-}
-function parseKnowledgeVocabularyRevisionV1(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["namespace", "revision", "schemaRefs", "v", "vocabularySha256"]))
-    return null;
-  const digest = parseSha256Hex(value.vocabularySha256);
-  try {
-    const created = createKnowledgeVocabularyRevisionV1({
-      namespace: value.namespace,
-      revision: value.revision,
-      schemaRefs: value.schemaRefs,
-      v: value.v
-    });
-    return digest !== null && created.vocabularySha256 === digest ? { ...created, vocabularySha256: digest } : null;
-  } catch {
-    return null;
-  }
-}
 
 // src/contract.ts
 var manifestPayload = Object.freeze({
@@ -1014,20 +288,15 @@ var OH_CONTRACT_MANIFEST_V1 = Object.freeze({
   ...manifestPayload,
   contractSha256: canonicalSha256(manifestPayload)
 });
-function parseOhContractManifestV1(value) {
-  try {
-    return canonicalJson(value) === canonicalJson(OH_CONTRACT_MANIFEST_V1) ? OH_CONTRACT_MANIFEST_V1 : null;
-  } catch {
-    return null;
-  }
-}
-
 class OhRecordCodecRegistry {
   #codecs = new Map;
+  #sealed = false;
   register(codec) {
+    if (this.#sealed)
+      throw new TypeError("The codec registry is sealed.");
     if (this.#codecs.has(codec.kind))
       throw new TypeError(`A codec is already registered for ${codec.kind}.`);
-    this.#codecs.set(codec.kind, codec);
+    this.#codecs.set(codec.kind, Object.freeze({ kind: codec.kind, parse: codec.parse }));
     return this;
   }
   parse(kind, value) {
@@ -1043,6 +312,27 @@ class OhRecordCodecRegistry {
   }
   has(kind) {
     return this.#codecs.has(kind);
+  }
+  parseRequired(kind, value) {
+    const codec = this.#codecs.get(kind);
+    if (codec === undefined)
+      return null;
+    try {
+      const parsed = codec.parse(value);
+      if (parsed === null)
+        return null;
+      canonicalJson(parsed);
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+  seal() {
+    this.#sealed = true;
+    return this;
+  }
+  get sealed() {
+    return this.#sealed;
   }
 }
 
@@ -1062,10 +352,13 @@ var OH_PROJECTION_LIMITS_V1 = Object.freeze({
   queryMatches: 262144,
   queryResults: 65536,
   relations: 4096,
+  resultBytes: 16 * 1024 * 1024,
   rounds: 1024,
   rules: 1024,
   sourcesPerFact: 64,
-  variables: 256
+  totalProofNodes: 65536,
+  variables: 256,
+  workUnits: 16777216
 });
 var recordFactExtractorPayloadV1 = {
   factPackId: "oh.record-facts",
@@ -1504,9 +797,15 @@ function createOhProjectionIdentityV1(input) {
   if (snapshot === null || dataset === null || query === null || rulePack === null) {
     throw new TypeError("Invalid projection identity input.");
   }
+  const engine = safeCode(input.engine ?? OH_PROJECTION_INTERNAL_ENGINE_V1, 256);
+  if (engine === null)
+    throw new TypeError("Invalid projection engine identity.");
+  const evaluation = { ...resolveEvaluationOptions(input.options ?? {}), v: 1 };
   const payload = {
     contractSha256: OH_CONTRACT_MANIFEST_V1.contractSha256,
     datasetSha256: dataset.datasetSha256,
+    engineSha256: canonicalSha256({ engine, v: 1 }),
+    evaluationSha256: canonicalSha256(evaluation),
     querySha256: query.querySha256,
     rulePackSha256: rulePack.rulePackSha256,
     semantics: OH_PROJECTION_SEMANTICS_V1,
@@ -1519,6 +818,8 @@ function parseOhProjectionIdentityV1(value) {
   if (!isPlainRecord(value) || !hasExactKeys(value, [
     "contractSha256",
     "datasetSha256",
+    "engineSha256",
+    "evaluationSha256",
     "projectionSha256",
     "querySha256",
     "rulePackSha256",
@@ -1529,15 +830,19 @@ function parseOhProjectionIdentityV1(value) {
     return null;
   const contractSha256 = parseSha256Hex(value.contractSha256);
   const datasetSha256 = parseSha256Hex(value.datasetSha256);
+  const engineSha256 = parseSha256Hex(value.engineSha256);
+  const evaluationSha256 = parseSha256Hex(value.evaluationSha256);
   const projectionSha256 = parseSha256Hex(value.projectionSha256);
   const querySha256 = parseSha256Hex(value.querySha256);
   const rulePackSha256 = parseSha256Hex(value.rulePackSha256);
   const snapshotSha256 = parseSha256Hex(value.snapshotSha256);
-  if (contractSha256 !== OH_CONTRACT_MANIFEST_V1.contractSha256 || datasetSha256 === null || projectionSha256 === null || querySha256 === null || rulePackSha256 === null || snapshotSha256 === null)
+  if (contractSha256 !== OH_CONTRACT_MANIFEST_V1.contractSha256 || datasetSha256 === null || engineSha256 === null || evaluationSha256 === null || projectionSha256 === null || querySha256 === null || rulePackSha256 === null || snapshotSha256 === null)
     return null;
   const payload = {
     contractSha256,
     datasetSha256,
+    engineSha256,
+    evaluationSha256,
     querySha256,
     rulePackSha256,
     semantics: OH_PROJECTION_SEMANTICS_V1,
@@ -1558,6 +863,10 @@ function invalidationForOhProjectionV1(previous, next) {
     reasons.push("snapshot-changed");
   if (parsedPrevious.datasetSha256 !== parsedNext.datasetSha256)
     reasons.push("dataset-changed");
+  if (parsedPrevious.engineSha256 !== parsedNext.engineSha256)
+    reasons.push("engine-changed");
+  if (parsedPrevious.evaluationSha256 !== parsedNext.evaluationSha256)
+    reasons.push("evaluation-changed");
   if (parsedPrevious.rulePackSha256 !== parsedNext.rulePackSha256)
     reasons.push("rule-pack-changed");
   if (parsedPrevious.querySha256 !== parsedNext.querySha256)
@@ -1615,13 +924,19 @@ function unifyLiteral(literal, state, binding) {
   }
   return next;
 }
-function matchBody(relations, body, maximumMatches) {
+function consumeWorkUnit(budget) {
+  if (budget.units >= budget.maximum)
+    throw new RangeError("Projection exceeds its work-unit bound.");
+  budget.units += 1;
+}
+function matchBody(relations, body, maximumMatches, work) {
   let matches = [{ binding: new Map, premises: [] }];
   for (const literal of body) {
     const next = [];
     const candidates = relationTuples(relations, literal.relation);
     for (const match of matches) {
       for (const candidate of candidates) {
+        consumeWorkUnit(work);
         const binding = unifyLiteral(literal, candidate, match.binding);
         if (binding === null)
           continue;
@@ -1662,7 +977,7 @@ function materializeNaive(input) {
   while (true) {
     const candidates = new Map;
     for (const rule of input.rulePack.rules) {
-      for (const match of matchBody(relations, rule.body, OH_PROJECTION_LIMITS_V1.queryMatches)) {
+      for (const match of matchBody(relations, rule.body, OH_PROJECTION_LIMITS_V1.queryMatches, input.work)) {
         const derivedTuple = instantiateHead(rule.head, match.binding);
         const relation = relations.get(rule.head.relation);
         const key = tupleKey(derivedTuple);
@@ -1707,52 +1022,97 @@ function boundedOption(value, fallback, maximum, label) {
   return parsed;
 }
 function resolveEvaluationOptions(options) {
-  return {
+  const resolved = {
     maximumDerivedTuples: boundedOption(options.maximumDerivedTuples, OH_PROJECTION_LIMITS_V1.derivedTuples, OH_PROJECTION_LIMITS_V1.derivedTuples, "maximumDerivedTuples"),
     maximumProofDepth: boundedOption(options.maximumProofDepth, 32, OH_PROJECTION_LIMITS_V1.proofDepth, "maximumProofDepth"),
     maximumProofNodes: boundedOption(options.maximumProofNodes, 1024, OH_PROJECTION_LIMITS_V1.proofNodes, "maximumProofNodes"),
-    maximumRounds: boundedOption(options.maximumRounds, OH_PROJECTION_LIMITS_V1.rounds, OH_PROJECTION_LIMITS_V1.rounds, "maximumRounds")
+    maximumResultBytes: boundedOption(options.maximumResultBytes, OH_PROJECTION_LIMITS_V1.resultBytes, OH_PROJECTION_LIMITS_V1.resultBytes, "maximumResultBytes"),
+    maximumRounds: boundedOption(options.maximumRounds, OH_PROJECTION_LIMITS_V1.rounds, OH_PROJECTION_LIMITS_V1.rounds, "maximumRounds"),
+    maximumTotalProofNodes: boundedOption(options.maximumTotalProofNodes, OH_PROJECTION_LIMITS_V1.totalProofNodes, OH_PROJECTION_LIMITS_V1.totalProofNodes, "maximumTotalProofNodes"),
+    maximumWorkUnits: boundedOption(options.maximumWorkUnits, OH_PROJECTION_LIMITS_V1.workUnits, OH_PROJECTION_LIMITS_V1.workUnits, "maximumWorkUnits")
   };
+  if (resolved.maximumResultBytes < 64 * 1024) {
+    throw new RangeError("maximumResultBytes must be at least 65536.");
+  }
+  return resolved;
+}
+function reserveResultBytes(budget, value) {
+  const bytes = utf8ByteLength(canonicalJson(value));
+  if (budget.bytes + bytes > budget.maximumBytes)
+    return false;
+  budget.bytes += bytes;
+  return true;
+}
+function reserveProofNode(budget, options, envelope) {
+  if (budget.nodes >= options.maximumProofNodes || budget.result.nodes >= options.maximumTotalProofNodes || !reserveResultBytes(budget.result, envelope))
+    return false;
+  budget.nodes += 1;
+  budget.result.nodes += 1;
+  return true;
 }
 function proofForReference(relations, reference, budget, options, depth, visiting) {
-  if (budget.nodes >= options.maximumProofNodes)
-    return null;
-  if (budget.nodes === options.maximumProofNodes - 1) {
-    budget.nodes += 1;
-    return { kind: "truncated", reason: "nodes", relation: reference.relation, tuple: reference.tuple, v: 1 };
-  }
-  budget.nodes += 1;
   if (depth >= options.maximumProofDepth) {
-    return { kind: "truncated", reason: "depth", relation: reference.relation, tuple: reference.tuple, v: 1 };
+    const proof = {
+      kind: "truncated",
+      reason: "depth",
+      relation: reference.relation,
+      tuple: reference.tuple,
+      v: 1
+    };
+    return reserveProofNode(budget, options, proof) ? proof : null;
   }
   const identity = referenceKey(reference);
   if (visiting.has(identity)) {
-    return { kind: "truncated", reason: "cycle", relation: reference.relation, tuple: reference.tuple, v: 1 };
+    const proof = {
+      kind: "truncated",
+      reason: "cycle",
+      relation: reference.relation,
+      tuple: reference.tuple,
+      v: 1
+    };
+    return reserveProofNode(budget, options, proof) ? proof : null;
   }
   const state = relations.get(reference.relation)?.get(tupleKey(reference.tuple));
   if (state === undefined)
     throw new Error("Projection proof references a tuple outside the materialized result.");
   if (state.witness.kind === "fact") {
-    return {
+    const proof = {
       kind: "fact",
       relation: reference.relation,
       sources: state.witness.sources,
       tuple: reference.tuple,
       v: 1
     };
+    return reserveProofNode(budget, options, proof) ? proof : null;
   }
+  const envelope = {
+    kind: "derived",
+    premises: [],
+    premisesTruncated: false,
+    relation: reference.relation,
+    ruleId: state.witness.rule.ruleId,
+    ruleSha256: state.witness.rule.ruleSha256,
+    tuple: reference.tuple,
+    v: 1
+  };
+  if (!reserveProofNode(budget, options, envelope))
+    return null;
   visiting.add(identity);
   try {
     const premises = [];
+    let premisesTruncated = false;
     for (const premise of state.witness.premises) {
       const proof = proofForReference(relations, premise, budget, options, depth + 1, visiting);
-      if (proof === null)
+      if (proof === null) {
+        premisesTruncated = true;
         break;
+      }
       premises.push(proof);
     }
     return {
       kind: "derived",
       premises,
+      premisesTruncated,
       relation: reference.relation,
       ruleId: state.witness.rule.ruleId,
       ruleSha256: state.witness.rule.ruleSha256,
@@ -1763,33 +1123,334 @@ function proofForReference(relations, reference, budget, options, depth, visitin
     visiting.delete(identity);
   }
 }
+function proofIsTruncated(proof) {
+  return proof.kind === "truncated" || proof.kind === "derived" && (proof.premisesTruncated || proof.premises.some(proofIsTruncated));
+}
+function reserveProjectionParseBytes(budget, value) {
+  const bytes = utf8ByteLength(canonicalJson(value));
+  if (budget.bytes + bytes > budget.maximumBytes)
+    return false;
+  budget.bytes += bytes;
+  return true;
+}
+function parseProjectionFactSource(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["key", "recordSha256", "v"]) || value.v !== 1) {
+    return null;
+  }
+  const key = safeCode(value.key, 512);
+  const recordSha256 = parseSha256Hex(value.recordSha256);
+  return key === null || recordSha256 === null ? null : { key, recordSha256, v: 1 };
+}
+function parseProjectionProofWithBudget(value, budget, depth) {
+  if (depth > budget.maximumDepth || budget.nodes >= budget.maximumNodes || !isPlainRecord(value) || value.v !== 1)
+    return null;
+  const relation = projectionName(value.relation);
+  const parsedTuple = tuple(value.tuple);
+  if (relation === null || parsedTuple === null)
+    return null;
+  if (value.kind === "fact") {
+    if (!hasExactKeys(value, ["kind", "relation", "sources", "tuple", "v"]) || !Array.isArray(value.sources) || value.sources.length < 1 || value.sources.length > OH_PROJECTION_LIMITS_V1.sourcesPerFact)
+      return null;
+    const sources = value.sources.map(parseProjectionFactSource);
+    if (sources.some((source) => source === null))
+      return null;
+    const parsedSources = sources;
+    if (!orderedUnique(parsedSources, (source) => source.key))
+      return null;
+    const proof = {
+      kind: "fact",
+      relation,
+      sources: parsedSources,
+      tuple: parsedTuple,
+      v: 1
+    };
+    if (!reserveProjectionParseBytes(budget, proof))
+      return null;
+    budget.nodes += 1;
+    return proof;
+  }
+  if (value.kind === "truncated") {
+    if (!hasExactKeys(value, ["kind", "reason", "relation", "tuple", "v"]) || value.reason !== "cycle" && value.reason !== "depth" && value.reason !== "nodes")
+      return null;
+    const reason = value.reason;
+    const proof = {
+      kind: "truncated",
+      reason,
+      relation,
+      tuple: parsedTuple,
+      v: 1
+    };
+    if (!reserveProjectionParseBytes(budget, proof))
+      return null;
+    budget.nodes += 1;
+    return proof;
+  }
+  if (value.kind !== "derived" || !hasExactKeys(value, [
+    "kind",
+    "premises",
+    "premisesTruncated",
+    "relation",
+    "ruleId",
+    "ruleSha256",
+    "tuple",
+    "v"
+  ]) || !Array.isArray(value.premises) || value.premises.length > OH_PROJECTION_LIMITS_V1.literalsPerRule || typeof value.premisesTruncated !== "boolean")
+    return null;
+  const ruleId = projectionName(value.ruleId);
+  const ruleSha256 = parseSha256Hex(value.ruleSha256);
+  if (ruleId === null || ruleSha256 === null || !value.premisesTruncated && value.premises.length === 0 || value.premisesTruncated && value.premises.length === OH_PROJECTION_LIMITS_V1.literalsPerRule) {
+    return null;
+  }
+  const skeleton = {
+    kind: "derived",
+    premises: [],
+    premisesTruncated: value.premisesTruncated,
+    relation,
+    ruleId,
+    ruleSha256,
+    tuple: parsedTuple,
+    v: 1
+  };
+  if (!reserveProjectionParseBytes(budget, skeleton))
+    return null;
+  budget.nodes += 1;
+  const premises = [];
+  for (const premise of value.premises) {
+    const parsed = parseProjectionProofWithBudget(premise, budget, depth + 1);
+    if (parsed === null)
+      return null;
+    premises.push(parsed);
+  }
+  return { ...skeleton, premises };
+}
+function parseOhProjectionProofV1(value) {
+  try {
+    const budget = {
+      bytes: 0,
+      maximumBytes: OH_PROJECTION_LIMITS_V1.resultBytes,
+      maximumDepth: OH_PROJECTION_LIMITS_V1.proofDepth,
+      maximumNodes: OH_PROJECTION_LIMITS_V1.proofNodes,
+      nodes: 0
+    };
+    const proof = parseProjectionProofWithBudget(value, budget, 0);
+    return proof !== null && utf8ByteLength(canonicalJson(proof)) <= budget.maximumBytes ? proof : null;
+  } catch {
+    return null;
+  }
+}
+function parseProjectionEvaluation(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, [
+    "maximumDerivedTuples",
+    "maximumProofDepth",
+    "maximumProofNodes",
+    "maximumResultBytes",
+    "maximumRounds",
+    "maximumTotalProofNodes",
+    "maximumWorkUnits",
+    "v"
+  ]) || value.v !== 1)
+    return null;
+  const maximumDerivedTuples = positiveInteger(value.maximumDerivedTuples, OH_PROJECTION_LIMITS_V1.derivedTuples);
+  const maximumProofDepth = positiveInteger(value.maximumProofDepth, OH_PROJECTION_LIMITS_V1.proofDepth);
+  const maximumProofNodes = positiveInteger(value.maximumProofNodes, OH_PROJECTION_LIMITS_V1.proofNodes);
+  const maximumResultBytes = positiveInteger(value.maximumResultBytes, OH_PROJECTION_LIMITS_V1.resultBytes);
+  const maximumRounds = positiveInteger(value.maximumRounds, OH_PROJECTION_LIMITS_V1.rounds);
+  const maximumTotalProofNodes = positiveInteger(value.maximumTotalProofNodes, OH_PROJECTION_LIMITS_V1.totalProofNodes);
+  const maximumWorkUnits = positiveInteger(value.maximumWorkUnits, OH_PROJECTION_LIMITS_V1.workUnits);
+  if (maximumDerivedTuples === null || maximumProofDepth === null || maximumProofNodes === null || maximumResultBytes === null || maximumResultBytes < 64 * 1024 || maximumRounds === null || maximumTotalProofNodes === null || maximumWorkUnits === null)
+    return null;
+  return {
+    maximumDerivedTuples,
+    maximumProofDepth,
+    maximumProofNodes,
+    maximumResultBytes,
+    maximumRounds,
+    maximumTotalProofNodes,
+    maximumWorkUnits,
+    v: 1
+  };
+}
+function parseProjectionResultRow(value, evaluation, resultBudget) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["proofs", "proofsTruncated", "supportCount", "values", "v"]) || value.v !== 1 || !Array.isArray(value.proofs) || value.proofs.length > OH_PROJECTION_LIMITS_V1.queryLiterals || typeof value.proofsTruncated !== "boolean")
+    return null;
+  const values = tuple(value.values);
+  const supportCount = positiveInteger(value.supportCount, OH_PROJECTION_LIMITS_V1.queryMatches);
+  if (values === null || supportCount === null || !value.proofsTruncated && value.proofs.length === 0)
+    return null;
+  if (!reserveProjectionParseBytes(resultBudget, {
+    proofs: [],
+    proofsTruncated: value.proofsTruncated,
+    supportCount,
+    values,
+    v: 1
+  }))
+    return null;
+  const before = resultBudget.nodes;
+  resultBudget.maximumNodes = Math.min(resultBudget.maximumNodes, before + evaluation.maximumProofNodes);
+  const proofs = [];
+  for (const proof of value.proofs) {
+    const parsed = parseProjectionProofWithBudget(proof, resultBudget, 0);
+    if (parsed === null)
+      return null;
+    proofs.push(parsed);
+  }
+  resultBudget.maximumNodes = evaluation.maximumTotalProofNodes;
+  const containsTruncation = proofs.some(proofIsTruncated);
+  if (!value.proofsTruncated && containsTruncation || value.proofsTruncated && proofs.length === OH_PROJECTION_LIMITS_V1.queryLiterals && !containsTruncation)
+    return null;
+  return {
+    nodes: resultBudget.nodes - before,
+    row: { proofs, proofsTruncated: value.proofsTruncated, supportCount, values, v: 1 }
+  };
+}
+function parseOhProjectionResultV1(value, expectedProjectionSha256) {
+  try {
+    if (!isPlainRecord(value) || !hasExactKeys(value, [
+      "authority",
+      "cache",
+      "engine",
+      "evaluation",
+      "identity",
+      "resultSha256",
+      "rows",
+      "stats",
+      "v"
+    ]) || value.v !== 1 || value.authority !== "derived" || !isPlainRecord(value.cache) || !hasExactKeys(value.cache, ["strategy", "v"]) || value.cache.strategy !== "full-rebuild" || value.cache.v !== 1 || !Array.isArray(value.rows) || value.rows.length > OH_PROJECTION_LIMITS_V1.queryResults || !isPlainRecord(value.stats) || !hasExactKeys(value.stats, [
+      "baseFacts",
+      "derivedFacts",
+      "proofNodes",
+      "proofsTruncated",
+      "queryMatches",
+      "relations",
+      "rounds",
+      "truncated",
+      "truncationReasons",
+      "v",
+      "workUnits"
+    ]) || value.stats.v !== 1 || !Array.isArray(value.stats.truncationReasons) || typeof value.stats.proofsTruncated !== "boolean" || typeof value.stats.truncated !== "boolean")
+      return null;
+    const engine = safeCode(value.engine, 256);
+    const evaluation = parseProjectionEvaluation(value.evaluation);
+    const identity = parseOhProjectionIdentityV1(value.identity);
+    const resultSha256 = parseSha256Hex(value.resultSha256);
+    const expected = expectedProjectionSha256 === undefined ? undefined : parseSha256Hex(expectedProjectionSha256);
+    if (engine === null || evaluation === null || identity === null || resultSha256 === null || expectedProjectionSha256 !== undefined && expected === null || expected !== undefined && identity.projectionSha256 !== expected || identity.engineSha256 !== canonicalSha256({ engine, v: 1 }) || identity.evaluationSha256 !== canonicalSha256(evaluation))
+      return null;
+    const baseFacts = nonnegativeInteger(value.stats.baseFacts);
+    const derivedFacts = nonnegativeInteger(value.stats.derivedFacts);
+    const proofNodes = nonnegativeInteger(value.stats.proofNodes);
+    const queryMatches = nonnegativeInteger(value.stats.queryMatches);
+    const relations = nonnegativeInteger(value.stats.relations);
+    const rounds = nonnegativeInteger(value.stats.rounds);
+    const workUnits = nonnegativeInteger(value.stats.workUnits);
+    if (baseFacts === null || baseFacts > OH_PROJECTION_LIMITS_V1.facts || derivedFacts === null || derivedFacts > evaluation.maximumDerivedTuples || proofNodes === null || proofNodes > evaluation.maximumTotalProofNodes || queryMatches === null || queryMatches > OH_PROJECTION_LIMITS_V1.queryMatches || relations === null || relations > OH_PROJECTION_LIMITS_V1.relations || rounds === null || rounds > evaluation.maximumRounds || workUnits === null || workUnits > evaluation.maximumWorkUnits || relations > baseFacts + derivedFacts || rounds > derivedFacts || rounds === 0 !== (derivedFacts === 0) || queryMatches > workUnits)
+      return null;
+    const truncationReasons = value.stats.truncationReasons;
+    if (truncationReasons.length > 2 || !orderedUnique(truncationReasons, (reason) => reason === "query-limit" ? "0" : reason === "result-bytes" ? "1" : "x") || truncationReasons.some((reason) => reason !== "query-limit" && reason !== "result-bytes") || value.stats.truncated !== truncationReasons.length > 0)
+      return null;
+    const budget = {
+      bytes: 0,
+      maximumBytes: evaluation.maximumResultBytes,
+      maximumDepth: evaluation.maximumProofDepth,
+      maximumNodes: evaluation.maximumTotalProofNodes,
+      nodes: 0
+    };
+    const rows = [];
+    let supportCount = 0;
+    for (const row of value.rows) {
+      const parsed = parseProjectionResultRow(row, evaluation, budget);
+      if (parsed === null)
+        return null;
+      rows.push(parsed.row);
+      supportCount += parsed.row.supportCount;
+      if (supportCount > queryMatches)
+        return null;
+    }
+    if (!orderedUnique(rows, (row) => canonicalJson(row.values)) || budget.nodes !== proofNodes || value.stats.proofsTruncated !== rows.some((row) => row.proofsTruncated) || (value.stats.truncated ? supportCount >= queryMatches : supportCount !== queryMatches))
+      return null;
+    const reasons = truncationReasons;
+    const payload = {
+      authority: "derived",
+      cache: { strategy: "full-rebuild", v: 1 },
+      engine,
+      evaluation,
+      identity,
+      rows,
+      stats: {
+        baseFacts,
+        derivedFacts,
+        proofNodes,
+        proofsTruncated: value.stats.proofsTruncated,
+        queryMatches,
+        relations,
+        rounds,
+        truncated: value.stats.truncated,
+        truncationReasons: reasons,
+        v: 1,
+        workUnits
+      },
+      v: 1
+    };
+    const serialized = canonicalJson(payload);
+    return utf8ByteLength(serialized) <= evaluation.maximumResultBytes && sha256Hex(serialized) === resultSha256 ? { ...payload, resultSha256 } : null;
+  } catch {
+    return null;
+  }
+}
 function buildProjectionResult(input) {
-  const matches = matchBody(input.materialized.relations, input.query.where, OH_PROJECTION_LIMITS_V1.queryMatches);
+  const matches = matchBody(input.materialized.relations, input.query.where, OH_PROJECTION_LIMITS_V1.queryMatches, input.work);
   const byValues = new Map;
   for (const match of matches) {
     const values = input.query.find.map((name) => match.binding.get(name));
     const key = tupleKey(values);
     const existing = byValues.get(key);
-    if (existing === undefined || compareCanonical(match.premises, existing.premises) < 0)
-      byValues.set(key, match);
+    if (existing === undefined)
+      byValues.set(key, { match, supportCount: 1 });
+    else
+      byValues.set(key, { match: compareCanonical(match.premises, existing.match.premises) < 0 ? match : existing.match, supportCount: existing.supportCount + 1 });
   }
   const ordered = [...byValues.entries()].sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
-  const truncated = ordered.length > input.query.limit;
-  const rows = ordered.slice(0, input.query.limit).map(([key, match]) => {
+  const resultBudget = {
+    bytes: 0,
+    maximumBytes: input.options.maximumResultBytes - 64 * 1024,
+    nodes: 0
+  };
+  const rows = [];
+  let resultBytesTruncated = false;
+  for (const [key, support] of ordered.slice(0, input.query.limit)) {
     const values = JSON.parse(key);
-    const budget = { nodes: 0 };
+    if (!reserveResultBytes(resultBudget, {
+      proofs: [],
+      proofsTruncated: false,
+      supportCount: support.supportCount,
+      values,
+      v: 1
+    })) {
+      resultBytesTruncated = true;
+      break;
+    }
+    const budget = { nodes: 0, result: resultBudget };
     const proofs = [];
-    for (const premise of match.premises) {
+    for (const premise of support.match.premises) {
       const proof = proofForReference(input.materialized.relations, premise, budget, input.options, 0, new Set);
       if (proof === null)
         break;
       proofs.push(proof);
     }
-    return { proofs, values, v: 1 };
-  });
+    const proofsTruncated = proofs.length !== support.match.premises.length || proofs.some(proofIsTruncated);
+    rows.push({ proofs, proofsTruncated, supportCount: support.supportCount, values, v: 1 });
+  }
+  const queryLimitTruncated = ordered.length > input.query.limit;
+  const truncationReasons = [
+    ...queryLimitTruncated ? ["query-limit"] : [],
+    ...resultBytesTruncated ? ["result-bytes"] : []
+  ];
+  const truncated = truncationReasons.length > 0;
   const identity = createOhProjectionIdentityV1({
     dataset: input.dataset,
     query: input.query,
+    engine: input.engine,
+    options: input.options,
     rulePack: input.rulePack,
     snapshot: input.snapshot
   });
@@ -1803,15 +1464,23 @@ function buildProjectionResult(input) {
     stats: {
       baseFacts: input.materialized.baseFacts,
       derivedFacts: input.materialized.derivedFacts,
+      proofNodes: resultBudget.nodes,
+      proofsTruncated: rows.some((row) => row.proofsTruncated),
       queryMatches: matches.length,
       relations: input.materialized.relations.size,
       rounds: input.materialized.rounds,
       truncated,
-      v: 1
+      truncationReasons,
+      v: 1,
+      workUnits: input.work.units
     },
     v: 1
   };
-  return { ...payload, resultSha256: canonicalSha256(payload) };
+  const serialized = canonicalJson(payload);
+  if (utf8ByteLength(serialized) > input.options.maximumResultBytes) {
+    throw new RangeError("Projection result exceeds its canonical byte bound.");
+  }
+  return { ...payload, resultSha256: sha256Hex(serialized) };
 }
 function evaluateOhProjectionV1(input) {
   const snapshot = parseOhProjectionSnapshotV1(input.snapshot);
@@ -1823,11 +1492,13 @@ function evaluateOhProjectionV1(input) {
   }
   const options = resolveEvaluationOptions(input.options ?? {});
   validateProgramArities(dataset, rulePack, query);
+  const work = { maximum: options.maximumWorkUnits, units: 0 };
   const materialized = materializeNaive({
     dataset,
     maximumDerivedTuples: options.maximumDerivedTuples,
     maximumRounds: options.maximumRounds,
-    rulePack
+    rulePack,
+    work
   });
   return buildProjectionResult({
     dataset,
@@ -1836,7 +1507,8 @@ function evaluateOhProjectionV1(input) {
     options,
     query,
     rulePack,
-    snapshot
+    snapshot,
+    work
   });
 }
 function evaluateOhProjectionWithMaterializerV1(input) {
@@ -1850,17 +1522,19 @@ function evaluateOhProjectionWithMaterializerV1(input) {
   }
   const options = resolveEvaluationOptions(input.options ?? {});
   validateProgramArities(dataset, rulePack, query);
+  const work = { maximum: options.maximumWorkUnits, units: 0 };
+  const witnessMaterialization = materializeNaive({
+    dataset,
+    maximumDerivedTuples: options.maximumDerivedTuples,
+    maximumRounds: options.maximumRounds,
+    rulePack,
+    work
+  });
   const external = input.materialize({
     dataset,
     maximumDerivedTuples: options.maximumDerivedTuples,
     maximumRounds: options.maximumRounds,
     query,
-    rulePack
-  });
-  const witnessMaterialization = materializeNaive({
-    dataset,
-    maximumDerivedTuples: options.maximumDerivedTuples,
-    maximumRounds: options.maximumRounds,
     rulePack
   });
   const externalCanonical = new Map;
@@ -1894,17 +1568,31 @@ function evaluateOhProjectionWithMaterializerV1(input) {
     options,
     query,
     rulePack,
-    snapshot
+    snapshot,
+    work
   });
 }
 function createOhProjectionRecordFactsV1(records, options = {}) {
   if (records.length > OH_GRAPH_LIMITS_V1.recordsPerSnapshot)
     throw new RangeError("Too many records for projection facts.");
-  const facts = [];
-  for (const candidate of [...records].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0)) {
+  const parsedRecords = [...records].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map((candidate) => {
     const record = parseKnowledgeGraphRecordV1(candidate);
     if (record === null)
       throw new TypeError("Invalid graph record for projection facts.");
+    return record;
+  });
+  let projectedFactCount = 0;
+  for (const record of parsedRecords) {
+    if (options.includeRecords !== false)
+      projectedFactCount += 1;
+    if (options.includeDependencies !== false)
+      projectedFactCount += record.dependencies.length;
+    if (projectedFactCount > OH_PROJECTION_LIMITS_V1.facts) {
+      throw new RangeError("Structural projection exceeds its fact bound.");
+    }
+  }
+  const facts = [];
+  for (const record of parsedRecords) {
     const source = [{ key: record.key, recordSha256: record.recordSha256, v: 1 }];
     if (options.includeRecords !== false) {
       facts.push(createOhProjectionFactV1({
@@ -1953,7 +1641,9 @@ var parseOhProjectionDatasetV12 = parseOhProjectionDatasetV1;
 var parseOhProjectionFactV12 = parseOhProjectionFactV1;
 var parseOhProjectionIdentityV12 = parseOhProjectionIdentityV1;
 var parseOhProjectionLiteralV12 = parseOhProjectionLiteralV1;
+var parseOhProjectionProofV12 = parseOhProjectionProofV1;
 var parseOhProjectionQueryV12 = parseOhProjectionQueryV1;
+var parseOhProjectionResultV12 = parseOhProjectionResultV1;
 var parseOhProjectionRulePackV12 = parseOhProjectionRulePackV1;
 var parseOhProjectionRuleV12 = parseOhProjectionRuleV1;
 var parseOhProjectionSnapshotV12 = parseOhProjectionSnapshotV1;
@@ -1963,7 +1653,9 @@ export {
   parseOhProjectionSnapshotV12 as parseOhProjectionSnapshotV1,
   parseOhProjectionRuleV12 as parseOhProjectionRuleV1,
   parseOhProjectionRulePackV12 as parseOhProjectionRulePackV1,
+  parseOhProjectionResultV12 as parseOhProjectionResultV1,
   parseOhProjectionQueryV12 as parseOhProjectionQueryV1,
+  parseOhProjectionProofV12 as parseOhProjectionProofV1,
   parseOhProjectionLiteralV12 as parseOhProjectionLiteralV1,
   parseOhProjectionIdentityV12 as parseOhProjectionIdentityV1,
   parseOhProjectionFactV12 as parseOhProjectionFactV1,

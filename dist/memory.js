@@ -1,13 +1,3 @@
-// src/projection-suss.ts
-import {
-  Database,
-  constant,
-  evaluate,
-  lit,
-  rule,
-  variable
-} from "@suss/datalog";
-
 // src/canonical.ts
 import { createHash, randomBytes } from "node:crypto";
 
@@ -345,6 +335,641 @@ class OhRecordCodecRegistry {
     return this.#sealed;
   }
 }
+// src/operation.ts
+var OH_OPERATION_MAX_BYTES_V1 = 64 * 1024 * 1024;
+function parsePayload(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, [
+    "actorId",
+    "changes",
+    "contractId",
+    "graphRevisionSha256",
+    "instant",
+    "operationId",
+    "parentOperationSha256",
+    "recordsSha256",
+    "sequence",
+    "spaceId",
+    "v"
+  ]) || value.v !== 1 || value.contractId !== OH_CONTRACT_ID_V1 || !Array.isArray(value.changes))
+    return null;
+  const actorId = safeCode(value.actorId);
+  const operationId = safeCode(value.operationId);
+  const spaceId = safeCode(value.spaceId);
+  const graphRevisionSha256 = parseSha256Hex(value.graphRevisionSha256);
+  const parentOperationSha256 = value.parentOperationSha256 === null ? null : parseSha256Hex(value.parentOperationSha256);
+  const recordsSha256 = parseSha256Hex(value.recordsSha256);
+  const instant = parseCanonicalInstantV1(value.instant);
+  const sequence = Number.isSafeInteger(value.sequence) && value.sequence > 0 ? value.sequence : null;
+  let changes;
+  try {
+    changes = canonicalKnowledgeGraphChangesV1(value.changes);
+  } catch {
+    return null;
+  }
+  if (changes.length === 0 || changes.length > OH_GRAPH_LIMITS_V1.changesPerOperation)
+    return null;
+  return actorId !== null && operationId !== null && spaceId !== null && graphRevisionSha256 !== null && recordsSha256 !== null && instant !== null && sequence !== null && (value.parentOperationSha256 === null || parentOperationSha256 !== null) && sequence === 1 === (parentOperationSha256 === null) ? {
+    actorId,
+    changes,
+    contractId: OH_CONTRACT_ID_V1,
+    graphRevisionSha256,
+    instant,
+    operationId,
+    parentOperationSha256,
+    recordsSha256,
+    sequence,
+    spaceId,
+    v: 1
+  } : null;
+}
+function createOhOperationV1(input) {
+  const payload = parsePayload(input);
+  if (payload === null)
+    throw new TypeError("Invalid Oh operation payload.");
+  const operation = { ...payload, operationSha256: canonicalSha256(payload) };
+  if (Buffer.byteLength(canonicalJson(operation), "utf8") > OH_OPERATION_MAX_BYTES_V1) {
+    throw new RangeError("Oh operation exceeds its canonical byte limit.");
+  }
+  return operation;
+}
+function parseOhOperationV1(value) {
+  if (!isPlainRecord(value) || !Object.hasOwn(value, "operationSha256"))
+    return null;
+  const operationSha256 = parseSha256Hex(value.operationSha256);
+  const { operationSha256: _digest, ...input } = value;
+  const payload = parsePayload(input);
+  return operationSha256 !== null && payload !== null && Buffer.byteLength(canonicalJson({ ...payload, operationSha256 }), "utf8") <= OH_OPERATION_MAX_BYTES_V1 && canonicalSha256(payload) === operationSha256 ? { ...payload, operationSha256 } : null;
+}
+
+// src/store.ts
+class OhConflictError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OhConflictError";
+  }
+}
+
+class OhIntegrityError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OhIntegrityError";
+  }
+}
+
+class OhDependencyError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OhDependencyError";
+  }
+}
+
+class OhProfileError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OhProfileError";
+  }
+}
+var OH_CANONICAL_STORE_PROFILE_V1 = createOhStoreProfileV1({
+  applicationProfileSha256: null,
+  capabilities: {
+    changesSince: true,
+    dependencyClosureExport: true,
+    exactSnapshots: true,
+    operationReplication: true,
+    semanticBundleCommit: true,
+    v: 1,
+    wholeSpacePurge: false
+  },
+  profileId: "oh.store.canonical.v1",
+  profileKind: "canonical",
+  v: 1
+});
+var OH_WORKING_STORE_PROFILE_V1 = createOhStoreProfileV1({
+  applicationProfileSha256: null,
+  capabilities: {
+    changesSince: true,
+    dependencyClosureExport: true,
+    exactSnapshots: true,
+    operationReplication: false,
+    semanticBundleCommit: true,
+    v: 1,
+    wholeSpacePurge: true
+  },
+  profileId: "oh.store.working.v1",
+  profileKind: "working",
+  v: 1
+});
+var OH_DEPENDENCY_CLOSURE_LIMITS_V1 = Object.freeze({
+  bytes: 64 * 1024 * 1024,
+  records: 8192,
+  roots: 1024
+});
+
+class OhPurgedSpaceError extends Error {
+  receipt;
+  constructor(receipt) {
+    super(`Oh space ${receipt.spaceId} was purged at ${receipt.purgedAt}.`);
+    this.name = "OhPurgedSpaceError";
+    this.receipt = receipt;
+  }
+}
+var EMPTY_RECORDS_SHA256 = canonicalSha256([]);
+function emptyOhHeadV1() {
+  return {
+    generation: 0,
+    graphRevisionSha256: null,
+    operationSha256: null,
+    recordsSha256: EMPTY_RECORDS_SHA256,
+    sequence: 0,
+    v: 1
+  };
+}
+function parseOhHeadV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, [
+    "generation",
+    "graphRevisionSha256",
+    "operationSha256",
+    "recordsSha256",
+    "sequence",
+    "v"
+  ]) || value.v !== 1)
+    return null;
+  const graphRevisionSha256 = value.graphRevisionSha256 === null ? null : parseSha256Hex(value.graphRevisionSha256);
+  const operationSha256 = value.operationSha256 === null ? null : parseSha256Hex(value.operationSha256);
+  const recordsSha256 = parseSha256Hex(value.recordsSha256);
+  const generation = Number.isSafeInteger(value.generation) && value.generation >= 0 ? value.generation : null;
+  const sequence = Number.isSafeInteger(value.sequence) && value.sequence >= 0 ? value.sequence : null;
+  return generation !== null && sequence !== null && generation === sequence && recordsSha256 !== null && (value.graphRevisionSha256 === null || graphRevisionSha256 !== null) && (value.operationSha256 === null || operationSha256 !== null) && sequence === 0 === (operationSha256 === null) && sequence === 0 === (graphRevisionSha256 === null) ? { generation, graphRevisionSha256, operationSha256, recordsSha256, sequence, v: 1 } : null;
+}
+function parseOhHeadRefV1(value) {
+  const complete = parseOhHeadV1(value);
+  if (complete !== null) {
+    return { operationSha256: complete.operationSha256, sequence: complete.sequence };
+  }
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["operationSha256", "sequence"]))
+    return null;
+  const operationSha256 = value.operationSha256 === null ? null : parseSha256Hex(value.operationSha256);
+  const sequence = Number.isSafeInteger(value.sequence) && value.sequence >= 0 ? value.sequence : null;
+  return sequence !== null && (value.operationSha256 === null || operationSha256 !== null) && sequence === 0 === (operationSha256 === null) ? { operationSha256, sequence } : null;
+}
+function parseCapabilities(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, [
+    "changesSince",
+    "dependencyClosureExport",
+    "exactSnapshots",
+    "operationReplication",
+    "semanticBundleCommit",
+    "v",
+    "wholeSpacePurge"
+  ]) || value.changesSince !== true || value.dependencyClosureExport !== true || value.exactSnapshots !== true || typeof value.operationReplication !== "boolean" || value.semanticBundleCommit !== true || value.v !== 1 || typeof value.wholeSpacePurge !== "boolean")
+    return null;
+  return {
+    changesSince: true,
+    dependencyClosureExport: true,
+    exactSnapshots: true,
+    operationReplication: value.operationReplication,
+    semanticBundleCommit: true,
+    v: 1,
+    wholeSpacePurge: value.wholeSpacePurge
+  };
+}
+function createOhStoreProfileV1(input) {
+  if (!isPlainRecord(input) || !hasExactKeys(input, [
+    "applicationProfileSha256",
+    "capabilities",
+    "profileId",
+    "profileKind",
+    "v"
+  ]) || input.v !== 1)
+    throw new TypeError("Invalid Oh store profile input.");
+  const profileId = safeCode(input.profileId);
+  const applicationProfileSha256 = input.applicationProfileSha256 === null ? null : parseSha256Hex(input.applicationProfileSha256);
+  const capabilities = parseCapabilities(input.capabilities);
+  if (profileId === null || capabilities === null || input.applicationProfileSha256 !== null && applicationProfileSha256 === null || input.profileKind !== "canonical" && input.profileKind !== "working") {
+    throw new TypeError("Invalid Oh store profile input.");
+  }
+  if (input.profileKind === "working" && (capabilities.operationReplication || !capabilities.wholeSpacePurge)) {
+    throw new OhProfileError("A working profile must disable operation replication and permit whole-space purge.");
+  }
+  if (input.profileKind === "canonical" && capabilities.wholeSpacePurge) {
+    throw new OhProfileError("A canonical profile cannot permit whole-space purge.");
+  }
+  const payload = {
+    applicationProfileSha256,
+    capabilities: Object.freeze(capabilities),
+    profileId,
+    profileKind: input.profileKind,
+    v: 1
+  };
+  return Object.freeze({ ...payload, profileSha256: canonicalSha256(payload) });
+}
+function parseOhStoreProfileV1(value) {
+  if (!isPlainRecord(value) || !Object.hasOwn(value, "profileSha256"))
+    return null;
+  const digest = parseSha256Hex(value.profileSha256);
+  const { profileSha256: _profileSha256, ...input } = value;
+  try {
+    const created = createOhStoreProfileV1(input);
+    return digest !== null && created.profileSha256 === digest ? created : null;
+  } catch {
+    return null;
+  }
+}
+function createOhStoreBindingV1(input) {
+  const profile = parseOhStoreProfileV1(input.profile);
+  const realmId = safeCode(input.realmId);
+  const spaceId = safeCode(input.spaceId);
+  if (input.v !== 1 || profile === null || realmId === null || spaceId === null) {
+    throw new TypeError("Invalid Oh store binding input.");
+  }
+  const payload = {
+    contractSha256: OH_CONTRACT_MANIFEST_V1.contractSha256,
+    profile,
+    realmId,
+    spaceId,
+    v: 1
+  };
+  return Object.freeze({ ...payload, bindingSha256: canonicalSha256(payload) });
+}
+function parseOhStoreBindingV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, [
+    "bindingSha256",
+    "contractSha256",
+    "profile",
+    "realmId",
+    "spaceId",
+    "v"
+  ]) || value.v !== 1 || value.contractSha256 !== OH_CONTRACT_MANIFEST_V1.contractSha256)
+    return null;
+  const bindingSha256 = parseSha256Hex(value.bindingSha256);
+  const profile = parseOhStoreProfileV1(value.profile);
+  try {
+    if (bindingSha256 === null || profile === null)
+      return null;
+    const created = createOhStoreBindingV1({
+      profile,
+      realmId: value.realmId,
+      spaceId: value.spaceId,
+      v: 1
+    });
+    return created.bindingSha256 === bindingSha256 ? created : null;
+  } catch {
+    return null;
+  }
+}
+function sortedRecords(records) {
+  return [...records].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0);
+}
+function verifyDependencies(records) {
+  for (const record of records.values()) {
+    for (const dependency of record.dependencies) {
+      if (!records.has(dependency))
+        throw new OhDependencyError(`Missing dependency ${dependency} for ${record.key}.`);
+    }
+  }
+}
+function replayOhOperationsV1(spaceId, values, maximumRecords = OH_GRAPH_LIMITS_V1.recordsPerSnapshot) {
+  const parsedSpaceId = safeCode(spaceId);
+  if (parsedSpaceId === null || !Number.isSafeInteger(maximumRecords) || maximumRecords < 1 || maximumRecords > OH_GRAPH_LIMITS_V1.recordsPerSnapshot) {
+    throw new TypeError("Invalid operation replay input.");
+  }
+  const records = new Map;
+  const operationIds = new Set;
+  let head = emptyOhHeadV1();
+  for (const value of values) {
+    const operation = parseOhOperationV1(value);
+    if (operation === null || operation.spaceId !== parsedSpaceId || operation.sequence !== head.sequence + 1 || operation.parentOperationSha256 !== head.operationSha256 || operationIds.has(operation.operationId)) {
+      throw new OhIntegrityError("Operation replay chain is broken.");
+    }
+    operationIds.add(operation.operationId);
+    for (const change of operation.changes) {
+      if (change.kind === "put")
+        records.set(change.record.key, change.record);
+      else {
+        const prior = records.get(change.key);
+        if (prior?.recordSha256 !== change.priorSha256) {
+          throw new OhIntegrityError("Replay tombstone does not match its prior record.");
+        }
+        records.delete(change.key);
+      }
+    }
+    if (records.size > maximumRecords)
+      throw new RangeError("Operation replay exceeds its record bound.");
+    verifyDependencies(records);
+    const refs = sortedRecords(records.values()).map(knowledgeGraphRecordRefV1);
+    const recordsSha256 = canonicalSha256(refs);
+    const graphRevisionSha256 = graphRevisionSha256V1({
+      changes: operation.changes,
+      operationId: operation.operationId,
+      parentGraphRevisionSha256: head.graphRevisionSha256,
+      recordsSha256,
+      revision: operation.sequence
+    });
+    if (recordsSha256 !== operation.recordsSha256 || graphRevisionSha256 !== operation.graphRevisionSha256) {
+      throw new OhIntegrityError("Replay does not reproduce an operation head.");
+    }
+    head = {
+      generation: operation.sequence,
+      graphRevisionSha256,
+      operationSha256: operation.operationSha256,
+      recordsSha256,
+      sequence: operation.sequence,
+      v: 1
+    };
+  }
+  return { head, records: sortedRecords(records.values()), v: 1 };
+}
+function transitionOhSnapshotV1(input) {
+  const actorId = safeCode(input.actorId);
+  const operationId = safeCode(input.operationId);
+  const spaceId = safeCode(input.spaceId);
+  const instant = parseCanonicalInstantV1(input.instant);
+  const changes = canonicalKnowledgeGraphChangesV1(input.changes);
+  if (actorId === null || operationId === null || spaceId === null || instant === null || changes.length === 0 || changes.length > OH_GRAPH_LIMITS_V1.changesPerOperation) {
+    throw new TypeError("Invalid graph transition input.");
+  }
+  const head = parseOhHeadV1(input.snapshot.head);
+  if (input.snapshot.v !== 1 || head === null || !Array.isArray(input.snapshot.records)) {
+    throw new OhIntegrityError("The transition snapshot is invalid.");
+  }
+  const records = new Map;
+  for (const value of input.snapshot.records) {
+    const record = parseKnowledgeGraphRecordV1(value);
+    if (record === null || records.has(record.key)) {
+      throw new OhIntegrityError("The transition snapshot contains an invalid record.");
+    }
+    records.set(record.key, record);
+  }
+  verifyDependencies(records);
+  const priorRecordsSha256 = canonicalSha256(sortedRecords(records.values()).map(knowledgeGraphRecordRefV1));
+  if (priorRecordsSha256 !== head.recordsSha256) {
+    throw new OhIntegrityError("The transition snapshot does not reproduce its head.");
+  }
+  for (const change of changes) {
+    if (change.kind === "put")
+      records.set(change.record.key, change.record);
+    else {
+      const prior = records.get(change.key);
+      if (prior === undefined || prior.recordSha256 !== change.priorSha256) {
+        throw new OhConflictError(`The prior digest for ${change.key} does not match the snapshot.`);
+      }
+      records.delete(change.key);
+    }
+  }
+  if (records.size > OH_GRAPH_LIMITS_V1.recordsPerSnapshot) {
+    throw new RangeError("Graph transition exceeds its record snapshot limit.");
+  }
+  verifyDependencies(records);
+  const nextRecords = sortedRecords(records.values());
+  const recordsSha256 = canonicalSha256(nextRecords.map(knowledgeGraphRecordRefV1));
+  const graphRevisionSha256 = graphRevisionSha256V1({
+    changes,
+    operationId,
+    parentGraphRevisionSha256: head.graphRevisionSha256,
+    recordsSha256,
+    revision: head.sequence + 1
+  });
+  const operation = createOhOperationV1({
+    actorId,
+    changes,
+    contractId: OH_CONTRACT_MANIFEST_V1.contractId,
+    graphRevisionSha256,
+    instant,
+    operationId,
+    parentOperationSha256: head.operationSha256,
+    recordsSha256,
+    sequence: head.sequence + 1,
+    spaceId,
+    v: 1
+  });
+  const nextHead = {
+    generation: operation.sequence,
+    graphRevisionSha256,
+    operationSha256: operation.operationSha256,
+    recordsSha256,
+    sequence: operation.sequence,
+    v: 1
+  };
+  return { operation, snapshot: { head: nextHead, records: nextRecords, v: 1 } };
+}
+function normalizeRoots(values) {
+  if (!Array.isArray(values) || values.length < 1 || values.length > OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots) {
+    throw new RangeError(`A dependency closure needs 1 through ${OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots} roots.`);
+  }
+  const roots = values.map((value) => safeCode(value, 512));
+  if (roots.some((value) => value === null))
+    throw new TypeError("Invalid dependency closure root.");
+  const sorted = [...roots].sort();
+  if (sorted.some((value, index) => index > 0 && sorted[index - 1] === value)) {
+    throw new TypeError("Dependency closure roots must be unique.");
+  }
+  return sorted;
+}
+function closureRecords(available, roots, maximumRecords, maximumBytes = OH_DEPENDENCY_CLOSURE_LIMITS_V1.bytes - 64 * 1024) {
+  const selected = new Map;
+  const pending = [...roots];
+  let selectedBytes = 0;
+  while (pending.length > 0) {
+    const key = pending.pop();
+    if (selected.has(key))
+      continue;
+    const record = available.get(key);
+    if (record === undefined)
+      throw new OhDependencyError(`Dependency closure record ${key} is missing.`);
+    selectedBytes += Buffer.byteLength(canonicalJson(record), "utf8") + 1;
+    if (selectedBytes > maximumBytes)
+      throw new RangeError("Dependency closure exceeds its canonical byte bound.");
+    selected.set(key, record);
+    if (selected.size > maximumRecords)
+      throw new RangeError("Dependency closure exceeds its record bound.");
+    pending.push(...record.dependencies);
+  }
+  return sortedRecords(selected.values());
+}
+function createOhDependencyClosureV1(input) {
+  const binding = parseOhStoreBindingV1(input.binding);
+  const head = parseOhHeadV1(input.snapshot.head);
+  const maximumRecords = input.maximumRecords ?? OH_DEPENDENCY_CLOSURE_LIMITS_V1.records;
+  if (binding === null || head === null || !Number.isSafeInteger(maximumRecords) || maximumRecords < 1 || maximumRecords > OH_DEPENDENCY_CLOSURE_LIMITS_V1.records) {
+    throw new TypeError("Invalid dependency closure input.");
+  }
+  const roots = normalizeRoots(input.roots);
+  const available = new Map;
+  for (const value of input.snapshot.records) {
+    const record = parseKnowledgeGraphRecordV1(value);
+    if (record === null || available.has(record.key))
+      throw new OhIntegrityError("Snapshot contains an invalid record.");
+    available.set(record.key, record);
+  }
+  const recordsSha256 = canonicalSha256(sortedRecords(available.values()).map(knowledgeGraphRecordRefV1));
+  if (recordsSha256 !== head.recordsSha256)
+    throw new OhIntegrityError("Snapshot records do not reproduce its head.");
+  const records = closureRecords(available, roots, maximumRecords);
+  const payload = { binding, head, records, roots, v: 1 };
+  const closure = { ...payload, closureSha256: canonicalSha256(payload) };
+  if (Buffer.byteLength(canonicalJson(closure), "utf8") > OH_DEPENDENCY_CLOSURE_LIMITS_V1.bytes) {
+    throw new RangeError("Dependency closure exceeds its canonical byte bound.");
+  }
+  return Object.freeze(closure);
+}
+function parseOhDependencyClosureV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, [
+    "binding",
+    "closureSha256",
+    "head",
+    "records",
+    "roots",
+    "v"
+  ]) || value.v !== 1 || !Array.isArray(value.records) || !Array.isArray(value.roots) || value.records.length > OH_DEPENDENCY_CLOSURE_LIMITS_V1.records)
+    return null;
+  const binding = parseOhStoreBindingV1(value.binding);
+  const head = parseOhHeadV1(value.head);
+  const closureSha256 = parseSha256Hex(value.closureSha256);
+  if (binding === null || head === null || closureSha256 === null)
+    return null;
+  const records = new Map;
+  for (const item of value.records) {
+    const record = parseKnowledgeGraphRecordV1(item);
+    if (record === null || records.has(record.key))
+      return null;
+    records.set(record.key, record);
+  }
+  try {
+    const roots = normalizeRoots(value.roots);
+    if (canonicalJson(roots) !== canonicalJson(value.roots))
+      return null;
+    const exact = closureRecords(records, roots, OH_DEPENDENCY_CLOSURE_LIMITS_V1.records);
+    if (canonicalJson(exact) !== canonicalJson(value.records))
+      return null;
+    const payload = { binding, head, records: exact, roots, v: 1 };
+    const parsed = { ...payload, closureSha256 };
+    return canonicalSha256(payload) === closureSha256 && Buffer.byteLength(canonicalJson(parsed), "utf8") <= OH_DEPENDENCY_CLOSURE_LIMITS_V1.bytes ? Object.freeze(parsed) : null;
+  } catch {
+    return null;
+  }
+}
+function verifyOhDependencyClosureV1(value) {
+  const closure = parseOhDependencyClosureV1(value);
+  return closure === null ? { ok: false, reason: "invalid-closure" } : { closure, ok: true };
+}
+function verifyOhDependencyClosureAgainstV1(value, expected) {
+  const binding = parseOhStoreBindingV1(expected.binding);
+  const head = parseOhHeadV1(expected.head);
+  if (binding === null || head === null)
+    return { ok: false, reason: "invalid-expectation" };
+  const closure = parseOhDependencyClosureV1(value);
+  if (closure === null)
+    return { ok: false, reason: "invalid-closure" };
+  if (closure.binding.bindingSha256 !== binding.bindingSha256)
+    return { ok: false, reason: "binding-mismatch" };
+  if (canonicalJson(closure.head) !== canonicalJson(head))
+    return { ok: false, reason: "head-mismatch" };
+  return { closure, ok: true, verification: "expected-authority-and-head" };
+}
+function createOhSpacePurgeReceiptV1(input) {
+  const binding = parseOhStoreBindingV1(input.binding);
+  const priorHead = parseOhHeadV1(input.priorHead);
+  const purgedAt = parseCanonicalInstantV1(input.purgedAt);
+  if (binding === null || priorHead === null || purgedAt === null || binding.profile.profileKind !== "working" || !binding.profile.capabilities.wholeSpacePurge) {
+    throw new OhProfileError("Only a bound working realm can produce a purge receipt.");
+  }
+  const payload = {
+    bindingSha256: binding.bindingSha256,
+    priorHead,
+    purgedAt,
+    spaceId: binding.spaceId,
+    v: 1
+  };
+  return Object.freeze({ ...payload, receiptSha256: canonicalSha256(payload) });
+}
+function parseOhSpacePurgeReceiptV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, [
+    "bindingSha256",
+    "priorHead",
+    "purgedAt",
+    "receiptSha256",
+    "spaceId",
+    "v"
+  ]) || value.v !== 1)
+    return null;
+  const bindingSha256 = parseSha256Hex(value.bindingSha256);
+  const priorHead = parseOhHeadV1(value.priorHead);
+  const purgedAt = parseCanonicalInstantV1(value.purgedAt);
+  const receiptSha256 = parseSha256Hex(value.receiptSha256);
+  const spaceId = safeCode(value.spaceId);
+  if (bindingSha256 === null || priorHead === null || purgedAt === null || receiptSha256 === null || spaceId === null)
+    return null;
+  const payload = { bindingSha256, priorHead, purgedAt, spaceId, v: 1 };
+  return canonicalSha256(payload) === receiptSha256 ? Object.freeze({ ...payload, receiptSha256 }) : null;
+}
+
+class OhSemanticBundleIngressV1 {
+  #codecs;
+  #store;
+  constructor(store, codecs) {
+    this.#store = store;
+    this.#codecs = codecs.seal();
+  }
+  async commit(value) {
+    if (!isPlainRecord(value) || !hasExactKeys(value, [
+      "actorId",
+      "expectedHead",
+      "instant",
+      "operationId",
+      "puts",
+      "tombstones",
+      "v"
+    ]) || value.v !== 1 || !Array.isArray(value.puts) || !Array.isArray(value.tombstones) || value.puts.length + value.tombstones.length < 1 || value.puts.length + value.tombstones.length > OH_GRAPH_LIMITS_V1.changesPerOperation) {
+      throw new TypeError("Invalid semantic bundle.");
+    }
+    const actorId = safeCode(value.actorId);
+    const operationId = safeCode(value.operationId);
+    const expected = value.expectedHead;
+    const instant = value.instant === null ? undefined : parseCanonicalInstantV1(value.instant);
+    if (actorId === null || operationId === null || !isPlainRecord(expected) || !hasExactKeys(expected, ["generation", "operationSha256"]) || !Number.isSafeInteger(expected.generation) || expected.generation < 0 || expected.operationSha256 !== null && parseSha256Hex(expected.operationSha256) === null || expected.generation === 0 !== (expected.operationSha256 === null) || value.instant !== null && instant === null)
+      throw new TypeError("Invalid semantic bundle identity.");
+    const changes = [];
+    for (const item of value.puts) {
+      if (!isPlainRecord(item) || !hasExactKeys(item, ["dependencies", "key", "kind", "v", "value"]) || item.v !== 1 || !Array.isArray(item.dependencies) || !OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.some((kind) => kind === item.kind)) {
+        throw new TypeError("Invalid semantic bundle put.");
+      }
+      const parsed = this.#codecs.parseRequired(item.kind, item.value);
+      if (parsed === null)
+        throw new TypeError(`The ${String(item.kind)} codec rejected a semantic value.`);
+      const record = createKnowledgeGraphRecordV1({
+        dependencies: item.dependencies,
+        key: item.key,
+        kind: item.kind,
+        v: 1,
+        value: parsed
+      });
+      changes.push({ kind: "put", record, v: 1 });
+    }
+    for (const item of value.tombstones) {
+      if (!isPlainRecord(item) || !hasExactKeys(item, ["key", "priorSha256", "v"]) || item.v !== 1) {
+        throw new TypeError("Invalid semantic bundle tombstone.");
+      }
+      const priorSha256 = parseSha256Hex(item.priorSha256);
+      if (typeof item.key !== "string" || priorSha256 === null)
+        throw new TypeError("Invalid semantic bundle tombstone.");
+      changes.push({ key: item.key, kind: "tombstone", priorSha256, v: 1 });
+    }
+    const canonical = canonicalKnowledgeGraphChangesV1(changes);
+    return await this.#store.commit({
+      actorId,
+      changes: canonical,
+      expectedHead: {
+        generation: expected.generation,
+        operationSha256: expected.operationSha256
+      },
+      ...typeof instant === "string" ? { instant } : {},
+      operationId
+    });
+  }
+}
+
+// src/memory.ts
+import { randomBytes as randomBytes2 } from "node:crypto";
 
 // src/projection.ts
 var OH_PROJECTION_FORMAT_VERSION_V1 = 1;
@@ -1627,95 +2252,756 @@ function isOhProjectionRecordKindV1(value) {
   return OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.some((kind) => kind === value);
 }
 
-// src/projection-suss.ts
-var OH_PROJECTION_SUSS_VERSION_V1 = "0.20.0";
-var OH_PROJECTION_SUSS_ENGINE_V1 = "suss.datalog.v0-20-0.equivalence";
-function encodeAtom(value) {
-  return canonicalJson(value);
-}
-function decodeAtom(value) {
-  if (typeof value !== "string")
-    throw new TypeError("Suss returned a non-encoded projection atom.");
-  const decoded = parseCanonicalJson(value, 16 * 1024);
-  if (decoded !== null && typeof decoded === "object") {
-    throw new TypeError("Suss returned a non-atomic projection value.");
+// src/memory.ts
+var OH_MEMORY_FORMAT_VERSION_V1 = 1;
+var OH_MEMORY_CONFLICT_POLICY_V1 = "visible-conflicts.v1";
+var OH_MEMORY_LIMITS_V1 = Object.freeze({
+  explainCapabilityEntryBytes: 32 * 1024 * 1024,
+  explainCapabilities: 256,
+  explainCapabilityLifetimeMs: 15 * 60 * 1000,
+  explainCapabilityTotalBytes: 64 * 1024 * 1024,
+  factsPerRecordPerExtractor: 512,
+  maximumExtractorInvocations: 262144,
+  maximumExtractors: 32,
+  maximumNominationRoutes: 64,
+  maximumPrograms: 128,
+  maximumRecordsPerLane: 8192,
+  maximumSyntheticRecords: 16384,
+  rememberBytes: 8 * 1024 * 1024,
+  resultBytes: 32 * 1024 * 1024,
+  snapshotBytesPerLane: 32 * 1024 * 1024,
+  relationsPerExtractor: 64
+});
+var memoryFactPackPayload = Object.freeze({
+  factPackId: "oh.memory.composite-facts",
+  factPackRevision: 1,
+  relations: Object.freeze(["memory.agreement", "memory.conflict", "memory.dependency", "memory.record"]),
+  semantics: OH_PROJECTION_SEMANTICS_V1,
+  v: 1
+});
+var OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1 = Object.freeze({
+  ...memoryFactPackPayload,
+  extractorSha256: canonicalSha256(memoryFactPackPayload)
+});
+var builtInFactPolicy = Object.freeze({
+  extractorSha256: OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1.extractorSha256,
+  factPackId: OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1.factPackId,
+  kind: "built-in",
+  v: 1
+});
+function immutableClone(value) {
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((item) => immutableClone(item)));
   }
-  return decoded;
-}
-function sussTerm(term) {
-  return term.kind === "constant" ? constant(encodeAtom(term.value)) : variable(term.name);
-}
-function sussLiteral(literal) {
-  return lit(literal.relation, ...literal.terms.map(sussTerm));
-}
-function sussRule(input) {
-  return rule(input.head.relation, input.head.terms.map(sussTerm), input.body.map(sussLiteral), input.ruleId);
-}
-function projectionDomainSize(dataset, rulePack, query) {
-  const atoms = new Set;
-  for (const fact of dataset.facts)
-    for (const value of fact.tuple)
-      atoms.add(encodeAtom(value));
-  const addTerms = (literal) => {
-    for (const term of literal.terms)
-      if (term.kind === "constant")
-        atoms.add(encodeAtom(term.value));
-  };
-  for (const item of rulePack.rules) {
-    addTerms(item.head);
-    for (const literal of item.body)
-      addTerms(literal);
-  }
-  for (const literal of query.where)
-    addTerms(literal);
-  return atoms.size;
-}
-function assertConservativeOutputBound(input) {
-  const domainSize = BigInt(projectionDomainSize(input.dataset, input.rulePack, input.query));
-  const heads = new Map;
-  for (const item of input.rulePack.rules)
-    heads.set(item.head.relation, item.head.terms.length);
-  const baseCounts = new Map;
-  for (const fact of input.dataset.facts) {
-    if (heads.has(fact.relation))
-      baseCounts.set(fact.relation, (baseCounts.get(fact.relation) ?? 0) + 1);
-  }
-  let possible = 0n;
-  const maximum = BigInt(input.maximumDerivedTuples);
-  for (const [relation, arity] of heads) {
-    const relationSpace = domainSize ** BigInt(arity);
-    const existing = BigInt(baseCounts.get(relation) ?? 0);
-    possible += relationSpace > existing ? relationSpace - existing : 0n;
-    if (possible > maximum) {
-      throw new RangeError("The Suss equivalence adapter cannot prove the requested derived-tuple bound before evaluation; use the bounded Oh evaluator.");
+  if (value !== null && typeof value === "object") {
+    if (!isPlainRecord(value))
+      throw new TypeError("Memory output contains a non-JSON object.");
+    const cloned = {};
+    for (const key of Object.keys(value)) {
+      Object.defineProperty(cloned, key, {
+        configurable: false,
+        enumerable: true,
+        value: immutableClone(value[key]),
+        writable: false
+      });
     }
+    return Object.freeze(cloned);
   }
+  return value;
 }
-function evaluateOhProjectionWithSussV1(input) {
-  return evaluateOhProjectionWithMaterializerV1({
-    dataset: input.dataset,
-    engine: OH_PROJECTION_SUSS_ENGINE_V1,
-    ...input.options === undefined ? {} : { options: input.options },
-    query: input.query,
-    rulePack: input.rulePack,
-    snapshot: input.snapshot,
-    materialize: (program) => {
-      assertConservativeOutputBound(program);
-      const database = new Database;
-      for (const fact of program.dataset.facts) {
-        database.add(fact.relation, fact.tuple.map(encodeAtom));
-      }
-      evaluate(database, program.rulePack.rules.map(sussRule));
-      const relationFacts = new Map;
-      for (const relation of database.relationNames()) {
-        relationFacts.set(relation, database.facts(relation).map((values) => values.map(decodeAtom)));
-      }
-      return { relationFacts };
-    }
+function compareText(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+function exactHead(left, right) {
+  return canonicalJson(left) === canonicalJson(right);
+}
+function authorityId(value) {
+  const parsed = safeCode(value, 128);
+  if (parsed === null)
+    throw new TypeError("Invalid memory authority ID.");
+  return parsed;
+}
+function bindingFor(store, expected, lane) {
+  const binding = parseOhStoreBindingV1(store.binding);
+  if (binding === null || binding.bindingSha256 !== parseSha256Hex(expected)) {
+    throw new OhIntegrityError(`The ${lane} store is not the host-bound authority.`);
+  }
+  if (binding.profile.profileKind !== lane) {
+    throw new OhProfileError(`The ${lane} memory lane has the wrong store profile.`);
+  }
+  return binding;
+}
+function laneIdentity(value) {
+  return Object.freeze({
+    authorityId: value.authorityId,
+    bindingSha256: value.binding.bindingSha256,
+    datasetSha256: value.dataset.datasetSha256,
+    head: value.snapshot.head,
+    lane: value.lane,
+    snapshotSha256: value.projectionSnapshot.snapshotSha256,
+    v: 1
   });
 }
+function datasetForSnapshot(binding, snapshot) {
+  const projectionSnapshot = createOhProjectionSnapshotV1({
+    head: snapshot.head,
+    records: snapshot.records,
+    spaceId: binding.spaceId
+  });
+  const dataset = createOhProjectionDatasetV1({
+    extractorSha256: canonicalSha256({ extractor: "oh.memory.lane-structural", v: 1 }),
+    factPackId: "oh.memory.lane-structural",
+    factPackRevision: 1,
+    facts: createOhProjectionRecordFactsV1(snapshot.records),
+    snapshot: projectionSnapshot
+  });
+  return { dataset, projectionSnapshot };
+}
+async function readLane(authority, lane, expectedHead) {
+  const returnedHead = expectedHead ?? await authority.store.head();
+  const head = parseOhHeadV1(immutableClone(returnedHead));
+  if (head === null)
+    throw new OhIntegrityError(`The ${lane} store returned an invalid head.`);
+  const returnedSnapshot = await authority.store.snapshot({
+    head: { operationSha256: head.operationSha256, sequence: head.sequence },
+    maximumRecords: OH_MEMORY_LIMITS_V1.maximumRecordsPerLane
+  });
+  if (!isPlainRecord(returnedSnapshot) || !hasExactKeys(returnedSnapshot, ["head", "records", "v"]) || returnedSnapshot.v !== 1 || !Array.isArray(returnedSnapshot.records)) {
+    throw new OhIntegrityError(`The ${lane} store returned an invalid snapshot envelope.`);
+  }
+  const detached = immutableClone(returnedSnapshot);
+  const detachedHead = parseOhHeadV1(detached.head);
+  if (detachedHead === null)
+    throw new OhIntegrityError(`The ${lane} store returned an invalid snapshot head.`);
+  const snapshot = immutableClone({
+    head: detachedHead,
+    records: detached.records,
+    v: 1
+  });
+  if (!exactHead(snapshot.head, head)) {
+    throw new OhIntegrityError(`The ${lane} snapshot differs from its pinned head.`);
+  }
+  if (utf8ByteLength(canonicalJson(snapshot)) > OH_MEMORY_LIMITS_V1.snapshotBytesPerLane) {
+    throw new RangeError(`The ${lane} memory snapshot exceeds its canonical byte bound.`);
+  }
+  const projected = datasetForSnapshot(authority.binding, snapshot);
+  return Object.freeze({
+    authorityId: authority.authorityId,
+    binding: authority.binding,
+    dataset: projected.dataset,
+    lane,
+    projectionSnapshot: projected.projectionSnapshot,
+    snapshot
+  });
+}
+function syntheticKey(lane, recordSha256) {
+  return `memory-source:${lane}:${recordSha256}`;
+}
+function createSyntheticSources(lanes) {
+  const sources = new Map;
+  for (const lane of lanes) {
+    for (const physicalRecord of lane.snapshot.records) {
+      const key = syntheticKey(lane.lane, physicalRecord.recordSha256);
+      const record = createKnowledgeGraphRecordV1({
+        dependencies: [],
+        key,
+        kind: "view",
+        v: 1,
+        value: {
+          authorityId: lane.authorityId,
+          bindingSha256: lane.binding.bindingSha256,
+          key: physicalRecord.key,
+          lane: lane.lane,
+          recordSha256: physicalRecord.recordSha256,
+          snapshotSha256: lane.projectionSnapshot.snapshotSha256,
+          v: 1
+        }
+      });
+      const physical = Object.freeze({
+        authorityId: lane.authorityId,
+        bindingSha256: lane.binding.bindingSha256,
+        head: lane.snapshot.head,
+        key: physicalRecord.key,
+        lane: lane.lane,
+        recordSha256: physicalRecord.recordSha256,
+        snapshotSha256: lane.projectionSnapshot.snapshotSha256,
+        v: 1
+      });
+      if (sources.has(key))
+        throw new OhIntegrityError("A memory lane contains a duplicate source digest.");
+      sources.set(key, Object.freeze({ physical, record }));
+    }
+  }
+  if (sources.size > OH_MEMORY_LIMITS_V1.maximumSyntheticRecords) {
+    throw new RangeError("The composite memory snapshot has too many records.");
+  }
+  const records = [...sources.values()].map(({ record }) => record).sort((left, right) => compareText(left.key, right.key));
+  return { records, sources };
+}
+function sourceFor(sources, lane, record) {
+  const source = sources.get(syntheticKey(lane, record.recordSha256));
+  if (source === undefined)
+    throw new OhIntegrityError("A composite memory source is missing.");
+  return [{ key: source.record.key, recordSha256: source.record.recordSha256, v: 1 }];
+}
+function createCompositeDataset(canonical, working, extractors) {
+  const synthetic = createSyntheticSources([canonical, working]);
+  const extractorInvocations = synthetic.records.length * extractors.length;
+  if (extractorInvocations > OH_MEMORY_LIMITS_V1.maximumExtractorInvocations) {
+    throw new RangeError("The composite memory extractor invocation count exceeds its explicit bound.");
+  }
+  const facts = [];
+  const factDigests = new Set;
+  const factPolicies = new Map;
+  const addFact = (fact, policy) => {
+    if (facts.length >= OH_PROJECTION_LIMITS_V1.facts) {
+      throw new RangeError("The composite memory fact set exceeds its explicit bound.");
+    }
+    if (factDigests.has(fact.factSha256)) {
+      throw new OhIntegrityError("A memory fact extractor emitted the same exact fact twice.");
+    }
+    const priorPolicy = factPolicies.get(fact.relation);
+    if (priorPolicy !== undefined && canonicalJson(priorPolicy) !== canonicalJson(policy)) {
+      throw new OhIntegrityError("A memory relation has more than one fact policy.");
+    }
+    facts.push(fact);
+    factDigests.add(fact.factSha256);
+    factPolicies.set(fact.relation, policy);
+  };
+  const byLane = new Map([
+    ["canonical", new Map(canonical.snapshot.records.map((record) => [record.key, record]))],
+    ["working", new Map(working.snapshot.records.map((record) => [record.key, record]))]
+  ]);
+  for (const lane of [canonical, working]) {
+    for (const record of lane.snapshot.records) {
+      const extractorRecord = immutableClone(record);
+      const source = sourceFor(synthetic.sources, lane.lane, record);
+      addFact(createOhProjectionFactV1({
+        relation: "memory.record",
+        sources: source,
+        tuple: [lane.lane, record.key, record.kind, record.recordSha256]
+      }), builtInFactPolicy);
+      for (const dependency of record.dependencies) {
+        addFact(createOhProjectionFactV1({
+          relation: "memory.dependency",
+          sources: source,
+          tuple: [lane.lane, record.key, dependency]
+        }), builtInFactPolicy);
+      }
+      for (const extractor of extractors) {
+        const declared = extractor.extract(Object.freeze({ lane: lane.lane, record: extractorRecord }));
+        if (!Array.isArray(declared) || declared.length > OH_MEMORY_LIMITS_V1.factsPerRecordPerExtractor) {
+          throw new RangeError("A memory fact extractor exceeded its per-record bound.");
+        }
+        for (const fact of declared) {
+          if (!isPlainRecord(fact) || !hasExactKeys(fact, ["relation", "tuple", "v"]) || fact.v !== 1 || !Array.isArray(fact.tuple) || typeof fact.relation !== "string" || !extractor.relations.includes(fact.relation)) {
+            throw new TypeError("A memory fact extractor returned an invalid or reserved fact.");
+          }
+          addFact(createOhProjectionFactV1({ relation: fact.relation, sources: source, tuple: fact.tuple }), Object.freeze({
+            extractorId: extractor.extractorId,
+            extractorSha256: extractor.extractorSha256,
+            kind: "domain",
+            v: 1
+          }));
+        }
+      }
+    }
+  }
+  const conflicts = [];
+  const canonicalByKey = byLane.get("canonical");
+  const workingByKey = byLane.get("working");
+  for (const key of [...canonicalByKey.keys()].filter((candidate) => workingByKey.has(candidate)).sort()) {
+    const canonicalRecord = canonicalByKey.get(key);
+    const workingRecord = workingByKey.get(key);
+    const sources = [
+      ...sourceFor(synthetic.sources, "canonical", canonicalRecord),
+      ...sourceFor(synthetic.sources, "working", workingRecord)
+    ];
+    if (canonicalRecord.recordSha256 === workingRecord.recordSha256) {
+      addFact(createOhProjectionFactV1({
+        relation: "memory.agreement",
+        sources,
+        tuple: [key, canonicalRecord.recordSha256]
+      }), builtInFactPolicy);
+    } else {
+      addFact(createOhProjectionFactV1({
+        relation: "memory.conflict",
+        sources,
+        tuple: [key, canonicalRecord.recordSha256, workingRecord.recordSha256]
+      }), builtInFactPolicy);
+      conflicts.push(Object.freeze({
+        canonicalRecordSha256: canonicalRecord.recordSha256,
+        key,
+        v: 1,
+        workingRecordSha256: workingRecord.recordSha256
+      }));
+    }
+  }
+  const recordRefs = synthetic.records.map(knowledgeGraphRecordRefV1).sort((left, right) => compareText(left.key, right.key));
+  const sourceIdentity = {
+    canonical: laneIdentity(canonical),
+    conflictPolicy: OH_MEMORY_CONFLICT_POLICY_V1,
+    recordRefs,
+    v: 1,
+    working: laneIdentity(working)
+  };
+  const head = Object.freeze({
+    generation: 1,
+    graphRevisionSha256: canonicalSha256({ kind: "oh.memory.composite-graph", sourceIdentity }),
+    operationSha256: canonicalSha256({ kind: "oh.memory.composite-operation", sourceIdentity }),
+    recordsSha256: canonicalSha256(recordRefs),
+    sequence: 1,
+    v: 1
+  });
+  const snapshot = createOhProjectionSnapshotV1({
+    head,
+    records: synthetic.records,
+    spaceId: "oh.memory.composite"
+  });
+  const dataset = createOhProjectionDatasetV1({
+    extractorSha256: canonicalSha256({
+      builtIn: OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1.extractorSha256,
+      extensions: extractors.map(({ extractorId, extractorSha256, relations }) => ({
+        extractorId,
+        extractorSha256,
+        relations
+      })),
+      v: 1
+    }),
+    factPackId: OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1.factPackId,
+    factPackRevision: OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1.factPackRevision,
+    facts,
+    snapshot
+  });
+  return Object.freeze({
+    conflicts: Object.freeze(conflicts),
+    dataset,
+    factPolicies,
+    snapshot,
+    sources: synthetic.sources
+  });
+}
+function mapProof(proof, sources, factPolicies) {
+  if (proof.kind === "truncated")
+    return Object.freeze({ ...proof });
+  if (proof.kind === "derived") {
+    return Object.freeze({
+      ...proof,
+      premises: Object.freeze(proof.premises.map((premise) => mapProof(premise, sources, factPolicies)))
+    });
+  }
+  const physical = proof.sources.map((source) => {
+    const mapped = sources.get(source.key);
+    if (mapped === undefined || mapped.record.recordSha256 !== source.recordSha256) {
+      throw new OhIntegrityError("A projection proof has no exact physical memory source.");
+    }
+    return mapped.physical;
+  }).sort((left, right) => compareText(canonicalJson(left), canonicalJson(right)));
+  const factPolicy = factPolicies.get(proof.relation);
+  if (factPolicy === undefined)
+    throw new OhIntegrityError("A projection proof has no memory fact policy.");
+  return Object.freeze({
+    factPolicy,
+    kind: "fact",
+    relation: proof.relation,
+    sources: Object.freeze(physical),
+    tuple: proof.tuple,
+    v: 1
+  });
+}
+function collectLanes(proof, lanes) {
+  if (proof.kind === "truncated")
+    return true;
+  if (proof.kind === "fact") {
+    for (const source of proof.sources)
+      lanes.add(source.lane);
+    return false;
+  }
+  let unknown = proof.premisesTruncated;
+  for (const premise of proof.premises)
+    unknown = collectLanes(premise, lanes) || unknown;
+  return unknown;
+}
+function publicRow(row, proofs) {
+  const lanes = new Set;
+  let unknown = row.proofsTruncated;
+  for (const proof of proofs)
+    unknown = collectLanes(proof, lanes) || unknown;
+  const premiseLanes = [...lanes].sort();
+  const premiseAuthority = unknown || premiseLanes.length === 0 ? "unknown" : premiseLanes.includes("working") ? "working" : "canonical";
+  const payload = {
+    premiseAuthority,
+    premiseLanes,
+    proofsTruncated: row.proofsTruncated,
+    supportCount: row.supportCount,
+    v: 1,
+    values: row.values
+  };
+  return Object.freeze({ ...payload, resultRowSha256: canonicalSha256(payload) });
+}
+function resolvePrograms(programs) {
+  if (programs.length < 1 || programs.length > OH_MEMORY_LIMITS_V1.maximumPrograms) {
+    throw new RangeError("Memory requires a bounded nonempty named program registry.");
+  }
+  const resolved = new Map;
+  for (const program of programs) {
+    const programId = safeCode(program.programId, 128);
+    const purpose = safeCode(program.purpose, 256);
+    const query = parseOhProjectionQueryV1(program.query);
+    const rulePack = parseOhProjectionRulePackV1(program.rulePack);
+    if (programId === null || purpose === null || query === null || rulePack === null || resolved.has(programId)) {
+      throw new TypeError("Invalid or duplicate named memory program.");
+    }
+    resolved.set(programId, immutableClone({ ...program.evaluation === undefined ? {} : { evaluation: { ...program.evaluation } }, programId, purpose, query, rulePack }));
+  }
+  return resolved;
+}
+function resolveExtractors(extractors) {
+  if (extractors.length > OH_MEMORY_LIMITS_V1.maximumExtractors) {
+    throw new RangeError("The memory domain extractor registry is too large.");
+  }
+  const claimedRelations = new Set;
+  const resolved = extractors.map((extractor) => {
+    const extractorId = safeCode(extractor.extractorId, 128);
+    const extractorSha256 = parseSha256Hex(extractor.extractorSha256);
+    if (extractorId === null || extractorSha256 === null || typeof extractor.extract !== "function" || !Array.isArray(extractor.relations) || extractor.relations.length < 1 || extractor.relations.length > OH_MEMORY_LIMITS_V1.relationsPerExtractor) {
+      throw new TypeError("Invalid memory domain fact extractor.");
+    }
+    const relations = extractor.relations.map((relation) => safeCode(relation, 128)).sort();
+    if (relations.some((relation) => relation === null || relation.startsWith("memory.") || relation.startsWith("oh.")) || new Set(relations).size !== relations.length) {
+      throw new TypeError("A memory domain fact extractor has invalid or reserved relations.");
+    }
+    for (const relation of relations) {
+      if (claimedRelations.has(relation)) {
+        throw new TypeError("Memory domain fact extractor relations must have one owner.");
+      }
+      claimedRelations.add(relation);
+    }
+    return Object.freeze({
+      extract: extractor.extract,
+      extractorId,
+      extractorSha256,
+      relations: Object.freeze(relations)
+    });
+  }).sort((left, right) => compareText(left.extractorId, right.extractorId));
+  if (new Set(resolved.map(({ extractorId }) => extractorId)).size !== resolved.length) {
+    throw new TypeError("Duplicate memory domain fact extractor ID.");
+  }
+  return Object.freeze(resolved);
+}
+function resolveNominationRoutes(routes) {
+  if (routes.length > OH_MEMORY_LIMITS_V1.maximumNominationRoutes) {
+    throw new RangeError("The memory nomination route registry is too large.");
+  }
+  const resolved = new Map;
+  for (const route of routes) {
+    const nominationId = safeCode(route.nominationId, 128);
+    const destinationPurpose = safeCode(route.destinationPurpose, 256);
+    if (nominationId === null || destinationPurpose === null || resolved.has(nominationId)) {
+      throw new TypeError("Invalid or duplicate memory nomination route.");
+    }
+    resolved.set(nominationId, Object.freeze({ destinationPurpose, nominationId }));
+  }
+  return resolved;
+}
+function parseQueryRequest(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["programId", "v"]) || value.v !== 1)
+    throw new TypeError("Invalid named memory query.");
+  const programId = safeCode(value.programId, 128);
+  if (programId === null)
+    throw new TypeError("Invalid named memory query identity.");
+  return { programId };
+}
+function parseExplainRequest(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["resultSha256", "row", "token", "v"]) || value.v !== 1 || typeof value.token !== "string" || value.token.length !== 43 || !Number.isSafeInteger(value.row) || value.row < 0) {
+    throw new TypeError("Invalid memory explanation request.");
+  }
+  const resultSha256 = parseSha256Hex(value.resultSha256);
+  if (resultSha256 === null)
+    throw new TypeError("Invalid memory explanation result identity.");
+  return { resultSha256, row: value.row, token: value.token };
+}
+function parseNominationRequest(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["nominationId", "roots", "v"]) || value.v !== 1 || !Array.isArray(value.roots) || value.roots.length < 1 || value.roots.length > OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots) {
+    throw new TypeError("Invalid memory nomination request.");
+  }
+  const nominationId = safeCode(value.nominationId, 128);
+  const roots = value.roots.map((root) => safeCode(root, 512)).sort();
+  if (nominationId === null || roots.some((root) => root === null) || new Set(roots).size !== roots.length)
+    throw new TypeError("Invalid memory nomination identity.");
+  return { nominationId, roots };
+}
+function isoInstant(date) {
+  const value = date.toISOString();
+  if (parseCanonicalInstantV1(value) === null)
+    throw new TypeError("The memory clock returned an invalid instant.");
+  return value;
+}
+function clockMilliseconds(now) {
+  const milliseconds = now().getTime();
+  if (!Number.isFinite(milliseconds))
+    throw new TypeError("The memory clock returned an invalid date.");
+  return milliseconds;
+}
+function monotonicMilliseconds(now) {
+  const milliseconds = now();
+  if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+    throw new TypeError("The memory monotonic clock returned an invalid value.");
+  }
+  return milliseconds;
+}
+async function createOhMemoryAgentV1(options) {
+  const memoryActorId = safeCode(options.actorId, 128);
+  if (memoryActorId === null)
+    throw new TypeError("Invalid host-bound memory actor ID.");
+  const canonicalStore = options.canonical.store;
+  const workingStore = options.working.store;
+  const workingCodecs = options.working.codecs;
+  const canonicalAuthorityId = authorityId(options.canonical.authorityId);
+  const workingAuthorityId = authorityId(options.working.authorityId);
+  if (canonicalAuthorityId === workingAuthorityId) {
+    throw new OhProfileError("Working and canonical memory must be distinct physical authorities.");
+  }
+  const canonicalBinding = bindingFor(canonicalStore, options.canonical.expectedBindingSha256, "canonical");
+  const workingBinding = bindingFor(workingStore, options.working.expectedBindingSha256, "working");
+  const expectedCanonicalHead = parseOhHeadV1(options.canonical.expectedHead);
+  if (expectedCanonicalHead === null)
+    throw new TypeError("Invalid pinned canonical memory head.");
+  const programs = resolvePrograms(options.programs);
+  const extractors = resolveExtractors(options.extractors ?? []);
+  const nominationRoutes = resolveNominationRoutes(options.nominationRoutes ?? []);
+  const ingress = new OhSemanticBundleIngressV1(workingStore, workingCodecs);
+  const now = options.now ?? (() => new Date);
+  const monotonicNow = options.monotonicNow ?? (() => performance.now());
+  const capabilityLifetime = options.explainCapabilityLifetimeMs ?? OH_MEMORY_LIMITS_V1.explainCapabilityLifetimeMs;
+  if (!Number.isSafeInteger(capabilityLifetime) || capabilityLifetime < 1000 || capabilityLifetime > 60 * 60 * 1000) {
+    throw new RangeError("Invalid memory explanation capability lifetime.");
+  }
+  const canonical = await readLane({
+    authorityId: canonicalAuthorityId,
+    binding: canonicalBinding,
+    store: canonicalStore
+  }, "canonical", expectedCanonicalHead);
+  const explanations = new Map;
+  let explanationBytes = 0;
+  let lastMonotonicMs = -1;
+  let lastWallClockMs = Number.NEGATIVE_INFINITY;
+  const wallClock = () => {
+    const milliseconds = clockMilliseconds(now);
+    if (milliseconds < lastWallClockMs)
+      throw new OhProfileError("The memory wall clock regressed.");
+    lastWallClockMs = milliseconds;
+    return milliseconds;
+  };
+  const monotonicClock = () => {
+    const milliseconds = monotonicMilliseconds(monotonicNow);
+    if (milliseconds < lastMonotonicMs)
+      throw new OhProfileError("The memory monotonic clock regressed.");
+    lastMonotonicMs = milliseconds;
+    return milliseconds;
+  };
+  const deleteExplanation = (token) => {
+    const stored = explanations.get(token);
+    if (stored !== undefined && explanations.delete(token))
+      explanationBytes -= stored.bytes;
+  };
+  const remember = async (value) => {
+    if (utf8ByteLength(canonicalJson(value)) > OH_MEMORY_LIMITS_V1.rememberBytes) {
+      throw new RangeError("The memory semantic bundle exceeds its canonical byte bound.");
+    }
+    if (!isPlainRecord(value) || !hasExactKeys(value, ["expectedHead", "puts", "requestId", "tombstones", "v"]) || value.v !== 1) {
+      throw new TypeError("Invalid memory remember request.");
+    }
+    const requestId = safeCode(value.requestId, 128);
+    if (requestId === null)
+      throw new TypeError("Invalid memory remember request identity.");
+    const operationId = `memory_${canonicalSha256({
+      actorId: memoryActorId,
+      bindingSha256: workingBinding.bindingSha256,
+      requestId,
+      v: 1
+    }).slice(0, 48)}`;
+    const operation = await ingress.commit({
+      actorId: memoryActorId,
+      expectedHead: value.expectedHead,
+      instant: isoInstant(new Date(wallClock())),
+      operationId,
+      puts: value.puts,
+      tombstones: value.tombstones,
+      v: 1
+    });
+    const head = {
+      generation: operation.sequence,
+      graphRevisionSha256: operation.graphRevisionSha256,
+      operationSha256: operation.operationSha256,
+      recordsSha256: operation.recordsSha256,
+      sequence: operation.sequence,
+      v: 1
+    };
+    const payload = {
+      actorId: operation.actorId,
+      authorityId: workingAuthorityId,
+      bindingSha256: workingBinding.bindingSha256,
+      head,
+      instant: operation.instant,
+      lane: "working",
+      operationSha256: operation.operationSha256,
+      requestId,
+      status: "committed",
+      v: 1
+    };
+    return immutableClone({ ...payload, receiptSha256: canonicalSha256(payload) });
+  };
+  const query = async (value) => {
+    const request = parseQueryRequest(value);
+    const program = programs.get(request.programId);
+    if (program === undefined)
+      throw new TypeError("Unknown named memory program.");
+    const working = await readLane({
+      authorityId: workingAuthorityId,
+      binding: workingBinding,
+      store: workingStore
+    }, "working");
+    const composite = createCompositeDataset(canonical, working, extractors);
+    const projection = evaluateOhProjectionV1({
+      dataset: composite.dataset,
+      ...program.evaluation === undefined ? {} : { options: program.evaluation },
+      query: program.query,
+      rulePack: program.rulePack,
+      snapshot: composite.snapshot
+    });
+    const identityPayload = {
+      canonical: laneIdentity(canonical),
+      compositeDatasetSha256: composite.dataset.datasetSha256,
+      conflictPolicy: OH_MEMORY_CONFLICT_POLICY_V1,
+      evaluationSha256: projection.identity.evaluationSha256,
+      programId: program.programId,
+      projectionSha256: projection.identity.projectionSha256,
+      purpose: program.purpose,
+      querySha256: program.query.querySha256,
+      rulePackSha256: program.rulePack.rulePackSha256,
+      v: 1,
+      working: laneIdentity(working)
+    };
+    const identity = immutableClone({
+      ...identityPayload,
+      memorySha256: canonicalSha256(identityPayload)
+    });
+    const proofs = immutableClone(projection.rows.map((row) => row.proofs.map((proof) => mapProof(proof, composite.sources, composite.factPolicies))));
+    const rows = immutableClone(projection.rows.map((row, index) => publicRow(row, proofs[index])));
+    const resultPayload = immutableClone({
+      authority: "derived",
+      conflicts: composite.conflicts,
+      identity,
+      projectionResultSha256: projection.resultSha256,
+      rows,
+      v: 1
+    });
+    const resultSha256 = canonicalSha256(resultPayload);
+    const issuedAt = wallClock();
+    const issuedAtMonotonic = monotonicClock();
+    const expiresAtMs = issuedAt + capabilityLifetime;
+    const expiresAtMonotonicMs = issuedAtMonotonic + capabilityLifetime;
+    const expiresAt = isoInstant(new Date(expiresAtMs));
+    for (const [existingToken, stored] of explanations) {
+      if (issuedAtMonotonic >= stored.expiresAtMonotonicMs)
+        deleteExplanation(existingToken);
+    }
+    const storedPayload = immutableClone({ expiresAtMonotonicMs, identity, proofs, resultSha256, rows });
+    const storedBytes = utf8ByteLength(canonicalJson(storedPayload)) + 128;
+    if (storedBytes > OH_MEMORY_LIMITS_V1.explainCapabilityEntryBytes || storedBytes > OH_MEMORY_LIMITS_V1.explainCapabilityTotalBytes) {
+      throw new RangeError("The memory explanation exceeds its retained capability bound.");
+    }
+    while (explanations.size >= OH_MEMORY_LIMITS_V1.explainCapabilities || explanationBytes + storedBytes > OH_MEMORY_LIMITS_V1.explainCapabilityTotalBytes) {
+      const oldest = explanations.keys().next().value;
+      if (oldest === undefined)
+        break;
+      deleteExplanation(oldest);
+    }
+    let token = randomBytes2(32).toString("base64url");
+    while (explanations.has(token))
+      token = randomBytes2(32).toString("base64url");
+    explanations.set(token, immutableClone({ ...storedPayload, bytes: storedBytes }));
+    explanationBytes += storedBytes;
+    const result = immutableClone({
+      ...resultPayload,
+      explainCapability: { expiresAt, token, v: 1 },
+      resultSha256
+    });
+    if (utf8ByteLength(canonicalJson(result)) > OH_MEMORY_LIMITS_V1.resultBytes) {
+      deleteExplanation(token);
+      throw new RangeError("The composite memory result exceeds its canonical byte bound.");
+    }
+    return result;
+  };
+  const explain = async (value) => {
+    const request = parseExplainRequest(value);
+    const stored = explanations.get(request.token);
+    const currentTime = monotonicClock();
+    if (stored === undefined || stored.resultSha256 !== request.resultSha256 || currentTime >= stored.expiresAtMonotonicMs) {
+      deleteExplanation(request.token);
+      throw new OhProfileError("The memory explanation capability is absent, expired, or misbound.");
+    }
+    const row = stored.rows[request.row];
+    const proofs = stored.proofs[request.row];
+    if (row === undefined || proofs === undefined)
+      throw new RangeError("The explanation row is out of bounds.");
+    const payload = {
+      authority: "derived",
+      identity: stored.identity,
+      premiseAuthority: row.premiseAuthority,
+      premiseLanes: row.premiseLanes,
+      proofs,
+      proofsTruncated: row.proofsTruncated,
+      resultRowSha256: row.resultRowSha256,
+      resultSha256: stored.resultSha256,
+      supportCount: row.supportCount,
+      v: 1,
+      values: row.values
+    };
+    return immutableClone({ ...payload, explanationSha256: canonicalSha256(payload) });
+  };
+  const nominate = async (value) => {
+    const request = parseNominationRequest(value);
+    const route = nominationRoutes.get(request.nominationId);
+    if (route === undefined)
+      throw new TypeError("Unknown named memory nomination route.");
+    const head = parseOhHeadV1(immutableClone(await workingStore.head()));
+    if (head === null)
+      throw new OhIntegrityError("The working nomination store returned an invalid head.");
+    const closure = await workingStore.exportDependencyClosure({ head: {
+      operationSha256: head.operationSha256,
+      sequence: head.sequence
+    }, roots: request.roots });
+    const verified = verifyOhDependencyClosureAgainstV1(closure, { binding: workingBinding, head });
+    if (!verified.ok)
+      throw new OhIntegrityError("The working nomination closure failed exact verification.");
+    if (canonicalJson(verified.closure.roots) !== canonicalJson(request.roots)) {
+      throw new OhIntegrityError("The working nomination closure substituted different roots.");
+    }
+    const source = Object.freeze({
+      authorityId: workingAuthorityId,
+      bindingSha256: workingBinding.bindingSha256,
+      head,
+      lane: "working",
+      v: 1
+    });
+    const payload = {
+      closure: verified.closure,
+      destinationPurpose: route.destinationPurpose,
+      nominationId: route.nominationId,
+      source,
+      status: "prepared",
+      v: 1
+    };
+    return immutableClone({ ...payload, nominationSha256: canonicalSha256(payload) });
+  };
+  return Object.freeze({ explain, nominate, query, remember });
+}
 export {
-  evaluateOhProjectionWithSussV1,
-  OH_PROJECTION_SUSS_VERSION_V1,
-  OH_PROJECTION_SUSS_ENGINE_V1
+  createOhMemoryAgentV1,
+  OH_MEMORY_LIMITS_V1,
+  OH_MEMORY_FORMAT_VERSION_V1,
+  OH_MEMORY_CONFLICT_POLICY_V1,
+  OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1
 };
