@@ -1367,6 +1367,38 @@ async function initializeSpace(client, binding) {
     throw new OhProfileError("The remote space is already bound to a different realm or profile.");
   }
 }
+async function requireExistingSpace(client, binding) {
+  const results = await client.batch([
+    { sql: BINDING_ROW_SELECT, args: [binding.spaceId] },
+    {
+      sql: `SELECT generation, graph_revision_sha256, head_operation_sha256,
+      records_sha256, sequence, contract_id FROM oh_authority_spaces WHERE space_id = ?`,
+      args: [binding.spaceId]
+    },
+    { sql: PURGE_ROW_SELECT, args: [binding.spaceId] }
+  ], "read");
+  if (results.length !== 3) {
+    throw new OhIntegrityError("The remote authority returned an incomplete existing-space proof.");
+  }
+  const [bindingResult, spaceResult, purgeResult] = results;
+  const purgeRow = purgeResult.rows[0];
+  if (purgeRow !== undefined) {
+    throw new OhPurgedSpaceError(parsePurgeReceiptRow(purgeRow, binding.spaceId, binding.bindingSha256));
+  }
+  const bindingRow = bindingResult.rows[0];
+  const spaceRow = spaceResult.rows[0];
+  if (bindingRow === undefined || spaceRow === undefined) {
+    throw new OhIntegrityError("The requested remote Oh space does not already exist.");
+  }
+  const persisted = parseBindingRow(bindingRow, binding.spaceId);
+  if (canonicalJson(persisted) !== canonicalJson(binding)) {
+    throw new OhProfileError("The remote space is bound to a different realm or profile.");
+  }
+  if (rowValue(spaceRow, "contract_id", 5) !== OH_CONTRACT_MANIFEST_V1.contractId) {
+    throw new OhIntegrityError("The existing remote space uses a different Oh contract.");
+  }
+  parseHeadRow(spaceRow);
+}
 
 class OhLibSqlStoreV1 {
   binding;
@@ -2427,20 +2459,8 @@ class OhLibSqlStoreV1 {
       this.#client.close?.();
   }
 }
-async function createOhLibSqlStoreAuthorityV1(client, options = {}) {
-  const profile = parseOhStoreProfileV1(options.profile ?? OH_CANONICAL_STORE_PROFILE_V1);
-  if (profile === null)
-    throw new TypeError("Invalid libSQL store profile.");
-  const spaceId = options.spaceId ?? "default";
-  const binding = createOhStoreBindingV1({
-    profile,
-    realmId: options.realmId ?? `realm:${spaceId}`,
-    spaceId,
-    v: 1
-  });
-  await verifyAuthoritySchema(client);
-  await initializeSpace(client, binding);
-  const authority = new OhLibSqlStoreV1(client, binding, options.closeClient ?? false);
+function bindOhLibSqlStoreAuthorityV1(client, binding, profile, closeClient) {
+  const authority = new OhLibSqlStoreV1(client, binding, closeClient);
   const store = Object.freeze({
     binding,
     changesSince: (from, changeOptions) => authority.changesSince(from, changeOptions),
@@ -2466,7 +2486,38 @@ async function createOhLibSqlStoreAuthorityV1(client, options = {}) {
   });
   return Object.freeze({ host, store });
 }
+async function createOhLibSqlStoreAuthorityV1(client, options = {}) {
+  const profile = parseOhStoreProfileV1(options.profile ?? OH_CANONICAL_STORE_PROFILE_V1);
+  if (profile === null)
+    throw new TypeError("Invalid libSQL store profile.");
+  const spaceId = options.spaceId ?? "default";
+  const binding = createOhStoreBindingV1({
+    profile,
+    realmId: options.realmId ?? `realm:${spaceId}`,
+    spaceId,
+    v: 1
+  });
+  await verifyAuthoritySchema(client);
+  await initializeSpace(client, binding);
+  return bindOhLibSqlStoreAuthorityV1(client, binding, profile, options.closeClient ?? false);
+}
+async function openExistingOhLibSqlStoreAuthorityV1(client, options = {}) {
+  const profile = parseOhStoreProfileV1(options.profile ?? OH_CANONICAL_STORE_PROFILE_V1);
+  if (profile === null)
+    throw new TypeError("Invalid libSQL store profile.");
+  const spaceId = options.spaceId ?? "default";
+  const binding = createOhStoreBindingV1({
+    profile,
+    realmId: options.realmId ?? `realm:${spaceId}`,
+    spaceId,
+    v: 1
+  });
+  await verifyAuthoritySchema(client);
+  await requireExistingSpace(client, binding);
+  return bindOhLibSqlStoreAuthorityV1(client, binding, profile, options.closeClient ?? false);
+}
 export {
+  openExistingOhLibSqlStoreAuthorityV1,
   createOhLibSqlStoreAuthorityV1,
   bootstrapOhLibSqlAuthorityV1,
   OH_LIBSQL_STORE_LIMITS_V1

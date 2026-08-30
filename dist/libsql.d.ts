@@ -39,4 +39,10 @@ export declare function bootstrapOhLibSqlAuthorityV1(client: OhLibSqlClientV1): 
 }>>;
 /** Opens a direct libSQL/Turso authority; this is not operation-log sync. */
 export declare function createOhLibSqlStoreAuthorityV1(client: OhLibSqlClientV1, options?: OhLibSqlStoreAuthorityOptionsV1): Promise<OhStoreAuthorityV1>;
+/**
+ * Opens an already-bound direct libSQL/Turso authority without creating or
+ * updating data. This seam is for separately held read or purge custody that
+ * must fail closed instead of acquiring space-creation authority.
+ */
+export declare function openExistingOhLibSqlStoreAuthorityV1(client: OhLibSqlClientV1, options?: OhLibSqlStoreAuthorityOptionsV1): Promise<OhStoreAuthorityV1>;
 //# sourceMappingURL=libsql.d.ts.map

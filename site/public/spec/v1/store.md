@@ -69,6 +69,13 @@ Run it in a deployment or migration step with a short-lived schema credential.
 installed schema and contract before reading or creating a bound data space,
 so a runtime token does not need schema-change permission.
 
+`openExistingOhLibSqlStoreAuthorityV1` is the least-privilege open for a
+separately held reader or purge worker. It verifies the same exact schema,
+contract, space head, and binding using reads only. It rejects a missing,
+purged, or differently bound space and never inserts, updates, or deletes data
+during open. A provider credential can therefore omit space and binding
+creation while retaining only the data actions required by its later task.
+
 Runtime open verifies the exact installed table, index, and trigger set, not
 only a schema marker. Every operation, binding, and purge receipt read parses
 its canonical JSON and cross-checks each duplicated SQL column. Current reads
