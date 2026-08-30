@@ -30,7 +30,7 @@ oh --help
 oh version
 ```
 
-The supported CLI is `@hraness/oh@0.2.2` from the immutable `v0.2.2` GitHub
+The supported CLI is `@hraness/oh@0.2.3` from the immutable `v0.2.3` GitHub
 tag. It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
@@ -184,6 +184,19 @@ fact-policy, and premise-authority labels in query output. Treat every result
 as derived. A nomination may select only a host-registered route and is a
 prepared dependency-closure candidate for destination-owned review, not
 permission to write durable knowledge or import the working operation chain.
+
+Use `createOhMemoryAgentV2` only when the host has registered primitive
+query-body parameters and fixed all projection, row, page, and page-byte
+limits. Expose only the exact bindings object, program ID, and continuation to
+the model. Do not expose parameter declarations, page size, or evaluator
+options as tool input. Follow `hasMore` until the continuation is `null`, and
+restart the named query after an integrity error; never combine pages across a
+working-head change. A V2 `query-limit` or `result-bytes` condition is a failed
+query, not a partial answer. Treat each continuation as a bearer cursor: pass
+it back unchanged only to the exact query and do not log or edit it. If the
+host reconstructs the facade or routes across replicas, it must provide the
+same private 32 through 64 byte `continuationKey` in host options; never expose
+that key as tool input. Keep row-level `proofsTruncated` evidence visible.
 
 ## Finish with evidence
 

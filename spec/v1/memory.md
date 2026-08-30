@@ -70,6 +70,85 @@ silently canonical. Returned result, row, value, proof, source, and receipt
 graphs are detached and deeply immutable, so a caller cannot mutate bytes after
 their digest or explanation capability is issued.
 
+## Additive parameterized pagination (V2 experimental API)
+
+`createOhMemoryAgentV2` is an additive experimental query surface. It does not
+change a V1 request, result, digest preimage, factory, or type. Its `remember`
+and `nominate` methods continue to use the V1 semantic-bundle and nomination
+contracts. Only its `query` and `explain` envelopes use V2.
+
+A V2 named program is still entirely host-owned. In addition to the fixed
+purpose, rule pack, query, and extractor registry, the host declares:
+
+- the exact query-body variables that may receive parameters;
+- every projection evaluation limit;
+- the maximum complete result row count;
+- a page size of at most 256 rows; and
+- a canonical byte ceiling for each outward page.
+
+The host query limit MUST equal the declared maximum row count. A parameter
+variable MUST occur in the query body and MUST NOT be a projected output
+variable. Agent input supplies one exact object of bounded JSON primitive
+values for those names plus a program ID and either `null` or a continuation.
+It cannot supply a purpose, rule, query AST, evaluator option, page size, or
+source selector. Binding substitutes constants only into the fixed query body;
+the rules and projected output remain the registered program.
+
+The V2 identity includes the canonical bindings and their digest, the template
+and bound query digests, the complete program digest, and the same physical
+source and projection identities as V1. Thus a parameter value is part of both
+the projection identity and the memory identity, not an unrecorded filter.
+This supports a host extractor that emits bounded primitive value chunks while
+a named program binds `lane` and `key` and projects only chunk position and
+chunk content. Each chunk remains subject to the V1 16 KiB atom limit and the
+extractor's existing count and source rules.
+
+The evaluator computes one canonical, ordered result no larger than the
+host-declared row limit before it selects a page. A projection `query-limit` or
+`result-bytes` truncation returns no page. The outward page reports its start,
+end, configured and returned row counts, total rows, `hasMore`, `complete` or
+`partial` status, and explicit empty truncation evidence. Its configured slice
+must fit the host-declared page byte ceiling; the facade fails closed instead
+of silently shortening the slice. Every returned page therefore has
+`truncation.truncated: false`; `partial` means more exact pages exist, not that
+the projection is incomplete. Proof-budget truncation remains visible on
+the affected row as `proofsTruncated` and yields `unknown` premise authority,
+as in V1.
+
+A continuation is an authenticated bearer cursor, not knowledge authority. Its
+canonical envelope contains an unsigned cursor identity, a public
+`continuationSha256` digest of that identity, and a domain-separated
+HMAC-SHA-256. The identity binds the next offset to the exact program, bindings,
+complete projection result, page size, total row count, and composite memory
+identity. The HMAC makes only host-issued offsets usable; recomputing the public
+digest does not issue a cursor. The envelope is authenticated, not encrypted,
+and the same token can be replayed for the same exact page.
+
+By default the facade generates a private random continuation key, so its
+cursors are scoped to that facade instance. A host that must reconstruct the
+facade or route a cursor to another replica supplies the same 32 through 64 raw
+key bytes through `continuationKey`; the factory clones those bytes. The host
+keeps that key out of agent input and persisted results. Changing the key
+invalidates outstanding cursors.
+
+The request parser first establishes an exact shallow envelope, a bounded
+primitive binding map, and bounded strings before canonical serialization.
+After resolving the registered program and exact bindings, it authenticates a
+continuation and checks its program, binding, page-size, range, and alignment
+before reading the working store, invoking extractors, evaluating rules, or
+mapping proofs. Every valid continued call then rereads the current working
+head and rebuilds the projection. A head, source, result, or row-count change
+fails with an integrity error before proof mapping rather than mixing pages
+from two snapshots.
+
+An outward result publishes `continuationSha256` beside the opaque token, or
+`null` beside `null` on the final page. `resultSha256` commits that deterministic
+digest instead of the key-dependent token, so the same exact result identity is
+stable across signing keys. The actual token still counts toward the outward
+page-byte ceiling. A V2 explanation capability retains only its exact outward
+page and mapped physical proofs, and requires that page's result digest and
+page-local row index.
+
 ## Explanations and nominations
 
 Query returns an opaque, random, short-lived explanation capability bound to
