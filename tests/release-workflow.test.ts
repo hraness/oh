@@ -28,7 +28,6 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
     "id-token: write",
     "contents: write",
     "check-npm-trusted-publishing.ts",
-    "verify-release-authority.ts",
     "publish-npm-release.ts artifacts/*.tgz",
     'publish-github-release.ts "$VERIFIED_TAG" artifacts/*.tgz artifacts/SHA256SUMS',
     "check-public-release.ts",
@@ -45,6 +44,14 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
   expect(npmJob).not.toContain("contents: write");
   expect(githubJob).toContain("contents: write");
   expect(githubJob).not.toContain("id-token: write");
+  const githubPublicationMarker = "      - name: Create and prove immutable GitHub Release from the exact bytes";
+  const githubPublicationOffset = githubJob.indexOf(githubPublicationMarker);
+  expect(githubPublicationOffset).toBeGreaterThan(0);
+  expect(githubJob.slice(0, githubPublicationOffset)).not.toContain("GH_TOKEN");
+  expect(githubJob.slice(githubPublicationOffset)).toContain(
+    "env:\n          GH_TOKEN: ${{ github.token }}\n        run: bun run ./scripts/publish-github-release.ts",
+  );
+  expect(githubJob.match(/GH_TOKEN/gu)).toHaveLength(1);
   expect(githubJob).not.toContain("bun install");
   expect(npmJob).not.toContain("bun install");
   expect(npmJob).not.toContain("GH_TOKEN");
@@ -162,4 +169,6 @@ test("release controls have explicit ownership and document the public MIT bound
   expect(guide).toContain("non-Latest `legacy`");
   expect(guide).toContain("npm trust github @hraness/oh --repo hraness/oh --file release.yml");
   expect(guide).toContain("every later publication must use the tag");
+  expect(guide).toContain("privileged job's trusted computing base");
+  expect(guide).toContain("npm OIDC permission is job-scoped");
 });

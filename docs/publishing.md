@@ -80,10 +80,18 @@ Release creation, and again during public admission.
 Neither irreversible writer runs dependency installation. Workflow artifacts
 are selected by the immutable artifact IDs emitted by this exact run, including
 a separate reviewed dependency-free npm-writer artifact; names alone are never
-authority. No job receives both npm OIDC publication authority and GitHub
-Release write authority. Initial and later authority accept only the same
-reviewed release commit remaining an ancestor of current `main`, while the
-annotated tag remains exact.
+authority. Dependency-free does not mean the repository writer is the only code
+in a privileged job's trusted computing base. The GitHub writer also trusts the
+SHA-pinned checkout, Bun setup, and artifact-download actions; the npm writer
+trusts the SHA-pinned Bun setup, Node setup, and artifact-download actions. The
+explicit `GH_TOKEN` environment variable is withheld from the job and supplied
+only to the publication step, whose reviewed publisher rechecks remote tag and
+branch authority before and after mutation. npm OIDC permission is job-scoped,
+so its setup and download action pins remain release-control changes even though
+the writer receives no GitHub token or traditional npm credential. No job
+receives both npm OIDC publication authority and GitHub Release write authority.
+Initial and later authority accept only the same reviewed release commit
+remaining an ancestor of current `main`, while the annotated tag remains exact.
 The workflow uses no npm token, GitHub App credential, deployment credential,
 or private-data source. If an npm version already exists, publication succeeds
 only when its immutable bytes and trusted-publisher provenance are exact. A
