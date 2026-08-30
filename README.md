@@ -40,7 +40,7 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 current immutable release directly from GitHub:
 
 ```sh
-bun add --global github:hraness/oh#v0.2.0
+bun add --global github:hraness/oh#v0.2.1
 oh --help
 ```
 
@@ -100,7 +100,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "github:hraness/oh#v0.2.0"
+    "@hraness/oh": "github:hraness/oh#v0.2.1"
   }
 }
 ```
@@ -162,6 +162,7 @@ import { createClient } from "@libsql/client";
 import {
   bootstrapOhLibSqlAuthorityV1,
   createOhLibSqlStoreAuthorityV1,
+  openExistingOhLibSqlStoreAuthorityV1,
 } from "@hraness/oh/libsql";
 import { OH_WORKING_STORE_PROFILE_V1 } from "@hraness/oh/store";
 
@@ -186,6 +187,21 @@ const authority = await createOhLibSqlStoreAuthorityV1(runtimeClient, {
 
 const store = authority.store;
 console.log(await store.head());
+
+// A separately held purge worker can fail closed unless the exact binding
+// already exists. Opening performs reads only; it cannot create a space.
+const purgeClient = createClient({
+  authToken: process.env.OH_PURGE_TOKEN!,
+  url: process.env.OH_DATABASE_URL!,
+});
+const existing = await openExistingOhLibSqlStoreAuthorityV1(purgeClient, {
+  profile: OH_WORKING_STORE_PROFILE_V1,
+  realmId: "tenant:example/thread:research",
+  spaceId: "thread:research",
+});
+await existing.host.purgeWorkingSpace({});
+await existing.store.close();
+purgeClient.close();
 ```
 
 The working profile disables operation replication. Dependency-closure export
@@ -451,7 +467,7 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install hraness/oh and its Oh Agent Skill from the immutable v0.2.0 tag at
+Install hraness/oh and its Oh Agent Skill from the immutable v0.2.1 tag at
 https://github.com/hraness/oh. Verify the CLI with `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

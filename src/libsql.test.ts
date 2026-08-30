@@ -7,6 +7,7 @@ import {
   bootstrapOhLibSqlAuthorityV1,
   createOhLibSqlStoreAuthorityV1,
   OH_LIBSQL_STORE_LIMITS_V1,
+  openExistingOhLibSqlStoreAuthorityV1,
   type OhLibSqlClientV1,
   type OhLibSqlResultV1,
   type OhLibSqlStatementV1,
@@ -112,6 +113,68 @@ describe("direct libSQL Oh authority", () => {
     expect((await authority.store.head()).sequence).toBe(0);
     await authority.store.close();
     schemaClient.close();
+  });
+
+  test("opens existing purge custody without acquiring space-creation authority", async () => {
+    const provider = await bootstrappedClient();
+    const created = await createOhLibSqlStoreAuthorityV1(provider, {
+      profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:existing-only",
+      spaceId: "existing-only",
+    });
+    await created.store.commit({
+      actorId: "host.existing-only",
+      changes: [{ kind: "put", record: entity("entity:private", "Private"), v: 1 }],
+      expectedHead: await created.store.head(),
+      operationId: "op_existing_only",
+    });
+    await created.store.close();
+
+    const observed: string[] = [];
+    const forbidCreation = (statement: OhLibSqlStatementV1 | string): void => {
+      const sql = typeof statement === "string" ? statement : statement.sql;
+      observed.push(sql);
+      if (/\bINSERT\s+INTO\s+oh_authority_(?:spaces|bindings)\b/iu.test(sql)) {
+        throw new Error("existing-only credential cannot create a space or binding");
+      }
+    };
+    const existingOnlyClient: OhLibSqlClientV1 = {
+      execute: async (statement) => {
+        forbidCreation(statement);
+        return await provider.execute(statement);
+      },
+      batch: async (statements, mode) => {
+        statements.forEach(forbidCreation);
+        return await provider.batch(statements, mode);
+      },
+    };
+
+    await expect(openExistingOhLibSqlStoreAuthorityV1(existingOnlyClient, {
+      profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:missing-existing-only",
+      spaceId: "missing-existing-only",
+    })).rejects.toThrow(OhIntegrityError);
+    await expect(openExistingOhLibSqlStoreAuthorityV1(existingOnlyClient, {
+      profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:different",
+      spaceId: "existing-only",
+    })).rejects.toThrow(OhProfileError);
+
+    observed.length = 0;
+    const authority = await openExistingOhLibSqlStoreAuthorityV1(existingOnlyClient, {
+      profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:existing-only",
+      spaceId: "existing-only",
+    });
+    expect((await authority.store.head()).sequence).toBe(1);
+    expect(observed.every((sql) => /^\s*SELECT\b/iu.test(sql))).toBe(true);
+    await authority.host.purgeWorkingSpace({ purgedAt: "2026-08-30T01:00:00.000Z" });
+    expect(observed.some((sql) => /\bINSERT\s+INTO\s+oh_authority_purges\b/iu.test(sql)))
+      .toBe(true);
+    expect(observed.some((sql) =>
+      /\bINSERT\s+INTO\s+oh_authority_(?:spaces|bindings)\b/iu.test(sql))).toBe(false);
+    await authority.store.close();
+    provider.close();
   });
 
   test("is an async authoritative store rather than an operation-sync cache", async () => {
