@@ -21,6 +21,7 @@ const markdownFiles = [
   "SECURITY.md",
   "CONTRIBUTING.md",
   "AGENTS.md",
+  "docs/publishing.md",
   "spec/README.md",
   "spec/v1/canonical-json.md",
   "spec/v1/ontology.md",
@@ -59,8 +60,11 @@ const publicSourceEntries = [
   "package.json",
   "tsconfig.json",
   "tsconfig.build.json",
+  "tsconfig.scripts.json",
   ".github",
+  "docs",
   "dist",
+  "scripts",
   "spec",
   "skills/oh",
   "src",
@@ -158,6 +162,11 @@ describe("public identity and documentation", () => {
     expect(packageJson.homepage).toBe("https://oh.computer");
     expect(packageJson.license).toBe("MIT");
     expect(packageJson.private).toBe(false);
+    expect(packageJson.publishConfig).toEqual({
+      access: "public",
+      provenance: true,
+      registry: "https://registry.npmjs.org",
+    });
     expect(packageJson.packageManager).toBe("bun@1.3.14");
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
@@ -417,20 +426,29 @@ describe("repository policy", () => {
     }
   });
 
-  test("verifies immutable publications without mutating releases", async () => {
+  test("publishes one exact OIDC-provenance artifact set through immutable releases", async () => {
     const workflow = await readFile(join(root, ".github/workflows/release.yml"), "utf8");
-    const postcheck = workflow.indexOf(".immutable == true");
-    const packageCheck = workflow.indexOf("bun pm pack --dry-run --ignore-scripts");
-    expect(workflow).toContain("types: [published]");
+    const packageBuild = workflow.indexOf("npm pack --ignore-scripts --pack-destination artifacts .");
+    const exactInstall = workflow.indexOf("package-smoke.ts artifacts/*.tgz");
+    const npmPublish = workflow.indexOf("publish-npm-release.ts artifacts/*.tgz");
+    const githubPublish = workflow.indexOf("publish-github-release.ts");
+    const admission = workflow.indexOf("check-public-release.ts");
+    expect(workflow).toContain('tags:\n      - "v*"');
     expect(workflow).toContain("contents: read");
-    expect(postcheck).toBeGreaterThan(packageCheck);
-    expect(workflow).toContain("X-GitHub-Api-Version: 2026-03-10");
-    expect(workflow).toContain("GH_TOKEN: ${{ github.token }}");
+    expect(workflow).toContain("id-token: write");
+    expect(workflow).toContain("matrix:\n        os: [ubuntu-24.04, macos-14]");
+    expect(workflow).toContain("release-artifact-checksum.ts write");
+    expect(workflow).toContain("release-artifact-checksum.ts check");
+    expect(workflow).toContain("git cat-file -t \"$REQUESTED_TAG\"");
+    expect(workflow).toContain("Release tag commit is not a reviewed ancestor of current $DEFAULT_BRANCH");
+    expect(packageBuild).toBeGreaterThan(0);
+    expect(exactInstall).toBeGreaterThan(packageBuild);
+    expect(npmPublish).toBeGreaterThan(exactInstall);
+    expect(npmPublish).toBeGreaterThan(githubPublish);
+    expect(admission).toBeGreaterThan(githubPublish);
     expect(workflow).not.toMatch(/\$\{\{\s*secrets\./u);
-    expect(workflow).not.toContain("contents: write");
-    expect(workflow).not.toMatch(/\bgh\s+release\b/iu);
-    expect(workflow).not.toMatch(/(?:--method|-X)\s*(?:DELETE|PATCH|POST|PUT)\b/iu);
-    expect([...workflow.matchAll(/\bgh api\b/gu)]).toHaveLength(1);
+    expect(workflow.match(/^\s+contents: write$/gmu)).toHaveLength(1);
+    expect(workflow.match(/^\s+id-token: write$/gmu)).toHaveLength(1);
   });
 
   test("keeps the public root guide to its two required sections", async () => {
