@@ -18,6 +18,7 @@ import {
   createOhStoreBindingV1,
   emptyOhHeadV1,
   OH_CANONICAL_STORE_PROFILE_V1,
+  OH_WORKING_STORE_PROFILE_V1,
   OhConflictError,
   OhIntegrityError,
   OhProfileError,
@@ -86,6 +87,8 @@ const PURGE_ROW_SELECT = `SELECT space_id, binding_sha256, prior_operation_sha25
   FROM oh_authority_purges WHERE space_id = ?`;
 const BINDING_ROW_SELECT = `SELECT space_id, realm_id, profile_id, profile_kind,
   profile_sha256, binding_sha256, binding_json FROM oh_authority_bindings WHERE space_id = ?`;
+const SPACE_PURGE_PROOF_SELECT = `SELECT generation, graph_revision_sha256, head_operation_sha256,
+  records_sha256, sequence, contract_id FROM oh_authority_spaces WHERE space_id = ?`;
 const OPERATION_ROW_COLUMNS = `operation_sha256, space_id, sequence, operation_id,
   parent_operation_sha256, graph_revision_sha256, records_sha256, operation_json, instant`;
 // libSQL serializes text again in its JSON response. Twice the UTF-8 text plus all
@@ -536,6 +539,44 @@ async function requireExistingSpace(
     throw new OhIntegrityError("The existing remote space uses a different Oh contract.");
   }
   parseHeadRow(spaceRow);
+}
+
+const PURGE_PAYLOAD_TABLES = ["oh_authority_spaces", "oh_authority_bindings",
+  "oh_authority_operations", "oh_authority_operation_records", "oh_authority_records",
+  "oh_authority_dependencies"] as const;
+
+async function assertRemotePurgeComplete(
+  client: OhLibSqlClientV1,
+  binding: OhStoreBindingV1,
+  expected: OhSpacePurgeReceiptV1,
+): Promise<void> {
+  const results = await client.batch([
+    { sql: PURGE_ROW_SELECT, args: [binding.spaceId] },
+    ...PURGE_PAYLOAD_TABLES.map((table) => ({
+      sql: `SELECT count(*) AS count FROM ${table} WHERE space_id = ?`,
+      args: [binding.spaceId],
+    })),
+    { sql: `SELECT count(*) AS count FROM oh_authority_operation_records AS materialized
+      LEFT JOIN oh_authority_operations AS operation
+        ON operation.operation_sha256 = materialized.operation_sha256
+      WHERE operation.operation_sha256 IS NULL OR operation.space_id <> materialized.space_id` },
+  ], "read");
+  const receiptRow = results[0]?.rows[0];
+  if (receiptRow === undefined
+    || canonicalJson(parsePurgeReceiptRow(receiptRow, binding.spaceId,
+      binding.bindingSha256)) !== canonicalJson(expected)) {
+    throw new OhIntegrityError("The remote purge receipt differs from the requested purge.");
+  }
+  for (let index = 0; index < PURGE_PAYLOAD_TABLES.length; index += 1) {
+    const countRow = results[index + 1]?.rows[0];
+    if (countRow === undefined || integer(rowValue(countRow, "count", 0)) !== 0) {
+      throw new OhIntegrityError(`Remote purge left rows in ${PURGE_PAYLOAD_TABLES[index]}.`);
+    }
+  }
+  const orphanRow = results[PURGE_PAYLOAD_TABLES.length + 1]?.rows[0];
+  if (orphanRow === undefined || integer(rowValue(orphanRow, "count", 0)) !== 0) {
+    throw new OhIntegrityError("Remote purge left an orphaned or cross-space operation record.");
+  }
 }
 
 class OhLibSqlStoreV1 implements OhStoreV1 {
@@ -1371,34 +1412,7 @@ class OhLibSqlStoreV1 implements OhStoreV1 {
   }
 
   async #assertPurgeComplete(expected: OhSpacePurgeReceiptV1): Promise<void> {
-    const tables = ["oh_authority_spaces", "oh_authority_bindings", "oh_authority_operations",
-      "oh_authority_operation_records", "oh_authority_records", "oh_authority_dependencies"] as const;
-    const results = await this.#client.batch([
-      { sql: PURGE_ROW_SELECT,
-        args: [this.binding.spaceId] },
-      ...tables.map((table) => ({ sql: `SELECT count(*) AS count FROM ${table} WHERE space_id = ?`,
-        args: [this.binding.spaceId] })),
-      { sql: `SELECT count(*) AS count FROM oh_authority_operation_records AS materialized
-        LEFT JOIN oh_authority_operations AS operation
-          ON operation.operation_sha256 = materialized.operation_sha256
-        WHERE operation.operation_sha256 IS NULL OR operation.space_id <> materialized.space_id` },
-    ], "read");
-    const receiptRow = results[0]?.rows[0];
-    if (receiptRow === undefined
-      || canonicalJson(parsePurgeReceiptRow(receiptRow, this.binding.spaceId,
-        this.binding.bindingSha256)) !== canonicalJson(expected)) {
-      throw new OhIntegrityError("The remote purge receipt differs from the requested purge.");
-    }
-    for (let index = 0; index < tables.length; index += 1) {
-      const countRow = results[index + 1]?.rows[0];
-      if (countRow === undefined || integer(rowValue(countRow, "count", 0)) !== 0) {
-        throw new OhIntegrityError(`Remote purge left rows in ${tables[index]}.`);
-      }
-    }
-    const orphanRow = results[tables.length + 1]?.rows[0];
-    if (orphanRow === undefined || integer(rowValue(orphanRow, "count", 0)) !== 0) {
-      throw new OhIntegrityError("Remote purge left an orphaned or cross-space operation record.");
-    }
+    await assertRemotePurgeComplete(this.#client, this.binding, expected);
   }
 
   async purgeWorkingSpace(purgedAt: string): Promise<OhSpacePurgeReceiptV1> {
@@ -1549,4 +1563,125 @@ export async function openExistingOhLibSqlStoreAuthorityV1(
   await verifyAuthoritySchema(client);
   await requireExistingSpace(client, binding);
   return bindOhLibSqlStoreAuthorityV1(client, binding, profile, options.closeClient ?? false);
+}
+
+/**
+ * Purges an existing working authority or atomically fences its exact binding
+ * when creation never completed. The empty-space receipt prevents a delayed
+ * creator from resurrecting abandoned custody without granting the purge
+ * credential permission to create a space or binding.
+ */
+export async function purgeOhLibSqlWorkingSpaceV1(
+  client: OhLibSqlClientV1,
+  options: OhLibSqlStoreAuthorityOptionsV1 & Readonly<{ purgedAt?: string }> = {},
+): Promise<OhSpacePurgeReceiptV1> {
+  const closeClient = options.closeClient ?? false;
+  try {
+    const profile = parseOhStoreProfileV1(options.profile ?? OH_WORKING_STORE_PROFILE_V1);
+    if (profile === null) throw new TypeError("Invalid libSQL store profile.");
+    if (profile.profileKind !== "working" || !profile.capabilities.wholeSpacePurge) {
+      throw new OhProfileError("Whole-space purge requires a bound working profile.");
+    }
+    const spaceId = options.spaceId ?? "default";
+    const binding = createOhStoreBindingV1({ profile,
+      realmId: options.realmId ?? `realm:${spaceId}`, spaceId, v: 1 });
+    const purgedAt = options.purgedAt ?? canonicalNow();
+    await verifyAuthoritySchema(client);
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const proof = await client.batch([
+        { sql: BINDING_ROW_SELECT, args: [binding.spaceId] },
+        { sql: SPACE_PURGE_PROOF_SELECT, args: [binding.spaceId] },
+        { sql: PURGE_ROW_SELECT, args: [binding.spaceId] },
+      ], "read");
+      if (proof.length !== 3) {
+        throw new OhIntegrityError("The remote authority returned an incomplete purge proof.");
+      }
+      const [bindingResult, spaceResult, purgeResult] = proof as
+        [OhLibSqlResultV1, OhLibSqlResultV1, OhLibSqlResultV1];
+      const existingPurge = purgeResult.rows[0];
+      if (existingPurge !== undefined) {
+        const receipt = parsePurgeReceiptRow(existingPurge, binding.spaceId, binding.bindingSha256);
+        await assertRemotePurgeComplete(client, binding, receipt);
+        return receipt;
+      }
+      const bindingRow = bindingResult.rows[0];
+      const spaceRow = spaceResult.rows[0];
+      if ((bindingRow === undefined) !== (spaceRow === undefined)) {
+        throw new OhIntegrityError("The remote authority has only half of its space binding.");
+      }
+      if (bindingRow !== undefined && spaceRow !== undefined) {
+        const persisted = parseBindingRow(bindingRow, binding.spaceId);
+        if (canonicalJson(persisted) !== canonicalJson(binding)) {
+          throw new OhProfileError("The remote space is bound to a different realm or profile.");
+        }
+        if (rowValue(spaceRow, "contract_id", 5) !== OH_CONTRACT_MANIFEST_V1.contractId) {
+          throw new OhIntegrityError("The existing remote space uses a different Oh contract.");
+        }
+        parseHeadRow(spaceRow);
+        const authority = new OhLibSqlStoreV1(client, binding, false);
+        return await authority.purgeWorkingSpace(purgedAt);
+      }
+
+      const receipt = createOhSpacePurgeReceiptV1({
+        binding,
+        priorHead: emptyOhHeadV1(),
+        purgedAt,
+      });
+      const receiptJson = canonicalJson(receipt);
+      try {
+        await client.batch([
+          { sql: `INSERT INTO oh_authority_purges(space_id, binding_sha256,
+            prior_operation_sha256, prior_sequence, purged_at, receipt_sha256, receipt_json)
+            SELECT ?, ?, NULL, 0, ?, ?, ?
+            WHERE NOT EXISTS (SELECT 1 FROM oh_authority_spaces WHERE space_id = ?)
+              AND NOT EXISTS (SELECT 1 FROM oh_authority_bindings WHERE space_id = ?)
+            ON CONFLICT(space_id) DO NOTHING`,
+          args: [binding.spaceId, binding.bindingSha256, receipt.purgedAt,
+            receipt.receiptSha256, receiptJson, binding.spaceId, binding.spaceId] },
+          { sql: `INSERT INTO oh_authority_commit_guards(value)
+            SELECT 'invalid' WHERE EXISTS (SELECT 1 FROM oh_authority_spaces WHERE space_id = ?)
+              OR EXISTS (SELECT 1 FROM oh_authority_bindings WHERE space_id = ?)
+              OR EXISTS (SELECT 1 FROM oh_authority_operations WHERE space_id = ?)
+              OR EXISTS (SELECT 1 FROM oh_authority_operation_records WHERE space_id = ?)
+              OR EXISTS (SELECT 1 FROM oh_authority_records WHERE space_id = ?)
+              OR EXISTS (SELECT 1 FROM oh_authority_dependencies WHERE space_id = ?)
+              OR EXISTS (SELECT 1 FROM oh_authority_operation_records AS materialized
+                LEFT JOIN oh_authority_operations AS operation
+                  ON operation.operation_sha256 = materialized.operation_sha256
+                WHERE operation.operation_sha256 IS NULL
+                  OR operation.space_id <> materialized.space_id)
+              OR NOT EXISTS (SELECT 1 FROM oh_authority_purges
+                WHERE space_id = ? AND receipt_sha256 = ?)`,
+          args: [binding.spaceId, binding.spaceId, binding.spaceId, binding.spaceId,
+            binding.spaceId, binding.spaceId, binding.spaceId, receipt.receiptSha256] },
+        ], "write");
+      } catch (error) {
+        const recovery = await client.batch([
+          { sql: BINDING_ROW_SELECT, args: [binding.spaceId] },
+          { sql: SPACE_PURGE_PROOF_SELECT, args: [binding.spaceId] },
+          { sql: PURGE_ROW_SELECT, args: [binding.spaceId] },
+        ], "read");
+        if (recovery.length !== 3) {
+          throw new OhIntegrityError("The remote authority returned an incomplete purge recovery proof.");
+        }
+        const raced = recovery[2]?.rows[0];
+        if (raced !== undefined) {
+          const persisted = parsePurgeReceiptRow(raced, binding.spaceId, binding.bindingSha256);
+          await assertRemotePurgeComplete(client, binding, persisted);
+          return persisted;
+        }
+        if (recovery[0]?.rows[0] !== undefined || recovery[1]?.rows[0] !== undefined) continue;
+        throw error;
+      }
+      const persisted = await queryOne(client, { sql: PURGE_ROW_SELECT, args: [binding.spaceId] });
+      if (persisted === null) continue;
+      const exact = parsePurgeReceiptRow(persisted, binding.spaceId, binding.bindingSha256);
+      await assertRemotePurgeComplete(client, binding, exact);
+      return exact;
+    }
+    throw new OhConflictError("The remote working space changed repeatedly while fencing purge.");
+  } finally {
+    if (closeClient) client.close?.();
+  }
 }

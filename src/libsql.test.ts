@@ -8,6 +8,7 @@ import {
   createOhLibSqlStoreAuthorityV1,
   OH_LIBSQL_STORE_LIMITS_V1,
   openExistingOhLibSqlStoreAuthorityV1,
+  purgeOhLibSqlWorkingSpaceV1,
   type OhLibSqlClientV1,
   type OhLibSqlResultV1,
   type OhLibSqlStatementV1,
@@ -174,6 +175,136 @@ describe("direct libSQL Oh authority", () => {
     expect(observed.some((sql) =>
       /\bINSERT\s+INTO\s+oh_authority_(?:spaces|bindings)\b/iu.test(sql))).toBe(false);
     await authority.store.close();
+    provider.close();
+  });
+
+  test("fences an authority that was abandoned before creation without creating it", async () => {
+    const provider = await bootstrappedClient();
+    const observed: string[] = [];
+    const purgeOnlyClient: OhLibSqlClientV1 = {
+      execute: async (statement) => {
+        const sql = typeof statement === "string" ? statement : statement.sql;
+        observed.push(sql);
+        if (/\bINSERT\s+INTO\s+oh_authority_(?:spaces|bindings)\b/iu.test(sql)) {
+          throw new Error("purge custody cannot create a space or binding");
+        }
+        return await provider.execute(statement);
+      },
+      batch: async (statements, mode) => {
+        for (const statement of statements) {
+          observed.push(statement.sql);
+          if (/\bINSERT\s+INTO\s+oh_authority_(?:spaces|bindings)\b/iu.test(statement.sql)) {
+            throw new Error("purge custody cannot create a space or binding");
+          }
+        }
+        return await provider.batch(statements, mode);
+      },
+    };
+    const options = {
+      profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:abandoned-before-create",
+      spaceId: "abandoned-before-create",
+    } as const;
+    const receipt = await purgeOhLibSqlWorkingSpaceV1(purgeOnlyClient, {
+      ...options,
+      purgedAt: "2026-08-30T02:30:00.000Z",
+    });
+    expect(receipt.priorHead.sequence).toBe(0);
+    expect(observed.some((sql) => /\bINSERT\s+INTO\s+oh_authority_purges\b/iu.test(sql))).toBe(true);
+    expect(observed.some((sql) => /\bINSERT\s+INTO\s+oh_authority_(?:spaces|bindings)\b/iu.test(sql)))
+      .toBe(false);
+    expect(await purgeOhLibSqlWorkingSpaceV1(purgeOnlyClient, {
+      ...options,
+      purgedAt: "2026-08-30T02:31:00.000Z",
+    })).toEqual(receipt);
+    await expect(createOhLibSqlStoreAuthorityV1(provider, options)).rejects.toMatchObject({
+      receipt,
+    });
+    provider.close();
+  });
+
+  test("arbitrates a concurrent late creator into a complete purge", async () => {
+    const provider = await bootstrappedClient();
+    const options = {
+      profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:late-creator",
+      spaceId: "late-creator",
+    } as const;
+    let raced = false;
+    const racingPurgeClient: OhLibSqlClientV1 = {
+      execute: async (statement) => await provider.execute(statement),
+      batch: async (statements, mode) => {
+        if (!raced && statements.some((statement) =>
+          /\bINSERT\s+INTO\s+oh_authority_purges\b/iu.test(statement.sql))) {
+          raced = true;
+          const created = await createOhLibSqlStoreAuthorityV1(provider, options);
+          await created.store.close();
+        }
+        return await provider.batch(statements, mode);
+      },
+    };
+    const receipt = await purgeOhLibSqlWorkingSpaceV1(racingPurgeClient, {
+      ...options,
+      purgedAt: "2026-08-30T02:32:00.000Z",
+    });
+    expect(raced).toBe(true);
+    expect(receipt.priorHead.sequence).toBe(0);
+    await expect(openExistingOhLibSqlStoreAuthorityV1(provider, options))
+      .rejects.toBeInstanceOf(OhPurgedSpaceError);
+    expect(provider.database.query<{ count: number }, [string]>(`SELECT count(*) AS count
+      FROM oh_authority_spaces WHERE space_id = ?`).get(options.spaceId)?.count).toBe(0);
+    provider.close();
+  });
+
+  test("recovers from a failed fence with one atomic concurrent-purge proof", async () => {
+    const provider = await bootstrappedClient();
+    const options = {
+      profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: "realm:concurrent-purge-recovery",
+      spaceId: "concurrent-purge-recovery",
+    } as const;
+    let writeFailed = false;
+    let concurrentReceipt: Awaited<ReturnType<typeof purgeOhLibSqlWorkingSpaceV1>> | null = null;
+    const racingPurgeClient: OhLibSqlClientV1 = {
+      execute: async (statement) => await provider.execute(statement),
+      batch: async (statements, mode) => {
+        if (mode === "write" && !writeFailed) {
+          writeFailed = true;
+          throw new Error("simulated concurrent guard failure");
+        }
+        if (mode === "read" && writeFailed && concurrentReceipt === null
+          && statements.some((statement) => /FROM oh_authority_bindings WHERE space_id = \?/u
+            .test(statement.sql))) {
+          concurrentReceipt = await purgeOhLibSqlWorkingSpaceV1(provider, {
+            ...options,
+            purgedAt: "2026-08-30T02:33:00.000Z",
+          });
+        }
+        return await provider.batch(statements, mode);
+      },
+    };
+    const receipt = await purgeOhLibSqlWorkingSpaceV1(racingPurgeClient, options);
+    expect(writeFailed).toBe(true);
+    if (concurrentReceipt === null) throw new Error("The concurrent purge did not run.");
+    expect(receipt).toEqual(concurrentReceipt);
+    provider.close();
+  });
+
+  test("rolls an absent-space fence back when orphaned payload prevents a complete purge", async () => {
+    const provider = await bootstrappedClient();
+    const spaceId = "corrupt-before-create";
+    provider.database.query(`INSERT INTO oh_authority_records(space_id, record_key, kind,
+      record_sha256, record_json, operation_sha256, sequence) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(spaceId, "entity:orphan", "entity", "a".repeat(64), "{}", "b".repeat(64), 1);
+    await expect(purgeOhLibSqlWorkingSpaceV1(provider, {
+      profile: OH_WORKING_STORE_PROFILE_V1,
+      realmId: `realm:${spaceId}`,
+      spaceId,
+    })).rejects.toThrow();
+    expect(provider.database.query<{ count: number }, [string]>(`SELECT count(*) AS count
+      FROM oh_authority_purges WHERE space_id = ?`).get(spaceId)?.count).toBe(0);
+    expect(provider.database.query<{ count: number }, [string]>(`SELECT count(*) AS count
+      FROM oh_authority_records WHERE space_id = ?`).get(spaceId)?.count).toBe(1);
     provider.close();
   });
 
