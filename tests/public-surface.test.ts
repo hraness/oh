@@ -367,7 +367,8 @@ describe("versioned public contract", () => {
     const memory = await readFile(join(root, "spec/v1/memory.md"), "utf8");
     expect(memory).toContain("One kernel, two authorities");
     expect(memory).toContain("createOhMemoryAgentV2");
-    expect(memory).toContain("content-addressed cursor data, not an authority");
+    expect(memory).toContain("authenticated bearer cursor, not knowledge authority");
+    expect(memory).toContain("`resultSha256` commits that deterministic");
     expect(memory).toContain("It does not sync the working operation chain");
   });
 

@@ -969,7 +969,7 @@ class OhSemanticBundleIngressV1 {
 }
 
 // src/memory.ts
-import { randomBytes as randomBytes2 } from "node:crypto";
+import { createHmac, randomBytes as randomBytes2, timingSafeEqual } from "node:crypto";
 
 // src/projection.ts
 var OH_PROJECTION_FORMAT_VERSION_V1 = 1;
@@ -2287,6 +2287,8 @@ var OH_MEMORY_QUERY_LIMITS_V2 = Object.freeze({
   bindingBytes: 64 * 1024,
   bindings: 32,
   continuationBytes: 4 * 1024,
+  continuationKeyMaximumBytes: 64,
+  continuationKeyMinimumBytes: 32,
   maximumPageBytes: 8 * 1024 * 1024,
   maximumPageRows: 256,
   maximumProgramRows: OH_PROJECTION_LIMITS_V1.queryResults,
@@ -3008,6 +3010,32 @@ async function createOhMemoryAgentV1(options) {
   };
   return Object.freeze({ explain, nominate, query, remember });
 }
+function ownDataKeysV2(value, maximum, label) {
+  if (!isPlainRecord(value))
+    throw new TypeError(`${label} must be a plain data object.`);
+  const ownKeys = Reflect.ownKeys(value);
+  if (ownKeys.length > maximum)
+    throw new RangeError(`${label} has too many entries.`);
+  if (ownKeys.some((key) => typeof key !== "string")) {
+    throw new TypeError(`${label} must have only string data properties.`);
+  }
+  const keys = ownKeys;
+  for (const key of keys) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor)) {
+      throw new TypeError(`${label} must have only enumerable data properties.`);
+    }
+  }
+  return keys;
+}
+function continuationKeyV2(value) {
+  if (value === undefined)
+    return Uint8Array.from(randomBytes2(32));
+  if (!(value instanceof Uint8Array) || value.byteLength < OH_MEMORY_QUERY_LIMITS_V2.continuationKeyMinimumBytes || value.byteLength > OH_MEMORY_QUERY_LIMITS_V2.continuationKeyMaximumBytes) {
+    throw new RangeError("The V2 memory continuation key must be 32 through 64 raw bytes.");
+  }
+  return Uint8Array.from(value);
+}
 function positiveBounded(value, maximum, label, minimum = 1) {
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
     throw new RangeError(`${label} must be an integer from ${minimum} through ${maximum}.`);
@@ -3108,6 +3136,12 @@ function resolveProgramsV2(programs) {
 function parsePrimitiveBindingV2(value) {
   if (value !== null && typeof value !== "boolean" && typeof value !== "number" && typeof value !== "string")
     throw new TypeError("Memory bindings must be JSON primitives.");
+  if (typeof value === "string" && value.length > OH_PROJECTION_LIMITS_V1.atomBytes) {
+    throw new RangeError("A memory binding exceeds the projection atom byte bound.");
+  }
+  if (typeof value === "number" && (!Number.isFinite(value) || Object.is(value, -0))) {
+    throw new TypeError("Memory bindings must be canonical finite JSON numbers.");
+  }
   const serialized = canonicalJson(value);
   if (utf8ByteLength(serialized) > OH_PROJECTION_LIMITS_V1.atomBytes) {
     throw new RangeError("A memory binding exceeds the projection atom byte bound.");
@@ -3115,20 +3149,39 @@ function parsePrimitiveBindingV2(value) {
   return value;
 }
 function parseQueryRequestV2(value) {
-  if (utf8ByteLength(canonicalJson(value)) > OH_MEMORY_QUERY_LIMITS_V2.requestBytes || !isPlainRecord(value) || !hasExactKeys(value, ["bindings", "continuation", "programId", "v"]) || value.v !== 2 || value.continuation !== null && typeof value.continuation !== "string") {
+  let keys;
+  try {
+    keys = ownDataKeysV2(value, 4, "The parameterized memory query");
+  } catch {
     throw new TypeError("Invalid parameterized memory query.");
   }
-  const programId = safeCode(value.programId, 128);
+  if (keys.length !== 4 || !["bindings", "continuation", "programId", "v"].every((key) => keys.includes(key))) {
+    throw new TypeError("Invalid parameterized memory query.");
+  }
+  const record = value;
+  if (record.v !== 2 || record.continuation !== null && typeof record.continuation !== "string") {
+    throw new TypeError("Invalid parameterized memory query.");
+  }
+  const programId = safeCode(record.programId, 128);
   if (programId === null)
     throw new TypeError("Invalid parameterized memory query identity.");
-  if (typeof value.continuation === "string" && utf8ByteLength(value.continuation) > OH_MEMORY_QUERY_LIMITS_V2.continuationBytes) {
+  const continuation = record.continuation;
+  if (typeof continuation === "string" && (continuation.length < 1 || continuation.length > OH_MEMORY_QUERY_LIMITS_V2.continuationBytes || utf8ByteLength(continuation) > OH_MEMORY_QUERY_LIMITS_V2.continuationBytes)) {
     throw new RangeError("The memory continuation exceeds its byte bound.");
   }
-  return {
-    bindingsValue: value.bindings,
-    continuation: value.continuation,
-    programId
-  };
+  const bindingKeys = ownDataKeysV2(record.bindings, OH_MEMORY_QUERY_LIMITS_V2.bindings, "The parameterized memory query bindings");
+  const bindingRecord = record.bindings;
+  const bindings = {};
+  for (const key of bindingKeys) {
+    if (safeCode(key, 128) === null)
+      throw new TypeError("Invalid memory binding name.");
+    bindings[key] = parsePrimitiveBindingV2(bindingRecord[key]);
+  }
+  const boundedRequest = { bindings, continuation, programId, v: 2 };
+  if (utf8ByteLength(canonicalJson(boundedRequest)) > OH_MEMORY_QUERY_LIMITS_V2.requestBytes) {
+    throw new RangeError("The parameterized memory query exceeds its canonical byte bound.");
+  }
+  return { bindingsValue: immutableClone(bindings), continuation, programId };
 }
 function parseBindingsV2(value, parameters) {
   if (!isPlainRecord(value) || !hasExactKeys(value, parameters)) {
@@ -3136,7 +3189,7 @@ function parseBindingsV2(value, parameters) {
   }
   const bindings = {};
   for (const parameter of parameters)
-    bindings[parameter] = parsePrimitiveBindingV2(value[parameter]);
+    bindings[parameter] = value[parameter];
   if (utf8ByteLength(canonicalJson(bindings)) > OH_MEMORY_QUERY_LIMITS_V2.bindingBytes) {
     throw new RangeError("Memory query bindings exceed their canonical byte bound.");
   }
@@ -3175,11 +3228,24 @@ function publicRowV2(row, proofs) {
   };
   return Object.freeze({ ...payload, resultRowSha256: canonicalSha256(payload) });
 }
-function encodeContinuationV2(value) {
-  const encoded = immutableClone({ ...value, continuationSha256: canonicalSha256(value) });
-  return Buffer.from(canonicalJson(encoded), "utf8").toString("base64url");
+function continuationHmacV2(key, value) {
+  return createHmac("sha256", key).update("oh.memory.continuation.v2\x00", "utf8").update(canonicalJson(value), "utf8").digest();
 }
-function parseContinuationV2(value) {
+function encodeContinuationV2(value, key) {
+  const identity = immutableClone(value);
+  const continuationSha256 = canonicalSha256(identity);
+  const signed = immutableClone({ ...identity, continuationSha256 });
+  const envelope = immutableClone({
+    ...signed,
+    continuationHmacSha256: continuationHmacV2(key, signed).toString("hex")
+  });
+  const continuation = Buffer.from(canonicalJson(envelope), "utf8").toString("base64url");
+  if (utf8ByteLength(continuation) > OH_MEMORY_QUERY_LIMITS_V2.continuationBytes) {
+    throw new RangeError("The issued memory continuation exceeds its byte bound.");
+  }
+  return Object.freeze({ continuation, continuationSha256 });
+}
+function parseContinuationV2(value, key) {
   if (value.length < 1 || utf8ByteLength(value) > OH_MEMORY_QUERY_LIMITS_V2.continuationBytes || !/^[A-Za-z0-9_-]+$/u.test(value))
     throw new TypeError("Invalid memory continuation encoding.");
   const bytes = Buffer.from(value, "base64url");
@@ -3193,8 +3259,9 @@ function parseContinuationV2(value) {
   } catch {
     throw new TypeError("Invalid memory continuation JSON.");
   }
-  if (canonicalJson(decoded) !== text || !isPlainRecord(decoded) || !hasExactKeys(decoded, [
+  if (!isPlainRecord(decoded) || !hasExactKeys(decoded, [
     "bindingsSha256",
+    "continuationHmacSha256",
     "continuationSha256",
     "memorySha256",
     "nextOffset",
@@ -3206,14 +3273,15 @@ function parseContinuationV2(value) {
   ]) || decoded.v !== 2)
     throw new TypeError("Invalid memory continuation payload.");
   const bindingsSha256 = parseSha256Hex(decoded.bindingsSha256);
+  const continuationHmacSha256 = parseSha256Hex(decoded.continuationHmacSha256);
   const continuationSha256 = parseSha256Hex(decoded.continuationSha256);
   const memorySha256 = parseSha256Hex(decoded.memorySha256);
   const programSha256 = parseSha256Hex(decoded.programSha256);
   const projectionResultSha256 = parseSha256Hex(decoded.projectionResultSha256);
-  if (bindingsSha256 === null || continuationSha256 === null || memorySha256 === null || programSha256 === null || projectionResultSha256 === null || !Number.isSafeInteger(decoded.nextOffset) || decoded.nextOffset < 1 || !Number.isSafeInteger(decoded.pageSize) || decoded.pageSize < 1 || !Number.isSafeInteger(decoded.totalRows) || decoded.totalRows < 1) {
+  if (bindingsSha256 === null || continuationHmacSha256 === null || continuationSha256 === null || memorySha256 === null || programSha256 === null || projectionResultSha256 === null || !Number.isSafeInteger(decoded.nextOffset) || decoded.nextOffset < 1 || decoded.nextOffset > OH_MEMORY_QUERY_LIMITS_V2.maximumProgramRows || !Number.isSafeInteger(decoded.pageSize) || decoded.pageSize < 1 || decoded.pageSize > OH_MEMORY_QUERY_LIMITS_V2.maximumPageRows || !Number.isSafeInteger(decoded.totalRows) || decoded.totalRows < 1 || decoded.totalRows > OH_MEMORY_QUERY_LIMITS_V2.maximumProgramRows || decoded.nextOffset >= decoded.totalRows || decoded.nextOffset % decoded.pageSize !== 0) {
     throw new TypeError("Invalid memory continuation identity.");
   }
-  const payload = {
+  const identity = {
     bindingsSha256,
     memorySha256,
     nextOffset: decoded.nextOffset,
@@ -3223,10 +3291,19 @@ function parseContinuationV2(value) {
     totalRows: decoded.totalRows,
     v: 2
   };
-  if (canonicalSha256(payload) !== continuationSha256) {
+  const signed = { ...identity, continuationSha256 };
+  const envelope = { ...signed, continuationHmacSha256 };
+  if (canonicalJson(envelope) !== text)
+    throw new TypeError("Invalid memory continuation payload.");
+  const expectedHmac = continuationHmacV2(key, signed);
+  const receivedHmac = Buffer.from(continuationHmacSha256, "hex");
+  if (!timingSafeEqual(expectedHmac, receivedHmac)) {
+    throw new OhIntegrityError("The memory continuation is not an issued capability.");
+  }
+  if (canonicalSha256(identity) !== continuationSha256) {
     throw new OhIntegrityError("The memory continuation digest is invalid.");
   }
-  return Object.freeze({ ...payload, continuationSha256 });
+  return Object.freeze(signed);
 }
 function parseExplainRequestV2(value) {
   if (!isPlainRecord(value) || !hasExactKeys(value, ["pageRow", "resultSha256", "token", "v"]) || value.v !== 2 || typeof value.token !== "string" || value.token.length !== 43 || !Number.isSafeInteger(value.pageRow) || value.pageRow < 0) {
@@ -3241,6 +3318,7 @@ async function createOhMemoryAgentV2(options) {
   const memoryActorId = safeCode(options.actorId, 128);
   if (memoryActorId === null)
     throw new TypeError("Invalid host-bound memory actor ID.");
+  const continuationKey = continuationKeyV2(options.continuationKey);
   const canonicalStore = options.canonical.store;
   const workingStore = options.working.store;
   const workingCodecs = options.working.codecs;
@@ -3345,6 +3423,10 @@ async function createOhMemoryAgentV2(options) {
     if (program === undefined)
       throw new TypeError("Unknown named V2 memory program.");
     const bound = parseBindingsV2(request.bindingsValue, program.parameters);
+    const requestedContinuation = request.continuation === null ? null : parseContinuationV2(request.continuation, continuationKey);
+    if (requestedContinuation !== null && (requestedContinuation.bindingsSha256 !== bound.bindingsSha256 || requestedContinuation.pageSize !== program.pageSize || requestedContinuation.programSha256 !== program.programSha256 || requestedContinuation.totalRows > program.maximumRows || requestedContinuation.nextOffset >= requestedContinuation.totalRows || requestedContinuation.nextOffset % program.pageSize !== 0)) {
+      throw new OhIntegrityError("The memory continuation does not match this exact program, binding, and page identity.");
+    }
     const boundQuery = bindQueryV2(program.query, bound.bindings);
     const working = await readLane({
       authorityId: workingAuthorityId,
@@ -3387,20 +3469,18 @@ async function createOhMemoryAgentV2(options) {
       ...identityPayload,
       memorySha256: canonicalSha256(identityPayload)
     });
-    const allProofs = immutableClone(projection.rows.map((row) => row.proofs.map((proof) => mapProof(proof, composite.sources, composite.factPolicies))));
-    const allRows = immutableClone(projection.rows.map((row, index) => publicRowV2(row, allProofs[index])));
-    let start = 0;
-    if (request.continuation !== null) {
-      const continuation2 = parseContinuationV2(request.continuation);
-      if (continuation2.bindingsSha256 !== bound.bindingsSha256 || continuation2.memorySha256 !== identity.memorySha256 || continuation2.pageSize !== program.pageSize || continuation2.programSha256 !== program.programSha256 || continuation2.projectionResultSha256 !== projection.resultSha256 || continuation2.totalRows !== allRows.length || continuation2.nextOffset >= allRows.length || continuation2.nextOffset % program.pageSize !== 0) {
-        throw new OhIntegrityError("The memory continuation does not match this exact source, program, and binding identity.");
-      }
-      start = continuation2.nextOffset;
+    if (requestedContinuation !== null && (requestedContinuation.memorySha256 !== identity.memorySha256 || requestedContinuation.projectionResultSha256 !== projection.resultSha256)) {
+      throw new OhIntegrityError("The memory continuation does not match this exact source and projection identity.");
     }
-    const endExclusive = Math.min(start + program.pageSize, allRows.length);
-    const rows = immutableClone(allRows.slice(start, endExclusive));
-    const proofs = immutableClone(allProofs.slice(start, endExclusive));
-    const hasMore = endExclusive < allRows.length;
+    if (requestedContinuation !== null && (requestedContinuation.totalRows !== projection.rows.length || requestedContinuation.nextOffset >= projection.rows.length || requestedContinuation.nextOffset % program.pageSize !== 0)) {
+      throw new OhIntegrityError("The memory continuation does not match this exact row identity.");
+    }
+    const start = requestedContinuation?.nextOffset ?? 0;
+    const endExclusive = Math.min(start + program.pageSize, projection.rows.length);
+    const projectionRows = projection.rows.slice(start, endExclusive);
+    const proofs = immutableClone(projectionRows.map((row) => row.proofs.map((proof) => mapProof(proof, composite.sources, composite.factPolicies))));
+    const rows = immutableClone(projectionRows.map((row, index) => publicRowV2(row, proofs[index])));
+    const hasMore = endExclusive < projection.rows.length;
     const page = immutableClone({
       completeness: hasMore ? "partial" : "complete",
       endExclusive,
@@ -3409,36 +3489,39 @@ async function createOhMemoryAgentV2(options) {
       pageSize: program.pageSize,
       returnedRows: rows.length,
       start,
-      totalRows: allRows.length,
+      totalRows: projection.rows.length,
       truncation: { reasons: [], truncated: false, v: 2 },
       v: 2
     });
-    const continuation = hasMore ? encodeContinuationV2({
+    const issuedContinuation = hasMore ? encodeContinuationV2({
       bindingsSha256: bound.bindingsSha256,
       memorySha256: identity.memorySha256,
       nextOffset: endExclusive,
       pageSize: program.pageSize,
       programSha256: program.programSha256,
       projectionResultSha256: projection.resultSha256,
-      totalRows: allRows.length,
+      totalRows: projection.rows.length,
       v: 2
-    }) : null;
+    }, continuationKey) : null;
+    const continuation = issuedContinuation?.continuation ?? null;
+    const continuationSha256 = issuedContinuation?.continuationSha256 ?? null;
     const conflicts = immutableClone({
       count: composite.conflicts.length,
       conflictsSha256: canonicalSha256(composite.conflicts),
       v: 2
     });
-    const resultPayload = immutableClone({
+    const resultIdentityPayload = immutableClone({
       authority: "derived",
       conflicts,
-      continuation,
+      continuationSha256,
       identity,
       page,
       projectionResultSha256: projection.resultSha256,
       rows,
       v: 2
     });
-    const resultSha256 = canonicalSha256(resultPayload);
+    const resultSha256 = canonicalSha256(resultIdentityPayload);
+    const resultPayload = immutableClone({ ...resultIdentityPayload, continuation });
     const issuedAt = wallClock();
     const issuedAtMonotonic = monotonicClock();
     const expiresAtMs = issuedAt + capabilityLifetime;

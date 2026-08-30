@@ -115,15 +115,39 @@ the projection is incomplete. Proof-budget truncation remains visible on
 the affected row as `proofsTruncated` and yields `unknown` premise authority,
 as in V1.
 
-A continuation is canonical, content-addressed cursor data, not an authority
-or bearer credential. It binds the next offset to the exact program, bindings,
+A continuation is an authenticated bearer cursor, not knowledge authority. Its
+canonical envelope contains an unsigned cursor identity, a public
+`continuationSha256` digest of that identity, and a domain-separated
+HMAC-SHA-256. The identity binds the next offset to the exact program, bindings,
 complete projection result, page size, total row count, and composite memory
-identity. Every continued call rereads the current working head and rebuilds
-the projection. A head, source, program, bindings, result, page-size, or row
-count change fails with an integrity error rather than mixing pages from two
-snapshots. A V2 explanation capability retains only its exact outward page and
-mapped physical proofs, and requires that page's result digest and page-local
-row index.
+identity. The HMAC makes only host-issued offsets usable; recomputing the public
+digest does not issue a cursor. The envelope is authenticated, not encrypted,
+and the same token can be replayed for the same exact page.
+
+By default the facade generates a private random continuation key, so its
+cursors are scoped to that facade instance. A host that must reconstruct the
+facade or route a cursor to another replica supplies the same 32 through 64 raw
+key bytes through `continuationKey`; the factory clones those bytes. The host
+keeps that key out of agent input and persisted results. Changing the key
+invalidates outstanding cursors.
+
+The request parser first establishes an exact shallow envelope, a bounded
+primitive binding map, and bounded strings before canonical serialization.
+After resolving the registered program and exact bindings, it authenticates a
+continuation and checks its program, binding, page-size, range, and alignment
+before reading the working store, invoking extractors, evaluating rules, or
+mapping proofs. Every valid continued call then rereads the current working
+head and rebuilds the projection. A head, source, result, or row-count change
+fails with an integrity error before proof mapping rather than mixing pages
+from two snapshots.
+
+An outward result publishes `continuationSha256` beside the opaque token, or
+`null` beside `null` on the final page. `resultSha256` commits that deterministic
+digest instead of the key-dependent token, so the same exact result identity is
+stable across signing keys. The actual token still counts toward the outward
+page-byte ceiling. A V2 explanation capability retains only its exact outward
+page and mapped physical proofs, and requires that page's result digest and
+page-local row index.
 
 ## Explanations and nominations
 

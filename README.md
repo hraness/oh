@@ -310,9 +310,19 @@ do {
 ```
 
 V2 evaluates one complete bounded result before paging it. Any projection row
-or byte truncation returns no page. A continuation binds its offset to the
-exact physical heads, program, bindings, projection result, page size, and row
-count, so a working-head change fails instead of mixing snapshots.
+or byte truncation returns no page. A continuation is an authenticated bearer
+cursor that binds its offset to the exact physical heads, program, bindings,
+projection result, page size, and row count, so a working-head change fails
+instead of mixing snapshots. Pass it back only to the same exact named query;
+do not synthesize, edit, or log it.
+
+The factory generates a random continuation key by default, which makes a
+cursor valid only for that agent instance. If the host reconstructs agents or
+routes queries across replicas, pass the same host-owned 32 through 64 byte
+`Uint8Array` as `continuationKey`. The factory clones it; key rotation
+invalidates outstanding cursors. The result publishes a deterministic
+`continuationSha256` separately, and `resultSha256` commits that digest rather
+than the opaque key-dependent token.
 
 The returned object has only `remember`, `query`, `explain`, and `nominate`.
 The host fixes the working actor, each program purpose, and every nomination

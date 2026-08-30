@@ -16,6 +16,8 @@ import {
 export const portableCodecs = new OhRecordCodecRegistry();
 export const portableMemoryFactory: typeof createOhMemoryAgentV1 = createOhMemoryAgentV1;
 export const portableMemoryFactoryV2: typeof createOhMemoryAgentV2 = createOhMemoryAgentV2;
+export const portableMemoryContinuationKey:
+NonNullable<OhMemoryFacadeOptionsV2["continuationKey"]> = new Uint8Array(32);
 export type PortableMemoryOptions = OhMemoryFacadeOptionsV1;
 export type PortableMemoryOptionsV2 = OhMemoryFacadeOptionsV2;
 export type PortableMemoryResultV2 = OhMemoryQueryResultV2;

@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { canonicalSha256, type JsonValue } from "./canonical";
+import { canonicalJson, canonicalSha256, type JsonValue } from "./canonical";
 import { OhRecordCodecRegistry } from "./contract";
 import { createKnowledgeGraphRecordV1 } from "./graph";
 import {
   createOhMemoryAgentV1,
   createOhMemoryAgentV2,
   OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1,
+  OH_MEMORY_QUERY_LIMITS_V2,
   type OhMemoryAuthoritySourceV1,
   type OhMemoryProofV1,
 } from "./memory";
@@ -121,7 +122,10 @@ async function fixtureV2(maximumRows = 400, pageSize = 64,
   maximumResultBytes = 8 * 1024 * 1024, configuration: Readonly<{
     chunkBytes?: number;
     chunkCount?: number;
+    continuationKey?: Uint8Array;
+    extractorInvoked?: () => void;
     maximumPageBytes?: number;
+    wrapWorkingStore?: (store: OhStoreV1) => OhStoreV1;
   }> = {}) {
   const canonical = createOhSqliteStoreAuthorityV1({ path: ":memory:",
     profile: OH_CANONICAL_STORE_PROFILE_V1, realmId: "realm:v2-canonical", spaceId: "v2-canonical" });
@@ -132,26 +136,35 @@ async function fixtureV2(maximumRows = 400, pageSize = 64,
   const chunkBytes = configuration.chunkBytes ?? 0;
   const baseProgram = chunkProgram(maximumRows, pageSize, maximumResultBytes,
     configuration.maximumPageBytes ?? 1024 * 1024);
-  const agent = await createOhMemoryAgentV2({ actorId: "test.memory-agent-v2",
+  const expectedCanonicalHead = await canonical.store.head();
+  const selectedWorkingStore = configuration.wrapWorkingStore?.(working.store) ?? working.store;
+  const createAgent = async (continuationKey?: Uint8Array) => await createOhMemoryAgentV2({
+    actorId: "test.memory-agent-v2",
     canonical: { authorityId: "authority.v2-canonical",
       expectedBindingSha256: canonical.store.binding.bindingSha256,
-      expectedHead: await canonical.store.head(), store: canonical.store },
+      expectedHead: expectedCanonicalHead, store: canonical.store },
+    ...(continuationKey === undefined ? {} : { continuationKey }),
     extractors: [{ extractorId: "domain.value-chunks",
       extractorSha256: canonicalSha256({ extractor: "domain.value-chunks", revision: 1 }),
       relations: ["domain.value-chunk"],
-      extract: ({ lane, record }) => Array.from({ length: chunkCount }, (_, index) => ({
-        relation: "domain.value-chunk", tuple: [lane, record.key, index,
-          `chunk:${index.toString().padStart(3, "0")}${"x".repeat(chunkBytes)}`], v: 1 as const,
-      })),
+      extract: ({ lane, record }) => {
+        configuration.extractorInvoked?.();
+        return Array.from({ length: chunkCount }, (_, index) => ({
+          relation: "domain.value-chunk", tuple: [lane, record.key, index,
+            `chunk:${index.toString().padStart(3, "0")}${"x".repeat(chunkBytes)}`], v: 1 as const,
+        }));
+      },
     }],
     monotonicNow: () => 0,
     now: () => new Date("2026-08-29T12:00:00.000Z"),
     programs: [baseProgram, { ...baseProgram, maximumPageBytes: 1024 * 1024,
       programId: "memory.value-chunks-alternate", purpose: "answer.memory-value-alternate" }],
     working: { authorityId: "authority.v2-working", codecs: entityCodecs(),
-      expectedBindingSha256: working.store.binding.bindingSha256, store: working.store },
+      expectedBindingSha256: selectedWorkingStore.binding.bindingSha256,
+      store: selectedWorkingStore },
   });
-  return { agent, canonical, working };
+  const agent = await createAgent(configuration.continuationKey);
+  return { agent, canonical, createAgent, working };
 }
 
 function physicalSources(proofs: readonly OhMemoryProofV1[]) {
@@ -162,6 +175,19 @@ function physicalSources(proofs: readonly OhMemoryProofV1[]) {
   };
   proofs.forEach(visit);
   return sources;
+}
+
+function countedWorkingStore(store: OhStoreV1, counter: { reads: number }): OhStoreV1 {
+  return new Proxy(store, {
+    get(target, property) {
+      const value = Reflect.get(target, property, target) as unknown;
+      if (typeof value !== "function") return value;
+      return (...args: unknown[]) => {
+        if (property === "head" || property === "snapshot") counter.reads += 1;
+        return Reflect.apply(value, target, args);
+      };
+    },
+  }) as OhStoreV1;
 }
 
 async function fixture() {
@@ -478,6 +504,7 @@ describe("experimental parameterized and paginated Oh memory V2", () => {
         rows.push(...result.rows.map((row) => row.values));
         expect(result.page.truncation).toEqual({ reasons: [], truncated: false, v: 2 });
         expect(result.page.hasMore).toBe(result.continuation !== null);
+        expect(result.page.hasMore).toBe(result.continuationSha256 !== null);
         expect(result.page.completeness).toBe(result.page.hasMore ? "partial" : "complete");
         continuation = result.continuation;
       } while (continuation !== null);
@@ -538,7 +565,7 @@ describe("experimental parameterized and paginated Oh memory V2", () => {
     await expect(value.agent.query({ bindings: {
       key: "entity:chunked", lane: "canonical",
     }, continuation, programId: "memory.value-chunks-alternate", v: 2 }))
-      .rejects.toThrow("exact source, program, and binding identity");
+      .rejects.toThrow("exact program, binding, and page identity");
     await expect(value.agent.query({ bindings: {
       key: "entity:other", lane: "canonical",
     }, continuation, programId: "memory.value-chunks", v: 2 }))
@@ -552,7 +579,140 @@ describe("experimental parameterized and paginated Oh memory V2", () => {
     await expect(value.agent.query({ bindings: {
       key: "entity:chunked", lane: "canonical",
     }, continuation, programId: "memory.value-chunks", v: 2 }))
-      .rejects.toThrow("exact source, program, and binding identity");
+      .rejects.toThrow("exact source and projection identity");
+    await value.canonical.store.close(); await value.working.store.close();
+  });
+
+  test("rejects an aligned offset forgery after every public cursor digest is recomputed", async () => {
+    const value = await fixtureV2(8, 2, 8 * 1024 * 1024, {
+      chunkCount: 8,
+      continuationKey: new Uint8Array(32).fill(7),
+    });
+    const request = { bindings: { key: "entity:chunked", lane: "canonical" },
+      continuation: null, programId: "memory.value-chunks", v: 2 as const };
+    const first = await value.agent.query(request);
+    if (first.continuation === null) throw new Error("Expected an issued V2 continuation.");
+    const decoded = JSON.parse(Buffer.from(first.continuation, "base64url").toString("utf8")) as
+      Record<string, unknown>;
+    expect(decoded.nextOffset).toBe(2);
+    decoded.nextOffset = 6;
+    const unsigned = Object.fromEntries(Object.entries(decoded).filter(([key]) =>
+      key !== "continuationHmacSha256" && key !== "continuationSha256"));
+    decoded.continuationSha256 = canonicalSha256(unsigned);
+    const forged = Buffer.from(canonicalJson(decoded), "utf8").toString("base64url");
+    await expect(value.agent.query({ ...request, continuation: forged }))
+      .rejects.toThrow("not an issued capability");
+
+    const replayOne = await value.agent.query({ ...request, continuation: first.continuation });
+    const replayTwo = await value.agent.query({ ...request, continuation: first.continuation });
+    expect(replayOne.page.start).toBe(2);
+    expect(replayTwo.page).toEqual(replayOne.page);
+    expect(replayTwo.rows).toEqual(replayOne.rows);
+    expect(replayTwo.resultSha256).toBe(replayOne.resultSha256);
+    await value.canonical.store.close(); await value.working.store.close();
+  });
+
+  test("scopes default cursors to one agent and preserves keyed cursors and public digests", async () => {
+    const mutableHostKey = new Uint8Array(32).fill(3);
+    const persistedHostKey = mutableHostKey.slice();
+    const value = await fixtureV2(400, 64, 8 * 1024 * 1024, {
+      continuationKey: mutableHostKey,
+    });
+    mutableHostKey.fill(9);
+    const request = { bindings: { key: "entity:chunked", lane: "canonical" },
+      continuation: null, programId: "memory.value-chunks", v: 2 as const };
+    const keyed = await value.agent.query(request);
+    if (keyed.continuation === null) throw new Error("Expected a keyed continuation.");
+    const { continuation: _opaqueContinuation, explainCapability: _explainCapability,
+      resultSha256: _resultSha256, ...deterministicResultIdentity } = keyed;
+    expect(canonicalSha256(deterministicResultIdentity)).toBe(keyed.resultSha256);
+
+    const otherKeyAgent = await value.createAgent(new Uint8Array(32).fill(4));
+    const otherKey = await otherKeyAgent.query(request);
+    expect(otherKey.continuation).not.toBe(keyed.continuation);
+    expect(otherKey.continuationSha256).toBe(keyed.continuationSha256);
+    expect(otherKey.resultSha256).toBe(keyed.resultSha256);
+    await expect(otherKeyAgent.query({ ...request, continuation: keyed.continuation }))
+      .rejects.toThrow("not an issued capability");
+
+    const reconstructed = await value.createAgent(persistedHostKey);
+    const resumed = await reconstructed.query({ ...request, continuation: keyed.continuation });
+    expect(resumed.page.start).toBe(64);
+
+    const localOne = await value.createAgent();
+    const localFirst = await localOne.query(request);
+    if (localFirst.continuation === null) throw new Error("Expected a local continuation.");
+    const localTwo = await value.createAgent();
+    await expect(localTwo.query({ ...request, continuation: localFirst.continuation }))
+      .rejects.toThrow("not an issued capability");
+    await expect(value.createAgent(new Uint8Array(
+      OH_MEMORY_QUERY_LIMITS_V2.continuationKeyMinimumBytes - 1)))
+      .rejects.toThrow("32 through 64 raw bytes");
+    await expect(value.createAgent(new Uint8Array(
+      OH_MEMORY_QUERY_LIMITS_V2.continuationKeyMaximumBytes + 1)))
+      .rejects.toThrow("32 through 64 raw bytes");
+    await value.canonical.store.close(); await value.working.store.close();
+  });
+
+  test("authenticates and statically binds cursors before working reads or extraction", async () => {
+    const counter = { extractorInvocations: 0, workingReads: 0 };
+    const key = new Uint8Array(32).fill(5);
+    const value = await fixtureV2(400, 64, 8 * 1024 * 1024, {
+      continuationKey: key,
+      extractorInvoked: () => { counter.extractorInvocations += 1; },
+      wrapWorkingStore: (store) => countedWorkingStore(store, {
+        get reads() { return counter.workingReads; },
+        set reads(value) { counter.workingReads = value; },
+      }),
+    });
+    const request = { bindings: { key: "entity:chunked", lane: "canonical" },
+      continuation: null, programId: "memory.value-chunks", v: 2 as const };
+    const first = await value.agent.query(request);
+    if (first.continuation === null) throw new Error("Expected an issued continuation.");
+    counter.extractorInvocations = 0;
+    counter.workingReads = 0;
+
+    await expect(value.agent.query({ ...request, continuation: "!" })).rejects.toThrow();
+    const invalidMacPayload = JSON.parse(
+      Buffer.from(first.continuation, "base64url").toString("utf8"),
+    ) as Record<string, unknown>;
+    invalidMacPayload.continuationHmacSha256 = invalidMacPayload.continuationHmacSha256
+      === "f".repeat(64) ? "e".repeat(64) : "f".repeat(64);
+    const invalidMac = Buffer.from(canonicalJson(invalidMacPayload), "utf8").toString("base64url");
+    await expect(value.agent.query({ ...request, continuation: invalidMac }))
+      .rejects.toThrow("not an issued capability");
+    await expect(value.agent.query({ ...request, continuation: first.continuation,
+      programId: "memory.value-chunks-alternate" }))
+      .rejects.toThrow("exact program, binding, and page identity");
+    await expect(value.agent.query({ ...request,
+      bindings: { key: "entity:other", lane: "canonical" },
+      continuation: first.continuation }))
+      .rejects.toThrow("exact program, binding, and page identity");
+    expect(counter).toEqual({ extractorInvocations: 0, workingReads: 0 });
+    await value.canonical.store.close(); await value.working.store.close();
+  });
+
+  test("bounds and flattens V2 query input before canonical serialization", async () => {
+    const value = await fixtureV2();
+    const base = { continuation: null, programId: "memory.value-chunks", v: 2 as const };
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    await expect(value.agent.query({ ...base,
+      bindings: { key: "entity:chunked", lane: cyclic } }))
+      .rejects.toThrow("JSON primitives");
+    await expect(value.agent.query({ ...base,
+      bindings: { key: "entity:chunked", lane: "x".repeat(16 * 1024 + 1) } }))
+      .rejects.toThrow("atom byte bound");
+    await expect(value.agent.query({ ...base, bindings: Object.fromEntries(
+      Array.from({ length: OH_MEMORY_QUERY_LIMITS_V2.bindings + 1 }, (_, index) =>
+        [`p${index}`, index]),
+    ) })).rejects.toThrow("too many entries");
+    await expect(value.agent.query({ ...base, bindings: Object.fromEntries(
+      Array.from({ length: 6 }, (_, index) => [`p${index}`, "x".repeat(14 * 1024)]),
+    ) })).rejects.toThrow("canonical byte bound");
+    await expect(value.agent.query({ ...base, bindings: {},
+      continuation: "A".repeat(OH_MEMORY_QUERY_LIMITS_V2.continuationBytes + 1) }))
+      .rejects.toThrow("continuation exceeds its byte bound");
     await value.canonical.store.close(); await value.working.store.close();
   });
 
@@ -595,6 +755,7 @@ describe("experimental parameterized and paginated Oh memory V2", () => {
     expect(zero.page).toMatchObject({ completeness: "complete", endExclusive: 0,
       hasMore: false, returnedRows: 0, start: 0, totalRows: 0 });
     expect(zero.continuation).toBeNull();
+    expect(zero.continuationSha256).toBeNull();
 
     const exact = await value.agent.query({ bindings: {
       key: "entity:chunked", lane: "canonical",
@@ -603,6 +764,7 @@ describe("experimental parameterized and paginated Oh memory V2", () => {
     expect(exact.page).toMatchObject({ completeness: "complete", endExclusive: 64,
       hasMore: false, returnedRows: 64, start: 0, totalRows: 64 });
     expect(exact.continuation).toBeNull();
+    expect(exact.continuationSha256).toBeNull();
     await value.canonical.store.close(); await value.working.store.close();
   });
 

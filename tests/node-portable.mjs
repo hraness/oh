@@ -82,6 +82,7 @@ const agentV2 = await memory.createOhMemoryAgentV2({
   canonical: { authorityId: "node.canonical-v2",
     expectedBindingSha256: canonicalStore.binding.bindingSha256,
     expectedHead: await canonicalStore.head(), store: canonicalStore },
+  continuationKey: new Uint8Array(32).fill(1),
   monotonicNow: () => 0,
   now: () => new Date("2026-08-29T12:00:00.000Z"),
   programs: [{
@@ -106,4 +107,6 @@ const resultV2 = await agentV2.query({ bindings: { key: "entity:portable", lane:
 assert.equal(resultV2.identity.purpose, "node.portability-v2");
 assert.equal(resultV2.page.completeness, "complete");
 assert.equal(resultV2.page.hasMore, false);
+assert.equal(resultV2.continuation, null);
+assert.equal(resultV2.continuationSha256, null);
 assert.deepEqual(resultV2.rows, []);

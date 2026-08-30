@@ -192,7 +192,11 @@ the model. Do not expose parameter declarations, page size, or evaluator
 options as tool input. Follow `hasMore` until the continuation is `null`, and
 restart the named query after an integrity error; never combine pages across a
 working-head change. A V2 `query-limit` or `result-bytes` condition is a failed
-query, not a partial answer. Keep row-level `proofsTruncated` evidence visible.
+query, not a partial answer. Treat each continuation as a bearer cursor: pass
+it back unchanged only to the exact query and do not log or edit it. If the
+host reconstructs the facade or routes across replicas, it must provide the
+same private 32 through 64 byte `continuationKey` in host options; never expose
+that key as tool input. Keep row-level `proofsTruncated` evidence visible.
 
 ## Finish with evidence
 

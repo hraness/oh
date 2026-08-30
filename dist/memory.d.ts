@@ -227,6 +227,8 @@ export declare const OH_MEMORY_QUERY_LIMITS_V2: Readonly<{
     bindingBytes: number;
     bindings: 32;
     continuationBytes: number;
+    continuationKeyMaximumBytes: 64;
+    continuationKeyMinimumBytes: 32;
     maximumPageBytes: number;
     maximumPageRows: 256;
     maximumProgramRows: 65536;
@@ -259,6 +261,8 @@ export type OhMemoryNamedProgramV2 = Readonly<{
     v: 2;
 }>;
 export type OhMemoryFacadeOptionsV2 = Readonly<Omit<OhMemoryFacadeOptionsV1, "programs"> & Readonly<{
+    /** Raw HMAC key for continuations that must survive agent reconstruction. */
+    continuationKey?: Uint8Array;
     programs: readonly OhMemoryNamedProgramV2[];
 }>>;
 export type OhMemoryIdentityV2 = Readonly<{
@@ -312,6 +316,7 @@ export type OhMemoryQueryResultV2 = Readonly<{
         v: 2;
     }>;
     continuation: string | null;
+    continuationSha256: Sha256Hex | null;
     explainCapability: Readonly<{
         expiresAt: string;
         token: string;
