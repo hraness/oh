@@ -92,13 +92,22 @@ replace an npm version, or edit an immutable GitHub Release.
 
 Every positive workflow attempt is an eligible recovery attempt for the same
 reviewed annotated tag, commit, and ID-bound artifact bytes. Before npm, a
-read-only gate treats the version as either absent or requires its exact bytes
-and Sigstore provenance to bind the same `GITHUB_RUN_ID` and a positive attempt
-no greater than `GITHUB_RUN_ATTEMPT`, including Fulcio extension OID
-`1.3.6.1.4.1.57264.1.21`. If absent, the resulting publication must bind the
-exact current run ID and attempt. Subsequent read-only admission may accept any
-positive attempt only after the tag, commit, workflow, repository, signer, and
-artifact digests are all cryptographically cross-bound.
+read-only gate records its explicit run ID and attempt and treats the version as
+either absent or requires its exact bytes and Sigstore provenance to bind the
+same run at a positive attempt no greater than that preflight attempt, including
+Fulcio extension OID `1.3.6.1.4.1.57264.1.21`. The writer rejects another run,
+reversed attempt ordering, and a same-attempt absent-to-existing race. A later
+failed-job rerun retaining an earlier absent preflight may publish if the version
+remains absent. If it instead observes exact bytes, it performs no mutation.
+
+The writer always emits a nonempty provenance run and attempt constraint. A
+writer that publishes an absent version emits its exact current attempt; a
+read-only recovery emits a bounded maximum attempt. Final admission requires
+that run to equal its own `GITHUB_RUN_ID`, requires the bound not to exceed its
+own `GITHUB_RUN_ATTEMPT`, and cryptographically verifies the npm provenance
+against it. Thus rerunning only final admission can safely reuse a successful
+attempt-one publisher's exact attempt-one output, while blank or stale outputs
+cannot relax admission.
 
 If a failed GitHub API call leaves an exact-tag draft, the workflow fails closed
 and reports that recovery is required. An owner must inspect the draft ID and

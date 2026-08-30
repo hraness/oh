@@ -241,8 +241,14 @@ jobs:
       id-token: write
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      provenance_attempt: ${{ steps.publish.outputs.provenance_attempt }}
+      provenance_attempt_mode: ${{ steps.publish.outputs.provenance_attempt_mode }}
+      provenance_run_id: ${{ steps.publish.outputs.provenance_run_id }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
+      PRE_NPM_RUN_ATTEMPT: ${{ needs.pre_npm.outputs.preflight_run_attempt }}
+      PRE_NPM_RUN_ID: ${{ needs.pre_npm.outputs.preflight_run_id }}
       PRE_NPM_STATE: ${{ needs.pre_npm.outputs.npm_state }}
       VERIFIED_SHA: ${{ needs.verify.outputs.verified_sha }}
       VERIFIED_TAG: ${{ needs.verify.outputs.verified_tag }}
@@ -271,6 +277,7 @@ jobs:
       - name: Recheck exact checksum
         run: bun run ./writer/scripts/release-artifact-checksum.ts check artifacts/*.tgz artifacts/SHA256SUMS
       - name: Publish exact tarball through npm trusted publishing
+        id: publish
         run: bun run ./writer/scripts/publish-npm-release.ts artifacts/*.tgz
 
   pre_npm:
@@ -282,6 +289,8 @@ jobs:
     timeout-minutes: 10
     outputs:
       npm_state: ${{ steps.state.outputs.npm_state }}
+      preflight_run_attempt: ${{ steps.state.outputs.preflight_run_attempt }}
+      preflight_run_id: ${{ steps.state.outputs.preflight_run_id }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       VERIFIED_SHA: ${{ needs.verify.outputs.verified_sha }}
@@ -322,7 +331,9 @@ jobs:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ github.token }}
-      PRE_NPM_STATE: ${{ needs.pre_npm.outputs.npm_state }}
+      NPM_PROVENANCE_ATTEMPT: ${{ needs.publish_npm.outputs.provenance_attempt }}
+      NPM_PROVENANCE_ATTEMPT_MODE: ${{ needs.publish_npm.outputs.provenance_attempt_mode }}
+      NPM_PROVENANCE_RUN_ID: ${{ needs.publish_npm.outputs.provenance_run_id }}
       VERIFIED_SHA: ${{ needs.verify.outputs.verified_sha }}
       VERIFIED_TAG: ${{ needs.verify.outputs.verified_tag }}
     steps:

@@ -52,6 +52,10 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
   expect(npmJob).not.toContain("verifyNpmProvenance");
   expect(workflow).toContain("needs: [verify, publish_github, pre_npm]");
   expect(workflow).toContain("check-npm-retry-state.ts artifacts/*.tgz");
+  expect(workflow).toContain("preflight_run_attempt: ${{ steps.state.outputs.preflight_run_attempt }}");
+  expect(workflow).toContain("PRE_NPM_RUN_ATTEMPT: ${{ needs.pre_npm.outputs.preflight_run_attempt }}");
+  expect(workflow).toContain("provenance_attempt: ${{ steps.publish.outputs.provenance_attempt }}");
+  expect(workflow).toContain("NPM_PROVENANCE_ATTEMPT: ${{ needs.publish_npm.outputs.provenance_attempt }}");
   expect(workflow.match(/npm pack --ignore-scripts --pack-destination artifacts \./gu)).toHaveLength(1);
 
   const pack = workflow.indexOf("npm pack --ignore-scripts --pack-destination artifacts .");
@@ -77,8 +81,11 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(npmPublisher).toContain('"--provenance"');
   expect(npmPublisher).toContain("expectedIntegrity");
   expect(npmPublisher).toContain("expectedShasum");
-  expect(npmPublisher).toContain("mayPerformFirstNpmPublication(runAttempt, false)");
+  expect(npmPublisher).toContain("planNpmPublication({");
   expect(npmPublisher).toContain("PRE_NPM_STATE");
+  expect(npmPublisher).toContain("PRE_NPM_RUN_ID");
+  expect(npmPublisher).toContain("PRE_NPM_RUN_ATTEMPT");
+  expect(npmPublisher).toContain("provenance_attempt_mode=");
   expect(npmPublisher).not.toContain("verifyNpmProvenance");
   expect(npmPublisher.indexOf("fetchMetadata(registryUrl)")).toBeLessThan(npmPublisher.indexOf("fetchMetadata(registryLatestUrl)"));
   expect(npmPublisher).toContain("Date.now() + 180_000");
@@ -98,6 +105,9 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(authority).toContain('["ahead", "identical"]');
   expect(authority).toContain("mergeBase.sha !== input.sha");
   expect(admission).toContain("verifyNpmProvenance(npmTarball");
+  expect(admission).toContain("parseNpmProvenanceAdmission({");
+  expect(admission).toContain('required("NPM_PROVENANCE_RUN_ID"');
+  expect(admission).toContain('required("NPM_PROVENANCE_ATTEMPT_MODE"');
   expect(admission).toContain("Buffer.from(githubTarball).equals(Buffer.from(npmTarball))");
 });
 

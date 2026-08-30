@@ -11,7 +11,13 @@ import {
   type NpmReleaseCoordinate,
 } from "./release-policy";
 import { trustedPublishingEnvironment } from "./release-process-environment";
-import { mayPerformFirstNpmPublication } from "./release-attempt-policy";
+import { planNpmPublication, type NpmRetryState } from "./release-attempt-policy";
+
+function required(name: string, pattern: RegExp): string {
+  const value = process.env[name];
+  if (value === undefined || !pattern.test(value)) throw new Error(`npm publication requires valid ${name}.`);
+  return value;
+}
 
 const [tarballArgument, extra] = process.argv.slice(2);
 if (tarballArgument === undefined || extra !== undefined) {
@@ -27,13 +33,14 @@ const expectedIntegrity = `sha512-${createHash("sha512").update(bytes).digest("b
 const expectedShasum = createHash("sha1").update(bytes).digest("hex");
 const verifiedSha = process.env.VERIFIED_SHA;
 const verifiedTag = process.env.VERIFIED_TAG;
-const runAttempt = process.env.GITHUB_RUN_ATTEMPT;
+const runId = required("GITHUB_RUN_ID", /^[1-9][0-9]*$/u);
+const runAttempt = required("GITHUB_RUN_ATTEMPT", /^[1-9][0-9]*$/u);
 const preNpmState = process.env.PRE_NPM_STATE;
+const preflightRunId = required("PRE_NPM_RUN_ID", /^[1-9][0-9]*$/u);
+const preflightAttempt = required("PRE_NPM_RUN_ATTEMPT", /^[1-9][0-9]*$/u);
+const output = required("GITHUB_OUTPUT", /^.{1,4096}$/u);
 if (verifiedSha === undefined || !/^[0-9a-f]{40}$/u.test(verifiedSha)) {
   throw new Error("npm publication requires one verified release commit.");
-}
-if (runAttempt === undefined || !/^[1-9][0-9]*$/u.test(runAttempt)) {
-  throw new Error("npm publication requires one verified GitHub workflow attempt.");
 }
 if (preNpmState !== "absent" && preNpmState !== "exact_same_run") throw new Error("npm publication requires an admitted retry state.");
 
@@ -142,15 +149,19 @@ function requireExact(actual: CompleteRelease): void {
 }
 
 const existing = await lookupCompleteRelease();
-if (existing !== null) {
-  if (preNpmState !== "exact_same_run") throw new Error(`${coordinate} appeared after the read-only retry gate; refusing ambiguous publication.`);
+const plan = planNpmPublication({
+  currentAttempt: runAttempt,
+  currentRunId: runId,
+  exactVersionExists: existing !== null,
+  preflightAttempt,
+  preflightRunId,
+  preflightState: preNpmState as NpmRetryState,
+});
+if (plan.action === "verify") {
+  if (existing === null) throw new Error(`${coordinate} disappeared after its exact retry admission.`);
   requireExact(existing);
   console.log(`${coordinate} already contains the exact MIT trusted-publisher npm latest tarball.`);
 } else {
-  if (preNpmState !== "absent") throw new Error(`${coordinate} disappeared after its exact retry admission.`);
-  if (!mayPerformFirstNpmPublication(runAttempt, false)) {
-    throw new Error(`${coordinate} is absent; a later workflow attempt may not perform first publication.`);
-  }
   const publishExitCode = await publishTarball();
   let observed: CompleteRelease | null = null;
   let lookupFailure: unknown;
@@ -172,9 +183,14 @@ if (existing !== null) {
     const detail = lookupFailure instanceof Error ? ` Last registry error: ${lookupFailure.message}` : "";
     throw new Error(`npm publish did not produce a verifiable provenance-bearing ${coordinate}.${detail}`);
   }
-  console.log(publishExitCode === 0
-    ? `${coordinate} is publicly readable as npm latest with exact bytes.`
-    : `${coordinate} became exact after npm rejected an idempotent duplicate publication.`);
+  if (publishExitCode !== 0) {
+    throw new Error(`${coordinate} appeared after npm rejected publication; refusing ambiguous same-attempt provenance.`);
+  }
+  console.log(`${coordinate} is publicly readable as npm latest with exact bytes.`);
 }
 
+await Bun.write(output,
+  `provenance_run_id=${plan.provenance.runId}\n`
+  + `provenance_attempt_mode=${plan.provenance.mode}\n`
+  + `provenance_attempt=${String(plan.provenance.attempt)}\n`);
 console.log(`${coordinate} is ready for separate read-only cryptographic provenance admission.`);

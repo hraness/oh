@@ -24,8 +24,12 @@ const response = await fetch(registryVersionUrl(publicPackageName, manifest.vers
 });
 const metadata = registryVersionMetadata(response, publicPackageName, manifest.version);
 const output = required("GITHUB_OUTPUT", /^.{1,4096}$/u);
+const runId = required("GITHUB_RUN_ID", /^[1-9][0-9]*$/u);
+const attemptText = required("GITHUB_RUN_ATTEMPT", /^[1-9][0-9]*$/u);
+const attempt = Number(attemptText);
+if (!Number.isSafeInteger(attempt)) throw new Error("npm retry state requires a safe positive GITHUB_RUN_ATTEMPT.");
 if (metadata === null) {
-  await Bun.write(output, "npm_state=absent\n");
+  await Bun.write(output, `npm_state=absent\npreflight_run_id=${runId}\npreflight_run_attempt=${attemptText}\n`);
   console.log("Exact npm version is absent; the current positive attempt may first-publish reviewed bytes.");
 } else {
   const release = parseNpmRelease(metadata, manifest.version);
@@ -39,8 +43,6 @@ if (metadata === null) {
   }
   const remote = new Uint8Array(await tarballResponse.arrayBuffer());
   if (!Buffer.from(remote).equals(bytes)) throw new Error("Existing npm tarball differs from the reviewed artifact.");
-  const runId = required("GITHUB_RUN_ID", /^[1-9][0-9]*$/u);
-  const attempt = Number(required("GITHUB_RUN_ATTEMPT", /^[1-9][0-9]*$/u));
   await verifyNpmProvenance(remote, {
     maximumAttempt: attempt,
     requiredRunId: runId,
@@ -48,6 +50,6 @@ if (metadata === null) {
     verifiedTag: required("VERIFIED_TAG", /^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u),
     version: manifest.version,
   });
-  await Bun.write(output, "npm_state=exact_same_run\n");
+  await Bun.write(output, `npm_state=exact_same_run\npreflight_run_id=${runId}\npreflight_run_attempt=${attemptText}\n`);
   console.log("Existing exact npm version is cryptographically bound to this run at an allowed positive attempt.");
 }

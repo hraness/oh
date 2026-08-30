@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { verifyNpmProvenance } from "./npm-provenance-verification";
+import { parseNpmProvenanceAdmission } from "./release-attempt-policy";
 import {
   assertReleaseAssetBytes,
   parseGitHubRelease,
@@ -123,15 +124,15 @@ if (
   `sha512-${createHash("sha512").update(npmTarball).digest("base64")}` !== npmVersion.integrity
   || createHash("sha1").update(npmTarball).digest("hex") !== npmVersion.shasum
 ) throw new Error("npm release tarball bytes do not match registry integrity metadata.");
-const firstPublication = process.env.PRE_NPM_STATE === "absent";
-const admissionRunId = process.env.GITHUB_RUN_ID;
-const admissionAttempt = process.env.GITHUB_RUN_ATTEMPT;
-if (firstPublication && (admissionRunId === undefined || !/^[1-9][0-9]*$/u.test(admissionRunId)
-  || admissionAttempt === undefined || !/^[1-9][0-9]*$/u.test(admissionAttempt))) {
-  throw new Error("First-publication admission requires the exact positive workflow run attempt.");
-}
+const provenanceAdmission = parseNpmProvenanceAdmission({
+  admissionAttempt: required("GITHUB_RUN_ATTEMPT", /^[1-9][0-9]*$/u),
+  admissionRunId: required("GITHUB_RUN_ID", /^[1-9][0-9]*$/u),
+  provenanceAttempt: required("NPM_PROVENANCE_ATTEMPT", /^[1-9][0-9]*$/u),
+  provenanceAttemptMode: required("NPM_PROVENANCE_ATTEMPT_MODE", /^(?:exact|maximum)$/u),
+  provenanceRunId: required("NPM_PROVENANCE_RUN_ID", /^[1-9][0-9]*$/u),
+});
 await verifyNpmProvenance(npmTarball, {
-  ...(firstPublication ? { requiredAttempt: Number(admissionAttempt), requiredRunId: admissionRunId as string } : {}),
+  ...provenanceAdmission,
   verifiedSha,
   verifiedTag,
   version: manifest.version,
