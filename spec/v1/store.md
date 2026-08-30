@@ -76,6 +76,13 @@ purged, or differently bound space and never inserts, updates, or deletes data
 during open. A provider credential can therefore omit space and binding
 creation while retaining only the data actions required by its later task.
 
+`purgeOhLibSqlWorkingSpaceV1` is the one-shot lifecycle-worker boundary. It
+purges an existing exact working binding or atomically writes an empty-head
+purge receipt when creation never completed. Creation and absent-space fencing
+race in the same authority transaction: whichever wins, the result converges
+to one complete purge receipt, and a delayed creator cannot resurrect the
+space. The credential still needs no permission to create spaces or bindings.
+
 Runtime open verifies the exact installed table, index, and trigger set, not
 only a schema marker. Every operation, binding, and purge receipt read parses
 its canonical JSON and cross-checks each duplicated SQL column. Current reads

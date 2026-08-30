@@ -1,5 +1,5 @@
 import { type Sha256Hex } from "./canonical";
-import { type OhStoreAuthorityV1, type OhStoreProfileV1 } from "./store";
+import { type OhSpacePurgeReceiptV1, type OhStoreAuthorityV1, type OhStoreProfileV1 } from "./store";
 export type OhLibSqlValueV1 = ArrayBuffer | Date | Uint8Array | bigint | boolean | null | number | string;
 export type OhLibSqlStatementV1 = Readonly<{
     args?: readonly OhLibSqlValueV1[];
@@ -45,4 +45,13 @@ export declare function createOhLibSqlStoreAuthorityV1(client: OhLibSqlClientV1,
  * must fail closed instead of acquiring space-creation authority.
  */
 export declare function openExistingOhLibSqlStoreAuthorityV1(client: OhLibSqlClientV1, options?: OhLibSqlStoreAuthorityOptionsV1): Promise<OhStoreAuthorityV1>;
+/**
+ * Purges an existing working authority or atomically fences its exact binding
+ * when creation never completed. The empty-space receipt prevents a delayed
+ * creator from resurrecting abandoned custody without granting the purge
+ * credential permission to create a space or binding.
+ */
+export declare function purgeOhLibSqlWorkingSpaceV1(client: OhLibSqlClientV1, options?: OhLibSqlStoreAuthorityOptionsV1 & Readonly<{
+    purgedAt?: string;
+}>): Promise<OhSpacePurgeReceiptV1>;
 //# sourceMappingURL=libsql.d.ts.map

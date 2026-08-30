@@ -12,6 +12,7 @@ assert.equal(typeof store.OhRecordCodecRegistry, "function");
 assert.equal(typeof store.OhSemanticBundleIngressV1, "function");
 assert.equal(typeof libsql.createOhLibSqlStoreAuthorityV1, "function");
 assert.equal(typeof libsql.openExistingOhLibSqlStoreAuthorityV1, "function");
+assert.equal(typeof libsql.purgeOhLibSqlWorkingSpaceV1, "function");
 assert.equal(typeof memory.createOhMemoryAgentV1, "function");
 assert.equal(store.OH_WORKING_STORE_PROFILE_V1.profileKind, "working");
 assert.equal(store.OH_WORKING_STORE_PROFILE_V1.capabilities.operationReplication, false);
