@@ -6,7 +6,7 @@
 - `skills/oh/` – installable Agent Skill for operating Oh from a coding-agent workflow.
 - `site/` – the public Next.js website for `https://oh.computer`, deployed from the existing Hraness Vercel project.
 - `.agents/skills/` – portable plan authoring, phased execution, implementation, and independent review workflows.
-- `.github/` – public contribution templates, read-only branch validation, dependency updates, and post-publication release verification.
+- `.github/` – public contribution templates, branch validation, dependency updates, and exact-artifact release automation.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` – public usage, project policy, threat model, and terms.
 - `STYLE.md` – the public and reader-facing prose contract.
 - `package.json`, `tsconfig.json`, and `bun.lock` – package identity, exported surfaces, and frozen Bun toolchain.
@@ -27,4 +27,4 @@
 - Update narrative specifications, machine-readable manifests and schemas, implementation, and regression evidence together when a public contract changes.
 - Keep the Agent Skill concise and self-contained. It may guide reads and writes, but it cannot broaden a user's authorization or silently choose a database, space, sync destination, or destructive operation.
 - Rebuild `dist/` after source changes. Run `bun run check`, confirm the build leaves tracked files clean, and exercise the packed root, subpaths, and `oh --help` before handoff.
-- Enable GitHub release immutability in repository settings before the first release. Prepare each stable `v*` release as a draft against the matching `package.json` version on `main`, attach any assets, then publish it. Keep the release workflow read-only and require its post-publication check to confirm GitHub reports the release immutable. Never move or reuse a release tag.
+- Enable GitHub release immutability and configure npm trusted publishing for `.github/workflows/release.yml` before the next stable release. Release only a new annotated `v*` tag at exact current `main`. Build one npm tarball, test those unchanged bytes on Linux and macOS, publish them through npm OIDC with provenance, then attach that same tarball and `SHA256SUMS` to the immutable GitHub Release. Never move or reuse a release tag.
