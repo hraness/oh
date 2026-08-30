@@ -117,12 +117,33 @@ against it. Thus rerunning only final admission can safely reuse a successful
 attempt-one publisher's exact attempt-one output, while blank or stale outputs
 cannot relax admission.
 
-If a failed GitHub API call leaves an exact-tag draft, the workflow fails closed
-and reports that recovery is required. An owner must inspect the draft ID and
-audit log out of band, prove it was created by this release run, and remove only
-that task-owned draft before rerunning. The workflow never guesses ownership,
-deletes a published Release, or uses mutable `target_commitish` as authority.
-Draft author, title, body, tag, and target fields are mutable provider metadata,
-not an unforgeable binding to the workflow run, tag object, commit, and artifact
-digests. Consequently they are insufficient for safe autonomous deletion or
-resume; recovery remains deliberately fail-closed.
+If a GitHub API interruption leaves an exact-tag draft, a later attempt of that
+same workflow run may complete it without deleting, retagging, or rebuilding
+anything. Recovery first requires a structured successful API read or exact 404,
+then an exhaustive bounded inventory containing exactly one draft ID for the tag.
+That draft must have the GitHub Actions author, the exact release title and state,
+and one canonical identity marker binding the repository ID, workflow ref, run
+ID, creation attempt, annotated tag object, peeled commit, and the names, lengths,
+and SHA-256 digests of both expected artifacts. The creation attempt must be
+positive and no greater than the actual current run attempt. A draft from another
+run, a future or reversed attempt, a duplicate draft, an edited marker, an extra
+asset, or any different tag object, commit, name, length, digest, uploader, or
+downloaded byte fails closed.
+
+A published immutable Release is admitted only when that same exhaustive
+inventory contains no matching draft. The writer inventories again after draft
+publication and at final admission, so a leftover or concurrently introduced
+same-tag draft cannot be silently carried into npm publication.
+
+The recovery writer rechecks the annotated tag object, peeled commit, and current
+`main` ancestry before creating the draft, before each missing-asset upload, and
+before publication. Existing assets are downloaded by provider asset ID and
+compared byte for byte; only a missing expected asset is uploaded. Publication
+replaces the draft marker with the actual publication attempt, makes the fully
+validated draft Latest, and immediately requires an exact immutable readback.
+Later attempts admit that published Release only for the same run and a positive
+publication attempt no greater than the current attempt. Metadata is never enough
+by itself, the workflow never deletes a draft or edits a published Release, and
+mutable `target_commitish` is neither required nor consulted as authority. The
+remote annotated tag object and its peeled reviewed commit remain release
+authority throughout.

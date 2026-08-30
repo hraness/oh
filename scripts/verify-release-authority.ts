@@ -76,7 +76,9 @@ export function assertRemoteReleaseAuthority(
   ) throw new Error(`Reviewed release commit ${input.sha} is not an ancestor of current ${input.branch}.`);
 }
 
-export async function verifyRemoteReleaseAuthority(): Promise<void> {
+export type RemoteReleaseAuthority = Readonly<{ tagObjectSha: string }>;
+
+export async function verifyRemoteReleaseAuthority(): Promise<RemoteReleaseAuthority> {
   if (process.env.GITHUB_REPOSITORY !== publicRepository) {
     throw new Error(`Release authority must run in ${publicRepository}.`);
   }
@@ -90,6 +92,7 @@ export async function verifyRemoteReleaseAuthority(): Promise<void> {
   const comparison = await runJson(`/repos/${publicRepository}/compare/${sha}...${branch}`);
   assertRemoteReleaseAuthority(annotated, head, comparison, { branch, sha, tag });
   console.log(`Verified remote annotated ${tag} at ${sha} remains in current ${branch} history.`);
+  return Object.freeze({ tagObjectSha });
 }
 
 if (import.meta.main) await verifyRemoteReleaseAuthority();
