@@ -31,6 +31,7 @@ const markdownFiles = [
   "spec/v1/sync.md",
   "spec/v1/embedding.md",
   "spec/v1/projection.md",
+  "spec/v1/memory.md",
   "spec/v1/migration.md",
   "skills/oh/SKILL.md",
 ] as const;
@@ -152,7 +153,7 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.2.2");
+    expect(packageJson.version).toBe("0.2.3");
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");
     expect(packageJson.license).toBe("MIT");
@@ -365,6 +366,8 @@ describe("versioned public contract", () => {
     expect(version.memory).toEqual({ specification: "./v1/memory.md" });
     const memory = await readFile(join(root, "spec/v1/memory.md"), "utf8");
     expect(memory).toContain("One kernel, two authorities");
+    expect(memory).toContain("createOhMemoryAgentV2");
+    expect(memory).toContain("content-addressed cursor data, not an authority");
     expect(memory).toContain("It does not sync the working operation chain");
   });
 

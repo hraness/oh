@@ -5,6 +5,7 @@ import { OhRecordCodecRegistry } from "./contract";
 import { createKnowledgeGraphRecordV1 } from "./graph";
 import {
   createOhMemoryAgentV1,
+  createOhMemoryAgentV2,
   OH_MEMORY_COMPOSITE_FACT_EXTRACTOR_V1,
   type OhMemoryAuthoritySourceV1,
   type OhMemoryProofV1,
@@ -81,6 +82,78 @@ function nameProgram() {
   } as const;
 }
 
+function chunkProgram(maximumRows = 400, pageSize = 64,
+  maximumResultBytes = 8 * 1024 * 1024, maximumPageBytes = 1024 * 1024) {
+  const lane = ohProjectionVariableV1("lane");
+  const key = ohProjectionVariableV1("key");
+  const index = ohProjectionVariableV1("index");
+  const chunk = ohProjectionVariableV1("chunk");
+  const source = createOhProjectionLiteralV1({ relation: "domain.value-chunk",
+    terms: [lane, key, index, chunk] });
+  const visible = createOhProjectionLiteralV1({ relation: "domain.visible-value-chunk",
+    terms: [lane, key, index, chunk] });
+  return {
+    evaluation: {
+      maximumDerivedTuples: 2_048,
+      maximumProofDepth: 16,
+      maximumProofNodes: 16,
+      maximumResultBytes,
+      maximumRounds: 16,
+      maximumTotalProofNodes: 8_192,
+      maximumWorkUnits: 2_000_000,
+    },
+    maximumPageBytes,
+    maximumRows,
+    pageSize,
+    parameters: ["key", "lane"],
+    programId: "memory.value-chunks",
+    purpose: "answer.memory-value",
+    query: createOhProjectionQueryV1({ find: ["index", "chunk"], limit: maximumRows,
+      queryId: "memory.value-chunks", where: [visible] }),
+    rulePack: createOhProjectionRulePackV1({ rulePackId: "memory.value-chunks",
+      rulePackRevision: 1, rules: [createOhProjectionRuleV1({ body: [source], head: visible,
+        ruleId: "memory.value-chunks" })] }),
+    v: 2,
+  } as const;
+}
+
+async function fixtureV2(maximumRows = 400, pageSize = 64,
+  maximumResultBytes = 8 * 1024 * 1024, configuration: Readonly<{
+    chunkBytes?: number;
+    chunkCount?: number;
+    maximumPageBytes?: number;
+  }> = {}) {
+  const canonical = createOhSqliteStoreAuthorityV1({ path: ":memory:",
+    profile: OH_CANONICAL_STORE_PROFILE_V1, realmId: "realm:v2-canonical", spaceId: "v2-canonical" });
+  const working = createOhSqliteStoreAuthorityV1({ path: ":memory:",
+    profile: OH_WORKING_STORE_PROFILE_V1, realmId: "realm:v2-working", spaceId: "v2-working" });
+  await put(canonical.store, "entity:chunked", "Chunked", "op_v2_chunked");
+  const chunkCount = configuration.chunkCount ?? 300;
+  const chunkBytes = configuration.chunkBytes ?? 0;
+  const baseProgram = chunkProgram(maximumRows, pageSize, maximumResultBytes,
+    configuration.maximumPageBytes ?? 1024 * 1024);
+  const agent = await createOhMemoryAgentV2({ actorId: "test.memory-agent-v2",
+    canonical: { authorityId: "authority.v2-canonical",
+      expectedBindingSha256: canonical.store.binding.bindingSha256,
+      expectedHead: await canonical.store.head(), store: canonical.store },
+    extractors: [{ extractorId: "domain.value-chunks",
+      extractorSha256: canonicalSha256({ extractor: "domain.value-chunks", revision: 1 }),
+      relations: ["domain.value-chunk"],
+      extract: ({ lane, record }) => Array.from({ length: chunkCount }, (_, index) => ({
+        relation: "domain.value-chunk", tuple: [lane, record.key, index,
+          `chunk:${index.toString().padStart(3, "0")}${"x".repeat(chunkBytes)}`], v: 1 as const,
+      })),
+    }],
+    monotonicNow: () => 0,
+    now: () => new Date("2026-08-29T12:00:00.000Z"),
+    programs: [baseProgram, { ...baseProgram, maximumPageBytes: 1024 * 1024,
+      programId: "memory.value-chunks-alternate", purpose: "answer.memory-value-alternate" }],
+    working: { authorityId: "authority.v2-working", codecs: entityCodecs(),
+      expectedBindingSha256: working.store.binding.bindingSha256, store: working.store },
+  });
+  return { agent, canonical, working };
+}
+
 function physicalSources(proofs: readonly OhMemoryProofV1[]) {
   const sources: OhMemoryAuthoritySourceV1[] = [];
   const visit = (proof: OhMemoryProofV1) => {
@@ -144,6 +217,17 @@ describe("experimental composite Oh memory", () => {
       value: { name: "Working" } }], tombstones: [], v: 1 });
 
     const result = await value.agent.query({ programId: "memory.visible-records", v: 1 });
+    expect({ memorySha256: String(result.identity.memorySha256), resultSha256: String(result.resultSha256),
+      rowSha256: result.rows.map(({ resultRowSha256 }) => String(resultRowSha256)) }).toEqual({
+      memorySha256: "b2327cb013af29646ab6beaa953771153c10f076bb8f3e061f106b0a5f234a3a",
+      resultSha256: "44e9fb7af61aa2395f6e028acdfdf327f64c07be9dca40b5097f9d5d3248291e",
+      rowSha256: [
+        "9abe30330d18d8ee271f25f5db9e9a0bad09eaa8a10fb206b2850336f016903d",
+        "ccfc0b064abbbea14ddbdb17a03708cb151f166c82c9c028c159c1e07f10bff5",
+        "c4f1ce2d57b8324858892d7a1e3362a77b098d5a8e9b794df269f49dd25d1456",
+        "6ca55f381d076658aef1d4b7f238fc7730413c55a4474d3a96703912170c7485",
+      ],
+    });
     expect(result.authority).toBe("derived");
     expect(result.rows.map(({ values }) => values.slice(0, 2))).toEqual([
       ["canonical", "entity:canonical"], ["canonical", "entity:shared"],
@@ -372,5 +456,166 @@ describe("experimental composite Oh memory", () => {
       codecs: entityCodecs(), expectedBindingSha256: working.store.binding.bindingSha256,
       store: working.store } })).rejects.toThrow(OhProfileError);
     await canonical.store.close(); await working.store.close();
+  });
+});
+
+describe("experimental parameterized and paginated Oh memory V2", () => {
+  test("binds host-declared lane and key constants and returns more than 256 value chunks in stable pages",
+    async () => {
+      const value = await fixtureV2();
+      let continuation: string | null = null;
+      const rows: (readonly (boolean | null | number | string)[])[] = [];
+      const starts: number[] = [];
+      let first: Awaited<ReturnType<typeof value.agent.query>> | undefined;
+      let later: Awaited<ReturnType<typeof value.agent.query>> | undefined;
+      do {
+        const result = await value.agent.query({ bindings: {
+          key: "entity:chunked", lane: "canonical",
+        }, continuation, programId: "memory.value-chunks", v: 2 });
+        first ??= result;
+        if (result.page.start === 64) later = result;
+        starts.push(result.page.start);
+        rows.push(...result.rows.map((row) => row.values));
+        expect(result.page.truncation).toEqual({ reasons: [], truncated: false, v: 2 });
+        expect(result.page.hasMore).toBe(result.continuation !== null);
+        expect(result.page.completeness).toBe(result.page.hasMore ? "partial" : "complete");
+        continuation = result.continuation;
+      } while (continuation !== null);
+
+      expect(starts).toEqual([0, 64, 128, 192, 256]);
+      expect(rows).toHaveLength(300);
+      expect(rows[0]).toEqual([0, "chunk:000"]);
+      expect(rows).toContainEqual([299, "chunk:299"]);
+      expect(rows.map((row) => row[0] as number).sort((left, right) => left - right))
+        .toEqual(Array.from({ length: 300 }, (_, index) => index));
+      expect(first?.identity.bindings).toEqual({ key: "entity:chunked", lane: "canonical" });
+      expect(first?.identity.bindingsSha256).not.toBe(first?.identity.templateQuerySha256);
+      expect(first?.identity.boundQuerySha256).not.toBe(first?.identity.templateQuerySha256);
+      expect(Object.isFrozen(first?.identity.bindings)).toBe(true);
+      if (first === undefined) throw new Error("Expected a first V2 page.");
+      const explanation = await value.agent.explain({ pageRow: 0,
+        resultSha256: first.resultSha256, token: first.explainCapability.token, v: 2 });
+      expect(explanation.page).toEqual(first.page);
+      expect(explanation.resultSha256).toBe(first.resultSha256);
+      expect(physicalSources(explanation.proofs)).toEqual([expect.objectContaining({
+        key: "entity:chunked", lane: "canonical",
+      })]);
+      if (later === undefined) throw new Error("Expected a later V2 page.");
+      const laterExplanation = await value.agent.explain({ pageRow: 0,
+        resultSha256: later.resultSha256, token: later.explainCapability.token, v: 2 });
+      expect(laterExplanation.page.start).toBe(64);
+      expect(laterExplanation.pageRow).toBe(0);
+      expect(laterExplanation.values).toEqual(later.rows[0]!.values);
+      expect(physicalSources(laterExplanation.proofs)).toEqual([expect.objectContaining({
+        key: "entity:chunked", lane: "canonical",
+      })]);
+      await expect(value.agent.explain({ pageRow: 0, resultSha256: "f".repeat(64),
+        token: first.explainCapability.token, v: 2 })).rejects.toThrow(OhProfileError);
+      await value.canonical.store.close(); await value.working.store.close();
+    });
+
+  test("pins continuations to the exact source, program, bindings, and complete projection", async () => {
+    const value = await fixtureV2();
+    const first = await value.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation: null, programId: "memory.value-chunks", v: 2 });
+    expect(first.continuation).not.toBeNull();
+    const continuation = first.continuation!;
+    const last = continuation.at(-1);
+    const tampered = `${continuation.slice(0, -1)}${last === "A" ? "B" : "A"}`;
+    await expect(value.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation: tampered, programId: "memory.value-chunks", v: 2 }))
+      .rejects.toThrow();
+    const decoded = JSON.parse(Buffer.from(continuation, "base64url").toString("utf8")) as
+      Record<string, unknown>;
+    const noncanonical = Buffer.from(JSON.stringify(Object.fromEntries(
+      Object.entries(decoded).reverse())), "utf8").toString("base64url");
+    await expect(value.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation: noncanonical, programId: "memory.value-chunks", v: 2 }))
+      .rejects.toThrow("Invalid memory continuation payload");
+    await expect(value.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation, programId: "memory.value-chunks-alternate", v: 2 }))
+      .rejects.toThrow("exact source, program, and binding identity");
+    await expect(value.agent.query({ bindings: {
+      key: "entity:other", lane: "canonical",
+    }, continuation, programId: "memory.value-chunks", v: 2 }))
+      .rejects.toThrow(OhIntegrityError);
+
+    const head = await value.working.store.head();
+    await value.agent.remember({ expectedHead: { generation: head.generation,
+      operationSha256: head.operationSha256 }, puts: [{ dependencies: [], key: "entity:head-change",
+      kind: "entity", v: 1, value: { name: "Head change" } }], requestId: "v2_head_change",
+    tombstones: [], v: 1 });
+    await expect(value.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation, programId: "memory.value-chunks", v: 2 }))
+      .rejects.toThrow("exact source, program, and binding identity");
+    await value.canonical.store.close(); await value.working.store.close();
+  });
+
+  test("fails closed instead of returning a silently row- or byte-truncated page", async () => {
+    const rowBound = await fixtureV2(256, 64);
+    await expect(rowBound.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation: null, programId: "memory.value-chunks", v: 2 }))
+      .rejects.toThrow("projection was truncated (query-limit)");
+    await rowBound.canonical.store.close(); await rowBound.working.store.close();
+
+    const byteBound = await fixtureV2(400, 64, 64 * 1024);
+    await expect(byteBound.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation: null, programId: "memory.value-chunks", v: 2 }))
+      .rejects.toThrow("projection was truncated (result-bytes)");
+    await byteBound.canonical.store.close(); await byteBound.working.store.close();
+
+    const pageBound = await fixtureV2(400, 64, 8 * 1024 * 1024,
+      { chunkBytes: 2_048, maximumPageBytes: 64 * 1024 });
+    await expect(pageBound.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation: null, programId: "memory.value-chunks", v: 2 }))
+      .rejects.toThrow("page exceeds its host-declared canonical byte bound");
+    const recovered = await pageBound.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation: null, programId: "memory.value-chunks-alternate", v: 2 });
+    const explanation = await pageBound.agent.explain({ pageRow: 0,
+      resultSha256: recovered.resultSha256, token: recovered.explainCapability.token, v: 2 });
+    expect(explanation.values).toEqual(recovered.rows[0]!.values);
+    await pageBound.canonical.store.close(); await pageBound.working.store.close();
+  });
+
+  test("reports zero and exact-page results as complete without a continuation", async () => {
+    const value = await fixtureV2(400, 64, 8 * 1024 * 1024, { chunkCount: 64 });
+    const zero = await value.agent.query({ bindings: {
+      key: "entity:absent", lane: "canonical",
+    }, continuation: null, programId: "memory.value-chunks", v: 2 });
+    expect(zero.rows).toEqual([]);
+    expect(zero.page).toMatchObject({ completeness: "complete", endExclusive: 0,
+      hasMore: false, returnedRows: 0, start: 0, totalRows: 0 });
+    expect(zero.continuation).toBeNull();
+
+    const exact = await value.agent.query({ bindings: {
+      key: "entity:chunked", lane: "canonical",
+    }, continuation: null, programId: "memory.value-chunks", v: 2 });
+    expect(exact.rows).toHaveLength(64);
+    expect(exact.page).toMatchObject({ completeness: "complete", endExclusive: 64,
+      hasMore: false, returnedRows: 64, start: 0, totalRows: 64 });
+    expect(exact.continuation).toBeNull();
+    await value.canonical.store.close(); await value.working.store.close();
+  });
+
+  test("accepts only exact primitive bindings and rejects caller-supplied query policy", async () => {
+    const value = await fixtureV2();
+    await expect(value.agent.query({ bindings: { key: "entity:chunked" }, continuation: null,
+      programId: "memory.value-chunks", v: 2 })).rejects.toThrow("exactly match");
+    await expect(value.agent.query({ bindings: { key: "entity:chunked", lane: { value: "canonical" } },
+      continuation: null, programId: "memory.value-chunks", v: 2 }))
+      .rejects.toThrow("JSON primitives");
+    await expect(value.agent.query({ bindings: { key: "entity:chunked", lane: "canonical" },
+      continuation: null, programId: "memory.value-chunks", query: {}, v: 2 }))
+      .rejects.toThrow("Invalid parameterized memory query");
+    await value.canonical.store.close(); await value.working.store.close();
   });
 });

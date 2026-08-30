@@ -73,6 +73,7 @@ describe("public site surface", () => {
     const workflow = await readFile(join(root, ".github/workflows/ci.yml"), "utf8");
     expect(specification).toContain('import contract from "../../public/spec/v1/contract.json"');
     expect(specification).toContain("contract.recordKinds.map");
+    expect(specification).toContain("The additive V2 facade");
     expect(workflow).toContain("Require an exact public specification mirror");
     expect(workflow).toContain("working-directory: site");
     expect(workflow).toContain("bun run lint");

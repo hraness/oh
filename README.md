@@ -40,7 +40,7 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 current immutable release directly from GitHub:
 
 ```sh
-bun add --global github:hraness/oh#v0.2.2
+bun add --global github:hraness/oh#v0.2.3
 oh --help
 ```
 
@@ -100,7 +100,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "github:hraness/oh#v0.2.2"
+    "@hraness/oh": "github:hraness/oh#v0.2.3"
   }
 }
 ```
@@ -251,6 +251,68 @@ const result = await memory.query({
   v: 1,
 });
 ```
+
+When the model must bind a small set of values and traverse a larger result,
+use the additive V2 factory. The host still owns the query and rules. It names
+only query-body variables as parameters and fixes every evaluation, row, page,
+and page-byte limit before exposing the agent object:
+
+```ts
+import { createOhMemoryAgentV2 } from "@hraness/oh/experimental/memory";
+
+const memoryV2 = await createOhMemoryAgentV2({
+  actorId: "research.memory-agent",
+  canonical: {
+    authorityId: "project-reviewed",
+    expectedBindingSha256: canonical.store.binding.bindingSha256,
+    expectedHead: await canonical.store.head(),
+    store: canonical.store,
+  },
+  extractors: [valueChunkExtractor],
+  programs: [{
+    evaluation: {
+      maximumDerivedTuples: 8_192,
+      maximumProofDepth: 32,
+      maximumProofNodes: 1_024,
+      maximumResultBytes: 8 * 1024 * 1024,
+      maximumRounds: 64,
+      maximumTotalProofNodes: 16_384,
+      maximumWorkUnits: 1_000_000,
+    },
+    maximumPageBytes: 1024 * 1024,
+    maximumRows: 4_096,
+    pageSize: 128,
+    parameters: ["key", "lane"],
+    programId: "memory.value-chunks",
+    purpose: "answer.memory",
+    query: valueChunkQuery,
+    rulePack: valueChunkRules,
+    v: 2,
+  }],
+  working: {
+    authorityId: "thread-working",
+    codecs,
+    expectedBindingSha256: working.store.binding.bindingSha256,
+    store: working.store,
+  },
+});
+
+let continuation: string | null = null;
+do {
+  const page = await memoryV2.query({
+    bindings: { key: "entity:research", lane: "working" },
+    continuation,
+    programId: "memory.value-chunks",
+    v: 2,
+  });
+  continuation = page.continuation;
+} while (continuation !== null);
+```
+
+V2 evaluates one complete bounded result before paging it. Any projection row
+or byte truncation returns no page. A continuation binds its offset to the
+exact physical heads, program, bindings, projection result, page size, and row
+count, so a working-head change fails instead of mixing snapshots.
 
 The returned object has only `remember`, `query`, `explain`, and `nominate`.
 The host fixes the working actor, each program purpose, and every nomination
@@ -466,7 +528,7 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install hraness/oh and its Oh Agent Skill from the immutable v0.2.2 tag at
+Install hraness/oh and its Oh Agent Skill from the immutable v0.2.3 tag at
 https://github.com/hraness/oh. Verify the CLI with `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

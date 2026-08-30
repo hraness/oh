@@ -70,6 +70,61 @@ silently canonical. Returned result, row, value, proof, source, and receipt
 graphs are detached and deeply immutable, so a caller cannot mutate bytes after
 their digest or explanation capability is issued.
 
+## Additive parameterized pagination (V2 experimental API)
+
+`createOhMemoryAgentV2` is an additive experimental query surface. It does not
+change a V1 request, result, digest preimage, factory, or type. Its `remember`
+and `nominate` methods continue to use the V1 semantic-bundle and nomination
+contracts. Only its `query` and `explain` envelopes use V2.
+
+A V2 named program is still entirely host-owned. In addition to the fixed
+purpose, rule pack, query, and extractor registry, the host declares:
+
+- the exact query-body variables that may receive parameters;
+- every projection evaluation limit;
+- the maximum complete result row count;
+- a page size of at most 256 rows; and
+- a canonical byte ceiling for each outward page.
+
+The host query limit MUST equal the declared maximum row count. A parameter
+variable MUST occur in the query body and MUST NOT be a projected output
+variable. Agent input supplies one exact object of bounded JSON primitive
+values for those names plus a program ID and either `null` or a continuation.
+It cannot supply a purpose, rule, query AST, evaluator option, page size, or
+source selector. Binding substitutes constants only into the fixed query body;
+the rules and projected output remain the registered program.
+
+The V2 identity includes the canonical bindings and their digest, the template
+and bound query digests, the complete program digest, and the same physical
+source and projection identities as V1. Thus a parameter value is part of both
+the projection identity and the memory identity, not an unrecorded filter.
+This supports a host extractor that emits bounded primitive value chunks while
+a named program binds `lane` and `key` and projects only chunk position and
+chunk content. Each chunk remains subject to the V1 16 KiB atom limit and the
+extractor's existing count and source rules.
+
+The evaluator computes one canonical, ordered result no larger than the
+host-declared row limit before it selects a page. A projection `query-limit` or
+`result-bytes` truncation returns no page. The outward page reports its start,
+end, configured and returned row counts, total rows, `hasMore`, `complete` or
+`partial` status, and explicit empty truncation evidence. Its configured slice
+must fit the host-declared page byte ceiling; the facade fails closed instead
+of silently shortening the slice. Every returned page therefore has
+`truncation.truncated: false`; `partial` means more exact pages exist, not that
+the projection is incomplete. Proof-budget truncation remains visible on
+the affected row as `proofsTruncated` and yields `unknown` premise authority,
+as in V1.
+
+A continuation is canonical, content-addressed cursor data, not an authority
+or bearer credential. It binds the next offset to the exact program, bindings,
+complete projection result, page size, total row count, and composite memory
+identity. Every continued call rereads the current working head and rebuilds
+the projection. A head, source, program, bindings, result, page-size, or row
+count change fails with an integrity error rather than mixing pages from two
+snapshots. A V2 explanation capability retains only its exact outward page and
+mapped physical proofs, and requires that page's result digest and page-local
+row index.
+
 ## Explanations and nominations
 
 Query returns an opaque, random, short-lived explanation capability bound to

@@ -23,9 +23,12 @@ import {
   OH_PROJECTION_LIMITS_V1,
   createOhProjectionDatasetV1,
   createOhProjectionFactV1,
+  createOhProjectionLiteralV1,
+  createOhProjectionQueryV1,
   createOhProjectionRecordFactsV1,
   createOhProjectionSnapshotV1,
   evaluateOhProjectionV1,
+  ohProjectionConstantV1,
   parseOhProjectionQueryV1,
   parseOhProjectionRulePackV1,
   type OhProjectionAtomV1,
@@ -293,6 +296,134 @@ export interface OhMemoryAgentV1 {
   explain(value: unknown): Promise<OhMemoryExplanationV1>;
   nominate(value: unknown): Promise<OhMemoryNominationV1>;
   query(value: unknown): Promise<OhMemoryQueryResultV1>;
+  remember(value: unknown): Promise<OhMemoryRememberReceiptV1>;
+}
+
+/** Additive experimental query/pagination limits; V1 contracts are unchanged. */
+export const OH_MEMORY_QUERY_LIMITS_V2 = Object.freeze({
+  bindingBytes: 64 * 1024,
+  bindings: 32,
+  continuationBytes: 4 * 1024,
+  maximumPageBytes: 8 * 1024 * 1024,
+  maximumPageRows: 256,
+  maximumProgramRows: OH_PROJECTION_LIMITS_V1.queryResults,
+  minimumPageBytes: 64 * 1024,
+  requestBytes: 80 * 1024,
+});
+
+export type OhMemoryEvaluationLimitsV2 = Readonly<{
+  maximumDerivedTuples: number;
+  maximumProofDepth: number;
+  maximumProofNodes: number;
+  maximumResultBytes: number;
+  maximumRounds: number;
+  maximumTotalProofNodes: number;
+  maximumWorkUnits: number;
+}>;
+
+/**
+ * A host-owned parameterized program. Parameter names refer only to variables
+ * in the query body, never to rule variables or projected output variables.
+ */
+export type OhMemoryNamedProgramV2 = Readonly<{
+  evaluation: OhMemoryEvaluationLimitsV2;
+  maximumPageBytes: number;
+  maximumRows: number;
+  pageSize: number;
+  parameters: readonly string[];
+  programId: string;
+  purpose: string;
+  query: OhProjectionQueryV1;
+  rulePack: OhProjectionRulePackV1;
+  v: 2;
+}>;
+
+export type OhMemoryFacadeOptionsV2 = Readonly<
+  Omit<OhMemoryFacadeOptionsV1, "programs"> & Readonly<{
+    programs: readonly OhMemoryNamedProgramV2[];
+  }>
+>;
+
+export type OhMemoryIdentityV2 = Readonly<{
+  bindings: Readonly<Record<string, JsonPrimitive>>;
+  bindingsSha256: Sha256Hex;
+  boundQuerySha256: Sha256Hex;
+  canonical: OhMemoryLaneIdentityV1;
+  compositeDatasetSha256: Sha256Hex;
+  conflictPolicy: typeof OH_MEMORY_CONFLICT_POLICY_V1;
+  evaluationSha256: Sha256Hex;
+  memorySha256: Sha256Hex;
+  programId: string;
+  programSha256: Sha256Hex;
+  projectionSha256: Sha256Hex;
+  purpose: string;
+  rulePackSha256: Sha256Hex;
+  templateQuerySha256: Sha256Hex;
+  v: 2;
+  working: OhMemoryLaneIdentityV1;
+}>;
+
+export type OhMemoryResultRowV2 = Readonly<{
+  premiseAuthority: "canonical" | "unknown" | "working";
+  premiseLanes: readonly OhMemoryLaneV1[];
+  proofsTruncated: boolean;
+  resultRowSha256: Sha256Hex;
+  supportCount: number;
+  v: 2;
+  values: readonly OhProjectionAtomV1[];
+}>;
+
+export type OhMemoryPageV2 = Readonly<{
+  completeness: "complete" | "partial";
+  endExclusive: number;
+  hasMore: boolean;
+  maximumPageBytes: number;
+  pageSize: number;
+  returnedRows: number;
+  start: number;
+  totalRows: number;
+  truncation: Readonly<{
+    reasons: readonly [];
+    truncated: false;
+    v: 2;
+  }>;
+  v: 2;
+}>;
+
+export type OhMemoryQueryResultV2 = Readonly<{
+  authority: "derived";
+  conflicts: Readonly<{ count: number; conflictsSha256: Sha256Hex; v: 2 }>;
+  continuation: string | null;
+  explainCapability: Readonly<{ expiresAt: string; token: string; v: 2 }>;
+  identity: OhMemoryIdentityV2;
+  page: OhMemoryPageV2;
+  projectionResultSha256: Sha256Hex;
+  resultSha256: Sha256Hex;
+  rows: readonly OhMemoryResultRowV2[];
+  v: 2;
+}>;
+
+export type OhMemoryExplanationV2 = Readonly<{
+  authority: "derived";
+  explanationSha256: Sha256Hex;
+  identity: OhMemoryIdentityV2;
+  page: OhMemoryPageV2;
+  pageRow: number;
+  premiseAuthority: OhMemoryResultRowV2["premiseAuthority"];
+  premiseLanes: readonly OhMemoryLaneV1[];
+  proofs: readonly OhMemoryProofV1[];
+  proofsTruncated: boolean;
+  resultRowSha256: Sha256Hex;
+  resultSha256: Sha256Hex;
+  supportCount: number;
+  v: 2;
+  values: readonly OhProjectionAtomV1[];
+}>;
+
+export interface OhMemoryAgentV2 {
+  explain(value: unknown): Promise<OhMemoryExplanationV2>;
+  nominate(value: unknown): Promise<OhMemoryNominationV1>;
+  query(value: unknown): Promise<OhMemoryQueryResultV2>;
   remember(value: unknown): Promise<OhMemoryRememberReceiptV1>;
 }
 
@@ -930,6 +1061,491 @@ export async function createOhMemoryAgentV1(options: OhMemoryFacadeOptionsV1): P
       proofsTruncated: row.proofsTruncated, resultRowSha256: row.resultRowSha256,
       resultSha256: stored.resultSha256, supportCount: row.supportCount, v: 1 as const,
       values: row.values };
+    return immutableClone({ ...payload, explanationSha256: canonicalSha256(payload) });
+  };
+
+  const nominate = async (value: unknown): Promise<OhMemoryNominationV1> => {
+    const request = parseNominationRequest(value);
+    const route = nominationRoutes.get(request.nominationId);
+    if (route === undefined) throw new TypeError("Unknown named memory nomination route.");
+    const head = parseOhHeadV1(immutableClone(await workingStore.head()));
+    if (head === null) throw new OhIntegrityError("The working nomination store returned an invalid head.");
+    const closure = await workingStore.exportDependencyClosure({ head: {
+      operationSha256: head.operationSha256, sequence: head.sequence }, roots: request.roots });
+    const verified = verifyOhDependencyClosureAgainstV1(closure, { binding: workingBinding, head });
+    if (!verified.ok) throw new OhIntegrityError("The working nomination closure failed exact verification.");
+    if (canonicalJson(verified.closure.roots) !== canonicalJson(request.roots)) {
+      throw new OhIntegrityError("The working nomination closure substituted different roots.");
+    }
+    const source = Object.freeze({ authorityId: workingAuthorityId,
+      bindingSha256: workingBinding.bindingSha256, head, lane: "working" as const, v: 1 as const });
+    const payload = { closure: verified.closure, destinationPurpose: route.destinationPurpose,
+      nominationId: route.nominationId, source, status: "prepared" as const, v: 1 as const };
+    return immutableClone({ ...payload, nominationSha256: canonicalSha256(payload) });
+  };
+
+  return Object.freeze({ explain, nominate, query, remember });
+}
+
+type ResolvedMemoryProgramV2 = OhMemoryNamedProgramV2 & Readonly<{
+  programSha256: Sha256Hex;
+}>;
+
+type StoredExplanationV2 = Readonly<{
+  bytes: number;
+  expiresAtMonotonicMs: number;
+  identity: OhMemoryIdentityV2;
+  page: OhMemoryPageV2;
+  proofs: readonly (readonly OhMemoryProofV1[])[];
+  resultSha256: Sha256Hex;
+  rows: readonly OhMemoryResultRowV2[];
+}>;
+
+type OhMemoryContinuationV2 = Readonly<{
+  bindingsSha256: Sha256Hex;
+  continuationSha256: Sha256Hex;
+  memorySha256: Sha256Hex;
+  nextOffset: number;
+  pageSize: number;
+  programSha256: Sha256Hex;
+  projectionResultSha256: Sha256Hex;
+  totalRows: number;
+  v: 2;
+}>;
+
+function positiveBounded(value: unknown, maximum: number, label: string, minimum = 1): number {
+  if (!Number.isSafeInteger(value) || (value as number) < minimum || (value as number) > maximum) {
+    throw new RangeError(`${label} must be an integer from ${minimum} through ${maximum}.`);
+  }
+  return value as number;
+}
+
+function resolveEvaluationV2(value: unknown): OhMemoryEvaluationLimitsV2 {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["maximumDerivedTuples", "maximumProofDepth",
+    "maximumProofNodes", "maximumResultBytes", "maximumRounds", "maximumTotalProofNodes",
+    "maximumWorkUnits"])) {
+    throw new TypeError("A V2 memory program must declare every projection evaluation limit.");
+  }
+  return Object.freeze({
+    maximumDerivedTuples: positiveBounded(value.maximumDerivedTuples,
+      OH_PROJECTION_LIMITS_V1.derivedTuples, "maximumDerivedTuples"),
+    maximumProofDepth: positiveBounded(value.maximumProofDepth,
+      OH_PROJECTION_LIMITS_V1.proofDepth, "maximumProofDepth"),
+    maximumProofNodes: positiveBounded(value.maximumProofNodes,
+      OH_PROJECTION_LIMITS_V1.proofNodes, "maximumProofNodes"),
+    maximumResultBytes: positiveBounded(value.maximumResultBytes,
+      OH_PROJECTION_LIMITS_V1.resultBytes, "maximumResultBytes", 64 * 1024),
+    maximumRounds: positiveBounded(value.maximumRounds,
+      OH_PROJECTION_LIMITS_V1.rounds, "maximumRounds"),
+    maximumTotalProofNodes: positiveBounded(value.maximumTotalProofNodes,
+      OH_PROJECTION_LIMITS_V1.totalProofNodes, "maximumTotalProofNodes"),
+    maximumWorkUnits: positiveBounded(value.maximumWorkUnits,
+      OH_PROJECTION_LIMITS_V1.workUnits, "maximumWorkUnits"),
+  });
+}
+
+function resolveProgramsV2(programs: readonly OhMemoryNamedProgramV2[]):
+ReadonlyMap<string, ResolvedMemoryProgramV2> {
+  if (!Array.isArray(programs) || programs.length < 1
+    || programs.length > OH_MEMORY_LIMITS_V1.maximumPrograms) {
+    throw new RangeError("Memory requires a bounded nonempty V2 named program registry.");
+  }
+  const resolved = new Map<string, ResolvedMemoryProgramV2>();
+  for (const candidate of programs) {
+    if (!isPlainRecord(candidate) || !hasExactKeys(candidate, ["evaluation", "maximumPageBytes",
+      "maximumRows", "pageSize", "parameters", "programId", "purpose", "query", "rulePack", "v"])
+      || candidate.v !== 2 || !Array.isArray(candidate.parameters)) {
+      throw new TypeError("Invalid V2 named memory program.");
+    }
+    const programId = safeCode(candidate.programId, 128);
+    const purpose = safeCode(candidate.purpose, 256);
+    const query = parseOhProjectionQueryV1(candidate.query);
+    const rulePack = parseOhProjectionRulePackV1(candidate.rulePack);
+    const evaluation = resolveEvaluationV2(candidate.evaluation);
+    const maximumRows = positiveBounded(candidate.maximumRows,
+      OH_MEMORY_QUERY_LIMITS_V2.maximumProgramRows, "maximumRows");
+    const pageSize = positiveBounded(candidate.pageSize,
+      Math.min(maximumRows, OH_MEMORY_QUERY_LIMITS_V2.maximumPageRows), "pageSize");
+    const maximumPageBytes = positiveBounded(candidate.maximumPageBytes,
+      OH_MEMORY_QUERY_LIMITS_V2.maximumPageBytes, "maximumPageBytes",
+      OH_MEMORY_QUERY_LIMITS_V2.minimumPageBytes);
+    if (programId === null || purpose === null || query === null || rulePack === null
+      || resolved.has(programId) || query.limit !== maximumRows
+      || candidate.parameters.length > OH_MEMORY_QUERY_LIMITS_V2.bindings) {
+      throw new TypeError("Invalid or duplicate V2 named memory program.");
+    }
+    const parameters = candidate.parameters.map((parameter) => safeCode(parameter, 128)).sort();
+    if (parameters.some((parameter) => parameter === null)
+      || new Set(parameters).size !== parameters.length) {
+      throw new TypeError("A V2 memory program has invalid or duplicate parameters.");
+    }
+    const queryVariables = new Set(query.where.flatMap((literal) => literal.terms.flatMap((term) =>
+      term.kind === "variable" ? [term.name] : [])));
+    if ((parameters as readonly string[]).some((parameter) => !queryVariables.has(parameter)
+      || query.find.includes(parameter))) {
+      throw new TypeError("V2 parameters must be query-body variables that are not projected outputs.");
+    }
+    const detachedParameters = Object.freeze(parameters as string[]);
+    const programPayload = {
+      evaluation,
+      maximumPageBytes,
+      maximumRows,
+      pageSize,
+      parameters: detachedParameters,
+      programId,
+      purpose,
+      querySha256: query.querySha256,
+      rulePackSha256: rulePack.rulePackSha256,
+      v: 2 as const,
+    };
+    const program = immutableClone({ evaluation, maximumPageBytes, maximumRows, pageSize,
+      parameters: detachedParameters, programId, programSha256: canonicalSha256(programPayload),
+      purpose, query, rulePack, v: 2 as const });
+    resolved.set(programId, program);
+  }
+  return resolved;
+}
+
+function parsePrimitiveBindingV2(value: unknown): JsonPrimitive {
+  if (value !== null && typeof value !== "boolean" && typeof value !== "number"
+    && typeof value !== "string") throw new TypeError("Memory bindings must be JSON primitives.");
+  const serialized = canonicalJson(value);
+  if (utf8ByteLength(serialized) > OH_PROJECTION_LIMITS_V1.atomBytes) {
+    throw new RangeError("A memory binding exceeds the projection atom byte bound.");
+  }
+  return value as JsonPrimitive;
+}
+
+function parseQueryRequestV2(value: unknown): Readonly<{
+  bindingsValue: unknown;
+  continuation: string | null;
+  programId: string;
+}> {
+  if (utf8ByteLength(canonicalJson(value)) > OH_MEMORY_QUERY_LIMITS_V2.requestBytes
+    || !isPlainRecord(value) || !hasExactKeys(value,
+      ["bindings", "continuation", "programId", "v"]) || value.v !== 2
+    || (value.continuation !== null && typeof value.continuation !== "string")) {
+    throw new TypeError("Invalid parameterized memory query.");
+  }
+  const programId = safeCode(value.programId, 128);
+  if (programId === null) throw new TypeError("Invalid parameterized memory query identity.");
+  if (typeof value.continuation === "string"
+    && utf8ByteLength(value.continuation) > OH_MEMORY_QUERY_LIMITS_V2.continuationBytes) {
+    throw new RangeError("The memory continuation exceeds its byte bound.");
+  }
+  return { bindingsValue: value.bindings,
+    continuation: value.continuation as string | null, programId };
+}
+
+function parseBindingsV2(value: unknown, parameters: readonly string[]): Readonly<{
+  bindings: Readonly<Record<string, JsonPrimitive>>;
+  bindingsSha256: Sha256Hex;
+}> {
+  if (!isPlainRecord(value) || !hasExactKeys(value, parameters)) {
+    throw new TypeError("Memory query bindings must exactly match the host-declared parameters.");
+  }
+  const bindings: Record<string, JsonPrimitive> = {};
+  for (const parameter of parameters) bindings[parameter] = parsePrimitiveBindingV2(value[parameter]);
+  if (utf8ByteLength(canonicalJson(bindings)) > OH_MEMORY_QUERY_LIMITS_V2.bindingBytes) {
+    throw new RangeError("Memory query bindings exceed their canonical byte bound.");
+  }
+  const detached = immutableClone(bindings);
+  return Object.freeze({ bindings: detached,
+    bindingsSha256: canonicalSha256({ bindings: detached, parameters, v: 2 }) });
+}
+
+function bindQueryV2(query: OhProjectionQueryV1,
+  bindings: Readonly<Record<string, JsonPrimitive>>): OhProjectionQueryV1 {
+  const where = query.where.map((literal) => createOhProjectionLiteralV1({
+    relation: literal.relation,
+    terms: literal.terms.map((term) => term.kind === "variable" && Object.hasOwn(bindings, term.name)
+      ? ohProjectionConstantV1(bindings[term.name]!) : term),
+  }));
+  return createOhProjectionQueryV1({ find: query.find, limit: query.limit,
+    queryId: query.queryId, where });
+}
+
+function publicRowV2(row: OhProjectionResultRowV1,
+  proofs: readonly OhMemoryProofV1[]): OhMemoryResultRowV2 {
+  const lanes = new Set<OhMemoryLaneV1>();
+  let unknown = row.proofsTruncated;
+  for (const proof of proofs) unknown = collectLanes(proof, lanes) || unknown;
+  const premiseLanes = [...lanes].sort() as readonly OhMemoryLaneV1[];
+  const premiseAuthority: OhMemoryResultRowV2["premiseAuthority"] = unknown || premiseLanes.length === 0
+    ? "unknown" : premiseLanes.includes("working") ? "working" : "canonical";
+  const payload = { premiseAuthority, premiseLanes, proofsTruncated: row.proofsTruncated,
+    supportCount: row.supportCount, v: 2 as const, values: row.values };
+  return Object.freeze({ ...payload, resultRowSha256: canonicalSha256(payload) });
+}
+
+function encodeContinuationV2(value: Omit<OhMemoryContinuationV2, "continuationSha256">): string {
+  const encoded = immutableClone({ ...value, continuationSha256: canonicalSha256(value) });
+  return Buffer.from(canonicalJson(encoded), "utf8").toString("base64url");
+}
+
+function parseContinuationV2(value: string): OhMemoryContinuationV2 {
+  if (value.length < 1 || utf8ByteLength(value) > OH_MEMORY_QUERY_LIMITS_V2.continuationBytes
+    || !/^[A-Za-z0-9_-]+$/u.test(value)) throw new TypeError("Invalid memory continuation encoding.");
+  const bytes = Buffer.from(value, "base64url");
+  if (bytes.toString("base64url") !== value
+    || bytes.byteLength > OH_MEMORY_QUERY_LIMITS_V2.continuationBytes) {
+    throw new TypeError("Invalid memory continuation encoding.");
+  }
+  const text = bytes.toString("utf8");
+  let decoded: unknown;
+  try { decoded = JSON.parse(text); } catch { throw new TypeError("Invalid memory continuation JSON."); }
+  if (canonicalJson(decoded) !== text || !isPlainRecord(decoded)
+    || !hasExactKeys(decoded, ["bindingsSha256", "continuationSha256", "memorySha256", "nextOffset",
+      "pageSize", "programSha256", "projectionResultSha256", "totalRows", "v"])
+    || decoded.v !== 2) throw new TypeError("Invalid memory continuation payload.");
+  const bindingsSha256 = parseSha256Hex(decoded.bindingsSha256);
+  const continuationSha256 = parseSha256Hex(decoded.continuationSha256);
+  const memorySha256 = parseSha256Hex(decoded.memorySha256);
+  const programSha256 = parseSha256Hex(decoded.programSha256);
+  const projectionResultSha256 = parseSha256Hex(decoded.projectionResultSha256);
+  if (bindingsSha256 === null || continuationSha256 === null || memorySha256 === null
+    || programSha256 === null || projectionResultSha256 === null
+    || !Number.isSafeInteger(decoded.nextOffset) || (decoded.nextOffset as number) < 1
+    || !Number.isSafeInteger(decoded.pageSize) || (decoded.pageSize as number) < 1
+    || !Number.isSafeInteger(decoded.totalRows) || (decoded.totalRows as number) < 1) {
+    throw new TypeError("Invalid memory continuation identity.");
+  }
+  const payload = { bindingsSha256, memorySha256, nextOffset: decoded.nextOffset as number,
+    pageSize: decoded.pageSize as number, programSha256, projectionResultSha256,
+    totalRows: decoded.totalRows as number, v: 2 as const };
+  if (canonicalSha256(payload) !== continuationSha256) {
+    throw new OhIntegrityError("The memory continuation digest is invalid.");
+  }
+  return Object.freeze({ ...payload, continuationSha256 });
+}
+
+function parseExplainRequestV2(value: unknown): Readonly<{
+  pageRow: number;
+  resultSha256: Sha256Hex;
+  token: string;
+}> {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["pageRow", "resultSha256", "token", "v"])
+    || value.v !== 2 || typeof value.token !== "string" || value.token.length !== 43
+    || !Number.isSafeInteger(value.pageRow) || (value.pageRow as number) < 0) {
+    throw new TypeError("Invalid V2 memory explanation request.");
+  }
+  const resultSha256 = parseSha256Hex(value.resultSha256);
+  if (resultSha256 === null) throw new TypeError("Invalid V2 memory explanation result identity.");
+  return { pageRow: value.pageRow as number, resultSha256, token: value.token };
+}
+
+/**
+ * Creates the additive V2 memory facade. V2 adds only host-declared primitive
+ * bindings and fail-closed stable pagination; V1 request and digest contracts
+ * remain untouched.
+ */
+export async function createOhMemoryAgentV2(options: OhMemoryFacadeOptionsV2): Promise<OhMemoryAgentV2> {
+  const memoryActorId = safeCode(options.actorId, 128);
+  if (memoryActorId === null) throw new TypeError("Invalid host-bound memory actor ID.");
+  const canonicalStore = options.canonical.store;
+  const workingStore = options.working.store;
+  const workingCodecs = options.working.codecs;
+  const canonicalAuthorityId = authorityId(options.canonical.authorityId);
+  const workingAuthorityId = authorityId(options.working.authorityId);
+  if (canonicalAuthorityId === workingAuthorityId) {
+    throw new OhProfileError("Working and canonical memory must be distinct physical authorities.");
+  }
+  const canonicalBinding = bindingFor(canonicalStore,
+    options.canonical.expectedBindingSha256, "canonical");
+  const workingBinding = bindingFor(workingStore,
+    options.working.expectedBindingSha256, "working");
+  const expectedCanonicalHead = parseOhHeadV1(options.canonical.expectedHead);
+  if (expectedCanonicalHead === null) throw new TypeError("Invalid pinned canonical memory head.");
+  const programs = resolveProgramsV2(options.programs);
+  const extractors = resolveExtractors(options.extractors ?? []);
+  const nominationRoutes = resolveNominationRoutes(options.nominationRoutes ?? []);
+  const ingress = new OhSemanticBundleIngressV1(workingStore, workingCodecs);
+  const now = options.now ?? (() => new Date());
+  const monotonicNow = options.monotonicNow ?? (() => performance.now());
+  const capabilityLifetime = options.explainCapabilityLifetimeMs
+    ?? OH_MEMORY_LIMITS_V1.explainCapabilityLifetimeMs;
+  if (!Number.isSafeInteger(capabilityLifetime) || capabilityLifetime < 1_000
+    || capabilityLifetime > 60 * 60 * 1_000) {
+    throw new RangeError("Invalid memory explanation capability lifetime.");
+  }
+  const canonical = await readLane({ authorityId: canonicalAuthorityId,
+    binding: canonicalBinding, store: canonicalStore }, "canonical", expectedCanonicalHead);
+  const explanations = new Map<string, StoredExplanationV2>();
+  let explanationBytes = 0;
+  let lastMonotonicMs = -1;
+  let lastWallClockMs = Number.NEGATIVE_INFINITY;
+  const wallClock = () => {
+    const milliseconds = clockMilliseconds(now);
+    if (milliseconds < lastWallClockMs) throw new OhProfileError("The memory wall clock regressed.");
+    lastWallClockMs = milliseconds;
+    return milliseconds;
+  };
+  const monotonicClock = () => {
+    const milliseconds = monotonicMilliseconds(monotonicNow);
+    if (milliseconds < lastMonotonicMs) throw new OhProfileError("The memory monotonic clock regressed.");
+    lastMonotonicMs = milliseconds;
+    return milliseconds;
+  };
+  const deleteExplanation = (token: string) => {
+    const stored = explanations.get(token);
+    if (stored !== undefined && explanations.delete(token)) explanationBytes -= stored.bytes;
+  };
+
+  const remember = async (value: unknown): Promise<OhMemoryRememberReceiptV1> => {
+    if (utf8ByteLength(canonicalJson(value)) > OH_MEMORY_LIMITS_V1.rememberBytes) {
+      throw new RangeError("The memory semantic bundle exceeds its canonical byte bound.");
+    }
+    if (!isPlainRecord(value) || !hasExactKeys(value,
+      ["expectedHead", "puts", "requestId", "tombstones", "v"]) || value.v !== 1) {
+      throw new TypeError("Invalid memory remember request.");
+    }
+    const requestId = safeCode(value.requestId, 128);
+    if (requestId === null) throw new TypeError("Invalid memory remember request identity.");
+    const operationId = `memory_${canonicalSha256({ actorId: memoryActorId,
+      bindingSha256: workingBinding.bindingSha256, requestId, v: 1 }).slice(0, 48)}`;
+    const operation = await ingress.commit({ actorId: memoryActorId,
+      expectedHead: value.expectedHead, instant: isoInstant(new Date(wallClock())), operationId,
+      puts: value.puts, tombstones: value.tombstones, v: 1 });
+    const head: OhHeadV1 = { generation: operation.sequence,
+      graphRevisionSha256: operation.graphRevisionSha256,
+      operationSha256: operation.operationSha256, recordsSha256: operation.recordsSha256,
+      sequence: operation.sequence, v: 1 };
+    const payload = { actorId: operation.actorId, authorityId: workingAuthorityId,
+      bindingSha256: workingBinding.bindingSha256, head, instant: operation.instant,
+      lane: "working" as const, operationSha256: operation.operationSha256, requestId,
+      status: "committed" as const, v: 1 as const };
+    return immutableClone({ ...payload, receiptSha256: canonicalSha256(payload) });
+  };
+
+  const query = async (value: unknown): Promise<OhMemoryQueryResultV2> => {
+    const request = parseQueryRequestV2(value);
+    const program = programs.get(request.programId);
+    if (program === undefined) throw new TypeError("Unknown named V2 memory program.");
+    const bound = parseBindingsV2(request.bindingsValue, program.parameters);
+    const boundQuery = bindQueryV2(program.query, bound.bindings);
+    const working = await readLane({ authorityId: workingAuthorityId,
+      binding: workingBinding, store: workingStore }, "working");
+    const composite = createCompositeDataset(canonical, working, extractors);
+    const projection = evaluateOhProjectionV1({ dataset: composite.dataset,
+      options: program.evaluation, query: boundQuery, rulePack: program.rulePack,
+      snapshot: composite.snapshot });
+    if (projection.stats.truncated) {
+      const reasons = projection.stats.truncationReasons.join(", ");
+      throw new RangeError(`The V2 memory projection was truncated (${reasons}); no page was returned.`);
+    }
+    if (projection.rows.length > program.maximumRows) {
+      throw new RangeError("The V2 memory projection exceeds its host-declared row bound.");
+    }
+    const identityPayload = {
+      bindings: bound.bindings,
+      bindingsSha256: bound.bindingsSha256,
+      boundQuerySha256: boundQuery.querySha256,
+      canonical: laneIdentity(canonical),
+      compositeDatasetSha256: composite.dataset.datasetSha256,
+      conflictPolicy: OH_MEMORY_CONFLICT_POLICY_V1,
+      evaluationSha256: projection.identity.evaluationSha256,
+      programId: program.programId,
+      programSha256: program.programSha256,
+      projectionSha256: projection.identity.projectionSha256,
+      purpose: program.purpose,
+      rulePackSha256: program.rulePack.rulePackSha256,
+      templateQuerySha256: program.query.querySha256,
+      v: 2 as const,
+      working: laneIdentity(working),
+    };
+    const identity: OhMemoryIdentityV2 = immutableClone({ ...identityPayload,
+      memorySha256: canonicalSha256(identityPayload) });
+    const allProofs = immutableClone(projection.rows.map((row) => row.proofs.map((proof) =>
+      mapProof(proof, composite.sources, composite.factPolicies))));
+    const allRows = immutableClone(projection.rows.map((row, index) => publicRowV2(row, allProofs[index]!)));
+    let start = 0;
+    if (request.continuation !== null) {
+      const continuation = parseContinuationV2(request.continuation);
+      if (continuation.bindingsSha256 !== bound.bindingsSha256
+        || continuation.memorySha256 !== identity.memorySha256
+        || continuation.pageSize !== program.pageSize
+        || continuation.programSha256 !== program.programSha256
+        || continuation.projectionResultSha256 !== projection.resultSha256
+        || continuation.totalRows !== allRows.length
+        || continuation.nextOffset >= allRows.length
+        || continuation.nextOffset % program.pageSize !== 0) {
+        throw new OhIntegrityError("The memory continuation does not match this exact source, program, and binding identity.");
+      }
+      start = continuation.nextOffset;
+    }
+    const endExclusive = Math.min(start + program.pageSize, allRows.length);
+    const rows = immutableClone(allRows.slice(start, endExclusive));
+    const proofs = immutableClone(allProofs.slice(start, endExclusive));
+    const hasMore = endExclusive < allRows.length;
+    const page: OhMemoryPageV2 = immutableClone({ completeness: hasMore ? "partial" : "complete",
+      endExclusive, hasMore, maximumPageBytes: program.maximumPageBytes, pageSize: program.pageSize,
+      returnedRows: rows.length, start, totalRows: allRows.length,
+      truncation: { reasons: [], truncated: false, v: 2 as const }, v: 2 as const });
+    const continuation = hasMore ? encodeContinuationV2({ bindingsSha256: bound.bindingsSha256,
+      memorySha256: identity.memorySha256, nextOffset: endExclusive, pageSize: program.pageSize,
+      programSha256: program.programSha256, projectionResultSha256: projection.resultSha256,
+      totalRows: allRows.length, v: 2 }) : null;
+    const conflicts = immutableClone({ count: composite.conflicts.length,
+      conflictsSha256: canonicalSha256(composite.conflicts), v: 2 as const });
+    const resultPayload = immutableClone({ authority: "derived" as const, conflicts, continuation,
+      identity, page, projectionResultSha256: projection.resultSha256, rows, v: 2 as const });
+    const resultSha256 = canonicalSha256(resultPayload);
+    const issuedAt = wallClock();
+    const issuedAtMonotonic = monotonicClock();
+    const expiresAtMs = issuedAt + capabilityLifetime;
+    const expiresAtMonotonicMs = issuedAtMonotonic + capabilityLifetime;
+    const expiresAt = isoInstant(new Date(expiresAtMs));
+    const pageBytePreflight = { ...resultPayload,
+      explainCapability: { expiresAt, token: "A".repeat(43), v: 2 as const }, resultSha256 };
+    if (utf8ByteLength(canonicalJson(pageBytePreflight)) > program.maximumPageBytes) {
+      throw new RangeError("The V2 memory page exceeds its host-declared canonical byte bound.");
+    }
+    for (const [existingToken, stored] of explanations) {
+      if (issuedAtMonotonic >= stored.expiresAtMonotonicMs) deleteExplanation(existingToken);
+    }
+    const storedPayload = immutableClone({ expiresAtMonotonicMs, identity, page, proofs,
+      resultSha256, rows });
+    const storedBytes = utf8ByteLength(canonicalJson(storedPayload)) + 128;
+    if (storedBytes > OH_MEMORY_LIMITS_V1.explainCapabilityEntryBytes
+      || storedBytes > OH_MEMORY_LIMITS_V1.explainCapabilityTotalBytes) {
+      throw new RangeError("The V2 memory explanation exceeds its retained capability bound.");
+    }
+    while (explanations.size >= OH_MEMORY_LIMITS_V1.explainCapabilities
+      || explanationBytes + storedBytes > OH_MEMORY_LIMITS_V1.explainCapabilityTotalBytes) {
+      const oldest = explanations.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      deleteExplanation(oldest);
+    }
+    let token = randomBytes(32).toString("base64url");
+    while (explanations.has(token)) token = randomBytes(32).toString("base64url");
+    explanations.set(token, immutableClone({ ...storedPayload, bytes: storedBytes }));
+    explanationBytes += storedBytes;
+    const result = immutableClone({ ...resultPayload,
+      explainCapability: { expiresAt, token, v: 2 as const }, resultSha256 });
+    if (utf8ByteLength(canonicalJson(result)) > program.maximumPageBytes) {
+      deleteExplanation(token);
+      throw new RangeError("The V2 memory page exceeds its host-declared canonical byte bound.");
+    }
+    return result;
+  };
+
+  const explain = async (value: unknown): Promise<OhMemoryExplanationV2> => {
+    const request = parseExplainRequestV2(value);
+    const stored = explanations.get(request.token);
+    const currentTime = monotonicClock();
+    if (stored === undefined || stored.resultSha256 !== request.resultSha256
+      || currentTime >= stored.expiresAtMonotonicMs) {
+      deleteExplanation(request.token);
+      throw new OhProfileError("The V2 memory explanation capability is absent, expired, or misbound.");
+    }
+    const row = stored.rows[request.pageRow];
+    const proofs = stored.proofs[request.pageRow];
+    if (row === undefined || proofs === undefined) throw new RangeError("The explanation page row is out of bounds.");
+    const payload = { authority: "derived" as const, identity: stored.identity, page: stored.page,
+      pageRow: request.pageRow, premiseAuthority: row.premiseAuthority,
+      premiseLanes: row.premiseLanes, proofs, proofsTruncated: row.proofsTruncated,
+      resultRowSha256: row.resultRowSha256, resultSha256: stored.resultSha256,
+      supportCount: row.supportCount, v: 2 as const, values: row.values };
     return immutableClone({ ...payload, explanationSha256: canonicalSha256(payload) });
   };
 

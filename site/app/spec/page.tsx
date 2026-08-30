@@ -236,6 +236,9 @@ export default function Specification() {
                 programs see lane-tagged facts, visible conflicts, exact
                 physical authority and extractor digests, and bounded proofs
                 without receiving store locators or canonical mutation handles.
+                The additive V2 facade lets a host declare primitive query-body
+                parameters and stable bounded pages; continuations fail if the
+                physical heads, program, bindings, or complete result change.
               </p>
               <p className="callout">
                 Working nominations are verified dependency-closure proposals.
