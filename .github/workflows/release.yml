@@ -192,6 +192,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.verify.outputs.artifact_id }}
           path: artifacts
+          merge-multiple: true
       - name: Verify checksum and installed public boundary
         run: |
           bun run ./scripts/release-artifact-checksum.ts check artifacts/*.tgz artifacts/SHA256SUMS
@@ -226,6 +227,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.verify.outputs.artifact_id }}
           path: artifacts
+          merge-multiple: true
       - name: Recheck remote authority and checksum
         run: |
           bun run ./scripts/verify-release-authority.ts
@@ -267,11 +269,13 @@ jobs:
         with:
           artifact-ids: ${{ needs.verify.outputs.artifact_id }}
           path: artifacts
+          merge-multiple: true
       - name: Download reviewed dependency-free npm writer
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           artifact-ids: ${{ needs.verify.outputs.writer_artifact_id }}
           path: writer
+          merge-multiple: true
       - name: Require a trusted-publishing-capable npm client
         run: bun run ./writer/scripts/check-npm-trusted-publishing.ts
       - name: Recheck exact checksum
@@ -316,6 +320,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.verify.outputs.artifact_id }}
           path: artifacts
+          merge-multiple: true
       - name: Admit absent or exact same-run npm state
         id: state
         run: bun run ./scripts/check-npm-retry-state.ts artifacts/*.tgz

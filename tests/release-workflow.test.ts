@@ -69,6 +69,23 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
   expect(admission).toBeGreaterThan(github);
 });
 
+test("ID-bound artifacts extract directly into every consumer directory", async () => {
+  const workflow = await readFile(join(root, ".github/workflows/release.yml"), "utf8");
+  const downloads = [...workflow.matchAll(
+    /uses: actions\/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4\n\s+with:\n\s+artifact-ids: ([^\n]+)\n\s+path: ([^\n]+)\n\s+merge-multiple: true/gu,
+  )].map((match) => ({ id: match[1]?.trim(), path: match[2]?.trim() }));
+
+  expect(downloads).toEqual([
+    { id: "${{ needs.verify.outputs.artifact_id }}", path: "artifacts" },
+    { id: "${{ needs.verify.outputs.artifact_id }}", path: "artifacts" },
+    { id: "${{ needs.verify.outputs.artifact_id }}", path: "artifacts" },
+    { id: "${{ needs.verify.outputs.writer_artifact_id }}", path: "writer" },
+    { id: "${{ needs.verify.outputs.artifact_id }}", path: "artifacts" },
+  ]);
+  expect(workflow).toContain("release-artifact-checksum.ts check artifacts/*.tgz artifacts/SHA256SUMS");
+  expect(workflow).toContain("bun run ./writer/scripts/check-npm-trusted-publishing.ts");
+});
+
 test("publication is tokenless, bounded, provenance-bound, and idempotent only for exact bytes", async () => {
   const [npmPublisher, provenance, githubPublisher, admission, authority] = await Promise.all([
     readFile(join(root, "scripts/publish-npm-release.ts"), "utf8"),
