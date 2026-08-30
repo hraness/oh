@@ -93,7 +93,7 @@ describe("oh CLI", () => {
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({
       manifest: { contractId: "oh.ontology.v1" },
-      sqliteSchemaVersion: 1,
+      sqliteSchemaVersion: 2,
       v: 1,
     });
     expect(existsSync(join(root, ".oh"))).toBe(false);

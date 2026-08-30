@@ -11,13 +11,27 @@
       "contractSha256": "e53ae573c2af417082be9f554d0f6f3e317f054daf745181f462608e3f622594",
       "embeddingProfile": "./v1/embedding-profile.json",
       "id": "v1",
+      "memory": {
+        "specification": "./v1/memory.md"
+      },
       "ontology": "./v1/ontology.json",
+      "projection": {
+        "identitySchema": "./v1/projection-identity.schema.json",
+        "querySchema": "./v1/projection-query.schema.json",
+        "resultSchema": "./v1/projection-result.schema.json",
+        "rulePackSchema": "./v1/projection-rule-pack.schema.json",
+        "specification": "./v1/projection.md"
+      },
       "schemas": [
         "./v1/contract.schema.json",
         "./v1/record.schema.json",
         "./v1/schema-revision.schema.json",
         "./v1/operation.schema.json",
-        "./v1/sync-bundle.schema.json"
+        "./v1/sync-bundle.schema.json",
+        "./v1/projection-rule-pack.schema.json",
+        "./v1/projection-query.schema.json",
+        "./v1/projection-identity.schema.json",
+        "./v1/projection-result.schema.json"
       ],
       "specification": "./v1/ontology.md",
       "status": "current",

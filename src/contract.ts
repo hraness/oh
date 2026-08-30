@@ -44,10 +44,12 @@ export type OhRecordCodec<T extends JsonValue = JsonValue> = Readonly<{
 /** Optional semantic validation layered over the immutable generic record envelope. */
 export class OhRecordCodecRegistry {
   readonly #codecs = new Map<KnowledgeGraphRecordKindV1, OhRecordCodec>();
+  #sealed = false;
 
   register(codec: OhRecordCodec): this {
+    if (this.#sealed) throw new TypeError("The codec registry is sealed.");
     if (this.#codecs.has(codec.kind)) throw new TypeError(`A codec is already registered for ${codec.kind}.`);
-    this.#codecs.set(codec.kind, codec);
+    this.#codecs.set(codec.kind, Object.freeze({ kind: codec.kind, parse: codec.parse }));
     return this;
   }
 
@@ -59,5 +61,27 @@ export class OhRecordCodecRegistry {
 
   has(kind: KnowledgeGraphRecordKindV1): boolean {
     return this.#codecs.has(kind);
+  }
+
+  /** Parses only through an explicitly registered codec. */
+  parseRequired(kind: KnowledgeGraphRecordKindV1, value: unknown): JsonValue | null {
+    const codec = this.#codecs.get(kind);
+    if (codec === undefined) return null;
+    try {
+      const parsed = codec.parse(value);
+      if (parsed === null) return null;
+      canonicalJson(parsed);
+      return parsed;
+    } catch { return null; }
+  }
+
+  /** Prevents the validation policy from changing after an ingress is created. */
+  seal(): this {
+    this.#sealed = true;
+    return this;
+  }
+
+  get sealed(): boolean {
+    return this.#sealed;
   }
 }

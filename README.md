@@ -25,14 +25,22 @@ indexes derived and replaceable.
 - **Treat search as a view.** FTS5 documents and optional local embeddings are
   derived from current record digests, so either index can be rebuilt without
   becoming graph authority.
+- **Derive without silently asserting.** Positive recursive rules run against
+  one exact graph head and fact-pack digest. Their tuples and bounded proofs
+  are deterministic, disposable output rather than accepted graph records.
+- **Remember without conflating authority.** An experimental facade composes a
+  purgeable working authority with one pinned canonical head while preserving
+  lane, conflict, record, and proof provenance.
 
 ## Install and first run
 
-[Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required. Install
-the current immutable release directly from GitHub:
+[Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
+CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
+direct libSQL authority also support Node 24 serverless runtimes. Install the
+current immutable release directly from GitHub:
 
 ```sh
-bun add --global github:hraness/oh#v0.1.1
+bun add --global github:hraness/oh#v0.2.0
 oh --help
 ```
 
@@ -92,7 +100,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "github:hraness/oh#v0.1.1"
+    "@hraness/oh": "github:hraness/oh#v0.2.0"
   }
 }
 ```
@@ -131,9 +139,216 @@ retry `OhConflictError` blindly. Read the new head and records, reconcile the
 intended change, then submit a new operation.
 
 The root entrypoint exports canonical JSON, ontology, schema, graph, operation,
-and sync contracts. Use `@hraness/oh/sqlite` for the local store,
-`@hraness/oh/sdk` for the `Oh` facade, `@hraness/oh/sync` for transport seams,
-and `@hraness/oh/semantic` for the optional local embedding backend.
+store, and sync contracts. Use `@hraness/oh/store` for the runtime-neutral
+promise interface, `@hraness/oh/libsql` for a direct Node 24 or serverless
+authority, `@hraness/oh/sqlite` for the local Bun store, `@hraness/oh/sdk` for
+the local `Oh` facade, `@hraness/oh/sync` for transport seams,
+`@hraness/oh/projection` for recursive derived views, and
+`@hraness/oh/semantic` for the optional local embedding backend. The
+`@hraness/oh/experimental/memory` subpath composes host-bound working and
+canonical stores behind a smaller agent-facing surface.
+
+## Open a scoped working store
+
+Working memory uses the same V1 graph and operation bytes under a different
+storage lifecycle. The host chooses and retains the realm binding. Application
+code receives the promise-based store and keeps the host object that can purge
+a working space out of agent tools. A model-facing adapter should expose strict
+semantic ingress and bounded query methods, not generic commit or change-feed
+access.
+
+```ts
+import { createClient } from "@libsql/client";
+import {
+  bootstrapOhLibSqlAuthorityV1,
+  createOhLibSqlStoreAuthorityV1,
+} from "@hraness/oh/libsql";
+import { OH_WORKING_STORE_PROFILE_V1 } from "@hraness/oh/store";
+
+// Run once during deployment with a short-lived schema credential.
+const schemaClient = createClient({
+  authToken: process.env.OH_SCHEMA_TOKEN!,
+  url: process.env.OH_DATABASE_URL!,
+});
+await bootstrapOhLibSqlAuthorityV1(schemaClient);
+schemaClient.close();
+
+// Runtime opens verify the schema and execute no DDL.
+const runtimeClient = createClient({
+  authToken: process.env.OH_RUNTIME_TOKEN!,
+  url: process.env.OH_DATABASE_URL!,
+});
+const authority = await createOhLibSqlStoreAuthorityV1(runtimeClient, {
+  profile: OH_WORKING_STORE_PROFILE_V1,
+  realmId: "tenant:example/thread:research",
+  spaceId: "thread:research",
+});
+
+const store = authority.store;
+console.log(await store.head());
+```
+
+The working profile disables operation replication. Dependency-closure export
+remains available for explicit reviewed adoption. `purgeWorkingSpace` exists
+only on `authority.host`; do not expose that object or raw database credentials
+through a model tool. Read the [store-port specification](spec/v1/store.md) for
+exact snapshot, change-feed, codec ingress, closure, and purge behavior.
+
+## Compose working and canonical memory
+
+The experimental memory facade uses the same Oh kernel twice, not a separate
+memory database model. Trusted host code supplies two distinct physical store
+handles, their expected binding digests, one exact canonical head, sealed
+working codecs, digest-identified fact extractors, and a closed registry of
+named projection programs:
+
+```ts
+import { createOhMemoryAgentV1 } from "@hraness/oh/experimental/memory";
+
+const memory = await createOhMemoryAgentV1({
+  actorId: "research.memory-agent",
+  canonical: {
+    authorityId: "project-reviewed",
+    expectedBindingSha256: canonical.store.binding.bindingSha256,
+    expectedHead: await canonical.store.head(),
+    store: canonical.store,
+  },
+  nominationRoutes: [{
+    destinationPurpose: "kb.review",
+    nominationId: "knowledge-review",
+  }],
+  programs: [{
+    programId: "project.dependencies",
+    purpose: "answer.research",
+    query,
+    rulePack,
+  }],
+  working: {
+    authorityId: "thread-working",
+    codecs,
+    expectedBindingSha256: working.store.binding.bindingSha256,
+    store: working.store,
+  },
+});
+
+const result = await memory.query({
+  programId: "project.dependencies",
+  v: 1,
+});
+```
+
+The returned object has only `remember`, `query`, `explain`, and `nominate`.
+The host fixes the working actor, each program purpose, and every nomination
+destination before exposing those methods. `remember` accepts an idempotency
+request plus semantic changes and returns a locator-free working-lane receipt;
+it does not accept caller-supplied actor or time claims. The object cannot
+select a store, install a rule, write canonical knowledge, sync, or purge.
+Query identity binds both exact physical lanes and all projection policy;
+conflicting same-key records remain visible. Explanation requires a bounded,
+short-lived opaque capability bound to the exact result. Nomination chooses
+only a host-registered route and creates a verified working dependency-closure
+proposal; it never promotes it. Read the
+[experimental memory specification](spec/v1/memory.md) for the complete
+authority and lifecycle boundary.
+
+## Derive an exact projection
+
+The projection subpath is pure TypeScript and runs in Node 24 serverless
+functions without loading SQLite. A snapshot binds the current space head and
+complete record-reference set. A fact pack binds the deterministic extractor
+that translated those records into relations. Rules and queries are typed data,
+not strings or executable callbacks.
+
+```ts
+import {
+  OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1,
+  createOhProjectionDatasetV1,
+  createOhProjectionLiteralV1,
+  createOhProjectionQueryV1,
+  createOhProjectionRecordFactsV1,
+  createOhProjectionRulePackV1,
+  createOhProjectionRuleV1,
+  createOhProjectionSnapshotV1,
+  evaluateOhProjectionV1,
+  ohProjectionVariableV1 as variable,
+} from "@hraness/oh/projection";
+
+const records = oh.store.snapshotRecords();
+const snapshot = createOhProjectionSnapshotV1({
+  head: oh.head(),
+  records,
+  spaceId: oh.store.spaceId,
+});
+const dataset = createOhProjectionDatasetV1({
+  extractorSha256: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.extractorSha256,
+  factPackId: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.factPackId,
+  factPackRevision: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.factPackRevision,
+  facts: createOhProjectionRecordFactsV1(records),
+  snapshot,
+});
+
+const x = variable("x");
+const y = variable("y");
+const z = variable("z");
+const literal = (relation: string, ...terms: ReturnType<typeof variable>[]) =>
+  createOhProjectionLiteralV1({ relation, terms });
+const rulePack = createOhProjectionRulePackV1({
+  rulePackId: "example.dependencies",
+  rulePackRevision: 1,
+  rules: [
+    createOhProjectionRuleV1({
+      body: [literal("oh.dependency", x, y)],
+      head: literal("depends", x, y),
+      ruleId: "depends.direct",
+    }),
+    createOhProjectionRuleV1({
+      body: [literal("depends", x, y), literal("oh.dependency", y, z)],
+      head: literal("depends", x, z),
+      ruleId: "depends.transitive",
+    }),
+  ],
+});
+const query = createOhProjectionQueryV1({
+  find: ["x", "z"],
+  queryId: "all.dependencies",
+  where: [literal("depends", x, z)],
+});
+
+const result = evaluateOhProjectionV1({ dataset, query, rulePack, snapshot });
+console.log(result.rows);
+```
+
+`result.authority` is always `derived`. Oh does not commit a result, elevate an
+agent assertion, or make a proof authoritative. Changing the snapshot,
+extracted fact set, rule pack, or query produces a new identity and requires a
+full rebuild.
+
+The reference evaluator favors bounded, transparent correctness. It supports
+positive recursion and set semantics; it does not yet support negation,
+aggregation, arithmetic, or incremental invalidation. An optional compatibility
+lane evaluates the same rules with exactly `@suss/datalog@0.20.0` and returns a
+result only after every relation agrees with the reference evaluator:
+
+```sh
+bun add @suss/datalog@0.20.0
+```
+
+```ts
+import { evaluateOhProjectionWithSussV1 } from "@hraness/oh/experimental/projection-suss";
+
+const checked = evaluateOhProjectionWithSussV1({
+  dataset,
+  query,
+  rulePack,
+  snapshot,
+});
+```
+
+Suss does not expose an execution-budget hook. Its adapter therefore applies a
+conservative finite-domain admission bound and refuses programs it cannot prove
+will stay inside the requested tuple ceiling. The built-in evaluator remains
+available for those programs. The compatibility lane deliberately runs both
+engines; it is an equivalence check, not a performance backend.
 
 ## Add local semantic search
 
@@ -219,6 +434,9 @@ For offline transfer, `oh sync export` writes a bounded bundle to stdout and
   control, tenant isolation, backup, retry, and remote availability.
 - Divergent histories do not merge automatically. Oh returns an explicit
   conflict and leaves reconciliation policy to the consumer.
+- Projection tuples and proofs are derived cache output. Persisting or
+  publishing them as knowledge requires an explicit application-level review
+  and a new authoritative graph operation.
 
 Read [SECURITY.md](SECURITY.md) for the complete public threat model.
 
@@ -233,7 +451,7 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install hraness/oh and its Oh Agent Skill from the immutable v0.1.1 tag at
+Install hraness/oh and its Oh Agent Skill from the immutable v0.2.0 tag at
 https://github.com/hraness/oh. Verify the CLI with `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```
@@ -243,7 +461,7 @@ Do not create or modify an Oh database until I name its path and ask you to.
 - **Install and prove the local path:** follow
   [Install and first run](#install-and-first-run).
 - **Embed Oh in a tool:** use [the SDK](#use-the-sdk), then select the narrow
-  package subpath for SQLite, sync, or optional semantics.
+  package subpath for SQLite, sync, projection, or optional semantics.
 - **Give Oh to an agent:** install the [Oh Agent Skill](skills/oh/SKILL.md) and
   keep its database, space, sync target, and mutation authority explicit.
 - **Implement or change a contract:** begin with the
@@ -263,8 +481,10 @@ document. The current contract is V1:
 - [Schema evolution](spec/v1/schema-evolution.md)
 - [Graph and operations](spec/v1/graph.md)
 - [SQLite storage](spec/v1/storage.md)
+- [Store ports, profiles, and direct libSQL authority](spec/v1/store.md)
 - [Sync protocol](spec/v1/sync.md)
 - [Local embedding profile](spec/v1/embedding.md)
+- [Derived projections](spec/v1/projection.md)
 - [Compatibility and migration](spec/v1/migration.md)
 
 The JSON Schemas describe exchange envelopes. Runtime parsers additionally

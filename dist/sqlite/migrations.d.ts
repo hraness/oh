@@ -1,5 +1,5 @@
 import type { OhSqliteDatabase } from "./driver";
-export declare const OH_SQLITE_SCHEMA_VERSION: 1;
+export declare const OH_SQLITE_SCHEMA_VERSION: 2;
 export type OhSqliteMigration = Readonly<{
     name: string;
     sql: string;

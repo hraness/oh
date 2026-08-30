@@ -15,7 +15,7 @@ const specificationDescription =
 export const metadata: Metadata = {
   title: specificationTitle,
   description:
-    "The versioned contract for Oh records, graph revisions, local SQLite authority, synchronization, and semantic search.",
+    "The versioned contract for Oh records, graph revisions, SQLite and libSQL authority, projections, and composite memory.",
   alternates: { canonical: "/spec" },
   openGraph: {
     title: specificationTitle,
@@ -43,6 +43,8 @@ const sections = [
   ["sqlite", "SQLite"],
   ["sync", "Sync"],
   ["semantic", "Semantic search"],
+  ["projection", "Derived projection"],
+  ["memory", "Composite memory"],
   ["versioning", "Versioning"],
 ] as const;
 
@@ -97,7 +99,7 @@ export default function Specification() {
                 <div><span>Ontology</span><strong>{contract.ontologyVersion}</strong></div>
                 <div><span>Graph format</span><strong>{contract.graphFormatVersion}</strong></div>
                 <div><span>Schema format</span><strong>{contract.schemaFormatVersion}</strong></div>
-                <div><span>SQLite schema</span><strong>1</strong></div>
+                <div><span>SQLite schema</span><strong>2</strong></div>
                 <div><span>Sync protocol</span><strong>oh.sync.v1</strong></div>
                 <div><span>Hash</span><strong>SHA-256</strong></div>
               </div>
@@ -181,8 +183,8 @@ export default function Specification() {
               <p>
                 The transport port is HTTP-friendly and compatible with a
                 libSQL/Turso implementation, while the local store remains the
-                source of truth. No cloud credential or endpoint appears in the
-                core package.
+                source of truth. A separate promise-based adapter can instead
+                use libSQL as the direct authority without importing Bun SQLite.
               </p>
             </div>
           </section>
@@ -206,8 +208,45 @@ export default function Specification() {
             </div>
           </section>
 
-          <section id="versioning" className="spec-section">
+          <section id="projection" className="spec-section">
             <div className="spec-number">07</div>
+            <div>
+              <h2>Derived projection</h2>
+              <p>
+                Typed positive rules derive recursive views from one exact
+                graph head and content-addressed fact pack. Rule, query, input,
+                and result identities use canonical bytes, while explicit work
+                limits bound tuples, rounds, joins, and proof trees.
+              </p>
+              <p className="callout">
+                Projection rows always remain derived cache output. They do not
+                become assertions, review decisions, or operation history until
+                an application submits new records through its authority path.
+              </p>
+            </div>
+          </section>
+
+          <section id="memory" className="spec-section">
+            <div className="spec-number">08</div>
+            <div>
+              <h2>Composite agent memory</h2>
+              <p>
+                One experimental facade composes a separately governed working
+                authority with one exact canonical head. Host-purposed named
+                programs see lane-tagged facts, visible conflicts, exact
+                physical authority and extractor digests, and bounded proofs
+                without receiving store locators or canonical mutation handles.
+              </p>
+              <p className="callout">
+                Working nominations are verified dependency-closure proposals.
+                Review and durable adoption remain destination-owned operations;
+                a derived result never promotes itself.
+              </p>
+            </div>
+          </section>
+
+          <section id="versioning" className="spec-section">
+            <div className="spec-number">09</div>
             <div>
               <h2>Versioning and evolution</h2>
               <p>

@@ -1,0 +1,452 @@
+{
+  "$defs": {
+    "atom": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "maxLength": 16382,
+          "type": "string"
+        }
+      ]
+    },
+    "derivedProof": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "premisesTruncated": {
+                "const": false
+              }
+            },
+            "required": [
+              "premisesTruncated"
+            ]
+          },
+          "then": {
+            "properties": {
+              "premises": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "premisesTruncated": {
+                "const": true
+              }
+            },
+            "required": [
+              "premisesTruncated"
+            ]
+          },
+          "then": {
+            "properties": {
+              "premises": {
+                "maxItems": 63
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "derived"
+        },
+        "premises": {
+          "items": {
+            "$ref": "#/$defs/proof"
+          },
+          "maxItems": 64,
+          "type": "array"
+        },
+        "premisesTruncated": {
+          "type": "boolean"
+        },
+        "relation": {
+          "$ref": "#/$defs/safeCode"
+        },
+        "ruleId": {
+          "$ref": "#/$defs/safeCode"
+        },
+        "ruleSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "tuple": {
+          "$ref": "#/$defs/tuple"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "kind",
+        "premises",
+        "premisesTruncated",
+        "relation",
+        "ruleId",
+        "ruleSha256",
+        "tuple",
+        "v"
+      ],
+      "type": "object"
+    },
+    "evaluation": {
+      "additionalProperties": false,
+      "properties": {
+        "maximumDerivedTuples": {
+          "maximum": 262144,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximumProofDepth": {
+          "maximum": 128,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximumProofNodes": {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximumResultBytes": {
+          "maximum": 16777216,
+          "minimum": 65536,
+          "type": "integer"
+        },
+        "maximumRounds": {
+          "maximum": 1024,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximumTotalProofNodes": {
+          "maximum": 65536,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximumWorkUnits": {
+          "maximum": 16777216,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "maximumDerivedTuples",
+        "maximumProofDepth",
+        "maximumProofNodes",
+        "maximumResultBytes",
+        "maximumRounds",
+        "maximumTotalProofNodes",
+        "maximumWorkUnits",
+        "v"
+      ],
+      "type": "object"
+    },
+    "engineCode": {
+      "maxLength": 256,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "factProof": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "fact"
+        },
+        "relation": {
+          "$ref": "#/$defs/safeCode"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/source"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "type": "array"
+        },
+        "tuple": {
+          "$ref": "#/$defs/tuple"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "kind",
+        "relation",
+        "sources",
+        "tuple",
+        "v"
+      ],
+      "type": "object"
+    },
+    "proof": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/factProof"
+        },
+        {
+          "$ref": "#/$defs/derivedProof"
+        },
+        {
+          "$ref": "#/$defs/truncatedProof"
+        }
+      ]
+    },
+    "row": {
+      "additionalProperties": false,
+      "properties": {
+        "proofs": {
+          "items": {
+            "$ref": "#/$defs/proof"
+          },
+          "maxItems": 64,
+          "type": "array"
+        },
+        "proofsTruncated": {
+          "type": "boolean"
+        },
+        "supportCount": {
+          "maximum": 262144,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "values": {
+          "$ref": "#/$defs/tuple"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "proofs",
+        "proofsTruncated",
+        "supportCount",
+        "values",
+        "v"
+      ],
+      "type": "object"
+    },
+    "safeCode": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "source": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "maxLength": 512,
+          "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        "recordSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "key",
+        "recordSha256",
+        "v"
+      ],
+      "type": "object"
+    },
+    "stats": {
+      "additionalProperties": false,
+      "properties": {
+        "baseFacts": {
+          "maximum": 262144,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "derivedFacts": {
+          "maximum": 262144,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "proofNodes": {
+          "maximum": 65536,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "proofsTruncated": {
+          "type": "boolean"
+        },
+        "queryMatches": {
+          "maximum": 262144,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "relations": {
+          "maximum": 4096,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rounds": {
+          "maximum": 1024,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncationReasons": {
+          "items": {
+            "enum": [
+              "query-limit",
+              "result-bytes"
+            ]
+          },
+          "maxItems": 2,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "v": {
+          "const": 1
+        },
+        "workUnits": {
+          "maximum": 16777216,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "baseFacts",
+        "derivedFacts",
+        "proofNodes",
+        "proofsTruncated",
+        "queryMatches",
+        "relations",
+        "rounds",
+        "truncated",
+        "truncationReasons",
+        "v",
+        "workUnits"
+      ],
+      "type": "object"
+    },
+    "truncatedProof": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "truncated"
+        },
+        "reason": {
+          "enum": [
+            "cycle",
+            "depth",
+            "nodes"
+          ]
+        },
+        "relation": {
+          "$ref": "#/$defs/safeCode"
+        },
+        "tuple": {
+          "$ref": "#/$defs/tuple"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "kind",
+        "reason",
+        "relation",
+        "tuple",
+        "v"
+      ],
+      "type": "object"
+    },
+    "tuple": {
+      "items": {
+        "$ref": "#/$defs/atom"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/projection-result.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Runtime conformance additionally checks canonical row and source order, atom byte limits, declared aggregate limits, proof depth and node totals, truncation consistency, engineSha256, evaluationSha256, projectionSha256, and resultSha256.",
+  "additionalProperties": false,
+  "properties": {
+    "authority": {
+      "const": "derived"
+    },
+    "cache": {
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "const": "full-rebuild"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "strategy",
+        "v"
+      ],
+      "type": "object"
+    },
+    "engine": {
+      "$ref": "#/$defs/engineCode"
+    },
+    "evaluation": {
+      "$ref": "#/$defs/evaluation"
+    },
+    "identity": {
+      "$ref": "./projection-identity.schema.json"
+    },
+    "resultSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/row"
+      },
+      "maxItems": 65536,
+      "type": "array"
+    },
+    "stats": {
+      "$ref": "#/$defs/stats"
+    },
+    "v": {
+      "const": 1
+    }
+  },
+  "required": [
+    "authority",
+    "cache",
+    "engine",
+    "evaluation",
+    "identity",
+    "resultSha256",
+    "rows",
+    "stats",
+    "v"
+  ],
+  "title": "Oh projection result V1",
+  "type": "object"
+}

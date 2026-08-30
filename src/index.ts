@@ -4,4 +4,5 @@ export * from "./graph";
 export * from "./ontology";
 export * from "./operation";
 export * from "./schema";
+export * from "./store";
 export * from "./sync";

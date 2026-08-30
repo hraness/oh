@@ -27,8 +27,10 @@ const markdownFiles = [
   "spec/v1/schema-evolution.md",
   "spec/v1/graph.md",
   "spec/v1/storage.md",
+  "spec/v1/store.md",
   "spec/v1/sync.md",
   "spec/v1/embedding.md",
+  "spec/v1/projection.md",
   "spec/v1/migration.md",
   "skills/oh/SKILL.md",
 ] as const;
@@ -39,6 +41,10 @@ const schemaFiles = [
   "spec/v1/schema-revision.schema.json",
   "spec/v1/operation.schema.json",
   "spec/v1/sync-bundle.schema.json",
+  "spec/v1/projection-rule-pack.schema.json",
+  "spec/v1/projection-query.schema.json",
+  "spec/v1/projection-identity.schema.json",
+  "spec/v1/projection-result.schema.json",
 ] as const;
 
 const publicSourceEntries = [
@@ -146,13 +152,13 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.1.1");
+    expect(packageJson.version).toBe("0.2.0");
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");
     expect(packageJson.license).toBe("MIT");
     expect(packageJson.private).toBe(false);
     expect(packageJson.packageManager).toBe("bun@1.3.14");
-    expect(packageJson.engines).toEqual({ bun: ">=1.3.14" });
+    expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
     expect(skill).toMatch(/^---\nname: oh\ndescription: .+\n---\n/u);
@@ -239,7 +245,8 @@ describe("versioned public contract", () => {
     const manifest = await json("spec/manifest.json");
     const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
     const claims = [version.contract, version.embeddingProfile, version.ontology, version.specification,
-      ...(Array.isArray(version.schemas) ? version.schemas : [])];
+      ...collectStringLeaves(version.memory),
+      ...collectStringLeaves(version.projection), ...(Array.isArray(version.schemas) ? version.schemas : [])];
     expect(claims.length).toBeGreaterThan(4);
     for (const claim of claims) {
       expect(typeof claim).toBe("string");
@@ -257,7 +264,7 @@ describe("versioned public contract", () => {
     const claims = new Set<string>();
     for (const path of markdownFiles) {
       const markdown = await readFile(join(root, path), "utf8");
-      for (const match of markdown.matchAll(/@hraness\/oh(?:\/[a-z0-9-]+)?/gu)) claims.add(match[0]);
+      for (const match of markdown.matchAll(/@hraness\/oh(?:\/[a-z0-9-]+)*/gu)) claims.add(match[0]);
     }
     expect(claims.size).toBeGreaterThan(1);
     for (const claim of claims) {
@@ -276,10 +283,15 @@ describe("versioned public contract", () => {
     const exports = packageJson.exports as Record<string, unknown>;
     expect(Object.keys(exports).sort()).toEqual([
       ".",
+      "./experimental/memory",
+      "./experimental/projection-suss",
+      "./libsql",
       "./package.json",
+      "./projection",
       "./sdk",
       "./semantic",
       "./sqlite",
+      "./store",
       "./sync",
     ]);
 
@@ -299,7 +311,8 @@ describe("versioned public contract", () => {
 
     const peers = packageJson.peerDependencies as Record<string, string>;
     const peerMetadata = packageJson.peerDependenciesMeta as Record<string, Readonly<{ optional?: boolean }>>;
-    expect(peers).toEqual({ "@libsql/client": ">=0.17.4 <1", "@tobilu/qmd": "2.5.3" });
+    expect(peers).toEqual({ "@libsql/client": ">=0.17.4 <1", "@suss/datalog": "0.20.0",
+      "@tobilu/qmd": "2.5.3" });
     expect(Object.keys(peers).every((name) => peerMetadata[name]?.optional === true)).toBe(true);
   });
 
@@ -310,6 +323,49 @@ describe("versioned public contract", () => {
     expect(ontology.kernelConcepts).toEqual(OH_KNOWLEDGE_KERNEL_CONCEPTS_V1);
     expect(ontology.limits).toEqual(OH_KNOWLEDGE_LIMITS_V1);
     expect(await json("spec/v1/embedding-profile.json")).toEqual(OH_EMBEDDING_PROFILE_V1);
+  });
+
+  test("discovers the complete projection exchange surface", async () => {
+    const manifest = await json("spec/manifest.json");
+    const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
+    expect(version.projection).toEqual({
+      identitySchema: "./v1/projection-identity.schema.json",
+      querySchema: "./v1/projection-query.schema.json",
+      resultSchema: "./v1/projection-result.schema.json",
+      rulePackSchema: "./v1/projection-rule-pack.schema.json",
+      specification: "./v1/projection.md",
+    });
+
+    const identity = await json("spec/v1/projection-identity.schema.json");
+    const identityProperties = identity.properties as Record<string, unknown>;
+    expect(Object.keys(identityProperties).sort()).toEqual([
+      "contractSha256", "datasetSha256", "engineSha256", "evaluationSha256", "projectionSha256",
+      "querySha256", "rulePackSha256", "semantics", "snapshotSha256", "v",
+    ]);
+
+    const result = await json("spec/v1/projection-result.schema.json");
+    const definitions = result.$defs as Record<string, Record<string, unknown>>;
+    const evaluation = definitions.evaluation?.properties as Record<string, unknown>;
+    const row = definitions.row?.properties as Record<string, unknown>;
+    const stats = definitions.stats?.properties as Record<string, unknown>;
+    expect(Object.keys(evaluation).sort()).toEqual([
+      "maximumDerivedTuples", "maximumProofDepth", "maximumProofNodes", "maximumResultBytes",
+      "maximumRounds", "maximumTotalProofNodes", "maximumWorkUnits", "v",
+    ]);
+    expect(Object.keys(row).sort()).toEqual(["proofs", "proofsTruncated", "supportCount", "v", "values"]);
+    expect(Object.keys(stats).sort()).toEqual([
+      "baseFacts", "derivedFacts", "proofNodes", "proofsTruncated", "queryMatches", "relations",
+      "rounds", "truncated", "truncationReasons", "v", "workUnits",
+    ]);
+  });
+
+  test("discovers the experimental composite memory boundary", async () => {
+    const manifest = await json("spec/manifest.json");
+    const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
+    expect(version.memory).toEqual({ specification: "./v1/memory.md" });
+    const memory = await readFile(join(root, "spec/v1/memory.md"), "utf8");
+    expect(memory).toContain("One kernel, two authorities");
+    expect(memory).toContain("It does not sync the working operation chain");
   });
 
   test("keeps every JSON Schema parseable, versioned, and locally closed", async () => {
@@ -342,6 +398,7 @@ describe("repository policy", () => {
     const scripts = packageJson.scripts as Record<string, string>;
     const siteScripts = sitePackageJson.scripts as Record<string, string>;
     expect(scripts.check).toContain("bun run test");
+    expect(scripts.check).toContain("bun run test:node");
     expect(scripts.test).toBe("bun test ./src ./tests ./site/tests/source.test.ts");
     expect(scripts.test).not.toContain("runtime.test.ts");
     expect(siteScripts.postbuild).toBe("bun test ./tests/runtime.test.ts");

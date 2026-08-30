@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/projection-identity.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Runtime conformance requires the exact public contract digest and recomputes projectionSha256 over every identity field other than projectionSha256 itself.",
+  "additionalProperties": false,
+  "properties": {
+    "contractSha256": {
+      "const": "e53ae573c2af417082be9f554d0f6f3e317f054daf745181f462608e3f622594"
+    },
+    "datasetSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "engineSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "evaluationSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "projectionSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "querySha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "rulePackSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "semantics": {
+      "const": "oh.projection.positive-datalog.v1"
+    },
+    "snapshotSha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "v": {
+      "const": 1
+    }
+  },
+  "required": [
+    "contractSha256",
+    "datasetSha256",
+    "engineSha256",
+    "evaluationSha256",
+    "projectionSha256",
+    "querySha256",
+    "rulePackSha256",
+    "semantics",
+    "snapshotSha256",
+    "v"
+  ],
+  "title": "Oh projection identity V1",
+  "type": "object"
+}

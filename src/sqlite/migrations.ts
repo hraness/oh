@@ -1,7 +1,7 @@
 import { canonicalNow, sha256Hex } from "../canonical";
 import type { OhSqliteDatabase } from "./driver";
 
-export const OH_SQLITE_SCHEMA_VERSION = 1 as const;
+export const OH_SQLITE_SCHEMA_VERSION = 2 as const;
 
 export type OhSqliteMigration = Readonly<{ name: string; sql: string; version: number }>;
 
@@ -113,6 +113,32 @@ CREATE VIRTUAL TABLE oh_search_fts USING fts5(
 CREATE INDEX oh_operations_space_sequence ON oh_operations(space_id, sequence);
 CREATE INDEX oh_records_space_kind ON oh_records(space_id, kind, record_key);
 CREATE INDEX oh_dependencies_dependency ON oh_dependencies(space_id, dependency_key);
+`,
+  }),
+  Object.freeze({
+    name: "0002_store_realms",
+    version: 2,
+    sql: `
+CREATE TABLE oh_space_bindings (
+  space_id TEXT PRIMARY KEY REFERENCES oh_spaces(space_id),
+  realm_id TEXT NOT NULL,
+  profile_id TEXT NOT NULL,
+  profile_kind TEXT NOT NULL CHECK(profile_kind IN ('canonical', 'working')),
+  profile_sha256 TEXT NOT NULL CHECK(length(profile_sha256) = 64),
+  binding_sha256 TEXT NOT NULL UNIQUE CHECK(length(binding_sha256) = 64),
+  binding_json TEXT NOT NULL CHECK(json_valid(binding_json)),
+  created_at TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE oh_space_purges (
+  space_id TEXT PRIMARY KEY,
+  binding_sha256 TEXT NOT NULL CHECK(length(binding_sha256) = 64),
+  prior_operation_sha256 TEXT CHECK(prior_operation_sha256 IS NULL OR length(prior_operation_sha256) = 64),
+  prior_sequence INTEGER NOT NULL CHECK(prior_sequence >= 0),
+  purged_at TEXT NOT NULL,
+  receipt_sha256 TEXT NOT NULL UNIQUE CHECK(length(receipt_sha256) = 64),
+  receipt_json TEXT NOT NULL CHECK(json_valid(receipt_json))
+) STRICT;
 `,
   }),
 ]);

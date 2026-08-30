@@ -24,5 +24,10 @@ export declare class OhRecordCodecRegistry {
     register(codec: OhRecordCodec): this;
     parse(kind: KnowledgeGraphRecordKindV1, value: unknown): JsonValue | null;
     has(kind: KnowledgeGraphRecordKindV1): boolean;
+    /** Parses only through an explicitly registered codec. */
+    parseRequired(kind: KnowledgeGraphRecordKindV1, value: unknown): JsonValue | null;
+    /** Prevents the validation policy from changing after an ingress is created. */
+    seal(): this;
+    get sealed(): boolean;
 }
 //# sourceMappingURL=contract.d.ts.map
