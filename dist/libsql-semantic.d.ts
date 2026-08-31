@@ -49,6 +49,18 @@ export type OhSemanticPublishResultV1 = Readonly<{
     published: boolean;
     v: 1;
 }>;
+/** The exact, currently published cache pointer for one semantic authority. */
+export type OhSemanticPublishedHeadV1 = Readonly<{
+    authorityId: string;
+    authoritySha256: Sha256Hex;
+    generation: number;
+    generationSha256: Sha256Hex;
+    membershipSha256: Sha256Hex;
+    profileSha256: Sha256Hex;
+    publishedAt: string;
+    rendererSha256: Sha256Hex;
+    v: 1;
+}>;
 export type OhSemanticSearchResultV1 = Readonly<{
     chunkOrdinal: number;
     key: string;
@@ -77,6 +89,13 @@ export declare class OhLibSqlSemanticCacheV1 {
     /** @internal Public callers should use `openOhLibSqlSemanticCacheV1`. */
     static open(client: OhLibSqlClientV1, closeClient: boolean): Promise<OhLibSqlSemanticCacheV1>;
     close(): Promise<void>;
+    /**
+     * Reads the current compare-and-swap base without exposing cache rows or
+     * private source text. An absent or purged authority has no published head.
+     */
+    publishedHead(input: Readonly<{
+        authorityId: string;
+    }>): Promise<OhSemanticPublishedHeadV1 | null>;
     stage(input: Readonly<{
         authorityId: string;
         authoritySha256: Sha256Hex;

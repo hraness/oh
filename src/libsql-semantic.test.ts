@@ -85,6 +85,22 @@ class InterleavingLibSqlClient extends SqliteCompatibleLibSqlClient {
   }
 }
 
+class PublishedHeadInterleavingLibSqlClient extends SqliteCompatibleLibSqlClient {
+  afterHeadRead: (() => Promise<void>) | null = null;
+
+  override async execute(statement: OhLibSqlStatementV1 | string): Promise<OhLibSqlResultV1> {
+    const result = await super.execute(statement);
+    const sql = typeof statement === "string" ? statement : statement.sql;
+    if (/FROM\s+oh_semantic_heads\s+WHERE\s+authority_id\s*=\s*\?/iu.test(sql)
+      && this.afterHeadRead !== null) {
+      const hook = this.afterHeadRead;
+      this.afterHeadRead = null;
+      await hook();
+    }
+    return result;
+  }
+}
+
 const instant1 = "2026-08-31T12:00:00.000Z";
 const instant2 = "2026-08-31T12:01:00.000Z";
 const instant3 = "2026-08-31T12:02:00.000Z";
@@ -197,6 +213,7 @@ describe("libSQL derived semantic cache", () => {
       document("memory:two", "needle-beta"),
     ] as const;
     const firstAuthoritySha256 = digest("authority:first");
+    expect(await cache.publishedHead({ authorityId })).toBeNull();
     const first = await cache.stage({
       authorityId,
       authoritySha256: firstAuthoritySha256,
@@ -207,6 +224,7 @@ describe("libSQL derived semantic cache", () => {
     });
     expect(first).toMatchObject({ chunks: 2, documents: 2, embedded: 2, reused: 0 });
     expect(calls).toHaveLength(1);
+    expect(await cache.publishedHead({ authorityId })).toBeNull();
     expect(await cache.stage({
       authorityId,
       authoritySha256: firstAuthoritySha256,
@@ -235,6 +253,17 @@ describe("libSQL derived semantic cache", () => {
       generation: 1,
       publishedAt: instant1,
     })).toMatchObject({ published: true });
+    expect(await cache.publishedHead({ authorityId })).toEqual({
+      authorityId,
+      authoritySha256: firstAuthoritySha256,
+      generation: 1,
+      generationSha256: first.generationSha256,
+      membershipSha256: first.membershipSha256,
+      profileSha256: OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
+      publishedAt: instant1,
+      rendererSha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      v: 1,
+    });
     expect(await cache.publish({
       authorityId,
       expectedPublishedGeneration: null,
@@ -302,6 +331,12 @@ describe("libSQL derived semantic cache", () => {
       generation: 2,
       publishedAt: instant2,
     })).toMatchObject({ published: true });
+    expect(await cache.publishedHead({ authorityId })).toMatchObject({
+      authoritySha256: secondAuthoritySha256,
+      generation: 2,
+      publishedAt: instant2,
+      v: 1,
+    });
     expect(await cache.search({
       authority: authority(authorityId, 1, firstAuthoritySha256, firstDocuments),
       embeddingClient: embedder,
@@ -361,6 +396,9 @@ describe("libSQL derived semantic cache", () => {
       embeddingClient: embedder,
       query: "needle-alpha",
     })).toEqual([]);
+    expect(await cache.publishedHead({
+      authorityId: "agent:session-a:epoch-1",
+    })).toBeNull();
 
     expect((await cache.purgeAuthority({
       authorityId: "agent:session-b:epoch-1",
@@ -472,6 +510,75 @@ describe("libSQL derived semantic cache", () => {
       embeddingClient: embedder,
       query: "needle-alpha",
     })).rejects.toBeInstanceOf(OhLibSqlSemanticError);
+    await expect(cache.publishedHead({ authorityId: "INVALID" }))
+      .rejects.toMatchObject({ code: "invalid-input" });
+    await cache.close();
+    client.close();
+  });
+
+  test("rejects a published pointer that diverges from its immutable generation", async () => {
+    const client = await bootstrapped();
+    const cache = await openOhLibSqlSemanticCacheV1(client);
+    const authorityId = "agent:published-head-integrity:epoch-1";
+    await cache.stage({
+      authorityId,
+      authoritySha256: digest("published-head-integrity"),
+      createdAt: instant1,
+      documents: [document("memory:one", "needle-alpha")],
+      embeddingClient: embeddingClient([]),
+      generation: 1,
+    });
+    await cache.publish({
+      authorityId,
+      expectedPublishedGeneration: null,
+      generation: 1,
+      publishedAt: instant1,
+    });
+    client.database.query(`UPDATE oh_semantic_heads SET authority_sha256 = ?
+      WHERE authority_id = ?`).run(digest("forged-head"), authorityId);
+    await expect(cache.publishedHead({ authorityId }))
+      .rejects.toMatchObject({ code: "integrity" });
+    await cache.close();
+    client.close();
+  });
+
+  test("does not return a head that changed during its bounded read", async () => {
+    const client = new PublishedHeadInterleavingLibSqlClient();
+    await bootstrapOhLibSqlSemanticCacheV1(client, { appliedAt: instant1 });
+    const cache = await openOhLibSqlSemanticCacheV1(client);
+    const authorityId = "agent:published-head-race:epoch-1";
+    const embedder = embeddingClient([]);
+    for (const generation of [1, 2] as const) {
+      await cache.stage({
+        authorityId,
+        authoritySha256: digest(`published-head-race:${generation}`),
+        createdAt: generation === 1 ? instant1 : instant2,
+        documents: [document(
+          `memory:${generation}`,
+          generation === 1 ? "needle-alpha" : "needle-beta",
+        )],
+        embeddingClient: embedder,
+        generation,
+      });
+    }
+    await cache.publish({
+      authorityId,
+      expectedPublishedGeneration: null,
+      generation: 1,
+      publishedAt: instant1,
+    });
+    client.afterHeadRead = async () => {
+      await cache.publish({
+        authorityId,
+        expectedPublishedGeneration: 1,
+        generation: 2,
+        publishedAt: instant2,
+      });
+    };
+    await expect(cache.publishedHead({ authorityId }))
+      .rejects.toMatchObject({ code: "conflict" });
+    expect(await cache.publishedHead({ authorityId }))
+      .toMatchObject({ generation: 2, publishedAt: instant2 });
     await cache.close();
     client.close();
   });

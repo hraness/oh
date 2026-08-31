@@ -79,6 +79,19 @@ export type OhSemanticPublishResultV1 = Readonly<{
   v: 1;
 }>;
 
+/** The exact, currently published cache pointer for one semantic authority. */
+export type OhSemanticPublishedHeadV1 = Readonly<{
+  authorityId: string;
+  authoritySha256: Sha256Hex;
+  generation: number;
+  generationSha256: Sha256Hex;
+  membershipSha256: Sha256Hex;
+  profileSha256: Sha256Hex;
+  publishedAt: string;
+  rendererSha256: Sha256Hex;
+  v: 1;
+}>;
+
 export type OhSemanticSearchResultV1 = Readonly<{
   chunkOrdinal: number;
   key: string;
@@ -747,6 +760,44 @@ export class OhLibSqlSemanticCacheV1 {
     if (this.#closed) return;
     this.#closed = true;
     if (this.#closeClient) this.#client.close?.();
+  }
+
+  /**
+   * Reads the current compare-and-swap base without exposing cache rows or
+   * private source text. An absent or purged authority has no published head.
+   */
+  async publishedHead(input: Readonly<{
+    authorityId: string;
+  }>): Promise<OhSemanticPublishedHeadV1 | null> {
+    this.#open();
+    const authorityId = parseAuthorityId(input.authorityId);
+    if (await readPurge(this.#client, authorityId) !== null) return null;
+    const head = await readHead(this.#client, authorityId);
+    if (head === null) return null;
+    const generation = await readGeneration(this.#client, authorityId, head.generation);
+    if (generation === null || !headMatchesGeneration(head, generation)) {
+      if (await readPurge(this.#client, authorityId) !== null) return null;
+      throw new OhLibSqlSemanticError(
+        "integrity",
+        "The semantic published head does not match its immutable generation.",
+      );
+    }
+    if (await readPurge(this.#client, authorityId) !== null) return null;
+    const finalHead = await readHead(this.#client, authorityId);
+    if (finalHead === null) {
+      if (await readPurge(this.#client, authorityId) !== null) return null;
+      throw new OhLibSqlSemanticError(
+        "integrity",
+        "The semantic published head disappeared during its read.",
+      );
+    }
+    if (canonicalJson(finalHead) !== canonicalJson(head)) {
+      throw new OhLibSqlSemanticError(
+        "conflict",
+        "The semantic published head changed during its read.",
+      );
+    }
+    return Object.freeze({ ...head, v: 1 });
   }
 
   async stage(input: Readonly<{

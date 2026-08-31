@@ -68,6 +68,15 @@ hit is rejoined to a caller-supplied current authority record digest. A stale
 head, changed authority digest, changed record digest, concurrent publish, or
 purge returns no stale authority.
 
+`publishedHead` returns the current compare-and-swap base or `null` for an
+absent or purged authority. Its bounded projection contains only the authority,
+generation, profile, renderer, membership, generation and publication
+identities already held by the cache; it exposes no vector, record body or
+formatted input. The read verifies that the pointer still matches its immutable
+generation and fails with an integrity error on divergence. A host can read the
+base, stage a later authoritative generation, and pass the returned generation
+to `publish` without keeping a second cache pointer elsewhere.
+
 `purgeAuthority` writes a permanent tombstone, removes the head, memberships,
 and staged generations, then deletes vectors no remaining authority uses. The
 tombstone prevents the same authority ID from being staged or published again.
