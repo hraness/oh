@@ -69,18 +69,31 @@ function encodeCanonical(value: unknown, path: string, ancestors: Set<object>): 
   ancestors.add(value);
   try {
     if (Array.isArray(value)) {
-      const encoded: string[] = [];
-      for (let index = 0; index < value.length; index += 1) {
-        if (!Object.hasOwn(value, index)) {
-          throw new OhValidationError("sparse-array", `${path}[${index}]`, "must not contain holes");
-        }
-        encoded.push(encodeCanonical(value[index], `${path}[${index}]`, ancestors));
+      const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+      const length = lengthDescriptor?.value;
+      if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0) {
+        throw new OhValidationError("non-json-property", path, "array has an invalid length descriptor");
       }
-      const extraKeys = Reflect.ownKeys(value).filter((key) => key !== "length"
-        && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= value.length));
-      if (extraKeys.length > 0) {
+      const ownKeys = Reflect.ownKeys(value);
+      if (!ownKeys.includes("length")
+        || ownKeys.some((key) => key !== "length" && (typeof key !== "string"
+          || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= length))) {
         throw new OhValidationError("non-json-property", path, "array has non-index properties");
       }
+      const elements: unknown[] = [];
+      for (let index = 0; index < length; index += 1) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (descriptor === undefined) {
+          throw new OhValidationError("sparse-array", `${path}[${index}]`, "must not contain holes");
+        }
+        if (!descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined) {
+          throw new OhValidationError("non-json-property", `${path}[${index}]`,
+            "must be an enumerable data property");
+        }
+        elements.push(descriptor.value);
+      }
+      const encoded = elements.map((element, index) =>
+        encodeCanonical(element, `${path}[${index}]`, ancestors));
       return `[${encoded.join(",")}]`;
     }
     if (!isPlainRecord(value)) {
@@ -90,19 +103,21 @@ function encodeCanonical(value: unknown, path: string, ancestors: Set<object>): 
     if (ownKeys.some((key) => typeof key !== "string")) {
       throw new OhValidationError("non-json-property", path, "object has a symbol property");
     }
+    const entries: Array<readonly [string, unknown]> = [];
     const keys = ownKeys as string[];
     for (const key of keys) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined) {
         throw new OhValidationError("non-json-property", `${path}.${key}`, "must be an enumerable data property");
       }
+      entries.push([key, descriptor.value]);
     }
-    keys.sort();
-    const entries = keys.map((key) => {
+    entries.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
+    const encodedEntries = entries.map(([key, entryValue]) => {
       assertUnicodeScalarString(key, `${path}.<key>`);
-      return `${JSON.stringify(key)}:${encodeCanonical(value[key], `${path}.${key}`, ancestors)}`;
+      return `${JSON.stringify(key)}:${encodeCanonical(entryValue, `${path}.${key}`, ancestors)}`;
     });
-    return `{${entries.join(",")}}`;
+    return `{${encodedEntries.join(",")}}`;
   } finally {
     ancestors.delete(value);
   }

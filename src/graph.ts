@@ -45,6 +45,54 @@ export type KnowledgeGraphRecordRefV1 = Readonly<{
   v: 1;
 }>;
 
+const KNOWLEDGE_GRAPH_RECORD_KEYS_V1 = [
+  "dependencies", "key", "kind", "recordSha256", "v", "value",
+] as const;
+
+function exactKnowledgeGraphRecordEnvelopeV1(value: unknown): Record<string, unknown> | null {
+  try {
+    if (!isPlainRecord(value)) return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== KNOWLEDGE_GRAPH_RECORD_KEYS_V1.length
+      || ownKeys.some((key) => typeof key !== "string")
+      || KNOWLEDGE_GRAPH_RECORD_KEYS_V1.some((key) => !ownKeys.includes(key))) return null;
+    const detached: Record<string, unknown> = {};
+    for (const key of KNOWLEDGE_GRAPH_RECORD_KEYS_V1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === undefined || !descriptor.enumerable
+        || descriptor.get !== undefined || descriptor.set !== undefined) return null;
+      detached[key] = descriptor.value;
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
+
+function exactGraphDependenciesV1(value: unknown): readonly unknown[] | null {
+  try {
+    if (!Array.isArray(value)) return null;
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+    const length = lengthDescriptor?.value;
+    if (typeof length !== "number" || !Number.isSafeInteger(length)
+      || length < 0 || length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord) return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== length + 1 || !ownKeys.includes("length")
+      || ownKeys.some((key) => key !== "length" && (typeof key !== "string"
+        || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= length))) return null;
+    const detached: unknown[] = [];
+    for (let index = 0; index < length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (descriptor === undefined || !descriptor.enumerable
+        || descriptor.get !== undefined || descriptor.set !== undefined) return null;
+      detached.push(descriptor.value);
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
+
 function recordKey(value: unknown): string | null {
   return typeof value === "string" && value.length <= 512
       && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value)
@@ -53,11 +101,13 @@ function recordKey(value: unknown): string | null {
 
 export function createKnowledgeGraphRecordV1(input: KnowledgeGraphRecordInputV1): KnowledgeGraphRecordV1 {
   if (!isPlainRecord(input) || !hasExactKeys(input, ["dependencies", "key", "kind", "v", "value"])
-    || input.v !== 1 || !Array.isArray(input.dependencies)) throw new TypeError("Invalid graph record input.");
+    || input.v !== 1) throw new TypeError("Invalid graph record input.");
+  const dependencyInput = exactGraphDependenciesV1(input.dependencies);
+  if (dependencyInput === null) throw new TypeError("Invalid graph record dependencies.");
   const key = recordKey(input.key);
   const kind = OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.find((candidate) => candidate === input.kind);
-  if (key === null || kind === undefined || input.dependencies.length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord) throw new TypeError("Invalid graph record identity.");
-  const dependencies = input.dependencies.map(recordKey);
+  if (key === null || kind === undefined) throw new TypeError("Invalid graph record identity.");
+  const dependencies = dependencyInput.map(recordKey);
   if (dependencies.some((dependency) => dependency === null)
     || !orderedUnique(dependencies as string[], String) || dependencies.includes(key)) {
     throw new TypeError("Graph dependencies must be ordered, unique, and non-reflexive.");
@@ -71,9 +121,16 @@ export function createKnowledgeGraphRecordV1(input: KnowledgeGraphRecordInputV1)
 }
 
 export function parseKnowledgeGraphRecordV1(value: unknown): KnowledgeGraphRecordV1 | null {
-  if (!isPlainRecord(value) || !Object.hasOwn(value, "recordSha256")) return null;
-  const recordSha256 = parseSha256Hex(value.recordSha256);
-  const { recordSha256: _digest, ...input } = value;
+  const envelope = exactKnowledgeGraphRecordEnvelopeV1(value);
+  if (envelope === null) return null;
+  const recordSha256 = parseSha256Hex(envelope.recordSha256);
+  const input = {
+    dependencies: envelope.dependencies,
+    key: envelope.key,
+    kind: envelope.kind,
+    v: envelope.v,
+    value: envelope.value,
+  };
   try {
     const created = createKnowledgeGraphRecordV1(input as unknown as KnowledgeGraphRecordInputV1);
     return recordSha256 !== null && created.recordSha256 === recordSha256

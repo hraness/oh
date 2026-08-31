@@ -121,7 +121,10 @@ describe("Oh site source contract", () => {
       /every agent action|exact provenance|return typed conflicts|stable specification/iu,
     );
     expect(home).toContain("keyword index live in a SQLite file");
-    expect(home).toContain("Semantic state is a rebuildable local cache");
+    expect(home).toContain("Semantic caches are rebuildable views");
+    expect(home).toContain("hosted inference and network sync remain explicit adapters");
+    expect(specification).toContain("optional Cloudflare Workers AI profile");
+    expect(specification).toContain("canonical\n                <code>.oh.md</code>");
     expect(home).toContain("every graph mutation inspectable and replayable");
     expect(home).toContain("verifiable operation history");
     expect(specification).toContain("fail closed with explicit");

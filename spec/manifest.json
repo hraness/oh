@@ -12,6 +12,8 @@
       "embeddingProfile": "./v1/embedding-profile.json",
       "id": "v1",
       "memory": {
+        "pageSchema": "./v1/memory-page.schema.json",
+        "pageSpecification": "./v1/memory-page.md",
         "specification": "./v1/memory.md"
       },
       "ontology": "./v1/ontology.json",
@@ -22,6 +24,11 @@
         "rulePackSchema": "./v1/projection-rule-pack.schema.json",
         "specification": "./v1/projection.md"
       },
+      "semanticCloud": {
+        "profile": "./v1/cloudflare-embedding-profile.json",
+        "renderer": "./v1/cloudflare-embedding-renderer.json",
+        "specification": "./v1/semantic-cloud.md"
+      },
       "schemas": [
         "./v1/contract.schema.json",
         "./v1/record.schema.json",
@@ -31,7 +38,8 @@
         "./v1/projection-rule-pack.schema.json",
         "./v1/projection-query.schema.json",
         "./v1/projection-identity.schema.json",
-        "./v1/projection-result.schema.json"
+        "./v1/projection-result.schema.json",
+        "./v1/memory-page.schema.json"
       ],
       "specification": "./v1/ontology.md",
       "status": "current",

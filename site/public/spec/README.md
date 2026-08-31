@@ -2,8 +2,9 @@
 
 This directory is the versioned public contract for Oh. It defines the
 canonical bytes, ontology identities, graph envelopes, schema revisions,
-SQLite and direct libSQL authority, operation sync, store profiles, and local
-embedding profile that independent implementations need to interoperate.
+SQLite and direct libSQL authority, operation sync, store profiles, local and
+hosted embedding profiles, and memory-page interchange that independent
+implementations need to interoperate.
 
 [`manifest.json`](manifest.json) is the discovery document. V1 is current and
 binds these versions:
@@ -16,9 +17,11 @@ binds these versions:
 | Schema format | `1` |
 | SQLite schema | `2` |
 | Sync protocol | `oh.sync.v1` |
-| Embedding profile | `1` |
+| Local embedding profile | `1` |
+| Hosted semantic cache | `oh.cloudflare.embeddinggemma.v1` |
 | Projection semantics | `oh.projection.positive-datalog.v1` |
 | Composite memory | `experimental v1` |
+| Memory page | `oh.memory-page.v1` |
 
 ## V1 documents
 
@@ -30,8 +33,10 @@ binds these versions:
 - [Store ports, profiles, and direct libSQL authority](v1/store.md)
 - [Sync protocol](v1/sync.md)
 - [Local embedding profile](v1/embedding.md)
+- [Hosted semantic cache](v1/semantic-cloud.md)
 - [Derived projections](v1/projection.md)
 - [Experimental composite agent memory](v1/memory.md)
+- [Memory pages and `.oh.md` interchange](v1/memory-page.md)
 - [Compatibility and migration](v1/migration.md)
 
 Machine-readable V1 artifacts:
@@ -39,6 +44,8 @@ Machine-readable V1 artifacts:
 - [`contract.json`](v1/contract.json)
 - [`ontology.json`](v1/ontology.json)
 - [`embedding-profile.json`](v1/embedding-profile.json)
+- [`cloudflare-embedding-profile.json`](v1/cloudflare-embedding-profile.json)
+- [`cloudflare-embedding-renderer.json`](v1/cloudflare-embedding-renderer.json)
 - [`contract.schema.json`](v1/contract.schema.json)
 - [`record.schema.json`](v1/record.schema.json)
 - [`schema-revision.schema.json`](v1/schema-revision.schema.json)
@@ -48,6 +55,7 @@ Machine-readable V1 artifacts:
 - [`projection-query.schema.json`](v1/projection-query.schema.json)
 - [`projection-identity.schema.json`](v1/projection-identity.schema.json)
 - [`projection-result.schema.json`](v1/projection-result.schema.json)
+- [`memory-page.schema.json`](v1/memory-page.schema.json)
 
 ## Conformance
 

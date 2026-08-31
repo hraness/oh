@@ -1,8 +1,9 @@
 # Security
 
-Oh parses untrusted JSON, persists local research data, optionally invokes a
-local embedding engine, and can exchange operation logs with a remote libSQL
-service. Please report vulnerabilities privately.
+Oh parses untrusted JSON, persists research data, can invoke either a local
+embedding engine or an explicitly configured hosted embedding provider, and
+can use remote libSQL for authority, synchronization, or a derived semantic
+cache. Please report vulnerabilities privately.
 
 ## Report a vulnerability
 
@@ -71,6 +72,34 @@ problem that has already been fixed there.
 - QMD is optional and local, but its cache contains derived text from records.
   Protect and delete that cache according to the sensitivity of the source
   database.
+- The hosted semantic adapter is not local inference. It sends bounded rendered
+  source titles and content, and each search query, over HTTPS to the fixed
+  Cloudflare Workers AI EmbeddingGemma route. Decide whether that egress is
+  permitted for the source data before enabling it, and apply the Cloudflare
+  account's current data-processing, logging, geography, retention, and abuse
+  policies. The adapter's sanitized errors do not prevent a host, proxy, or
+  provider from logging request data outside Oh.
+- Give the hosted adapter a least-privilege account token that can invoke
+  Workers AI only. Keep the token and account identifier in trusted host
+  configuration, never in an Oh record, memory page, model tool argument,
+  browser bundle, log, or semantic database. Configure provider budgets and
+  usage alerts: Oh bounds each request and staged generation, but it does not
+  enforce an account-wide spend ceiling or protect against calls made with the
+  same token outside Oh.
+- The direct libSQL semantic cache deliberately stores no source title, body,
+  query, record JSON, account identifier, or provider token. It does retain
+  record keys and digests, formatted-input digests, vector geometry, generation
+  timing, and authority identifiers. Those are sensitive metadata, can reveal
+  equality across reused inputs, and may support dictionary guesses for known
+  text. Use a separate protected database and short-lived schema credentials;
+  scope runtime and purge credentials to the operations each role needs.
+- Semantic-cache purge writes a permanent authority tombstone, removes that
+  authority's heads, generations, and memberships, and collects vectors that
+  no remaining membership uses. It does not erase Cloudflare processing or
+  logs, libSQL backups and replicas, host logs, network captures, or bytes
+  copied by a holder of raw credentials. For expiring working memory, stop new
+  writes, purge the semantic cache first, then purge the authoritative working
+  space, and acknowledge expiry only after both operations converge.
 
 The public threat model does not treat a SHA-256 digest as a signature, an
 authorization decision, or proof that a statement is true.

@@ -22,9 +22,9 @@ indexes derived and replaceable.
 - **Keep local state authoritative.** Records and operations live in one SQLite
   file you control. Sync is an explicit transport seam and accepts only
   fast-forward histories after an exact contract handshake.
-- **Treat search as a view.** FTS5 documents and optional local embeddings are
-  derived from current record digests, so either index can be rebuilt without
-  becoming graph authority.
+- **Treat search as a view.** FTS5 documents, optional local embeddings, and a
+  separately scoped hosted cache are derived from current record digests, so
+  an index can be rebuilt without becoming graph authority.
 - **Derive without silently asserting.** Positive recursive rules run against
   one exact graph head and fact-pack digest. Their tuples and bounded proofs
   are deterministic, disposable output rather than accepted graph records.
@@ -40,16 +40,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact current release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.2.7
+bun add --global @hraness/oh@0.3.0
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.2.7),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.3.0),
 including the mirrored
-[`hraness-oh-0.2.7.tgz`](https://github.com/hraness/oh/releases/download/v0.2.7/hraness-oh-0.2.7.tgz)
+[`hraness-oh-0.3.0.tgz`](https://github.com/hraness/oh/releases/download/v0.3.0/hraness-oh-0.3.0.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.2.7/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.3.0/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -107,7 +107,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.2.7"
+    "@hraness/oh": "0.3.0"
   }
 }
 ```
@@ -151,7 +151,10 @@ promise interface, `@hraness/oh/libsql` for a direct Node 24 or serverless
 authority, `@hraness/oh/sqlite` for the local Bun store, `@hraness/oh/sdk` for
 the local `Oh` facade, `@hraness/oh/sync` for transport seams,
 `@hraness/oh/projection` for recursive derived views, and
-`@hraness/oh/semantic` for the optional local embedding backend. The
+`@hraness/oh/semantic` for the optional local embedding backend, and
+`@hraness/oh/semantic-cloud` for the Cloudflare EmbeddingGemma plus direct
+libSQL derived-cache adapter. Use the narrow stable `@hraness/oh/memory-page`
+entrypoint for model-neutral page records and `.oh.md` interchange. The
 `@hraness/oh/experimental/memory` subpath composes host-bound working and
 canonical stores behind a smaller agent-facing surface.
 
@@ -345,6 +348,51 @@ proposal; it never promotes it. Read the
 [experimental memory specification](spec/v1/memory.md) for the complete
 authority and lifecycle boundary.
 
+## Use a memory page or `.oh.md` file
+
+A memory page is an ordinary `edition` record with bounded Markdown, explicit
+source observations, and a host-attestation receipt reference. It is useful
+for readable summaries and long-running-agent notes without introducing a
+second memory ontology. Its canonical `.oh.md` form contains the complete
+record key, dependencies, digest, metadata, and body:
+
+```ts
+import {
+  createOhMemoryPageRecordV1,
+  renderOhMemoryPageMarkdownV1,
+} from "@hraness/oh/memory-page";
+
+const page = createOhMemoryPageRecordV1({
+  dependencies: ["activity:memory-attestation"],
+  key: "edition:session-summary",
+  value: {
+    body: "## Current state\n\nThe provider rollout is paused before activation.",
+    createdAt: "2026-08-31T12:00:00.000Z",
+    format: "oh.memory-page.v1",
+    language: "en",
+    provenance: {
+      actorId: "host.memory",
+      attestationSha256: receiptSha256,
+      attestedAt: "2026-08-31T12:00:00.000Z",
+      kind: "host-attested",
+      v: 1,
+    },
+    sources: [],
+    summary: "The exact resumable session frontier.",
+    title: "Session frontier",
+    updatedAt: "2026-08-31T12:00:00.000Z",
+    v: 1,
+  },
+});
+
+const portable = renderOhMemoryPageMarkdownV1(page);
+```
+
+The page never stores vectors, model IDs, scores, or provider configuration.
+Treat its Markdown and source titles as untrusted data. See the
+[memory-page specification](spec/v1/memory-page.md) for the exact format and
+round-trip rules.
+
 ## Derive an exact projection
 
 The projection subpath is pure TypeScript and runs in Node 24 serverless
@@ -478,6 +526,62 @@ The exact V1 profile is documented in
 all inference stay local. Keyword mode remains available when QMD or the model
 is absent.
 
+## Add a hosted semantic cache
+
+The hosted adapter uses the same source-record principle with a distinct,
+profile-bound cache. It sends bounded inputs to Cloudflare Workers AI's
+EmbeddingGemma model and stores only float32 vectors, input digests, record
+digests, immutable generation membership, and a published pointer in direct
+libSQL. It stores no title, body, record JSON, or query text.
+
+```ts
+import { createClient } from "@libsql/client";
+import {
+  OhCloudflareEmbeddingClientV1,
+  bootstrapOhLibSqlSemanticCacheV1,
+  openOhLibSqlSemanticCacheV1,
+} from "@hraness/oh/semantic-cloud";
+
+// Deploy once with a short-lived schema credential.
+const schemaClient = createClient({
+  authToken: process.env.OH_SEMANTIC_SCHEMA_TOKEN!,
+  url: process.env.OH_SEMANTIC_DATABASE_URL!,
+});
+await bootstrapOhLibSqlSemanticCacheV1(schemaClient);
+schemaClient.close();
+
+const client = createClient({
+  authToken: process.env.OH_SEMANTIC_RUNTIME_TOKEN!,
+  url: process.env.OH_SEMANTIC_DATABASE_URL!,
+});
+const cache = await openOhLibSqlSemanticCacheV1(client, { closeClient: true });
+const embedder = new OhCloudflareEmbeddingClientV1({
+  accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
+  apiToken: process.env.CLOUDFLARE_WORKERS_AI_TOKEN!,
+});
+
+const staged = await cache.stage({
+  authorityId: "thread:research/epoch:1",
+  authoritySha256: snapshot.head.recordsSha256,
+  documents,
+  embeddingClient: embedder,
+  generation: snapshot.head.generation,
+});
+await cache.publish({
+  authorityId: "thread:research/epoch:1",
+  expectedPublishedGeneration: null,
+  generation: staged.generation,
+});
+```
+
+Search requires the exact current authority generation and record digests, and
+returns nothing from a stale or concurrently replaced head. Purge writes a
+permanent authority tombstone before deleting memberships and unused vectors.
+The same authority ID cannot be resurrected; allocate a new epoch for a new
+lifetime. Hosted failure is a missing convenience lane, never permission to
+weaken exact graph or Datalog operations. Read the
+[hosted semantic-cache specification](spec/v1/semantic-cloud.md).
+
 ## Sync through libSQL or Turso
 
 `createLibSqlOperationSyncTransportV1` accepts the `execute` and `batch` shape
@@ -545,9 +649,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.2.7 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.2.7 Release at
-https://github.com/hraness/oh/releases/tag/v0.2.7. Verify the CLI with
+Install @hraness/oh@0.3.0 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.3.0 Release at
+https://github.com/hraness/oh/releases/tag/v0.3.0. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

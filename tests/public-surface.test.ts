@@ -12,6 +12,10 @@ import {
   OH_ONTOLOGY_VERSION_V1,
 } from "../src/ontology.ts";
 import { OH_EMBEDDING_PROFILE_V1 } from "../src/semantic.ts";
+import {
+  OH_CLOUDFLARE_EMBEDDING_PROFILE_V1,
+  OH_SEMANTIC_RENDERER_V1,
+} from "../src/cloudflare-embedding.ts";
 
 const root = resolve(import.meta.dir, "..");
 const tagline = "open-source tools for agentic research";
@@ -31,8 +35,10 @@ const markdownFiles = [
   "spec/v1/store.md",
   "spec/v1/sync.md",
   "spec/v1/embedding.md",
+  "spec/v1/semantic-cloud.md",
   "spec/v1/projection.md",
   "spec/v1/memory.md",
+  "spec/v1/memory-page.md",
   "spec/v1/migration.md",
   "skills/oh/SKILL.md",
 ] as const;
@@ -47,6 +53,7 @@ const schemaFiles = [
   "spec/v1/projection-query.schema.json",
   "spec/v1/projection-identity.schema.json",
   "spec/v1/projection-result.schema.json",
+  "spec/v1/memory-page.schema.json",
 ] as const;
 
 const publicSourceEntries = [
@@ -159,9 +166,9 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.2.7");
-    expect(sitePackageJson.version).toBe("0.2.7");
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.2.7"');
+    expect(packageJson.version).toBe("0.3.0");
+    expect(sitePackageJson.version).toBe("0.3.0");
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.3.0"');
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");
     expect(packageJson.license).toBe("MIT");
@@ -175,12 +182,12 @@ describe("public identity and documentation", () => {
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
-    expect(readme).toContain("bun add --global @hraness/oh@0.2.7");
-    expect(readme).toContain('"@hraness/oh": "0.2.7"');
-    expect(readme).toContain("releases/download/v0.2.7/hraness-oh-0.2.7.tgz");
+    expect(readme).toContain("bun add --global @hraness/oh@0.3.0");
+    expect(readme).toContain('"@hraness/oh": "0.3.0"');
+    expect(readme).toContain("releases/download/v0.3.0/hraness-oh-0.3.0.tgz");
     expect(readme).not.toContain("github:hraness/oh#");
-    expect(skill).toContain("`@hraness/oh@0.2.7`");
-    expect(skill).toContain("immutable GitHub Release `v0.2.7`");
+    expect(skill).toContain("`@hraness/oh@0.3.0`");
+    expect(skill).toContain("immutable GitHub Release `v0.3.0`");
     expect(skill).toMatch(/^---\nname: oh\ndescription: .+\n---\n/u);
     expect(skill).not.toMatch(/TODO|TBD|example skill/iu);
   });
@@ -266,7 +273,8 @@ describe("versioned public contract", () => {
     const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
     const claims = [version.contract, version.embeddingProfile, version.ontology, version.specification,
       ...collectStringLeaves(version.memory),
-      ...collectStringLeaves(version.projection), ...(Array.isArray(version.schemas) ? version.schemas : [])];
+      ...collectStringLeaves(version.projection), ...collectStringLeaves(version.semanticCloud),
+      ...(Array.isArray(version.schemas) ? version.schemas : [])];
     expect(claims.length).toBeGreaterThan(4);
     for (const claim of claims) {
       expect(typeof claim).toBe("string");
@@ -306,10 +314,12 @@ describe("versioned public contract", () => {
       "./experimental/memory",
       "./experimental/projection-suss",
       "./libsql",
+      "./memory-page",
       "./package.json",
       "./projection",
       "./sdk",
       "./semantic",
+      "./semantic-cloud",
       "./sqlite",
       "./store",
       "./sync",
@@ -343,6 +353,10 @@ describe("versioned public contract", () => {
     expect(ontology.kernelConcepts).toEqual(OH_KNOWLEDGE_KERNEL_CONCEPTS_V1);
     expect(ontology.limits).toEqual(OH_KNOWLEDGE_LIMITS_V1);
     expect(await json("spec/v1/embedding-profile.json")).toEqual(OH_EMBEDDING_PROFILE_V1);
+    expect(await json("spec/v1/cloudflare-embedding-profile.json"))
+      .toEqual(OH_CLOUDFLARE_EMBEDDING_PROFILE_V1);
+    expect(await json("spec/v1/cloudflare-embedding-renderer.json"))
+      .toEqual(OH_SEMANTIC_RENDERER_V1);
   });
 
   test("discovers the complete projection exchange surface", async () => {
@@ -379,16 +393,38 @@ describe("versioned public contract", () => {
     ]);
   });
 
+  test("discovers the hosted semantic cache as a derived profile", async () => {
+    const manifest = await json("spec/manifest.json");
+    const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
+    expect(version.semanticCloud).toEqual({
+      profile: "./v1/cloudflare-embedding-profile.json",
+      renderer: "./v1/cloudflare-embedding-renderer.json",
+      specification: "./v1/semantic-cloud.md",
+    });
+    const specification = await readFile(join(root, "spec/v1/semantic-cloud.md"), "utf8");
+    expect(specification).toContain("not an Oh graph authority");
+    expect(specification).toContain("stores no title, source content, query, page body, record JSON");
+    expect(specification).toContain("permanent authority purge tombstones");
+    expect(specification).toContain("MUST NOT weaken exact graph or Datalog operations");
+  });
+
   test("discovers the experimental composite memory boundary", async () => {
     const manifest = await json("spec/manifest.json");
     const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
-    expect(version.memory).toEqual({ specification: "./v1/memory.md" });
+    expect(version.memory).toEqual({
+      pageSchema: "./v1/memory-page.schema.json",
+      pageSpecification: "./v1/memory-page.md",
+      specification: "./v1/memory.md",
+    });
     const memory = await readFile(join(root, "spec/v1/memory.md"), "utf8");
     expect(memory).toContain("One kernel, two authorities");
     expect(memory).toContain("createOhMemoryAgentV2");
     expect(memory).toContain("authenticated bearer cursor, not knowledge authority");
     expect(memory).toContain("`resultSha256` commits that deterministic");
     expect(memory).toContain("It does not sync the working operation chain");
+    const page = await readFile(join(root, "spec/v1/memory-page.md"), "utf8");
+    expect(page).toContain("self-contained transport for one memory-page record");
+    expect(page).toContain("contain no vectors, embedding model, provider, score");
   });
 
   test("keeps every JSON Schema parseable, versioned, and locally closed", async () => {
