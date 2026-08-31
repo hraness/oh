@@ -26,6 +26,7 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
     "artifact-ids: ${{ needs.verify.outputs.writer_artifact_id }}",
     "package-smoke.ts artifacts/*.tgz",
     "id-token: write",
+    "actions: read",
     "contents: write",
     "RELEASE_REPOSITORY_ID: ${{ github.repository_id }}",
     "RELEASE_RUN_ATTEMPT: ${{ github.run_attempt }}",
@@ -42,11 +43,13 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
   expect(workflow).not.toMatch(/\$\{\{\s*secrets\./u);
   expect(workflow.match(/^\s+contents: write$/gmu)).toHaveLength(1);
   expect(workflow.match(/^\s+id-token: write$/gmu)).toHaveLength(1);
+  expect(workflow.match(/^\s+actions: read$/gmu)).toHaveLength(1);
   const githubJob = workflow.slice(workflow.indexOf("  publish_github:"), workflow.indexOf("  publish_npm:"));
   const npmJob = workflow.slice(workflow.indexOf("  publish_npm:"), workflow.indexOf("  pre_npm:"));
   expect(npmJob).toContain("id-token: write");
   expect(npmJob).not.toContain("contents: write");
   expect(githubJob).toContain("contents: write");
+  expect(githubJob).toContain("actions: read");
   expect(githubJob).not.toContain("id-token: write");
   const githubPublicationMarker = "      - name: Create and prove immutable GitHub Release from the exact bytes";
   const githubPublicationOffset = githubJob.indexOf(githubPublicationMarker);
@@ -98,8 +101,9 @@ test("ID-bound artifacts extract directly into every consumer directory", async 
 });
 
 test("publication is tokenless, bounded, provenance-bound, and idempotent only for exact bytes", async () => {
-  const [npmPublisher, provenance, githubPublisher, admission, authority] = await Promise.all([
+  const [npmPublisher, npmRetry, provenance, githubPublisher, admission, authority] = await Promise.all([
     readFile(join(root, "scripts/publish-npm-release.ts"), "utf8"),
+    readFile(join(root, "scripts/check-npm-retry-state.ts"), "utf8"),
     readFile(join(root, "scripts/npm-provenance-verification.ts"), "utf8"),
     readFile(join(root, "scripts/publish-github-release.ts"), "utf8"),
     readFile(join(root, "scripts/check-public-release.ts"), "utf8"),
@@ -115,11 +119,18 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(npmPublisher).toContain("PRE_NPM_RUN_ATTEMPT");
   expect(npmPublisher).toContain("provenance_attempt_mode=");
   expect(npmPublisher).not.toContain("verifyNpmProvenance");
-  expect(npmPublisher.indexOf("fetchMetadata(registryUrl)")).toBeLessThan(npmPublisher.indexOf("fetchMetadata(registryLatestUrl)"));
+  expect(npmPublisher.indexOf('fetchMetadata(registryUrl, "version")')).toBeLessThan(
+    npmPublisher.indexOf('fetchMetadata(registryLatestUrl, "latest")'),
+  );
   expect(npmPublisher).toContain("Date.now() + 180_000");
+  expect(npmPublisher).toContain('fetchMetadata(registryUrl, "version")');
+  expect(npmPublisher).toContain('fetchMetadata(registryLatestUrl, "latest")');
   expect(npmPublisher).not.toContain("NODE_AUTH_TOKEN");
   expect(npmPublisher).not.toContain("process.stdout.write");
   expect(npmPublisher).not.toContain("process.stderr.write");
+  expect(npmRetry).toContain(
+    "const metadata: Record<string, unknown> | null = await registryVersionMetadata(",
+  );
   expect(provenance).toContain('"audit", "signatures", "--json", "--include-attestations"');
   expect(provenance).toContain('workflow.path !== ".github/workflows/release.yml"');
   expect(provenance).toContain("sourceDigest.gitCommit !== coordinate.verifiedSha");
@@ -130,10 +141,44 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(githubPublisher).toContain('"--include", `/repos/${publicRepository}/releases/tags/${tagArgument}`');
   expect(githubPublisher).toContain("lookup.state === \"draft\"");
   expect(githubPublisher).toContain("planReleaseRecovery(lookup, initialDraftIds)");
-  expect(githubPublisher.indexOf("const initialDraftIds = await matchingDraftIds();")).toBeLessThan(
+  expect(githubPublisher).toContain("waitForCreatedDraftInventory(draft.id)");
+  expect(githubPublisher).toContain("const deadline = Date.now() + 30_000");
+  expect(githubPublisher).toContain("classifyCreatedDraftInventory(await matchingDraftIds(), id)");
+  expect(githubPublisher).toContain("waitForPublishedDraftInventory(draft.id, identityInput)");
+  expect(githubPublisher).toContain("waitForLaterAttemptProviderState(identityInput)");
+  expect(githubPublisher).toContain("assertConvergingPublishedIdentity(id, input)");
+  expect(githubPublisher).toContain("draft.assetIds.size !== assets.length");
+  expect(githubPublisher).toContain("currentAttemptCanCreateDraft(identityInput)");
+  expect(githubPublisher).toContain("process.env.GITHUB_SHA !== input.commitSha");
+  expect(githubPublisher).toContain("priorAttemptProvesNoDraftCreation(jobs");
+  expect(githubPublisher).toContain("actions/runs/${input.run.runId}/attempts/${String(attempt)}/jobs");
+  const providerSnapshotOffset = githubPublisher.indexOf("let initialDraftIds = await matchingDraftIds()");
+  const priorMutationOffset = githubPublisher.indexOf("const priorMayHaveMutated = runIdentity.attempt > 1");
+  const laterConvergenceOffset = githubPublisher.indexOf("if (priorMayHaveMutated)", priorMutationOffset);
+  const directDraftOffset = githubPublisher.indexOf('else if (lookup.state === "draft")', laterConvergenceOffset);
+  expect(providerSnapshotOffset).toBeGreaterThan(-1);
+  expect(priorMutationOffset).toBeGreaterThan(providerSnapshotOffset);
+  expect(laterConvergenceOffset).toBeGreaterThan(priorMutationOffset);
+  expect(directDraftOffset).toBeGreaterThan(laterConvergenceOffset);
+  expect(githubPublisher.slice(laterConvergenceOffset, directDraftOffset)).toContain(
+    "await waitForLaterAttemptProviderState(identityInput)",
+  );
+  const convergenceHelperOffset = githubPublisher.indexOf("async function waitForLaterAttemptProviderState");
+  const createAuthorityOffset = githubPublisher.indexOf("async function currentAttemptCanCreateDraft", convergenceHelperOffset);
+  const convergenceHelper = githubPublisher.slice(convergenceHelperOffset, createAuthorityOffset);
+  expect(convergenceHelper).toContain("for (;;)");
+  expect(convergenceHelper.indexOf("await readReleaseTagLookup()")).toBeLessThan(
+    convergenceHelper.indexOf("await matchingDraftIds()"),
+  );
+  expect(convergenceHelper).toContain('lookup.state === "draft"');
+  expect(convergenceHelper).toContain("classifyCreatedDraftInventory(draftIds, draft.id)");
+  expect(convergenceHelper).toContain('lookup.state === "published"');
+  expect(convergenceHelper).toContain("classifyPublishedDraftInventory(draftIds, id)");
+  expect(githubPublisher).toContain("const freshLookup = await readReleaseTagLookup()");
+  expect(githubPublisher).toContain('if (freshPlan.state !== "create")');
+  expect(githubPublisher.indexOf("let initialDraftIds = await matchingDraftIds();")).toBeLessThan(
     githubPublisher.indexOf('if (plan.state === "published")'),
   );
-  expect(githubPublisher).toContain("retained an ambiguous residual draft after publication");
   expect(githubPublisher).toContain("ambiguous residual draft at final admission");
   expect(githubPublisher).toContain("assertExactReleaseAssetBytes");
   expect(githubPublisher).toContain("`https://uploads.github.com/repos/${publicRepository}/releases/${String(current.id)}/assets?name=${encodeURIComponent(asset.name)}`");
@@ -190,7 +235,11 @@ test("release controls have explicit ownership and document the public MIT bound
   expect(guide).toContain("npm may also initialize `latest`");
   expect(guide).toContain("Do not explicitly target `latest` for `v0.2.3`");
   expect(guide).toContain("protected `v0.2.4` tag records a release-control attempt");
-  expect(guide).toContain("Never\nweaken provenance or publish different bytes under the failed tag");
+  expect(guide).toContain("protected `v0.2.5` tag records the next release-control attempt");
+  expect(guide).toContain("`@hraness/oh@0.2.5` must remain absent");
+  expect(guide).toContain("manually publish the npm half of a GitHub-only release");
+  expect(guide).toContain("writer polls that bounded inventory briefly");
+  expect(guide).toContain("A later attempt may create a draft only when the Actions Jobs API proves");
   expect(guide).toContain("npm trust github @hraness/oh --repo hraness/oh --file release.yml");
   expect(guide).toContain("every later publication must use the tag");
   expect(guide).toContain("privileged job's trusted computing base");

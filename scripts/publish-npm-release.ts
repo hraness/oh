@@ -68,22 +68,25 @@ const coordinate = `${manifest.name}@${manifest.version}`;
 const registryUrl = registryVersionUrl(manifest.name, manifest.version);
 const registryLatestUrl = `https://registry.npmjs.org/${encodeURIComponent(manifest.name)}/latest`;
 
-async function fetchMetadata(url: string): Promise<Record<string, unknown> | null> {
+async function fetchMetadata(
+  url: string,
+  endpoint: "latest" | "version",
+): Promise<Record<string, unknown> | null> {
   const response = await fetch(url, {
     cache: "no-store",
     headers: { Accept: "application/json", "Cache-Control": "no-cache", "User-Agent": "oh-release" },
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });
-  return registryVersionMetadata(response, publicPackageName, manifest.version as string);
+  return registryVersionMetadata(response, publicPackageName, manifest.version as string, endpoint);
 }
 
 type CompleteRelease = Readonly<{ latest: NpmReleaseCoordinate; version: NpmReleaseCoordinate }>;
 
 async function lookupCompleteRelease(): Promise<CompleteRelease | null> {
-  const versionPayload = await fetchMetadata(registryUrl);
+  const versionPayload = await fetchMetadata(registryUrl, "version");
   if (versionPayload === null) return null;
-  const latestPayload = await fetchMetadata(registryLatestUrl);
+  const latestPayload = await fetchMetadata(registryLatestUrl, "latest");
   if (latestPayload === null) throw new Error(`${coordinate} exists but npm latest is missing.`);
   return Object.freeze({
     latest: parseNpmRelease(latestPayload, manifest.version as string),

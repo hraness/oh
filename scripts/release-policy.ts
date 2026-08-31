@@ -190,10 +190,41 @@ export function registryVersionUrl(packageName: string, version: string): string
   return `https://registry.npmjs.org/${encodeURIComponent(packageName)}/${encodeURIComponent(version)}`;
 }
 
+export function classifyRegistryVersionPayload(
+  value: unknown,
+  packageName: string,
+  version: string,
+  endpoint: "latest" | "version" = "version",
+): JsonRecord | null {
+  if (packageName !== publicPackageName) throw new Error("The public npm coordinate is invalid.");
+  text(version, SEMVER, "registry version");
+  const label = `${packageName}@${version} registry version`;
+  const payload = record(value, label);
+  if (payload.name !== packageName) throw new Error(`${label} returned the wrong package coordinate.`);
+  if (payload.version === version) return payload;
+  if (payload.version !== undefined || payload._id !== packageName) {
+    throw new Error(`${label} returned neither exact version metadata nor its exact package document.`);
+  }
+  if (endpoint === "latest") {
+    const tags = record(payload["dist-tags"], `${packageName} registry distribution tags`);
+    if (!Object.hasOwn(tags, "latest") || tags.latest !== version) {
+      throw new Error(`${label} package document does not make the requested version latest.`);
+    }
+  }
+  const versions = record(payload.versions, `${packageName} registry package versions`);
+  if (!Object.hasOwn(versions, version)) return null;
+  const release = record(versions[version], label);
+  if (release.name !== packageName || release.version !== version) {
+    throw new Error(`${label} package document contains an inexact version entry.`);
+  }
+  return release;
+}
+
 export async function registryVersionMetadata(
   response: Response,
   packageName: string,
   version: string,
+  endpoint: "latest" | "version" = "version",
 ): Promise<JsonRecord | null> {
   const label = `${packageName}@${version} registry version`;
   if (response.status === 404) {
@@ -207,9 +238,7 @@ export async function registryVersionMetadata(
     return null;
   }
   if (response.status !== 200) throw new Error(`${label} returned HTTP ${String(response.status)}.`);
-  const payload = record(await boundedJson(response, label), label);
-  if (payload.name !== packageName) throw new Error(`${label} returned the wrong package coordinate.`);
-  return payload;
+  return classifyRegistryVersionPayload(await boundedJson(response, label), packageName, version, endpoint);
 }
 
 export function assertSha(value: string, label: string): void {

@@ -4,6 +4,9 @@ import { createHash } from "node:crypto";
 import {
   assertExactReleaseAssetBytes,
   assertPublishedReleaseIdentity,
+  classifyCreatedDraftInventory,
+  classifyLaterAttemptDraftInventory,
+  classifyPublishedDraftInventory,
   classifyReleaseTagLookup,
   draftReleaseBody,
   exactReleaseAssets,
@@ -12,6 +15,7 @@ import {
   parseReleaseInventoryPage,
   parseReleaseTagLookup,
   planReleaseRecovery,
+  priorAttemptProvesNoDraftCreation,
   publishedReleaseBody,
   type ExactReleaseAsset,
   type GitHubReleaseRun,
@@ -161,6 +165,78 @@ describe("bounded provider lookup", () => {
       tag_name: `v0.1.${String(index)}`,
     })), tag).complete).toBe(false);
     expect(() => parseReleaseInventoryPage([{ draft: true, id: 3, tag_name: tag, unprojected: true }], tag)).toThrow("unexpected fields");
+  });
+
+  test("waits only for the exact newly-created draft inventory identity", () => {
+    expect(classifyCreatedDraftInventory([], 901)).toBe("pending");
+    expect(classifyCreatedDraftInventory([901], 901)).toBe("exact");
+    expect(() => classifyCreatedDraftInventory([902], 901)).toThrow("not uniquely identified");
+    expect(() => classifyCreatedDraftInventory([901, 902], 901)).toThrow("not uniquely identified");
+    expect(() => classifyCreatedDraftInventory([901, 901], 901)).toThrow("duplicate identifiers");
+  });
+
+  test("converges a delayed later-attempt view from draft without inventory to publication", () => {
+    expect(classifyCreatedDraftInventory([], 901)).toBe("pending");
+    expect(classifyPublishedDraftInventory([], 901)).toBe("exact");
+  });
+
+  test("admits only exact bounded draft convergence before recovery and after publication", () => {
+    expect(classifyLaterAttemptDraftInventory([])).toEqual({ state: "pending" });
+    expect(classifyLaterAttemptDraftInventory([901])).toEqual({ draftId: 901, state: "recover" });
+    expect(() => classifyLaterAttemptDraftInventory([901, 902])).toThrow("ambiguous residual drafts");
+    expect(classifyPublishedDraftInventory([901], 901)).toBe("pending");
+    expect(classifyPublishedDraftInventory([], 901)).toBe("exact");
+    expect(() => classifyPublishedDraftInventory([902], 901)).toThrow("ambiguous residual draft inventory");
+    expect(() => classifyPublishedDraftInventory([901, 901], 901)).toThrow("duplicate identifiers");
+  });
+
+  test("uses prior job metadata only to prove the Release writer never entered its mutation step", () => {
+    const runId = "70000000001";
+    const input = { attempt: 1, commitSha, runId };
+    const job = (
+      conclusion: string,
+      publicationConclusion: string | undefined,
+      overrides: Readonly<Record<string, unknown>> = {},
+    ) => ({
+      conclusion,
+      head_sha: commitSha,
+      id: 901,
+      name: "Publish immutable GitHub Release",
+      run_attempt: 1,
+      run_id: Number(runId),
+      run_url: `https://api.github.com/repos/hraness/oh/actions/runs/${runId}`,
+      status: "completed",
+      steps: publicationConclusion === undefined ? [] : [{
+        conclusion: publicationConclusion,
+        name: "Create and prove immutable GitHub Release from the exact bytes",
+        status: "completed",
+      }],
+      workflow_name: "Release",
+      ...overrides,
+    });
+    const response = (writer: unknown, extra: readonly unknown[] = []) => ({
+      jobs: [writer, ...extra],
+      total_count: 1 + extra.length,
+    });
+
+    expect(priorAttemptProvesNoDraftCreation(response(job("skipped", undefined)), input)).toBe(true);
+    for (const conclusion of ["failure", "cancelled", "timed_out"]) {
+      expect(priorAttemptProvesNoDraftCreation(response(job(conclusion, "skipped")), input)).toBe(true);
+    }
+    expect(priorAttemptProvesNoDraftCreation(response(job("failure", "failure")), input)).toBe(false);
+    expect(priorAttemptProvesNoDraftCreation(response(job("success", "skipped")), input)).toBe(false);
+    expect(() => priorAttemptProvesNoDraftCreation(
+      response(job("skipped", undefined, { head_sha: "f".repeat(40) })),
+      input,
+    )).toThrow("malformed");
+    expect(() => priorAttemptProvesNoDraftCreation(
+      response(job("skipped", undefined), [job("skipped", undefined, { id: 902 })]),
+      input,
+    )).toThrow("one exact Release writer job");
+    expect(() => priorAttemptProvesNoDraftCreation(
+      { jobs: [job("skipped", undefined)], total_count: 2 },
+      input,
+    )).toThrow("count is inconsistent");
   });
 });
 
