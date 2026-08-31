@@ -53,6 +53,9 @@ annotated `v<version>` tag at a reviewed commit that remains an ancestor of
 current `main`. Never reuse or move a tag.
 Immutable releases through `v0.2.3` predate the exact npm-artifact path and have
 no attached artifacts; leave them intact and use a new version for this path.
+The protected `v0.2.4` tag records a release-control attempt that failed before
+any GitHub Release or npm mutation. It has no published package or Release and
+must remain unreleased.
 
 The tag workflow then:
 
@@ -99,6 +102,11 @@ or private-data source. If an npm version already exists, publication succeeds
 only when its immutable bytes and trusted-publisher provenance are exact. A
 failed or partial release is recovered by rerunning the workflow; do not retag,
 replace an npm version, or edit an immutable GitHub Release.
+
+If a release-control defect makes every exact rerun fail before any provider
+mutation, leave that immutable tag unreleased. Repair the control on reviewed
+`main`, prepare the next patch version, and create a new annotated tag. Never
+weaken provenance or publish different bytes under the failed tag.
 
 Every positive workflow attempt is an eligible recovery attempt for the same
 reviewed annotated tag, commit, and ID-bound artifact bytes. Before npm, a

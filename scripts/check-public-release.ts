@@ -168,18 +168,39 @@ const branchRef = await fetchJson(`${apiBase}/git/ref/heads/${branch}`, "GitHub 
   object?: Readonly<{ sha?: unknown; type?: unknown }>;
 }>;
 const branchSha = branchRef.object?.sha;
-const comparison = await fetchJson(
-  `${apiBase}/compare/${verifiedSha}...${encodeURIComponent(branch)}`,
-  "GitHub reviewed-main ancestry",
-  githubHeaders,
-) as Readonly<{ base_commit?: Readonly<{ sha?: unknown }>; head_commit?: Readonly<{ sha?: unknown }>; merge_base_commit?: Readonly<{ sha?: unknown }>; status?: unknown }>;
 if (
   branchRef.object?.type !== "commit"
   || typeof branchSha !== "string"
-  || !["ahead", "identical"].includes(String(comparison.status))
+  || !/^[0-9a-f]{40}$/u.test(branchSha)
+) throw new Error("GitHub default branch is invalid.");
+const comparison = await fetchJson(
+  `${apiBase}/compare/${verifiedSha}...${branchSha}`,
+  "GitHub reviewed-main ancestry",
+  githubHeaders,
+) as Readonly<{
+  ahead_by?: unknown;
+  base_commit?: Readonly<{ sha?: unknown }>;
+  behind_by?: unknown;
+  merge_base_commit?: Readonly<{ sha?: unknown }>;
+  status?: unknown;
+  url?: unknown;
+}>;
+const finalBranchRef = await fetchJson(
+  `${apiBase}/git/ref/heads/${branch}`,
+  "final GitHub default branch",
+  githubHeaders,
+) as Readonly<{ object?: Readonly<{ sha?: unknown; type?: unknown }> }>;
+const aheadBy = comparison.ahead_by;
+if (
+  !Number.isSafeInteger(aheadBy)
+  || Number(aheadBy) < 0
+  || comparison.behind_by !== 0
+  || (comparison.status === "identical" ? aheadBy !== 0 : comparison.status !== "ahead" || aheadBy === 0)
+  || comparison.url !== `${apiBase}/compare/${verifiedSha}...${branchSha}`
   || comparison.base_commit?.sha !== verifiedSha
   || comparison.merge_base_commit?.sha !== verifiedSha
-  || comparison.head_commit?.sha !== branchSha
+  || finalBranchRef.object?.type !== "commit"
+  || finalBranchRef.object.sha !== branchSha
 ) throw new Error("Reviewed release commit is not an ancestor of current main.");
 const [releasePayload, latestRelease] = await Promise.all([
   fetchJson(`${apiBase}/releases/tags/${encodeURIComponent(verifiedTag)}`, "GitHub Release", githubHeaders),

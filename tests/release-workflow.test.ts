@@ -142,12 +142,17 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(githubPublisher).toContain("parseGitHubRelease");
   expect(authority).toContain('tagObject.type !== "tag"');
   expect(authority).toContain("target.sha !== input.sha");
-  expect(authority).toContain('["ahead", "identical"]');
+  expect(authority).toContain("expectedComparisonUrl");
   expect(authority).toContain("mergeBase.sha !== input.sha");
+  expect(authority).not.toContain("comparison.head_commit");
+  expect(authority.match(/git\/ref\/heads\/\$\{branch\}/gu)).toHaveLength(2);
   expect(admission).toContain("verifyNpmProvenance(npmTarball");
   expect(admission).toContain("parseNpmProvenanceAdmission({");
   expect(admission).toContain('required("NPM_PROVENANCE_RUN_ID"');
   expect(admission).toContain('required("NPM_PROVENANCE_ATTEMPT_MODE"');
+  expect(admission).toContain("finalBranchRef");
+  expect(admission).toContain("`${apiBase}/compare/${verifiedSha}...${branchSha}`");
+  expect(admission).not.toContain("comparison.head_commit");
   expect(admission).toContain("Buffer.from(githubTarball).equals(Buffer.from(npmTarball))");
 });
 
@@ -184,6 +189,8 @@ test("release controls have explicit ownership and document the public MIT bound
   expect(guide).toContain("Do not add a long-lived npm token");
   expect(guide).toContain("npm may also initialize `latest`");
   expect(guide).toContain("Do not explicitly target `latest` for `v0.2.3`");
+  expect(guide).toContain("protected `v0.2.4` tag records a release-control attempt");
+  expect(guide).toContain("Never\nweaken provenance or publish different bytes under the failed tag");
   expect(guide).toContain("npm trust github @hraness/oh --repo hraness/oh --file release.yml");
   expect(guide).toContain("every later publication must use the tag");
   expect(guide).toContain("privileged job's trusted computing base");

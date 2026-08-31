@@ -130,17 +130,40 @@ describe("release distribution policy", () => {
     }, tag)).toThrow("annotated tag object");
     const annotated = { tag, object: { sha, type: "commit" } };
     const head = { ref: "refs/heads/main", object: { sha, type: "commit" } };
-    const comparison = { status: "identical", base_commit: { sha }, merge_base_commit: { sha }, head_commit: { sha } };
-    expect(() => assertRemoteReleaseAuthority(annotated, head, comparison, { branch: "main", sha, tag }))
+    const comparison = {
+      ahead_by: 0,
+      base_commit: { sha },
+      behind_by: 0,
+      merge_base_commit: { sha },
+      status: "identical",
+      total_commits: 0,
+      url: `https://api.github.com/repos/hraness/oh/compare/${sha}...${sha}`,
+    };
+    expect(() => assertRemoteReleaseAuthority(annotated, head, comparison, head, { branch: "main", sha, tag }))
       .not.toThrow();
     const next = "c".repeat(40);
-    expect(() => assertRemoteReleaseAuthority(annotated, {
+    const nextHead = {
       ...head,
       object: { ...head.object, sha: next },
-    }, { status: "ahead", base_commit: { sha }, merge_base_commit: { sha }, head_commit: { sha: next } },
+    };
+    expect(() => assertRemoteReleaseAuthority(annotated, nextHead, {
+      ahead_by: 1,
+      base_commit: { sha },
+      behind_by: 0,
+      merge_base_commit: { sha },
+      status: "ahead",
+      total_commits: 1,
+      url: `https://api.github.com/repos/hraness/oh/compare/${sha}...${next}`,
+    }, nextHead,
     { branch: "main", sha, tag })).not.toThrow();
     expect(() => assertRemoteReleaseAuthority(annotated, head, {
-      status: "diverged", base_commit: { sha }, merge_base_commit: { sha: next }, head_commit: { sha },
-    }, { branch: "main", sha, tag })).toThrow("not an ancestor");
+      ...comparison, status: "diverged", merge_base_commit: { sha: next },
+    }, head, { branch: "main", sha, tag })).toThrow("not an ancestor");
+    expect(() => assertRemoteReleaseAuthority(
+      annotated, head, comparison, nextHead, { branch: "main", sha, tag },
+    )).toThrow("moved");
+    expect(() => assertRemoteReleaseAuthority(
+      annotated, nextHead, comparison, nextHead, { branch: "main", sha, tag },
+    )).toThrow("not an ancestor");
   });
 });
