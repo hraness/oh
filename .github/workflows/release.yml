@@ -202,6 +202,7 @@ jobs:
     name: Publish immutable GitHub Release
     needs: [verify, exact_artifact]
     permissions:
+      actions: read
       contents: write
     runs-on: ubuntu-24.04
     timeout-minutes: 10

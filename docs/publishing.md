@@ -56,6 +56,13 @@ no attached artifacts; leave them intact and use a new version for this path.
 The protected `v0.2.4` tag records a release-control attempt that failed before
 any GitHub Release or npm mutation. It has no published package or Release and
 must remain unreleased.
+The protected `v0.2.5` tag records the next release-control attempt. Its exact
+same-run artifacts passed the complete gate and both operating-system installs,
+and its GitHub Release is published and immutable. A missing `await` in the npm
+retry-state gate then failed deterministically before npm mutation, so npm
+`@hraness/oh@0.2.5` must remain absent. Preserve that tag and Release exactly;
+do not manually publish, retag, or claim that the GitHub-only release is the
+supported npm version. The reviewed repair is released only as the next patch.
 
 The tag workflow then:
 
@@ -100,13 +107,15 @@ remaining an ancestor of current `main`, while the annotated tag remains exact.
 The workflow uses no npm token, GitHub App credential, deployment credential,
 or private-data source. If an npm version already exists, publication succeeds
 only when its immutable bytes and trusted-publisher provenance are exact. A
-failed or partial release is recovered by rerunning the workflow; do not retag,
-replace an npm version, or edit an immutable GitHub Release.
+transient failed or partial release is recovered by rerunning the workflow; do
+not retag, replace an npm version, or edit an immutable GitHub Release.
 
-If a release-control defect makes every exact rerun fail before any provider
-mutation, leave that immutable tag unreleased. Repair the control on reviewed
+If a release-control defect makes every exact rerun fail, preserve all provider
+state exactly. This applies both before any provider mutation and after an exact
+immutable GitHub Release when npm remains absent. Repair the control on reviewed
 `main`, prepare the next patch version, and create a new annotated tag. Never
-weaken provenance or publish different bytes under the failed tag.
+weaken provenance, manually publish the npm half of a GitHub-only release, or
+publish different bytes under the failed tag.
 
 Every positive workflow attempt is an eligible recovery attempt for the same
 reviewed annotated tag, commit, and ID-bound artifact bytes. Before npm, a
@@ -131,6 +140,17 @@ If a GitHub API interruption leaves an exact-tag draft, a later attempt of that
 same workflow run may complete it without deleting, retagging, or rebuilding
 anything. Recovery first requires a structured successful API read or exact 404,
 then an exhaustive bounded inventory containing exactly one draft ID for the tag.
+After creating a draft, the writer polls that bounded inventory briefly because
+GitHub may not expose the new draft there immediately; an empty inventory remains
+pending, while any different or additional identifier fails closed.
+A later attempt may create a draft only when the Actions Jobs API proves every
+prior attempt's exact Release writer job was skipped, or its publication step
+was completed as skipped before any release code ran. The read-only witness is
+bound to the same run, workflow, reviewed commit, and prior attempt. Immediately
+before POST, the writer again requires an exact missing tag lookup and empty
+bounded draft inventory. If any prior publication step may have run, a later
+attempt polls both tag lookup and inventory for the exact draft or publication;
+it never risks creating a duplicate after an uncertain provider reply.
 That draft must have the GitHub Actions author, the exact release title and state,
 and one canonical identity marker binding the repository ID, workflow ref, run
 ID, creation attempt, annotated tag object, peeled commit, and the names, lengths,

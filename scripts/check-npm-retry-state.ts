@@ -22,7 +22,11 @@ const response = await fetch(registryVersionUrl(publicPackageName, manifest.vers
   cache: "no-store", headers: { Accept: "application/json", "Cache-Control": "no-cache", "User-Agent": "oh-release-retry" },
   redirect: "error", signal: AbortSignal.timeout(10_000),
 });
-const metadata = registryVersionMetadata(response, publicPackageName, manifest.version);
+const metadata: Record<string, unknown> | null = await registryVersionMetadata(
+  response,
+  publicPackageName,
+  manifest.version,
+);
 const output = required("GITHUB_OUTPUT", /^.{1,4096}$/u);
 const runId = required("GITHUB_RUN_ID", /^[1-9][0-9]*$/u);
 const attemptText = required("GITHUB_RUN_ATTEMPT", /^[1-9][0-9]*$/u);

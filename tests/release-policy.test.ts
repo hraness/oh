@@ -3,8 +3,10 @@ import { describe, expect, test } from "bun:test";
 
 import {
   assertReleaseAssetBytes,
+  classifyRegistryVersionPayload,
   parseGitHubRelease,
   parseNpmRelease,
+  registryVersionMetadata,
   releaseArchiveName,
 } from "../scripts/release-policy";
 import {
@@ -91,6 +93,44 @@ describe("release distribution policy", () => {
       url: `https://registry.npmjs.org/-/npm/v1/attestations/@attacker%2foh@${version}`,
     };
     expect(() => parseNpmRelease({ ...wrong, dist }, version)).toThrow("provenance");
+  });
+
+  test("classifies exact metadata and a bounded full package document", async () => {
+    const exact = npmRelease();
+    const other = npmRelease({ version: "1.2.2" });
+    const packument = {
+      _id: "@hraness/oh",
+      name: "@hraness/oh",
+      versions: { "1.2.2": other },
+    };
+    expect(classifyRegistryVersionPayload(exact, "@hraness/oh", version)).toEqual(exact);
+    expect(classifyRegistryVersionPayload(packument, "@hraness/oh", version)).toBeNull();
+    expect(classifyRegistryVersionPayload({
+      ...packument,
+      versions: { ...packument.versions, [version]: exact },
+    }, "@hraness/oh", version)).toEqual(exact);
+    expect(() => classifyRegistryVersionPayload({
+      ...packument,
+      "dist-tags": { latest: "1.2.2" },
+      versions: { ...packument.versions, [version]: exact },
+    }, "@hraness/oh", version, "latest")).toThrow("does not make the requested version latest");
+    expect(classifyRegistryVersionPayload({
+      ...packument,
+      "dist-tags": { latest: version },
+      versions: { ...packument.versions, [version]: exact },
+    }, "@hraness/oh", version, "latest")).toEqual(exact);
+    expect(() => classifyRegistryVersionPayload({ ...packument, _id: "@attacker/oh" }, "@hraness/oh", version))
+      .toThrow("neither exact version metadata nor its exact package document");
+    expect(() => classifyRegistryVersionPayload({ ...packument, versions: { [version]: other } }, "@hraness/oh", version))
+      .toThrow("inexact version entry");
+    const inherited = Object.create({ [version]: exact }) as Record<string, unknown>;
+    expect(classifyRegistryVersionPayload({ ...packument, versions: inherited }, "@hraness/oh", version)).toBeNull();
+
+    const response = new Response(JSON.stringify(packument), {
+      headers: { "content-type": "application/json" },
+      status: 200,
+    });
+    expect(await registryVersionMetadata(response, "@hraness/oh", version, "version")).toBeNull();
   });
 
   test("requires two exact immutable GitHub assets and their bytes", () => {
