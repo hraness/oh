@@ -150,6 +150,9 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(admission).toContain("parseNpmProvenanceAdmission({");
   expect(admission).toContain('required("NPM_PROVENANCE_RUN_ID"');
   expect(admission).toContain('required("NPM_PROVENANCE_ATTEMPT_MODE"');
+  expect(admission).toContain("finalBranchRef");
+  expect(admission).toContain("`${apiBase}/compare/${verifiedSha}...${branchSha}`");
+  expect(admission).not.toContain("comparison.head_commit");
   expect(admission).toContain("Buffer.from(githubTarball).equals(Buffer.from(npmTarball))");
 });
 
