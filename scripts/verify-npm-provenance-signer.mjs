@@ -1,14 +1,29 @@
 import { pathToFileURL } from "node:url";
 
-const PACKAGE_REPOSITORY = "hraness/oh";
+const REPOSITORY_OWNER = "hraness";
+const REPOSITORY_OWNER_ID = "307125679";
+const REPOSITORY_NAME = "oh";
 const REPOSITORY_ID = "1348230462";
+const PACKAGE_REPOSITORY = `${REPOSITORY_OWNER}/${REPOSITORY_NAME}`;
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const SHA = /^[0-9a-f]{40}$/u;
 const STABLE_TAG = /^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u;
 const RUN_INVOCATION = /^https:\/\/github\.com\/hraness\/oh\/actions\/runs\/[1-9][0-9]*\/attempts\/[1-9][0-9]*$/u;
+const PRINTABLE_ASCII = /^[\x20-\x7e]+$/u;
 const MAXIMUM_BUNDLE_BYTES = 4 * 1_024 * 1_024;
 
 function escapeRegularExpression(value) { return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"); }
+
+export function fulcioV2CertificateOIDValue(value) {
+  if (typeof value !== "string" || !PRINTABLE_ASCII.test(value)) {
+    throw new Error("Fulcio V2 certificate OID value must be nonempty printable ASCII.");
+  }
+  const bytes = Buffer.from(value, "ascii");
+  if (bytes.byteLength > 127) {
+    throw new Error("Fulcio V2 certificate OID value exceeds the canonical DER short-form bound.");
+  }
+  return `${String.fromCharCode(0x0c, bytes.byteLength)}${value}`;
+}
 
 export function releaseSignerIdentity(tag, sha, invocation) {
   if (!STABLE_TAG.test(tag) || !SHA.test(sha) || !RUN_INVOCATION.test(invocation)) {
@@ -24,13 +39,20 @@ export function releaseSignerIdentity(tag, sha, invocation) {
       certificateOIDs: Object.freeze({
         "1.3.6.1.4.1.57264.1.2": "push", "1.3.6.1.4.1.57264.1.3": sha,
         "1.3.6.1.4.1.57264.1.5": PACKAGE_REPOSITORY, "1.3.6.1.4.1.57264.1.6": ref,
-        "1.3.6.1.4.1.57264.1.11": "github-hosted",
-        "1.3.6.1.4.1.57264.1.12": `https://github.com/${PACKAGE_REPOSITORY}`,
-        "1.3.6.1.4.1.57264.1.13": sha, "1.3.6.1.4.1.57264.1.14": ref,
-        "1.3.6.1.4.1.57264.1.15": REPOSITORY_ID, "1.3.6.1.4.1.57264.1.18": identity,
-        "1.3.6.1.4.1.57264.1.19": sha, "1.3.6.1.4.1.57264.1.20": "push",
-        "1.3.6.1.4.1.57264.1.21": invocation, "1.3.6.1.4.1.57264.1.22": "public",
-        "1.3.6.1.4.1.57264.1.24": `repo:${PACKAGE_REPOSITORY}:ref:${ref}`,
+        "1.3.6.1.4.1.57264.1.11": fulcioV2CertificateOIDValue("github-hosted"),
+        "1.3.6.1.4.1.57264.1.12": fulcioV2CertificateOIDValue(`https://github.com/${PACKAGE_REPOSITORY}`),
+        "1.3.6.1.4.1.57264.1.13": fulcioV2CertificateOIDValue(sha),
+        "1.3.6.1.4.1.57264.1.14": fulcioV2CertificateOIDValue(ref),
+        "1.3.6.1.4.1.57264.1.15": fulcioV2CertificateOIDValue(REPOSITORY_ID),
+        "1.3.6.1.4.1.57264.1.18": fulcioV2CertificateOIDValue(identity),
+        "1.3.6.1.4.1.57264.1.19": fulcioV2CertificateOIDValue(sha),
+        "1.3.6.1.4.1.57264.1.20": fulcioV2CertificateOIDValue("push"),
+        "1.3.6.1.4.1.57264.1.21": fulcioV2CertificateOIDValue(invocation),
+        "1.3.6.1.4.1.57264.1.22": fulcioV2CertificateOIDValue("public"),
+        "1.3.6.1.4.1.57264.1.24":
+          fulcioV2CertificateOIDValue(
+            `repo:${REPOSITORY_OWNER}@${REPOSITORY_OWNER_ID}/${REPOSITORY_NAME}@${REPOSITORY_ID}:ref:${ref}`,
+          ),
       }),
       ctLogThreshold: 1, tlogThreshold: 1, timeout: 10_000,
     }),

@@ -63,6 +63,14 @@ retry-state gate then failed deterministically before npm mutation, so npm
 `@hraness/oh@0.2.5` must remain absent. Preserve that tag and Release exactly;
 do not manually publish, retag, or claim that the GitHub-only release is the
 supported npm version. The reviewed repair is released only as the next patch.
+The protected `v0.2.6` tag and exact same-run bytes are published as an immutable
+GitHub Release and an npm trusted-publisher package with provenance bound to run
+`33358569648`, attempt 1. Only the final read-only admission failed: its Fulcio
+V2 policy supplied OIDs `1.3.6.1.4.1.57264.1.11` through `.24` as raw ASCII
+instead of their canonical DER UTF8String bytes, and its `.24` subject claim also
+expected the obsolete shape without owner and repository numeric IDs. Preserve
+both exact public copies and that tag. The corrected DER-encoded, ID-bound signer
+policy is released only as `v0.2.7`.
 
 The tag workflow then:
 
@@ -122,7 +130,8 @@ reviewed annotated tag, commit, and ID-bound artifact bytes. Before npm, a
 read-only gate records its explicit run ID and attempt and treats the version as
 either absent or requires its exact bytes and Sigstore provenance to bind the
 same run at a positive attempt no greater than that preflight attempt, including
-Fulcio extension OID `1.3.6.1.4.1.57264.1.21`. The writer rejects another run,
+Fulcio extension OID `1.3.6.1.4.1.57264.1.21` and the ID-bound repository subject
+claim in OID `1.3.6.1.4.1.57264.1.24`. The writer rejects another run,
 reversed attempt ordering, and a same-attempt absent-to-existing race. A later
 failed-job rerun retaining an earlier absent preflight may publish if the version
 remains absent. If it instead observes exact bytes, it performs no mutation.

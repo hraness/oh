@@ -3072,7 +3072,7 @@ class Oh {
 
 // src/cli.ts
 import { readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.2.6";
+var OH_PACKAGE_VERSION = "0.2.7";
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",
