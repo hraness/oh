@@ -88,10 +88,25 @@ describe("Oh memory page value and edition codec", () => {
       enumerable: true,
       get() { accessorReads += 1; throw new Error("must not execute"); },
     });
+    const dependencyAccessor = { ...record, dependencies: [...record.dependencies] };
+    Object.defineProperty(dependencyAccessor.dependencies, "0", {
+      enumerable: true,
+      get() { accessorReads += 1; return record.dependencies[0]; },
+    });
+    const sourceAccessor = {
+      ...record,
+      value: { ...record.value, sources: [...record.value.sources] },
+    };
+    Object.defineProperty(sourceAccessor.value.sources, "0", {
+      enumerable: true,
+      get() { accessorReads += 1; return record.value.sources[0]; },
+    });
 
     expect(parseOhMemoryPageRecordV1(hidden)).toBeNull();
     expect(parseOhMemoryPageRecordV1(symbolic)).toBeNull();
     expect(parseOhMemoryPageRecordV1(accessor)).toBeNull();
+    expect(parseOhMemoryPageRecordV1(dependencyAccessor)).toBeNull();
+    expect(parseOhMemoryPageRecordV1(sourceAccessor)).toBeNull();
     expect(accessorReads).toBe(0);
   });
 

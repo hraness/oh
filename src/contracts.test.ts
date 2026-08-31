@@ -121,9 +121,15 @@ describe("graph contracts", () => {
       enumerable: true,
       get() { accessorReads += 1; throw new Error("must not execute"); },
     });
+    const dependencyAccessor = { ...statement, dependencies: [...statement.dependencies] };
+    Object.defineProperty(dependencyAccessor.dependencies, "0", {
+      enumerable: true,
+      get() { accessorReads += 1; return entity.key; },
+    });
     expect(parseKnowledgeGraphRecordV1(hidden)).toBeNull();
     expect(parseKnowledgeGraphRecordV1(symbolic)).toBeNull();
     expect(parseKnowledgeGraphRecordV1(accessor)).toBeNull();
+    expect(parseKnowledgeGraphRecordV1(dependencyAccessor)).toBeNull();
     expect(accessorReads).toBe(0);
     const first = createKnowledgeGraphRevisionV1({ changes: [
       { kind: "put", record: statement, v: 1 }, { kind: "put", record: entity, v: 1 },

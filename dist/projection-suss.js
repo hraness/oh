@@ -70,17 +70,27 @@ function encodeCanonical(value, path, ancestors) {
   ancestors.add(value);
   try {
     if (Array.isArray(value)) {
-      const encoded = [];
-      for (let index = 0;index < value.length; index += 1) {
-        if (!Object.hasOwn(value, index)) {
-          throw new OhValidationError("sparse-array", `${path}[${index}]`, "must not contain holes");
-        }
-        encoded.push(encodeCanonical(value[index], `${path}[${index}]`, ancestors));
+      const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+      const length = lengthDescriptor?.value;
+      if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0) {
+        throw new OhValidationError("non-json-property", path, "array has an invalid length descriptor");
       }
-      const extraKeys = Reflect.ownKeys(value).filter((key) => key !== "length" && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= value.length));
-      if (extraKeys.length > 0) {
+      const ownKeys2 = Reflect.ownKeys(value);
+      if (!ownKeys2.includes("length") || ownKeys2.some((key) => key !== "length" && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= length))) {
         throw new OhValidationError("non-json-property", path, "array has non-index properties");
       }
+      const elements = [];
+      for (let index = 0;index < length; index += 1) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (descriptor === undefined) {
+          throw new OhValidationError("sparse-array", `${path}[${index}]`, "must not contain holes");
+        }
+        if (!descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined) {
+          throw new OhValidationError("non-json-property", `${path}[${index}]`, "must be an enumerable data property");
+        }
+        elements.push(descriptor.value);
+      }
+      const encoded = elements.map((element, index) => encodeCanonical(element, `${path}[${index}]`, ancestors));
       return `[${encoded.join(",")}]`;
     }
     if (!isPlainRecord(value)) {
@@ -90,19 +100,21 @@ function encodeCanonical(value, path, ancestors) {
     if (ownKeys.some((key) => typeof key !== "string")) {
       throw new OhValidationError("non-json-property", path, "object has a symbol property");
     }
+    const entries = [];
     const keys = ownKeys;
     for (const key of keys) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined) {
         throw new OhValidationError("non-json-property", `${path}.${key}`, "must be an enumerable data property");
       }
+      entries.push([key, descriptor.value]);
     }
-    keys.sort();
-    const entries = keys.map((key) => {
+    entries.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
+    const encodedEntries = entries.map(([key, entryValue]) => {
       assertUnicodeScalarString(key, `${path}.<key>`);
-      return `${JSON.stringify(key)}:${encodeCanonical(value[key], `${path}.${key}`, ancestors)}`;
+      return `${JSON.stringify(key)}:${encodeCanonical(entryValue, `${path}.${key}`, ancestors)}`;
     });
-    return `{${entries.join(",")}}`;
+    return `{${encodedEntries.join(",")}}`;
   } finally {
     ancestors.delete(value);
   }
@@ -235,17 +247,43 @@ function exactKnowledgeGraphRecordEnvelopeV1(value) {
     return null;
   }
 }
+function exactGraphDependenciesV1(value) {
+  try {
+    if (!Array.isArray(value))
+      return null;
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+    const length = lengthDescriptor?.value;
+    if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0 || length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord)
+      return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== length + 1 || !ownKeys.includes("length") || ownKeys.some((key) => key !== "length" && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= length)))
+      return null;
+    const detached = [];
+    for (let index = 0;index < length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined)
+        return null;
+      detached.push(descriptor.value);
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
 function recordKey(value) {
   return typeof value === "string" && value.length <= 512 && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
 }
 function createKnowledgeGraphRecordV1(input) {
-  if (!isPlainRecord(input) || !hasExactKeys(input, ["dependencies", "key", "kind", "v", "value"]) || input.v !== 1 || !Array.isArray(input.dependencies))
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["dependencies", "key", "kind", "v", "value"]) || input.v !== 1)
     throw new TypeError("Invalid graph record input.");
+  const dependencyInput = exactGraphDependenciesV1(input.dependencies);
+  if (dependencyInput === null)
+    throw new TypeError("Invalid graph record dependencies.");
   const key = recordKey(input.key);
   const kind = OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.find((candidate) => candidate === input.kind);
-  if (key === null || kind === undefined || input.dependencies.length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord)
+  if (key === null || kind === undefined)
     throw new TypeError("Invalid graph record identity.");
-  const dependencies = input.dependencies.map(recordKey);
+  const dependencies = dependencyInput.map(recordKey);
   if (dependencies.some((dependency) => dependency === null) || !orderedUnique(dependencies, String) || dependencies.includes(key)) {
     throw new TypeError("Graph dependencies must be ordered, unique, and non-reflexive.");
   }
