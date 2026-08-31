@@ -1,0 +1,8 @@
+{
+  "documentFormat": "title: {title} | text: {content}",
+  "inputUtf8Bytes": 448,
+  "rendererId": "oh.embedding-input.utf8-chunks.v1",
+  "split": "unicode-scalar-greedy",
+  "v": 1,
+  "rendererSha256": "9e4bb2bf7fa2b43b6c7df5153d51c1c46fad852a2c9199e0076c377d935918ba"
+}

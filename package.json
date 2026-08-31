@@ -1,6 +1,6 @@
 {
   "name": "@hraness/oh",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "description": "open-source tools for agentic research",
   "type": "module",
   "license": "MIT",
@@ -60,6 +60,14 @@
       "types": "./dist/semantic.d.ts",
       "import": "./dist/semantic.js"
     },
+    "./semantic-cloud": {
+      "types": "./dist/semantic-cloud.d.ts",
+      "import": "./dist/semantic-cloud.js"
+    },
+    "./memory-page": {
+      "types": "./dist/memory-page.d.ts",
+      "import": "./dist/memory-page.js"
+    },
     "./projection": {
       "types": "./dist/projection-public.d.ts",
       "import": "./dist/projection-public.js"
@@ -90,7 +98,7 @@
   "scripts": {
     "build": "bun run build:js && bun run build:portable && bun run build:types",
     "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts ./src/semantic.ts ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
-    "build:portable": "bun build ./src/store.ts ./src/libsql.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog",
+    "build:portable": "bun build ./src/store.ts ./src/libsql.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory.ts ./src/memory-page.ts ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog",
     "build:types": "tsc -p tsconfig.build.json",
     "check": "bun run typecheck && bun run typecheck:scripts && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:package",
     "test:node": "node ./tests/node-portable.mjs",

@@ -11,7 +11,7 @@ const principles = [
   {
     index: "01",
     title: "Local by default",
-    body: "Your contract, records, operation log, and keyword index live in a SQLite file you control. Semantic state is a rebuildable local cache; network sync remains an explicit adapter.",
+    body: "Your contract, records, operation log, and keyword index live in a SQLite file you control. Semantic caches are rebuildable views; hosted inference and network sync remain explicit adapters.",
   },
   {
     index: "02",
@@ -95,7 +95,7 @@ $ oh verify --db research.db`}</code></pre>
         <section className="proof-strip" aria-label="Core properties">
           <span>SQLite authority</span>
           <span>Content addressed</span>
-          <span>Offline semantic search</span>
+          <span>Replaceable semantic views</span>
           <span>Turso-compatible sync</span>
         </section>
 

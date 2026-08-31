@@ -140,6 +140,21 @@ function canonicalNow() {
 function safeCode(value, maximumLength = 128) {
   return typeof value === "string" && value.length <= maximumLength && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
 }
+function boundedText(value, maximumBytes = 64 * 1024) {
+  if (typeof value !== "string" || value.length === 0 || value.normalize("NFC") !== value || utf8ByteLength(value) > maximumBytes)
+    return null;
+  try {
+    assertUnicodeScalarString(value, "$text");
+  } catch {
+    return null;
+  }
+  for (const character of value) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= 8 || code >= 11 && code <= 12 || code >= 14 && code <= 31 || code >= 127 && code <= 159)
+      return null;
+  }
+  return value;
+}
 function orderedUnique(values, key) {
   return values.every((value, index) => index === 0 || key(values[index - 1]) < key(value));
 }
@@ -971,6 +986,359 @@ class OhSemanticBundleIngressV1 {
 // src/memory.ts
 import { createHmac, randomBytes as randomBytes2, timingSafeEqual } from "node:crypto";
 
+// src/memory-pages.ts
+var OH_MEMORY_PAGE_FORMAT_V1 = "oh.memory-page.v1";
+var OH_MEMORY_PAGE_MARKDOWN_EXTENSION_V1 = ".oh.md";
+var OH_MEMORY_PAGE_LIMITS_V1 = Object.freeze({
+  bodyBytes: 512 * 1024,
+  fileBytes: 1024 * 1024,
+  frontmatterLines: 18 + OH_GRAPH_LIMITS_V1.dependenciesPerRecord + 5 * 128,
+  languageBytes: 255,
+  sourceTitleBytes: 1024,
+  sourceUrlBytes: 4096,
+  sources: 128,
+  summaryBytes: 8192,
+  titleBytes: 512,
+  valueBytes: 768 * 1024
+});
+function singleLineText(value, maximumBytes) {
+  const parsed = boundedText(value, maximumBytes);
+  return parsed !== null && !/[\r\n\u0085\u2028\u2029]/u.test(parsed) ? parsed : null;
+}
+function exactDataRecord(value, keys) {
+  try {
+    if (!isPlainRecord(value))
+      return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== keys.length || ownKeys.some((key) => typeof key !== "string") || keys.some((key) => !ownKeys.includes(key)))
+      return null;
+    const detached = {};
+    for (const key of keys) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined)
+        return null;
+      detached[key] = descriptor.value;
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
+function exactDataArray(value, maximumLength) {
+  try {
+    if (!Array.isArray(value))
+      return null;
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+    const length = lengthDescriptor?.value;
+    if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0 || length > maximumLength)
+      return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== length + 1 || ownKeys.some((key) => typeof key !== "string") || !ownKeys.includes("length"))
+      return null;
+    const detached = [];
+    for (let index = 0;index < length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined)
+        return null;
+      detached.push(descriptor.value);
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
+function parseLanguage(value) {
+  if (value === null)
+    return null;
+  return typeof value === "string" && utf8ByteLength(value) <= OH_MEMORY_PAGE_LIMITS_V1.languageBytes && /^(?:und|[a-z]{2,3}(?:-[a-z0-9]{2,8})*)$/u.test(value) ? value : undefined;
+}
+function parseCanonicalSourceUrl(value) {
+  if (typeof value !== "string" || value.normalize("NFC") !== value || utf8ByteLength(value) > OH_MEMORY_PAGE_LIMITS_V1.sourceUrlBytes)
+    return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:" || url.username !== "" || url.password !== "" || url.href !== value)
+      return null;
+    for (let index = value.indexOf("%");index >= 0; index = value.indexOf("%", index + 3)) {
+      const encoded = value.slice(index + 1, index + 3);
+      if (!/^[0-9A-F]{2}$/u.test(encoded))
+        return null;
+      const decoded = String.fromCharCode(Number.parseInt(encoded, 16));
+      if (/^[A-Za-z0-9._~-]$/u.test(decoded))
+        return null;
+    }
+    return value;
+  } catch {
+    return null;
+  }
+}
+function parseSource(value) {
+  const source = exactDataRecord(value, ["contentSha256", "observedAt", "title", "url", "v"]);
+  if (source === null || source.v !== 1)
+    return null;
+  const contentSha256 = parseSha256Hex(source.contentSha256);
+  const observedAt = parseCanonicalInstantV1(source.observedAt);
+  const title = singleLineText(source.title, OH_MEMORY_PAGE_LIMITS_V1.sourceTitleBytes);
+  const url = parseCanonicalSourceUrl(source.url);
+  return contentSha256 !== null && observedAt !== null && title !== null && url !== null ? { contentSha256, observedAt, title, url, v: 1 } : null;
+}
+function parseProvenance(value) {
+  const provenance = exactDataRecord(value, ["actorId", "attestationSha256", "attestedAt", "kind", "v"]);
+  if (provenance === null || provenance.kind !== "host-attested" || provenance.v !== 1)
+    return null;
+  const actorId = safeCode(provenance.actorId);
+  const attestationSha256 = parseSha256Hex(provenance.attestationSha256);
+  const attestedAt = parseCanonicalInstantV1(provenance.attestedAt);
+  return actorId !== null && attestationSha256 !== null && attestedAt !== null ? { actorId, attestationSha256, attestedAt, kind: "host-attested", v: 1 } : null;
+}
+function parseOhMemoryPageValueV1(value) {
+  const page = exactDataRecord(value, [
+    "body",
+    "createdAt",
+    "format",
+    "language",
+    "provenance",
+    "sources",
+    "summary",
+    "title",
+    "updatedAt",
+    "v"
+  ]);
+  if (page === null || page.format !== OH_MEMORY_PAGE_FORMAT_V1 || page.v !== 1)
+    return null;
+  const sourceValues = exactDataArray(page.sources, OH_MEMORY_PAGE_LIMITS_V1.sources);
+  if (sourceValues === null)
+    return null;
+  const body = boundedText(page.body, OH_MEMORY_PAGE_LIMITS_V1.bodyBytes);
+  const createdAt = parseCanonicalInstantV1(page.createdAt);
+  const language = parseLanguage(page.language);
+  const provenance = parseProvenance(page.provenance);
+  const sources = sourceValues.map(parseSource);
+  const summary = boundedText(page.summary, OH_MEMORY_PAGE_LIMITS_V1.summaryBytes);
+  const title = singleLineText(page.title, OH_MEMORY_PAGE_LIMITS_V1.titleBytes);
+  const updatedAt = parseCanonicalInstantV1(page.updatedAt);
+  if (body === null || createdAt === null || language === undefined || provenance === null || sources.some((source) => source === null) || summary === null || title === null || updatedAt === null) {
+    return null;
+  }
+  const parsedSources = sources;
+  if (!orderedUnique(parsedSources, (source) => source.url) || Date.parse(createdAt) > Date.parse(updatedAt) || Date.parse(updatedAt) > Date.parse(provenance.attestedAt) || parsedSources.some((source) => Date.parse(source.observedAt) > Date.parse(updatedAt)))
+    return null;
+  const parsed = {
+    body,
+    createdAt,
+    format: OH_MEMORY_PAGE_FORMAT_V1,
+    language,
+    provenance,
+    sources: parsedSources,
+    summary,
+    title,
+    updatedAt,
+    v: 1
+  };
+  return utf8ByteLength(canonicalJson(parsed)) <= OH_MEMORY_PAGE_LIMITS_V1.valueBytes ? parsed : null;
+}
+function createOhMemoryPageValueV1(value) {
+  const parsed = parseOhMemoryPageValueV1(value);
+  if (parsed === null)
+    throw new TypeError("Invalid Oh memory page value.");
+  return parsed;
+}
+function createOhMemoryPageRecordV1(input) {
+  const parsedInput = exactDataRecord(input, ["dependencies", "key", "value"]);
+  if (parsedInput === null) {
+    throw new TypeError("Invalid Oh memory page record input.");
+  }
+  const value = createOhMemoryPageValueV1(parsedInput.value);
+  const record = createKnowledgeGraphRecordV1({
+    dependencies: parsedInput.dependencies,
+    key: parsedInput.key,
+    kind: "edition",
+    v: 1,
+    value
+  });
+  return { ...record, kind: "edition", value };
+}
+function parseOhMemoryPageRecordV1(value) {
+  const record = parseKnowledgeGraphRecordV1(value);
+  if (record === null || record.kind !== "edition")
+    return null;
+  const page = parseOhMemoryPageValueV1(record.value);
+  return page === null ? null : { ...record, kind: "edition", value: page };
+}
+var OH_MEMORY_PAGE_RECORD_CODEC_V1 = Object.freeze({
+  kind: "edition",
+  parse(value) {
+    return parseOhMemoryPageValueV1(value);
+  }
+});
+function scalar(value) {
+  return JSON.stringify(value).replaceAll("\u2028", "\\u2028").replaceAll("\u2029", "\\u2029");
+}
+function dependencyPrefix(index) {
+  return `dependency-${index.toString().padStart(4, "0")}`;
+}
+function sourcePrefix(index) {
+  return `source-${index.toString().padStart(3, "0")}`;
+}
+function markdownEntries(record) {
+  const page = record.value;
+  const entries = [
+    ["format", page.format],
+    ["record-v", record.v],
+    ["record-kind", record.kind],
+    ["record-key", record.key],
+    ["record-sha256", record.recordSha256],
+    ["dependency-count", record.dependencies.length]
+  ];
+  record.dependencies.forEach((dependency, index) => {
+    entries.push([`${dependencyPrefix(index)}-key`, dependency]);
+  });
+  entries.push(["page-v", page.v], ["title", page.title], ["summary", page.summary], ["language", page.language], ["created-at", page.createdAt], ["updated-at", page.updatedAt], ["provenance-kind", page.provenance.kind], ["provenance-v", page.provenance.v], ["provenance-actor-id", page.provenance.actorId], ["provenance-attested-at", page.provenance.attestedAt], ["provenance-attestation-sha256", page.provenance.attestationSha256], ["source-count", page.sources.length]);
+  page.sources.forEach((source, index) => {
+    const prefix = sourcePrefix(index);
+    entries.push([`${prefix}-v`, source.v], [`${prefix}-url`, source.url], [`${prefix}-title`, source.title], [`${prefix}-observed-at`, source.observedAt], [`${prefix}-content-sha256`, source.contentSha256]);
+  });
+  return entries;
+}
+function renderOhMemoryPageMarkdownV1(value) {
+  const record = parseOhMemoryPageRecordV1(value);
+  if (record === null)
+    throw new TypeError("Invalid Oh memory page record.");
+  const frontmatter = markdownEntries(record).map(([key, item]) => `${key}: ${scalar(item)}`).join(`
+`);
+  const rendered = `---
+${frontmatter}
+---
+${record.value.body}`;
+  if (utf8ByteLength(rendered) > OH_MEMORY_PAGE_LIMITS_V1.fileBytes) {
+    throw new RangeError("Oh memory page Markdown exceeds its byte limit.");
+  }
+  return rendered;
+}
+function parseFrontmatterLine(line) {
+  const separator = line.indexOf(": ");
+  if (separator < 1 || !/^[a-z][a-z0-9-]*$/u.test(line.slice(0, separator)))
+    return null;
+  const key = line.slice(0, separator);
+  const encoded = line.slice(separator + 2);
+  let value;
+  try {
+    value = JSON.parse(encoded);
+  } catch {
+    return null;
+  }
+  if (value !== null && typeof value !== "string" && typeof value !== "number" || typeof value === "number" && !Number.isFinite(value) || scalar(value) !== encoded)
+    return null;
+  return [key, value];
+}
+function parseOhMemoryPageMarkdownV1(text) {
+  if (typeof text !== "string" || utf8ByteLength(text) > OH_MEMORY_PAGE_LIMITS_V1.fileBytes || !text.startsWith(`---
+`))
+    return null;
+  const closing = text.indexOf(`
+---
+`, 4);
+  if (closing < 0)
+    return null;
+  const frontmatter = text.slice(4, closing);
+  let frontmatterLines = 1;
+  for (let index = frontmatter.indexOf(`
+`);index >= 0; index = frontmatter.indexOf(`
+`, index + 1)) {
+    frontmatterLines += 1;
+    if (frontmatterLines > OH_MEMORY_PAGE_LIMITS_V1.frontmatterLines)
+      return null;
+  }
+  const lines = frontmatter.split(`
+`);
+  const entries = lines.map(parseFrontmatterLine);
+  if (entries.some((entry) => entry === null) || entries.length < 18)
+    return null;
+  const parsedEntries = entries;
+  const dependencyCount = parsedEntries[5]?.[1];
+  if (!Number.isSafeInteger(dependencyCount) || dependencyCount < 0 || dependencyCount > OH_GRAPH_LIMITS_V1.dependenciesPerRecord)
+    return null;
+  const pageOffset = 6 + dependencyCount;
+  const sourceCount = parsedEntries[pageOffset + 11]?.[1];
+  if (!Number.isSafeInteger(sourceCount) || sourceCount < 0 || sourceCount > OH_MEMORY_PAGE_LIMITS_V1.sources)
+    return null;
+  const expectedKeys = [
+    "format",
+    "record-v",
+    "record-kind",
+    "record-key",
+    "record-sha256",
+    "dependency-count",
+    ...Array.from({ length: dependencyCount }, (_, index) => `${dependencyPrefix(index)}-key`),
+    "page-v",
+    "title",
+    "summary",
+    "language",
+    "created-at",
+    "updated-at",
+    "provenance-kind",
+    "provenance-v",
+    "provenance-actor-id",
+    "provenance-attested-at",
+    "provenance-attestation-sha256",
+    "source-count",
+    ...Array.from({ length: sourceCount }, (_, index) => {
+      const prefix = sourcePrefix(index);
+      return [
+        `${prefix}-v`,
+        `${prefix}-url`,
+        `${prefix}-title`,
+        `${prefix}-observed-at`,
+        `${prefix}-content-sha256`
+      ];
+    }).flat()
+  ];
+  if (parsedEntries.length !== expectedKeys.length || parsedEntries.some(([key], index) => key !== expectedKeys[index]))
+    return null;
+  const dependencies = Array.from({ length: dependencyCount }, (_, index) => parsedEntries[6 + index]?.[1]);
+  const sources = [];
+  for (let index = 0;index < sourceCount; index += 1) {
+    const offset = pageOffset + 12 + index * 5;
+    sources.push({
+      v: parsedEntries[offset]?.[1],
+      url: parsedEntries[offset + 1]?.[1],
+      title: parsedEntries[offset + 2]?.[1],
+      observedAt: parsedEntries[offset + 3]?.[1],
+      contentSha256: parsedEntries[offset + 4]?.[1]
+    });
+  }
+  const page = parseOhMemoryPageValueV1({
+    body: text.slice(closing + 5),
+    createdAt: parsedEntries[pageOffset + 4]?.[1],
+    format: parsedEntries[0]?.[1],
+    language: parsedEntries[pageOffset + 3]?.[1],
+    provenance: {
+      actorId: parsedEntries[pageOffset + 8]?.[1],
+      attestationSha256: parsedEntries[pageOffset + 10]?.[1],
+      attestedAt: parsedEntries[pageOffset + 9]?.[1],
+      kind: parsedEntries[pageOffset + 6]?.[1],
+      v: parsedEntries[pageOffset + 7]?.[1]
+    },
+    sources,
+    summary: parsedEntries[pageOffset + 2]?.[1],
+    title: parsedEntries[pageOffset + 1]?.[1],
+    updatedAt: parsedEntries[pageOffset + 5]?.[1],
+    v: parsedEntries[pageOffset]?.[1]
+  });
+  if (page === null || parsedEntries[1]?.[1] !== 1 || parsedEntries[2]?.[1] !== "edition" || typeof parsedEntries[3]?.[1] !== "string" || typeof parsedEntries[4]?.[1] !== "string" || dependencies.some((dependency) => typeof dependency !== "string"))
+    return null;
+  let record;
+  try {
+    record = createOhMemoryPageRecordV1({
+      dependencies,
+      key: parsedEntries[3][1],
+      value: page
+    });
+  } catch {
+    return null;
+  }
+  return record.recordSha256 === parsedEntries[4][1] && renderOhMemoryPageMarkdownV1(record) === text ? record : null;
+}
 // src/projection.ts
 var OH_PROJECTION_FORMAT_VERSION_V1 = 1;
 var OH_PROJECTION_SEMANTICS_V1 = "oh.projection.positive-datalog.v1";
@@ -3640,9 +4008,19 @@ async function createOhMemoryAgentV2(options) {
   return Object.freeze({ explain, nominate, query, remember });
 }
 export {
+  renderOhMemoryPageMarkdownV1,
+  parseOhMemoryPageValueV1,
+  parseOhMemoryPageRecordV1,
+  parseOhMemoryPageMarkdownV1,
+  createOhMemoryPageValueV1,
+  createOhMemoryPageRecordV1,
   createOhMemoryAgentV2,
   createOhMemoryAgentV1,
   OH_MEMORY_QUERY_LIMITS_V2,
+  OH_MEMORY_PAGE_RECORD_CODEC_V1,
+  OH_MEMORY_PAGE_MARKDOWN_EXTENSION_V1,
+  OH_MEMORY_PAGE_LIMITS_V1,
+  OH_MEMORY_PAGE_FORMAT_V1,
   OH_MEMORY_LIMITS_V1,
   OH_MEMORY_FORMAT_VERSION_V1,
   OH_MEMORY_CONFLICT_POLICY_V1,

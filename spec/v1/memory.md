@@ -169,6 +169,24 @@ canonical store, import a derived tuple, grant rights, record a review, or turn
 a proposed assertion into reviewed knowledge. Destination-owned application
 code must perform those steps under its own policy and compare-and-swap head.
 
+## Memory pages and retrieval
+
+A memory page is an application profile for an ordinary `edition` record. Its
+bounded title, summary, Markdown body, exact source observations, and
+host-attested provenance are authoritative record content. The optional
+canonical `.oh.md` rendering is a self-contained one-record interchange file;
+it does not introduce another database or operation format. This gives agents
+a readable, diffable artifact without making Markdown syntax the hidden source
+of graph authority.
+
+Memory pages deliberately contain no model, vector, score, index generation,
+or provider field. The local embedding backend and the hosted semantic cache
+derive disposable indexes from the same current record digests under different
+profiles. A host may expose semantic recall as an additional convenience, but
+it MUST preserve exact `remember`, Datalog `query`, `explain`, and `nominate`
+semantics when retrieval is unavailable. Search hits are rejoined to current
+authority digests and remain retrieval evidence, not accepted facts.
+
 ## Lifecycle and custody boundary
 
 Oh deliberately does not choose a tenant, session, retention deadline,

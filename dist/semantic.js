@@ -431,10 +431,21 @@ function normalizeOhEmbeddingV1(vector) {
   if (vector.length !== OH_EMBEDDING_PROFILE_V1.dimensions || vector.some((component) => !Number.isFinite(component))) {
     throw new TypeError(`Embedding vectors must contain ${OH_EMBEDDING_PROFILE_V1.dimensions} finite values.`);
   }
-  const magnitude = Math.sqrt(vector.reduce((sum, component) => sum + component * component, 0));
-  if (magnitude === 0)
+  const scale = vector.reduce((maximum, component) => Math.max(maximum, Math.abs(component)), 0);
+  if (scale === 0)
     throw new TypeError("Embedding vectors must have nonzero magnitude.");
-  return vector.map((component) => component / magnitude);
+  const scaledMagnitude = Math.sqrt(vector.reduce((sum, component) => {
+    const scaled = component / scale;
+    return sum + scaled * scaled;
+  }, 0));
+  if (!Number.isFinite(scaledMagnitude) || scaledMagnitude === 0) {
+    throw new TypeError("Embedding vectors must have finite nonzero magnitude.");
+  }
+  const normalized = vector.map((component) => component / scale / scaledMagnitude);
+  if (normalized.some((component) => !Number.isFinite(component))) {
+    throw new TypeError("Embedding vectors must normalize to finite values.");
+  }
+  return normalized;
 }
 function cosineSimilarityV1(left, right) {
   const normalizedLeft = normalizeOhEmbeddingV1(left);

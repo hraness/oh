@@ -67,6 +67,19 @@ Semantic state MAY be rebuilt with the exact profile in
 only after it rejoins a record with the same record digest. Copying a semantic
 directory does not establish migration parity.
 
+The optional hosted cache is rebuilt from authoritative records with both the
+exact [`cloudflare-embedding-profile.json`](cloudflare-embedding-profile.json)
+and [`cloudflare-embedding-renderer.json`](cloudflare-embedding-renderer.json)
+identities. Do not copy or mix vectors across local, hosted, profile, or
+renderer identities. A permanently purged hosted authority ID cannot be reused;
+allocate a new host-bound authority epoch and stage a complete generation from
+the current source records.
+
+A canonical `.oh.md` file transports one complete memory-page record and
+recomputes its record digest. It does not carry an operation chain, store head,
+realm binding, review decision, or proof of full authority migration. Use an Oh
+operation bundle or destination-owned adoption workflow for those purposes.
+
 ## Rollback
 
 Keep the verified source database read-only until the target head has matched

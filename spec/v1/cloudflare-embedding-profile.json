@@ -1,0 +1,13 @@
+{
+  "dimensions": 768,
+  "distance": "cosine",
+  "documentFormat": "title: {title} | text: {content}",
+  "inputUtf8Bytes": 448,
+  "model": "@cf/google/embeddinggemma-300m",
+  "normalization": "l2",
+  "profileId": "oh.cloudflare.embeddinggemma.v1",
+  "provider": "cloudflare.workers-ai",
+  "queryFormat": "task: search result | query: {query}",
+  "v": 1,
+  "profileSha256": "728880deda384ce205cdc1c58f495c1d17c37c698bebc4b41bb0d93ca3b84b20"
+}

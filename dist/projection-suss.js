@@ -150,6 +150,21 @@ function canonicalNow() {
 function safeCode(value, maximumLength = 128) {
   return typeof value === "string" && value.length <= maximumLength && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
 }
+function boundedText(value, maximumBytes = 64 * 1024) {
+  if (typeof value !== "string" || value.length === 0 || value.normalize("NFC") !== value || utf8ByteLength(value) > maximumBytes)
+    return null;
+  try {
+    assertUnicodeScalarString(value, "$text");
+  } catch {
+    return null;
+  }
+  for (const character of value) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= 8 || code >= 11 && code <= 12 || code >= 14 && code <= 31 || code >= 127 && code <= 159)
+      return null;
+  }
+  return value;
+}
 function orderedUnique(values, key) {
   return values.every((value, index) => index === 0 || key(values[index - 1]) < key(value));
 }

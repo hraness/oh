@@ -1,3 +1,4 @@
+export * from "./memory-pages";
 import { type JsonPrimitive, type Sha256Hex } from "./canonical";
 import { type OhRecordCodecRegistry } from "./contract";
 import { type KnowledgeGraphRecordV1 } from "./graph";

@@ -194,16 +194,18 @@ export default function Specification() {
             <div>
               <h2>Semantic search</h2>
               <p>
-                Oh selects one pinned local QMD engine and the
-                <code>embeddinggemma-300M-Q8_0</code> model. The V1 profile
-                publishes its 768-dimensional cosine contract. The concrete
-                adapter confines QMD result identities, rejects non-finite
-                scores, and rejoins every hit to current SQLite authority.
+                Oh publishes two separately digest-bound EmbeddingGemma views:
+                a local QMD <code>embeddinggemma-300M-Q8_0</code> profile, and
+                an optional Cloudflare Workers AI profile with a direct libSQL
+                cache. Both use 768-dimensional cosine vectors, but their
+                outputs are not assumed interchangeable. Every hit rejoins the
+                exact current authoritative record digest.
               </p>
               <p className="callout">
                 Semantic data is a derived cache keyed by profile and exact
-                record digest. Keyword search stays available without a model,
-                and results always rejoin the current authoritative record.
+                renderer, authority generation, and record digest. Keyword
+                search stays available without a model; hosted failure never
+                weakens exact graph or Datalog operations.
               </p>
             </div>
           </section>
@@ -246,6 +248,13 @@ export default function Specification() {
                 Working nominations are verified dependency-closure proposals.
                 Review and durable adoption remain destination-owned operations;
                 a derived result never promotes itself.
+              </p>
+              <p>
+                The stable memory-page profile carries bounded Markdown,
+                explicit source observations, and host-attested provenance in
+                an ordinary <code>edition</code> record. Its canonical
+                <code>.oh.md</code> form is one self-contained record transport,
+                not a second authority or embedding format.
               </p>
             </div>
           </section>

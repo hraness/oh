@@ -1,0 +1,154 @@
+{
+  "$defs": {
+    "canonicalInstant": {
+      "pattern": "^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "language": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "maxLength": 255,
+          "pattern": "^(?:und|[a-z]{2,3}(?:-[a-z0-9]{2,8})*)$",
+          "type": "string"
+        }
+      ]
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "actorId": {
+          "$ref": "#/$defs/safeCode"
+        },
+        "attestationSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "attestedAt": {
+          "$ref": "#/$defs/canonicalInstant"
+        },
+        "kind": {
+          "const": "host-attested"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "actorId",
+        "attestationSha256",
+        "attestedAt",
+        "kind",
+        "v"
+      ],
+      "type": "object"
+    },
+    "safeCode": {
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+      "type": "string"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "source": {
+      "additionalProperties": false,
+      "properties": {
+        "contentSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "observedAt": {
+          "$ref": "#/$defs/canonicalInstant"
+        },
+        "title": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u007f-\\u009f\\u2028\\u2029]+$",
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "contentSha256",
+        "observedAt",
+        "title",
+        "url",
+        "v"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/memory-page.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Runtime conformance additionally requires NFC Unicode scalar text, exact UTF-8 byte limits, the same bounded-control grammar expressed by the text patterns, canonical HTTP(S) URLs without user information or noncanonical percent escapes, strictly URL-ordered unique sources, valid calendar instants, createdAt <= updatedAt <= provenance.attestedAt, every source observedAt <= updatedAt, and a 768 KiB canonical-JSON value ceiling.",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "maxLength": 524288,
+      "minLength": 1,
+      "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f]+$",
+      "type": "string"
+    },
+    "createdAt": {
+      "$ref": "#/$defs/canonicalInstant"
+    },
+    "format": {
+      "const": "oh.memory-page.v1"
+    },
+    "language": {
+      "$ref": "#/$defs/language"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/source"
+      },
+      "maxItems": 128,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "summary": {
+      "maxLength": 8192,
+      "minLength": 1,
+      "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f]+$",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u007f-\\u009f\\u2028\\u2029]+$",
+      "type": "string"
+    },
+    "updatedAt": {
+      "$ref": "#/$defs/canonicalInstant"
+    },
+    "v": {
+      "const": 1
+    }
+  },
+  "required": [
+    "body",
+    "createdAt",
+    "format",
+    "language",
+    "provenance",
+    "sources",
+    "summary",
+    "title",
+    "updatedAt",
+    "v"
+  ],
+  "title": "Oh memory page value V1",
+  "type": "object"
+}

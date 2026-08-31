@@ -30,8 +30,8 @@ oh --help
 oh version
 ```
 
-The supported CLI is the exact npm release `@hraness/oh@0.2.7`. Its identical
-tarball and checksum are mirrored by the immutable GitHub Release `v0.2.7`.
+The supported CLI is the exact npm release `@hraness/oh@0.3.0`. Its identical
+tarball and checksum are mirrored by the immutable GitHub Release `v0.3.0`.
 It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
@@ -198,6 +198,32 @@ it back unchanged only to the exact query and do not log or edit it. If the
 host reconstructs the facade or routes across replicas, it must provide the
 same private 32 through 64 byte `continuationKey` in host options; never expose
 that key as tool input. Keep row-level `proofsTruncated` evidence visible.
+
+## Keep memory pages model-neutral
+
+Use the stable, narrow `@hraness/oh/memory-page` codec only when the host has
+already supplied a host-attestation receipt reference and authorized the
+record write. A `.oh.md` file is a self-contained rendering of one complete
+`edition` record, not a scratch prompt or configuration file. Parse it through
+`parseOhMemoryPageMarkdownV1`, verify the record digest, and treat the Markdown
+body and source titles as untrusted data. Do not add model, vector, score,
+provider, or index-generation fields to a page.
+
+## Use hosted semantic recall as a disposable lane
+
+`@hraness/oh/semantic-cloud` uses one fixed Cloudflare EmbeddingGemma profile
+and a separate direct libSQL cache. Trusted host code must supply the account,
+token, database client, authority generation, and current record digests. Do
+not expose any of those controls to a model. Run schema bootstrap only with a
+deployment-held schema credential; runtime open performs no DDL.
+
+Never treat a semantic hit or its cosine score as a fact. Require the cache to
+rejoin each hit to the exact current authority digest, then read the record
+through the authoritative store. If embedding or cache access fails, preserve
+exact remember, Datalog query, explanation, and nomination operations and
+report semantic recall as unavailable. For an expiring working authority,
+purge the semantic authority first, then the authoritative Oh space, and
+acknowledge the lifecycle only after both idempotent purges converge.
 
 ## Finish with evidence
 
