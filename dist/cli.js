@@ -207,6 +207,33 @@ var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
   "view",
   "vocabulary"
 ];
+var KNOWLEDGE_GRAPH_RECORD_KEYS_V1 = [
+  "dependencies",
+  "key",
+  "kind",
+  "recordSha256",
+  "v",
+  "value"
+];
+function exactKnowledgeGraphRecordEnvelopeV1(value) {
+  try {
+    if (!isPlainRecord(value))
+      return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== KNOWLEDGE_GRAPH_RECORD_KEYS_V1.length || ownKeys.some((key) => typeof key !== "string") || KNOWLEDGE_GRAPH_RECORD_KEYS_V1.some((key) => !ownKeys.includes(key)))
+      return null;
+    const detached = {};
+    for (const key of KNOWLEDGE_GRAPH_RECORD_KEYS_V1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined)
+        return null;
+      detached[key] = descriptor.value;
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
 function recordKey(value) {
   return typeof value === "string" && value.length <= 512 && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
 }
@@ -229,10 +256,17 @@ function createKnowledgeGraphRecordV1(input) {
   return { ...payload, recordSha256: canonicalSha256(payload) };
 }
 function parseKnowledgeGraphRecordV1(value) {
-  if (!isPlainRecord(value) || !Object.hasOwn(value, "recordSha256"))
+  const envelope = exactKnowledgeGraphRecordEnvelopeV1(value);
+  if (envelope === null)
     return null;
-  const recordSha256 = parseSha256Hex(value.recordSha256);
-  const { recordSha256: _digest, ...input } = value;
+  const recordSha256 = parseSha256Hex(envelope.recordSha256);
+  const input = {
+    dependencies: envelope.dependencies,
+    key: envelope.key,
+    kind: envelope.kind,
+    v: envelope.v,
+    value: envelope.value
+  };
   try {
     const created = createKnowledgeGraphRecordV1(input);
     return recordSha256 !== null && created.recordSha256 === recordSha256 ? { ...created, recordSha256 } : null;

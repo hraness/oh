@@ -242,7 +242,11 @@ export function createOhMemoryPageRecordV1(input: OhMemoryPageRecordInputV1): Oh
 }
 
 export function parseOhMemoryPageRecordV1(value: unknown): OhMemoryPageRecordV1 | null {
-  const record = parseKnowledgeGraphRecordV1(value);
+  const envelope = exactDataRecord(value, [
+    "dependencies", "key", "kind", "recordSha256", "v", "value",
+  ]);
+  if (envelope === null) return null;
+  const record = parseKnowledgeGraphRecordV1(envelope);
   if (record === null || record.kind !== "edition") return null;
   const page = parseOhMemoryPageValueV1(record.value);
   return page === null ? null : { ...record, kind: "edition", value: page };

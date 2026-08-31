@@ -111,6 +111,20 @@ describe("graph contracts", () => {
     const statement = createKnowledgeGraphRecordV1({ dependencies: [entity.key], key: "statement:ada-name",
       kind: "statement", v: 1, value: { text: "Ada" } });
     expect(parseKnowledgeGraphRecordV1(entity)).toEqual(entity);
+    const hidden = { ...entity } as Record<PropertyKey, unknown>;
+    Object.defineProperty(hidden, "hidden", { value: true });
+    const symbolic = { ...entity } as Record<PropertyKey, unknown>;
+    symbolic[Symbol("hidden")] = true;
+    let accessorReads = 0;
+    const accessor = { ...entity } as Record<PropertyKey, unknown>;
+    Object.defineProperty(accessor, "recordSha256", {
+      enumerable: true,
+      get() { accessorReads += 1; throw new Error("must not execute"); },
+    });
+    expect(parseKnowledgeGraphRecordV1(hidden)).toBeNull();
+    expect(parseKnowledgeGraphRecordV1(symbolic)).toBeNull();
+    expect(parseKnowledgeGraphRecordV1(accessor)).toBeNull();
+    expect(accessorReads).toBe(0);
     const first = createKnowledgeGraphRevisionV1({ changes: [
       { kind: "put", record: statement, v: 1 }, { kind: "put", record: entity, v: 1 },
     ], operationId: "op_first", parent: null });

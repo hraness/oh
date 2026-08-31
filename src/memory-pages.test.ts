@@ -76,6 +76,25 @@ describe("Oh memory page value and edition codec", () => {
     }))).toBeNull();
   });
 
+  test("rejects hostile record envelopes without invoking accessors", () => {
+    const record = pageRecord();
+    const hidden = { ...record } as Record<PropertyKey, unknown>;
+    Object.defineProperty(hidden, "hidden", { value: true });
+    const symbolic = { ...record } as Record<PropertyKey, unknown>;
+    symbolic[Symbol("hidden")] = true;
+    let accessorReads = 0;
+    const accessor = { ...record } as Record<PropertyKey, unknown>;
+    Object.defineProperty(accessor, "recordSha256", {
+      enumerable: true,
+      get() { accessorReads += 1; throw new Error("must not execute"); },
+    });
+
+    expect(parseOhMemoryPageRecordV1(hidden)).toBeNull();
+    expect(parseOhMemoryPageRecordV1(symbolic)).toBeNull();
+    expect(parseOhMemoryPageRecordV1(accessor)).toBeNull();
+    expect(accessorReads).toBe(0);
+  });
+
   test("requires exact fields, host provenance, canonical chronology, and no provider metadata", () => {
     const valid = page();
     const second = source("https://example.com/b", { contentSha256: digestB });
