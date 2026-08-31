@@ -50,6 +50,7 @@ export function assertRemoteReleaseAuthority(
   annotatedValue: unknown,
   headValue: unknown,
   comparisonValue: unknown,
+  finalHeadValue: unknown,
   input: Readonly<{ branch: string; sha: string; tag: string }>,
 ): void {
   const annotated = record(annotatedValue, `GitHub annotated tag ${input.tag}`);
@@ -63,16 +64,29 @@ export function assertRemoteReleaseAuthority(
     head.ref !== `refs/heads/${input.branch}`
     || headObject.type !== "commit"
     || typeof headObject.sha !== "string"
+    || !/^[0-9a-f]{40}$/u.test(headObject.sha)
   ) throw new Error(`GitHub branch ${input.branch} is invalid.`);
+  const finalHead = record(finalHeadValue, `Final GitHub branch ${input.branch}`);
+  const finalHeadObject = record(finalHead.object, `Final GitHub branch ${input.branch} object`);
+  if (
+    finalHead.ref !== `refs/heads/${input.branch}`
+    || finalHeadObject.type !== "commit"
+    || finalHeadObject.sha !== headObject.sha
+  ) throw new Error(`GitHub branch ${input.branch} moved during release authority verification.`);
   const comparison = record(comparisonValue, `GitHub ${input.branch} ancestry comparison`);
   const base = record(comparison.base_commit, "GitHub comparison base");
   const mergeBase = record(comparison.merge_base_commit, "GitHub comparison merge base");
-  const comparisonHead = record(comparison.head_commit, "GitHub comparison head");
+  const aheadBy = comparison.ahead_by;
+  const status = comparison.status;
+  const expectedComparisonUrl = `https://api.github.com/repos/${publicRepository}/compare/${input.sha}...${headObject.sha}`;
   if (
-    !["ahead", "identical"].includes(String(comparison.status))
+    !Number.isSafeInteger(aheadBy)
+    || Number(aheadBy) < 0
+    || comparison.behind_by !== 0
+    || (status === "identical" ? aheadBy !== 0 : status !== "ahead" || aheadBy === 0)
+    || comparison.url !== expectedComparisonUrl
     || base.sha !== input.sha
     || mergeBase.sha !== input.sha
-    || comparisonHead.sha !== headObject.sha
   ) throw new Error(`Reviewed release commit ${input.sha} is not an ancestor of current ${input.branch}.`);
 }
 
@@ -89,8 +103,14 @@ export async function verifyRemoteReleaseAuthority(): Promise<RemoteReleaseAutho
   const tagObjectSha = releaseTagObjectSha(reference, tag);
   const annotated = await runJson(`/repos/${publicRepository}/git/tags/${tagObjectSha}`);
   const head = await runJson(`/repos/${publicRepository}/git/ref/heads/${branch}`);
-  const comparison = await runJson(`/repos/${publicRepository}/compare/${sha}...${branch}`);
-  assertRemoteReleaseAuthority(annotated, head, comparison, { branch, sha, tag });
+  const headObject = record(head.object, `GitHub branch ${branch} object`);
+  if (head.ref !== `refs/heads/${branch}` || headObject.type !== "commit"
+    || typeof headObject.sha !== "string" || !/^[0-9a-f]{40}$/u.test(headObject.sha)) {
+    throw new Error(`GitHub branch ${branch} is invalid.`);
+  }
+  const comparison = await runJson(`/repos/${publicRepository}/compare/${sha}...${headObject.sha}`);
+  const finalHead = await runJson(`/repos/${publicRepository}/git/ref/heads/${branch}`);
+  assertRemoteReleaseAuthority(annotated, head, comparison, finalHead, { branch, sha, tag });
   console.log(`Verified remote annotated ${tag} at ${sha} remains in current ${branch} history.`);
   return Object.freeze({ tagObjectSha });
 }
