@@ -30,8 +30,9 @@ oh --help
 oh version
 ```
 
-The supported CLI is `@hraness/oh@0.2.3` from the immutable `v0.2.3` GitHub
-tag. It requires Bun 1.3.14 or newer. The versioned contract is published at
+The supported CLI is the exact npm release `@hraness/oh@0.2.4`. Its identical
+tarball and checksum are mirrored by the immutable GitHub Release `v0.2.4`.
+It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
 ## Open an existing space

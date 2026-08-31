@@ -182,7 +182,8 @@ test("release controls have explicit ownership and document the public MIT bound
   expect(guide).toContain("npm trusted publishing with OIDC provenance");
   expect(guide).toContain("with exactly the same tarball and");
   expect(guide).toContain("Do not add a long-lived npm token");
-  expect(guide).toContain("non-Latest `legacy`");
+  expect(guide).toContain("npm may also initialize `latest`");
+  expect(guide).toContain("Do not explicitly target `latest` for `v0.2.3`");
   expect(guide).toContain("npm trust github @hraness/oh --repo hraness/oh --file release.yml");
   expect(guide).toContain("every later publication must use the tag");
   expect(guide).toContain("privileged job's trusted computing base");

@@ -27,8 +27,10 @@ publication workflow.
 If `@hraness/oh` still returns npm 404, npm cannot configure its trusted
 publisher yet. Build and retain one exact tarball plus `SHA256SUMS` from the
 already-public `v0.2.3` source after its historical complete gate passes, then
-publish only that tarball with maintainer 2FA under the non-Latest `legacy`
-dist-tag. Do not reuse the release workflow or make `v0.2.3` Latest.
+publish only that tarball with maintainer 2FA using the `legacy` dist-tag.
+npm may also initialize `latest` to the only published version when first
+creating the coordinate. Do not explicitly target `latest` for `v0.2.3`; the
+first OIDC stable release must replace that bootstrap alias with its exact bytes.
 
 After the coordinate exists, configure the permanent publisher with a current
 npm client:
