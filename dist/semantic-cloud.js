@@ -1456,6 +1456,33 @@ class OhLibSqlSemanticCacheV1 {
     if (this.#closeClient)
       this.#client.close?.();
   }
+  async publishedHead(input) {
+    this.#open();
+    const authorityId = parseAuthorityId(input.authorityId);
+    if (await readPurge(this.#client, authorityId) !== null)
+      return null;
+    const head = await readHead(this.#client, authorityId);
+    if (head === null)
+      return null;
+    const generation = await readGeneration(this.#client, authorityId, head.generation);
+    if (generation === null || !headMatchesGeneration(head, generation)) {
+      if (await readPurge(this.#client, authorityId) !== null)
+        return null;
+      throw new OhLibSqlSemanticError("integrity", "The semantic published head does not match its immutable generation.");
+    }
+    if (await readPurge(this.#client, authorityId) !== null)
+      return null;
+    const finalHead = await readHead(this.#client, authorityId);
+    if (finalHead === null) {
+      if (await readPurge(this.#client, authorityId) !== null)
+        return null;
+      throw new OhLibSqlSemanticError("integrity", "The semantic published head disappeared during its read.");
+    }
+    if (canonicalJson(finalHead) !== canonicalJson(head)) {
+      throw new OhLibSqlSemanticError("conflict", "The semantic published head changed during its read.");
+    }
+    return Object.freeze({ ...head, v: 1 });
+  }
   async stage(input) {
     this.#open();
     validateEmbeddingClient(input.embeddingClient);
