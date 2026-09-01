@@ -147,7 +147,7 @@ async function collectPublicTextFiles(): Promise<readonly string[]> {
       return;
     }
     if (information.isFile()
-      && (["", ".js", ".json", ".lock", ".map", ".md", ".ts", ".yaml", ".yml"].includes(extname(path)))) {
+      && (["", ".js", ".json", ".lock", ".map", ".md", ".sql", ".ts", ".yaml", ".yml"].includes(extname(path)))) {
       files.push(path);
     }
   }
@@ -166,9 +166,9 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.3.1");
-    expect(sitePackageJson.version).toBe("0.3.1");
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.3.1"');
+    expect(packageJson.version).toBe("0.3.2");
+    expect(sitePackageJson.version).toBe("0.3.2");
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.3.2"');
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");
     expect(packageJson.license).toBe("MIT");
@@ -182,12 +182,12 @@ describe("public identity and documentation", () => {
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
-    expect(readme).toContain("bun add --global @hraness/oh@0.3.1");
-    expect(readme).toContain('"@hraness/oh": "0.3.1"');
-    expect(readme).toContain("releases/download/v0.3.1/hraness-oh-0.3.1.tgz");
+    expect(readme).toContain("bun add --global @hraness/oh@0.3.2");
+    expect(readme).toContain('"@hraness/oh": "0.3.2"');
+    expect(readme).toContain("releases/download/v0.3.2/hraness-oh-0.3.2.tgz");
     expect(readme).not.toContain("github:hraness/oh#");
-    expect(skill).toContain("`@hraness/oh@0.3.1`");
-    expect(skill).toContain("immutable GitHub Release `v0.3.1`");
+    expect(skill).toContain("`@hraness/oh@0.3.2`");
+    expect(skill).toContain("immutable GitHub Release `v0.3.2`");
     expect(skill).toMatch(/^---\nname: oh\ndescription: .+\n---\n/u);
     expect(skill).not.toMatch(/TODO|TBD|example skill/iu);
   });
@@ -397,6 +397,10 @@ describe("versioned public contract", () => {
     const manifest = await json("spec/manifest.json");
     const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
     expect(version.semanticCloud).toEqual({
+      cacheSchema: {
+        current: 2,
+        legacyV1: "./v1/libsql-semantic-cache-schema-v1.sql",
+      },
       profile: "./v1/cloudflare-embedding-profile.json",
       renderer: "./v1/cloudflare-embedding-renderer.json",
       specification: "./v1/semantic-cloud.md",
@@ -405,6 +409,9 @@ describe("versioned public contract", () => {
     expect(specification).toContain("not an Oh graph authority");
     expect(specification).toContain("stores no title, source content, query, page body, record JSON");
     expect(specification).toContain("permanent authority purge tombstones");
+    expect(specification).toContain("`purgeReceipt`");
+    expect(specification).toContain("never places it in renderer");
+    expect(specification).toContain("or provider text");
     expect(specification).toContain("MUST NOT weaken exact graph or Datalog operations");
   });
 

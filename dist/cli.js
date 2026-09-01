@@ -3144,7 +3144,7 @@ class Oh {
 
 // src/cli.ts
 import { readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.3.1";
+var OH_PACKAGE_VERSION = "0.3.2";
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",

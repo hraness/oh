@@ -25,6 +25,10 @@
         "specification": "./v1/projection.md"
       },
       "semanticCloud": {
+        "cacheSchema": {
+          "current": 2,
+          "legacyV1": "./v1/libsql-semantic-cache-schema-v1.sql"
+        },
         "profile": "./v1/cloudflare-embedding-profile.json",
         "renderer": "./v1/cloudflare-embedding-renderer.json",
         "specification": "./v1/semantic-cloud.md"

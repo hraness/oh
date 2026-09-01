@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 
-import { sha256Hex, type Sha256Hex } from "./canonical";
+import { canonicalJson, canonicalSha256, sha256Hex, type Sha256Hex } from "./canonical";
 import {
   OH_CLOUDFLARE_EMBEDDING_PROFILE_V1,
   OhCloudflareEmbeddingClientV1,
@@ -13,6 +13,7 @@ import type {
 } from "./libsql";
 import {
   bootstrapOhLibSqlSemanticCacheV1,
+  deriveOhSemanticIsolationSha256V1,
   OhLibSqlSemanticError,
   openOhLibSqlSemanticCacheV1,
   type OhSemanticAuthorityRefV1,
@@ -147,8 +148,33 @@ function document(
 async function bootstrapped(): Promise<SqliteCompatibleLibSqlClient> {
   const client = new SqliteCompatibleLibSqlClient();
   expect(await bootstrapOhLibSqlSemanticCacheV1(client, { appliedAt: instant1 }))
-    .toMatchObject({ schemaVersion: 1, v: 1 });
+    .toMatchObject({ schemaVersion: 2, v: 1 });
   return client;
+}
+
+async function installLegacySemanticSchema(
+  client: SqliteCompatibleLibSqlClient,
+): Promise<void> {
+  const sql = await Bun.file(new URL(
+    "../spec/v1/libsql-semantic-cache-schema-v1.sql",
+    import.meta.url,
+  )).text();
+  client.database.exec(sql);
+  const objects = client.database.query<{
+    name: string;
+    sql: string;
+    tableName: string;
+    type: "index" | "table" | "trigger";
+  }, []>(`SELECT type, name, tbl_name AS tableName, sql FROM sqlite_schema
+    WHERE sql IS NOT NULL AND (name GLOB 'oh_semantic_*' OR tbl_name GLOB 'oh_semantic_*')
+    ORDER BY type, name`).all().map((object) => ({
+      ...object,
+      sql: object.sql.replace(/\bIF\s+NOT\s+EXISTS\b/giu, "").replace(/\s+/gu, " ").trim(),
+    })).sort((left, right) => canonicalJson([left.type, left.name])
+      .localeCompare(canonicalJson([right.type, right.name])));
+  client.database.query(`INSERT INTO oh_semantic_schemas(
+    version, name, schema_sha256, applied_at) VALUES (?, ?, ?, ?)`)
+    .run(1, "oh.libsql-semantic-cache.v1", canonicalSha256(objects), instant1);
 }
 
 function authority(
@@ -156,17 +182,68 @@ function authority(
   generation: number,
   authoritySha256: Sha256Hex,
   documents: readonly OhSemanticDocumentV1[],
+  isolationSha256?: Sha256Hex,
 ): OhSemanticAuthorityRefV1 {
   return {
     authorityId,
     authoritySha256,
     generation,
+    ...(isolationSha256 === undefined ? {} : { isolationSha256 }),
     records: documents.map(({ key, recordSha256 }) => ({ key, recordSha256 })),
     v: 1,
   };
 }
 
 describe("libSQL derived semantic cache", () => {
+  test("migrates v1 by invalidating live derived rows and retaining purge tombstones", async () => {
+    const client = new SqliteCompatibleLibSqlClient();
+    await installLegacySemanticSchema(client);
+    const liveAuthority = "agent:legacy-live:epoch-1";
+    const purgedAuthority = "agent:legacy-purged:epoch-1";
+    client.database.query(`INSERT INTO oh_semantic_vectors(profile_sha256,
+      renderer_sha256, input_sha256, vector_sha256, vector, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(digest("legacy-profile"), digest("legacy-renderer"), digest("legacy-input"),
+        digest("legacy-vector"), new Uint8Array([1]), instant1);
+    client.database.query(`INSERT INTO oh_semantic_generations(authority_id, generation,
+      authority_sha256, profile_sha256, renderer_sha256, membership_sha256,
+      generation_sha256, document_count, chunk_count, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(liveAuthority, 1, digest("legacy-authority"), digest("legacy-profile"),
+        digest("legacy-renderer"), digest("legacy-membership"), digest("legacy-generation"),
+        1, 1, instant1);
+    client.database.query("INSERT INTO oh_semantic_purges(authority_id, purged_at) VALUES (?, ?)")
+      .run(purgedAuthority, instant2);
+
+    expect(await bootstrapOhLibSqlSemanticCacheV1(client, { appliedAt: instant3 }))
+      .toMatchObject({ schemaVersion: 2, v: 1 });
+    expect(client.database.query<{ count: number }, []>(`SELECT count(*) AS count
+      FROM oh_semantic_vectors`).get()?.count).toBe(0);
+    expect(client.database.query<{ count: number }, []>(`SELECT count(*) AS count
+      FROM oh_semantic_generations`).get()?.count).toBe(0);
+    const cache = await openOhLibSqlSemanticCacheV1(client);
+    const migrated = await cache.purgeReceipt({ authorityId: purgedAuthority });
+    if (migrated === null) throw new Error("Expected the migrated purge receipt.");
+    expect(migrated).toMatchObject({
+      authorityId: purgedAuthority,
+      countsRecorded: false,
+      generations: 0,
+      isolationScopes: 1,
+      memberships: 0,
+      orphanVectors: 0,
+      purgedAt: instant2,
+      residualGenerations: 0,
+      residualMemberships: 0,
+      residualScopedVectors: 0,
+    });
+    expect(await cache.purgeAuthority({
+      authorityId: purgedAuthority,
+      purgedAt: "2026-08-31T12:05:00.000Z",
+    })).toEqual(migrated);
+    await cache.close();
+    client.close();
+  });
+
   test("requires explicit bootstrap and refuses a partial or drifted schema", async () => {
     const empty = new SqliteCompatibleLibSqlClient();
     await expect(openOhLibSqlSemanticCacheV1(empty)).rejects.toMatchObject({
@@ -179,7 +256,7 @@ describe("libSQL derived semantic cache", () => {
     const coTenant = new SqliteCompatibleLibSqlClient();
     coTenant.database.exec("CREATE TABLE ohXsemanticYforeign(value TEXT) STRICT");
     await expect(bootstrapOhLibSqlSemanticCacheV1(coTenant, { appliedAt: instant1 }))
-      .resolves.toMatchObject({ schemaVersion: 1, v: 1 });
+      .resolves.toMatchObject({ schemaVersion: 2, v: 1 });
     await expect(openOhLibSqlSemanticCacheV1(coTenant)).resolves.toBeDefined();
     coTenant.close();
 
@@ -258,6 +335,7 @@ describe("libSQL derived semantic cache", () => {
       authoritySha256: firstAuthoritySha256,
       generation: 1,
       generationSha256: first.generationSha256,
+      isolationSha256: deriveOhSemanticIsolationSha256V1(authorityId),
       membershipSha256: first.membershipSha256,
       profileSha256: OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
       publishedAt: instant1,
@@ -345,14 +423,91 @@ describe("libSQL derived semantic cache", () => {
 
     expect(() => client.database.query(`INSERT INTO oh_semantic_memberships(
       authority_id, generation, generation_sha256, record_key, record_sha256,
-      ordinal, input_sha256) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .run(authorityId, 2, digest("generation"), "memory:late", digest("late"), 0, digest("late")))
+      isolation_sha256, ordinal, input_sha256) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(authorityId, 2, digest("generation"), "memory:late", digest("late"),
+        deriveOhSemanticIsolationSha256V1(authorityId), 0, digest("late")))
       .toThrow("published");
     await cache.close();
     client.close();
   });
 
-  test("tombstones a purged authority, preserves shared vectors, and prevents reuse", async () => {
+  test("namespaces identical rendered inputs without perturbing provider text", async () => {
+    const client = await bootstrapped();
+    const cache = await openOhLibSqlSemanticCacheV1(client);
+    const calls: string[][] = [];
+    const embedder = embeddingClient(calls);
+    const documents = [document("memory:shared", "needle-alpha")] as const;
+    const firstAuthorityId = "agent:isolated-a:epoch-1";
+    const secondAuthorityId = "agent:isolated-b:epoch-1";
+    const firstIsolation = digest("private-isolation:first");
+    const secondIsolation = digest("private-isolation:second");
+    for (const [authorityId, isolation] of [
+      [firstAuthorityId, firstIsolation],
+      [secondAuthorityId, secondIsolation],
+    ] as const) {
+      const staged = await cache.stage({
+        authorityId,
+        authoritySha256: digest(authorityId),
+        createdAt: instant1,
+        documents,
+        embeddingClient: embedder,
+        generation: 1,
+        isolationSha256: isolation,
+      });
+      expect(staged).toMatchObject({ embedded: 1, isolationSha256: isolation, reused: 0 });
+      await cache.publish({
+        authorityId,
+        expectedPublishedGeneration: null,
+        generation: 1,
+        isolationSha256: isolation,
+        publishedAt: instant1,
+      });
+    }
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toEqual(calls[1]);
+    expect(client.database.query<{
+      inputs: number;
+      isolations: number;
+      rows: number;
+    }, []>(`SELECT count(*) AS rows, count(DISTINCT isolation_sha256) AS isolations,
+      count(DISTINCT input_sha256) AS inputs FROM oh_semantic_vectors`).get())
+      .toEqual({ inputs: 1, isolations: 2, rows: 2 });
+    expect(await cache.publishedHead({
+      authorityId: firstAuthorityId,
+      isolationSha256: firstIsolation,
+    })).toMatchObject({ isolationSha256: firstIsolation });
+    expect(await cache.publishedHead({
+      authorityId: firstAuthorityId,
+      isolationSha256: secondIsolation,
+    })).toBeNull();
+    const callsBeforeMismatch = calls.length;
+    expect(await cache.search({
+      authority: authority(
+        firstAuthorityId,
+        1,
+        digest(firstAuthorityId),
+        documents,
+        secondIsolation,
+      ),
+      embeddingClient: embedder,
+      query: "needle-alpha",
+    })).toEqual([]);
+    expect(calls).toHaveLength(callsBeforeMismatch);
+    await expect(cache.stage({
+      authorityId: "agent:isolated-attacker:epoch-1",
+      authoritySha256: digest("isolated-attacker"),
+      createdAt: instant2,
+      documents,
+      embeddingClient: embedder,
+      generation: 1,
+      isolationSha256: firstIsolation,
+    })).rejects.toMatchObject({ code: "conflict" });
+    expect(calls).toHaveLength(callsBeforeMismatch);
+    await cache.close();
+    client.close();
+  });
+
+  test("tombstones a purged authority without sharing vectors across authorities", async () => {
     const client = await bootstrapped();
     const cache = await openOhLibSqlSemanticCacheV1(client);
     const calls: string[][] = [];
@@ -374,11 +529,41 @@ describe("libSQL derived semantic cache", () => {
         publishedAt: instant1,
       });
     }
-    expect(calls).toHaveLength(1);
-    expect((await cache.purgeAuthority({
+    expect(calls).toHaveLength(2);
+    expect(client.database.query<{ count: number }, []>(
+      "SELECT count(*) AS count FROM oh_semantic_vectors",
+    ).get()?.count).toBe(2);
+    const firstReceipt = await cache.purgeAuthority({
       authorityId: "agent:session-a:epoch-1",
       purgedAt: instant2,
-    })).orphanVectors).toBe(0);
+    });
+    expect(firstReceipt).toMatchObject({
+      countsRecorded: true,
+      generations: 1,
+      isolationScopes: 1,
+      isolationSha256: deriveOhSemanticIsolationSha256V1("agent:session-a:epoch-1"),
+      memberships: 1,
+      orphanVectors: 1,
+      profileSha256: OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
+      publishedGeneration: 1,
+      publishedGenerationSha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      purgeMarkerSha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      purgeReceiptSha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      residualGenerations: 0,
+      residualMemberships: 0,
+      residualScopedVectors: 0,
+    });
+    expect(await cache.purgeReceipt({
+      authorityId: "agent:session-a:epoch-1",
+    })).toEqual(firstReceipt);
+    expect(await cache.purgeAuthority({
+      authorityId: "agent:session-a:epoch-1",
+      purgedAt: instant3,
+    })).toEqual(firstReceipt);
+    await expect(cache.purgeReceipt({
+      authorityId: "agent:session-a:epoch-1",
+      isolationSha256: digest("wrong-isolation"),
+    })).rejects.toMatchObject({ code: "conflict" });
     expect(client.database.query<{ count: number }, []>(
       "SELECT count(*) AS count FROM oh_semantic_vectors",
     ).get()?.count).toBe(1);
@@ -400,14 +585,15 @@ describe("libSQL derived semantic cache", () => {
       authorityId: "agent:session-a:epoch-1",
     })).toBeNull();
 
-    expect((await cache.purgeAuthority({
+    const secondReceipt = await cache.purgeAuthority({
       authorityId: "agent:session-b:epoch-1",
       purgedAt: instant3,
-    })).orphanVectors).toBe(1);
-    expect((await cache.purgeAuthority({
+    });
+    expect(secondReceipt.orphanVectors).toBe(1);
+    expect(await cache.purgeAuthority({
       authorityId: "agent:session-b:epoch-1",
       purgedAt: "2026-08-31T12:03:00.000Z",
-    })).purgedAt).toBe(instant3);
+    })).toEqual(secondReceipt);
     expect(client.database.query<{ count: number }, []>(
       "SELECT count(*) AS count FROM oh_semantic_vectors",
     ).get()?.count).toBe(0);
@@ -415,7 +601,89 @@ describe("libSQL derived semantic cache", () => {
     client.close();
   });
 
-  test("keeps an unrelated in-flight stage intact across global orphan collection", async () => {
+  test("rotates cache epochs within one authority and purges every reserved scope", async () => {
+    const client = await bootstrapped();
+    const cache = await openOhLibSqlSemanticCacheV1(client);
+    const calls: string[][] = [];
+    const embedder = embeddingClient(calls);
+    const authorityId = "agent:epoch-rotation:session-1";
+    const documents = [document("memory:one", "needle-alpha")] as const;
+    const firstIsolation = digest("epoch-rotation:first");
+    const secondIsolation = digest("epoch-rotation:second");
+    for (const [generation, isolation, publishedAt] of [
+      [1, firstIsolation, instant1],
+      [2, secondIsolation, instant2],
+    ] as const) {
+      await cache.stage({
+        authorityId,
+        authoritySha256: digest(`epoch-rotation:${generation}`),
+        createdAt: publishedAt,
+        documents,
+        embeddingClient: embedder,
+        generation,
+        isolationSha256: isolation,
+      });
+      await cache.publish({
+        authorityId,
+        expectedPublishedGeneration: generation === 1 ? null : 1,
+        generation,
+        isolationSha256: isolation,
+        publishedAt,
+      });
+    }
+    expect(calls).toHaveLength(2);
+    expect(await cache.publishedHead({
+      authorityId,
+      isolationSha256: firstIsolation,
+    })).toBeNull();
+    expect(await cache.publishedHead({
+      authorityId,
+      isolationSha256: secondIsolation,
+    })).toMatchObject({ generation: 2, isolationSha256: secondIsolation });
+    await expect(cache.purgeAuthority({
+      authorityId,
+      isolationSha256: firstIsolation,
+      purgedAt: instant3,
+    })).rejects.toMatchObject({ code: "conflict" });
+    expect(await cache.purgeReceipt({
+      authorityId,
+      isolationSha256: secondIsolation,
+    })).toBeNull();
+    expect(client.database.query<{ count: number }, []>(
+      "SELECT count(*) AS count FROM oh_semantic_generations",
+    ).get()?.count).toBe(2);
+    expect(client.database.query<{ count: number }, []>(
+      "SELECT count(*) AS count FROM oh_semantic_vectors",
+    ).get()?.count).toBe(2);
+    expect(client.database.query<{ count: number }, []>(
+      "SELECT count(*) AS count FROM oh_semantic_heads",
+    ).get()?.count).toBe(1);
+    const receipt = await cache.purgeAuthority({
+      authorityId,
+      isolationSha256: secondIsolation,
+      purgedAt: instant3,
+    });
+    expect(receipt).toMatchObject({
+      generations: 2,
+      isolationScopes: 2,
+      isolationSha256: secondIsolation,
+      memberships: 2,
+      orphanVectors: 2,
+      publishedGeneration: 2,
+      residualGenerations: 0,
+      residualMemberships: 0,
+      residualScopedVectors: 0,
+    });
+    await expect(cache.purgeAuthority({
+      authorityId,
+      isolationSha256: firstIsolation,
+      purgedAt: "2026-08-31T12:03:00.000Z",
+    })).rejects.toMatchObject({ code: "conflict" });
+    await cache.close();
+    client.close();
+  });
+
+  test("keeps an unrelated in-flight stage intact across an authority-scoped purge", async () => {
     const client = new InterleavingLibSqlClient();
     await bootstrapOhLibSqlSemanticCacheV1(client, { appliedAt: instant1 });
     const cache = await openOhLibSqlSemanticCacheV1(client);
@@ -441,7 +709,8 @@ describe("libSQL derived semantic cache", () => {
     expect(client.database.query<{ count: number }, []>(`SELECT count(*) AS count
       FROM oh_semantic_memberships AS membership
       LEFT JOIN oh_semantic_vectors AS vector
-        ON vector.profile_sha256 = '${OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256}'
+        ON vector.isolation_sha256 = membership.isolation_sha256
+        AND vector.profile_sha256 = '${OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256}'
         AND vector.renderer_sha256 = (SELECT renderer_sha256 FROM oh_semantic_generations
           WHERE authority_id = membership.authority_id AND generation = membership.generation)
         AND vector.input_sha256 = membership.input_sha256

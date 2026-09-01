@@ -19,6 +19,7 @@ binds these versions:
 | Sync protocol | `oh.sync.v1` |
 | Local embedding profile | `1` |
 | Hosted semantic cache | `oh.cloudflare.embeddinggemma.v1` |
+| Hosted semantic cache schema | `2` |
 | Projection semantics | `oh.projection.positive-datalog.v1` |
 | Composite memory | `experimental v1` |
 | Memory page | `oh.memory-page.v1` |
@@ -46,6 +47,7 @@ Machine-readable V1 artifacts:
 - [`embedding-profile.json`](v1/embedding-profile.json)
 - [`cloudflare-embedding-profile.json`](v1/cloudflare-embedding-profile.json)
 - [`cloudflare-embedding-renderer.json`](v1/cloudflare-embedding-renderer.json)
+- [`libsql-semantic-cache-schema-v1.sql`](v1/libsql-semantic-cache-schema-v1.sql)
 - [`contract.schema.json`](v1/contract.schema.json)
 - [`record.schema.json`](v1/record.schema.json)
 - [`schema-revision.schema.json`](v1/schema-revision.schema.json)

@@ -17,6 +17,8 @@ export type OhSemanticAuthorityRefV1 = Readonly<{
     authorityId: string;
     authoritySha256: Sha256Hex;
     generation: number;
+    /** Defaults to an authority-specific isolation when omitted. */
+    isolationSha256?: Sha256Hex;
     records: readonly Readonly<{
         key: string;
         recordSha256: Sha256Hex;
@@ -37,6 +39,7 @@ export type OhSemanticStageResultV1 = Readonly<{
     embedded: number;
     generation: number;
     generationSha256: Sha256Hex;
+    isolationSha256: Sha256Hex;
     membershipSha256: Sha256Hex;
     reused: number;
     status: "staged";
@@ -46,6 +49,7 @@ export type OhSemanticPublishResultV1 = Readonly<{
     authorityId: string;
     generation: number;
     generationSha256: Sha256Hex;
+    isolationSha256: Sha256Hex;
     published: boolean;
     v: 1;
 }>;
@@ -55,6 +59,7 @@ export type OhSemanticPublishedHeadV1 = Readonly<{
     authoritySha256: Sha256Hex;
     generation: number;
     generationSha256: Sha256Hex;
+    isolationSha256: Sha256Hex;
     membershipSha256: Sha256Hex;
     profileSha256: Sha256Hex;
     publishedAt: string;
@@ -70,17 +75,33 @@ export type OhSemanticSearchResultV1 = Readonly<{
 }>;
 export type OhSemanticPurgeResultV1 = Readonly<{
     authorityId: string;
+    countsRecorded: boolean;
     generations: number;
+    isolationScopes: number;
+    isolationSha256: Sha256Hex;
     memberships: number;
     orphanVectors: number;
+    profileSha256: Sha256Hex;
+    publishedGeneration: number | null;
+    publishedGenerationSha256: Sha256Hex | null;
+    purgeMarkerSha256: Sha256Hex;
+    purgeReceiptSha256: Sha256Hex;
     purgedAt: string;
+    residualGenerations: 0;
+    residualMemberships: 0;
+    residualScopedVectors: 0;
     v: 1;
 }>;
+/**
+ * Derives the private-by-default cache scope used when a host does not supply
+ * its own epoch/profile isolation digest.
+ */
+export declare function deriveOhSemanticIsolationSha256V1(authorityId: string): Sha256Hex;
 export declare function bootstrapOhLibSqlSemanticCacheV1(client: OhLibSqlClientV1, options?: Readonly<{
     appliedAt?: string;
 }>): Promise<Readonly<{
     schemaSha256: Sha256Hex;
-    schemaVersion: 1;
+    schemaVersion: 2;
     v: 1;
 }>>;
 export declare class OhLibSqlSemanticCacheV1 {
@@ -95,6 +116,7 @@ export declare class OhLibSqlSemanticCacheV1 {
      */
     publishedHead(input: Readonly<{
         authorityId: string;
+        isolationSha256?: Sha256Hex;
     }>): Promise<OhSemanticPublishedHeadV1 | null>;
     stage(input: Readonly<{
         authorityId: string;
@@ -103,6 +125,7 @@ export declare class OhLibSqlSemanticCacheV1 {
         documents: readonly OhSemanticDocumentV1[];
         embeddingClient: OhCloudflareEmbeddingClientV1;
         generation: number;
+        isolationSha256?: Sha256Hex;
         maximumChunksPerDocument?: number;
         signal?: AbortSignal;
     }>): Promise<OhSemanticStageResultV1>;
@@ -110,6 +133,7 @@ export declare class OhLibSqlSemanticCacheV1 {
         authorityId: string;
         expectedPublishedGeneration: number | null;
         generation: number;
+        isolationSha256?: Sha256Hex;
         publishedAt?: string;
     }>): Promise<OhSemanticPublishResultV1>;
     search(input: Readonly<{
@@ -119,8 +143,14 @@ export declare class OhLibSqlSemanticCacheV1 {
         query: string;
         signal?: AbortSignal;
     }>): Promise<readonly OhSemanticSearchResultV1[]>;
+    /** Reads the immutable, content-free receipt for a completed purge. */
+    purgeReceipt(input: Readonly<{
+        authorityId: string;
+        isolationSha256?: Sha256Hex;
+    }>): Promise<OhSemanticPurgeResultV1 | null>;
     purgeAuthority(input: Readonly<{
         authorityId: string;
+        isolationSha256?: Sha256Hex;
         purgedAt?: string;
     }>): Promise<OhSemanticPurgeResultV1>;
 }
