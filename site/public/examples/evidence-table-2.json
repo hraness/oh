@@ -1,0 +1,15 @@
+{
+  "dependencies": [
+    "assertion:endpoint-12-weeks",
+    "edition:trial-report-v1"
+  ],
+  "key": "evidence:table-2",
+  "kind": "evidence",
+  "recordSha256": "e19a2a8e0d951c8332c95bd11d07213bf2d99ccd6a46e1c7d2eb30487c86d9e4",
+  "v": 1,
+  "value": {
+    "locator": "table 2",
+    "relationship": "supports",
+    "source": "entity:trial-report"
+  }
+}

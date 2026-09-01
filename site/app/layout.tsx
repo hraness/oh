@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://oh.computer"),
   title: "Oh: open-source tools for agentic research",
   description:
-    "A local-first ontology kernel, SQLite store, SDK, CLI, and agent skill for durable research graphs.",
+    "A local-first ontology kernel, SQLite store, SDK, CLI, and agent skill that takes research from question to inspectable artifact.",
   alternates: { canonical: "/" },
   icons: {
     icon: [{ type: "image/svg+xml", url: "/favicon.svg" }],
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Oh: open-source tools for agentic research",
     description:
-      "Local-first ontology infrastructure for agents that need durable knowledge and verifiable operation history.",
+      "Take research from question to inspectable artifact with local records, claims, citations, and verifiable operation history.",
     images: [{
       alt: "open-source tools for agentic research",
       height: 630,
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Oh: open-source tools for agentic research",
     description:
-      "Local-first ontology infrastructure for agents that need durable knowledge and verifiable operation history.",
+      "Take research from question to inspectable artifact with local records, claims, citations, and verifiable operation history.",
     images: ["/og.png"],
   },
 };
