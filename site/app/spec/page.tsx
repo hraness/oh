@@ -202,10 +202,12 @@ export default function Specification() {
                 exact current authoritative record digest.
               </p>
               <p className="callout">
-                Semantic data is a derived cache keyed by profile and exact
-                renderer, authority generation, and record digest. Keyword
-                search stays available without a model; hosted failure never
-                weakens exact graph or Datalog operations.
+                Semantic V2 data is a derived cache keyed by profile and exact
+                renderer, host-controlled isolation, authority generation, and
+                record digest. Isolation scopes vector reuse and purge without
+                changing provider text. Keyword search stays available without
+                a model; hosted failure never weakens exact graph or Datalog
+                operations.
               </p>
             </div>
           </section>

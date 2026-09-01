@@ -86,16 +86,20 @@ problem that has already been fixed there.
   usage alerts: Oh bounds each request and staged generation, but it does not
   enforce an account-wide spend ceiling or protect against calls made with the
   same token outside Oh.
-- The direct libSQL semantic cache deliberately stores no source title, body,
+- The isolated V2 direct libSQL semantic cache deliberately stores no source title, body,
   query, record JSON, account identifier, or provider token. It does retain
   record keys and digests, formatted-input digests, vector geometry, generation
-  timing, and authority identifiers. Those are sensitive metadata, can reveal
-  equality across reused inputs, and may support dictionary guesses for known
-  text. Use a separate protected database and short-lived schema credentials;
+  timing, authority identifiers, and opaque isolation digests. Those are
+  sensitive metadata, can reveal equality across raw vector bytes or known
+  input digests, and may support dictionary guesses for known text. Isolation
+  prevents cache reuse and deletion coupling across authorities or epochs; it
+  is not encryption and does not conceal equal embedding output from a database
+  holder. Use a separate protected database and short-lived schema credentials;
   scope runtime and purge credentials to the operations each role needs.
-- Semantic-cache purge writes a permanent authority tombstone, removes that
-  authority's heads, generations, and memberships, and collects vectors that
-  no remaining membership uses. It does not erase Cloudflare processing or
+- V2 semantic-cache purge writes a permanent authority tombstone, removes that
+  authority's heads, generations, memberships, and every vector in its reserved
+  isolation scopes. Its stable receipt proves zero residual scoped rows at the
+  live database boundary. It does not erase Cloudflare processing or
   logs, libSQL backups and replicas, host logs, network captures, or bytes
   copied by a holder of raw credentials. For expiring working memory, stop new
   writes, purge the semantic cache first, then purge the authoritative working

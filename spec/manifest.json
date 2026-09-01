@@ -25,9 +25,13 @@
         "specification": "./v1/projection.md"
       },
       "semanticCloud": {
+        "cacheSchema": "./v1/libsql-semantic-cache-schema-v1.sql",
+        "cacheSchemaSha256": "d9903735e900e08a8c49c9ad36ea8f277b1689117ef88b9a2c6b906456dfbace",
+        "digestFixture": "./v1/libsql-semantic-digest-fixture-v1.json",
         "profile": "./v1/cloudflare-embedding-profile.json",
         "renderer": "./v1/cloudflare-embedding-renderer.json",
-        "specification": "./v1/semantic-cloud.md"
+        "specification": "./v1/semantic-cloud.md",
+        "successor": "./v2/manifest.json"
       },
       "schemas": [
         "./v1/contract.schema.json",

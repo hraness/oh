@@ -40,16 +40,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact current release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.3.1
+bun add --global @hraness/oh@0.3.2
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.3.1),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.3.2),
 including the mirrored
-[`hraness-oh-0.3.1.tgz`](https://github.com/hraness/oh/releases/download/v0.3.1/hraness-oh-0.3.1.tgz)
+[`hraness-oh-0.3.2.tgz`](https://github.com/hraness/oh/releases/download/v0.3.2/hraness-oh-0.3.2.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.3.1/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.3.2/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -107,7 +107,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.3.1"
+    "@hraness/oh": "0.3.2"
   }
 }
 ```
@@ -528,18 +528,24 @@ is absent.
 
 ## Add a hosted semantic cache
 
-The hosted adapter uses the same source-record principle with a distinct,
+The hosted V2 adapter uses the same source-record principle with a distinct,
 profile-bound cache. It sends bounded inputs to Cloudflare Workers AI's
 EmbeddingGemma model and stores only float32 vectors, input digests, record
 digests, immutable generation membership, and a published pointer in direct
 libSQL. It stores no title, body, record JSON, or query text.
 
+Every cache call also binds an isolation SHA-256. The helper below derives a
+safe authority-specific default. A private multi-tenant host should instead
+derive an opaque digest from its private authority handle, cache epoch, and
+profile identity, then pass that same digest to every cache operation.
+
 ```ts
 import { createClient } from "@libsql/client";
 import {
   OhCloudflareEmbeddingClientV1,
-  bootstrapOhLibSqlSemanticCacheV1,
-  openOhLibSqlSemanticCacheV1,
+  bootstrapOhLibSqlSemanticCacheV2,
+  deriveOhSemanticIsolationSha256V2,
+  openOhLibSqlSemanticCacheV2,
 } from "@hraness/oh/semantic-cloud";
 
 // Deploy once with a short-lived schema credential.
@@ -547,43 +553,54 @@ const schemaClient = createClient({
   authToken: process.env.OH_SEMANTIC_SCHEMA_TOKEN!,
   url: process.env.OH_SEMANTIC_DATABASE_URL!,
 });
-await bootstrapOhLibSqlSemanticCacheV1(schemaClient);
+await bootstrapOhLibSqlSemanticCacheV2(schemaClient);
 schemaClient.close();
 
 const client = createClient({
   authToken: process.env.OH_SEMANTIC_RUNTIME_TOKEN!,
   url: process.env.OH_SEMANTIC_DATABASE_URL!,
 });
-const cache = await openOhLibSqlSemanticCacheV1(client, { closeClient: true });
+const cache = await openOhLibSqlSemanticCacheV2(client, { closeClient: true });
 const embedder = new OhCloudflareEmbeddingClientV1({
   accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
   apiToken: process.env.CLOUDFLARE_WORKERS_AI_TOKEN!,
 });
+const authorityId = "thread:research/epoch:1";
+const isolationSha256 = deriveOhSemanticIsolationSha256V2(authorityId);
 
 const staged = await cache.stage({
-  authorityId: "thread:research/epoch:1",
+  authorityId,
   authoritySha256: snapshot.head.recordsSha256,
   documents,
   embeddingClient: embedder,
   generation: snapshot.head.generation,
+  isolationSha256,
 });
 const published = await cache.publishedHead({
-  authorityId: "thread:research/epoch:1",
+  authorityId,
+  isolationSha256,
 });
 await cache.publish({
-  authorityId: "thread:research/epoch:1",
+  authorityId,
   expectedPublishedGeneration: published?.generation ?? null,
   generation: staged.generation,
+  isolationSha256,
 });
 ```
 
 Search requires the exact current authority generation and record digests, and
 returns nothing from a stale or concurrently replaced head. Purge writes a
-permanent authority tombstone before deleting memberships and unused vectors.
-The same authority ID cannot be resurrected; allocate a new epoch for a new
-lifetime. Hosted failure is a missing convenience lane, never permission to
-weaken exact graph or Datalog operations. Read the
-[hosted semantic-cache specification](spec/v1/semantic-cloud.md).
+permanent authority tombstone before deleting memberships and every vector in
+that authority's reserved isolation scopes. Its immutable marker and receipt
+make retries return the same first-run counts while proving zero residual cache
+rows. Distinct authority or cache-epoch isolation digests never reuse a vector,
+and the digest never enters provider text. The same authority ID cannot be
+resurrected; allocate a new epoch for a new lifetime. Hosted failure is a
+missing convenience lane, never permission to weaken exact graph or Datalog
+operations. Read the
+[isolated hosted semantic-cache V2 specification](spec/v2/semantic-cloud.md).
+The released V1 API and digests remain available unchanged for compatibility;
+V1 and V2 cannot open the same semantic database simultaneously.
 
 ## Sync through libSQL or Turso
 
@@ -652,9 +669,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.3.1 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.3.1 Release at
-https://github.com/hraness/oh/releases/tag/v0.3.1. Verify the CLI with
+Install @hraness/oh@0.3.2 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.3.2 Release at
+https://github.com/hraness/oh/releases/tag/v0.3.2. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

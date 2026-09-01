@@ -24,7 +24,7 @@ const MAXIMUM_UNPACKED_BYTES = 64 * 1_024 * 1_024;
 const MAXIMUM_FILE_BYTES = 4 * 1_024 * 1_024;
 const EXPECTED_TOP_LEVEL = new Set(["LICENSE", "README.md", "dist", "package.json", "skills", "spec", "src"]);
 const TEXT_EXTENSIONS = new Set([
-  "", ".css", ".js", ".json", ".map", ".md", ".mjs", ".sh", ".ts", ".txt", ".yaml", ".yml",
+  "", ".css", ".js", ".json", ".map", ".md", ".mjs", ".sh", ".sql", ".ts", ".txt", ".yaml", ".yml",
 ]);
 const DATABASE_EXTENSIONS = new Set([".db", ".sqlite", ".sqlite3"]);
 const FORBIDDEN_TEXT = [

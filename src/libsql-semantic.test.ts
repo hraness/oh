@@ -147,7 +147,11 @@ function document(
 async function bootstrapped(): Promise<SqliteCompatibleLibSqlClient> {
   const client = new SqliteCompatibleLibSqlClient();
   expect(await bootstrapOhLibSqlSemanticCacheV1(client, { appliedAt: instant1 }))
-    .toMatchObject({ schemaVersion: 1, v: 1 });
+    .toEqual({
+      schemaSha256: "d9903735e900e08a8c49c9ad36ea8f277b1689117ef88b9a2c6b906456dfbace" as Sha256Hex,
+      schemaVersion: 1,
+      v: 1,
+    });
   return client;
 }
 
@@ -167,6 +171,51 @@ function authority(
 }
 
 describe("libSQL derived semantic cache", () => {
+  test("reproduces the fixed released V1 digest fixture", async () => {
+    const fixture = await Bun.file(new URL(
+      "../spec/v1/libsql-semantic-digest-fixture-v1.json",
+      import.meta.url,
+    )).json() as Readonly<{
+      authorityId: string;
+      authoritySha256: Sha256Hex;
+      content: string;
+      generation: number;
+      generationSha256: Sha256Hex;
+      inputSha256: Sha256Hex;
+      membershipSha256: Sha256Hex;
+      recordKey: string;
+      recordSha256: Sha256Hex;
+      title: string;
+      v: 1;
+    }>;
+    const client = await bootstrapped();
+    const cache = await openOhLibSqlSemanticCacheV1(client);
+    const calls: string[][] = [];
+    const staged = await cache.stage({
+      authorityId: fixture.authorityId,
+      authoritySha256: fixture.authoritySha256,
+      createdAt: instant1,
+      documents: [{
+        content: fixture.content,
+        key: fixture.recordKey,
+        recordSha256: fixture.recordSha256,
+        title: fixture.title,
+        v: fixture.v,
+      }],
+      embeddingClient: embeddingClient(calls),
+      generation: fixture.generation,
+    });
+    expect(staged).toMatchObject({
+      generationSha256: fixture.generationSha256,
+      membershipSha256: fixture.membershipSha256,
+      v: 1,
+    });
+    expect(calls).toHaveLength(1);
+    expect(sha256Hex(calls[0]?.[0] ?? "")).toBe(fixture.inputSha256);
+    await cache.close();
+    client.close();
+  });
+
   test("requires explicit bootstrap and refuses a partial or drifted schema", async () => {
     const empty = new SqliteCompatibleLibSqlClient();
     await expect(openOhLibSqlSemanticCacheV1(empty)).rejects.toMatchObject({

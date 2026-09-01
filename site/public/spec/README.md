@@ -18,7 +18,8 @@ binds these versions:
 | SQLite schema | `2` |
 | Sync protocol | `oh.sync.v1` |
 | Local embedding profile | `1` |
-| Hosted semantic cache | `oh.cloudflare.embeddinggemma.v1` |
+| Hosted semantic cache V1 | `oh.cloudflare.embeddinggemma.v1` |
+| Hosted semantic cache V2 | `oh.semantic-cloud.v2` |
 | Projection semantics | `oh.projection.positive-datalog.v1` |
 | Composite memory | `experimental v1` |
 | Memory page | `oh.memory-page.v1` |
@@ -34,6 +35,7 @@ binds these versions:
 - [Sync protocol](v1/sync.md)
 - [Local embedding profile](v1/embedding.md)
 - [Hosted semantic cache](v1/semantic-cloud.md)
+- [Isolated hosted semantic cache V2](v2/semantic-cloud.md)
 - [Derived projections](v1/projection.md)
 - [Experimental composite agent memory](v1/memory.md)
 - [Memory pages and `.oh.md` interchange](v1/memory-page.md)
@@ -46,6 +48,11 @@ Machine-readable V1 artifacts:
 - [`embedding-profile.json`](v1/embedding-profile.json)
 - [`cloudflare-embedding-profile.json`](v1/cloudflare-embedding-profile.json)
 - [`cloudflare-embedding-renderer.json`](v1/cloudflare-embedding-renderer.json)
+- [`libsql-semantic-cache-schema-v1.sql`](v1/libsql-semantic-cache-schema-v1.sql)
+- [`libsql-semantic-digest-fixture-v1.json`](v1/libsql-semantic-digest-fixture-v1.json)
+- [`semantic-cloud V2 manifest`](v2/manifest.json)
+- [`libsql-semantic-cache-schema-v2.sql`](v2/libsql-semantic-cache-schema-v2.sql)
+- [`libsql-semantic-digest-fixture-v2.json`](v2/libsql-semantic-digest-fixture-v2.json)
 - [`contract.schema.json`](v1/contract.schema.json)
 - [`record.schema.json`](v1/record.schema.json)
 - [`schema-revision.schema.json`](v1/schema-revision.schema.json)
