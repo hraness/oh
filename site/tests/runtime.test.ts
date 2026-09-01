@@ -134,18 +134,20 @@ describe("built Oh site", () => {
     const server = await startBuiltSite();
     try {
       const [homeResponse, specificationResponse, slashAliasResponse, versionAliasResponse,
-        missingResponse] = await Promise.all([
+        traceResponse, missingResponse] = await Promise.all([
         fetch(`${server.origin}/`, { redirect: "manual" }),
         fetch(`${server.origin}/spec`, { redirect: "manual" }),
         fetch(`${server.origin}/spec/`, { redirect: "manual" }),
         fetch(`${server.origin}/spec/v1`, { redirect: "manual" }),
+        fetch(`${server.origin}/examples/evidence-table-2.json`, { redirect: "manual" }),
         fetch(`${server.origin}/missing`, { redirect: "manual" }),
       ]);
-      const [home, specification, slashAlias, versionAlias, missing] = await Promise.all([
+      const [home, specification, slashAlias, versionAlias, trace, missing] = await Promise.all([
         homeResponse.text(),
         specificationResponse.text(),
         slashAliasResponse.text(),
         versionAliasResponse.text(),
+        traceResponse.text(),
         missingResponse.text(),
       ]);
 
@@ -155,6 +157,13 @@ describe("built Oh site", () => {
       expect(slashAliasResponse.headers.get("location")).toBe("/spec");
       expect(versionAliasResponse.status).toBe(308);
       expect(versionAliasResponse.headers.get("location")).toBe("/spec");
+      expect(traceResponse.status).toBe(200);
+      expect(traceResponse.headers.get("content-type")).toContain("application/json");
+      expect(JSON.parse(trace)).toMatchObject({
+        key: "evidence:table-2",
+        kind: "evidence",
+        v: 1,
+      });
       expect(missingResponse.status).toBe(404);
       expect(homeResponse.headers.get("x-frame-options")).toBeNull();
       expect(homeResponse.headers.get("content-security-policy") ?? "")

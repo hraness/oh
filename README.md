@@ -2,14 +2,48 @@
 
 [![skills.sh](https://skills.sh/b/hraness/oh)](https://skills.sh/hraness/oh)
 
-Oh is a local-first ontology kernel, SQLite store, CLI, TypeScript SDK, and
-Agent Skill for building durable, inspectable research graphs. It stores
-content-addressed records and an append-only operation log, checks every
-mutation against an explicit versioned contract, and keeps keyword and semantic
-indexes derived and replaceable.
+Turn a research question into an artifact whose sources, claims, citations,
+dependencies, and change history remain inspectable in one local SQLite file.
+Oh is the ontology kernel, store, CLI, TypeScript SDK, and Agent Skill behind
+that path. It stores content-addressed records and an append-only operation log,
+checks every mutation against an explicit versioned contract, and keeps keyword
+and semantic indexes derived and replaceable.
 
 [Website](https://oh.computer) · [Versioned specification](spec/README.md) ·
 [Agent Skill](skills/oh/SKILL.md)
+
+## From a question to an inspectable artifact
+
+Oh supplies a versioned graph envelope and a small ontology kernel. A research
+application can map familiar work onto explicit records without hiding meaning
+in a database convention:
+
+| Research object | Oh record kind | What becomes inspectable |
+| --- | --- | --- |
+| Question | `inquiry` | The question and its durable investigation trail. |
+| Source | `entity` | A stable identity for a paper, dataset, person, or system. |
+| Capture | `edition` | A bounded source edition or extract under an application profile. |
+| Claim | `statement` | The proposition, separate from who accepts it. |
+| Citation | `evidence` | How a passage, table, or observation bears on an assertion. |
+| Artifact | `view` | A derived brief or answer with addressable inputs. |
+
+An attributable `assertion` sits between a claim and the evidence that bears on
+it. A small review can therefore leave an inspectable path instead of one
+opaque answer:
+
+```text
+inquiry:primary-endpoint
+  → entity:trial-report
+  → edition:trial-report-v1
+  → statement:endpoint-12-weeks
+  → assertion:endpoint-12-weeks
+  → evidence:table-2
+  → view:review-brief
+```
+
+The [homepage trace](https://oh.computer/#trace) shows the exact CLI read and a
+schema-checked illustrative evidence record. It is a model of record custody,
+not a claim about a real study.
 
 ## Why Oh
 
