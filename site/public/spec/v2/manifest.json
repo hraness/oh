@@ -1,0 +1,11 @@
+{
+  "cacheSchema": "./libsql-semantic-cache-schema-v2.sql",
+  "cacheSchemaSha256": "679edfc3cb02dc768843976093f90d5879d53e84b797ac60d77956a634facae9",
+  "digestFixture": "./libsql-semantic-digest-fixture-v2.json",
+  "id": "oh.semantic-cloud.v2",
+  "legacyCacheSchema": "../v1/libsql-semantic-cache-schema-v1.sql",
+  "profile": "../v1/cloudflare-embedding-profile.json",
+  "renderer": "../v1/cloudflare-embedding-renderer.json",
+  "specification": "./semantic-cloud.md",
+  "v": 2
+}

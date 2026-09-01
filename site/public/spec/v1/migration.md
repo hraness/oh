@@ -71,14 +71,9 @@ The optional hosted cache is rebuilt from authoritative records with both the
 exact [`cloudflare-embedding-profile.json`](cloudflare-embedding-profile.json)
 and [`cloudflare-embedding-renderer.json`](cloudflare-embedding-renderer.json)
 identities. Do not copy or mix vectors across local, hosted, profile, or
-renderer identities. Its schema revision 2 also binds a host-controlled
-isolation digest to every derived generation, head, membership, and vector
-identity. Bootstrap from exact schema revision 1 preserves permanent purge
-tombstones but discards live revision-1 cache rows because their global vector
-identity cannot be made privately attributable. Rebuild those rows from the
-current authoritative records. A permanently purged hosted authority ID cannot
-be reused; allocate a new host-bound authority epoch and stage a complete
-generation from the current source records.
+renderer identities. A permanently purged hosted authority ID cannot be reused;
+allocate a new host-bound authority epoch and stage a complete generation from
+the current source records.
 
 A canonical `.oh.md` file transports one complete memory-page record and
 recomputes its record digest. It does not carry an operation chain, store head,

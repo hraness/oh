@@ -86,7 +86,7 @@ problem that has already been fixed there.
   usage alerts: Oh bounds each request and staged generation, but it does not
   enforce an account-wide spend ceiling or protect against calls made with the
   same token outside Oh.
-- The direct libSQL semantic cache deliberately stores no source title, body,
+- The isolated V2 direct libSQL semantic cache deliberately stores no source title, body,
   query, record JSON, account identifier, or provider token. It does retain
   record keys and digests, formatted-input digests, vector geometry, generation
   timing, authority identifiers, and opaque isolation digests. Those are
@@ -96,7 +96,7 @@ problem that has already been fixed there.
   is not encryption and does not conceal equal embedding output from a database
   holder. Use a separate protected database and short-lived schema credentials;
   scope runtime and purge credentials to the operations each role needs.
-- Semantic-cache purge writes a permanent authority tombstone, removes that
+- V2 semantic-cache purge writes a permanent authority tombstone, removes that
   authority's heads, generations, memberships, and every vector in its reserved
   isolation scopes. Its stable receipt proves zero residual scoped rows at the
   live database boundary. It does not erase Cloudflare processing or

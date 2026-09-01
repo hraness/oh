@@ -271,9 +271,13 @@ describe("versioned public contract", () => {
     const manifestPath = join(root, "spec/manifest.json");
     const manifest = await json("spec/manifest.json");
     const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
+    const semanticCloud = version.semanticCloud as Record<string, unknown>;
+    const semanticCloudAssets = Object.entries(semanticCloud)
+      .filter(([key]) => key !== "cacheSchemaSha256")
+      .flatMap(([, value]) => collectStringLeaves(value));
     const claims = [version.contract, version.embeddingProfile, version.ontology, version.specification,
       ...collectStringLeaves(version.memory),
-      ...collectStringLeaves(version.projection), ...collectStringLeaves(version.semanticCloud),
+      ...collectStringLeaves(version.projection), ...semanticCloudAssets,
       ...(Array.isArray(version.schemas) ? version.schemas : [])];
     expect(claims.length).toBeGreaterThan(4);
     for (const claim of claims) {
@@ -397,22 +401,34 @@ describe("versioned public contract", () => {
     const manifest = await json("spec/manifest.json");
     const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
     expect(version.semanticCloud).toEqual({
-      cacheSchema: {
-        current: 2,
-        legacyV1: "./v1/libsql-semantic-cache-schema-v1.sql",
-      },
+      cacheSchema: "./v1/libsql-semantic-cache-schema-v1.sql",
+      cacheSchemaSha256: "d9903735e900e08a8c49c9ad36ea8f277b1689117ef88b9a2c6b906456dfbace",
+      digestFixture: "./v1/libsql-semantic-digest-fixture-v1.json",
       profile: "./v1/cloudflare-embedding-profile.json",
       renderer: "./v1/cloudflare-embedding-renderer.json",
       specification: "./v1/semantic-cloud.md",
+      successor: "./v2/manifest.json",
     });
-    const specification = await readFile(join(root, "spec/v1/semantic-cloud.md"), "utf8");
-    expect(specification).toContain("not an Oh graph authority");
-    expect(specification).toContain("stores no title, source content, query, page body, record JSON");
-    expect(specification).toContain("permanent authority purge tombstones");
-    expect(specification).toContain("`purgeReceipt`");
-    expect(specification).toContain("never places it in renderer");
-    expect(specification).toContain("or provider text");
-    expect(specification).toContain("MUST NOT weaken exact graph or Datalog operations");
+    const v1 = await readFile(join(root, "spec/v1/semantic-cloud.md"), "utf8");
+    const v2 = await readFile(join(root, "spec/v2/semantic-cloud.md"), "utf8");
+    const v2Manifest = await json("spec/v2/manifest.json");
+    expect(v1).toContain("not an Oh graph authority");
+    expect(v1).toContain("permanent authority purge tombstones");
+    expect(v2).toContain("`purgeReceipt`");
+    expect(v2).toContain("never\nenters renderer or provider text");
+    expect(v2).toContain("no lifetime tombstone cap");
+    expect(v2).toContain("MUST NOT weaken exact graph or Datalog\noperations");
+    expect(v2Manifest).toEqual({
+      cacheSchema: "./libsql-semantic-cache-schema-v2.sql",
+      cacheSchemaSha256: "679edfc3cb02dc768843976093f90d5879d53e84b797ac60d77956a634facae9",
+      digestFixture: "./libsql-semantic-digest-fixture-v2.json",
+      id: "oh.semantic-cloud.v2",
+      legacyCacheSchema: "../v1/libsql-semantic-cache-schema-v1.sql",
+      profile: "../v1/cloudflare-embedding-profile.json",
+      renderer: "../v1/cloudflare-embedding-renderer.json",
+      specification: "./semantic-cloud.md",
+      v: 2,
+    });
   });
 
   test("discovers the experimental composite memory boundary", async () => {

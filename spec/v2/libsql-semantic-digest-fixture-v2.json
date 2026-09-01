@@ -1,0 +1,14 @@
+{
+  "authorityId": "fixture:semantic-authority",
+  "authoritySha256": "d1eac8dd93ce6e04cb1316c670008250b98ec32cb0555f21d10b782ddffe03a7",
+  "content": "fixture body",
+  "generation": 7,
+  "generationSha256": "5d848fcd482ca72781af87da7b2ff3f68cd5b9ef571495bc734a5a2582c719d1",
+  "inputSha256": "b2309e89dd3f903934c7b5f4a4c8c51d5323d84a66928a2f017dd871492ef294",
+  "isolationSha256": "217df103dc50da7d3ba2883d9c1cbad01014b2b9eb20e4f94f737291c583d9a5",
+  "membershipSha256": "73ec3fcf8af17d99e2ae84878329c834e044bb47ff08ecd0dca6a596504b26b8",
+  "recordKey": "memory:fixture",
+  "recordSha256": "920d936e47e8f3cc5847017da5975ef73f8d84c04cb113880fb10575eeb614f9",
+  "title": "fixture title",
+  "v": 2
+}

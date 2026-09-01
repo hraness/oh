@@ -528,7 +528,7 @@ is absent.
 
 ## Add a hosted semantic cache
 
-The hosted adapter uses the same source-record principle with a distinct,
+The hosted V2 adapter uses the same source-record principle with a distinct,
 profile-bound cache. It sends bounded inputs to Cloudflare Workers AI's
 EmbeddingGemma model and stores only float32 vectors, input digests, record
 digests, immutable generation membership, and a published pointer in direct
@@ -543,9 +543,9 @@ profile identity, then pass that same digest to every cache operation.
 import { createClient } from "@libsql/client";
 import {
   OhCloudflareEmbeddingClientV1,
-  bootstrapOhLibSqlSemanticCacheV1,
-  deriveOhSemanticIsolationSha256V1,
-  openOhLibSqlSemanticCacheV1,
+  bootstrapOhLibSqlSemanticCacheV2,
+  deriveOhSemanticIsolationSha256V2,
+  openOhLibSqlSemanticCacheV2,
 } from "@hraness/oh/semantic-cloud";
 
 // Deploy once with a short-lived schema credential.
@@ -553,20 +553,20 @@ const schemaClient = createClient({
   authToken: process.env.OH_SEMANTIC_SCHEMA_TOKEN!,
   url: process.env.OH_SEMANTIC_DATABASE_URL!,
 });
-await bootstrapOhLibSqlSemanticCacheV1(schemaClient);
+await bootstrapOhLibSqlSemanticCacheV2(schemaClient);
 schemaClient.close();
 
 const client = createClient({
   authToken: process.env.OH_SEMANTIC_RUNTIME_TOKEN!,
   url: process.env.OH_SEMANTIC_DATABASE_URL!,
 });
-const cache = await openOhLibSqlSemanticCacheV1(client, { closeClient: true });
+const cache = await openOhLibSqlSemanticCacheV2(client, { closeClient: true });
 const embedder = new OhCloudflareEmbeddingClientV1({
   accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
   apiToken: process.env.CLOUDFLARE_WORKERS_AI_TOKEN!,
 });
 const authorityId = "thread:research/epoch:1";
-const isolationSha256 = deriveOhSemanticIsolationSha256V1(authorityId);
+const isolationSha256 = deriveOhSemanticIsolationSha256V2(authorityId);
 
 const staged = await cache.stage({
   authorityId,
@@ -598,7 +598,9 @@ and the digest never enters provider text. The same authority ID cannot be
 resurrected; allocate a new epoch for a new lifetime. Hosted failure is a
 missing convenience lane, never permission to weaken exact graph or Datalog
 operations. Read the
-[hosted semantic-cache specification](spec/v1/semantic-cloud.md).
+[isolated hosted semantic-cache V2 specification](spec/v2/semantic-cloud.md).
+The released V1 API and digests remain available unchanged for compatibility;
+V1 and V2 cannot open the same semantic database simultaneously.
 
 ## Sync through libSQL or Turso
 

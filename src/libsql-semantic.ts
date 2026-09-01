@@ -46,8 +46,6 @@ export type OhSemanticAuthorityRefV1 = Readonly<{
   authorityId: string;
   authoritySha256: Sha256Hex;
   generation: number;
-  /** Defaults to an authority-specific isolation when omitted. */
-  isolationSha256?: Sha256Hex;
   records: readonly Readonly<{ key: string; recordSha256: Sha256Hex }>[];
   v: 1;
 }>;
@@ -67,7 +65,6 @@ export type OhSemanticStageResultV1 = Readonly<{
   embedded: number;
   generation: number;
   generationSha256: Sha256Hex;
-  isolationSha256: Sha256Hex;
   membershipSha256: Sha256Hex;
   reused: number;
   status: "staged";
@@ -78,7 +75,6 @@ export type OhSemanticPublishResultV1 = Readonly<{
   authorityId: string;
   generation: number;
   generationSha256: Sha256Hex;
-  isolationSha256: Sha256Hex;
   published: boolean;
   v: 1;
 }>;
@@ -89,7 +85,6 @@ export type OhSemanticPublishedHeadV1 = Readonly<{
   authoritySha256: Sha256Hex;
   generation: number;
   generationSha256: Sha256Hex;
-  isolationSha256: Sha256Hex;
   membershipSha256: Sha256Hex;
   profileSha256: Sha256Hex;
   publishedAt: string;
@@ -107,32 +102,16 @@ export type OhSemanticSearchResultV1 = Readonly<{
 
 export type OhSemanticPurgeResultV1 = Readonly<{
   authorityId: string;
-  countsRecorded: boolean;
   generations: number;
-  isolationScopes: number;
-  isolationSha256: Sha256Hex;
   memberships: number;
   orphanVectors: number;
-  profileSha256: Sha256Hex;
-  publishedGeneration: number | null;
-  publishedGenerationSha256: Sha256Hex | null;
-  purgeMarkerSha256: Sha256Hex;
-  purgeReceiptSha256: Sha256Hex;
   purgedAt: string;
-  residualGenerations: 0;
-  residualMemberships: 0;
-  residualScopedVectors: 0;
   v: 1;
 }>;
 
-const SCHEMA_NAME_V1 = "oh.libsql-semantic-cache.v1";
-const SCHEMA_VERSION_V1 = 1;
-const SCHEMA_NAME = "oh.libsql-semantic-cache.v2";
-const SCHEMA_VERSION = 2;
+const SCHEMA_NAME = "oh.libsql-semantic-cache.v1";
+const SCHEMA_VERSION = 1;
 const VECTOR_BYTES = OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.dimensions * 4;
-const DEFAULT_ISOLATION_KIND = "oh.semantic-authority-isolation.v1";
-const PURGE_MARKER_KIND = "oh.semantic-purge-marker.v1";
-const MIGRATION_PURGE_LIMIT = 4_096;
 
 const SCHEMA_TABLE = `CREATE TABLE IF NOT EXISTS oh_semantic_schemas (
   version INTEGER PRIMARY KEY,
@@ -141,7 +120,7 @@ const SCHEMA_TABLE = `CREATE TABLE IF NOT EXISTS oh_semantic_schemas (
   applied_at TEXT NOT NULL
 ) STRICT`;
 
-const SCHEMA_STATEMENTS_V1 = Object.freeze([
+const SCHEMA_STATEMENTS = Object.freeze([
   `CREATE TABLE IF NOT EXISTS oh_semantic_vectors (
     profile_sha256 TEXT NOT NULL,
     renderer_sha256 TEXT NOT NULL,
@@ -235,155 +214,6 @@ const SCHEMA_STATEMENTS_V1 = Object.freeze([
     BEGIN SELECT RAISE(ABORT, 'Oh semantic purge markers are immutable'); END`,
 ]);
 
-const SCHEMA_STATEMENTS = Object.freeze([
-  `CREATE TABLE IF NOT EXISTS oh_semantic_isolations (
-    isolation_sha256 TEXT PRIMARY KEY,
-    authority_id TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  ) STRICT`,
-  `CREATE TABLE IF NOT EXISTS oh_semantic_vectors (
-    isolation_sha256 TEXT NOT NULL,
-    profile_sha256 TEXT NOT NULL,
-    renderer_sha256 TEXT NOT NULL,
-    input_sha256 TEXT NOT NULL,
-    vector_sha256 TEXT NOT NULL,
-    vector BLOB NOT NULL,
-    created_at TEXT NOT NULL,
-    PRIMARY KEY(isolation_sha256, profile_sha256, renderer_sha256, input_sha256)
-  ) STRICT`,
-  `CREATE TABLE IF NOT EXISTS oh_semantic_generations (
-    authority_id TEXT NOT NULL,
-    generation INTEGER NOT NULL CHECK(generation >= 0),
-    authority_sha256 TEXT NOT NULL,
-    isolation_sha256 TEXT NOT NULL,
-    profile_sha256 TEXT NOT NULL,
-    renderer_sha256 TEXT NOT NULL,
-    membership_sha256 TEXT NOT NULL,
-    generation_sha256 TEXT NOT NULL UNIQUE,
-    document_count INTEGER NOT NULL CHECK(document_count >= 0),
-    chunk_count INTEGER NOT NULL CHECK(chunk_count >= 0),
-    created_at TEXT NOT NULL,
-    PRIMARY KEY(authority_id, generation)
-  ) STRICT`,
-  `CREATE TABLE IF NOT EXISTS oh_semantic_memberships (
-    authority_id TEXT NOT NULL,
-    generation INTEGER NOT NULL CHECK(generation >= 0),
-    generation_sha256 TEXT NOT NULL,
-    isolation_sha256 TEXT NOT NULL,
-    record_key TEXT NOT NULL,
-    record_sha256 TEXT NOT NULL,
-    ordinal INTEGER NOT NULL CHECK(ordinal >= 0),
-    input_sha256 TEXT NOT NULL,
-    PRIMARY KEY(authority_id, generation, record_key, ordinal)
-  ) STRICT`,
-  `CREATE TABLE IF NOT EXISTS oh_semantic_heads (
-    authority_id TEXT PRIMARY KEY,
-    generation INTEGER NOT NULL CHECK(generation >= 0),
-    authority_sha256 TEXT NOT NULL,
-    isolation_sha256 TEXT NOT NULL,
-    profile_sha256 TEXT NOT NULL,
-    renderer_sha256 TEXT NOT NULL,
-    membership_sha256 TEXT NOT NULL,
-    generation_sha256 TEXT NOT NULL,
-    published_at TEXT NOT NULL
-  ) STRICT`,
-  `CREATE TABLE IF NOT EXISTS oh_semantic_purges (
-    authority_id TEXT PRIMARY KEY,
-    isolation_sha256 TEXT NOT NULL,
-    profile_sha256 TEXT NOT NULL,
-    published_generation INTEGER CHECK(published_generation IS NULL OR published_generation >= 0),
-    published_generation_sha256 TEXT,
-    purged_at TEXT NOT NULL,
-    purge_marker_sha256 TEXT NOT NULL,
-    generation_count INTEGER NOT NULL CHECK(generation_count >= 0),
-    membership_count INTEGER NOT NULL CHECK(membership_count >= 0),
-    orphan_vector_count INTEGER NOT NULL CHECK(orphan_vector_count >= 0),
-    isolation_scope_count INTEGER NOT NULL CHECK(isolation_scope_count >= 0),
-    counts_recorded INTEGER NOT NULL CHECK(counts_recorded IN (0, 1))
-  ) STRICT`,
-  `CREATE INDEX IF NOT EXISTS oh_semantic_isolations_authority
-    ON oh_semantic_isolations(authority_id, isolation_sha256)`,
-  `CREATE INDEX IF NOT EXISTS oh_semantic_memberships_generation
-    ON oh_semantic_memberships(authority_id, generation, record_key, ordinal)`,
-  `CREATE INDEX IF NOT EXISTS oh_semantic_memberships_input
-    ON oh_semantic_memberships(isolation_sha256, input_sha256)`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_isolations_no_update
-    BEFORE UPDATE ON oh_semantic_isolations
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic isolations are immutable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_isolations_no_delete
-    BEFORE DELETE ON oh_semantic_isolations
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic isolations are immutable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_isolations_purge_guard
-    BEFORE INSERT ON oh_semantic_isolations
-    WHEN EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = NEW.authority_id)
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic authority was purged'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_vectors_no_update
-    BEFORE UPDATE ON oh_semantic_vectors
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic vectors are immutable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_vectors_isolation_guard
-    BEFORE INSERT ON oh_semantic_vectors
-    WHEN NOT EXISTS (SELECT 1 FROM oh_semantic_isolations
-      WHERE isolation_sha256 = NEW.isolation_sha256)
-      OR EXISTS (SELECT 1 FROM oh_semantic_purges AS purge
-        JOIN oh_semantic_isolations AS isolation
-          ON isolation.authority_id = purge.authority_id
-        WHERE isolation.isolation_sha256 = NEW.isolation_sha256)
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic vector isolation is unavailable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_generations_no_update
-    BEFORE UPDATE ON oh_semantic_generations
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic generations are immutable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_memberships_no_update
-    BEFORE UPDATE ON oh_semantic_memberships
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic memberships are immutable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_generations_purge_guard
-    BEFORE INSERT ON oh_semantic_generations
-    WHEN EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = NEW.authority_id)
-      OR NOT EXISTS (SELECT 1 FROM oh_semantic_isolations
-        WHERE isolation_sha256 = NEW.isolation_sha256 AND authority_id = NEW.authority_id)
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic authority or isolation is unavailable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_memberships_purge_guard
-    BEFORE INSERT ON oh_semantic_memberships
-    WHEN EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = NEW.authority_id)
-      OR NOT EXISTS (SELECT 1 FROM oh_semantic_generations
-        WHERE authority_id = NEW.authority_id AND generation = NEW.generation
-          AND generation_sha256 = NEW.generation_sha256
-          AND isolation_sha256 = NEW.isolation_sha256)
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic authority or isolation is unavailable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_memberships_published_guard
-    BEFORE INSERT ON oh_semantic_memberships
-    WHEN EXISTS (SELECT 1 FROM oh_semantic_heads
-      WHERE authority_id = NEW.authority_id AND generation = NEW.generation)
-      AND NOT EXISTS (SELECT 1 FROM oh_semantic_memberships
-        WHERE authority_id = NEW.authority_id AND generation = NEW.generation
-          AND generation_sha256 = NEW.generation_sha256
-          AND isolation_sha256 = NEW.isolation_sha256
-          AND record_key = NEW.record_key AND record_sha256 = NEW.record_sha256
-          AND ordinal = NEW.ordinal AND input_sha256 = NEW.input_sha256)
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic generation is published'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_heads_insert_purge_guard
-    BEFORE INSERT ON oh_semantic_heads
-    WHEN EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = NEW.authority_id)
-      OR NOT EXISTS (SELECT 1 FROM oh_semantic_generations
-        WHERE authority_id = NEW.authority_id AND generation = NEW.generation
-          AND generation_sha256 = NEW.generation_sha256
-          AND isolation_sha256 = NEW.isolation_sha256)
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic authority or isolation is unavailable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_heads_update_purge_guard
-    BEFORE UPDATE ON oh_semantic_heads
-    WHEN EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = NEW.authority_id)
-      OR NOT EXISTS (SELECT 1 FROM oh_semantic_generations
-        WHERE authority_id = NEW.authority_id AND generation = NEW.generation
-          AND generation_sha256 = NEW.generation_sha256
-          AND isolation_sha256 = NEW.isolation_sha256)
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic authority or isolation is unavailable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_purges_no_update
-    BEFORE UPDATE ON oh_semantic_purges
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic purge markers are immutable'); END`,
-  `CREATE TRIGGER IF NOT EXISTS oh_semantic_purges_no_delete
-    BEFORE DELETE ON oh_semantic_purges
-    BEGIN SELECT RAISE(ABORT, 'Oh semantic purge markers are immutable'); END`,
-]);
-
 function normalizedSchemaSql(sql: string): string {
   return sql.replace(/\bIF\s+NOT\s+EXISTS\b/giu, "").replace(/\s+/gu, " ").trim();
 }
@@ -415,13 +245,6 @@ const EXPECTED_SCHEMA_OBJECTS = Object.freeze(
       .localeCompare(canonicalJson([right.type, right.name]))),
 );
 const SCHEMA_SHA256 = canonicalSha256(EXPECTED_SCHEMA_OBJECTS);
-const EXPECTED_SCHEMA_OBJECTS_V1 = Object.freeze(
-  [SCHEMA_TABLE, ...SCHEMA_STATEMENTS_V1]
-    .map(expectedSchemaObject)
-    .sort((left, right) => canonicalJson([left.type, left.name])
-      .localeCompare(canonicalJson([right.type, right.name]))),
-);
-const SCHEMA_SHA256_V1 = canonicalSha256(EXPECTED_SCHEMA_OBJECTS_V1);
 
 function rowValue(
   row: Readonly<Record<string, unknown>> | readonly unknown[],
@@ -449,38 +272,6 @@ function parseAuthorityId(value: unknown): string {
   const parsed = safeCode(value, 256);
   if (parsed === null) throw new OhLibSqlSemanticError("invalid-input", "Invalid semantic authority ID.");
   return parsed;
-}
-
-/**
- * Derives the private-by-default cache scope used when a host does not supply
- * its own epoch/profile isolation digest.
- */
-export function deriveOhSemanticIsolationSha256V1(authorityId: string): Sha256Hex {
-  return canonicalSha256({
-    authorityId: parseAuthorityId(authorityId),
-    kind: DEFAULT_ISOLATION_KIND,
-    v: 1,
-  });
-}
-
-function isolationSha256(authorityId: string, value: unknown): Sha256Hex {
-  return value === undefined
-    ? deriveOhSemanticIsolationSha256V1(authorityId)
-    : parseDigest(value, "semantic isolation");
-}
-
-function purgeMarkerSha256(
-  authorityId: string,
-  isolation: Sha256Hex,
-  purgedAt: string,
-): Sha256Hex {
-  return canonicalSha256({
-    authorityId,
-    isolationSha256: isolation,
-    kind: PURGE_MARKER_KIND,
-    purgedAt,
-    v: 1,
-  });
 }
 
 function parseRecordKey(value: unknown): string {
@@ -527,19 +318,11 @@ async function schemaObjects(client: OhLibSqlClientV1): Promise<readonly SchemaO
     .localeCompare(canonicalJson([right.type, right.name])));
 }
 
-async function verifySchemaRevision(
-  client: OhLibSqlClientV1,
-  revision: Readonly<{
-    expected: readonly SchemaObject[];
-    name: string;
-    schemaSha256: Sha256Hex;
-    version: number;
-  }>,
-): Promise<void> {
+async function verifySchema(client: OhLibSqlClientV1): Promise<void> {
   let marker: OhLibSqlResultV1;
   try {
     marker = await client.execute({
-      args: [revision.version],
+      args: [SCHEMA_VERSION],
       sql: "SELECT name, schema_sha256 FROM oh_semantic_schemas WHERE version = ?",
     });
   } catch {
@@ -547,102 +330,19 @@ async function verifySchemaRevision(
   }
   const row = marker.rows[0];
   if (marker.rows.length !== 1 || row === undefined
-    || rowValue(row, "name", 0) !== revision.name
-    || rowValue(row, "schema_sha256", 1) !== revision.schemaSha256) {
+    || rowValue(row, "name", 0) !== SCHEMA_NAME
+    || rowValue(row, "schema_sha256", 1) !== SCHEMA_SHA256) {
     throw new OhLibSqlSemanticError("schema-unavailable", "The semantic cache schema marker is invalid.");
   }
-  if (canonicalJson(await schemaObjects(client)) !== canonicalJson(revision.expected)) {
+  if (canonicalJson(await schemaObjects(client)) !== canonicalJson(EXPECTED_SCHEMA_OBJECTS)) {
     throw new OhLibSqlSemanticError("integrity", "The semantic cache schema has drifted.");
   }
-}
-
-async function verifySchema(client: OhLibSqlClientV1): Promise<void> {
-  await verifySchemaRevision(client, {
-    expected: EXPECTED_SCHEMA_OBJECTS,
-    name: SCHEMA_NAME,
-    schemaSha256: SCHEMA_SHA256,
-    version: SCHEMA_VERSION,
-  });
-}
-
-type LegacyPurge = Readonly<{ authorityId: string; purgedAt: string }>;
-
-async function legacyPurges(client: OhLibSqlClientV1): Promise<readonly LegacyPurge[]> {
-  const result = await client.execute({
-    args: [MIGRATION_PURGE_LIMIT + 1],
-    sql: `SELECT authority_id, purged_at FROM oh_semantic_purges
-      ORDER BY authority_id LIMIT ?`,
-  });
-  if (result.rows.length > MIGRATION_PURGE_LIMIT) {
-    throw new OhLibSqlSemanticError(
-      "integrity",
-      "The semantic v1 tombstone set exceeds the bounded migration limit.",
-    );
-  }
-  return Object.freeze(result.rows.map((row) => {
-    const authorityId = safeCode(rowValue(row, "authority_id", 0), 256);
-    const purgedAt = parseCanonicalInstantV1(rowValue(row, "purged_at", 1));
-    if (authorityId === null || purgedAt === null) {
-      throw new OhLibSqlSemanticError("integrity", "A semantic v1 purge marker is invalid.");
-    }
-    return Object.freeze({ authorityId, purgedAt });
-  }));
-}
-
-async function migrateSemanticCacheV1ToV2(
-  client: OhLibSqlClientV1,
-  appliedAt: string,
-): Promise<void> {
-  await verifySchemaRevision(client, {
-    expected: EXPECTED_SCHEMA_OBJECTS_V1,
-    name: SCHEMA_NAME_V1,
-    schemaSha256: SCHEMA_SHA256_V1,
-    version: SCHEMA_VERSION_V1,
-  });
-  const purges = await legacyPurges(client);
-  const statements: OhLibSqlStatementV1[] = [
-    { sql: "DROP TABLE oh_semantic_heads" },
-    { sql: "DROP TABLE oh_semantic_memberships" },
-    { sql: "DROP TABLE oh_semantic_generations" },
-    { sql: "DROP TABLE oh_semantic_vectors" },
-    { sql: "DROP TABLE oh_semantic_purges" },
-    { sql: "DROP TABLE oh_semantic_schemas" },
-    { sql: SCHEMA_TABLE },
-    ...SCHEMA_STATEMENTS.map((sql) => ({ sql })),
-  ];
-  for (const purge of purges) {
-    const isolation = deriveOhSemanticIsolationSha256V1(purge.authorityId);
-    statements.push({
-      args: [isolation, purge.authorityId, purge.purgedAt],
-      sql: `INSERT INTO oh_semantic_isolations(isolation_sha256, authority_id, created_at)
-        VALUES (?, ?, ?)`,
-    });
-  }
-  for (const purge of purges) {
-    const isolation = deriveOhSemanticIsolationSha256V1(purge.authorityId);
-    statements.push({
-      args: [purge.authorityId, isolation,
-        OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
-        purge.purgedAt, purgeMarkerSha256(purge.authorityId, isolation, purge.purgedAt)],
-      sql: `INSERT INTO oh_semantic_purges(authority_id, isolation_sha256,
-        profile_sha256, published_generation, published_generation_sha256,
-        purged_at, purge_marker_sha256, generation_count, membership_count,
-        orphan_vector_count, isolation_scope_count, counts_recorded)
-        VALUES (?, ?, ?, NULL, NULL, ?, ?, 0, 0, 0, 1, 0)`,
-    });
-  }
-  statements.push({
-    args: [SCHEMA_VERSION, SCHEMA_NAME, SCHEMA_SHA256, appliedAt],
-    sql: `INSERT INTO oh_semantic_schemas(version, name, schema_sha256, applied_at)
-      VALUES (?, ?, ?, ?)`,
-  });
-  await client.batch(statements, "write");
 }
 
 export async function bootstrapOhLibSqlSemanticCacheV1(
   client: OhLibSqlClientV1,
   options: Readonly<{ appliedAt?: string }> = {},
-): Promise<Readonly<{ schemaSha256: Sha256Hex; schemaVersion: 2; v: 1 }>> {
+): Promise<Readonly<{ schemaSha256: Sha256Hex; schemaVersion: 1; v: 1 }>> {
   const appliedAt = parseInstant(options.appliedAt ?? canonicalNow());
   const existing = await schemaObjects(client);
   if (existing.length === 0) {
@@ -655,13 +355,11 @@ export async function bootstrapOhLibSqlSemanticCacheV1(
           VALUES (?, ?, ?, ?) ON CONFLICT(version) DO NOTHING`,
       },
     ], "write");
-  } else if (canonicalJson(existing) === canonicalJson(EXPECTED_SCHEMA_OBJECTS_V1)) {
-    await migrateSemanticCacheV1ToV2(client, appliedAt);
   } else if (canonicalJson(existing) !== canonicalJson(EXPECTED_SCHEMA_OBJECTS)) {
     throw new OhLibSqlSemanticError("integrity", "Refusing to bless a partial or drifted semantic schema.");
   }
   await verifySchema(client);
-  return Object.freeze({ schemaSha256: SCHEMA_SHA256, schemaVersion: 2, v: 1 });
+  return Object.freeze({ schemaSha256: SCHEMA_SHA256, schemaVersion: 1, v: 1 });
 }
 
 function vectorBytes(vector: readonly number[]): Uint8Array {
@@ -708,7 +406,6 @@ type Generation = Readonly<{
   documentCount: number;
   generation: number;
   generationSha256: Sha256Hex;
-  isolationSha256: Sha256Hex;
   membershipSha256: Sha256Hex;
   memberships: readonly Membership[];
 }>;
@@ -719,12 +416,10 @@ function prepareGeneration(input: Readonly<{
   createdAt?: string;
   documents: readonly OhSemanticDocumentV1[];
   generation: number;
-  isolationSha256?: Sha256Hex;
   maximumChunksPerDocument?: number;
 }>): Generation {
   const authorityId = parseAuthorityId(input.authorityId);
   const authoritySha256 = parseDigest(input.authoritySha256, "authority");
-  const isolation = isolationSha256(authorityId, input.isolationSha256);
   const generation = parseGeneration(input.generation);
   const createdAt = parseInstant(input.createdAt ?? canonicalNow());
   const maximumChunks = input.maximumChunksPerDocument
@@ -772,7 +467,6 @@ function prepareGeneration(input: Readonly<{
   }
   const membershipSha256 = canonicalSha256(memberships.map((membership) => ({
     inputSha256: membership.inputSha256,
-    isolationSha256: isolation,
     ordinal: membership.ordinal,
     recordKey: membership.recordKey,
     recordSha256: membership.recordSha256,
@@ -783,7 +477,6 @@ function prepareGeneration(input: Readonly<{
     chunkCount: memberships.length,
     documentCount: documents.length,
     generation,
-    isolationSha256: isolation,
     membershipSha256,
     profileSha256: OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
     rendererSha256: OH_SEMANTIC_RENDERER_V1.rendererSha256,
@@ -797,7 +490,6 @@ function prepareGeneration(input: Readonly<{
     documentCount: documents.length,
     generation,
     generationSha256,
-    isolationSha256: isolation,
     membershipSha256,
     memberships: Object.freeze(memberships),
   });
@@ -811,7 +503,6 @@ type StoredGeneration = Readonly<{
   documentCount: number;
   generation: number;
   generationSha256: Sha256Hex;
-  isolationSha256: Sha256Hex;
   membershipSha256: Sha256Hex;
   profileSha256: Sha256Hex;
   rendererSha256: Sha256Hex;
@@ -822,7 +513,6 @@ type StoredHead = Readonly<{
   authoritySha256: Sha256Hex;
   generation: number;
   generationSha256: Sha256Hex;
-  isolationSha256: Sha256Hex;
   membershipSha256: Sha256Hex;
   profileSha256: Sha256Hex;
   publishedAt: string;
@@ -835,18 +525,16 @@ function parseStoredGeneration(
   const authorityId = safeCode(rowValue(row, "authority_id", 0), 256);
   const generation = integer(rowValue(row, "generation", 1));
   const authoritySha256 = parseSha256Hex(rowValue(row, "authority_sha256", 2));
-  const isolation = parseSha256Hex(rowValue(row, "isolation_sha256", 3));
-  const profileSha256 = parseSha256Hex(rowValue(row, "profile_sha256", 4));
-  const rendererSha256 = parseSha256Hex(rowValue(row, "renderer_sha256", 5));
-  const membershipSha256 = parseSha256Hex(rowValue(row, "membership_sha256", 6));
-  const generationSha256 = parseSha256Hex(rowValue(row, "generation_sha256", 7));
-  const documentCount = integer(rowValue(row, "document_count", 8));
-  const chunkCount = integer(rowValue(row, "chunk_count", 9));
-  const createdAtValue = rowValue(row, "created_at", 10);
+  const profileSha256 = parseSha256Hex(rowValue(row, "profile_sha256", 3));
+  const rendererSha256 = parseSha256Hex(rowValue(row, "renderer_sha256", 4));
+  const membershipSha256 = parseSha256Hex(rowValue(row, "membership_sha256", 5));
+  const generationSha256 = parseSha256Hex(rowValue(row, "generation_sha256", 6));
+  const documentCount = integer(rowValue(row, "document_count", 7));
+  const chunkCount = integer(rowValue(row, "chunk_count", 8));
+  const createdAtValue = rowValue(row, "created_at", 9);
   const createdAt = parseCanonicalInstantV1(createdAtValue);
   if (authorityId === null || generation === null || generation < 0
-    || authoritySha256 === null || isolation === null
-    || profileSha256 === null || rendererSha256 === null
+    || authoritySha256 === null || profileSha256 === null || rendererSha256 === null
     || membershipSha256 === null || generationSha256 === null
     || documentCount === null || documentCount < 1
     || documentCount > OH_LIBSQL_SEMANTIC_LIMITS_V1.documentsPerGeneration
@@ -863,7 +551,6 @@ function parseStoredGeneration(
     documentCount,
     generation,
     generationSha256,
-    isolationSha256: isolation,
     membershipSha256,
     profileSha256,
     rendererSha256,
@@ -877,7 +564,6 @@ function generationMatches(left: StoredGeneration, right: Generation): boolean {
     && left.documentCount === right.documentCount
     && left.generation === right.generation
     && left.generationSha256 === right.generationSha256
-    && left.isolationSha256 === right.isolationSha256
     && left.membershipSha256 === right.membershipSha256
     && left.profileSha256 === OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256
     && left.rendererSha256 === OH_SEMANTIC_RENDERER_V1.rendererSha256;
@@ -887,16 +573,14 @@ function parseStoredHead(row: Readonly<Record<string, unknown>> | readonly unkno
   const authorityId = safeCode(rowValue(row, "authority_id", 0), 256);
   const generation = integer(rowValue(row, "generation", 1));
   const authoritySha256 = parseSha256Hex(rowValue(row, "authority_sha256", 2));
-  const isolation = parseSha256Hex(rowValue(row, "isolation_sha256", 3));
-  const profileSha256 = parseSha256Hex(rowValue(row, "profile_sha256", 4));
-  const rendererSha256 = parseSha256Hex(rowValue(row, "renderer_sha256", 5));
-  const membershipSha256 = parseSha256Hex(rowValue(row, "membership_sha256", 6));
-  const generationSha256 = parseSha256Hex(rowValue(row, "generation_sha256", 7));
-  const publishedAtValue = rowValue(row, "published_at", 8);
+  const profileSha256 = parseSha256Hex(rowValue(row, "profile_sha256", 3));
+  const rendererSha256 = parseSha256Hex(rowValue(row, "renderer_sha256", 4));
+  const membershipSha256 = parseSha256Hex(rowValue(row, "membership_sha256", 5));
+  const generationSha256 = parseSha256Hex(rowValue(row, "generation_sha256", 6));
+  const publishedAtValue = rowValue(row, "published_at", 7);
   const publishedAt = parseCanonicalInstantV1(publishedAtValue);
   if (authorityId === null || generation === null || generation < 0
-    || authoritySha256 === null || isolation === null
-    || profileSha256 === null || rendererSha256 === null
+    || authoritySha256 === null || profileSha256 === null || rendererSha256 === null
     || membershipSha256 === null || generationSha256 === null || publishedAt === null) {
     throw new OhLibSqlSemanticError("integrity", "A stored semantic head is invalid.");
   }
@@ -905,7 +589,6 @@ function parseStoredHead(row: Readonly<Record<string, unknown>> | readonly unkno
     authoritySha256,
     generation,
     generationSha256,
-    isolationSha256: isolation,
     membershipSha256,
     profileSha256,
     publishedAt,
@@ -918,19 +601,17 @@ function headMatchesGeneration(head: StoredHead, generation: StoredGeneration): 
     && head.authoritySha256 === generation.authoritySha256
     && head.generation === generation.generation
     && head.generationSha256 === generation.generationSha256
-    && head.isolationSha256 === generation.isolationSha256
     && head.membershipSha256 === generation.membershipSha256
     && head.profileSha256 === generation.profileSha256
     && head.rendererSha256 === generation.rendererSha256;
 }
 
 const GENERATION_SELECT = `SELECT authority_id, generation, authority_sha256,
-  isolation_sha256, profile_sha256, renderer_sha256, membership_sha256, generation_sha256,
+  profile_sha256, renderer_sha256, membership_sha256, generation_sha256,
   document_count, chunk_count, created_at
   FROM oh_semantic_generations WHERE authority_id = ? AND generation = ?`;
 const HEAD_SELECT = `SELECT authority_id, generation, authority_sha256,
-  isolation_sha256, profile_sha256, renderer_sha256, membership_sha256,
-  generation_sha256, published_at
+  profile_sha256, renderer_sha256, membership_sha256, generation_sha256, published_at
   FROM oh_semantic_heads WHERE authority_id = ?`;
 
 async function readGeneration(
@@ -951,168 +632,17 @@ async function readHead(client: OhLibSqlClientV1, authorityId: string): Promise<
   return row === undefined ? null : parseStoredHead(row);
 }
 
-type StoredPurge = Readonly<Omit<OhSemanticPurgeResultV1, "purgeReceiptSha256">>;
-
-function purgeResult(stored: StoredPurge): OhSemanticPurgeResultV1 {
-  return Object.freeze({
-    ...stored,
-    purgeReceiptSha256: canonicalSha256(stored),
-  });
-}
-
-async function readPurge(
-  client: OhLibSqlClientV1,
-  authorityId: string,
-): Promise<OhSemanticPurgeResultV1 | null> {
+async function readPurge(client: OhLibSqlClientV1, authorityId: string): Promise<string | null> {
   const result = await client.execute({
     args: [authorityId],
-    sql: `SELECT isolation_sha256, profile_sha256, published_generation,
-      published_generation_sha256, purged_at, purge_marker_sha256,
-      generation_count, membership_count, orphan_vector_count,
-      isolation_scope_count, counts_recorded
-      FROM oh_semantic_purges WHERE authority_id = ?`,
+    sql: "SELECT purged_at FROM oh_semantic_purges WHERE authority_id = ?",
   });
   if (result.rows.length > 1) throw new OhLibSqlSemanticError("integrity", "Duplicate semantic purge markers.");
   const row = result.rows[0];
   if (row === undefined) return null;
-  const isolation = parseSha256Hex(rowValue(row, "isolation_sha256", 0));
-  const profileSha256 = parseSha256Hex(rowValue(row, "profile_sha256", 1));
-  const publishedGenerationValue = rowValue(row, "published_generation", 2);
-  const publishedGeneration = publishedGenerationValue === null
-    ? null : integer(publishedGenerationValue);
-  const publishedGenerationSha256Value = rowValue(row, "published_generation_sha256", 3);
-  const publishedGenerationSha256 = publishedGenerationSha256Value === null
-    ? null : parseSha256Hex(publishedGenerationSha256Value);
-  const purgedAt = parseCanonicalInstantV1(rowValue(row, "purged_at", 4));
-  const storedMarker = parseSha256Hex(rowValue(row, "purge_marker_sha256", 5));
-  const generations = integer(rowValue(row, "generation_count", 6));
-  const memberships = integer(rowValue(row, "membership_count", 7));
-  const orphanVectors = integer(rowValue(row, "orphan_vector_count", 8));
-  const isolationScopes = integer(rowValue(row, "isolation_scope_count", 9));
-  const countsRecordedValue = integer(rowValue(row, "counts_recorded", 10));
-  if (isolation === null
-    || profileSha256 !== OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256
-    || (publishedGeneration !== null && publishedGeneration < 0)
-    || (publishedGeneration === null) !== (publishedGenerationSha256 === null)
-    || purgedAt === null || storedMarker === null
-    || storedMarker !== purgeMarkerSha256(authorityId, isolation, purgedAt)
-    || generations === null || generations < 0
-    || memberships === null || memberships < 0
-    || orphanVectors === null || orphanVectors < 0
-    || isolationScopes === null || isolationScopes < 1
-    || (countsRecordedValue !== 0 && countsRecordedValue !== 1)) {
-    throw new OhLibSqlSemanticError("integrity", "The semantic purge marker is invalid.");
-  }
-  return purgeResult(Object.freeze({
-    authorityId,
-    countsRecorded: countsRecordedValue === 1,
-    generations,
-    isolationScopes,
-    isolationSha256: isolation,
-    memberships,
-    orphanVectors,
-    profileSha256,
-    publishedGeneration,
-    publishedGenerationSha256,
-    purgeMarkerSha256: storedMarker,
-    purgedAt,
-    residualGenerations: 0,
-    residualMemberships: 0,
-    residualScopedVectors: 0,
-    v: 1,
-  }));
-}
-
-async function readIsolationOwner(
-  client: OhLibSqlClientV1,
-  isolation: Sha256Hex,
-): Promise<string | null> {
-  const result = await client.execute({
-    args: [isolation],
-    sql: "SELECT authority_id FROM oh_semantic_isolations WHERE isolation_sha256 = ?",
-  });
-  if (result.rows.length > 1) throw new OhLibSqlSemanticError("integrity", "Duplicate semantic isolations.");
-  const row = result.rows[0];
-  if (row === undefined) return null;
-  const authorityId = safeCode(rowValue(row, "authority_id", 0), 256);
-  if (authorityId === null) throw new OhLibSqlSemanticError("integrity", "A semantic isolation is invalid.");
-  return authorityId;
-}
-
-async function reserveIsolation(
-  client: OhLibSqlClientV1,
-  authorityId: string,
-  isolation: Sha256Hex,
-  createdAt: string,
-): Promise<void> {
-  if (await readPurge(client, authorityId) !== null) {
-    throw new OhLibSqlSemanticError("purged", "The semantic authority was purged.");
-  }
-  await client.execute({
-    args: [isolation, authorityId, createdAt, authorityId],
-    sql: `INSERT INTO oh_semantic_isolations(isolation_sha256, authority_id, created_at)
-      SELECT ?, ?, ?
-      WHERE NOT EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = ?)
-      ON CONFLICT DO NOTHING`,
-  });
-  const owner = await readIsolationOwner(client, isolation);
-  if (await readPurge(client, authorityId) !== null) {
-    throw new OhLibSqlSemanticError("purged", "The semantic authority was purged.");
-  }
-  if (owner !== authorityId) {
-    throw new OhLibSqlSemanticError("conflict", "The semantic isolation belongs to another authority.");
-  }
-}
-
-async function reservePurgeIsolation(
-  client: OhLibSqlClientV1,
-  authorityId: string,
-  isolation: Sha256Hex,
-  createdAt: string,
-): Promise<void> {
-  const head = await readHead(client, authorityId);
-  if (head !== null && head.isolationSha256 !== isolation) {
-    throw new OhLibSqlSemanticError("conflict", "The semantic purge isolation conflicts.");
-  }
-  const owner = await readIsolationOwner(client, isolation);
-  if (owner !== null && owner !== authorityId) {
-    throw new OhLibSqlSemanticError("conflict", "The semantic isolation belongs to another authority.");
-  }
-  if (owner === null) {
-    const existing = await client.execute({
-      args: [authorityId],
-      sql: "SELECT isolation_sha256 FROM oh_semantic_isolations WHERE authority_id = ? LIMIT 1",
-    });
-    if (existing.rows.length !== 0) {
-      throw new OhLibSqlSemanticError("conflict", "The semantic purge isolation conflicts.");
-    }
-    await reserveIsolation(client, authorityId, isolation, createdAt);
-  }
-}
-
-async function verifyPurgeResidual(
-  client: OhLibSqlClientV1,
-  authorityId: string,
-): Promise<void> {
-  const result = await client.execute({
-    args: [authorityId, authorityId, authorityId, authorityId],
-    sql: `SELECT
-      (SELECT count(*) FROM oh_semantic_heads WHERE authority_id = ?) AS heads,
-      (SELECT count(*) FROM oh_semantic_generations WHERE authority_id = ?) AS generations,
-      (SELECT count(*) FROM oh_semantic_memberships WHERE authority_id = ?) AS memberships,
-      (SELECT count(*) FROM oh_semantic_vectors AS vector
-        JOIN oh_semantic_isolations AS isolation
-          ON isolation.isolation_sha256 = vector.isolation_sha256
-        WHERE isolation.authority_id = ?) AS vectors`,
-  });
-  const row = result.rows[0];
-  if (result.rows.length !== 1 || row === undefined
-    || integer(rowValue(row, "heads", 0)) !== 0
-    || integer(rowValue(row, "generations", 1)) !== 0
-    || integer(rowValue(row, "memberships", 2)) !== 0
-    || integer(rowValue(row, "vectors", 3)) !== 0) {
-    throw new OhLibSqlSemanticError("integrity", "The semantic authority purge is incomplete.");
-  }
+  const purgedAt = parseCanonicalInstantV1(rowValue(row, "purged_at", 0));
+  if (purgedAt === null) throw new OhLibSqlSemanticError("integrity", "The semantic purge marker is invalid.");
+  return purgedAt;
 }
 
 async function readMemberships(
@@ -1124,21 +654,18 @@ async function readMemberships(
     const result = await client.execute({
       args: [generation.authorityId, generation.generation,
         OH_LIBSQL_SEMANTIC_LIMITS_V1.searchPage, offset],
-      sql: `SELECT generation_sha256, isolation_sha256, record_key,
-        record_sha256, ordinal, input_sha256
+      sql: `SELECT generation_sha256, record_key, record_sha256, ordinal, input_sha256
         FROM oh_semantic_memberships
         WHERE authority_id = ? AND generation = ?
         ORDER BY record_key, ordinal LIMIT ? OFFSET ?`,
     });
     for (const row of result.rows) {
       const generationSha256 = parseSha256Hex(rowValue(row, "generation_sha256", 0));
-      const isolation = parseSha256Hex(rowValue(row, "isolation_sha256", 1));
-      const recordKey = safeCode(rowValue(row, "record_key", 2), 512);
-      const recordSha256 = parseSha256Hex(rowValue(row, "record_sha256", 3));
-      const ordinal = integer(rowValue(row, "ordinal", 4));
-      const inputSha256 = parseSha256Hex(rowValue(row, "input_sha256", 5));
-      if (generationSha256 !== generation.generationSha256
-        || isolation !== generation.isolationSha256 || recordKey === null
+      const recordKey = safeCode(rowValue(row, "record_key", 1), 512);
+      const recordSha256 = parseSha256Hex(rowValue(row, "record_sha256", 2));
+      const ordinal = integer(rowValue(row, "ordinal", 3));
+      const inputSha256 = parseSha256Hex(rowValue(row, "input_sha256", 4));
+      if (generationSha256 !== generation.generationSha256 || recordKey === null
         || recordSha256 === null || ordinal === null || ordinal < 0
         || ordinal >= OH_LIBSQL_SEMANTIC_LIMITS_V1.chunksPerDocument
         || inputSha256 === null) {
@@ -1150,7 +677,6 @@ async function readMemberships(
   if (memberships.length !== generation.chunkCount
     || canonicalSha256(memberships.map((membership) => ({
       inputSha256: membership.inputSha256,
-      isolationSha256: generation.isolationSha256,
       ordinal: membership.ordinal,
       recordKey: membership.recordKey,
       recordSha256: membership.recordSha256,
@@ -1168,7 +694,6 @@ type StoredVector = Readonly<{
 
 async function readVectors(
   client: OhLibSqlClientV1,
-  isolationSha256: Sha256Hex,
   inputSha256s: readonly Sha256Hex[],
 ): Promise<ReadonlyMap<Sha256Hex, StoredVector>> {
   const vectors = new Map<Sha256Hex, StoredVector>();
@@ -1177,10 +702,10 @@ async function readVectors(
     if (page.length === 0) continue;
     const placeholders = page.map(() => "?").join(", ");
     const result = await client.execute({
-      args: [isolationSha256, OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
+      args: [OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
         OH_SEMANTIC_RENDERER_V1.rendererSha256, ...page],
       sql: `SELECT input_sha256, vector_sha256, vector FROM oh_semantic_vectors
-        WHERE isolation_sha256 = ? AND profile_sha256 = ? AND renderer_sha256 = ?
+        WHERE profile_sha256 = ? AND renderer_sha256 = ?
           AND input_sha256 IN (${placeholders}) ORDER BY input_sha256`,
     });
     for (const row of result.rows) {
@@ -1243,14 +768,12 @@ export class OhLibSqlSemanticCacheV1 {
    */
   async publishedHead(input: Readonly<{
     authorityId: string;
-    isolationSha256?: Sha256Hex;
   }>): Promise<OhSemanticPublishedHeadV1 | null> {
     this.#open();
     const authorityId = parseAuthorityId(input.authorityId);
-    const isolation = isolationSha256(authorityId, input.isolationSha256);
     if (await readPurge(this.#client, authorityId) !== null) return null;
     const head = await readHead(this.#client, authorityId);
-    if (head === null || head.isolationSha256 !== isolation) return null;
+    if (head === null) return null;
     const generation = await readGeneration(this.#client, authorityId, head.generation);
     if (generation === null || !headMatchesGeneration(head, generation)) {
       if (await readPurge(this.#client, authorityId) !== null) return null;
@@ -1284,38 +807,19 @@ export class OhLibSqlSemanticCacheV1 {
     documents: readonly OhSemanticDocumentV1[];
     embeddingClient: OhCloudflareEmbeddingClientV1;
     generation: number;
-    isolationSha256?: Sha256Hex;
     maximumChunksPerDocument?: number;
     signal?: AbortSignal;
   }>): Promise<OhSemanticStageResultV1> {
     this.#open();
     validateEmbeddingClient(input.embeddingClient);
     const prepared = prepareGeneration(input);
-    await reserveIsolation(
-      this.#client,
-      prepared.authorityId,
-      prepared.isolationSha256,
-      prepared.createdAt,
-    );
     if (await readPurge(this.#client, prepared.authorityId) !== null) {
       throw new OhLibSqlSemanticError("purged", "The semantic authority was purged.");
-    }
-    const existingGeneration = await readGeneration(
-      this.#client,
-      prepared.authorityId,
-      prepared.generation,
-    );
-    if (existingGeneration !== null && !generationMatches(existingGeneration, prepared)) {
-      throw new OhLibSqlSemanticError("conflict", "The semantic generation identity conflicts.");
     }
     const uniqueInputs = new Map<Sha256Hex, OhRenderedEmbeddingInputV1>();
     for (const membership of prepared.memberships) uniqueInputs.set(membership.inputSha256, membership.input);
     const orderedInputs = [...uniqueInputs.entries()].sort(([left], [right]) => left < right ? -1 : 1);
-    const existingVectors = await readVectors(
-      this.#client,
-      prepared.isolationSha256,
-      orderedInputs.map(([digest]) => digest),
-    );
+    const existingVectors = await readVectors(this.#client, orderedInputs.map(([digest]) => digest));
     const missing = orderedInputs.filter(([digest]) => !existingVectors.has(digest));
     const candidateVectors = new Map(existingVectors);
     for (let offset = 0; offset < missing.length; offset += OH_LIBSQL_SEMANTIC_LIMITS_V1.embeddingBatch) {
@@ -1338,15 +842,14 @@ export class OhLibSqlSemanticCacheV1 {
     }
     const statements: OhLibSqlStatementV1[] = [{
       args: [prepared.authorityId, prepared.generation, prepared.authoritySha256,
-        prepared.isolationSha256,
         OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
         OH_SEMANTIC_RENDERER_V1.rendererSha256, prepared.membershipSha256,
         prepared.generationSha256, prepared.documentCount, prepared.chunkCount,
         prepared.createdAt, prepared.authorityId],
       sql: `INSERT INTO oh_semantic_generations(authority_id, generation,
-        authority_sha256, isolation_sha256, profile_sha256, renderer_sha256, membership_sha256,
+        authority_sha256, profile_sha256, renderer_sha256, membership_sha256,
         generation_sha256, document_count, chunk_count, created_at)
-        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         WHERE NOT EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = ?)
         ON CONFLICT DO NOTHING`,
     }];
@@ -1356,17 +859,15 @@ export class OhLibSqlSemanticCacheV1 {
         throw new OhLibSqlSemanticError("integrity", "A semantic vector candidate is missing.");
       }
       statements.push({
-        args: [prepared.isolationSha256,
-          OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
+        args: [OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
           OH_SEMANTIC_RENDERER_V1.rendererSha256, inputSha256, candidate.vectorSha256,
           candidate.bytes, prepared.createdAt, prepared.authorityId, prepared.generation,
-          prepared.generationSha256, prepared.isolationSha256, prepared.authorityId],
-        sql: `INSERT INTO oh_semantic_vectors(isolation_sha256, profile_sha256,
-          renderer_sha256, input_sha256, vector_sha256, vector, created_at)
-          SELECT ?, ?, ?, ?, ?, ?, ?
+          prepared.generationSha256, prepared.authorityId],
+        sql: `INSERT INTO oh_semantic_vectors(profile_sha256, renderer_sha256,
+          input_sha256, vector_sha256, vector, created_at)
+          SELECT ?, ?, ?, ?, ?, ?
           WHERE EXISTS (SELECT 1 FROM oh_semantic_generations
-            WHERE authority_id = ? AND generation = ? AND generation_sha256 = ?
-              AND isolation_sha256 = ?)
+            WHERE authority_id = ? AND generation = ? AND generation_sha256 = ?)
             AND NOT EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = ?)
           ON CONFLICT DO NOTHING`,
       });
@@ -1374,25 +875,20 @@ export class OhLibSqlSemanticCacheV1 {
     for (const membership of prepared.memberships) {
       statements.push({
         args: [prepared.authorityId, prepared.generation, prepared.generationSha256,
-          prepared.isolationSha256, membership.recordKey, membership.recordSha256, membership.ordinal,
+          membership.recordKey, membership.recordSha256, membership.ordinal,
           membership.inputSha256, prepared.authorityId, prepared.generation,
-          prepared.generationSha256, prepared.isolationSha256, prepared.authorityId],
+          prepared.generationSha256, prepared.authorityId],
         sql: `INSERT INTO oh_semantic_memberships(authority_id, generation,
-          generation_sha256, isolation_sha256, record_key, record_sha256, ordinal, input_sha256)
-          SELECT ?, ?, ?, ?, ?, ?, ?, ?
+          generation_sha256, record_key, record_sha256, ordinal, input_sha256)
+          SELECT ?, ?, ?, ?, ?, ?, ?
           WHERE EXISTS (SELECT 1 FROM oh_semantic_generations
-            WHERE authority_id = ? AND generation = ? AND generation_sha256 = ?
-              AND isolation_sha256 = ?)
+            WHERE authority_id = ? AND generation = ? AND generation_sha256 = ?)
             AND NOT EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = ?)
           ON CONFLICT DO NOTHING`,
       });
     }
     await this.#client.batch(statements, "write");
-    const completeVectors = await readVectors(
-      this.#client,
-      prepared.isolationSha256,
-      orderedInputs.map(([digest]) => digest),
-    );
+    const completeVectors = await readVectors(this.#client, orderedInputs.map(([digest]) => digest));
     if (completeVectors.size !== orderedInputs.length) {
       if (await readPurge(this.#client, prepared.authorityId) !== null) {
         throw new OhLibSqlSemanticError("purged", "The semantic authority was purged.");
@@ -1422,7 +918,6 @@ export class OhLibSqlSemanticCacheV1 {
       embedded: missing.length,
       generation: prepared.generation,
       generationSha256: prepared.generationSha256,
-      isolationSha256: prepared.isolationSha256,
       membershipSha256: prepared.membershipSha256,
       reused: orderedInputs.length - missing.length,
       status: "staged",
@@ -1434,12 +929,10 @@ export class OhLibSqlSemanticCacheV1 {
     authorityId: string;
     expectedPublishedGeneration: number | null;
     generation: number;
-    isolationSha256?: Sha256Hex;
     publishedAt?: string;
   }>): Promise<OhSemanticPublishResultV1> {
     this.#open();
     const authorityId = parseAuthorityId(input.authorityId);
-    const isolation = isolationSha256(authorityId, input.isolationSha256);
     const generationNumber = parseGeneration(input.generation);
     const expected = input.expectedPublishedGeneration === null
       ? null : parseGeneration(input.expectedPublishedGeneration);
@@ -1448,7 +941,7 @@ export class OhLibSqlSemanticCacheV1 {
       throw new OhLibSqlSemanticError("purged", "The semantic authority was purged.");
     }
     const generation = await readGeneration(this.#client, authorityId, generationNumber);
-    if (generation === null || generation.isolationSha256 !== isolation) {
+    if (generation === null) {
       throw new OhLibSqlSemanticError("conflict", "The semantic generation is not staged.");
     }
     await readMemberships(this.#client, generation);
@@ -1458,7 +951,6 @@ export class OhLibSqlSemanticCacheV1 {
         authorityId,
         generation: generationNumber,
         generationSha256: generation.generationSha256,
-        isolationSha256: isolation,
         published: false,
         v: 1,
       });
@@ -1470,38 +962,35 @@ export class OhLibSqlSemanticCacheV1 {
     }
     let result: OhLibSqlResultV1;
     const values = [generation.authorityId, generation.generation,
-      generation.authoritySha256, generation.isolationSha256,
-      generation.profileSha256, generation.rendererSha256,
+      generation.authoritySha256, generation.profileSha256, generation.rendererSha256,
       generation.membershipSha256, generation.generationSha256, publishedAt];
     if (expected === null) {
       result = await this.#client.execute({
         args: [...values, generation.authorityId, generation.generation,
-          generation.generationSha256, generation.isolationSha256, authorityId, authorityId],
+          generation.generationSha256, authorityId, authorityId],
         sql: `INSERT INTO oh_semantic_heads(authority_id, generation,
-          authority_sha256, isolation_sha256, profile_sha256, renderer_sha256, membership_sha256,
+          authority_sha256, profile_sha256, renderer_sha256, membership_sha256,
           generation_sha256, published_at)
-          SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+          SELECT ?, ?, ?, ?, ?, ?, ?, ?
           WHERE EXISTS (SELECT 1 FROM oh_semantic_generations
-            WHERE authority_id = ? AND generation = ? AND generation_sha256 = ?
-              AND isolation_sha256 = ?)
+            WHERE authority_id = ? AND generation = ? AND generation_sha256 = ?)
             AND NOT EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = ?)
             AND NOT EXISTS (SELECT 1 FROM oh_semantic_heads WHERE authority_id = ?)
           ON CONFLICT DO NOTHING`,
       });
     } else {
       result = await this.#client.execute({
-        args: [generation.generation, generation.authoritySha256, generation.isolationSha256,
-          generation.profileSha256, generation.rendererSha256, generation.membershipSha256,
+        args: [generation.generation, generation.authoritySha256, generation.profileSha256,
+          generation.rendererSha256, generation.membershipSha256,
           generation.generationSha256, publishedAt, authorityId, expected,
           generation.authorityId, generation.generation, generation.generationSha256,
-          generation.isolationSha256, authorityId],
+          authorityId],
         sql: `UPDATE oh_semantic_heads SET generation = ?, authority_sha256 = ?,
-          isolation_sha256 = ?, profile_sha256 = ?, renderer_sha256 = ?, membership_sha256 = ?,
+          profile_sha256 = ?, renderer_sha256 = ?, membership_sha256 = ?,
           generation_sha256 = ?, published_at = ?
           WHERE authority_id = ? AND generation = ?
             AND EXISTS (SELECT 1 FROM oh_semantic_generations
-              WHERE authority_id = ? AND generation = ? AND generation_sha256 = ?
-                AND isolation_sha256 = ?)
+              WHERE authority_id = ? AND generation = ? AND generation_sha256 = ?)
             AND NOT EXISTS (SELECT 1 FROM oh_semantic_purges WHERE authority_id = ?)`,
       });
     }
@@ -1516,7 +1005,6 @@ export class OhLibSqlSemanticCacheV1 {
       authorityId,
       generation: generationNumber,
       generationSha256: generation.generationSha256,
-      isolationSha256: isolation,
       published: rowsAffected(result) > 0,
       v: 1,
     });
@@ -1533,7 +1021,6 @@ export class OhLibSqlSemanticCacheV1 {
     validateEmbeddingClient(input.embeddingClient);
     const authorityId = parseAuthorityId(input.authority.authorityId);
     const authoritySha256 = parseDigest(input.authority.authoritySha256, "authority");
-    const isolation = isolationSha256(authorityId, input.authority.isolationSha256);
     const authorityGeneration = parseGeneration(input.authority.generation);
     const limit = input.limit ?? 10;
     if (input.authority.v !== 1 || !Number.isSafeInteger(limit) || limit < 1
@@ -1553,7 +1040,6 @@ export class OhLibSqlSemanticCacheV1 {
     const head = await readHead(this.#client, authorityId);
     if (head === null || head.authoritySha256 !== authoritySha256
       || head.generation !== authorityGeneration
-      || head.isolationSha256 !== isolation
       || head.profileSha256 !== OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256
       || head.rendererSha256 !== OH_SEMANTIC_RENDERER_V1.rendererSha256) {
       return Object.freeze([]);
@@ -1577,38 +1063,33 @@ export class OhLibSqlSemanticCacheV1 {
       const result = await this.#client.execute({
         args: [OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
           OH_SEMANTIC_RENDERER_V1.rendererSha256, authorityId, authorityGeneration,
-          isolation, OH_LIBSQL_SEMANTIC_LIMITS_V1.searchPage, offset],
-        sql: `SELECT membership.generation_sha256, membership.isolation_sha256,
-          membership.record_key,
+          OH_LIBSQL_SEMANTIC_LIMITS_V1.searchPage, offset],
+        sql: `SELECT membership.generation_sha256, membership.record_key,
           membership.record_sha256, membership.ordinal, membership.input_sha256,
           vector.vector_sha256, vector.vector
           FROM oh_semantic_memberships AS membership
           JOIN oh_semantic_vectors AS vector
             ON vector.input_sha256 = membership.input_sha256
-            AND vector.isolation_sha256 = membership.isolation_sha256
             AND vector.profile_sha256 = ? AND vector.renderer_sha256 = ?
           WHERE membership.authority_id = ? AND membership.generation = ?
-            AND membership.isolation_sha256 = ?
           ORDER BY membership.record_key, membership.ordinal LIMIT ? OFFSET ?`,
       });
       for (const row of result.rows) {
         scanned += 1;
         const generationSha256 = parseSha256Hex(rowValue(row, "generation_sha256", 0));
-        const storedIsolation = parseSha256Hex(rowValue(row, "isolation_sha256", 1));
-        const key = safeCode(rowValue(row, "record_key", 2), 512);
-        const recordSha256 = parseSha256Hex(rowValue(row, "record_sha256", 3));
-        const ordinal = integer(rowValue(row, "ordinal", 4));
-        const inputSha256 = parseSha256Hex(rowValue(row, "input_sha256", 5));
-        const vectorSha256 = parseSha256Hex(rowValue(row, "vector_sha256", 6));
-        if (generationSha256 !== generation.generationSha256
-          || storedIsolation !== isolation || key === null
+        const key = safeCode(rowValue(row, "record_key", 1), 512);
+        const recordSha256 = parseSha256Hex(rowValue(row, "record_sha256", 2));
+        const ordinal = integer(rowValue(row, "ordinal", 3));
+        const inputSha256 = parseSha256Hex(rowValue(row, "input_sha256", 4));
+        const vectorSha256 = parseSha256Hex(rowValue(row, "vector_sha256", 5));
+        if (generationSha256 !== generation.generationSha256 || key === null
           || recordSha256 === null || ordinal === null || ordinal < 0
           || ordinal >= OH_LIBSQL_SEMANTIC_LIMITS_V1.chunksPerDocument
           || inputSha256 === null || vectorSha256 === null) {
           throw new OhLibSqlSemanticError("integrity", "A semantic search row is invalid.");
         }
         if (records.get(key) !== recordSha256) continue;
-        const vector = decodeVector(rowValue(row, "vector", 7), vectorSha256);
+        const vector = decodeVector(rowValue(row, "vector", 6), vectorSha256);
         let score = 0;
         for (let index = 0; index < normalizedQuery.length; index += 1) {
           score += (normalizedQuery[index] as number) * (vector[index] as number);
@@ -1633,106 +1114,49 @@ export class OhLibSqlSemanticCacheV1 {
       .slice(0, limit));
   }
 
-  /** Reads the immutable, content-free receipt for a completed purge. */
-  async purgeReceipt(input: Readonly<{
-    authorityId: string;
-    isolationSha256?: Sha256Hex;
-  }>): Promise<OhSemanticPurgeResultV1 | null> {
-    this.#open();
-    const authorityId = parseAuthorityId(input.authorityId);
-    const isolation = isolationSha256(authorityId, input.isolationSha256);
-    const receipt = await readPurge(this.#client, authorityId);
-    if (receipt === null) return null;
-    if (receipt.isolationSha256 !== isolation) {
-      throw new OhLibSqlSemanticError("conflict", "The semantic purge isolation conflicts.");
-    }
-    await verifyPurgeResidual(this.#client, authorityId);
-    return receipt;
-  }
-
   async purgeAuthority(input: Readonly<{
     authorityId: string;
-    isolationSha256?: Sha256Hex;
     purgedAt?: string;
   }>): Promise<OhSemanticPurgeResultV1> {
     this.#open();
     const authorityId = parseAuthorityId(input.authorityId);
-    const isolation = isolationSha256(authorityId, input.isolationSha256);
-    const previous = await readPurge(this.#client, authorityId);
-    if (previous !== null) {
-      if (previous.isolationSha256 !== isolation) {
-        throw new OhLibSqlSemanticError("conflict", "The semantic purge isolation conflicts.");
-      }
-      await verifyPurgeResidual(this.#client, authorityId);
-      return previous;
-    }
     const requestedAt = parseInstant(input.purgedAt ?? canonicalNow());
-    await reservePurgeIsolation(this.#client, authorityId, isolation, requestedAt);
-    const markerSha256 = purgeMarkerSha256(authorityId, isolation, requestedAt);
-    await this.#client.batch([
+    const previous = await readPurge(this.#client, authorityId);
+    const results = await this.#client.batch([
       {
-        args: [authorityId, isolation, OH_CLOUDFLARE_EMBEDDING_PROFILE_V1.profileSha256,
-          authorityId, authorityId, requestedAt, markerSha256,
-          authorityId, authorityId, authorityId, authorityId,
-          isolation, authorityId, authorityId, isolation],
-        sql: `INSERT INTO oh_semantic_purges(authority_id, isolation_sha256,
-          profile_sha256, published_generation, published_generation_sha256,
-          purged_at, purge_marker_sha256, generation_count, membership_count,
-          orphan_vector_count, isolation_scope_count, counts_recorded)
-          SELECT ?, ?, ?,
-            (SELECT generation FROM oh_semantic_heads WHERE authority_id = ?),
-            (SELECT generation_sha256 FROM oh_semantic_heads WHERE authority_id = ?),
-            ?, ?,
-            (SELECT count(*) FROM oh_semantic_generations WHERE authority_id = ?),
-            (SELECT count(*) FROM oh_semantic_memberships WHERE authority_id = ?),
-            (SELECT count(*) FROM oh_semantic_vectors AS vector
-              JOIN oh_semantic_isolations AS isolation
-                ON isolation.isolation_sha256 = vector.isolation_sha256
-              WHERE isolation.authority_id = ?),
-            (SELECT count(*) FROM oh_semantic_isolations WHERE authority_id = ?),
-            1
-          WHERE EXISTS (SELECT 1 FROM oh_semantic_isolations
-              WHERE isolation_sha256 = ? AND authority_id = ?)
-            AND NOT EXISTS (SELECT 1 FROM oh_semantic_heads
-              WHERE authority_id = ? AND isolation_sha256 <> ?)
-          ON CONFLICT DO NOTHING`,
+        args: [authorityId, requestedAt],
+        sql: `INSERT INTO oh_semantic_purges(authority_id, purged_at)
+          VALUES (?, ?) ON CONFLICT DO NOTHING`,
       },
+      { args: [authorityId], sql: "DELETE FROM oh_semantic_heads WHERE authority_id = ?" },
+      { args: [authorityId], sql: "DELETE FROM oh_semantic_memberships WHERE authority_id = ?" },
+      { args: [authorityId], sql: "DELETE FROM oh_semantic_generations WHERE authority_id = ?" },
       {
-        args: [authorityId, authorityId, isolation],
-        sql: `DELETE FROM oh_semantic_heads WHERE authority_id = ?
-          AND EXISTS (SELECT 1 FROM oh_semantic_purges
-            WHERE authority_id = ? AND isolation_sha256 = ?)`,
-      },
-      {
-        args: [authorityId, authorityId, isolation],
-        sql: `DELETE FROM oh_semantic_memberships WHERE authority_id = ?
-          AND EXISTS (SELECT 1 FROM oh_semantic_purges
-            WHERE authority_id = ? AND isolation_sha256 = ?)`,
-      },
-      {
-        args: [authorityId, authorityId, isolation],
-        sql: `DELETE FROM oh_semantic_vectors
-          WHERE isolation_sha256 IN (SELECT isolation_sha256
-            FROM oh_semantic_isolations WHERE authority_id = ?)
-            AND EXISTS (SELECT 1 FROM oh_semantic_purges
-              WHERE authority_id = ? AND isolation_sha256 = ?)`,
-      },
-      {
-        args: [authorityId, authorityId, isolation],
-        sql: `DELETE FROM oh_semantic_generations WHERE authority_id = ?
-          AND EXISTS (SELECT 1 FROM oh_semantic_purges
-            WHERE authority_id = ? AND isolation_sha256 = ?)`,
+        sql: `DELETE FROM oh_semantic_vectors AS vector
+          WHERE NOT EXISTS (SELECT 1 FROM oh_semantic_memberships AS membership
+            WHERE membership.input_sha256 = vector.input_sha256)`,
       },
     ], "write");
-    const receipt = await readPurge(this.#client, authorityId);
-    if (receipt === null) {
-      throw new OhLibSqlSemanticError("conflict", "The semantic purge identity changed before tombstoning.");
+    const purgedAt = await readPurge(this.#client, authorityId);
+    if (purgedAt === null || (previous !== null && purgedAt !== previous)) {
+      throw new OhLibSqlSemanticError("integrity", "The semantic purge did not converge.");
     }
-    if (receipt.isolationSha256 !== isolation) {
-      throw new OhLibSqlSemanticError("conflict", "The semantic purge isolation conflicts.");
+    if (await readHead(this.#client, authorityId) !== null
+      || (await this.#client.execute({
+        args: [authorityId, authorityId],
+        sql: `SELECT authority_id FROM oh_semantic_generations WHERE authority_id = ?
+          UNION ALL SELECT authority_id FROM oh_semantic_memberships WHERE authority_id = ? LIMIT 1`,
+      })).rows.length !== 0) {
+      throw new OhLibSqlSemanticError("integrity", "The semantic authority purge is incomplete.");
     }
-    await verifyPurgeResidual(this.#client, authorityId);
-    return receipt;
+    return Object.freeze({
+      authorityId,
+      generations: rowsAffected(results[3] ?? { rows: [] }),
+      memberships: rowsAffected(results[2] ?? { rows: [] }),
+      orphanVectors: rowsAffected(results[4] ?? { rows: [] }),
+      purgedAt,
+      v: 1,
+    });
   }
 }
 
