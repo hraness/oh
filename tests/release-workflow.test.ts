@@ -19,9 +19,9 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
     "bun run check",
     "npm pack --ignore-scripts --pack-destination artifacts .",
     "release-artifact-checksum.ts write",
-    "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     "matrix:\n        os: [ubuntu-24.04, macos-14]",
-    "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     "artifact-ids: ${{ needs.verify.outputs.artifact_id }}",
     "artifact-ids: ${{ needs.verify.outputs.writer_artifact_id }}",
     "package-smoke.ts artifacts/*.tgz",
@@ -86,7 +86,7 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
 test("ID-bound artifacts extract directly into every consumer directory", async () => {
   const workflow = await readFile(join(root, ".github/workflows/release.yml"), "utf8");
   const downloads = [...workflow.matchAll(
-    /uses: actions\/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4\n\s+with:\n\s+artifact-ids: ([^\n]+)\n\s+path: ([^\n]+)\n\s+merge-multiple: true/gu,
+    /uses: actions\/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8\.0\.1\n\s+with:\n\s+artifact-ids: ([^\n]+)\n\s+path: ([^\n]+)\n\s+merge-multiple: true/gu,
   )].map((match) => ({ id: match[1]?.trim(), path: match[2]?.trim() }));
 
   expect(downloads).toEqual([
