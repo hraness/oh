@@ -1,19 +1,21 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+const title = "Oh: a research graph your agents can inspect";
+const description =
+  "Oh gives your agents a local path from a question to a cited artifact: sources, claims, citations, and a verifiable history of every change, in one SQLite file on your machine.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://oh.computer"),
-  title: "Oh: open-source tools for agentic research",
-  description:
-    "A local-first ontology kernel, SQLite store, SDK, CLI, and agent skill that takes research from question to inspectable artifact.",
+  title,
+  description,
   alternates: { canonical: "/" },
   icons: {
     icon: [{ type: "image/svg+xml", url: "/favicon.svg" }],
   },
   openGraph: {
-    title: "Oh: open-source tools for agentic research",
-    description:
-      "Take research from question to inspectable artifact with local records, claims, citations, and verifiable operation history.",
+    title,
+    description,
     images: [{
       alt: "open-source tools for agentic research",
       height: 630,
@@ -26,11 +28,17 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Oh: open-source tools for agentic research",
-    description:
-      "Take research from question to inspectable artifact with local records, claims, citations, and verifiable operation history.",
+    title,
+    description,
     images: ["/og.png"],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { color: "#fbfaf6", media: "(prefers-color-scheme: light)" },
+    { color: "#121614", media: "(prefers-color-scheme: dark)" },
+  ],
 };
 
 export default function RootLayout({

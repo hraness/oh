@@ -58,19 +58,20 @@ describe("Oh site source contract", () => {
     expect(redirect).not.toContain("AskAiAboutThis");
   });
 
-  test("uses Nebula Sans for ordinary text while preserving serif and monospace roles", async () => {
+  test("uses Nebula Sans for every proportional role while preserving monospace for code", async () => {
     const [packageJson, globals] = await Promise.all([
       read("package.json"),
       read("app/globals.css"),
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.2.1"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.4.0"',
     );
     expect(globals).toContain('@import "@hraness/design-kit/fonts.css"');
+    expect(globals).toContain('@import "@hraness/design-kit/product-marketing.css"');
     expect(globals).toContain('--font-text: "Nebula Sans"');
     expect(globals).toContain("font-family: var(--font-text)");
-    expect(globals).toContain('font-family: Georgia, "Times New Roman", serif');
+    expect(globals).not.toMatch(/Georgia|Times New Roman/u);
     expect(globals).toContain("font-family: ui-monospace, SFMono-Regular, Menlo, monospace");
   });
 
@@ -138,7 +139,7 @@ describe("Oh site source contract", () => {
       'href="https://github.com/hraness/oh#install-and-first-run"',
     );
     expect(home).toContain("Install and start");
-    expect(home).toContain('className="text-action" href="/spec"');
+    expect(home).toContain('{ href: "/spec", label: "Read the v1 specification" }');
   });
 
   test("links the install action to an existing README heading", async () => {
@@ -146,15 +147,15 @@ describe("Oh site source contract", () => {
       read("app/page.tsx"),
       readFile(join(site, "..", "README.md"), "utf8"),
     ]);
-    const installLink = home.match(
-      /href="https:\/\/github\.com\/hraness\/oh#([^"#]+)"/u,
-    );
-    const installFragment = installLink?.[1] ?? "";
-    const readmeFragments = [...readme.matchAll(/^#{1,6}\s+(.+?)\s*#*$/gmu)]
+    const readmeFragments = [...home.matchAll(/https:\/\/github\.com\/hraness\/oh#([^"`#]+)/gu)]
+      .map(([, fragment]) => fragment ?? "");
+    const readmeHeadings = [...readme.matchAll(/^#{1,6}\s+(.+?)\s*#*$/gmu)]
       .map(([, heading]) => githubHeadingFragment(heading ?? ""));
 
-    expect(installFragment).toBe("install-and-first-run");
-    expect(readmeFragments).toContain(installFragment);
+    expect(readmeFragments).toContain("install-and-first-run");
+    for (const fragment of readmeFragments) {
+      expect(readmeHeadings).toContain(fragment);
+    }
   });
 
   test("derives public contract identity, version, and status from mirrored data", async () => {

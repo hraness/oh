@@ -1,5 +1,22 @@
+import {
+  MarketingCallToAction,
+  MarketingFlow,
+  MarketingInstallPanel,
+  MarketingInterfaceGrid,
+  MarketingMaker,
+  MarketingPage,
+  MarketingPrimitives,
+  MarketingProofFrame,
+  MarketingQuestionList,
+  MarketingSection,
+  MarketingSiteHeader,
+  MarketingStatStrip,
+  MarketingTrustBoundary,
+  ProductHero,
+} from "@hraness/design-kit/react/server";
 import { AskAiAboutThis } from "@hraness/ui";
 
+import ohPackage from "../../package.json";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
 import manifest from "../public/spec/manifest.json";
@@ -9,77 +26,120 @@ const currentVersion = manifest.versions.find((version) => version.id === manife
     throw new Error("The public specification manifest has no current version.");
   })();
 
+const releaseVersion = ohPackage.version;
+const capturedOn = "September 5, 2026";
+const repository = "https://github.com/hraness/oh";
+
+const heading = "A research graph your agents can inspect";
+const lead =
+  "Oh gives your agents a local path from a question to a cited artifact: sources, claims, citations, and a verifiable history of every change, in one SQLite file on your machine.";
+const example =
+  "Ask your agent to file the trial report as a source, record its 12-week endpoint as a claim, cite table 2, and verify the graph before it drafts the brief.";
+const footnote =
+  `Free and MIT licensed. Bun 1.3.14 or newer, no account, no hosted model. Current release v${releaseVersion}.`;
+
+/** The verified first run, captured from the current CLI. Output is canonical JSON. */
+const firstRunTranscript = `$ bun add --global @hraness/oh@${releaseVersion}
+
+$ oh init --db research.db
+{"head":{"generation":0,"graphRevisionSha256":null,"operationSha256":null,"recordsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","sequence":0,"v":1},"spaceId":"default","v":1}
+
+$ oh verify --db research.db
+{"head":{"generation":0,"graphRevisionSha256":null,"operationSha256":null,"recordsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","sequence":0,"v":1},"operations":0,"records":0,"sqliteIntegrity":"ok","v":1}`;
+
+const stats = [
+  {
+    label: "Local database",
+    value: "1",
+    detail: "One SQLite file holds the records, the operation log, and the keyword index.",
+  },
+  {
+    label: "Record kinds",
+    value: String(contract.recordKinds.length),
+    detail: "A closed vocabulary in the v1 contract.",
+  },
+  {
+    label: "Digests",
+    value: "SHA-256",
+    detail: "Content and operations are hashed over canonical bytes.",
+  },
+  {
+    label: "Accounts required",
+    value: "0",
+    detail: "No sign-in, hosted model, or remote database for local use.",
+  },
+] as const;
+
 const researchObjects = [
   {
-    index: "01",
     label: "Question",
     kind: "inquiry",
-    body: "Keep the question and its investigation trail as a durable object instead of leaving it in a prompt transcript.",
+    summary: "Keep the question and its investigation trail as a durable object instead of leaving it in a prompt transcript.",
   },
   {
-    index: "02",
     label: "Source",
     kind: "entity",
-    body: "Give a paper, dataset, person, or system a stable identity that survives changing titles, files, and URLs.",
+    summary: "Give a paper, dataset, person, or system a stable identity that survives changing titles, files, and URLs.",
   },
   {
-    index: "03",
     label: "Capture",
     kind: "edition",
-    body: "Bind a bounded source edition or extract to the profile your application registers, with its dependencies intact.",
+    summary: "Pin one edition or extract of a source to the profile your application registers, with its dependencies intact.",
   },
   {
-    index: "04",
     label: "Claim",
     kind: "statement",
-    body: "Store the proposition separately from who accepts it, where it applies, and what evidence bears on it.",
+    summary: "Store the proposition separately from who accepts it, where it applies, and what evidence bears on it.",
   },
   {
-    index: "05",
     label: "Citation",
     kind: "evidence",
-    body: "Record how a located passage, table, or observation supports, contradicts, or otherwise bears on an assertion.",
+    summary: "Record how a located passage, table, or observation supports, contradicts, or otherwise bears on an assertion.",
   },
   {
-    index: "06",
     label: "Artifact",
     kind: "view",
-    body: "Produce a review brief, answer, or other derived view whose input records remain addressable and inspectable.",
+    summary: "Produce a review brief, answer, or other derived view whose input records stay addressable.",
   },
 ] as const;
 
-const traceNodes = [
-  ["Question", "inquiry:primary-endpoint"],
-  ["Source", "entity:trial-report"],
-  ["Capture", "edition:trial-report-v1"],
-  ["Claim", "statement:endpoint-12-weeks"],
-  ["Stance", "assertion:endpoint-12-weeks"],
-  ["Citation", "evidence:table-2"],
-  ["Artifact", "view:review-brief"],
+const traceSteps = [
+  { label: "Question", code: "inquiry:primary-endpoint" },
+  { label: "Source", code: "entity:trial-report" },
+  { label: "Capture", code: "edition:trial-report-v1" },
+  { label: "Claim", code: "statement:endpoint-12-weeks" },
+  { label: "Stance", code: "assertion:endpoint-12-weeks" },
+  { label: "Citation", code: "evidence:table-2" },
+  { label: "Artifact", code: "view:review-brief" },
 ] as const;
 
-const principles = [
+const trust = [
   {
-    index: "01",
-    title: "Local by default",
-    body: "Your contract, records, operation log, and keyword index live in a SQLite file you control. Semantic caches are rebuildable views; hosted inference and network sync remain explicit adapters.",
+    label: "Local by default",
+    detail: "Your contract, records, operation log, and keyword index live in a SQLite file you control. Semantic caches are rebuildable views; hosted inference and network sync remain explicit adapters.",
   },
   {
-    index: "02",
-    title: "Deterministic contracts",
-    body: "Canonical bytes, content-addressed records, append-only operations, and generation checks make every graph mutation inspectable and replayable.",
+    label: "Deterministic contracts",
+    detail: "Canonical bytes, content-addressed records, append-only operations, and generation checks make every graph mutation inspectable and replayable. Verification checks the chain, not the truth of a claim.",
   },
   {
-    index: "03",
-    title: "Built for agents",
-    body: "A small SDK, an honest CLI, and a self-contained skill let coding agents inspect, write, verify, search, and synchronize the same graph.",
+    label: "Built for agents",
+    detail: "A small SDK, an honest CLI, and a self-contained skill let coding agents inspect, write, verify, search, and synchronize the same graph. The skill cannot widen your authorization or choose a database, space, or sync destination for you.",
   },
 ] as const;
 
 const questions = [
   {
-    question: "Does Oh upload my research?",
-    answer: "Not in the local path. The CLI, local SDK, authoritative records, operation log, and keyword index use the SQLite file you choose. Remote libSQL sync and hosted semantic caching happen only through adapters and credentials supplied by the host application.",
+    question: "Do I need an account?",
+    answer: "No. The CLI, local SDK, records, operation log, and keyword index use the SQLite file you choose. Nothing asks you to sign in, and the local path involves no hosted model and no remote database.",
+  },
+  {
+    question: "What is stored, and where?",
+    answer: "One SQLite file holds the contract manifest, content-addressed records, the append-only operation log, and the derived keyword index. Oh writes to .oh/oh.sqlite and the default space unless you choose another path or space. Semantic caches and remote copies exist only where you configure them.",
+  },
+  {
+    question: "Is semantic search required?",
+    answer: "No. Keyword search works without a model. Local semantic search uses the optional QMD peer dependency with a pinned EmbeddingGemma profile, and a hosted embedding cache through Cloudflare Workers AI and libSQL is a separate, explicit profile. Both are rebuildable views joined back to the current record digest.",
   },
   {
     question: "Does a passing verification mean a claim is true?",
@@ -90,17 +150,50 @@ const questions = [
     answer: "Generation compare-and-swap rejects a stale local write. Sync settles fast-forward histories only; divergent histories fail closed so an application can preserve both logs and ask for a deliberate reconciliation.",
   },
   {
+    question: "What does it cost?",
+    answer: "Nothing. Oh is MIT licensed and published on npm as @hraness/oh. The base package has no required runtime dependencies; the optional peers for local semantic search, libSQL, and Datalog projection install only when you use them.",
+  },
+  {
     question: "Where can I run it?",
-    answer: "The CLI, local SDK, and SQLite authority require Bun 1.3.14 or newer. The runtime-neutral store contracts and direct libSQL authority also support Node 24 serverless runtimes.",
+    answer: "The CLI, local SDK, and SQLite store require Bun 1.3.14 or newer. The runtime-neutral store contracts and the direct libSQL adapter also support Node 24 serverless runtimes.",
+  },
+  {
+    question: "Who made it?",
+    answer: "Ben Guo, a musician and builder, formerly a founder and engineering leader at companies including Venmo and Stripe, now building from Puerto Rico. Oh is published by Hraness under the MIT license.",
   },
 ] as const;
+
+const navigation = [
+  { href: "#model", label: "Model" },
+  { href: "#trace", label: "Trace" },
+  { href: "#interfaces", label: "Interfaces" },
+  { href: "#questions", label: "Questions" },
+  { href: "/spec", label: "Specification" },
+  { href: repository, label: "GitHub" },
+] as const;
+
+function BrandMark() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="brand-mark">
+      <circle cx="12" cy="12" r="12" fill="currentColor" />
+      <circle cx="7.7" cy="13.2" r="3" fill="none" stroke="var(--background)" strokeWidth="2.1" />
+      <path
+        d="M12.8 6.7v9.5m0-3.2c.1-2.2 1.3-3.5 3-3.5 1.8 0 2.8 1.2 2.8 3.3v3.4"
+        fill="none"
+        stroke="var(--background)"
+        strokeLinecap="round"
+        strokeWidth="2.1"
+      />
+    </svg>
+  );
+}
 
 export default function Home() {
   const structuredData = [
     {
       "@context": "https://schema.org",
       "@type": "SoftwareSourceCode",
-      codeRepository: "https://github.com/hraness/oh",
+      codeRepository: repository,
       description: "open-source tools for agentic research",
       license: "https://opensource.org/license/mit",
       name: "Oh",
@@ -126,170 +219,106 @@ export default function Home() {
         type="application/ld+json"
       />
       <a className="skip-link" href="#main">Skip to content</a>
-      <header className="site-header">
-        <a className="wordmark" href="/" aria-label="Oh home">
-          <span aria-hidden="true" className="wordmark-mark">oh</span>
-          <span className="wordmark-name">Oh</span>
-        </a>
-        <nav aria-label="Primary navigation">
-          <a href="#model">Model</a>
-          <a href="#trace">Trace</a>
-          <a href="/spec">Specification</a>
-          <a className="nav-action" href="https://github.com/hraness/oh#install-and-first-run">
-            Install
-          </a>
-        </nav>
-      </header>
+      <MarketingSiteHeader
+        action={{ href: "#install", label: "Install Oh" }}
+        brand={<><BrandMark />Oh</>}
+        brandLabel="Oh home"
+        links={navigation}
+      />
 
       <main id="main">
-        <section className="hero" aria-labelledby="hero-title">
-          <div className="hero-copy">
-            <p className="eyebrow">A local research graph your agents can inspect</p>
-            <h1 id="hero-title">open-source tools for agentic research</h1>
-            <p className="hero-lede">
-              Give agents a local path from a research question to an artifact
-              with inspectable sources, claims, citations, dependencies, and
-              a verifiable operation history.
-            </p>
-            <div className="hero-actions">
-              <a className="primary-action" href="https://github.com/hraness/oh#install-and-first-run">
-                Install and start
-              </a>
-              <a className="text-action" href="#trace">
-                Inspect the trace <span aria-hidden="true">↓</span>
-              </a>
-            </div>
-            <p className="hero-constraint">
-              <strong>Starts local.</strong> Bun 1.3.14+, no account, no model,
-              and no remote database. Semantic search and network sync remain
-              optional adapters.
-            </p>
-          </div>
-          <figure className="contract-card" aria-label="Verified local Oh first run">
-            <figcaption className="contract-topline">
-              <span>{currentVersion.contractId}</span>
-              <span className="status"><i aria-hidden="true" /> {currentVersion.status}</span>
-            </figcaption>
-            <pre><code>{`$ bun add --global @hraness/oh@0.4.0
+        <MarketingPage>
+          <ProductHero
+            actions={[
+              { href: "#install", label: "Install Oh" },
+              { href: "#trace", label: "See the trace" },
+            ]}
+            boundary={footnote}
+            example={example}
+            eyebrow="Open-source tools for agentic research"
+            frame={(
+              <MarketingProofFrame
+                caption="A fresh database: init and verify stay local and print canonical JSON."
+                credit={`${currentVersion.contractId} · ${currentVersion.status} · @hraness/oh ${releaseVersion} · captured ${capturedOn}`}
+                title="oh · first run"
+              >
+                <pre className="transcript" tabIndex={0}><code>{firstRunTranscript}</code></pre>
+              </MarketingProofFrame>
+            )}
+            heading={heading}
+            headingId="hero-title"
+            name="Oh"
+            summary={lead}
+          />
 
-$ oh init --db research.db
-$ oh contract --db research.db
-$ oh verify --db research.db
-{"head":{"generation":0,"graphRevisionSha256":null,"operationSha256":null,"recordsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","sequence":0,"v":1},"operations":0,"records":0,"sqliteIntegrity":"ok","v":1}`}</code></pre>
-            <p>Fresh database · canonical JSON · init and verify stay local</p>
-          </figure>
-        </section>
+          <MarketingStatStrip
+            ariaLabel="Runtime-backed facts"
+            source={`Counted from the ${currentVersion.contractId} contract manifest and the @hraness/oh ${releaseVersion} runtime on ${capturedOn}.`}
+            stats={stats}
+          />
 
-        <section className="proof-strip" aria-label="Runtime-backed facts">
-          <div><strong>1</strong><span>SQLite authority</span><small>local runtime</small></div>
-          <div><strong>{contract.recordKinds.length}</strong><span>Record kinds</span><small>V1 contract</small></div>
-          <div><strong>SHA-256</strong><span>Content + operations</span><small>canonical bytes</small></div>
-          <div><strong>0</strong><span>Accounts required</span><small>local path</small></div>
-        </section>
+          <MarketingPrimitives
+            heading="From a question to a research artifact."
+            headingId="model-title"
+            id="model"
+            items={researchObjects.map((object) => ({
+              label: object.label,
+              summary: object.summary,
+              example: (
+                <p className="record-kind">
+                  Record kind <code>{object.kind}</code>
+                </p>
+              ),
+            }))}
+            label="The research model"
+            summary="Oh supplies a versioned graph envelope and a small ontology kernel, so a research application can map the work people already recognize onto explicit records. An attributable assertion sits between a claim and the evidence that bears on it, and product vocabularies refine the profile through versioned schemas without changing the v1 envelope."
+          />
 
-        <section className="narrative-section object-model" id="model" aria-labelledby="model-title">
-          <div className="section-heading">
-            <div>
-              <p className="section-number">01 / Research model</p>
-              <p className="eyebrow">The objects you can inspect</p>
-            </div>
-            <div>
-              <h2 id="model-title">From a question to a research artifact.</h2>
-              <p className="section-intro">
-                Oh supplies a versioned graph envelope and a small ontology
-                kernel. A research application can map the work people already
-                recognize onto explicit records without hiding meaning in a
-                database convention.
-              </p>
-            </div>
-          </div>
-          <div className="object-grid">
-            {researchObjects.map((object) => (
-              <article key={object.label}>
-                <div className="object-topline">
-                  <span>{object.index}</span>
-                  <code>{object.kind}</code>
-                </div>
-                <h3>{object.label}</h3>
-                <p>{object.body}</p>
-              </article>
-            ))}
-          </div>
-          <p className="model-note">
-            Oh also keeps an attributable <code>assertion</code> between a claim
-            and the evidence that bears on it. Product vocabularies can refine
-            this profile through versioned schemas and codecs; they do not
-            change the V1 graph envelope.
-          </p>
-        </section>
-
-        <section className="trace-section" id="trace" aria-labelledby="trace-title">
-          <div className="trace-heading">
-            <div>
-              <p className="section-number">02 / Inspectable trace</p>
-              <p className="eyebrow">One illustrative review</p>
-            </div>
-            <div>
-              <h2 id="trace-title">Keep every recorded handoff addressable.</h2>
-              <p>
-                The keys below show one possible review profile. At the citation
-                step, the record names its claim stance and captured source
-                edition as dependencies. The digest binds the complete record.
-              </p>
-            </div>
-          </div>
-          <div className="trace-grid">
-            <ol className="trace-path" aria-label="Example research trace">
-              {traceNodes.map(([label, key]) => (
-                <li key={key}>
-                  <span>{label}</span>
-                  <code>{key}</code>
-                </li>
-              ))}
-            </ol>
-            <figure className="proof-frame">
-              <figcaption>
-                <span>CLI read · canonical JSON</span>
-                <a href="/examples/evidence-table-2.json">Open record</a>
-              </figcaption>
-              <pre><code>{`$ oh get evidence:table-2 --db research.db
+          <MarketingSection
+            heading="Every step of a review keeps its own record."
+            headingId="trace-title"
+            id="trace"
+            label="One review, traced"
+            layout="split"
+            summary="The keys below trace one possible review profile. At the citation step, the record names its claim stance and captured source edition as dependencies, and the digest binds the complete record. The append-only log behind it gives you a verifiable operation history."
+          >
+            <MarketingFlow ariaLabel="Example research trace" steps={traceSteps} />
+            <MarketingProofFrame
+              caption="An illustrative v1 record, not a claim about a real study. Its digest is checked against the public record schema in CI."
+              credit="Canonical JSON from the CLI"
+              title="oh get evidence:table-2"
+            >
+              <pre className="transcript" tabIndex={0}><code>{`$ oh get evidence:table-2 --db research.db
 ${JSON.stringify(citationRecord, null, 2)}`}</code></pre>
-              <p>
-                Illustrative V1 record, not a claim about a real study. Its
-                digest is checked against the public record schema in CI.
-              </p>
-            </figure>
-          </div>
-        </section>
+            </MarketingProofFrame>
+            <p className="record-link">
+              <a href="/examples/evidence-table-2.json">Open the record</a>
+            </p>
+          </MarketingSection>
 
-        <section className="narrative-section interfaces" id="interfaces" aria-labelledby="interfaces-title">
-          <div className="section-heading">
-            <div>
-              <p className="section-number">03 / Interfaces</p>
-              <p className="eyebrow">One graph, three surfaces</p>
-            </div>
-            <div>
-              <h2 id="interfaces-title">Use the interface your work already has.</h2>
-              <p className="section-intro">
-                The CLI, TypeScript SDK, and packaged Agent Skill operate the
-                same records and contract. There is no separate agent-only
-                authority behind the convenient surface.
-              </p>
-            </div>
-          </div>
-          <div className="interface-grid">
-            <article>
-              <div className="interface-label"><span>01</span><strong>CLI</strong></div>
-              <p>Inspect one exact record in a selected local database and space.</p>
-              <pre><code>{`$ oh get evidence:table-2 \\
+          <MarketingInterfaceGrid
+            heading="Use the interface your work already has."
+            headingId="interfaces-title"
+            id="interfaces"
+            interfaces={[
+              {
+                label: "CLI",
+                summary: "Read one record from the local database and space you select.",
+                example: (
+                  <>
+                    <pre tabIndex={0}><code>{`$ oh get evidence:table-2 \\
   --db research.db \\
   --space default`}</code></pre>
-              <a href="https://github.com/hraness/oh#install-and-first-run">Run the first task →</a>
-            </article>
-            <article>
-              <div className="interface-label"><span>02</span><strong>TypeScript SDK</strong></div>
-              <p>Read the same record through the local <code>Oh</code> facade.</p>
-              <pre><code>{`import { Oh } from "@hraness/oh/sdk";
+                    <p className="interface-link"><a href="#install">Run the first task</a></p>
+                  </>
+                ),
+              },
+              {
+                label: "TypeScript SDK",
+                summary: "Read the same record through the local Oh facade.",
+                example: (
+                  <>
+                    <pre tabIndex={0}><code>{`import { Oh } from "@hraness/oh/sdk";
 
 const oh = Oh.open({ databasePath: "research.db" });
 try {
@@ -298,127 +327,111 @@ try {
 } finally {
   await oh.close();
 }`}</code></pre>
-              <a href="https://github.com/hraness/oh#use-the-sdk">Read the SDK guide →</a>
-            </article>
-            <article>
-              <div className="interface-label"><span>03</span><strong>Agent Skill</strong></div>
-              <p>Teach a coding agent to check the contract and replay before it reads.</p>
-              <pre><code>{`oh contract
+                    <p className="interface-link"><a href="https://github.com/hraness/oh#use-the-sdk">Read the SDK guide</a></p>
+                  </>
+                ),
+              },
+              {
+                label: "Agent Skill",
+                summary: "Teach a coding agent to check the contract and replay before it reads.",
+                example: (
+                  <>
+                    <pre tabIndex={0}><code>{`oh contract
 oh verify --db research.db --space default
 oh get evidence:table-2 \\
   --db research.db --space default`}</code></pre>
-              <a href="https://github.com/hraness/oh/blob/main/skills/oh/SKILL.md">Inspect the packaged skill →</a>
-            </article>
-          </div>
-        </section>
+                    <p className="interface-link"><a href={`${repository}/blob/main/skills/oh/SKILL.md`}>Inspect the packaged skill</a></p>
+                  </>
+                ),
+              },
+            ]}
+            label="Interfaces"
+            summary="The CLI, TypeScript SDK, and packaged Agent Skill operate the same records and contract. There is no separate agent-only path behind the convenient one."
+          />
 
-        <section className="principles" id="principles" aria-labelledby="principles-title">
-          <div className="section-heading">
-            <div>
-              <p className="section-number">04 / Working model</p>
-              <p className="eyebrow">The kernel</p>
-            </div>
-            <h2 id="principles-title">Small enough to trust.<br />Complete enough to build on.</h2>
-          </div>
-          <div className="principle-grid">
-            {principles.map((principle) => (
-              <article key={principle.index}>
-                <span className="principle-index">{principle.index}</span>
-                <h3>{principle.title}</h3>
-                <p>{principle.body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
+          <MarketingTrustBoundary
+            heading="Small enough to trust. Complete enough to build on."
+            headingId="kernel-title"
+            id="kernel"
+            items={trust}
+            label="The kernel"
+            summary="Oh makes integrity and provenance mechanics inspectable. It does not turn a retrieval score, a valid digest, or an agent's output into an accepted research claim."
+          />
 
-        <section className="boundary-section" id="boundary" aria-labelledby="boundary-title">
-          <div className="boundary-intro">
-            <p className="section-number">05 / Operating boundary</p>
-            <h2 id="boundary-title">Local authority. Explicit adapters. No truth theater.</h2>
-            <p>
-              Oh makes integrity and provenance mechanics inspectable. It does
-              not turn a retrieval score, a valid digest, or an agent&apos;s output
-              into an accepted research claim.
+          <MarketingInstallPanel
+            eyebrow={`Current release · v${releaseVersion}`}
+            heading="Install and start locally."
+            headingId="install-title"
+            id="install"
+          >
+            <pre className="install-command" tabIndex={0}><code>{`bun add --global @hraness/oh@${releaseVersion}
+oh --help`}</code></pre>
+            <pre className="install-command" tabIndex={0}><code>{`oh init
+oh put --kind entity --key entity:ada-lovelace \\
+  --json '{"name":"Ada Lovelace","role":"mathematician"}'
+oh get entity:ada-lovelace
+oh search "mathematician" --mode keyword
+oh verify`}</code></pre>
+            <p className="install-note">
+              Needs Bun 1.3.14 or newer. The first task creates one entity, reads it back, finds it
+              through the keyword index, and verifies the operation chain. Oh writes to{" "}
+              <code>.oh/oh.sqlite</code> and the <code>default</code> space unless you choose another.{" "}
+              <a href="https://github.com/hraness/oh#install-and-first-run">Read the full first run on GitHub</a>.
             </p>
-          </div>
-          <div className="boundary-grid">
-            <article>
-              <span>Stays local</span>
-              <h3>Authority</h3>
-              <ul>
-                <li>SQLite records and operation log</li>
-                <li>Keyword index and replay verification</li>
-                <li>Database path and space selected by the host</li>
-              </ul>
-            </article>
-            <article>
-              <span>Opt in</span>
-              <h3>Adapters</h3>
-              <ul>
-                <li>Local semantic search through the optional QMD peer</li>
-                <li>Hosted embedding cache through an explicit profile</li>
-                <li>Remote libSQL or Turso synchronization</li>
-              </ul>
-            </article>
-            <article>
-              <span>Not delegated</span>
-              <h3>Judgment</h3>
-              <ul>
-                <li>Whether a research claim is true</li>
-                <li>How divergent histories should be reconciled</li>
-                <li>Whether working knowledge becomes canonical</li>
-              </ul>
-            </article>
-          </div>
-          <div className="compatibility-line">
-            <span><strong>Bun ≥1.3.14</strong> CLI, local SDK, SQLite</span>
-            <span><strong>Node 24</strong> runtime-neutral store, direct libSQL</span>
-            <span><strong>No required runtime dependencies</strong> base package</span>
-          </div>
-        </section>
+          </MarketingInstallPanel>
 
-        <section className="narrative-section questions" id="questions" aria-labelledby="questions-title">
-          <div className="section-heading">
-            <div>
-              <p className="section-number">06 / Questions</p>
-              <p className="eyebrow">Before you install</p>
-            </div>
-            <h2 id="questions-title">The careful-reader answers.</h2>
-          </div>
-          <div className="question-list">
-            {questions.map(({ answer, question }, index) => (
-              <details key={question}>
-                <summary><span>{String(index + 1).padStart(2, "0")}</span>{question}</summary>
-                <p>{answer}</p>
-              </details>
-            ))}
-          </div>
-        </section>
+          <MarketingQuestionList
+            heading="Before you install."
+            headingId="questions-title"
+            id="questions"
+            label="Questions"
+            questions={questions.map(({ answer, question }) => ({
+              answer: <p>{answer}</p>,
+              question,
+            }))}
+          />
 
-        <section className="product-cta" aria-labelledby="cta-title">
-          <div>
-            <p className="eyebrow">Start with one local graph</p>
-            <h2 id="cta-title">Ask one question. Keep the evidence.</h2>
-            <p>Bun 1.3.14+ · MIT licensed · no account required for local use</p>
-          </div>
-          <div className="cta-actions">
-            <a className="primary-action" href="https://github.com/hraness/oh#install-and-first-run">
-              Install @hraness/oh
-            </a>
-            <a className="text-action" href="/spec">Read the V1 specification →</a>
-          </div>
-        </section>
+          <MarketingMaker
+            heading="Built by Ben Guo"
+            headingId="maker-title"
+            id="maker"
+            label="The maker"
+            links={[
+              { href: "https://hraness.com", label: "hraness.com" },
+              { href: "https://x.com/hraness", label: "@hraness" },
+              { href: repository, label: "GitHub" },
+            ]}
+          >
+            <p>
+              Oh is built by Ben Guo, a musician and builder, formerly a founder and engineering
+              leader at companies including Venmo and Stripe, now building from Puerto Rico. Oh is
+              his open-source kernel for research done with agents, published by Hraness under the
+              MIT license.
+            </p>
+          </MarketingMaker>
+
+          <MarketingCallToAction
+            actions={[
+              { href: "#install", label: "Install Oh" },
+              { href: "/spec", label: "Read the v1 specification" },
+            ]}
+            footnote={footnote}
+            heading="Ask one question. Keep the evidence."
+            headingId="cta-title"
+            summary="Install the CLI, create one local database, and let your agent write records you can open later."
+          />
+        </MarketingPage>
       </main>
 
       <AskAiAboutThis className="ask-ai" url="https://oh.computer" />
 
-      <footer>
+      <footer className="site-footer">
         <p>Oh is open source for researchers and the agents working beside them.</p>
-        <div>
+        <nav aria-label="Project links">
           <a href="/spec">Ontology v1</a>
-          <a href="https://github.com/hraness/oh">hraness/oh</a>
+          <a href={repository}>hraness/oh</a>
           <a href="https://hraness.com/projects">Hraness projects</a>
-        </div>
+        </nav>
       </footer>
     </>
   );

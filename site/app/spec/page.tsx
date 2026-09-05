@@ -1,3 +1,4 @@
+import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
 import { AskAiAboutThis } from "@hraness/ui";
 import type { Metadata } from "next";
 import contract from "../../public/spec/v1/contract.json";
@@ -52,17 +53,17 @@ export default function Specification() {
   return (
     <>
       <a className="skip-link" href="#spec-main">Skip to specification</a>
-      <header className="site-header">
-        <a className="wordmark" href="/" aria-label="Oh home">
-          <span aria-hidden="true" className="wordmark-mark">oh</span>
-          <span className="wordmark-name">Oh</span>
-        </a>
-        <nav aria-label="Specification navigation">
-          <a href="/">Overview</a>
-          <a aria-current="page" href="/spec">Specification</a>
-          <a href="https://github.com/hraness/oh">GitHub</a>
-        </nav>
-      </header>
+      <MarketingSiteHeader
+        action={{ href: "/#install", label: "Install Oh" }}
+        ariaLabel="Specification navigation"
+        brand="Oh"
+        brandLabel="Oh home"
+        links={[
+          { href: "/", label: "Overview" },
+          { current: true, href: "/spec", label: "Specification" },
+          { href: "https://github.com/hraness/oh", label: "GitHub" },
+        ]}
+      />
 
       <main className="spec-shell" id="spec-main">
         <aside className="spec-nav" aria-label="On this page">
@@ -281,8 +282,8 @@ export default function Specification() {
                 edited in place.
               </p>
               <div className="spec-actions">
-                <a className="primary-action" href="/spec/manifest.json">Specification manifest</a>
-                <a className="text-action" href="https://github.com/hraness/oh/tree/main/spec">Source files ↗</a>
+                <a className="hraness-marketing-action" data-emphasis="primary" href="/spec/manifest.json">Specification manifest</a>
+                <a className="hraness-marketing-action" data-emphasis="secondary" href="https://github.com/hraness/oh/tree/main/spec">Source files</a>
               </div>
             </div>
           </section>

@@ -15,21 +15,23 @@ describe("evidence-led product narrative", () => {
   test("moves from result through proof, model, interfaces, boundary, questions, and action", async () => {
     const page = await read("site/app/page.tsx");
     const landmarks = [
-      'className="hero"',
-      'className="proof-strip"',
+      "<ProductHero",
+      "<MarketingStatStrip",
       'id="model"',
       'id="trace"',
       'id="interfaces"',
-      'id="boundary"',
+      'id="kernel"',
+      'id="install"',
       'id="questions"',
-      'className="product-cta"',
+      'id="maker"',
+      "<MarketingCallToAction",
     ];
     const positions = landmarks.map((landmark) => page.indexOf(landmark));
 
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((left, right) => left - right));
-    expect(page).toContain("A local research graph your agents can inspect");
-    expect(page).toContain("Fresh database · canonical JSON · init and verify stay local");
+    expect(page).toContain('const heading = "A research graph your agents can inspect"');
+    expect(page).toContain("init and verify stay local and print canonical JSON");
     expect(page).toContain('"@type": "FAQPage"');
   });
 
@@ -52,7 +54,7 @@ describe("evidence-led product narrative", () => {
       expect(page).toContain(`kind: "${kind}"`);
       expect(readme).toContain(`| ${label} | \`${kind}\``);
     }
-    expect(page).toContain("an attributable <code>assertion</code>");
+    expect(page).toContain("An attributable assertion sits between a claim and the evidence that bears on it");
     expect(readme).toContain("An attributable `assertion`");
     expect(readme).toContain("https://oh.computer/#trace");
   });
@@ -97,7 +99,10 @@ describe("evidence-led product narrative", () => {
       version: string;
     }>;
 
-    expect(page).toContain(`bun add --global @hraness/oh@${packageJson.version}`);
+    expect(page).toContain('import ohPackage from "../../package.json"');
+    expect(page).toContain("const releaseVersion = ohPackage.version;");
+    expect(page).toContain("bun add --global @hraness/oh@${releaseVersion}");
+    expect(packageJson.version).toMatch(/^\d+\.\d+\.\d+$/u);
     expect(page).toContain('import { Oh } from "@hraness/oh/sdk"');
     expect(page).toContain("oh contract");
     expect(page).toContain("oh verify --db research.db --space default");
@@ -105,18 +110,20 @@ describe("evidence-led product narrative", () => {
     expect(skill).toContain("oh verify --db .oh/oh.sqlite --space default");
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.dependencies).toBeUndefined();
-    expect(page).toContain("No required runtime dependencies");
+    expect(page).toMatch(/no required runtime dependencies/iu);
   });
 
   test("carries the shared responsive and accessibility contract in product-owned CSS", async () => {
     const css = await read("site/app/globals.css");
 
+    expect(css).toContain('@import "@hraness/design-kit/product-marketing.css"');
     expect(css).toContain('overflow-x: clip');
-    expect(css).toContain('a:focus-visible { outline: 3px solid var(--accent)');
+    expect(css).toContain('a:focus-visible {\n  outline: 2px solid var(--hraness-site-accent)');
     expect(css).toContain('@media (pointer: coarse)');
-    expect(css).toContain('min-height: 48px');
+    expect(css).toContain('min-height: 3rem');
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(css).toContain('@media (prefers-color-scheme: dark)');
     expect(css).toContain('font-family: var(--font-text)');
-    expect(css).toContain('font-family: Georgia, "Times New Roman", serif');
+    expect(css).not.toMatch(/Georgia|Times New Roman/u);
   });
 });
