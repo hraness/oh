@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 // catches an export that accidentally makes Bun-only modules reachable.
 const store = await import("@hraness/oh/store");
 const libsql = await import("@hraness/oh/libsql");
-const memory = await import("@hraness/oh/experimental/memory");
+const memory = await import("@hraness/oh/memory");
+const memoryCompatibility = await import("@hraness/oh/experimental/memory");
 const memoryPage = await import("@hraness/oh/memory-page");
 const projection = await import("@hraness/oh/projection");
 const semanticCloud = await import("@hraness/oh/semantic-cloud");
@@ -17,6 +18,14 @@ assert.equal(typeof libsql.openExistingOhLibSqlStoreAuthorityV1, "function");
 assert.equal(typeof libsql.purgeOhLibSqlWorkingSpaceV1, "function");
 assert.equal(typeof memory.createOhMemoryAgentV1, "function");
 assert.equal(typeof memory.createOhMemoryAgentV2, "function");
+assert.equal(typeof memory.createOhMemoryAuthorityV1, "function");
+assert.equal(memory.OH_MEMORY_AUTHORITY_LIMITS_V1.adoptionReplacements, 128);
+assert.equal(typeof memory.OhMemoryContinuationError, "function");
+assert.equal(
+  memoryCompatibility.OhMemoryContinuationError,
+  memory.OhMemoryContinuationError,
+);
+assert.equal(memoryCompatibility.createOhMemoryAuthorityV1, memory.createOhMemoryAuthorityV1);
 assert.equal(typeof memoryPage.createOhMemoryPageRecordV1, "function");
 assert.equal(typeof memoryPage.parseOhMemoryPageMarkdownV1, "function");
 assert.equal(typeof semanticCloud.OhCloudflareEmbeddingClientV1, "function");
@@ -117,3 +126,40 @@ assert.equal(resultV2.page.hasMore, false);
 assert.equal(resultV2.continuation, null);
 assert.equal(resultV2.continuationSha256, null);
 assert.deepEqual(resultV2.rows, []);
+await assert.rejects(agentV2.query({
+  bindings: { key: "entity:portable", lane: "working" },
+  continuation: 42,
+  programId: "memory.node-visible-v2",
+  v: 2,
+}), (error) => error instanceof memory.OhMemoryContinuationError
+  && error.code === "memory-continuation"
+  && error.reason === "encoding");
+
+const authority = await memory.createOhMemoryAuthorityV1({
+  actorId: "node.memory-agent-v2",
+  adoptionActorId: "node.memory-reviewer",
+  canonical: { authorityId: "node.canonical-v2",
+    expectedBindingSha256: canonicalStore.binding.bindingSha256,
+    expectedHead: await canonicalStore.head(), store: canonicalStore },
+  continuationKey: new Uint8Array(32).fill(1),
+  monotonicNow: () => 0,
+  now: () => new Date("2026-08-29T12:00:00.000Z"),
+  programs: [{
+    evaluation: { maximumDerivedTuples: 100, maximumProofDepth: 16,
+      maximumProofNodes: 16, maximumResultBytes: 1024 * 1024, maximumRounds: 16,
+      maximumTotalProofNodes: 100, maximumWorkUnits: 10_000 },
+    maximumPageBytes: 256 * 1024,
+    maximumRows: 10,
+    pageSize: 5,
+    parameters: ["key", "lane"],
+    programId: "memory.node-visible-v2",
+    purpose: "node.portability-v2",
+    query: queryV2,
+    rulePack,
+    v: 2,
+  }],
+  working: { authorityId: "node.working-v2", codecs: new store.OhRecordCodecRegistry(),
+    expectedBindingSha256: workingStore.binding.bindingSha256, store: workingStore },
+});
+assert.deepEqual(Object.keys(authority.agent).sort(), ["explain", "nominate", "query", "remember"]);
+assert.deepEqual(Object.keys(authority.host).sort(), ["adoptNomination", "advanceCanonical"]);

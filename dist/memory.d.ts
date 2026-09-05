@@ -3,10 +3,13 @@ import { type JsonPrimitive, type Sha256Hex } from "./canonical";
 import { type OhRecordCodecRegistry } from "./contract";
 import { type KnowledgeGraphRecordV1 } from "./graph";
 import { type OhProjectionAtomV1, type OhProjectionEvaluationOptionsV1, type OhProjectionQueryV1, type OhProjectionRulePackV1 } from "./projection";
-import { type OhDependencyClosureV1, type OhHeadV1, type OhStoreV1 } from "./store";
+import { OhConflictError, OhIntegrityError, type OhDependencyClosureV1, type OhHeadV1, type OhStoreV1 } from "./store";
 export declare const OH_MEMORY_FORMAT_VERSION_V1: 1;
 export declare const OH_MEMORY_CONFLICT_POLICY_V1: "visible-conflicts.v1";
 export declare const OH_MEMORY_LIMITS_V1: Readonly<{
+    detachedCanonicalBreadth: 65536;
+    detachedCanonicalDepth: 128;
+    detachedCanonicalNodes: 1048576;
     explainCapabilityEntryBytes: number;
     explainCapabilities: 256;
     explainCapabilityLifetimeMs: number;
@@ -223,7 +226,7 @@ export interface OhMemoryAgentV1 {
     query(value: unknown): Promise<OhMemoryQueryResultV1>;
     remember(value: unknown): Promise<OhMemoryRememberReceiptV1>;
 }
-/** Additive experimental query/pagination limits; V1 contracts are unchanged. */
+/** Additive query and pagination limits; V1 contracts are unchanged. */
 export declare const OH_MEMORY_QUERY_LIMITS_V2: Readonly<{
     bindingBytes: number;
     bindings: 32;
@@ -330,6 +333,13 @@ export type OhMemoryQueryResultV2 = Readonly<{
     rows: readonly OhMemoryResultRowV2[];
     v: 2;
 }>;
+export type OhMemoryContinuationErrorReasonV2 = "authentication" | "encoding" | "identity";
+/** A caller-supplied V2 continuation cannot be decoded, authenticated, or rebound exactly. */
+export declare class OhMemoryContinuationError extends OhIntegrityError {
+    readonly code: "memory-continuation";
+    readonly reason: OhMemoryContinuationErrorReasonV2;
+    constructor(reason: OhMemoryContinuationErrorReasonV2, message: string);
+}
 export type OhMemoryExplanationV2 = Readonly<{
     authority: "derived";
     explanationSha256: Sha256Hex;
@@ -352,16 +362,86 @@ export interface OhMemoryAgentV2 {
     query(value: unknown): Promise<OhMemoryQueryResultV2>;
     remember(value: unknown): Promise<OhMemoryRememberReceiptV1>;
 }
+export declare const OH_MEMORY_AUTHORITY_LIMITS_V1: Readonly<{
+    adoptionReplacements: 128;
+    adoptionRequestBytes: number;
+    canonicalAdvanceOperations: 16384;
+    canonicalAdvancePages: 64;
+    canonicalChangeFeedPage: 1000;
+    canonicalChangeFeedPageBytes: number;
+    retainedExplanationRoutes: 256;
+    reportedAdoptionConflicts: 128;
+}>;
+export type OhMemoryCanonicalAdvanceReceiptV1 = Readonly<{
+    authorityId: string;
+    bindingSha256: Sha256Hex;
+    head: OhHeadV1;
+    priorHead: OhHeadV1;
+    receiptSha256: Sha256Hex;
+    status: "advanced" | "unchanged";
+    v: 1;
+}>;
+export type OhMemoryAdoptionConflictEntryV1 = Readonly<{
+    canonicalRecordSha256: Sha256Hex | null;
+    key: string;
+    nominatedRecordSha256: Sha256Hex;
+    v: 1;
+}>;
+/** Host-only compare-and-swap evidence for one intentional canonical replacement. */
+export type OhMemoryAdoptionReplacementV1 = Readonly<{
+    expectedPriorRecordSha256: Sha256Hex;
+    key: string;
+    v: 1;
+}>;
+export type OhMemoryAdoptionConflictV1 = Readonly<{
+    actualHead: OhHeadV1;
+    conflicts: readonly OhMemoryAdoptionConflictEntryV1[];
+    conflictsSha256: Sha256Hex;
+    expectedHead: OhHeadV1;
+    reportedConflicts: number;
+    totalConflicts: number;
+    truncated: boolean;
+    v: 1;
+}>;
+export declare class OhMemoryAdoptionConflictError extends OhConflictError {
+    readonly conflict: OhMemoryAdoptionConflictV1;
+    constructor(conflict: OhMemoryAdoptionConflictV1);
+}
+export type OhMemoryAdoptionReceiptV1 = Readonly<{
+    actorId: string;
+    authorityId: string;
+    bindingSha256: Sha256Hex;
+    head: OhHeadV1;
+    nominationSha256: Sha256Hex;
+    operationSha256: Sha256Hex | null;
+    priorHead: OhHeadV1;
+    receiptSha256: Sha256Hex;
+    status: "adopted" | "already-present";
+    v: 1;
+}>;
+export interface OhMemoryHostControlV1 {
+    adoptNomination(value: unknown): Promise<OhMemoryAdoptionReceiptV1>;
+    advanceCanonical(value: unknown): Promise<OhMemoryCanonicalAdvanceReceiptV1>;
+}
+export type OhMemoryAuthorityV1 = Readonly<{
+    agent: OhMemoryAgentV2;
+    host: OhMemoryHostControlV1;
+}>;
+export type OhMemoryAuthorityOptionsV1 = OhMemoryFacadeOptionsV2 & Readonly<{
+    adoptionActorId: string;
+}>;
+export declare function parseOhMemoryNominationV1(value: unknown): OhMemoryNominationV1 | null;
 /**
  * Creates a model-facing memory surface over two host-bound physical Oh
  * authorities. The returned object has no store, locator, rule, sync, canonical
  * write, or purge handle.
  */
 export declare function createOhMemoryAgentV1(options: OhMemoryFacadeOptionsV1): Promise<OhMemoryAgentV1>;
-/**
- * Creates the additive V2 memory facade. V2 adds only host-declared primitive
- * bindings and fail-closed stable pagination; V1 request and digest contracts
- * remain untouched.
- */
 export declare function createOhMemoryAgentV2(options: OhMemoryFacadeOptionsV2): Promise<OhMemoryAgentV2>;
+/**
+ * Creates the stable two-lane memory boundary. The agent object carries no
+ * canonical mutation handle; trusted host code retains serialized rollover and
+ * reviewed adoption controls separately.
+ */
+export declare function createOhMemoryAuthorityV1(options: OhMemoryAuthorityOptionsV1): Promise<OhMemoryAuthorityV1>;
 //# sourceMappingURL=memory.d.ts.map

@@ -21,7 +21,7 @@ binds these versions:
 | Hosted semantic cache V1 | `oh.cloudflare.embeddinggemma.v1` |
 | Hosted semantic cache V2 | `oh.semantic-cloud.v2` |
 | Projection semantics | `oh.projection.positive-datalog.v1` |
-| Composite memory | `experimental v1` |
+| Composite memory | `stable V1 authority over V2 query` |
 | Memory page | `oh.memory-page.v1` |
 
 ## V1 documents
@@ -37,7 +37,7 @@ binds these versions:
 - [Hosted semantic cache](v1/semantic-cloud.md)
 - [Isolated hosted semantic cache V2](v2/semantic-cloud.md)
 - [Derived projections](v1/projection.md)
-- [Experimental composite agent memory](v1/memory.md)
+- [Composite agent memory](v1/memory.md)
 - [Memory pages and `.oh.md` interchange](v1/memory-page.md)
 - [Compatibility and migration](v1/migration.md)
 

@@ -235,21 +235,29 @@ export default function Specification() {
             <div>
               <h2>Composite agent memory</h2>
               <p>
-                One experimental facade composes a separately governed working
-                authority with one exact canonical head. Host-purposed named
-                programs see lane-tagged facts, visible conflicts, exact
+                One stable host-bound facade composes a separately governed
+                working authority with one exact canonical head. Host-purposed
+                named programs see lane-tagged facts, visible conflicts, exact
                 physical authority and extractor digests, and bounded proofs
                 without receiving store locators or canonical mutation handles.
                 The additive V2 facade lets a host declare primitive query-body
                 parameters and stable bounded pages. Its authenticated bearer
                 cursors fail if the physical heads, program, bindings, or
                 complete result change; a stable host key carries exact cursors
-                across facade reconstruction.
+                across facade reconstruction. Explanation evidence shares one
+                bounded cache and clock guard across canonical rollover.
               </p>
               <p className="callout">
                 Working nominations are verified dependency-closure proposals.
-                Review and durable adoption remain destination-owned operations;
-                a derived result never promotes itself.
+                The separate host control re-exports each proposal and adopts
+                absent records through one compare-and-swap operation. A
+                different canonical digest fails closed unless trusted host
+                code names the exact logical key and exact reviewed prior
+                digest; stale or partial replacement claims cannot write.
+                Prospective snapshots over the lane limits also fail closed. It
+                reconciles the physical head after the commit, so a replay
+                cannot install an obsolete head. A derived result never
+                promotes itself.
               </p>
               <p>
                 The stable memory-page profile carries bounded Markdown,

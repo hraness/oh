@@ -62,7 +62,7 @@ not a claim about a real study.
 - **Derive without silently asserting.** Positive recursive rules run against
   one exact graph head and fact-pack digest. Their tuples and bounded proofs
   are deterministic, disposable output rather than accepted graph records.
-- **Remember without conflating authority.** An experimental facade composes a
+- **Remember without conflating authority.** A stable host-bound facade composes a
   purgeable working authority with one pinned canonical head while preserving
   lane, conflict, record, and proof provenance.
 
@@ -74,16 +74,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact current release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.3.2
+bun add --global @hraness/oh@0.4.0
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.3.2),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.4.0),
 including the mirrored
-[`hraness-oh-0.3.2.tgz`](https://github.com/hraness/oh/releases/download/v0.3.2/hraness-oh-0.3.2.tgz)
+[`hraness-oh-0.4.0.tgz`](https://github.com/hraness/oh/releases/download/v0.4.0/hraness-oh-0.4.0.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.3.2/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.4.0/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -141,7 +141,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.3.2"
+    "@hraness/oh": "0.4.0"
   }
 }
 ```
@@ -189,8 +189,9 @@ the local `Oh` facade, `@hraness/oh/sync` for transport seams,
 `@hraness/oh/semantic-cloud` for the Cloudflare EmbeddingGemma plus direct
 libSQL derived-cache adapter. Use the narrow stable `@hraness/oh/memory-page`
 entrypoint for model-neutral page records and `.oh.md` interchange. The
-`@hraness/oh/experimental/memory` subpath composes host-bound working and
-canonical stores behind a smaller agent-facing surface.
+stable `@hraness/oh/memory` subpath composes host-bound working and canonical
+stores behind separate agent and host-control surfaces. The former
+`@hraness/oh/experimental/memory` path remains as a compatibility alias.
 
 ## Open a scoped working store
 
@@ -255,17 +256,22 @@ exact snapshot, change-feed, codec ingress, closure, and purge behavior.
 
 ## Compose working and canonical memory
 
-The experimental memory facade uses the same Oh kernel twice, not a separate
-memory database model. Trusted host code supplies two distinct physical store
-handles, their expected binding digests, one exact canonical head, sealed
-working codecs, digest-identified fact extractors, and a closed registry of
-named projection programs:
+The stable `@hraness/oh/memory` entrypoint uses the same Oh kernel twice, not a
+separate memory database model. Trusted host code supplies two distinct
+physical store handles, their expected binding digests, one exact canonical
+head, sealed working codecs, digest-identified fact extractors, and closed
+registries of named projection programs and nomination routes.
+
+Use `createOhMemoryAuthorityV1` for an application integration. It returns an
+`agent` object with only `remember`, `query`, `explain`, and `nominate`, plus a
+separate `host` object for canonical-head rollover and reviewed adoption:
 
 ```ts
-import { createOhMemoryAgentV1 } from "@hraness/oh/experimental/memory";
+import { createOhMemoryAuthorityV1 } from "@hraness/oh/memory";
 
-const memory = await createOhMemoryAgentV1({
+const memory = await createOhMemoryAuthorityV1({
   actorId: "research.memory-agent",
+  adoptionActorId: "research.memory-reviewer",
   canonical: {
     authorityId: "project-reviewed",
     expectedBindingSha256: canonical.store.binding.bindingSha256,
@@ -276,12 +282,7 @@ const memory = await createOhMemoryAgentV1({
     destinationPurpose: "kb.review",
     nominationId: "knowledge-review",
   }],
-  programs: [{
-    programId: "project.dependencies",
-    purpose: "answer.research",
-    query,
-    rulePack,
-  }],
+  programs: [projectDependenciesProgramV2],
   working: {
     authorityId: "thread-working",
     codecs,
@@ -290,97 +291,79 @@ const memory = await createOhMemoryAgentV1({
   },
 });
 
-const result = await memory.query({
+const result = await memory.agent.query({
+  bindings: {},
+  continuation: null,
   programId: "project.dependencies",
+  v: 2,
+});
+
+const nomination = await memory.agent.nominate({
+  nominationId: "knowledge-review",
+  roots: ["edition:reviewed-summary"],
+  v: 1,
+});
+await memory.host.adoptNomination({
+  expectedCanonicalHead: result.identity.canonical.head,
+  nomination,
+  v: 1,
+});
+
+// To replace an existing key, trusted host code must prove the reviewed
+// canonical digest. Omit replacements to retain strict insert-only adoption.
+await memory.host.adoptNomination({
+  expectedCanonicalHead: reviewedCanonicalHead,
+  nomination: revisedNomination,
+  replacements: [{
+    expectedPriorRecordSha256: reviewedRecord.recordSha256,
+    key: reviewedRecord.key,
+    v: 1,
+  }],
   v: 1,
 });
 ```
 
-When the model must bind a small set of values and traverse a larger result,
-use the additive V2 factory. The host still owns the query and rules. It names
-only query-body variables as parameters and fixes every evaluation, row, page,
-and page-byte limit before exposing the agent object:
+`adoptNomination` parses the complete proposal, checks its host-selected route
+and working authority, and re-exports the closure from the exact nominated
+working head. An absent record is inserted, an equal digest is already present,
+and a different digest fails closed by default. Trusted host code can authorize
+an intentional replacement only by naming the logical key and its exact
+reviewed prior digest in a bounded `replacements` list. Missing, stale, wrong,
+duplicate, or absent-key claims fail without a partial write. Every supplied
+claim is checked, including claims for keys already at their nominated digest;
+an exact replay validates those claims against its exact reviewed head. The
+inserts and authorized replacements share one compare-and-swap operation; the existing
+parent-head and record-change bytes carry the transition without a new persisted
+format. Before that commit, the authority proves that the prospective canonical
+snapshot stays within 8,192 records and 32 MiB. After it, the authority re-reads
+the physical head, so a reachable duplicate operation or a later writer cannot
+make it install an obsolete intermediate head. A stale expected head succeeds
+only when the current physical snapshot contains every nominated digest exactly.
 
-```ts
-import { createOhMemoryAgentV2 } from "@hraness/oh/experimental/memory";
+`advanceCanonical` moves the facade's pin only from its current exact head to
+the same head or a proven descendant in the bound canonical operation chain.
+One call proves at most 16,384 operations over at most 64 bounded pages; callers
+must advance longer histories in reviewed chunks. Host mutations are
+serialized. A query already in flight keeps the immutable pin it captured,
+existing explanation capabilities survive rollover in one shared 64 MiB cache,
+and an old continuation fails when the memory identity changes.
 
-const memoryV2 = await createOhMemoryAgentV2({
-  actorId: "research.memory-agent",
-  canonical: {
-    authorityId: "project-reviewed",
-    expectedBindingSha256: canonical.store.binding.bindingSha256,
-    expectedHead: await canonical.store.head(),
-    store: canonical.store,
-  },
-  extractors: [valueChunkExtractor],
-  programs: [{
-    evaluation: {
-      maximumDerivedTuples: 8_192,
-      maximumProofDepth: 32,
-      maximumProofNodes: 1_024,
-      maximumResultBytes: 8 * 1024 * 1024,
-      maximumRounds: 64,
-      maximumTotalProofNodes: 16_384,
-      maximumWorkUnits: 1_000_000,
-    },
-    maximumPageBytes: 1024 * 1024,
-    maximumRows: 4_096,
-    pageSize: 128,
-    parameters: ["key", "lane"],
-    programId: "memory.value-chunks",
-    purpose: "answer.memory",
-    query: valueChunkQuery,
-    rulePack: valueChunkRules,
-    v: 2,
-  }],
-  working: {
-    authorityId: "thread-working",
-    codecs,
-    expectedBindingSha256: working.store.binding.bindingSha256,
-    store: working.store,
-  },
-});
+Every stable method snapshots unknown JSON input through data-property
+descriptors before validation. Accessors, symbols, proxies, sparse arrays, and
+non-JSON values fail closed, and execution uses only the detached bytes. The
+snapshot walk is capped at 128 levels, 65,536 entries per container, and
+1,048,576 total nodes, and counts canonical bytes before it clones each child.
 
-let continuation: string | null = null;
-do {
-  const page = await memoryV2.query({
-    bindings: { key: "entity:research", lane: "working" },
-    continuation,
-    programId: "memory.value-chunks",
-    v: 2,
-  });
-  continuation = page.continuation;
-} while (continuation !== null);
-```
-
-V2 evaluates one complete bounded result before paging it. Any projection row
-or byte truncation returns no page. A continuation is an authenticated bearer
-cursor that binds its offset to the exact physical heads, program, bindings,
-projection result, page size, and row count, so a working-head change fails
-instead of mixing snapshots. Pass it back only to the same exact named query;
-do not synthesize, edit, or log it.
-
-The factory generates a random continuation key by default, which makes a
-cursor valid only for that agent instance. If the host reconstructs agents or
-routes queries across replicas, pass the same host-owned 32 through 64 byte
-`Uint8Array` as `continuationKey`. The factory clones it; key rotation
-invalidates outstanding cursors. The result publishes a deterministic
-`continuationSha256` separately, and `resultSha256` commits that digest rather
-than the opaque key-dependent token.
-
-The returned object has only `remember`, `query`, `explain`, and `nominate`.
-The host fixes the working actor, each program purpose, and every nomination
-destination before exposing those methods. `remember` accepts an idempotency
-request plus semantic changes and returns a locator-free working-lane receipt;
-it does not accept caller-supplied actor or time claims. The object cannot
-select a store, install a rule, write canonical knowledge, sync, or purge.
-Query identity binds both exact physical lanes and all projection policy;
-conflicting same-key records remain visible. Explanation requires a bounded,
-short-lived opaque capability bound to the exact result. Nomination chooses
-only a host-registered route and creates a verified working dependency-closure
-proposal; it never promotes it. Read the
-[experimental memory specification](spec/v1/memory.md) for the complete
-authority and lifecycle boundary.
+V2 evaluates one complete bounded result before paging it. Agent input may bind
+only host-declared primitive query-body parameters; it cannot choose sources,
+rules, purpose, page size, or evaluation limits. Pass an issued continuation
+back unchanged only to the same named query and do not log it. Catch
+`OhMemoryContinuationError` when a supplied cursor needs to be restarted; its
+`reason` distinguishes encoding, authentication, and exact-identity failures.
+Other store and projection failures keep their original types. The compatibility
+alias `@hraness/oh/experimental/memory` remains available, but new integrations
+should use `@hraness/oh/memory`. Read the [memory specification](spec/v1/memory.md)
+for the complete authority, conflict, pagination, and lifecycle boundary.
 
 ## Use a memory page or `.oh.md` file
 
@@ -703,9 +686,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.3.2 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.3.2 Release at
-https://github.com/hraness/oh/releases/tag/v0.3.2. Verify the CLI with
+Install @hraness/oh@0.4.0 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.4.0 Release at
+https://github.com/hraness/oh/releases/tag/v0.4.0. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

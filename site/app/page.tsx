@@ -170,7 +170,7 @@ export default function Home() {
               <span>{currentVersion.contractId}</span>
               <span className="status"><i aria-hidden="true" /> {currentVersion.status}</span>
             </figcaption>
-            <pre><code>{`$ bun add --global @hraness/oh@0.3.2
+            <pre><code>{`$ bun add --global @hraness/oh@0.4.0
 
 $ oh init --db research.db
 $ oh contract --db research.db

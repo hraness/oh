@@ -45,11 +45,20 @@ problem that has already been fixed there.
 - Store profiles are host control metadata. V1 operation digests do not attest
   to that profile, and callers with raw database or filesystem access remain
   outside the profile API boundary.
-- The experimental memory facade is an in-process capability boundary, not a
+- The stable memory authority is an in-process capability boundary, not a
   tenant authenticator or sandbox. The host must bind its canonical and working
   store handles, enforce tenant and session authorization before every call,
   keep raw credentials and purge handles out of model tools, and never reuse a
-  facade across authorization domains.
+  facade across authorization domains. Give a model only the four-method
+  `agent` object; the separate `host` object can advance canonical knowledge and
+  must remain in trusted control-plane code.
+- Stable memory requests and bound-store responses are copied once through
+  recursive data-property descriptors. Accessors, symbols, proxies, sparse
+  arrays, and non-JSON values fail closed; parsers, byte limits, digests, and
+  execution consume only the same detached graph. The walk is bounded to 128
+  levels, 65,536 entries per container, and 1,048,576 total nodes, and accounts
+  canonical bytes incrementally. Do not treat this validation as a sandbox for
+  host callbacks or physical store implementations.
 - Memory fact extractors are trusted host code. They receive complete record
   values, and their declared digest identifies policy but does not sandbox,
   authenticate, or attest to a JavaScript function. Review extractors as code,
@@ -59,9 +68,24 @@ problem that has already been fixed there.
   outside the evaluator's resource guarantees.
 - Explanation tokens are short-lived, process-local bearer capabilities bound
   to one exact result. They can explain multiple rows until expiry or eviction;
-  the process keeps a bounded aggregate evidence cache. Do not log, persist,
-  share across tenants, or treat them as evidence that a caller may read either
-  underlying store.
+  every canonical generation shares one bounded aggregate evidence cache and
+  clock guard. Do not log, persist, share across tenants, or treat them as
+  evidence that a caller may read either underlying store.
+- `OhMemoryContinuationError` identifies only malformed, unauthenticated, or
+  exact-identity-mismatched caller cursors. Do not catch it as a substitute for
+  handling store integrity, projection, extractor, or availability failures;
+  those retain their original error types.
+- Canonical adoption applies the 8,192-record and 32 MiB lane limits to the
+  prospective snapshot before its only compare-and-swap, then reconciles the
+  returned operation with the current physical head. Duplicate operation IDs
+  and concurrent later writes cannot roll the facade back to an intermediate
+  head. Canonical replacement is host-only and requires both the exact reviewed
+  canonical head and the exact prior record digest for every replaced logical
+  key. Omitted, stale, wrong, duplicate, and absent-key claims fail closed; the
+  API validates even claims for already-equal keys, and exact replays bind them
+  back to the request's reviewed head. It does not auto-merge or use
+  last-write-wins. Advance longer than 16,384 operations in explicit reviewed
+  chunks.
 - Composite query rows remain derived even when all visible premises are
   canonical. A prepared nomination is content-addressed transport for a later
   destination-owned review; it is not approval, synchronization, or permission

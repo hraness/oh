@@ -14,13 +14,16 @@ bypass actors, and must read back `current_user_can_bypass=never`. This is a
 provider prerequisite; the workflow never weakens or rewrites it.
 
 Before creating any stable tag, an owner with repository-administration read
-access must save bounded JSON containing the repository readback and expanded
-ruleset readbacks, then run `bun run release:preflight -- ADMIN_READBACK.json`.
-The command fails unless immutable Releases are enabled and there is exactly one
-active, no-bypass `refs/tags/v*` ruleset containing only update and deletion
-restrictions. The tag workflow token intentionally lacks administration access,
-so this pre-tag admin readback cannot be weakened or substituted by the
-publication workflow.
+access must save bounded JSON containing the repository readback, the separate
+`GET /repos/hraness/oh/immutable-releases` readback, and expanded ruleset
+readbacks under the keys `repository`, `immutableReleases`, and `rulesets`, then
+run `bun run release:preflight -- ADMIN_READBACK.json`. Use GitHub REST API
+version `2026-03-10` for the immutable-Releases request. The command fails unless
+the dedicated readback proves both `enabled: true` and `enforced_by_owner: true`,
+and there is exactly one active, no-bypass `refs/tags/v*` ruleset containing only
+update and deletion restrictions. The tag workflow token intentionally lacks
+administration access, so this pre-tag admin readback cannot be weakened or
+substituted by the publication workflow.
 
 ## One-time npm coordinate bootstrap
 
