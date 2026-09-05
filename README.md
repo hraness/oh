@@ -728,6 +728,139 @@ The JSON Schemas describe exchange envelopes. Runtime parsers additionally
 enforce canonical ordering, byte limits, referential integrity, and digest
 preimages that JSON Schema cannot express.
 
+## Benchmark memory
+
+The checkout includes three separate measurements: typed memory-state
+correctness, evidence retrieval from public conversations, and an opt-in
+model reader. A retrieval score is not an answer-accuracy score, and passing
+state tests does not establish that an agent writes useful memories.
+
+Start with the network-free checks:
+
+```sh
+bun run test:benchmarks
+bun run bench:memory state
+bun run bench:memory projection
+```
+
+The state benchmark exercises the real working/canonical authority, compares
+updates and multi-hop results with an independent replay oracle, and checks
+proof provenance, conflicting authorities, canonical pins, idempotency, and
+stale-write rejection. Its observations are synthetic typed records, not
+LLM-extracted facts. The projection benchmark records repeated wall-clock
+measurements and complete result digests; it does not change evaluation bounds.
+
+Fetch a checksum-pinned public dataset explicitly, then measure retrieval:
+
+```sh
+bun run bench:memory fetch --dataset longmemeval-s
+bun run bench:memory retrieval --dataset longmemeval-s --split dev --limit 24
+```
+
+LongMemEval S downloads about 277 MB. `longmemeval-oracle` is a smaller,
+evidence-only diagnostic, **not** the S benchmark. `locomo` is also supported;
+its download uses `gh` and its data is licensed CC BY-NC 4.0. Review that
+noncommercial license for your intended use. The cleaned LongMemEval release
+is MIT-licensed. Neither dataset is included in the npm package.
+
+All stores use SQLite `:memory:`. Downloads and reports live in
+`.cache/benchmarks/`; no production database, hosted cache, or sync destination
+is read or written. Ingestion receives only raw turns, dates, speakers, and
+provided image captions. Answers, evidence labels, and supplied summaries stay
+outside the memory adapters. Images are not fetched.
+
+The baselines include no memory, recent turns, unbounded full context, raw
+SQLite BM25, and Oh's actual keyword API. Focused-query and neighboring-turn
+variants are experimental benchmark adapters, not changes to Oh's default
+search policy and not implementations of Letta, Mem0, or another competitor.
+Retrieval adapters share the same top-K seed count and UTF-8 context-byte
+budget; recent context uses the byte budget alone. Full context is explicitly
+exempt, and bytes are not reported as tokens. Paired comparisons prefer the
+matching BM25-window baseline rather than a smaller plain-retrieval context.
+
+Reports include source-file hashes, dataset revision and checksum, selected
+question IDs, context digests, per-category scores, missing-annotation counts,
+latencies, and paired conversation-cluster bootstrap intervals. LoCoMo category
+IDs retain the original dataset numbering. Repeated LongMemEval session IDs
+receive distinct turn-occurrence IDs without dropping any content; session
+recall retains the original labels, and duplicate-session counts are reported.
+Evidence protocol `oh.evidence-references.v2` splits unambiguous multi-citation
+entries and resolves leading-zero aliases only to existing turn IDs. Reports
+retain the raw annotations and normalization audit; ambiguous or genuinely
+missing references remain misses. Earlier raw-reference reports are retained
+as historical measurements, not silently rewritten.
+Development/test splits keep whole conversations or question families together.
+Choose an adapter on `--split dev`,
+freeze it, and use `--split test` for the final measurement; do not repeatedly
+optimize against the held-out answers. A pilot subset is not a full-benchmark run.
+
+For a paid reader comparison, supply a benchmark-only `OPENAI_API_KEY` in the
+runner environment, then explicitly authorize both limits:
+
+```sh
+bun run bench:memory answer --dataset longmemeval-s --split dev --limit 24 \
+  --paid --max-usd 10 --max-calls 96
+```
+
+Alternatively, pass an ignored `.env.benchmark` file explicitly with
+`bun --env-file=.env.benchmark run bench:memory answer ...`. Keys are never
+included in reports. The runner uses pinned GPT-4.1-family snapshots and the
+same answer prompt across adapters. It reserves conservative maximum request
+cost before dispatch and shares a locked spending ledger across runs in this
+checkout. Unresolved requests retain their reservation, and no request is
+retried automatically. The cumulative cap cannot exceed $10; separate
+checkouts do not share that ledger. Do not remove it to restart a pilot budget.
+
+The reader's diagnostic `oh-token-f1.v1` metric is **not** MemEval set-F1,
+LoCoMo's native scorer, or an LLM judge. Failed and unattempted requests remain
+visible in coverage and lower-bound denominators. LongMemEval hypotheses are
+included for separate native evaluation. No judge or learned extraction score
+is claimed. Read the [source and protocol audit](benchmarks/research.json) for
+lessons from Lemmalog, Letta, PropMem, Graphiti, Mem0, Hindsight, and SimpleMem,
+including differences that prevent direct leaderboard comparisons.
+
+Use `bun run bench:memory --help` for all options. `--output` and
+`--summary-output` accept new report paths and refuse existing files. Use
+`summarize --input RUN.json --output SUMMARY.json` to retain a compact report
+with the original source identity and the full report's checksum.
+
+### Recorded offline results
+
+The September 5, 2026 runs use 20 retrieval seeds and a 12,000-byte context
+budget. These are **evidence-recall measurements**, not reader accuracy or
+leaderboard scores:
+
+| Held-out data | Evidence-labelled questions | Oh keyword | Oh window | BM25 window | Focused BM25 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| LoCoMo: 8 conversations, 1,586 questions | 1,224 | 61.60% | 78.89% | 78.74% | 64.90% |
+| LongMemEval S: 60-question sample | 51 | 70.65% | 76.37% | 72.45% | 78.66% |
+
+The LoCoMo Oh-window minus BM25-window difference is 0.15 percentage points;
+its paired 95% bootstrap interval spans -0.05 to +0.46 points. This does not
+establish a win. On the LongMemEval sample, focused BM25 is stronger than either
+window variant. Neighbor context can displace useful long turns at a fixed
+budget. The frozen retrieval algorithms were replayed only to correct citation
+format handling; that scoring correction is not a memory improvement.
+Inspect the [LoCoMo report](benchmarks/results/locomo-heldout-v2.json) and
+[LongMemEval report](benchmarks/results/longmemeval-s-heldout-v2.json) for
+per-category results, exact selections, costs in bytes, and remaining annotation
+limitations. Eight conversations and a 60-question sample limit generalization.
+
+The [state validation](benchmarks/results/state-validation-v2.json) passes all
+620 generated state, provenance, and authority checks. Separately, reusing
+canonical tuple keys during projection sorting reduces local median evaluation
+time from 27.6 to 20.7 ms, 230.3 to 155.2 ms, and 903.5 to 592.0 ms for 16-, 32-,
+and 48-node chains. Each size has one warmup and five timed runs. Complete
+result digests, including proofs and work-unit counts, match the
+[before](benchmarks/results/projection-before.json) and
+[after](benchmarks/results/projection-after.json) reports. These are local
+microbenchmarks, not production latency guarantees.
+
+The [reader preflight](benchmarks/results/reader-preflight.json) is blocked on
+benchmark credentials and dispatched no provider requests. End-to-end answer
+quality, learned extraction, actual agent memory-writing behavior, and
+comparative OSS leaderboard performance remain unverified.
+
 ## Verify a checkout
 
 ```sh

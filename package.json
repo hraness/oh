@@ -100,6 +100,8 @@
     "registry": "https://registry.npmjs.org"
   },
   "scripts": {
+    "bench:memory": "bun run ./scripts/benchmark-memory.ts",
+    "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run build:js && bun run build:portable && bun run build:types",
     "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts ./src/semantic.ts ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
     "build:portable": "bun build ./src/store.ts ./src/libsql.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory.ts ./src/memory-page.ts ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog",
