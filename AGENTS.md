@@ -16,7 +16,7 @@
 - Use Bun 1.3.14 for installs, scripts, tests, builds, and package checks. Keep the base package free of required runtime dependencies.
 - Follow `STYLE.md` for the public website, specifications, documentation, README, and Agent Skill prose.
 - Keep `site/` deployable as an ordinary Vercel Next.js root. Do not add OpenAI Sites, Vinext, Cloudflare Worker, Wrangler, or alternate hosting configuration.
-- Use Nebula Sans for the site's ordinary proportional interface text through the pinned Hraness design-kit font release. Preserve explicit Georgia display type and true monospace code and data surfaces.
+- Build the site on the pinned Hraness design-kit release and its `product-marketing` grammar: Nebula Sans for every proportional text and display role, light appearance by default with dark mirrored through `prefers-color-scheme`, sentence-case labels, and one accent. Keep true monospace for code, commands, and data surfaces only.
 - Treat this repository as the complete public project. Use only its public identities, paths, commands, examples, and contributor workflow.
 - Follow the shared [Hraness README guidelines](https://github.com/hraness/.github/blob/main/README_GUIDELINES.md). Keep the durable definition, mechanism-backed rationale, shortest verified first task, observable behavior, boundaries, verification, and task-oriented documentation path current.
 - Preserve canonical JSON, digest preimages, V1 identifier grammars, record kinds, limits, operation ordering, protocol literals, and applied SQLite migration bytes. Version a wire change instead of mutating an existing contract.

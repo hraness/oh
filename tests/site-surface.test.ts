@@ -59,11 +59,12 @@ describe("public site surface", () => {
   test("keeps the exact public identity and only supported CLI examples", async () => {
     const page = await readFile(join(root, "site/app/page.tsx"), "utf8");
     const layout = await readFile(join(root, "site/app/layout.tsx"), "utf8");
-    expect(page).toContain("<h1 id=\"hero-title\">open-source tools for agentic research</h1>");
-    expect(layout).toContain("Oh: open-source tools for agentic research");
+    expect(page).toContain('const heading = "A research graph your agents can inspect"');
+    expect(page).toContain('headingId="hero-title"');
+    expect(layout).toContain("Oh: a research graph your agents can inspect");
     expect(page).toContain("$ oh init --db research.db");
-    expect(page).toContain("$ oh contract --db research.db");
     expect(page).toContain("$ oh verify --db research.db");
+    expect(page).toContain("$ oh get evidence:table-2 --db research.db");
     expect(page).not.toContain("oh inspect");
     expect(page).not.toContain("oh init research.db");
   });
@@ -80,13 +81,22 @@ describe("public site surface", () => {
     expect(workflow).toContain("bun run build");
   });
 
-  test("keeps small accent text above AA contrast on paper", async () => {
+  test("keeps accent text and action labels above AA contrast in both appearances", async () => {
     const css = await readFile(join(root, "site/app/globals.css"), "utf8");
-    const accent = css.match(/--accent:\s*(#[a-f0-9]{6})/iu)?.[1];
-    const paper = css.match(/--paper:\s*(#[a-f0-9]{6})/iu)?.[1];
-    expect(accent).toBeDefined();
-    expect(paper).toBeDefined();
-    expect(contrast(accent as string, paper as string)).toBeGreaterThanOrEqual(4.5);
+    const token = (name: string): string[] =>
+      [...css.matchAll(new RegExp(`${name}:\\s*(#[a-f0-9]{6})`, "giu"))].map((match) => match[1] as string);
+    const accents = token("--hraness-site-accent");
+    const accentInks = token("--hraness-site-accent-ink");
+    const backgrounds = token("--background");
+    expect(accents).toHaveLength(2);
+    expect(accentInks).toHaveLength(2);
+    expect(backgrounds).toHaveLength(2);
+    for (const appearance of [0, 1]) {
+      expect(contrast(accents[appearance] as string, backgrounds[appearance] as string))
+        .toBeGreaterThanOrEqual(4.5);
+      expect(contrast(accentInks[appearance] as string, accents[appearance] as string))
+        .toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   test("contains no private predecessor or filesystem provenance", async () => {
