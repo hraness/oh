@@ -166,9 +166,9 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.3.2");
-    expect(sitePackageJson.version).toBe("0.3.2");
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.3.2"');
+    expect(packageJson.version).toBe("0.4.0");
+    expect(sitePackageJson.version).toBe("0.4.0");
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.4.0"');
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");
     expect(packageJson.license).toBe("MIT");
@@ -182,12 +182,12 @@ describe("public identity and documentation", () => {
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
-    expect(readme).toContain("bun add --global @hraness/oh@0.3.2");
-    expect(readme).toContain('"@hraness/oh": "0.3.2"');
-    expect(readme).toContain("releases/download/v0.3.2/hraness-oh-0.3.2.tgz");
+    expect(readme).toContain("bun add --global @hraness/oh@0.4.0");
+    expect(readme).toContain('"@hraness/oh": "0.4.0"');
+    expect(readme).toContain("releases/download/v0.4.0/hraness-oh-0.4.0.tgz");
     expect(readme).not.toContain("github:hraness/oh#");
-    expect(skill).toContain("`@hraness/oh@0.3.2`");
-    expect(skill).toContain("immutable GitHub Release `v0.3.2`");
+    expect(skill).toContain("`@hraness/oh@0.4.0`");
+    expect(skill).toContain("immutable GitHub Release `v0.4.0`");
     expect(skill).toMatch(/^---\nname: oh\ndescription: .+\n---\n/u);
     expect(skill).not.toMatch(/TODO|TBD|example skill/iu);
   });
@@ -318,6 +318,7 @@ describe("versioned public contract", () => {
       "./experimental/memory",
       "./experimental/projection-suss",
       "./libsql",
+      "./memory",
       "./memory-page",
       "./package.json",
       "./projection",
@@ -431,7 +432,7 @@ describe("versioned public contract", () => {
     });
   });
 
-  test("discovers the experimental composite memory boundary", async () => {
+  test("discovers the stable composite memory boundary", async () => {
     const manifest = await json("spec/manifest.json");
     const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
     expect(version.memory).toEqual({
@@ -442,6 +443,8 @@ describe("versioned public contract", () => {
     const memory = await readFile(join(root, "spec/v1/memory.md"), "utf8");
     expect(memory).toContain("One kernel, two authorities");
     expect(memory).toContain("createOhMemoryAgentV2");
+    expect(memory).toContain("createOhMemoryAuthorityV1");
+    expect(memory).toContain("one compare-and-swap commit");
     expect(memory).toContain("authenticated bearer cursor, not knowledge authority");
     expect(memory).toContain("`resultSha256` commits that deterministic");
     expect(memory).toContain("It does not sync the working operation chain");

@@ -30,8 +30,8 @@ oh --help
 oh version
 ```
 
-The supported CLI is the exact npm release `@hraness/oh@0.3.2`. Its identical
-tarball and checksum are mirrored by the immutable GitHub Release `v0.3.2`.
+The supported CLI is the exact npm release `@hraness/oh@0.4.0`. Its identical
+tarball and checksum are mirrored by the immutable GitHub Release `v0.4.0`.
 It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
@@ -168,14 +168,17 @@ and credential source. Never print credentials or embed them in records. Oh
 settles fast-forward histories only; preserve both logs when it reports a
 divergence.
 
-## Use composite memory only through host bindings
+## Use stable composite memory only through host bindings
 
-`@hraness/oh/experimental/memory` is an SDK-only surface. Do not let a model
-construct its options. Trusted application code must bind two distinct
-authority handles, exact binding digests, a pinned canonical head, working
-codecs, a working actor, domain extractor relation ownership and digests,
-host-purposed named rule/query programs, and named nomination routes before
-giving the returned object to an agent.
+`@hraness/oh/memory` is a stable SDK-only surface. Use
+`createOhMemoryAuthorityV1`, and do not let a model construct its options.
+Trusted application code must bind two distinct authority handles, exact
+binding digests, a pinned canonical head, working codecs, working and adoption
+actors, domain extractor relation ownership and digests, host-purposed named
+rule/query programs, and named nomination routes. Give only the returned
+`authority.agent` object to an agent; retain `authority.host` in trusted
+control-plane code. The old `@hraness/oh/experimental/memory` subpath is a
+compatibility alias, not the preferred import.
 
 The agent-facing object may call only `remember`, `query`, `explain`, and
 `nominate`. Never add a tool parameter for a database path or URL, authority,
@@ -186,18 +189,41 @@ as derived. A nomination may select only a host-registered route and is a
 prepared dependency-closure candidate for destination-owned review, not
 permission to write durable knowledge or import the working operation chain.
 
+Host adoption must pass the complete prepared nomination back through
+`authority.host.adoptNomination` with the exact canonical head it reviewed.
+The host control re-exports the closure from the bound working store, inserts
+absent records in one compare-and-swap operation, and treats equal digests as
+already present. A different digest fails closed unless trusted host code adds
+a bounded `replacements` claim with that exact logical key and exact reviewed
+prior record digest. Never derive that claim from model input or retry it
+against a new head. Missing, stale, wrong, duplicate, and absent-key claims
+abort every change. The host rejects a prospective canonical snapshot over
+8,192 records or 32 MiB, and reconciles the physical head after the commit so
+an idempotent replay cannot install an older head. Do not suppress its
+structured conflict evidence. Use `advanceCanonical` only for the same pin or
+an exact later head already proven by the bound canonical operation chain.
+Advance more than 16,384 operations in separate reviewed chunks.
+
 Use `createOhMemoryAgentV2` only when the host has registered primitive
 query-body parameters and fixed all projection, row, page, and page-byte
 limits. Expose only the exact bindings object, program ID, and continuation to
 the model. Do not expose parameter declarations, page size, or evaluator
 options as tool input. Follow `hasMore` until the continuation is `null`, and
-restart the named query after an integrity error; never combine pages across a
-working-head change. A V2 `query-limit` or `result-bytes` condition is a failed
-query, not a partial answer. Treat each continuation as a bearer cursor: pass
-it back unchanged only to the exact query and do not log or edit it. If the
-host reconstructs the facade or routes across replicas, it must provide the
-same private 32 through 64 byte `continuationKey` in host options; never expose
-that key as tool input. Keep row-level `proofsTruncated` evidence visible.
+restart the named query only after `OhMemoryContinuationError`; never combine
+pages across a working-head change. Store, projection, and extractor failures
+are not continuation failures and need their own handling. A V2 `query-limit`
+or `result-bytes` condition is a failed query, not a partial answer. Treat each
+continuation as a bearer cursor: pass it back unchanged only to the exact query
+and do not log or edit it. If the host reconstructs the facade or routes across
+replicas, it must provide the same private 32 through 64 byte
+`continuationKey` in host options; never expose that key as tool input. Keep
+row-level `proofsTruncated` evidence visible.
+Explanation capabilities share one 256-entry, 64 MiB cache and one clock guard
+across canonical rollover; do not build a second token router around the
+authority. Pass only plain JSON data to stable methods. Accessors, symbols,
+proxies, sparse arrays, and non-JSON values are rejected before execution.
+The detached-input walk caps depth, per-container breadth, total nodes, and
+canonical bytes before recursively cloning untrusted children.
 
 ## Keep memory pages model-neutral
 

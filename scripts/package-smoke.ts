@@ -235,13 +235,13 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     await run([
       process.execPath,
       "-e",
-      "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/semantic-cloud','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory']) await import(p)",
+      "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory']) await import(p)",
     ], consumer);
     await run([
       "node",
       "--input-type=module",
       "-e",
-      "for (const p of ['@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/semantic-cloud','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory']) await import(p)",
+      "for (const p of ['@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory']) await import(p)",
     ], consumer);
     console.log(`Verified packed ${PACKAGE_NAME}@${String(manifest.version)} without private artifacts.`);
   } finally {

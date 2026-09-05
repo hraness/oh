@@ -10,8 +10,20 @@ function record(value: unknown, label: string): JsonRecord {
 export function assertReleaseProviderPreflight(value: unknown): void {
   const snapshot = record(value, "release provider preflight");
   const repository = record(snapshot.repository, "repository readback");
-  if (repository.full_name !== "hraness/oh" || repository.visibility !== "public" || repository.immutable_releases !== true) {
-    throw new Error("Repository readback does not prove public immutable Releases for hraness/oh.");
+  if (repository.full_name !== "hraness/oh" || repository.visibility !== "public") {
+    throw new Error("Repository readback does not prove public hraness/oh authority.");
+  }
+  const immutableReleases = record(
+    snapshot.immutableReleases,
+    "immutable Releases readback",
+  );
+  if (
+    immutableReleases.enabled !== true
+    || immutableReleases.enforced_by_owner !== true
+  ) {
+    throw new Error(
+      "Immutable Releases readback does not prove owner-enforced release immutability for hraness/oh.",
+    );
   }
   if (!Array.isArray(snapshot.rulesets) || snapshot.rulesets.length > 100) throw new Error("Ruleset readback is not bounded.");
   const matches = snapshot.rulesets.filter((item) => {
