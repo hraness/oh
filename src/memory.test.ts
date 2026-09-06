@@ -2251,3 +2251,58 @@ describe("stable host-bound Oh memory authority", () => {
     await byteBound.canonical.store.close(); await byteBound.working.store.close();
   });
 });
+
+describe("Effect memory host ownership", () => {
+  test("detaches queued requests and keeps FIFO live after an exact foreign failure", async () => {
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const failure = Object.freeze({ kind: "foreign-test-failure" });
+    let calls = 0;
+    const value = await authorityFixture({ canonicalStore: store => new Proxy(store, {
+      get(target, property) {
+        if (property === "changesSince") return async (...args: Parameters<OhStoreV1["changesSince"]>) => {
+          calls += 1;
+          if (calls === 1) {
+            entered.resolve();
+            await release.promise;
+            throw failure;
+          }
+          return await target.changesSince(...args);
+        };
+        const member: unknown = Reflect.get(target, property, target);
+        return typeof member === "function" ? member.bind(target) : member;
+      },
+    }) });
+    try {
+      await put(value.canonical.store, "entity:second", "Second", "op_effect_second");
+      const secondHead = await value.canonical.store.head();
+      const first = value.authority.host.advanceCanonical({
+        expectedHead: value.initialCanonicalHead, nextHead: secondHead, v: 1,
+      }).then(() => undefined, error => error as unknown);
+      await entered.promise;
+      const queuedInput = { expectedHead: value.initialCanonicalHead, nextHead: secondHead, v: 1 };
+      const queued = value.authority.host.advanceCanonical(queuedInput);
+      await put(value.canonical.store, "entity:third", "Third", "op_effect_third");
+      queuedInput.nextHead = await value.canonical.store.head();
+      expect(calls).toBe(1);
+      expect((await value.authority.agent.query({ bindings: {}, continuation: null,
+        programId: "memory.visible-records", v: 2 })).identity.canonical.head).toEqual(value.initialCanonicalHead);
+      release.resolve();
+      expect(await first).toBe(failure);
+      const receipt = await queued;
+      expect(receipt.status).toBe("advanced");
+      expect(receipt.head).toEqual(secondHead);
+      expect(calls).toBe(2);
+      const subsequent = await value.authority.host.advanceCanonical({
+        expectedHead: secondHead, nextHead: queuedInput.nextHead, v: 1,
+      });
+      expect(subsequent.status).toBe("advanced");
+      expect(subsequent.head).toEqual(queuedInput.nextHead);
+      expect(calls).toBe(3);
+    } finally {
+      release.resolve();
+      await value.canonical.store.close();
+      await value.working.store.close();
+    }
+  });
+});

@@ -24,7 +24,7 @@ const MAXIMUM_UNPACKED_BYTES = 64 * 1_024 * 1_024;
 const MAXIMUM_FILE_BYTES = 4 * 1_024 * 1_024;
 const EXPECTED_TOP_LEVEL = new Set(["LICENSE", "README.md", "dist", "package.json", "skills", "spec", "src"]);
 const EFFECT_RUNTIME_GRAPHS = new Set([
-  "dist/cli.js", "dist/index.js", "dist/sdk.js", "dist/semantic.js", "dist/sync.js",
+  "dist/cli.js", "dist/index.js", "dist/sdk.js", "dist/semantic.js", "dist/sync.js", "dist/memory.js",
 ]);
 const TEXT_EXTENSIONS = new Set([
   "", ".css", ".js", ".json", ".map", ".md", ".mjs", ".sh", ".sql", ".ts", ".txt", ".yaml", ".yml",
