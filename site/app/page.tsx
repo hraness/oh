@@ -16,7 +16,7 @@ import {
 } from "@hraness/design-kit/react/server";
 import { AskAiAboutThis } from "@hraness/ui";
 
-import ohPackage from "../../package.json";
+import publishedRelease from "../published-release.json";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
 import manifest from "../public/spec/manifest.json";
@@ -26,7 +26,9 @@ const currentVersion = manifest.versions.find((version) => version.id === manife
     throw new Error("The public specification manifest has no current version.");
   })();
 
-const releaseVersion = ohPackage.version;
+const releaseVersion = publishedRelease.version;
+// Preserve the source CLI identity of the September 5 capture (commit e2aac05).
+const capturedVersion = "0.4.0";
 const capturedOn = "September 5, 2026";
 const repository = "https://github.com/hraness/oh";
 
@@ -38,10 +40,8 @@ const example =
 const footnote =
   `Free and MIT licensed. Bun 1.3.14 or newer, no account, no hosted model. Current release v${releaseVersion}.`;
 
-/** The verified first run, captured from the current CLI. Output is canonical JSON. */
-const firstRunTranscript = `$ bun add --global @hraness/oh@${releaseVersion}
-
-$ oh init --db research.db
+/** Historical first-run output. The current installation command is shown separately. */
+const firstRunTranscript = `$ oh init --db research.db
 {"head":{"generation":0,"graphRevisionSha256":null,"operationSha256":null,"recordsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","sequence":0,"v":1},"spaceId":"default","v":1}
 
 $ oh verify --db research.db
@@ -239,7 +239,7 @@ export default function Home() {
             frame={(
               <MarketingProofFrame
                 caption="A fresh database: init and verify stay local and print canonical JSON."
-                credit={`${currentVersion.contractId} · ${currentVersion.status} · @hraness/oh ${releaseVersion} · captured ${capturedOn}`}
+                credit={`${currentVersion.contractId} · ${currentVersion.status} · source CLI ${capturedVersion} · captured ${capturedOn}`}
                 title="oh · first run"
               >
                 <pre className="transcript" tabIndex={0}><code>{firstRunTranscript}</code></pre>
@@ -253,7 +253,7 @@ export default function Home() {
 
           <MarketingStatStrip
             ariaLabel="Runtime-backed facts"
-            source={`Counted from the ${currentVersion.contractId} contract manifest and the @hraness/oh ${releaseVersion} runtime on ${capturedOn}.`}
+            source={`Counted from the ${currentVersion.contractId} contract manifest and source CLI ${capturedVersion} on ${capturedOn}.`}
             stats={stats}
           />
 
@@ -373,6 +373,7 @@ oh get entity:ada-lovelace
 oh search "mathematician" --mode keyword
 oh verify`}</code></pre>
             <p className="install-note">
+              <a href={publishedRelease.verificationRun}>Public release verification</a>.{" "}
               Needs Bun 1.3.14 or newer. The first task creates one entity, reads it back, finds it
               through the keyword index, and verifies the operation chain. Oh writes to{" "}
               <code>.oh/oh.sqlite</code> and the <code>default</code> space unless you choose another.{" "}

@@ -68,10 +68,13 @@ not a claim about a real study.
 
 ## Install and first run
 
+This source tree prepares version `0.4.2`. The installation instructions below
+use `0.4.1`, the verified public release.
+
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
 CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
 direct libSQL authority also support Node 24 serverless runtimes. Install the
-exact current release from npm:
+exact verified public release from npm:
 
 ```sh
 bun add --global @hraness/oh@0.4.1

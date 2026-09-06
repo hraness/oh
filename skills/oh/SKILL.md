@@ -30,7 +30,8 @@ oh --help
 oh version
 ```
 
-The supported CLI is the exact npm release `@hraness/oh@0.4.1`. Its identical
+This source tree prepares version `0.4.2`. Use the verified public CLI
+`@hraness/oh@0.4.1` until the next release completes publication. Its identical
 tarball and checksum are mirrored by the immutable GitHub Release `v0.4.1`.
 It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
