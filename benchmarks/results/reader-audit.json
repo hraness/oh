@@ -1,0 +1,61 @@
+{
+  "protocol": "oh.pilot-audit.v1",
+  "sourceSha256": "2e9e0bf8939e3c0e6e75678321eb4bc68296b582a9dc0a45670f05e79ae3dbf8",
+  "paidRunReports": 20,
+  "reservations": 1341,
+  "settlements": 1337,
+  "unresolvedReservations": 4,
+  "usageAccountedUsd": 8.159259,
+  "unresolvedExposureUsd": 0.016416,
+  "cumulativeExposureUsd": 8.175675,
+  "capUsd": 10,
+  "checks": {
+    "ledgerReservationsMatchAllPaidReports": true,
+    "cumulativeExposureWithinCap": true,
+    "sourceMatchesHeldoutFreeze": true,
+    "judgeProfileMatchesFreeze": true,
+    "developmentAndHeldoutGroupsDisjoint": true,
+    "heldoutRowsComplete": true,
+    "heldoutUsageMatchesSettledCharges": true,
+    "judgeInputsMatchReaderReportHashes": true,
+    "identicalHeldoutJudgeRequestsAgree": true,
+    "compactSummariesMatchFullReports": true
+  },
+  "heldout": [
+    {
+      "dataset": "longmemeval-s",
+      "questions": 12,
+      "independentGroups": 12,
+      "unanswerableQuestions": 5,
+      "readerReportSha256": "aceb13fbf2f90bbf323c1ea50183a1a33862368f6c0e6464cf24c82381cbbd00",
+      "judgeReportSha256": "f969d73d0ceb0c19d4f6f7769c06bae80180ad1b815696a11893b01967da1aa9",
+      "correct": { "no-memory": 5, "full-context": 8, "bm25-window": 8, "oh-window": 8 },
+      "ohMinusBm25": { "delta": 0, "clusterBootstrap95": [0, 0] },
+      "readerInputTokens": { "full-context": 1460995, "bm25-window": 36770, "oh-window": 36982 },
+      "uncachedReaderCostUsd": { "full-context": 2.922398, "bm25-window": 0.074532, "oh-window": 0.07478 }
+    },
+    {
+      "dataset": "locomo",
+      "questions": 48,
+      "independentGroups": 8,
+      "unanswerableQuestions": 9,
+      "readerReportSha256": "22af35dda9b0b57e93657301738c1f800ac08f24c0f25922c29faffd112e6cd6",
+      "judgeReportSha256": "e010c47acd2f79b2277a37664226f9d536c1b6d109585052755a348780483588",
+      "correct": { "no-memory": 9, "full-context": 29, "bm25-window": 23, "oh-window": 25 },
+      "ohMinusBm25": { "delta": 0.041666666666666664, "clusterBootstrap95": [-0.043478260869565216, 0.16279069767441862] },
+      "readerInputTokens": { "full-context": 1635570, "bm25-window": 141778, "oh-window": 142933 },
+      "uncachedReaderCostUsd": { "full-context": 0.656103, "bm25-window": 0.057699, "oh-window": 0.058233 }
+    }
+  ],
+  "qualifications": [
+    "These are limited heldout samples using explicitly unpinned Gateway aliases, not full-dataset or official leaderboard scores.",
+    "LongMemEval uses source-attributed native judge prompt wording. LoCoMo uses a separate semantic-reference diagnostic with exact abstention handling.",
+    "Repeated identical judge prompts share one decision; the LLM judge remains fallible across distinct answers or runs.",
+    "The zero LongMemEval paired interval describes identical outcomes on this sample, not proven population equivalence.",
+    "The LoCoMo difference does not establish superiority over BM25; its paired interval includes zero.",
+    "The LongMemEval sample contains five unanswerable questions, and the LoCoMo sample contains nine. Their category balance limits generalization.",
+    "Usage accounting uses listed inference rates and available cache discounts; it is not a consolidated provider invoice. Unknown earlier requests retain conservative reservations.",
+    "Reader input-token savings are not total-system cost savings. Learned extraction and real-agent memory-writing behavior remain unmeasured.",
+    "The anchor-first experiment was not promoted after its development results were worse than the existing window adapters."
+  ]
+}

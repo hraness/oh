@@ -1,0 +1,1197 @@
+{
+  "protocol": "oh.memory-benchmark.v1",
+  "createdAt": "2026-09-06T18:45:42.532Z",
+  "manifest": {
+    "command": "retrieval",
+    "dataset": "locomo",
+    "source": {
+      "bytes": 2805274,
+      "revision": "3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376",
+      "sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+      "url": "https://raw.githubusercontent.com/snap-research/locomo/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/data/locomo10.json"
+    },
+    "split": "dev",
+    "seed": 17,
+    "limit": null,
+    "systems": [
+      "bm25-window",
+      "oh-window",
+      "bm25-block",
+      "oh-block"
+    ],
+    "budget": {
+      "topK": 20,
+      "contextBytes": 12000
+    },
+    "code": {
+      "sourceSha256": "3d524790bcc9d19a911d7219e525f2590338166933d9c2d12427ae543cac3b77",
+      "gitHead": "9fd22f72ec96cbf1ffa414ed839ae634a0dd84c7",
+      "dirty": true,
+      "bun": "1.3.14",
+      "node": "v24.20.0",
+      "bunNodeCompatibility": "24.3.0",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "files": [
+        {
+          "path": "bun.lock",
+          "sha256": "442038a76c2af0dda4dda001c777ebbb9968aaf2b64b7bc1bf55e9dc6a9d2a65"
+        },
+        {
+          "path": "package.json",
+          "sha256": "7a850c09029ef5fcf4db2cc63cb7c6094483ee9ec76234acfe5fc99e48445d0a"
+        },
+        {
+          "path": "scripts/benchmark-memory.ts",
+          "sha256": "6b3737503a3b431e475e17d7580a918a0468b403478529fa8bba8e76b2fc8192"
+        },
+        {
+          "path": "scripts/benchmarks/artifacts.ts",
+          "sha256": "8f8c87cc69eb8b6868f43e7759867b0ee310983e575109845a35a114498220ec"
+        },
+        {
+          "path": "scripts/benchmarks/datasets.ts",
+          "sha256": "cefef13172b92be1b27ff72c97f7c832c813671e2df8bfe284be5c05e8a03e48"
+        },
+        {
+          "path": "scripts/benchmarks/extract.ts",
+          "sha256": "057b849a769c3101ccc99c01ee25291755417abdec4c94cd61ded5529714f9c3"
+        },
+        {
+          "path": "scripts/benchmarks/io.ts",
+          "sha256": "64043983706210387ef8696e4a9cf2ec9112be4337f2a9dfac34f3e47d7fa956"
+        },
+        {
+          "path": "scripts/benchmarks/judge.ts",
+          "sha256": "ff93c4ed99762cfe40de5f23c3f6807703eaaa9a364ff056cca80fe6cfbecdb4"
+        },
+        {
+          "path": "scripts/benchmarks/metrics.ts",
+          "sha256": "8852d2947d125c34b119ac6e0eda927d2b7e8484725f26c21371fd39f58757db"
+        },
+        {
+          "path": "scripts/benchmarks/model.ts",
+          "sha256": "a1463e0058f251a42f18052cfc5b97cf4b3a7b18d91c393336b9707c96ab4c97"
+        },
+        {
+          "path": "scripts/benchmarks/retrieval.ts",
+          "sha256": "2af40260d8a38f89795a25e7e24531338d5a6f5bc38f701f74f423909cbfcebf"
+        },
+        {
+          "path": "scripts/benchmarks/runner.ts",
+          "sha256": "13fe74c6c4c3b47ee43424ece815a191df728738ae58770e20d4f9e00c45556f"
+        },
+        {
+          "path": "scripts/benchmarks/state.ts",
+          "sha256": "e0fb052b5a2b6ab2184d1c4baf53068aff952360c6400240a276c2303440a260"
+        },
+        {
+          "path": "scripts/benchmarks/units.ts",
+          "sha256": "6012f7661db9ff4afac607a45ab7d20f9c6a6f8eae0f7c3519d12b814329a6b2"
+        },
+        {
+          "path": "src/canonical.test.ts",
+          "sha256": "5de29527ba01b6e0cdc6bddc0a5d759d1fcfff3e7e261df06c1163ef2c0ce4c2"
+        },
+        {
+          "path": "src/canonical.ts",
+          "sha256": "130fef8c25ccf3aee399a81948204752adbf6b7818ce564f09ba633942ebeab6"
+        },
+        {
+          "path": "src/cli.test.ts",
+          "sha256": "dc92796b730b982e09108bc9e754b198cc6badd643bdb6b5b393775b72b2cb33"
+        },
+        {
+          "path": "src/cli.ts",
+          "sha256": "0da4d3b17bac4d081267c324046dcacb6a9f43fc4390fbb11e53651995afd4b5"
+        },
+        {
+          "path": "src/cloudflare-embedding.test.ts",
+          "sha256": "8538b7d7033feacab3fe5ce755af846d52ccbc763801df237ec169e68ac188ca"
+        },
+        {
+          "path": "src/cloudflare-embedding.ts",
+          "sha256": "71aa63b9dab9ef7135b821fc140547f3d7ec6705f432b815f9fbe1124b22a2df"
+        },
+        {
+          "path": "src/contract.ts",
+          "sha256": "246b98886f545cfe75cb1303e14ecff90961f1447e304703d4544b2b6ed17ee9"
+        },
+        {
+          "path": "src/contracts.test.ts",
+          "sha256": "22a9733412f62993fed82f6488453de82ed7b4535a3fb33ed46bfc379bf339f0"
+        },
+        {
+          "path": "src/graph.ts",
+          "sha256": "8643f35ae73dd477608cb342eed7f8c5f30497f3e3936eee00a062a4960cac43"
+        },
+        {
+          "path": "src/index.ts",
+          "sha256": "336de7467e585878b30c48770ea1e71f95dd21a0842e79511e36ca0a1195d628"
+        },
+        {
+          "path": "src/libsql-semantic-v2.test.ts",
+          "sha256": "dc294fb5d1f41623302931fb7ea5f169e5f72c7ad41940b748ae3c4878b8c1ea"
+        },
+        {
+          "path": "src/libsql-semantic-v2.ts",
+          "sha256": "c3c6a7ff08df772300a0549d406cb4a4d67d4c2666b3ba647df535c3c2ad2d42"
+        },
+        {
+          "path": "src/libsql-semantic.test.ts",
+          "sha256": "9cd6b0e34cdf4e84be522f50aeed99c245de5dc52d32958f617edf1311d0536a"
+        },
+        {
+          "path": "src/libsql-semantic.ts",
+          "sha256": "cadda4b84e9db583016e8bd0e3d99c88aa36d0e440c13c4d41132f330fba21ef"
+        },
+        {
+          "path": "src/libsql.test.ts",
+          "sha256": "a1b9a0bbd37aa08c828726e01dcff6b5378ed5bc732c906c96cbdf1f74fb2c0b"
+        },
+        {
+          "path": "src/libsql.ts",
+          "sha256": "ca561827a6097bc813e8f7e10477cfccfe219a7b15ddf74abc89743ebd978833"
+        },
+        {
+          "path": "src/memory-page.ts",
+          "sha256": "617398b0959650218ac2ea1ebf355c20f82640794b3a3bdbe478795057ccd244"
+        },
+        {
+          "path": "src/memory-pages.test.ts",
+          "sha256": "675fcc1f3bfafab2776e902333b29bdf334cc91be7942feb52f06b620e4885a1"
+        },
+        {
+          "path": "src/memory-pages.ts",
+          "sha256": "7915df13e97552c70c5a75a1ecdea6ea96abe467a6a473e3fefbb0958115f49d"
+        },
+        {
+          "path": "src/memory.test.ts",
+          "sha256": "08f66676770826b9cccade64bb110de3e45b158287ae6acbdbf85319c5fd6d4d"
+        },
+        {
+          "path": "src/memory.ts",
+          "sha256": "6295c7305f40e3295f99aece4d78038b917d69caa3339e0fe61957d31899cde0"
+        },
+        {
+          "path": "src/ontology.ts",
+          "sha256": "0044f0d71c595e48f145767279d7175af2748d49faf0763ab07fe4fbe698a107"
+        },
+        {
+          "path": "src/operation.ts",
+          "sha256": "4163691ed74f3dfa86a042e4623e99807aac6df6d6af7def31077e238921373d"
+        },
+        {
+          "path": "src/projection-public.ts",
+          "sha256": "cdb9336e7aec0e79804d51f373628f18ebb536d43344a51ba49e2efef29882b7"
+        },
+        {
+          "path": "src/projection-suss.ts",
+          "sha256": "aa6ebb98cf0b74b8ac1ab5322fe41ae1ec19d53808ffd9559ec792d015804229"
+        },
+        {
+          "path": "src/projection.test.ts",
+          "sha256": "99ec694abfe68f44958ba97ea54aba0d6bbb2c715e082bb5b1ac3f0e856bf1a5"
+        },
+        {
+          "path": "src/projection.ts",
+          "sha256": "b6ae86061378bd7d3b6759c7aa04b344b569b0205253ac90012e5b9654decfc3"
+        },
+        {
+          "path": "src/schema.ts",
+          "sha256": "6f4171f7f70a0a863ea65fd0e3a066f19b039e5757c8487e669058d334592423"
+        },
+        {
+          "path": "src/sdk.ts",
+          "sha256": "0b1eabcb199b3a780f7baf6d2dffe86b55024b220645d6991a8303639ae9b1d3"
+        },
+        {
+          "path": "src/search.ts",
+          "sha256": "1612b784ba0fa842bdf6b6b4aa18add1ddd7d9d5c5990b4b06fce69bf0297562"
+        },
+        {
+          "path": "src/semantic-cloud.ts",
+          "sha256": "8026416dc8409f713115cfab350ab979064260d997478ff940d9d6fffa6394bf"
+        },
+        {
+          "path": "src/semantic.test.ts",
+          "sha256": "cdb6f708a56954f5a7bd614dae80190d503833aad920de3bece2ec57339a9157"
+        },
+        {
+          "path": "src/semantic.ts",
+          "sha256": "5fcdef354cdef76af105dbbc5763c54bf39e2eafc923b4b95b1a10a6fe71a3ba"
+        },
+        {
+          "path": "src/sqlite/driver.ts",
+          "sha256": "7049a46897b7cff9e601366d40dc5c326b8f6c43c6dc528a079a1a3a228d3416"
+        },
+        {
+          "path": "src/sqlite/index.ts",
+          "sha256": "5ec234742b85c38c08c4d5defde01025efddd5facfbb86771ecf84e975e3f385"
+        },
+        {
+          "path": "src/sqlite/migrations.test.ts",
+          "sha256": "54ab7df6eff7ef3804c9786dab09167da2863af3d5edeb8c9bf5054d2bfdffca"
+        },
+        {
+          "path": "src/sqlite/migrations.ts",
+          "sha256": "d7fe488dce50c70ee37d2363ad17950e2e8e60459e56cf01b19ae0a26dfdc64b"
+        },
+        {
+          "path": "src/sqlite/port.test.ts",
+          "sha256": "bfd1470fbc7bed28849ea2b556598e75b007c0d9ebbd5337f2198c5dab4d5a68"
+        },
+        {
+          "path": "src/sqlite/port.ts",
+          "sha256": "0ad110ff6218f06f58d382ae6aab54b4310cd3a33fed35ee92f0be09b72457b0"
+        },
+        {
+          "path": "src/sqlite/runtime.test.ts",
+          "sha256": "f75643581bfbaf4d6371a11308f2c50b1c8bb8381ae1bee3225c03b9e02c0960"
+        },
+        {
+          "path": "src/sqlite/runtime.ts",
+          "sha256": "f44a1535ef9840b2189674a31440270567702ecd233e3ff4bc397ba13241b0c8"
+        },
+        {
+          "path": "src/sqlite/store.test.ts",
+          "sha256": "4112085c83e02fcb64065ba7d100046b1b8436532039c6465ae335f5ffde2203"
+        },
+        {
+          "path": "src/sqlite/store.ts",
+          "sha256": "ad6c1e744dcf1c6309a9f65de8e53e8d120f2427fe9c968bfd2a3d64424ec4f3"
+        },
+        {
+          "path": "src/store.test.ts",
+          "sha256": "b0f637067b1dd9a03498e7378d14d0e2f756b5eba7400df93df073d610a67dc3"
+        },
+        {
+          "path": "src/store.ts",
+          "sha256": "704273269eb0ec714ed4a9882ef7fd1bda40fcf3770bc36842bc5a3a8620c7cf"
+        },
+        {
+          "path": "src/sync.test.ts",
+          "sha256": "b10ada3d7d60e519ffeb43bb3e99897860cb1c2476066eaf6da93fcdc67f9270"
+        },
+        {
+          "path": "src/sync.ts",
+          "sha256": "3e709d8f73232626173dc2cb8c18a23d35131f26d3790e64710e6d06d90ef4f5"
+        },
+        {
+          "path": "tsconfig.json",
+          "sha256": "f8388cc67144cbdc58b321ee745228caea21193e30e106e78a32776864981759"
+        },
+        {
+          "path": "tsconfig.scripts.json",
+          "sha256": "61e27eeeeb22211e6bf6621ad1b2b0e0674c5654e85128f6f4c2bfc694bb85d1"
+        }
+      ]
+    },
+    "selectedCorpora": [
+      "conv-49",
+      "conv-50"
+    ],
+    "selectedQuestions": [
+      "conv-49:0",
+      "conv-49:1",
+      "conv-49:2",
+      "conv-49:3",
+      "conv-49:4",
+      "conv-49:5",
+      "conv-49:6",
+      "conv-49:7",
+      "conv-49:8",
+      "conv-49:9",
+      "conv-49:10",
+      "conv-49:11",
+      "conv-49:12",
+      "conv-49:13",
+      "conv-49:14",
+      "conv-49:15",
+      "conv-49:16",
+      "conv-49:17",
+      "conv-49:18",
+      "conv-49:19",
+      "conv-49:20",
+      "conv-49:21",
+      "conv-49:22",
+      "conv-49:23",
+      "conv-49:24",
+      "conv-49:25",
+      "conv-49:26",
+      "conv-49:27",
+      "conv-49:28",
+      "conv-49:29",
+      "conv-49:30",
+      "conv-49:31",
+      "conv-49:32",
+      "conv-49:33",
+      "conv-49:34",
+      "conv-49:35",
+      "conv-49:36",
+      "conv-49:37",
+      "conv-49:38",
+      "conv-49:39",
+      "conv-49:40",
+      "conv-49:41",
+      "conv-49:42",
+      "conv-49:43",
+      "conv-49:44",
+      "conv-49:45",
+      "conv-49:46",
+      "conv-49:47",
+      "conv-49:48",
+      "conv-49:49",
+      "conv-49:50",
+      "conv-49:51",
+      "conv-49:52",
+      "conv-49:53",
+      "conv-49:54",
+      "conv-49:55",
+      "conv-49:56",
+      "conv-49:57",
+      "conv-49:58",
+      "conv-49:59",
+      "conv-49:60",
+      "conv-49:61",
+      "conv-49:62",
+      "conv-49:63",
+      "conv-49:64",
+      "conv-49:65",
+      "conv-49:66",
+      "conv-49:67",
+      "conv-49:68",
+      "conv-49:69",
+      "conv-49:70",
+      "conv-49:71",
+      "conv-49:72",
+      "conv-49:73",
+      "conv-49:74",
+      "conv-49:75",
+      "conv-49:76",
+      "conv-49:77",
+      "conv-49:78",
+      "conv-49:79",
+      "conv-49:80",
+      "conv-49:81",
+      "conv-49:82",
+      "conv-49:83",
+      "conv-49:84",
+      "conv-49:85",
+      "conv-49:86",
+      "conv-49:87",
+      "conv-49:88",
+      "conv-49:89",
+      "conv-49:90",
+      "conv-49:91",
+      "conv-49:92",
+      "conv-49:93",
+      "conv-49:94",
+      "conv-49:95",
+      "conv-49:96",
+      "conv-49:97",
+      "conv-49:98",
+      "conv-49:99",
+      "conv-49:100",
+      "conv-49:101",
+      "conv-49:102",
+      "conv-49:103",
+      "conv-49:104",
+      "conv-49:105",
+      "conv-49:106",
+      "conv-49:107",
+      "conv-49:108",
+      "conv-49:109",
+      "conv-49:110",
+      "conv-49:111",
+      "conv-49:112",
+      "conv-49:113",
+      "conv-49:114",
+      "conv-49:115",
+      "conv-49:116",
+      "conv-49:117",
+      "conv-49:118",
+      "conv-49:119",
+      "conv-49:120",
+      "conv-49:121",
+      "conv-49:122",
+      "conv-49:123",
+      "conv-49:124",
+      "conv-49:125",
+      "conv-49:126",
+      "conv-49:127",
+      "conv-49:128",
+      "conv-49:129",
+      "conv-49:130",
+      "conv-49:131",
+      "conv-49:132",
+      "conv-49:133",
+      "conv-49:134",
+      "conv-49:135",
+      "conv-49:136",
+      "conv-49:137",
+      "conv-49:138",
+      "conv-49:139",
+      "conv-49:140",
+      "conv-49:141",
+      "conv-49:142",
+      "conv-49:143",
+      "conv-49:144",
+      "conv-49:145",
+      "conv-49:146",
+      "conv-49:147",
+      "conv-49:148",
+      "conv-49:149",
+      "conv-49:150",
+      "conv-49:151",
+      "conv-49:152",
+      "conv-49:153",
+      "conv-49:154",
+      "conv-49:155",
+      "conv-49:156",
+      "conv-49:157",
+      "conv-49:158",
+      "conv-49:159",
+      "conv-49:160",
+      "conv-49:161",
+      "conv-49:162",
+      "conv-49:163",
+      "conv-49:164",
+      "conv-49:165",
+      "conv-49:166",
+      "conv-49:167",
+      "conv-49:168",
+      "conv-49:169",
+      "conv-49:170",
+      "conv-49:171",
+      "conv-49:172",
+      "conv-49:173",
+      "conv-49:174",
+      "conv-49:175",
+      "conv-49:176",
+      "conv-49:177",
+      "conv-49:178",
+      "conv-49:179",
+      "conv-49:180",
+      "conv-49:181",
+      "conv-49:182",
+      "conv-49:183",
+      "conv-49:184",
+      "conv-49:185",
+      "conv-49:186",
+      "conv-49:187",
+      "conv-49:188",
+      "conv-49:189",
+      "conv-49:190",
+      "conv-49:191",
+      "conv-49:192",
+      "conv-49:193",
+      "conv-49:194",
+      "conv-49:195",
+      "conv-50:0",
+      "conv-50:1",
+      "conv-50:2",
+      "conv-50:3",
+      "conv-50:4",
+      "conv-50:5",
+      "conv-50:6",
+      "conv-50:7",
+      "conv-50:8",
+      "conv-50:9",
+      "conv-50:10",
+      "conv-50:11",
+      "conv-50:12",
+      "conv-50:13",
+      "conv-50:14",
+      "conv-50:15",
+      "conv-50:16",
+      "conv-50:17",
+      "conv-50:18",
+      "conv-50:19",
+      "conv-50:20",
+      "conv-50:21",
+      "conv-50:22",
+      "conv-50:23",
+      "conv-50:24",
+      "conv-50:25",
+      "conv-50:26",
+      "conv-50:27",
+      "conv-50:28",
+      "conv-50:29",
+      "conv-50:30",
+      "conv-50:31",
+      "conv-50:32",
+      "conv-50:33",
+      "conv-50:34",
+      "conv-50:35",
+      "conv-50:36",
+      "conv-50:37",
+      "conv-50:38",
+      "conv-50:39",
+      "conv-50:40",
+      "conv-50:41",
+      "conv-50:42",
+      "conv-50:43",
+      "conv-50:44",
+      "conv-50:45",
+      "conv-50:46",
+      "conv-50:47",
+      "conv-50:48",
+      "conv-50:49",
+      "conv-50:50",
+      "conv-50:51",
+      "conv-50:52",
+      "conv-50:53",
+      "conv-50:54",
+      "conv-50:55",
+      "conv-50:56",
+      "conv-50:57",
+      "conv-50:58",
+      "conv-50:59",
+      "conv-50:60",
+      "conv-50:61",
+      "conv-50:62",
+      "conv-50:63",
+      "conv-50:64",
+      "conv-50:65",
+      "conv-50:66",
+      "conv-50:67",
+      "conv-50:68",
+      "conv-50:69",
+      "conv-50:70",
+      "conv-50:71",
+      "conv-50:72",
+      "conv-50:73",
+      "conv-50:74",
+      "conv-50:75",
+      "conv-50:76",
+      "conv-50:77",
+      "conv-50:78",
+      "conv-50:79",
+      "conv-50:80",
+      "conv-50:81",
+      "conv-50:82",
+      "conv-50:83",
+      "conv-50:84",
+      "conv-50:85",
+      "conv-50:86",
+      "conv-50:87",
+      "conv-50:88",
+      "conv-50:89",
+      "conv-50:90",
+      "conv-50:91",
+      "conv-50:92",
+      "conv-50:93",
+      "conv-50:94",
+      "conv-50:95",
+      "conv-50:96",
+      "conv-50:97",
+      "conv-50:98",
+      "conv-50:99",
+      "conv-50:100",
+      "conv-50:101",
+      "conv-50:102",
+      "conv-50:103",
+      "conv-50:104",
+      "conv-50:105",
+      "conv-50:106",
+      "conv-50:107",
+      "conv-50:108",
+      "conv-50:109",
+      "conv-50:110",
+      "conv-50:111",
+      "conv-50:112",
+      "conv-50:113",
+      "conv-50:114",
+      "conv-50:115",
+      "conv-50:116",
+      "conv-50:117",
+      "conv-50:118",
+      "conv-50:119",
+      "conv-50:120",
+      "conv-50:121",
+      "conv-50:122",
+      "conv-50:123",
+      "conv-50:124",
+      "conv-50:125",
+      "conv-50:126",
+      "conv-50:127",
+      "conv-50:128",
+      "conv-50:129",
+      "conv-50:130",
+      "conv-50:131",
+      "conv-50:132",
+      "conv-50:133",
+      "conv-50:134",
+      "conv-50:135",
+      "conv-50:136",
+      "conv-50:137",
+      "conv-50:138",
+      "conv-50:139",
+      "conv-50:140",
+      "conv-50:141",
+      "conv-50:142",
+      "conv-50:143",
+      "conv-50:144",
+      "conv-50:145",
+      "conv-50:146",
+      "conv-50:147",
+      "conv-50:148",
+      "conv-50:149",
+      "conv-50:150",
+      "conv-50:151",
+      "conv-50:152",
+      "conv-50:153",
+      "conv-50:154",
+      "conv-50:155",
+      "conv-50:156",
+      "conv-50:157",
+      "conv-50:158",
+      "conv-50:159",
+      "conv-50:160",
+      "conv-50:161",
+      "conv-50:162",
+      "conv-50:163",
+      "conv-50:164",
+      "conv-50:165",
+      "conv-50:166",
+      "conv-50:167",
+      "conv-50:168",
+      "conv-50:169",
+      "conv-50:170",
+      "conv-50:171",
+      "conv-50:172",
+      "conv-50:173",
+      "conv-50:174",
+      "conv-50:175",
+      "conv-50:176",
+      "conv-50:177",
+      "conv-50:178",
+      "conv-50:179",
+      "conv-50:180",
+      "conv-50:181",
+      "conv-50:182",
+      "conv-50:183",
+      "conv-50:184",
+      "conv-50:185",
+      "conv-50:186",
+      "conv-50:187",
+      "conv-50:188",
+      "conv-50:189",
+      "conv-50:190",
+      "conv-50:191",
+      "conv-50:192",
+      "conv-50:193",
+      "conv-50:194",
+      "conv-50:195",
+      "conv-50:196",
+      "conv-50:197",
+      "conv-50:198",
+      "conv-50:199",
+      "conv-50:200",
+      "conv-50:201",
+      "conv-50:202",
+      "conv-50:203"
+    ],
+    "selectionSha256": "10954fe62f6c38d2ee8c40361e2ab2734057cc478ee78981235c9220e45b4601"
+  },
+  "status": "completed",
+  "summaries": {
+    "bm25-window": {
+      "questions": 400,
+      "annotatedQuestions": 312,
+      "turnRecall": 0.759414130331313,
+      "allEvidenceRecall": 0.6923076923076923,
+      "turnPrecision": 0.023052585465514516,
+      "reciprocalRank": 0.4414624034279237,
+      "sessionRecall": 0.9143047924297923,
+      "meanContextBytes": 9725.6925,
+      "meanContextFraction": 0.09374192394765178,
+      "latencyP50Ms": 0.6756249999998545,
+      "latencyP95Ms": 0.9180830000000242,
+      "emptyContexts": 0,
+      "supportCitationRecall": null,
+      "byCategory": {
+        "locomo:1": {
+          "questions": 69,
+          "annotatedQuestions": 69,
+          "turnRecall": 0.5601804247113172,
+          "allEvidenceRecall": 0.30434782608695654,
+          "turnPrecision": 0.03670608365202981,
+          "reciprocalRank": 0.2962203777626419,
+          "sessionRecall": 0.7930641821946168,
+          "meanContextBytes": 9801.115942028986,
+          "meanContextFraction": 0.09557860940198762,
+          "latencyP50Ms": 0.6344170000002123,
+          "latencyP95Ms": 0.8825830000000678,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:2": {
+          "questions": 65,
+          "annotatedQuestions": 65,
+          "turnRecall": 0.7923076923076923,
+          "allEvidenceRecall": 0.7692307692307693,
+          "turnPrecision": 0.02108215390197063,
+          "reciprocalRank": 0.4850643903042092,
+          "sessionRecall": 0.9384615384615385,
+          "meanContextBytes": 9287.76923076923,
+          "meanContextFraction": 0.08963427528056667,
+          "latencyP50Ms": 0.6393339999999625,
+          "latencyP95Ms": 0.8228330000001733,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:3": {
+          "questions": 20,
+          "annotatedQuestions": 18,
+          "turnRecall": 0.3213755199049317,
+          "allEvidenceRecall": 0.2222222222222222,
+          "turnPrecision": 0.019747946963546096,
+          "reciprocalRank": 0.07297860600706128,
+          "sessionRecall": 0.8078703703703705,
+          "meanContextBytes": 10190.9,
+          "meanContextFraction": 0.1020123794726279,
+          "latencyP50Ms": 0.7339170000000195,
+          "latencyP95Ms": 0.9215000000000373,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:4": {
+          "questions": 160,
+          "annotatedQuestions": 160,
+          "turnRecall": 0.88125,
+          "allEvidenceRecall": 0.88125,
+          "turnPrecision": 0.018336774026741068,
+          "reciprocalRank": 0.5278391470374325,
+          "sessionRecall": 0.96875,
+          "meanContextBytes": 9768.475,
+          "meanContextFraction": 0.09342387221833445,
+          "latencyP50Ms": 0.6986660000002303,
+          "latencyP95Ms": 0.9905829999997877,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:5": {
+          "questions": 86,
+          "annotatedQuestions": 0,
+          "turnRecall": null,
+          "allEvidenceRecall": null,
+          "turnPrecision": null,
+          "reciprocalRank": null,
+          "sessionRecall": null,
+          "meanContextBytes": 9808.383720930233,
+          "meanContextFraction": 0.09404128479884495,
+          "latencyP50Ms": 0.6868750000003274,
+          "latencyP95Ms": 0.9442090000002281,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        }
+      }
+    },
+    "oh-window": {
+      "questions": 400,
+      "annotatedQuestions": 312,
+      "turnRecall": 0.759414130331313,
+      "allEvidenceRecall": 0.6923076923076923,
+      "turnPrecision": 0.022992048665030546,
+      "reciprocalRank": 0.4391858222432053,
+      "sessionRecall": 0.9178304334554332,
+      "meanContextBytes": 9820.9175,
+      "meanContextFraction": 0.09464558987955807,
+      "latencyP50Ms": 3.637124999999287,
+      "latencyP95Ms": 4.671833000000333,
+      "emptyContexts": 0,
+      "supportCitationRecall": null,
+      "byCategory": {
+        "locomo:1": {
+          "questions": 69,
+          "annotatedQuestions": 69,
+          "turnRecall": 0.5746731783345057,
+          "allEvidenceRecall": 0.3188405797101449,
+          "turnPrecision": 0.03693349817362155,
+          "reciprocalRank": 0.298854281686172,
+          "sessionRecall": 0.8210835058661144,
+          "meanContextBytes": 9846.101449275362,
+          "meanContextFraction": 0.09604300739824131,
+          "latencyP50Ms": 3.4382499999999823,
+          "latencyP95Ms": 4.4822079999999005,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:2": {
+          "questions": 65,
+          "annotatedQuestions": 65,
+          "turnRecall": 0.7923076923076923,
+          "allEvidenceRecall": 0.7692307692307693,
+          "turnPrecision": 0.021038186003744463,
+          "reciprocalRank": 0.4739080438017089,
+          "sessionRecall": 0.9230769230769231,
+          "meanContextBytes": 9392.353846153846,
+          "meanContextFraction": 0.09056518810151865,
+          "latencyP50Ms": 3.675833999999668,
+          "latencyP95Ms": 4.627541000000747,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:3": {
+          "questions": 20,
+          "annotatedQuestions": 18,
+          "turnRecall": 0.3213755199049317,
+          "allEvidenceRecall": 0.2222222222222222,
+          "turnPrecision": 0.019783651725480973,
+          "reciprocalRank": 0.07026696579542108,
+          "sessionRecall": 0.8171296296296295,
+          "meanContextBytes": 10236.05,
+          "meanContextFraction": 0.10250222454488411,
+          "latencyP50Ms": 3.639208999999937,
+          "latencyP95Ms": 4.620874999999955,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:4": {
+          "questions": 160,
+          "annotatedQuestions": 160,
+          "turnRecall": 0.875,
+          "allEvidenceRecall": 0.875,
+          "turnPrecision": 0.018134499926297572,
+          "reciprocalRank": 0.5271012679506594,
+          "sessionRecall": 0.96875,
+          "meanContextBytes": 9881.9375,
+          "meanContextFraction": 0.09449060270705126,
+          "latencyP50Ms": 3.655334000000039,
+          "latencyP95Ms": 4.678458999999748,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:5": {
+          "questions": 86,
+          "annotatedQuestions": 0,
+          "turnRecall": null,
+          "allEvidenceRecall": null,
+          "turnPrecision": null,
+          "reciprocalRank": null,
+          "sessionRecall": null,
+          "meanContextBytes": 9914.558139534884,
+          "meanContextFraction": 0.09506965454325546,
+          "latencyP50Ms": 3.7009170000001177,
+          "latencyP95Ms": 4.796416000000136,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        }
+      }
+    },
+    "bm25-block": {
+      "questions": 400,
+      "annotatedQuestions": 312,
+      "turnRecall": 0.8137415860713074,
+      "allEvidenceRecall": 0.7532051282051282,
+      "turnPrecision": 0.020588245064817032,
+      "reciprocalRank": 0.30029930892724666,
+      "sessionRecall": 0.8995306776556777,
+      "meanContextBytes": 11970.155,
+      "meanContextFraction": 0.11611990537013094,
+      "latencyP50Ms": 4.800208000000566,
+      "latencyP95Ms": 6.0402500000000146,
+      "emptyContexts": 0,
+      "supportCitationRecall": null,
+      "byCategory": {
+        "locomo:1": {
+          "questions": 69,
+          "annotatedQuestions": 69,
+          "turnRecall": 0.6330974009463712,
+          "allEvidenceRecall": 0.4492753623188406,
+          "turnPrecision": 0.033817757226711306,
+          "reciprocalRank": 0.2982525319825224,
+          "sessionRecall": 0.7401483781918565,
+          "meanContextBytes": 11969.115942028986,
+          "meanContextFraction": 0.11735836141569506,
+          "latencyP50Ms": 4.58783399999993,
+          "latencyP95Ms": 5.756291000000601,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:2": {
+          "questions": 65,
+          "annotatedQuestions": 65,
+          "turnRecall": 0.8179487179487179,
+          "allEvidenceRecall": 0.7692307692307693,
+          "turnPrecision": 0.016744488446771916,
+          "reciprocalRank": 0.32885996134831813,
+          "sessionRecall": 0.9256410256410256,
+          "meanContextBytes": 11971.861538461539,
+          "meanContextFraction": 0.11661176881355051,
+          "latencyP50Ms": 4.7321660000000065,
+          "latencyP95Ms": 5.659124999999904,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:3": {
+          "questions": 20,
+          "annotatedQuestions": 18,
+          "turnRecall": 0.5576104179045356,
+          "allEvidenceRecall": 0.3888888888888889,
+          "turnPrecision": 0.027127312819889945,
+          "reciprocalRank": 0.0666847341913343,
+          "sessionRecall": 0.6898148148148148,
+          "meanContextBytes": 11972.6,
+          "meanContextFraction": 0.12045998120693521,
+          "latencyP50Ms": 4.6695419999996375,
+          "latencyP95Ms": 5.582042000000001,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:4": {
+          "questions": 160,
+          "annotatedQuestions": 160,
+          "turnRecall": 0.91875,
+          "allEvidenceRecall": 0.91875,
+          "turnPrecision": 0.015708898948635242,
+          "reciprocalRank": 0.31586085609638903,
+          "sessionRecall": 0.98125,
+          "meanContextBytes": 11970.98125,
+          "meanContextFraction": 0.11521696226057017,
+          "latencyP50Ms": 4.90625,
+          "latencyP95Ms": 6.012207999999646,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:5": {
+          "questions": 86,
+          "annotatedQuestions": 0,
+          "turnRecall": null,
+          "allEvidenceRecall": null,
+          "turnPrecision": null,
+          "reciprocalRank": null,
+          "sessionRecall": null,
+          "meanContextBytes": 11967.593023255815,
+          "meanContextFraction": 0.11542507734486898,
+          "latencyP50Ms": 4.915750000000116,
+          "latencyP95Ms": 6.584667000000081,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        }
+      }
+    },
+    "oh-block": {
+      "questions": 400,
+      "annotatedQuestions": 312,
+      "turnRecall": 0.8137415860713074,
+      "allEvidenceRecall": 0.7532051282051282,
+      "turnPrecision": 0.02068190830231517,
+      "reciprocalRank": 0.2959202680442482,
+      "sessionRecall": 0.8995306776556777,
+      "meanContextBytes": 11968.3025,
+      "meanContextFraction": 0.1161009837520493,
+      "latencyP50Ms": 8.158457999999882,
+      "latencyP95Ms": 10.227042000000438,
+      "emptyContexts": 0,
+      "supportCitationRecall": null,
+      "byCategory": {
+        "locomo:1": {
+          "questions": 69,
+          "annotatedQuestions": 69,
+          "turnRecall": 0.6330974009463712,
+          "allEvidenceRecall": 0.4492753623188406,
+          "turnPrecision": 0.03396809809801599,
+          "reciprocalRank": 0.2922847440496315,
+          "sessionRecall": 0.7401483781918565,
+          "meanContextBytes": 11968.507246376812,
+          "meanContextFraction": 0.11734842844343085,
+          "latencyP50Ms": 7.871332999999936,
+          "latencyP95Ms": 9.131667000000562,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:2": {
+          "questions": 65,
+          "annotatedQuestions": 65,
+          "turnRecall": 0.8179487179487179,
+          "allEvidenceRecall": 0.7692307692307693,
+          "turnPrecision": 0.016841380041279757,
+          "reciprocalRank": 0.32762369761205434,
+          "sessionRecall": 0.9256410256410256,
+          "meanContextBytes": 11967.184615384615,
+          "meanContextFraction": 0.11656840722821528,
+          "latencyP50Ms": 7.891458000000057,
+          "latencyP95Ms": 9.68166599999995,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:3": {
+          "questions": 20,
+          "annotatedQuestions": 18,
+          "turnRecall": 0.5576104179045356,
+          "allEvidenceRecall": 0.3888888888888889,
+          "turnPrecision": 0.027269490472718847,
+          "reciprocalRank": 0.0666847341913343,
+          "sessionRecall": 0.6898148148148148,
+          "meanContextBytes": 11968.2,
+          "meanContextFraction": 0.12041641058981416,
+          "latencyP50Ms": 8.040417000000161,
+          "latencyP95Ms": 9.454957999999806,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:4": {
+          "questions": 160,
+          "annotatedQuestions": 160,
+          "turnRecall": 0.91875,
+          "allEvidenceRecall": 0.91875,
+          "turnPrecision": 0.015771350564794416,
+          "reciprocalRank": 0.31039756706345817,
+          "sessionRecall": 0.98125,
+          "meanContextBytes": 11970.10625,
+          "meanContextFraction": 0.11520863737038001,
+          "latencyP50Ms": 8.375458999999864,
+          "latencyP95Ms": 10.160290999999916,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        },
+        "locomo:5": {
+          "questions": 86,
+          "annotatedQuestions": 0,
+          "turnRecall": null,
+          "allEvidenceRecall": null,
+          "turnPrecision": null,
+          "reciprocalRank": null,
+          "sessionRecall": null,
+          "meanContextBytes": 11965.651162790698,
+          "meanContextFraction": 0.11540343345734802,
+          "latencyP50Ms": 8.344375000000582,
+          "latencyP95Ms": 11.83349999999973,
+          "emptyContexts": 0,
+          "supportCitationRecall": null
+        }
+      }
+    }
+  },
+  "comparisons": {
+    "oh-window": {
+      "baseline": "bm25-window",
+      "metric": "turn-recall",
+      "interval95": {
+        "clusters": 2,
+        "delta": 0,
+        "lower": -0.00641025641025641,
+        "upper": 0.00641025641025641,
+        "samples": 2000
+      }
+    },
+    "bm25-block": {
+      "baseline": "bm25-window",
+      "metric": "turn-recall",
+      "interval95": {
+        "clusters": 2,
+        "delta": 0.05432745573999444,
+        "lower": 0.03205128205128205,
+        "upper": 0.07660362942870681,
+        "samples": 2000
+      }
+    },
+    "oh-block": {
+      "baseline": "bm25-window",
+      "metric": "turn-recall",
+      "interval95": {
+        "clusters": 2,
+        "delta": 0.05432745573999444,
+        "lower": 0.03205128205128205,
+        "upper": 0.07660362942870681,
+        "samples": 2000
+      }
+    }
+  },
+  "ingestion": [
+    {
+      "corpusId": "conv-49",
+      "turns": 509,
+      "duplicateSessionIds": 0,
+      "ohMs": 156.819375,
+      "bm25Ms": 3.5566670000000045
+    },
+    {
+      "corpusId": "conv-50",
+      "turns": 568,
+      "duplicateSessionIds": 0,
+      "ohMs": 178.25983300000007,
+      "bm25Ms": 3.248790999999983
+    }
+  ],
+  "unresolvedEvidence": 0,
+  "unresolvedReferences": [],
+  "evidenceProtocol": "oh.evidence-references.v2",
+  "evidenceNormalization": {
+    "questions": 5,
+    "examples": [
+      {
+        "questionId": "conv-49:31",
+        "raw": [
+          "D9:1 D4:4 D4:6"
+        ],
+        "normalized": [
+          "D9:1",
+          "D4:4",
+          "D4:6"
+        ]
+      },
+      {
+        "questionId": "conv-49:38",
+        "raw": [
+          "D22:1 D22:2 D9:10 D9:11"
+        ],
+        "normalized": [
+          "D22:1",
+          "D22:2",
+          "D9:10",
+          "D9:11"
+        ]
+      },
+      {
+        "questionId": "conv-49:46",
+        "raw": [
+          "D21:18 D21:22 D11:15 D11:19"
+        ],
+        "normalized": [
+          "D21:18",
+          "D21:22",
+          "D11:15",
+          "D11:19"
+        ]
+      },
+      {
+        "questionId": "conv-50:5",
+        "raw": [
+          "D4:5",
+          "D4:5",
+          "D5:5"
+        ],
+        "normalized": [
+          "D4:5",
+          "D5:5"
+        ]
+      },
+      {
+        "questionId": "conv-50:69",
+        "raw": [
+          "D30:05"
+        ],
+        "normalized": [
+          "D30:5"
+        ]
+      }
+    ]
+  },
+  "resultSha256": "6a80dd665ef24e1a51a0edc9a1781fc917b604335365894d47890b526b61fdc5",
+  "qualifications": [
+    "Evidence recall is not answer accuracy or an OSS leaderboard score.",
+    "No LLM extraction, embeddings, reranking, reader, or judge was used.",
+    "Derived fact text is not raw-turn retrieval. Its support-citation coverage is reported separately and must not be treated as evidence recall.",
+    "Oh candidates use the real local SQLite store and keyword API; focused/window variants are experimental benchmark adapters.",
+    "Full context is an unbounded reference; every other system shares the same UTF-8 context-byte budget.",
+    "Intervals are paired conversation/family-cluster bootstrap estimates; ten LoCoMo conversations limit statistical power.",
+    "Missing evidence references remain misses; unanswerable or unannotated cases have null retrieval metrics."
+  ],
+  "queryOrder": "global-question-rotation.v1",
+  "memoryUnits": null,
+  "fullReportSha256": "797d7a78555631a570de68ed85fbbed374f82ed860a2466cabf87d6ec2a4598c"
+}

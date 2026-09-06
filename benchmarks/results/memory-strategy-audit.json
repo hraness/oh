@@ -1,0 +1,389 @@
+{
+  "protocol": "oh.memory-strategy-audit.v1",
+  "status": "passed",
+  "auditedAt": "2026-09-06T21:43:13.979Z",
+  "sourceSha256": "226ac8b7ef955b63cb6186819831168d29f9def4936c0a985c383618030dc732",
+  "ledgerSha256": "871729e913d6d367b40ea8d39157aff45c7cce162fc843a12f099e331272fab2",
+  "paidRunReports": 31,
+  "reservations": 3072,
+  "settlements": 3068,
+  "unresolvedReservations": 4,
+  "usageAccountedUsd": 12.232353,
+  "unresolvedExposureUsd": 0.016416,
+  "cumulativeExposureUsd": 12.248769,
+  "capUsd": 13,
+  "verifiedCompactSummaries": 46,
+  "checks": {
+    "noActivePaidLedgerLockAtStart": true,
+    "extractionArgumentStaysInRunDirectory": true,
+    "boundedExistingAuditInputs": true,
+    "schemaAmendmentPinsSourceAndResponseSchema": true,
+    "frozenTwelveQuestionExperiment": true,
+    "boundedReportCount": true,
+    "requiredReport": true,
+    "boundedLedger": true,
+    "ledgerExposureEqualsSettlementsAndUnresolved": true,
+    "cumulativeExposureWithinThirteenDollars": true,
+    "ledgerReservationsMatchAllPaidReportsIncludingExtraction": true,
+    "finiteMicrodollarAccounting": true,
+    "ledgerSettlementsMatchAllPaidReports": true,
+    "ledgerUnresolvedMatchAllPaidReports": true,
+    "paidRunAccounting": true,
+    "runReservationSettlementsMatch": true,
+    "paidRunClosingExposure": true,
+    "finalReportExposureMatchesLedger": true,
+    "summaryHasExactFullReport": true,
+    "summaryFieldMatches": true,
+    "summaryContainsNoRawAnswersOrMemory": true,
+    "requiredSummary": true,
+    "selectionReproducesExactFrozenQuestions": true,
+    "twelveFreshIndependentFamilies": true,
+    "allPriorExaminedFamiliesExcluded": true,
+    "freshRunCompleted": true,
+    "freshRunDatasetAndSeed": true,
+    "sourceMatchesFinalTransportAmendment": true,
+    "sourceManifestSelfConsistent": true,
+    "readerFrozenSelectionAndControls": true,
+    "extractionFrozenCorporaAndExclusions": true,
+    "readerPromptAndModelFrozen": true,
+    "judgePromptAndModelFrozen": true,
+    "extractorPromptAndBoundsFrozenAsAmended": true,
+    "extractorResponseSchemaMatchesAmendment": true,
+    "allFrozenChunksHaveValidatedSourceProvenance": true,
+    "readerUsesExactVerifiedUnitReport": true,
+    "boundedNoncyclicExtractionLineage": true,
+    "everyResumeSourcePresentAndPinned": true,
+    "resumePriorCostRetained": true,
+    "coldIngestionIncludesAllResumeAttempts": true,
+    "resumeIncludesDocumentedPriorReport": true,
+    "resumeRetainsEarlierMixedFormatChunks": true,
+    "judgeReaderHash": true,
+    "completePairedRows": true,
+    "uniqueJudgeRows": true,
+    "judgeIdentityCoverage": true,
+    "identicalJudgePromptsAgree": true,
+    "identicalJudgePromptsChargedOnlyOnce": true,
+    "judgeReservationCount": true,
+    "readerUsageMatchesSettledCharges": true,
+    "judgeUsageMatchesSettledCharges": true,
+    "developmentComparatorHasSixtyQuestions": true,
+    "exactAbstentionPolicy": true,
+    "noActivePaidLedgerLockAtEnd": true,
+    "ledgerUnchangedDuringAudit": true
+  },
+  "extraction": {
+    "report": "longmemeval-fresh-units-v6.json",
+    "reportSha256": "d50218c0d58f757fa5bb3b89eb06eb9db388a295fb8c07368c69bb5c60d5d8d9",
+    "completeChunks": 826,
+    "totalUnits": 9096,
+    "rejectedUnits": 3584,
+    "usage": {
+      "inputTokens": 1636340,
+      "cachedInputTokens": 0,
+      "outputTokens": 1611901,
+      "accountedUsd": 3.233942
+    },
+    "responseFormat": "json_schema",
+    "responseSchemaSha256": "3617d32f63026e7cda75126283c5bc7888273e754b3e472546d73f84ada0ea20",
+    "resumeAttempts": 6,
+    "lineage": [
+      {
+        "report": "longmemeval-fresh-units-v6.json",
+        "sha256": "d50218c0d58f757fa5bb3b89eb06eb9db388a295fb8c07368c69bb5c60d5d8d9",
+        "completed": true,
+        "newlyReservedCalls": 429,
+        "newlyAccountedUsd": 1.559727
+      },
+      {
+        "report": "longmemeval-fresh-units-v5.json",
+        "sha256": "efd923802cb4e73db94aa413abb69ccfde525ed7765b0db272a55c065c14ca43",
+        "completed": false,
+        "newlyReservedCalls": 12,
+        "newlyAccountedUsd": 0.062439
+      },
+      {
+        "report": "longmemeval-fresh-units-v4.json",
+        "sha256": "9dbe6803fc3155ea04f77826eaba0d714096e6f928a0540e6a90ce0f50faa7cd",
+        "completed": false,
+        "newlyReservedCalls": 156,
+        "newlyAccountedUsd": 0.637658
+      },
+      {
+        "report": "longmemeval-fresh-units-v3.json",
+        "sha256": "2853b900f39db3f81123c4de58772171ad0cc989b4efa620ef9ec8591ac3f4f7",
+        "completed": false,
+        "newlyReservedCalls": 100,
+        "newlyAccountedUsd": 0.40792
+      },
+      {
+        "report": "longmemeval-fresh-units-v2.json",
+        "sha256": "876e9e8c8543306b49578eead08144c902cb7fc8a463c9569f62799ac49992c9",
+        "completed": false,
+        "newlyReservedCalls": 125,
+        "newlyAccountedUsd": 0.52525
+      },
+      {
+        "report": "longmemeval-fresh-units-v1.json",
+        "sha256": "daaae7dd12cefc2c48a28be806859c399db9ec61d9cbe20940b7e3d8d9840332",
+        "completed": false,
+        "newlyReservedCalls": 9,
+        "newlyAccountedUsd": 0.040948
+      }
+    ]
+  },
+  "fresh": {
+    "dataset": "longmemeval-s",
+    "split": "test",
+    "questions": 12,
+    "independentGroups": 12,
+    "readerReportSha256": "e2f9c0378f48601612880cf68c21a7d8d6c01145996a11bba96fac8209930ec2",
+    "judgeReportSha256": "cd8433632d1dbe153c1b746c9526f3586f00c31608475a575d3aae2341032891",
+    "scores": {
+      "bm25-window": {
+        "requested": 12,
+        "correct": 7,
+        "accuracy": 0.5833333333333334,
+        "readerInputTokens": 36059,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 93,
+        "readerAccountedUsd": 0.014577,
+        "uncachedReaderUsd": 0.014577,
+        "coldIngestionAccountedUsd": 0,
+        "coldIngestionPlusReaderUsd": 0.014577
+      },
+      "bm25-block": {
+        "requested": 12,
+        "correct": 7,
+        "accuracy": 0.5833333333333334,
+        "readerInputTokens": 35678,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 193,
+        "readerAccountedUsd": 0.014586,
+        "uncachedReaderUsd": 0.014586,
+        "coldIngestionAccountedUsd": 0,
+        "coldIngestionPlusReaderUsd": 0.014586
+      },
+      "oh-block": {
+        "requested": 12,
+        "correct": 6,
+        "accuracy": 0.5,
+        "readerInputTokens": 35710,
+        "readerCachedInputTokens": 3328,
+        "readerOutputTokens": 193,
+        "readerAccountedUsd": 0.0136,
+        "uncachedReaderUsd": 0.014598,
+        "coldIngestionAccountedUsd": 0,
+        "coldIngestionPlusReaderUsd": 0.0136
+      },
+      "bm25-fact": {
+        "requested": 12,
+        "correct": 6,
+        "accuracy": 0.5,
+        "readerInputTokens": 27345,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 79,
+        "readerAccountedUsd": 0.01107,
+        "uncachedReaderUsd": 0.01107,
+        "coldIngestionAccountedUsd": 3.233942,
+        "coldIngestionPlusReaderUsd": 3.245012
+      },
+      "oh-fact-turns": {
+        "requested": 12,
+        "correct": 9,
+        "accuracy": 0.75,
+        "readerInputTokens": 31999,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 94,
+        "readerAccountedUsd": 0.012955,
+        "uncachedReaderUsd": 0.012955,
+        "coldIngestionAccountedUsd": 3.233942,
+        "coldIngestionPlusReaderUsd": 3.246897
+      },
+      "oh-fact": {
+        "requested": 12,
+        "correct": 9,
+        "accuracy": 0.75,
+        "readerInputTokens": 27363,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 131,
+        "readerAccountedUsd": 0.01116,
+        "uncachedReaderUsd": 0.01116,
+        "coldIngestionAccountedUsd": 3.233942,
+        "coldIngestionPlusReaderUsd": 3.245102
+      }
+    },
+    "comparisons": {
+      "oh-fact-minus-bm25-window": {
+        "wins": 2,
+        "losses": 0,
+        "ties": 10,
+        "interval95": {
+          "clusters": 12,
+          "delta": 0.16666666666666666,
+          "lower": 0,
+          "upper": 0.4166666666666667,
+          "samples": 2000
+        }
+      },
+      "oh-fact-minus-bm25-fact": {
+        "wins": 3,
+        "losses": 0,
+        "ties": 9,
+        "interval95": {
+          "clusters": 12,
+          "delta": 0.25,
+          "lower": 0,
+          "upper": 0.5,
+          "samples": 2000
+        }
+      }
+    },
+    "distinctJudgePrompts": 29,
+    "exactAbstentions": 0,
+    "judgeAccountedUsd": 0.012361
+  },
+  "development": {
+    "dataset": "locomo",
+    "split": "dev",
+    "questions": 60,
+    "independentGroups": 2,
+    "readerReportSha256": "5a09fb49f74ab77bf0384b804db59467435e6461539407ecf73f083538674394",
+    "judgeReportSha256": "f34973d3deba520a5f7a40712b7cea45a2069bfc33591c3837a1683b509d8fad",
+    "scores": {
+      "bm25-window": {
+        "requested": 60,
+        "correct": 27,
+        "accuracy": 0.45,
+        "readerInputTokens": 181550,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 1338,
+        "readerAccountedUsd": 0.074788,
+        "uncachedReaderUsd": 0.074788,
+        "coldIngestionAccountedUsd": 0,
+        "coldIngestionPlusReaderUsd": 0.074788
+      },
+      "oh-window": {
+        "requested": 60,
+        "correct": 26,
+        "accuracy": 0.43333333333333335,
+        "readerInputTokens": 183163,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 1392,
+        "readerAccountedUsd": 0.075519,
+        "uncachedReaderUsd": 0.075519,
+        "coldIngestionAccountedUsd": 0,
+        "coldIngestionPlusReaderUsd": 0.075519
+      },
+      "bm25-block": {
+        "requested": 60,
+        "correct": 29,
+        "accuracy": 0.48333333333333334,
+        "readerInputTokens": 216347,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 1412,
+        "readerAccountedUsd": 0.088824,
+        "uncachedReaderUsd": 0.088824,
+        "coldIngestionAccountedUsd": 0,
+        "coldIngestionPlusReaderUsd": 0.088824
+      },
+      "oh-block": {
+        "requested": 60,
+        "correct": 30,
+        "accuracy": 0.5,
+        "readerInputTokens": 215886,
+        "readerCachedInputTokens": 3840,
+        "readerOutputTokens": 1368,
+        "readerAccountedUsd": 0.087416,
+        "uncachedReaderUsd": 0.088568,
+        "coldIngestionAccountedUsd": 0,
+        "coldIngestionPlusReaderUsd": 0.087416
+      },
+      "bm25-fact-turns": {
+        "requested": 60,
+        "correct": 28,
+        "accuracy": 0.4666666666666667,
+        "readerInputTokens": 85744,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 1038,
+        "readerAccountedUsd": 0.035987,
+        "uncachedReaderUsd": 0.035987,
+        "coldIngestionAccountedUsd": 0.134719,
+        "coldIngestionPlusReaderUsd": 0.170706
+      },
+      "oh-fact-turns": {
+        "requested": 60,
+        "correct": 27,
+        "accuracy": 0.45,
+        "readerInputTokens": 85785,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 1091,
+        "readerAccountedUsd": 0.036089,
+        "uncachedReaderUsd": 0.036089,
+        "coldIngestionAccountedUsd": 0.134719,
+        "coldIngestionPlusReaderUsd": 0.170808
+      },
+      "bm25-fact": {
+        "requested": 60,
+        "correct": 34,
+        "accuracy": 0.5666666666666667,
+        "readerInputTokens": 128585,
+        "readerCachedInputTokens": 0,
+        "readerOutputTokens": 1148,
+        "readerAccountedUsd": 0.053303,
+        "uncachedReaderUsd": 0.053303,
+        "coldIngestionAccountedUsd": 0.134719,
+        "coldIngestionPlusReaderUsd": 0.188022
+      },
+      "oh-fact": {
+        "requested": 60,
+        "correct": 33,
+        "accuracy": 0.55,
+        "readerInputTokens": 128906,
+        "readerCachedInputTokens": 2048,
+        "readerOutputTokens": 1304,
+        "readerAccountedUsd": 0.053064,
+        "uncachedReaderUsd": 0.053678,
+        "coldIngestionAccountedUsd": 0.134719,
+        "coldIngestionPlusReaderUsd": 0.187783
+      }
+    },
+    "comparisons": {
+      "oh-fact-minus-bm25-window": {
+        "wins": 9,
+        "losses": 3,
+        "ties": 48,
+        "interval95": {
+          "clusters": 2,
+          "delta": 0.1,
+          "lower": -0.034482758620689655,
+          "upper": 0.22580645161290322,
+          "samples": 2000
+        }
+      },
+      "oh-fact-minus-bm25-fact": {
+        "wins": 1,
+        "losses": 2,
+        "ties": 57,
+        "interval95": {
+          "clusters": 2,
+          "delta": -0.016666666666666666,
+          "lower": -0.03225806451612903,
+          "upper": 0,
+          "samples": 2000
+        }
+      }
+    },
+    "distinctJudgePrompts": 256,
+    "exactAbstentions": 25,
+    "judgeAccountedUsd": 0.109134
+  },
+  "qualifications": [
+    "Small frozen holdout using Gateway aliases and a fallible semantic judge; not an official leaderboard result.",
+    "Matched BM25 facts share the same representation; any extraction gain is not evidence for a storage-specific advantage.",
+    "Cold ingestion includes all verified resumed extraction attempts and failures; costs are inference accounting, not a provider invoice.",
+    "Per-arm cold costs describe separate adoption scenarios; shared extraction was paid once and must not be summed across arms.",
+    "Provider-side schema enforcement strengthened response shape before any answers or judge labels were generated; the frozen extractor prompt, chunking, model, and accepted unit/support bounds were retained.",
+    "The completed cache reuses verified earlier chunks produced under earlier response formats; this is a documented mixed-format ingestion run, not a homogeneous extractor reproduction.",
+    "Verified source quotes establish attribution, not semantic entailment; automatic real-agent memory writing remains outside this experiment."
+  ]
+}

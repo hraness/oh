@@ -764,8 +764,9 @@ function referenceKey(reference: TupleReference): string {
 }
 
 function relationTuples(relations: Map<string, RelationState>, relation: string): readonly TupleState[] {
-  return [...(relations.get(relation)?.values() ?? [])]
-    .sort((left, right) => compareCanonical(left.tuple, right.tuple));
+  return [...(relations.get(relation)?.entries() ?? [])]
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+    .map(([, state]) => state);
 }
 
 function setArity(arities: Map<string, number>, relation: string, arity: number): void {

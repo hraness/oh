@@ -1,0 +1,152 @@
+{
+  "v": 1,
+  "reviewedAt": "2026-09-05",
+  "scope": "Architecture, selected source paths, and evaluation-protocol audit. Not a complete security audit or a reproduction of third-party scores.",
+  "sources": [
+    {
+      "system": "Lemmalog",
+      "revision": "74d428a2497066795f6328946457f22d713fcbd5",
+      "url": "https://github.com/JordyZomer/lemmalog/tree/74d428a2497066795f6328946457f22d713fcbd5",
+      "read": ["README.md"],
+      "mechanism": "LLM observation extraction followed by stratified Datalog, temporal facts, support provenance, incremental maintenance, and budgeted episodic/fact retrieval.",
+      "lesson": "Measure extraction coverage separately from inference. Preserve raw episodes and conditions; check multiple independent supports when retracting a premise.",
+      "caveats": [
+        "The supplied August 30 article is not the current benchmark snapshot. The inspected README now reports LongMemEval set-F1 0.487 +/- 0.011 and LoCoMo set-F1 0.573 +/- 0.002, not the article's 0.463 and 0.533.",
+        "LongMemEval answer-phase token savings exclude one-time extraction. Its extractor is Sonnet 4.6 while the reader is GPT-4.1, so equal-reader is not equal full model stack.",
+        "The README contains different aggregate binary-accuracy figures in separate paragraphs; use raw run artifacts rather than resolving that inconsistency by assumption.",
+        "No Lemmalog score was reproduced in this Oh experiment."
+      ]
+    },
+    {
+      "system": "Letta / MemGPT",
+      "revision": "802a794263279839f9384bfd518ca9da3d059d37",
+      "url": "https://github.com/letta-ai/letta-leaderboard/tree/802a794263279839f9384bfd518ca9da3d059d37",
+      "read": ["leaderboard/letta_bench/letta_bench_benchmark.py"],
+      "primaryArticles": [
+        "https://www.letta.com/blog/benchmarking-ai-agent-memory/",
+        "https://www.letta.com/blog/letta-leaderboard/"
+      ],
+      "mechanism": "Agent-managed in-context blocks, archival memory, and iterative filesystem search. Read, write, and update evaluations isolate distinct agent capabilities.",
+      "lesson": "Include raw-transcript retrieval and eventually an iterative search agent. Test whether written memory survives removal of the chat history, not just whether a database can answer a typed query.",
+      "caveats": [
+        "The reported 74.0% LoCoMo result uses GPT-4o-mini, iterative search including embeddings, and an accuracy judge. It is not directly comparable to MemEval set-F1 or a single BM25 call.",
+        "The inspected core-write benchmark sends supporting facts selected for a question, then resets messages. This is a controlled tool-use task, not unrestricted lifelong memorization.",
+        "Oh's offline BM25 baseline is not a Letta implementation."
+      ]
+    },
+    {
+      "system": "PropMem / MemEval / OpenClaw baseline",
+      "revision": "807ae6d7d8a5b76f6fe964d5a581d96c036e2ac4",
+      "url": "https://github.com/ProsusAI/MemEval/tree/807ae6d7d8a5b76f6fe964d5a581d96c036e2ac4",
+      "read": ["README.md", "PROPMEM.md", "src/agents_memory/propmem.py", "src/agents_memory/evaluation.py", "src/agents_memory/locomo.py", "src/agents_memory/benchmarks/longmemeval.py", "src/agents_memory/systems/fullcontext.py"],
+      "mechanism": "Date-stamped, entity-scoped propositions with raw chunk fallback and hybrid retrieval; shared evaluation framework and token accounting.",
+      "lesson": "Keep speaker identity, exact values, and source dates. Compare propositions plus raw fallback against raw-only memory with the same reader and context budget.",
+      "caveats": [
+        "MemEval's compute_f1 uses sets of word tokens, not multiset F1 or LoCoMo's native stemming and category-specific aggregation.",
+        "Empty-answer scoring uses substring refusal markers including 'none' and 'unknown'. Oh's diagnostic F1 instead requires a whole-answer refusal and is explicitly a different metric.",
+        "MemEval calls LoCoMo category 1 Factual and category 4 Multi-hop. The dataset's task_eval/evaluation.py identifies category 1 as multi-hop and category 4 as single-hop. Oh retains native category IDs.",
+        "LoCoMo's MemEval judge is GPT-5.2 with three dimensions; LongMemEval uses a GPT-4o binary judge. These are not interchangeable percentages.",
+        "The inspected _bm25_propositions maps FTS5 ranks through 1/(1+max(0,rank)); normal negative FTS5 BM25 ranks consequently become 1. This is a source-level observation, not a remeasured effect on published results.",
+        "PropMem's published LongMemEval row uses a stratified 102-question S subset. A different sample or the oracle split cannot substantiate beating that row.",
+        "Judge exceptions are scored as zero upstream. This harness separately reports failed and unattempted calls and coverage."
+      ]
+    },
+    {
+      "system": "Graphiti / Zep",
+      "revision": "547422865cca9fb5a82915c074d899428c145ff4",
+      "url": "https://github.com/getzep/graphiti/tree/547422865cca9fb5a82915c074d899428c145ff4",
+      "read": ["README.md", "graphiti_core/utils/maintenance/edge_operations.py"],
+      "mechanism": "Temporal entity/relationship graph backed by source episodes, hybrid search, and LLM-assisted duplicate/contradiction resolution.",
+      "lesson": "Preserve event time independently from insertion time and preserve source episodes. Check stale values, contradictory assertions, and out-of-order observations.",
+      "caveats": [
+        "Graphiti is not merely a vector store: it already models temporal validity, provenance, and invalidation.",
+        "The inspected resolver identifies contradiction candidates with an LLM and applies validity/expiry transitions; this is different from deterministic proof-dependency retraction.",
+        "Managed Zep uses proprietary infrastructure. Its scores are not automatically scores for an OSS Graphiti configuration."
+      ]
+    },
+    {
+      "system": "Mem0",
+      "revision": "dae67f74f5cc7bf138c7d7d6f9cec5ce4b4373b3",
+      "url": "https://github.com/mem0ai/mem0/tree/dae67f74f5cc7bf138c7d7d6f9cec5ce4b4373b3",
+      "read": ["README.md", "mem0/memory/main.py"],
+      "mechanism": "Current default ingestion uses additive LLM extraction, entity linking, BM25/semantic/entity signals, and explicit scope filters; explicit update/delete APIs also exist.",
+      "lesson": "Retain assistant-side facts, compare additive history against maintained state, and measure entity-linked retrieval without treating similarity as logical validity.",
+      "caveats": [
+        "Do not describe current Mem0 only by the older ADD/UPDATE/DELETE extraction algorithm. The inspected default ingestion now uses a single additive extraction call.",
+        "The README's 92.5 LoCoMo and 94.4 LongMemEval figures explicitly describe the managed platform with proprietary optimizations, not a reproduced OSS SDK run.",
+        "The inspected OSS add/search methods reject the platform-only timestamp/reference_date arguments. Time-aware managed results therefore cannot be assumed for those OSS methods."
+      ]
+    },
+    {
+      "system": "Hindsight",
+      "revision": "eb32332e26fc9d3d827632a8e48ae405a78f9801",
+      "url": "https://github.com/vectorize-io/hindsight/tree/eb32332e26fc9d3d827632a8e48ae405a78f9801",
+      "read": ["README.md"],
+      "mechanism": "Retain/recall/reflect operations over facts, experiences, consolidated observations, and mental models. Recall combines semantic, keyword, graph, and temporal strategies with fusion/reranking.",
+      "lesson": "Separate memory writing, retrieval, and reflective synthesis costs; test temporal and graph retrieval as separate ablations before combining them.",
+      "caveats": [
+        "A reflect answer and a recall result expose different capabilities and incur different costs.",
+        "The primary project and MemEval results use different evaluation configurations. Neither is a measured baseline in this Oh run."
+      ]
+    },
+    {
+      "system": "SimpleMem / EvolveMem",
+      "revision": "db80b6a7c591e0ea730a058e9f5fc4eb06572299",
+      "url": "https://github.com/aiming-lab/SimpleMem/tree/db80b6a7c591e0ea730a058e9f5fc4eb06572299",
+      "read": ["README.md"],
+      "mechanism": "Structured compression, within-session synthesis, and intent-aware retrieval. EvolveMem adds evaluation-driven changes to retrieval configurations.",
+      "lesson": "Use a diagnose/change/validate loop, preserve conditions and exact values during compression, and reject an optimization that regresses a frozen holdout.",
+      "caveats": [
+        "Compression described as lossless still requires measured evidence coverage.",
+        "Repeated tuning on public test answers is not independent generalization evidence. Oh splits entire conversations/families and keeps final test results separate from development."
+      ]
+    }
+  ],
+  "datasets": {
+    "locomo": {
+      "license": "CC-BY-NC-4.0",
+      "licenseUrl": "https://github.com/snap-research/locomo/blob/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/LICENSE.txt",
+      "attribution": "Adyasha Maharana, Dong-Ho Lee, Sergey Tulyakov, Mohit Bansal, Francesco Barbieri, and Yuwei Fang. Evaluating Very Long-Term Conversational Memory of LLM Agents, ACL 2024.",
+      "evaluator": "https://github.com/snap-research/locomo/blob/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/task_eval/evaluation.py",
+      "nativeCategories": { "1": "multi-hop", "2": "temporal", "3": "open-domain", "4": "single-hop", "5": "adversarial" },
+      "boundary": "Only raw conversation turns and provided image captions enter memory. Gold event summaries, answers, evidence IDs, observations, and supplied session summaries do not. No images are fetched. Review the noncommercial license for the intended use."
+    },
+    "longmemeval": {
+      "license": "MIT",
+      "url": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/tree/98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "boundary": "has_answer and answer_session_ids are evaluator-only. Preserve assistant messages and question_date. Repeated native session IDs require distinct occurrence identities without dropping content. The oracle split contains only evidence sessions and must never be labeled as the S split."
+    },
+    "longmemeval-v2": {
+      "revision": "2cc8c540bdb87fe6761629b585e727e1c4704520",
+      "url": "https://github.com/xiaowu0162/LongMemEval-V2/tree/2cc8c540bdb87fe6761629b585e727e1c4704520",
+      "status": "audited; not run or downloaded",
+      "scope": "451 questions over web and enterprise agent trajectories: static state, dynamic state, workflows, environment gotchas, and premise awareness. Includes an accuracy-latency frontier metric (LAFS).",
+      "lesson": "A stronger follow-up for actual agent experience than conversational retrieval alone. Its memory backend receives trajectories and question text/images, not gold answers or dataset question metadata.",
+      "boundary": "The published stack uses a Qwen3.5-9B reader, Qwen3-Embedding-8B for embedding methods, and a GPT-5.2 judge. Haystacks reach 115M tokens. This is a separate protocol and resource budget, not an extension of the present GPT-4.1 pilot."
+    }
+  },
+  "ohAssessment": {
+    "strength": "Versioned canonical records, transactional CAS operations, separately bound working/canonical authorities, exact-head positive Datalog results, visible conflicts, and record-level proof provenance.",
+    "limits": [
+      "Proof provenance establishes which accepted inputs support a result, not whether an LLM-extracted premise is true in the world.",
+      "The current reference evaluator is positive and rebuilds at an exact head; it is not Lemmalog's incremental, stratified engine.",
+      "The raw-episode adapters do not test an LLM fact extractor, an agent's writing policy, semantic embeddings, or a sleep-time consolidation strategy.",
+      "Synthetic typed-state correctness, retrieval recall, end-to-end QA, and real-agent task success are distinct claims."
+    ]
+  },
+  "comparisonRequirements": [
+    "Pin source revisions, dataset bytes, selected question IDs, reader, extractor, judge, prompts, context budgets, and seeds.",
+    "Include no-memory, recent-context, full-context, strong raw BM25, and same-budget adapter baselines; do not call a local ablation an implementation of a named competitor.",
+    "Account separately for ingestion, embeddings, query planning, reranking, answering, judging, cache reuse, unresolved charges, and latency.",
+    "Keep errors and unattempted cases visible in coverage. Report per-category scores and paired conversation-cluster uncertainty.",
+    "Choose changes using development data. Evaluate the frozen candidate once on held-out conversations/families and on a second dataset.",
+    "Do not claim a leaderboard win without reproducing the exact competing protocol and running the competing implementation under that protocol."
+  ],
+  "nextExperiments": [
+    "Question-blind, source-anchored LLM extraction plus raw-episode fallback, compared with raw-only memory at matched total costs.",
+    "A fixed-agent write/reset/read/update evaluation following Letta's separation of memory operations.",
+    "Public or sanitized long-running task replays that measure successful resumptions, stale-premise use, provenance validity, and tool-call cost.",
+    "Optional local semantic retrieval versus lexical retrieval, with the embedding profile pinned and acquisition costs reported.",
+    "A frozen MemEval adapter and paired reruns of PropMem, Lemmalog, and Oh before making comparative leaderboard claims."
+  ]
+}

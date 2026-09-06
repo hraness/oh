@@ -68,6 +68,7 @@ const publicSourceEntries = [
   "tsconfig.json",
   "tsconfig.build.json",
   "tsconfig.scripts.json",
+  "benchmarks",
   ".github",
   "docs",
   "dist",

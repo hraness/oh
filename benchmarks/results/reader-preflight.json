@@ -1,0 +1,14 @@
+{
+  "v": 1,
+  "kind": "oh.memory-reader-preflight",
+  "checkedOn": "2026-09-05",
+  "status": "blocked",
+  "reason": "OPENAI_API_KEY was not available to the benchmark runner.",
+  "command": "bun --env-file=.env.benchmark run bench:memory answer --dataset locomo --split dev --limit 24 --paid --max-usd 10 --max-calls 96",
+  "providerRequestsDispatchedByThisPreflight": 0,
+  "providerCostUsdForThisPreflight": 0,
+  "maximumPilotUsd": 10,
+  "answerQualityMeasured": false,
+  "nativeJudgeRun": false,
+  "qualification": "Mock-provider tests validate cost, input-isolation, and error-handling behavior. They are not model-quality measurements. No leaderboard claim follows from the offline state or retrieval runs."
+}

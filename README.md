@@ -764,6 +764,29 @@ The JSON Schemas describe exchange envelopes. Runtime parsers additionally
 enforce canonical ordering, byte limits, referential integrity, and digest
 preimages that JSON Schema cannot express.
 
+## Benchmark memory
+
+Run the network-free state and projection checks from a checkout:
+
+```sh
+bun run test:benchmarks
+bun run bench:memory state
+bun run bench:memory projection
+```
+
+The state suite checks updates, conflicts, provenance, and stale-write rejection.
+Reusing canonical tuple keys reduces local median projection time by 25–34%
+across the recorded 16-, 32-, and 48-node cases, with identical complete result
+digests, proofs, and work counts. These microbenchmarks are not production
+latency guarantees.
+
+The [memory benchmark guide](https://github.com/hraness/oh/blob/main/benchmarks/README.md) covers checksum-pinned
+datasets, raw and extracted memory comparisons, explicit paid-run limits,
+recorded reader results, and reproducibility evidence. Retrieval recall,
+downstream answer quality, and agent memory-writing behavior are separate
+measurements. The benchmark adapters do not change default memory or search
+policy.
+
 ## Verify a checkout
 
 ```sh

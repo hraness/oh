@@ -6,6 +6,8 @@
 - `skills/oh/` – installable Agent Skill for operating Oh from a coding-agent workflow.
 - `site/` – the public Next.js website for `https://oh.computer`, deployed from the existing Hraness Vercel project.
 - `.agents/skills/` – portable plan authoring, phased execution, implementation, and independent review workflows.
+- `scripts/benchmarks/` and `scripts/benchmark-memory.ts` – isolated memory-state, retrieval, projection-performance, and explicitly budgeted reader experiments.
+- `benchmarks/` – source/protocol audit and compact reproducibility evidence; datasets and full run artifacts stay in ignored `.cache/benchmarks/`.
 - `.github/` – public contribution templates, branch validation, dependency updates, and exact-artifact release automation.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` – public usage, project policy, threat model, and terms.
 - `STYLE.md` – the public and reader-facing prose contract.
@@ -29,6 +31,7 @@
 - Update narrative specifications, machine-readable manifests and schemas, implementation, and regression evidence together when a public contract changes.
 - Keep the Agent Skill concise and self-contained. It may guide reads and writes, but it cannot broaden a user's authorization or silently choose a database, space, sync destination, or destructive operation.
 - Rebuild `dist/` after source changes. Run `bun run check`, confirm the build leaves tracked files clean, and exercise the packed root, subpaths, and `oh --help` before handoff.
+- Run `bun run test:benchmarks` for benchmark changes. Use `bun run bench:memory --help` for isolated experiments; keep dataset labels outside ingestion, tune only on development groups, and distinguish state correctness, evidence recall, and reader scores. Paid calls require explicit limits and either a benchmark-only key or an explicitly selected Vercel project OIDC token; preserve the shared spending ledger across readers, transports, and judges. Keep Gateway aliases distinct from verified snapshots, and give gold references only to the separate judge.
 - Enable GitHub release immutability and configure npm trusted publishing for `.github/workflows/release.yml` before the next stable release. Release only a new annotated `v*` tag at exact current `main`. Build one npm tarball, test those unchanged bytes on Linux and macOS, publish them through npm OIDC with provenance, then attach that same tarball and `SHA256SUMS` to the immutable GitHub Release. Never move or reuse a release tag.
 
 <!-- hra-local-efficiency:start -->

@@ -1,0 +1,647 @@
+{
+  "protocol": "oh.memory-benchmark.v1",
+  "createdAt": "2026-09-06T15:36:46.960Z",
+  "manifest": {
+    "command": "judge",
+    "dataset": "longmemeval-s",
+    "source": {
+      "bytes": 277383467,
+      "revision": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+      "url": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/98d7416c24c778c2fee6e6f3006e7a073259d48f/longmemeval_s_cleaned.json"
+    },
+    "split": "dev",
+    "seed": 17,
+    "code": {
+      "sourceSha256": "2e9e0bf8939e3c0e6e75678321eb4bc68296b582a9dc0a45670f05e79ae3dbf8",
+      "gitHead": "70bd7ca6b444c0fe03ba4f52669d0cf0aa1715ff",
+      "dirty": true,
+      "bun": "1.3.14",
+      "node": "v24.20.0",
+      "bunNodeCompatibility": "24.3.0",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "files": [
+        {
+          "path": "bun.lock",
+          "sha256": "442038a76c2af0dda4dda001c777ebbb9968aaf2b64b7bc1bf55e9dc6a9d2a65"
+        },
+        {
+          "path": "package.json",
+          "sha256": "7a850c09029ef5fcf4db2cc63cb7c6094483ee9ec76234acfe5fc99e48445d0a"
+        },
+        {
+          "path": "scripts/benchmark-memory.ts",
+          "sha256": "5d23fa8226aa90d76a1537e2a2ae01c173cded4eda84924b873669687221389d"
+        },
+        {
+          "path": "scripts/benchmarks/artifacts.ts",
+          "sha256": "2028360e6f86dfdf0be448e95ec7d4e48d78ef42fefd3cf0d6fb8e84d6e9187b"
+        },
+        {
+          "path": "scripts/benchmarks/datasets.ts",
+          "sha256": "cefef13172b92be1b27ff72c97f7c832c813671e2df8bfe284be5c05e8a03e48"
+        },
+        {
+          "path": "scripts/benchmarks/io.ts",
+          "sha256": "64043983706210387ef8696e4a9cf2ec9112be4337f2a9dfac34f3e47d7fa956"
+        },
+        {
+          "path": "scripts/benchmarks/judge.ts",
+          "sha256": "ff93c4ed99762cfe40de5f23c3f6807703eaaa9a364ff056cca80fe6cfbecdb4"
+        },
+        {
+          "path": "scripts/benchmarks/metrics.ts",
+          "sha256": "8852d2947d125c34b119ac6e0eda927d2b7e8484725f26c21371fd39f58757db"
+        },
+        {
+          "path": "scripts/benchmarks/model.ts",
+          "sha256": "405a05b80b6fb9e87a73c63a01d0b8fe9c0f8e669048e087dee6f206aa3fbf04"
+        },
+        {
+          "path": "scripts/benchmarks/retrieval.ts",
+          "sha256": "08aea5fb69c6ad2943a10c1325ef933ecc2ee4b1d2fed1bba576d499b99292cf"
+        },
+        {
+          "path": "scripts/benchmarks/runner.ts",
+          "sha256": "386f1cdf6dbd3da896573af8c8072cd09774fde80108c6732b655e63086e8cd6"
+        },
+        {
+          "path": "scripts/benchmarks/state.ts",
+          "sha256": "e0fb052b5a2b6ab2184d1c4baf53068aff952360c6400240a276c2303440a260"
+        },
+        {
+          "path": "src/canonical.test.ts",
+          "sha256": "5de29527ba01b6e0cdc6bddc0a5d759d1fcfff3e7e261df06c1163ef2c0ce4c2"
+        },
+        {
+          "path": "src/canonical.ts",
+          "sha256": "130fef8c25ccf3aee399a81948204752adbf6b7818ce564f09ba633942ebeab6"
+        },
+        {
+          "path": "src/cli.test.ts",
+          "sha256": "dc92796b730b982e09108bc9e754b198cc6badd643bdb6b5b393775b72b2cb33"
+        },
+        {
+          "path": "src/cli.ts",
+          "sha256": "0da4d3b17bac4d081267c324046dcacb6a9f43fc4390fbb11e53651995afd4b5"
+        },
+        {
+          "path": "src/cloudflare-embedding.test.ts",
+          "sha256": "8538b7d7033feacab3fe5ce755af846d52ccbc763801df237ec169e68ac188ca"
+        },
+        {
+          "path": "src/cloudflare-embedding.ts",
+          "sha256": "71aa63b9dab9ef7135b821fc140547f3d7ec6705f432b815f9fbe1124b22a2df"
+        },
+        {
+          "path": "src/contract.ts",
+          "sha256": "246b98886f545cfe75cb1303e14ecff90961f1447e304703d4544b2b6ed17ee9"
+        },
+        {
+          "path": "src/contracts.test.ts",
+          "sha256": "22a9733412f62993fed82f6488453de82ed7b4535a3fb33ed46bfc379bf339f0"
+        },
+        {
+          "path": "src/graph.ts",
+          "sha256": "8643f35ae73dd477608cb342eed7f8c5f30497f3e3936eee00a062a4960cac43"
+        },
+        {
+          "path": "src/index.ts",
+          "sha256": "336de7467e585878b30c48770ea1e71f95dd21a0842e79511e36ca0a1195d628"
+        },
+        {
+          "path": "src/libsql-semantic-v2.test.ts",
+          "sha256": "dc294fb5d1f41623302931fb7ea5f169e5f72c7ad41940b748ae3c4878b8c1ea"
+        },
+        {
+          "path": "src/libsql-semantic-v2.ts",
+          "sha256": "c3c6a7ff08df772300a0549d406cb4a4d67d4c2666b3ba647df535c3c2ad2d42"
+        },
+        {
+          "path": "src/libsql-semantic.test.ts",
+          "sha256": "9cd6b0e34cdf4e84be522f50aeed99c245de5dc52d32958f617edf1311d0536a"
+        },
+        {
+          "path": "src/libsql-semantic.ts",
+          "sha256": "cadda4b84e9db583016e8bd0e3d99c88aa36d0e440c13c4d41132f330fba21ef"
+        },
+        {
+          "path": "src/libsql.test.ts",
+          "sha256": "a1b9a0bbd37aa08c828726e01dcff6b5378ed5bc732c906c96cbdf1f74fb2c0b"
+        },
+        {
+          "path": "src/libsql.ts",
+          "sha256": "ca561827a6097bc813e8f7e10477cfccfe219a7b15ddf74abc89743ebd978833"
+        },
+        {
+          "path": "src/memory-page.ts",
+          "sha256": "617398b0959650218ac2ea1ebf355c20f82640794b3a3bdbe478795057ccd244"
+        },
+        {
+          "path": "src/memory-pages.test.ts",
+          "sha256": "675fcc1f3bfafab2776e902333b29bdf334cc91be7942feb52f06b620e4885a1"
+        },
+        {
+          "path": "src/memory-pages.ts",
+          "sha256": "7915df13e97552c70c5a75a1ecdea6ea96abe467a6a473e3fefbb0958115f49d"
+        },
+        {
+          "path": "src/memory.test.ts",
+          "sha256": "08f66676770826b9cccade64bb110de3e45b158287ae6acbdbf85319c5fd6d4d"
+        },
+        {
+          "path": "src/memory.ts",
+          "sha256": "6295c7305f40e3295f99aece4d78038b917d69caa3339e0fe61957d31899cde0"
+        },
+        {
+          "path": "src/ontology.ts",
+          "sha256": "0044f0d71c595e48f145767279d7175af2748d49faf0763ab07fe4fbe698a107"
+        },
+        {
+          "path": "src/operation.ts",
+          "sha256": "4163691ed74f3dfa86a042e4623e99807aac6df6d6af7def31077e238921373d"
+        },
+        {
+          "path": "src/projection-public.ts",
+          "sha256": "cdb9336e7aec0e79804d51f373628f18ebb536d43344a51ba49e2efef29882b7"
+        },
+        {
+          "path": "src/projection-suss.ts",
+          "sha256": "aa6ebb98cf0b74b8ac1ab5322fe41ae1ec19d53808ffd9559ec792d015804229"
+        },
+        {
+          "path": "src/projection.test.ts",
+          "sha256": "99ec694abfe68f44958ba97ea54aba0d6bbb2c715e082bb5b1ac3f0e856bf1a5"
+        },
+        {
+          "path": "src/projection.ts",
+          "sha256": "b6ae86061378bd7d3b6759c7aa04b344b569b0205253ac90012e5b9654decfc3"
+        },
+        {
+          "path": "src/schema.ts",
+          "sha256": "6f4171f7f70a0a863ea65fd0e3a066f19b039e5757c8487e669058d334592423"
+        },
+        {
+          "path": "src/sdk.ts",
+          "sha256": "0b1eabcb199b3a780f7baf6d2dffe86b55024b220645d6991a8303639ae9b1d3"
+        },
+        {
+          "path": "src/search.ts",
+          "sha256": "1612b784ba0fa842bdf6b6b4aa18add1ddd7d9d5c5990b4b06fce69bf0297562"
+        },
+        {
+          "path": "src/semantic-cloud.ts",
+          "sha256": "8026416dc8409f713115cfab350ab979064260d997478ff940d9d6fffa6394bf"
+        },
+        {
+          "path": "src/semantic.test.ts",
+          "sha256": "cdb6f708a56954f5a7bd614dae80190d503833aad920de3bece2ec57339a9157"
+        },
+        {
+          "path": "src/semantic.ts",
+          "sha256": "5fcdef354cdef76af105dbbc5763c54bf39e2eafc923b4b95b1a10a6fe71a3ba"
+        },
+        {
+          "path": "src/sqlite/driver.ts",
+          "sha256": "7049a46897b7cff9e601366d40dc5c326b8f6c43c6dc528a079a1a3a228d3416"
+        },
+        {
+          "path": "src/sqlite/index.ts",
+          "sha256": "5ec234742b85c38c08c4d5defde01025efddd5facfbb86771ecf84e975e3f385"
+        },
+        {
+          "path": "src/sqlite/migrations.test.ts",
+          "sha256": "54ab7df6eff7ef3804c9786dab09167da2863af3d5edeb8c9bf5054d2bfdffca"
+        },
+        {
+          "path": "src/sqlite/migrations.ts",
+          "sha256": "d7fe488dce50c70ee37d2363ad17950e2e8e60459e56cf01b19ae0a26dfdc64b"
+        },
+        {
+          "path": "src/sqlite/port.test.ts",
+          "sha256": "bfd1470fbc7bed28849ea2b556598e75b007c0d9ebbd5337f2198c5dab4d5a68"
+        },
+        {
+          "path": "src/sqlite/port.ts",
+          "sha256": "0ad110ff6218f06f58d382ae6aab54b4310cd3a33fed35ee92f0be09b72457b0"
+        },
+        {
+          "path": "src/sqlite/runtime.test.ts",
+          "sha256": "f75643581bfbaf4d6371a11308f2c50b1c8bb8381ae1bee3225c03b9e02c0960"
+        },
+        {
+          "path": "src/sqlite/runtime.ts",
+          "sha256": "f44a1535ef9840b2189674a31440270567702ecd233e3ff4bc397ba13241b0c8"
+        },
+        {
+          "path": "src/sqlite/store.test.ts",
+          "sha256": "4112085c83e02fcb64065ba7d100046b1b8436532039c6465ae335f5ffde2203"
+        },
+        {
+          "path": "src/sqlite/store.ts",
+          "sha256": "ad6c1e744dcf1c6309a9f65de8e53e8d120f2427fe9c968bfd2a3d64424ec4f3"
+        },
+        {
+          "path": "src/store.test.ts",
+          "sha256": "b0f637067b1dd9a03498e7378d14d0e2f756b5eba7400df93df073d610a67dc3"
+        },
+        {
+          "path": "src/store.ts",
+          "sha256": "704273269eb0ec714ed4a9882ef7fd1bda40fcf3770bc36842bc5a3a8620c7cf"
+        },
+        {
+          "path": "src/sync.test.ts",
+          "sha256": "b10ada3d7d60e519ffeb43bb3e99897860cb1c2476066eaf6da93fcdc67f9270"
+        },
+        {
+          "path": "src/sync.ts",
+          "sha256": "3e709d8f73232626173dc2cb8c18a23d35131f26d3790e64710e6d06d90ef4f5"
+        },
+        {
+          "path": "tsconfig.json",
+          "sha256": "f8388cc67144cbdc58b321ee745228caea21193e30e106e78a32776864981759"
+        },
+        {
+          "path": "tsconfig.scripts.json",
+          "sha256": "61e27eeeeb22211e6bf6621ad1b2b0e0674c5654e85128f6f4c2bfc694bb85d1"
+        }
+      ]
+    }
+  },
+  "status": "completed",
+  "stopped": null,
+  "summaries": {
+    "bm25-window": {
+      "requested": 12,
+      "judged": 12,
+      "failedOrMissing": 0,
+      "accuracyJudgedOnly": 0.75,
+      "accuracyLowerBound": 0.75,
+      "inputTokens": 829,
+      "outputTokens": 10,
+      "accountedCostUsd": 0.002174,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 109,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.000293
+        },
+        "multi-session": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 379,
+          "outputTokens": 4,
+          "accountedCostUsd": 0.000988
+        },
+        "single-session-user": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 128,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.00034
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 213,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.000553
+        }
+      }
+    },
+    "bm25-anchor-window": {
+      "requested": 12,
+      "judged": 12,
+      "failedOrMissing": 0,
+      "accuracyJudgedOnly": 0.6666666666666666,
+      "accuracyLowerBound": 0.6666666666666666,
+      "inputTokens": 503,
+      "outputTokens": 8,
+      "accountedCostUsd": 0.001339,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 113,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.000303
+        },
+        "multi-session": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 135,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.000358
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0,
+          "accuracyLowerBound": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "single-session-user": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 255,
+          "outputTokens": 4,
+          "accountedCostUsd": 0.000678
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        }
+      }
+    },
+    "oh-window": {
+      "requested": 12,
+      "judged": 12,
+      "failedOrMissing": 0,
+      "accuracyJudgedOnly": 0.75,
+      "accuracyLowerBound": 0.75,
+      "inputTokens": 675,
+      "outputTokens": 9,
+      "accountedCostUsd": 0.001779,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "multi-session": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 318,
+          "outputTokens": 5,
+          "accountedCostUsd": 0.000846
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 164,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.00043
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "single-session-user": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 193,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.000503
+        }
+      }
+    },
+    "oh-anchor-window": {
+      "requested": 12,
+      "judged": 12,
+      "failedOrMissing": 0,
+      "accuracyJudgedOnly": 0.6666666666666666,
+      "accuracyLowerBound": 0.6666666666666666,
+      "inputTokens": 1002,
+      "outputTokens": 12,
+      "accountedCostUsd": 0.002626,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "multi-session": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 320,
+          "outputTokens": 4,
+          "accountedCostUsd": 0.00084
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 329,
+          "outputTokens": 4,
+          "accountedCostUsd": 0.000863
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0,
+          "accuracyLowerBound": 0,
+          "inputTokens": 159,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.000418
+        },
+        "single-session-user": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 1,
+          "accuracyLowerBound": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "accountedCostUsd": 0
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "judged": 2,
+          "failedOrMissing": 0,
+          "accuracyJudgedOnly": 0.5,
+          "accuracyLowerBound": 0.5,
+          "inputTokens": 194,
+          "outputTokens": 2,
+          "accountedCostUsd": 0.000505
+        }
+      }
+    }
+  },
+  "comparisons": {
+    "bm25-window": {
+      "baseline": "bm25-anchor-window",
+      "metric": "semantic-judge",
+      "interval95": {
+        "clusters": 12,
+        "delta": 0.08333333333333333,
+        "lower": 0,
+        "upper": 0.25,
+        "samples": 2000
+      }
+    },
+    "oh-window": {
+      "baseline": "bm25-anchor-window",
+      "metric": "semantic-judge",
+      "interval95": {
+        "clusters": 12,
+        "delta": 0.08333333333333333,
+        "lower": 0,
+        "upper": 0.25,
+        "samples": 2000
+      }
+    },
+    "oh-anchor-window": {
+      "baseline": "bm25-anchor-window",
+      "metric": "semantic-judge",
+      "interval95": {
+        "clusters": 12,
+        "delta": 0,
+        "lower": 0,
+        "upper": 0,
+        "samples": 2000
+      }
+    }
+  },
+  "qualifications": [
+    "Judging is separate from ingestion, retrieval, and answering; only the judge receives gold references.",
+    "LongMemEval uses its source-attributed native prompt wording. LoCoMo uses a separate semantic-reference diagnostic, not its native scorer.",
+    "Gateway aliases and exact yes/no parsing differ from the published pinned native judge stack; this is not an official leaderboard submission.",
+    "Identical rendered judge prompts share one verdict within a run; exact LoCoMo abstentions are checked deterministically. Judge costs are attributed only to the first physical call.",
+    "An LLM judge is fallible. Small development samples and few independent conversations do not establish superiority.",
+    "Reader errors and unattempted or invalid judge calls remain in coverage and lower-bound denominators."
+  ],
+  "provider": {
+    "judge": "openai/gpt-4o",
+    "transport": "vercel-gateway",
+    "requestedModel": "openai/gpt-4o",
+    "snapshotPinned": false,
+    "temperature": 0,
+    "maxCompletionTokens": 16,
+    "pricesUsdPerMillion": {
+      "input": 2.5,
+      "cachedInput": 1.25,
+      "output": 10
+    }
+  },
+  "spend": {
+    "capUsd": 10,
+    "maxCalls": 48,
+    "reservedCalls": 19,
+    "priorExposureUsd": 4.130104,
+    "accountedUsd": 4.138022,
+    "confirmedThisRunUsd": 0.007918,
+    "unresolvedThisRunUsd": 0
+  },
+  "sourceReport": {
+    "sha256": "19a930895b22593181864546c98eea24a238813f0457ab31b23ce06d2c5d3478",
+    "reader": "openai/gpt-4.1",
+    "readerTransport": "vercel-gateway",
+    "readerSourceSha256": "2e9e0bf8939e3c0e6e75678321eb4bc68296b582a9dc0a45670f05e79ae3dbf8"
+  },
+  "judgeProtocol": "longmemeval.native-judge-prompts.v1",
+  "judgeProfile": {
+    "source": "https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f4ef0e2ab8f2e582289761153549043fc/src/evaluation/evaluate_qa.py",
+    "sha256": "00d319ba0a194a69871576d8c677c1557d7706f69b599c9b7beee32441d58cfc"
+  },
+  "judgeExecution": {
+    "policy": "one-verdict-per-identical-prompt.v1",
+    "modelReservations": 19,
+    "reusedDecisions": 29,
+    "exactAbstentions": 0
+  },
+  "fullReportSha256": "ede9541bde6edd4366855162bff9ce2e34c9d5009bc5f0643ed5e1b7f282e159"
+}

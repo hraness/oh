@@ -1,0 +1,524 @@
+{
+  "protocol": "oh.memory-benchmark.v1",
+  "createdAt": "2026-09-06T21:14:09.129Z",
+  "manifest": {
+    "command": "extract",
+    "dataset": "longmemeval-s",
+    "source": {
+      "bytes": 277383467,
+      "revision": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+      "url": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/98d7416c24c778c2fee6e6f3006e7a073259d48f/longmemeval_s_cleaned.json"
+    },
+    "split": "test",
+    "seed": 17,
+    "limit": 12,
+    "concurrency": 12,
+    "code": {
+      "sourceSha256": "ce3a24e562558e2ac5d7763f3c99fd8f3fbf66a264fe6fffce712ce84eeae926",
+      "gitHead": "722962d15835c493262e3c03ac945566e5fcbbf5",
+      "dirty": true,
+      "bun": "1.3.14",
+      "node": "v24.20.0",
+      "bunNodeCompatibility": "24.3.0",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "files": [
+        {
+          "path": "bun.lock",
+          "sha256": "e1c15e269827d1b9842e112cbc3af50cf9d37e8cec12b561728060dd5b2e7b21"
+        },
+        {
+          "path": "package.json",
+          "sha256": "60c3adebcef34a38526362cbfc49d2819d40ab3f648f8a04fa525eff9e5dbb0b"
+        },
+        {
+          "path": "scripts/benchmark-memory.ts",
+          "sha256": "7ada0a869fa551024450ad16819fcf37ad2fd4725c51f417803e4de27c43ac6d"
+        },
+        {
+          "path": "scripts/benchmarks/artifacts.ts",
+          "sha256": "4af08297e77a2332f5bd2b347f308da41c00189c68e4746d0b32d87338e6f5e3"
+        },
+        {
+          "path": "scripts/benchmarks/datasets.ts",
+          "sha256": "cefef13172b92be1b27ff72c97f7c832c813671e2df8bfe284be5c05e8a03e48"
+        },
+        {
+          "path": "scripts/benchmarks/extract.ts",
+          "sha256": "8d89d51e04e56ed9d9cdcf179e16d02b0b386aa056221d0ad0e3b146015de80e"
+        },
+        {
+          "path": "scripts/benchmarks/io.ts",
+          "sha256": "3015805592d95f877e20ca30879a455809012e4db1fba4f0991ca65833337413"
+        },
+        {
+          "path": "scripts/benchmarks/judge.ts",
+          "sha256": "ff93c4ed99762cfe40de5f23c3f6807703eaaa9a364ff056cca80fe6cfbecdb4"
+        },
+        {
+          "path": "scripts/benchmarks/metrics.ts",
+          "sha256": "8852d2947d125c34b119ac6e0eda927d2b7e8484725f26c21371fd39f58757db"
+        },
+        {
+          "path": "scripts/benchmarks/model.ts",
+          "sha256": "f8eec222dbe740c9094ab706b07485352d72d731f89205bbff13a2fc1efaeda6"
+        },
+        {
+          "path": "scripts/benchmarks/retrieval.ts",
+          "sha256": "03e551b229ab793020c26249d1988e61eb410160cc781314e04ee4dd6178fb41"
+        },
+        {
+          "path": "scripts/benchmarks/runner.ts",
+          "sha256": "32e25261f2223f481449e8d4cfb9f6a4699cacfe4c62d4224474fb33c99b4a68"
+        },
+        {
+          "path": "scripts/benchmarks/state.ts",
+          "sha256": "e0fb052b5a2b6ab2184d1c4baf53068aff952360c6400240a276c2303440a260"
+        },
+        {
+          "path": "scripts/benchmarks/units.ts",
+          "sha256": "6012f7661db9ff4afac607a45ab7d20f9c6a6f8eae0f7c3519d12b814329a6b2"
+        },
+        {
+          "path": "src/canonical.test.ts",
+          "sha256": "5de29527ba01b6e0cdc6bddc0a5d759d1fcfff3e7e261df06c1163ef2c0ce4c2"
+        },
+        {
+          "path": "src/canonical.ts",
+          "sha256": "130fef8c25ccf3aee399a81948204752adbf6b7818ce564f09ba633942ebeab6"
+        },
+        {
+          "path": "src/cli.test.ts",
+          "sha256": "96f54bc498ca66082a50785bb42adcecf85ecefbfaada732be35fe2d1e98f58b"
+        },
+        {
+          "path": "src/cli.ts",
+          "sha256": "302e6356e5ca0635bdbddda3295cfa0676e4d38197cd06b61a7cb4acf32c5d9a"
+        },
+        {
+          "path": "src/cloudflare-embedding.test.ts",
+          "sha256": "8538b7d7033feacab3fe5ce755af846d52ccbc763801df237ec169e68ac188ca"
+        },
+        {
+          "path": "src/cloudflare-embedding.ts",
+          "sha256": "1d85f76b4205111fc2f8c56b3e9c10d4c3ab070df5867f289b8848434c0a7797"
+        },
+        {
+          "path": "src/contract.ts",
+          "sha256": "246b98886f545cfe75cb1303e14ecff90961f1447e304703d4544b2b6ed17ee9"
+        },
+        {
+          "path": "src/contracts.test.ts",
+          "sha256": "22a9733412f62993fed82f6488453de82ed7b4535a3fb33ed46bfc379bf339f0"
+        },
+        {
+          "path": "src/errors.test.ts",
+          "sha256": "d20ac84cd1e488bdab19f5702ae506c349b818c8433b05212a3aeec952a35414"
+        },
+        {
+          "path": "src/errors.ts",
+          "sha256": "d0c70b87c9c9ed0af112d6107f870e3b3c85f3b9f01a6b5837dd462809956eec"
+        },
+        {
+          "path": "src/graph.ts",
+          "sha256": "1d6314280280cbfc2b1c088f6332183df51353e7ce24d4465483c3f3a2384d5d"
+        },
+        {
+          "path": "src/index.ts",
+          "sha256": "336de7467e585878b30c48770ea1e71f95dd21a0842e79511e36ca0a1195d628"
+        },
+        {
+          "path": "src/libsql-lifecycle.test.ts",
+          "sha256": "50d6f2c7907ea0b8b7b66abf439b7537589b8be92e7ba46b205c0ce46d89053c"
+        },
+        {
+          "path": "src/libsql-model.ts",
+          "sha256": "b06cfc7c8d488f262e3908e019b5d49207cc222d73b36ff2a16f28d4a848b737"
+        },
+        {
+          "path": "src/libsql-platform.ts",
+          "sha256": "a492b0648b0715479a14a4f0eb3a9a3c4c864c12fe207af4e9ae4e02ccc2d023"
+        },
+        {
+          "path": "src/libsql-program.ts",
+          "sha256": "c63dcb78a7e79ca8cd701afba290ca433ea7bb91953db8ebe3d4600f65d2de8d"
+        },
+        {
+          "path": "src/libsql-runtime.ts",
+          "sha256": "7aa780ce79cc0c85e9d258de4597a36c7865f22cf75bbf364f82e15196c4167b"
+        },
+        {
+          "path": "src/libsql-semantic-v2.test.ts",
+          "sha256": "dc294fb5d1f41623302931fb7ea5f169e5f72c7ad41940b748ae3c4878b8c1ea"
+        },
+        {
+          "path": "src/libsql-semantic-v2.ts",
+          "sha256": "c8c27b19782a0bc932d3d2700196fc9df19f871e85686995bfabdf20608f6178"
+        },
+        {
+          "path": "src/libsql-semantic.test.ts",
+          "sha256": "9cd6b0e34cdf4e84be522f50aeed99c245de5dc52d32958f617edf1311d0536a"
+        },
+        {
+          "path": "src/libsql-semantic.ts",
+          "sha256": "3b8a41e1fd77d9b5349f6f597e24506a54f198527aeebb139f2aa913b0b108b8"
+        },
+        {
+          "path": "src/libsql.test.ts",
+          "sha256": "9c9044714c2f25715c6c930140db731ea93d4b2d4c96c9e31e88a24c7fad5082"
+        },
+        {
+          "path": "src/libsql.ts",
+          "sha256": "e7263815836a3585446eedf7c61bdcddacc63c7fb8dfa470411ceb66455a5d5b"
+        },
+        {
+          "path": "src/memory-authority-platform.ts",
+          "sha256": "6bc92b086647d82fef397eaf316aafdb94715a05852f1416a16c4b48b22b3b4f"
+        },
+        {
+          "path": "src/memory-authority-program.ts",
+          "sha256": "4a45e73f2023b4b05c30bad65d17138a7d14995a5a31cf2555af75e4e9eb3522"
+        },
+        {
+          "path": "src/memory-authority-runtime.ts",
+          "sha256": "80fa2957d5492fece5c944239371f33f3bb81d7fe8e189143f32db37eb2e32b4"
+        },
+        {
+          "path": "src/memory-core.ts",
+          "sha256": "2af9e9eb8d0591e20da7c4df5696efcfe2ee174cd56c7258f83e4d8bc200b5bf"
+        },
+        {
+          "path": "src/memory-page.ts",
+          "sha256": "617398b0959650218ac2ea1ebf355c20f82640794b3a3bdbe478795057ccd244"
+        },
+        {
+          "path": "src/memory-pages.test.ts",
+          "sha256": "675fcc1f3bfafab2776e902333b29bdf334cc91be7942feb52f06b620e4885a1"
+        },
+        {
+          "path": "src/memory-pages.ts",
+          "sha256": "7915df13e97552c70c5a75a1ecdea6ea96abe467a6a473e3fefbb0958115f49d"
+        },
+        {
+          "path": "src/memory.test.ts",
+          "sha256": "680eba6a86fa24559f6a2088ddf6e8e8ebe41d711359573df4e20ef2887eb6a9"
+        },
+        {
+          "path": "src/memory.ts",
+          "sha256": "2002ea4c2c3687ce9e3fead987551ff963fb76e00058b1cdc0f089e906601e72"
+        },
+        {
+          "path": "src/ontology.ts",
+          "sha256": "0044f0d71c595e48f145767279d7175af2748d49faf0763ab07fe4fbe698a107"
+        },
+        {
+          "path": "src/operation.ts",
+          "sha256": "937a7723e01775cebf8a594f1c84509ca773c4882fd23d03974317a67c7b0e1d"
+        },
+        {
+          "path": "src/projection-public.ts",
+          "sha256": "cdb9336e7aec0e79804d51f373628f18ebb536d43344a51ba49e2efef29882b7"
+        },
+        {
+          "path": "src/projection-suss.ts",
+          "sha256": "aa6ebb98cf0b74b8ac1ab5322fe41ae1ec19d53808ffd9559ec792d015804229"
+        },
+        {
+          "path": "src/projection.test.ts",
+          "sha256": "99ec694abfe68f44958ba97ea54aba0d6bbb2c715e082bb5b1ac3f0e856bf1a5"
+        },
+        {
+          "path": "src/projection.ts",
+          "sha256": "b6ae86061378bd7d3b6759c7aa04b344b569b0205253ac90012e5b9654decfc3"
+        },
+        {
+          "path": "src/schema.ts",
+          "sha256": "6f4171f7f70a0a863ea65fd0e3a066f19b039e5757c8487e669058d334592423"
+        },
+        {
+          "path": "src/sdk.ts",
+          "sha256": "0b1eabcb199b3a780f7baf6d2dffe86b55024b220645d6991a8303639ae9b1d3"
+        },
+        {
+          "path": "src/search.ts",
+          "sha256": "1612b784ba0fa842bdf6b6b4aa18add1ddd7d9d5c5990b4b06fce69bf0297562"
+        },
+        {
+          "path": "src/semantic-cloud.ts",
+          "sha256": "8026416dc8409f713115cfab350ab979064260d997478ff940d9d6fffa6394bf"
+        },
+        {
+          "path": "src/semantic-model.ts",
+          "sha256": "9989eb76cfa2591400a79f0d46bd19434de180a777ff04174cc8b265accd2dd5"
+        },
+        {
+          "path": "src/semantic-platform.ts",
+          "sha256": "5650744d951a528c4de661849c1a7cff221caf34d10d1cda7e13ab5a95c24c8e"
+        },
+        {
+          "path": "src/semantic-program.ts",
+          "sha256": "9383777a424aa297d325170cbe0815115c31f620651f1030b1a9a16a3f3aad6a"
+        },
+        {
+          "path": "src/semantic-runtime.ts",
+          "sha256": "5f8ca09f3971685e01a4e289e03a20ac7d7d040bce5363325177cb8b0adecf87"
+        },
+        {
+          "path": "src/semantic.test.ts",
+          "sha256": "b07071d0ea7c1566d8778d4559ad35f37013899d39a442bb9a3f97258332cf0f"
+        },
+        {
+          "path": "src/semantic.ts",
+          "sha256": "2bfbdb324b7e2f83765727d4b7023c366f7f180dd1478381afb0c4c588cff59e"
+        },
+        {
+          "path": "src/sqlite/driver.ts",
+          "sha256": "7049a46897b7cff9e601366d40dc5c326b8f6c43c6dc528a079a1a3a228d3416"
+        },
+        {
+          "path": "src/sqlite/index.ts",
+          "sha256": "5ec234742b85c38c08c4d5defde01025efddd5facfbb86771ecf84e975e3f385"
+        },
+        {
+          "path": "src/sqlite/migrations.test.ts",
+          "sha256": "54ab7df6eff7ef3804c9786dab09167da2863af3d5edeb8c9bf5054d2bfdffca"
+        },
+        {
+          "path": "src/sqlite/migrations.ts",
+          "sha256": "d7fe488dce50c70ee37d2363ad17950e2e8e60459e56cf01b19ae0a26dfdc64b"
+        },
+        {
+          "path": "src/sqlite/port.test.ts",
+          "sha256": "41bba8396424b330f41a5e98b8b485de4e8799cf977604cb90fe15b642929527"
+        },
+        {
+          "path": "src/sqlite/port.ts",
+          "sha256": "e112db0af9a0bc2d638e1bf7bf25e32dbbe0b99cbbf8dfcecec545d3d91be205"
+        },
+        {
+          "path": "src/sqlite/runtime.test.ts",
+          "sha256": "f75643581bfbaf4d6371a11308f2c50b1c8bb8381ae1bee3225c03b9e02c0960"
+        },
+        {
+          "path": "src/sqlite/runtime.ts",
+          "sha256": "f44a1535ef9840b2189674a31440270567702ecd233e3ff4bc397ba13241b0c8"
+        },
+        {
+          "path": "src/sqlite/store.test.ts",
+          "sha256": "d3b6492829dcad08a64ea50a8d9c317aea8f143b66a0c51dc569fb37cb7687a5"
+        },
+        {
+          "path": "src/sqlite/store.ts",
+          "sha256": "f890f3bf998e6ba8aa9b8a96d04e3015e0249dff7f5681edb0ce8bc29ca988b7"
+        },
+        {
+          "path": "src/store.test.ts",
+          "sha256": "fdaf7c8523a95fd15fc155753ad8f0332bf3cac1add1003309ec5f4ac29f4cd3"
+        },
+        {
+          "path": "src/store.ts",
+          "sha256": "13d42403ea5f622f28c4a2a1c1ab020d365b189286fddb19ce75c1b36ea7a14e"
+        },
+        {
+          "path": "src/sync-libsql-program.ts",
+          "sha256": "6f9143a736874207f9daa8326896a726e4a335af3fca39876b1074947df54fff"
+        },
+        {
+          "path": "src/sync-lifecycle.test.ts",
+          "sha256": "66eb52ec0bcf30906425874c852487c617ee0f99321e882cb20f58f48ef5c3fe"
+        },
+        {
+          "path": "src/sync-model.ts",
+          "sha256": "d23d166b42f143df6843c3aa2e27206a745f1319bf6ae7a004570fa63047775a"
+        },
+        {
+          "path": "src/sync-platform.ts",
+          "sha256": "2696c1a6986396f481ad448007b538f309ba27cadf624e517fdb527a2a850d7f"
+        },
+        {
+          "path": "src/sync-program.ts",
+          "sha256": "92b4ca1572059aefee4f6e15c3cdf8cb7fb2cb5e83a2dfa76839ab662b415bd3"
+        },
+        {
+          "path": "src/sync-runtime.ts",
+          "sha256": "5717d80c8e3dc068a8774360d49e953c515bfb05a6c508b653de9d9cd63e55f2"
+        },
+        {
+          "path": "src/sync.test.ts",
+          "sha256": "bedb7432fc0b4bd426b252c71ee66413d68b09b54f4d705056d1100d050382fc"
+        },
+        {
+          "path": "src/sync.ts",
+          "sha256": "451832dfd8004f8597f93f804af41d20dcf2597aec7d96327b51b1e7449d4007"
+        },
+        {
+          "path": "tsconfig.json",
+          "sha256": "f8388cc67144cbdc58b321ee745228caea21193e30e106e78a32776864981759"
+        },
+        {
+          "path": "tsconfig.scripts.json",
+          "sha256": "61e27eeeeb22211e6bf6621ad1b2b0e0674c5654e85128f6f4c2bfc694bb85d1"
+        }
+      ]
+    },
+    "exclusions": [
+      {
+        "sha256": "554ac5ef6b4d7ffc887c718b67f3894efc57aa65a43c2e769908bd2cea60e8ab",
+        "groups": 57
+      },
+      {
+        "sha256": "2ce1ec1d3d2bebcc1c0137c1935164f77efdc2c4794bdb960629da0b4af7622c",
+        "groups": 57
+      },
+      {
+        "sha256": "7d8b9b62ccd4b39675803f8cf60554bca52d61dd650f356131bf0d1ffc7d3ea1",
+        "groups": 12
+      }
+    ],
+    "selectedCorpora": [
+      "6ade9755",
+      "b320f3f8",
+      "6cb6f249",
+      "35a27287",
+      "32260d93",
+      "77eafa52",
+      "2a1811e2",
+      "gpt4_2f584639",
+      "184da446",
+      "18bc8abd",
+      "ac031881",
+      "28bcfaac"
+    ]
+  },
+  "status": "incomplete",
+  "stopped": "Malformed or oversized extraction envelope.",
+  "qualifications": [
+    "Question-blind ingestion of complete selected corpora; questions, reference answers, and evidence labels are never sent to the extractor.",
+    "A supported quote proves source attribution, not semantic entailment of the extracted claim. Extraction can omit or misinterpret facts.",
+    "Invalid individual claims are counted and rejected, not ingested. Malformed or clipped batches stop extraction without automatic retries.",
+    "Extraction cost is separate from reader cost and remains in the shared cumulative ledger; cached reuse does not make ingestion free."
+  ],
+  "provider": {
+    "extractor": "openai/gpt-4.1-mini",
+    "transport": "vercel-gateway",
+    "requestedModel": "openai/gpt-4.1-mini",
+    "snapshotPinned": false,
+    "maximumOutput": 8192,
+    "temperature": 0,
+    "responseFormat": "json_object"
+  },
+  "spend": {
+    "capUsd": 12.8,
+    "maxCalls": 900,
+    "reservedCalls": 12,
+    "priorExposureUsd": 10.536294,
+    "accountedUsd": 10.598733,
+    "confirmedThisRunUsd": 0.062439,
+    "unresolvedThisRunUsd": 0
+  },
+  "extraction": {
+    "concurrency": 12,
+    "resumeSha256": "9dbe6803fc3155ea04f77826eaba0d714096e6f928a0540e6a90ce0f50faa7cd",
+    "reusedChunks": 386,
+    "priorIngestionCostUsd": 1.611776,
+    "corpora": [
+      {
+        "corpusId": "6ade9755",
+        "requestedChunks": 70,
+        "completedChunks": 70,
+        "units": 1012,
+        "rejected": 261
+      },
+      {
+        "corpusId": "b320f3f8",
+        "requestedChunks": 70,
+        "completedChunks": 70,
+        "units": 815,
+        "rejected": 280
+      },
+      {
+        "corpusId": "6cb6f249",
+        "requestedChunks": 68,
+        "completedChunks": 68,
+        "units": 774,
+        "rejected": 306
+      },
+      {
+        "corpusId": "35a27287",
+        "requestedChunks": 74,
+        "completedChunks": 74,
+        "units": 922,
+        "rejected": 296
+      },
+      {
+        "corpusId": "32260d93",
+        "requestedChunks": 69,
+        "completedChunks": 69,
+        "units": 815,
+        "rejected": 382
+      },
+      {
+        "corpusId": "77eafa52",
+        "requestedChunks": 69,
+        "completedChunks": 46,
+        "units": 722,
+        "rejected": 146
+      },
+      {
+        "corpusId": "2a1811e2",
+        "requestedChunks": 71,
+        "completedChunks": 0,
+        "units": 0,
+        "rejected": 0
+      },
+      {
+        "corpusId": "gpt4_2f584639",
+        "requestedChunks": 66,
+        "completedChunks": 0,
+        "units": 0,
+        "rejected": 0
+      },
+      {
+        "corpusId": "184da446",
+        "requestedChunks": 63,
+        "completedChunks": 0,
+        "units": 0,
+        "rejected": 0
+      },
+      {
+        "corpusId": "18bc8abd",
+        "requestedChunks": 64,
+        "completedChunks": 0,
+        "units": 0,
+        "rejected": 0
+      },
+      {
+        "corpusId": "ac031881",
+        "requestedChunks": 70,
+        "completedChunks": 0,
+        "units": 0,
+        "rejected": 0
+      },
+      {
+        "corpusId": "28bcfaac",
+        "requestedChunks": 72,
+        "completedChunks": 0,
+        "units": 0,
+        "rejected": 0
+      }
+    ],
+    "totalUnits": 5060,
+    "rejectedUnits": 1671,
+    "usage": {
+      "inputTokens": 768171,
+      "cachedInputTokens": 0,
+      "outputTokens": 854230,
+      "micros": 1674215
+    },
+    "unitBundleSha256": "16f96024763543b25a07c86a99e22f92751489780646a7a49958382b055b5648",
+    "profile": "oh.benchmark.extraction.v1",
+    "promptSha256": "cc72bd3973e3dceecc6015de77a7d969edd1432bdd9b53f006b2ae64747dca67"
+  },
+  "fullReportSha256": "efd923802cb4e73db94aa413abb69ccfde525ed7765b0db272a55c065c14ca43"
+}
