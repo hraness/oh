@@ -179,6 +179,13 @@ Pass the head you actually reviewed when concurrent writers matter. Do not
 retry `OhConflictError` blindly. Read the new head and records, reconcile the
 intended change, then submit a new operation.
 
+The core `OhConflictError`, `OhIntegrityError`, `OhDependencyError`, and
+`OhProfileError` classes keep their `instanceof` identity across separately
+bundled Oh entrypoints. Their matching `isOhConflictError`,
+`isOhIntegrityError`, `isOhDependencyError`, and `isOhProfileError` guards
+accept unknown caught values only when they are native, immutably branded Oh
+errors; copying a name or prototype onto a plain object is not enough.
+
 The root entrypoint exports canonical JSON, ontology, schema, graph, operation,
 store, and sync contracts. Use `@hraness/oh/store` for the runtime-neutral
 promise interface, `@hraness/oh/libsql` for a direct Node 24 or serverless

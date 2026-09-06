@@ -33,6 +33,12 @@ import {
   createOhDependencyClosureV1,
   createOhSpacePurgeReceiptV1,
   emptyOhHeadV1,
+  isOhConflictError,
+  isOhDependencyError,
+  isOhIntegrityError,
+  isOhOperationSizeError,
+  isOhProfileError,
+  OH_OPERATION_SIZE_ERROR_CODE_V1,
   OhConflictError,
   OhDependencyError,
   OhIntegrityError,
@@ -59,6 +65,12 @@ import { applyOhSqliteMigrations, OH_SQLITE_SCHEMA_VERSION } from "./migrations"
 const EMPTY_RECORDS_SHA256 = canonicalSha256([]);
 
 export {
+  isOhConflictError,
+  isOhDependencyError,
+  isOhIntegrityError,
+  isOhOperationSizeError,
+  isOhProfileError,
+  OH_OPERATION_SIZE_ERROR_CODE_V1,
   OhConflictError,
   OhDependencyError,
   OhIntegrityError,

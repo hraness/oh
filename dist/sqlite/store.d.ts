@@ -2,9 +2,9 @@ import { type Sha256Hex } from "../canonical";
 import { OH_CONTRACT_MANIFEST_V1 } from "../contract";
 import { type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "../graph";
 import { type OhOperationV1 } from "../operation";
-import { OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, type OhChangesPageV1, type OhCommitInputV1, type OhDependencyClosureV1, type OhHeadRefV1, type OhHeadV1, type OhSnapshotV1, type OhSpacePurgeReceiptV1, type OhStoreBindingV1 } from "../store";
+import { isOhConflictError, isOhDependencyError, isOhIntegrityError, isOhOperationSizeError, isOhProfileError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, type OhChangesPageV1, type OhCommitInputV1, type OhDependencyClosureV1, type OhHeadRefV1, type OhHeadV1, type OhSnapshotV1, type OhSpacePurgeReceiptV1, type OhStoreBindingV1 } from "../store";
 import { type OhSqliteDatabase } from "./driver";
-export { OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, };
+export { isOhConflictError, isOhDependencyError, isOhIntegrityError, isOhOperationSizeError, isOhProfileError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, };
 export type { OhCommitInputV1, OhHeadV1 };
 export type OhRecordListOptions = Readonly<{
     kind?: KnowledgeGraphRecordKindV1;

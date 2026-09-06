@@ -27,31 +27,29 @@ import {
   type KnowledgeGraphRecordV1,
 } from "./graph";
 export {
+  isOhConflictError,
+  isOhDependencyError,
+  isOhIntegrityError,
   isOhOperationSizeError,
+  isOhProfileError,
   OH_OPERATION_SIZE_ERROR_CODE_V1,
+  OhConflictError,
+  OhDependencyError,
+  OhIntegrityError,
   OhOperationSizeError,
+  OhProfileError,
+} from "./errors";
+import {
+  OhConflictError,
+  OhDependencyError,
+  OhIntegrityError,
+  OhProfileError,
 } from "./errors";
 import {
   createOhOperationV1,
   parseOhOperationV1,
   type OhOperationV1,
 } from "./operation";
-
-export class OhConflictError extends Error {
-  constructor(message: string) { super(message); this.name = "OhConflictError"; }
-}
-
-export class OhIntegrityError extends Error {
-  constructor(message: string) { super(message); this.name = "OhIntegrityError"; }
-}
-
-export class OhDependencyError extends Error {
-  constructor(message: string) { super(message); this.name = "OhDependencyError"; }
-}
-
-export class OhProfileError extends Error {
-  constructor(message: string) { super(message); this.name = "OhProfileError"; }
-}
 
 export type OhHeadV1 = Readonly<{
   generation: number;

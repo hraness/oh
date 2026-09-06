@@ -2,20 +2,8 @@ import { type Sha256Hex } from "./canonical";
 import { OhRecordCodecRegistry } from "./contract";
 export { OhRecordCodecRegistry } from "./contract";
 import { type KnowledgeGraphChangeV1, type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
-export { isOhOperationSizeError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhOperationSizeError, } from "./errors";
+export { isOhConflictError, isOhDependencyError, isOhIntegrityError, isOhOperationSizeError, isOhProfileError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, } from "./errors";
 import { type OhOperationV1 } from "./operation";
-export declare class OhConflictError extends Error {
-    constructor(message: string);
-}
-export declare class OhIntegrityError extends Error {
-    constructor(message: string);
-}
-export declare class OhDependencyError extends Error {
-    constructor(message: string);
-}
-export declare class OhProfileError extends Error {
-    constructor(message: string);
-}
 export type OhHeadV1 = Readonly<{
     generation: number;
     graphRevisionSha256: Sha256Hex | null;
