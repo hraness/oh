@@ -21,7 +21,7 @@ import type {
   OhLibSqlResultV1,
   OhLibSqlStatementV1,
 } from "./libsql";
-import { normalizeOhEmbeddingV1 } from "./semantic";
+import { normalizeOhEmbeddingV1 } from "./semantic-model";
 
 export const OH_LIBSQL_SEMANTIC_LIMITS_V2 = Object.freeze({
   chunksPerDocument: 64,

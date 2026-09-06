@@ -1,6 +1,6 @@
 # Contents
 
-- `src/` – dependency-free canonical, ontology, schema, graph, operation, sync, SQLite, search, SDK, CLI, and optional semantic runtime code with colocated tests.
+- `src/` – canonical, ontology, schema, graph, operation, sync, SQLite, search, SDK, CLI, and optional semantic runtime code with colocated tests. The optional local semantic lifecycle uses a bundled Effect runtime.
 - `dist/` – committed Bun-targeted ESM, executable CLI, and TypeScript declarations built from `src/`.
 - `spec/` – versioned human and machine-readable ontology, wire, storage, sync, embedding, and migration contracts.
 - `skills/oh/` – installable Agent Skill for operating Oh from a coding-agent workflow.
@@ -24,6 +24,8 @@
 - Keep SQLite records and the append-only operation log authoritative. FTS and semantic state are derived, optional, rebuildable, and joined back to the current record digest.
 - Use compare-and-swap for writes, one immediate transaction for each committed operation, idempotent operation IDs, and explicit conflict handling. Never hide a divergent sync history behind last-write-wins behavior.
 - Keep QMD optional, dynamically imported, local, and pinned to the exact embedding profile. Do not add a hosted embedding dependency to the default path.
+- Keep Effect 3.22.1 confined to the local semantic lifecycle and bundled into its entrypoint. Preserve the existing Promise facade, canonical kernel, portable entrypoints, original rejection values, and drain-before-close behavior. Follow [the semantic lifecycle ownership guide](docs/semantic-lifecycle.md).
+- `bun run check:effect` is part of the required aggregate gate. New production Effect modules need an explicit role in `scripts/check-effect-architecture.ts`. Review changes to that policy or checker independently; do not suppress diagnostics, erase expected failures, or move I/O into lifecycle programs to bypass a boundary.
 - Update narrative specifications, machine-readable manifests and schemas, implementation, and regression evidence together when a public contract changes.
 - Keep the Agent Skill concise and self-contained. It may guide reads and writes, but it cannot broaden a user's authorization or silently choose a database, space, sync destination, or destructive operation.
 - Rebuild `dist/` after source changes. Run `bun run check`, confirm the build leaves tracked files clean, and exercise the packed root, subpaths, and `oh --help` before handoff.

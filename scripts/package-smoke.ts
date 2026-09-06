@@ -111,6 +111,15 @@ async function scanPackage(root: string): Promise<void> {
       return;
     }
     const source = await readFile(path, "utf8");
+    if (packagePath.startsWith("dist/") && extension === ".js") {
+      // Effect's runtime identity survives bundling. Keep the local lifecycle
+      // reachable only through its optional entrypoint, including in the actual
+      // installed tarball rather than merely the source import graph.
+      const includesEffectRuntime = source.includes("effect/Effect");
+      if (includesEffectRuntime !== (packagePath === "dist/semantic.js")) {
+        problems.push(`${packagePath} violates the optional semantic runtime boundary`);
+      }
+    }
     for (const rule of FORBIDDEN_TEXT) {
       if (rule.pattern.test(source)) problems.push(`${packagePath} contains ${rule.label}`);
     }
