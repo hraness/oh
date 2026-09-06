@@ -23,6 +23,9 @@ const MAXIMUM_FILES = 1_000;
 const MAXIMUM_UNPACKED_BYTES = 64 * 1_024 * 1_024;
 const MAXIMUM_FILE_BYTES = 4 * 1_024 * 1_024;
 const EXPECTED_TOP_LEVEL = new Set(["LICENSE", "README.md", "dist", "package.json", "skills", "spec", "src"]);
+const EFFECT_RUNTIME_GRAPHS = new Set([
+  "dist/cli.js", "dist/index.js", "dist/sdk.js", "dist/semantic.js", "dist/sync.js",
+]);
 const TEXT_EXTENSIONS = new Set([
   "", ".css", ".js", ".json", ".map", ".md", ".mjs", ".sh", ".sql", ".ts", ".txt", ".yaml", ".yml",
 ]);
@@ -112,12 +115,11 @@ async function scanPackage(root: string): Promise<void> {
     }
     const source = await readFile(path, "utf8");
     if (packagePath.startsWith("dist/") && extension === ".js") {
-      // Effect's runtime identity survives bundling. Keep the local lifecycle
-      // reachable only through its optional entrypoint, including in the actual
-      // installed tarball rather than merely the source import graph.
+      // Check shipped bytes: sync is part of the root/SDK/CLI surface, while
+      // pure store, SQLite codec, projection and cloud graphs stay independent.
       const includesEffectRuntime = source.includes("effect/Effect");
-      if (includesEffectRuntime !== (packagePath === "dist/semantic.js")) {
-        problems.push(`${packagePath} violates the optional semantic runtime boundary`);
+      if (includesEffectRuntime !== EFFECT_RUNTIME_GRAPHS.has(packagePath)) {
+        problems.push(`${packagePath} violates the reviewed Effect runtime graph boundary`);
       }
     }
     for (const rule of FORBIDDEN_TEXT) {

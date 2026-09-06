@@ -1,6 +1,6 @@
 import { type OhChangesPageV1, type OhCommitInputV1, type OhDependencyClosureV1, type OhHeadRefV1, type OhHeadV1, type OhSnapshotV1, type OhStoreBindingV1, type OhStoreHostControlV1, type OhStoreProfileV1, type OhStoreV1, type OhStoreVerificationV1 } from "../store";
 import type { OhOperationV1 } from "../operation";
-import { type OhSyncBundleV1 } from "../sync";
+import { type OhSyncBundleV1 } from "../sync-model";
 import type { OhSqliteDatabase } from "./driver";
 import { OhSqliteStore, type OhOperationImportResultV1 } from "./store";
 export type OhSqliteStoreAuthorityOptionsV1 = Readonly<{

@@ -7,7 +7,7 @@ import { OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1, createKnowledgeGraphRecordV1,
   type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
 import { Oh } from "./sdk";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
-import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync";
+import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
 export const OH_PACKAGE_VERSION = "0.4.1" as const;
 
