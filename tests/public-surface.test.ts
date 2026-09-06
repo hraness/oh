@@ -508,6 +508,7 @@ describe("repository policy", () => {
     expect(workflow).toContain('tags:\n      - "v*"');
     expect(workflow).toContain("contents: read");
     expect(workflow).toContain("id-token: write");
+    expect(workflow).toContain("environment: npm-release");
     expect(workflow).toContain("matrix:\n        os: [ubuntu-24.04, macos-14]");
     expect(workflow).toContain("release-artifact-checksum.ts write");
     expect(workflow).toContain("release-artifact-checksum.ts check");

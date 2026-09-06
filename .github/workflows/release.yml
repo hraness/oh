@@ -242,6 +242,7 @@ jobs:
   publish_npm:
     name: Publish exact npm package
     needs: [verify, publish_github, pre_npm]
+    environment: npm-release
     permissions:
       contents: none
       id-token: write
