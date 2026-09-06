@@ -29,13 +29,19 @@ describe("npm Sigstore signer policy", () => {
       "1.3.6.1.4.1.57264.1.20": derUtf8String("push"),
       "1.3.6.1.4.1.57264.1.21": derUtf8String(invocation),
       "1.3.6.1.4.1.57264.1.22": derUtf8String("public"),
+      "1.3.6.1.4.1.57264.1.23": derUtf8String("npm-release"),
       "1.3.6.1.4.1.57264.1.24":
-        derUtf8String(`repo:hraness@307125679/oh@1348230462:ref:${ref}`),
+        derUtf8String("repo:hraness@307125679/oh@1348230462:environment:npm-release"),
     });
+    expect(Buffer.from(policy.options.certificateOIDs["1.3.6.1.4.1.57264.1.6"]).toString("ascii")).toBe(ref);
+    expect(Buffer.from(policy.options.certificateOIDs["1.3.6.1.4.1.57264.1.14"]).subarray(2).toString("ascii"))
+      .toBe(ref);
+    const environmentClaim = Buffer.from(policy.options.certificateOIDs["1.3.6.1.4.1.57264.1.23"]);
+    expect(environmentClaim.subarray(2).toString("ascii")).toBe("npm-release");
     const subjectClaim = Buffer.from(policy.options.certificateOIDs["1.3.6.1.4.1.57264.1.24"]);
     expect([...subjectClaim.subarray(0, 2)]).toEqual([0x0c, subjectClaim.byteLength - 2]);
     expect(subjectClaim.subarray(2).toString("ascii"))
-      .toBe(`repo:hraness@307125679/oh@1348230462:ref:${ref}`);
+      .toBe("repo:hraness@307125679/oh@1348230462:environment:npm-release");
     expect(policy.options.ctLogThreshold).toBe(1);
     expect(policy.options.tlogThreshold).toBe(1);
   });

@@ -241,6 +241,9 @@ test("release controls have explicit ownership and document the public MIT bound
   expect(guide).toContain("protected `v0.2.6` tag and exact same-run bytes are published");
   expect(guide).toContain("canonical DER UTF8String bytes");
   expect(guide).toContain("without owner and repository numeric IDs");
+  expect(guide).toContain("protected `v0.4.0` tag and exact same-run bytes are published");
+  expect(guide).toContain("`1.3.6.1.4.1.57264.1.23`");
+  expect(guide).toContain("repo:hraness@307125679/oh@1348230462:environment:npm-release");
   expect(guide).toContain("manually publish the npm half of a GitHub-only release");
   expect(guide).toContain("writer polls that bounded inventory briefly");
   expect(guide).toContain("A later attempt may create a draft only when the Actions Jobs API proves");
