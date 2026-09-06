@@ -26,27 +26,30 @@ import {
   type KnowledgeGraphRecordKindV1,
   type KnowledgeGraphRecordV1,
 } from "./graph";
+export {
+  isOhConflictError,
+  isOhDependencyError,
+  isOhIntegrityError,
+  isOhOperationSizeError,
+  isOhProfileError,
+  OH_OPERATION_SIZE_ERROR_CODE_V1,
+  OhConflictError,
+  OhDependencyError,
+  OhIntegrityError,
+  OhOperationSizeError,
+  OhProfileError,
+} from "./errors";
+import {
+  OhConflictError,
+  OhDependencyError,
+  OhIntegrityError,
+  OhProfileError,
+} from "./errors";
 import {
   createOhOperationV1,
   parseOhOperationV1,
   type OhOperationV1,
 } from "./operation";
-
-export class OhConflictError extends Error {
-  constructor(message: string) { super(message); this.name = "OhConflictError"; }
-}
-
-export class OhIntegrityError extends Error {
-  constructor(message: string) { super(message); this.name = "OhIntegrityError"; }
-}
-
-export class OhDependencyError extends Error {
-  constructor(message: string) { super(message); this.name = "OhDependencyError"; }
-}
-
-export class OhProfileError extends Error {
-  constructor(message: string) { super(message); this.name = "OhProfileError"; }
-}
 
 export type OhHeadV1 = Readonly<{
   generation: number;
@@ -64,6 +67,7 @@ export type OhCommitInputV1 = Readonly<{
   changes: readonly KnowledgeGraphChangeV1[];
   expectedHead: Pick<OhHeadV1, "generation" | "operationSha256">;
   instant?: string;
+  maximumOperationBytes?: number;
   operationId: string;
 }>;
 
@@ -410,6 +414,7 @@ export function transitionOhSnapshotV1(input: Readonly<{
   actorId: string;
   changes: readonly KnowledgeGraphChangeV1[];
   instant: string;
+  maximumOperationBytes?: number;
   operationId: string;
   snapshot: OhSnapshotV1;
   spaceId: string;
@@ -459,10 +464,15 @@ export function transitionOhSnapshotV1(input: Readonly<{
   const graphRevisionSha256 = graphRevisionSha256V1({ changes, operationId,
     parentGraphRevisionSha256: head.graphRevisionSha256, recordsSha256,
     revision: head.sequence + 1 });
-  const operation = createOhOperationV1({ actorId, changes,
-    contractId: OH_CONTRACT_MANIFEST_V1.contractId, graphRevisionSha256, instant,
-    operationId, parentOperationSha256: head.operationSha256,
-    recordsSha256, sequence: head.sequence + 1, spaceId, v: 1 });
+  const operation = createOhOperationV1(
+    { actorId, changes, contractId: OH_CONTRACT_MANIFEST_V1.contractId,
+      graphRevisionSha256, instant, operationId,
+      parentOperationSha256: head.operationSha256, recordsSha256,
+      sequence: head.sequence + 1, spaceId, v: 1 },
+    input.maximumOperationBytes === undefined ? {} : {
+      maximumOperationBytes: input.maximumOperationBytes,
+    },
+  );
   const nextHead: OhHeadV1 = { generation: operation.sequence, graphRevisionSha256,
     operationSha256: operation.operationSha256, recordsSha256,
     sequence: operation.sequence, v: 1 };

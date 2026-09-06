@@ -1,6 +1,6 @@
 {
   "name": "@hraness/oh",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "open-source tools for agentic research",
   "type": "module",
   "license": "MIT",
@@ -103,10 +103,10 @@
     "bench:memory": "bun run ./scripts/benchmark-memory.ts",
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run build:js && bun run build:portable && bun run build:types",
-    "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts ./src/semantic.ts ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
-    "build:portable": "bun build ./src/store.ts ./src/libsql.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory.ts ./src/memory-page.ts ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog",
+    "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
+    "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog",
     "build:types": "tsc -p tsconfig.build.json",
-    "check": "bun run typecheck && bun run typecheck:scripts && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:package",
+    "check": "bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:package",
     "test:node": "node ./tests/node-portable.mjs",
     "test:types:node": "tsc -p tsconfig.node-portable.json --noEmit",
     "test:package": "bun run ./scripts/package-smoke.ts",
@@ -114,11 +114,13 @@
     "test": "bun test ./src ./tests ./site/tests/source.test.ts",
     "test:node-projection": "node --test ./scripts/projection-node.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit"
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
+    "check:effect": "bun run ./scripts/check-effect-architecture.ts && bun test ./scripts/effect-architecture.test.ts"
   },
   "devDependencies": {
     "@suss/datalog": "0.20.0",
     "@types/bun": "1.3.14",
+    "effect": "3.22.1",
     "sigstore": "4.1.1",
     "typescript": "5.9.3"
   },

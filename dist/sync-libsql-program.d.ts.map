@@ -1,0 +1,1 @@
+{"version":3,"file":"sync-libsql-program.d.ts","sourceRoot":"","sources":["../src/sync-libsql-program.ts"],"names":[],"mappings":"AAAA,OAAO,EAAY,MAAM,EAAqB,MAAM,QAAQ,CAAC;AAM7D,OAAO,EAAE,gBAAgB,EAAiC,KAAK,oBAAoB,EAAE,MAAM,iBAAiB,CAAC;AAc7G,oFAAoF;AACpF,eAAO,MAAM,uBAAuB,EAAE,MAAM,CAAC,MAAM,CAAC,oBAAoB,EAAE,KAAK,EAAE,gBAAgB,CAoJ/F,CAAC"}

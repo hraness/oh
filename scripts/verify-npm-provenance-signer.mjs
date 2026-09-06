@@ -4,6 +4,7 @@ const REPOSITORY_OWNER = "hraness";
 const REPOSITORY_OWNER_ID = "307125679";
 const REPOSITORY_NAME = "oh";
 const REPOSITORY_ID = "1348230462";
+const PUBLISHING_ENVIRONMENT = "npm-release";
 const PACKAGE_REPOSITORY = `${REPOSITORY_OWNER}/${REPOSITORY_NAME}`;
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const SHA = /^[0-9a-f]{40}$/u;
@@ -49,9 +50,10 @@ export function releaseSignerIdentity(tag, sha, invocation) {
         "1.3.6.1.4.1.57264.1.20": fulcioV2CertificateOIDValue("push"),
         "1.3.6.1.4.1.57264.1.21": fulcioV2CertificateOIDValue(invocation),
         "1.3.6.1.4.1.57264.1.22": fulcioV2CertificateOIDValue("public"),
+        "1.3.6.1.4.1.57264.1.23": fulcioV2CertificateOIDValue(PUBLISHING_ENVIRONMENT),
         "1.3.6.1.4.1.57264.1.24":
           fulcioV2CertificateOIDValue(
-            `repo:${REPOSITORY_OWNER}@${REPOSITORY_OWNER_ID}/${REPOSITORY_NAME}@${REPOSITORY_ID}:ref:${ref}`,
+            `repo:${REPOSITORY_OWNER}@${REPOSITORY_OWNER_ID}/${REPOSITORY_NAME}@${REPOSITORY_ID}:environment:${PUBLISHING_ENVIRONMENT}`,
           ),
       }),
       ctLogThreshold: 1, tlogThreshold: 1, timeout: 10_000,

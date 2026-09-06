@@ -68,22 +68,25 @@ not a claim about a real study.
 
 ## Install and first run
 
+This source tree prepares version `0.4.2`. The installation instructions below
+use `0.4.1`, the verified public release.
+
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
 CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
 direct libSQL authority also support Node 24 serverless runtimes. Install the
-exact current release from npm:
+exact verified public release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.4.0
+bun add --global @hraness/oh@0.4.1
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.4.0),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.4.1),
 including the mirrored
-[`hraness-oh-0.4.0.tgz`](https://github.com/hraness/oh/releases/download/v0.4.0/hraness-oh-0.4.0.tgz)
+[`hraness-oh-0.4.1.tgz`](https://github.com/hraness/oh/releases/download/v0.4.1/hraness-oh-0.4.1.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.4.0/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.4.1/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -141,7 +144,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.4.0"
+    "@hraness/oh": "0.4.1"
   }
 }
 ```
@@ -178,6 +181,13 @@ try {
 Pass the head you actually reviewed when concurrent writers matter. Do not
 retry `OhConflictError` blindly. Read the new head and records, reconcile the
 intended change, then submit a new operation.
+
+The core `OhConflictError`, `OhIntegrityError`, `OhDependencyError`, and
+`OhProfileError` classes keep their `instanceof` identity across separately
+bundled Oh entrypoints. Their matching `isOhConflictError`,
+`isOhIntegrityError`, `isOhDependencyError`, and `isOhProfileError` guards
+accept unknown caught values only when they are native, immutably branded Oh
+errors; copying a name or prototype onto a plain object is not enough.
 
 The root entrypoint exports canonical JSON, ontology, schema, graph, operation,
 store, and sync contracts. Use `@hraness/oh/store` for the runtime-neutral
@@ -254,6 +264,14 @@ only on `authority.host`; do not expose that object or raw database credentials
 through a model tool. Read the [store-port specification](spec/v1/store.md) for
 exact snapshot, change-feed, codec ingress, closure, and purge behavior.
 
+A Bun SQLite authority opened with the canonical profile instead exposes
+`authority.host.replication`. Its `exportBundle` result preserves the pinned
+change-feed `from`, `to`, `through`, and `hasMore` evidence; `importBundle`
+strictly parses and applies the complete bundle atomically. The capability is
+absent from `authority.store` and is `null` for working profiles. Long-running
+hosts can capture a bounded bundle, close local custody for network I/O, then
+reopen and revalidate before one atomic import.
+
 ## Compose working and canonical memory
 
 The stable `@hraness/oh/memory` entrypoint uses the same Oh kernel twice, not a
@@ -261,6 +279,16 @@ separate memory database model. Trusted host code supplies two distinct
 physical store handles, their expected binding digests, one exact canonical
 head, sealed working codecs, digest-identified fact extractors, and closed
 registries of named projection programs and nomination routes.
+
+Hosts that must fit canonical history into a narrower encrypted transport can
+set `maximumCanonicalOperationBytes`. The exact canonical operation is checked
+before its compare-and-swap persists; working-memory capacity is unaffected.
+This pre-effect refusal is an `OhOperationSizeError`, a `RangeError` subtype
+with the actual and configured canonical byte counts and the stable code
+`oh.operation-size.v1`. The class remains recognizable across Oh package
+entrypoints; `isOhOperationSizeError` is also exported for validating unknown
+caught values without accepting a plain object that merely copied those public
+fields.
 
 Use `createOhMemoryAuthorityV1` for an application integration. It returns an
 `agent` object with only `remember`, `query`, `explain`, and `nominate`, plus a
@@ -649,10 +677,18 @@ try {
 
 The consumer owns credentials, client construction, retry policy, and remote
 availability. The transport handshakes before exchanging data and refuses a
-different contract or a non-fast-forward history.
+different contract or a non-fast-forward history. Canonical bundles share one
+64 MiB plus 4 KiB byte/node budget across at most 1,000 operations. If a retry
+finds that another writer has advanced beyond its submitted tail, the libSQL
+adapter acknowledges that tail only after every submitted sequence, digest,
+and canonical operation still matches the bounded remote row range. Histories
+larger than one bundle advance through the largest fitting operation prefix in
+each direction.
 
 For offline transfer, `oh sync export` writes a bounded bundle to stdout and
-`oh sync import --file <path>` verifies and imports it idempotently.
+`oh sync import --file <path>` verifies and imports it idempotently in one
+atomic transaction. Import refuses non-regular or oversized bundle files before
+opening the local authority.
 
 ## Boundaries and limitations
 
@@ -686,9 +722,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.4.0 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.4.0 Release at
-https://github.com/hraness/oh/releases/tag/v0.4.0. Verify the CLI with
+Install @hraness/oh@0.4.1 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.4.1 Release at
+https://github.com/hraness/oh/releases/tag/v0.4.1. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

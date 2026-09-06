@@ -10,6 +10,7 @@ import {
   createOhStoreProfileV1,
   emptyOhHeadV1,
   OH_WORKING_STORE_PROFILE_V1,
+  OhOperationSizeError,
   OhProfileError,
   OhSemanticBundleIngressV1,
   parseOhDependencyClosureV1,
@@ -21,6 +22,17 @@ import {
 } from "./store";
 
 describe("runtime-neutral Oh store contracts", () => {
+  test("applies an injected operation byte bound during canonical construction", () => {
+    const snapshot = { head: emptyOhHeadV1(), records: [], v: 1 as const };
+    expect(() => transitionOhSnapshotV1({ actorId: "agent.test",
+      changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({ dependencies: [],
+        key: "entity:bounded", kind: "entity", v: 1, value: { name: "Bounded" } }), v: 1 }],
+      instant: "2026-09-06T12:00:00.000Z", maximumOperationBytes: 1,
+      operationId: "op_bounded", snapshot, spaceId: "bounded" }))
+      .toThrow(OhOperationSizeError);
+    expect(snapshot).toEqual({ head: emptyOhHeadV1(), records: [], v: 1 });
+  });
+
   test("binds a host-selected realm and application profile without changing V1 operations", () => {
     const applicationProfileSha256 = canonicalSha256({ application: "fixture", v: 1 });
     const profile = createOhStoreProfileV1({

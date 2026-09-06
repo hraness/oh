@@ -182,10 +182,6 @@ function sortUnique(values, key) {
   return sorted;
 }
 
-// src/semantic.ts
-import { mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
-
 // src/graph.ts
 var OH_GRAPH_FORMAT_VERSION_V1 = 1;
 var OH_GRAPH_LIMITS_V1 = Object.freeze({
@@ -194,7 +190,7 @@ var OH_GRAPH_LIMITS_V1 = Object.freeze({
   recordBytes: 1024 * 1024,
   recordsPerSnapshot: 65536
 });
-var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
+var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = Object.freeze([
   "activity",
   "assertion",
   "context",
@@ -213,7 +209,7 @@ var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
   "type-membership",
   "view",
   "vocabulary"
-];
+]);
 var KNOWLEDGE_GRAPH_RECORD_KEYS_V1 = [
   "dependencies",
   "key",
@@ -352,7 +348,7 @@ function graphRevisionSha256V1(input) {
   return canonicalSha256({ changes, operationId, parentGraphRevisionSha256, recordsSha256, revision, v: 1 });
 }
 
-// src/semantic.ts
+// src/semantic-model.ts
 var OH_EMBEDDING_PROFILE_V1 = Object.freeze({
   dimensions: 768,
   distance: "cosine",
@@ -383,261 +379,6 @@ function normalizeOhEmbeddingV1(vector) {
     throw new TypeError("Embedding vectors must normalize to finite values.");
   }
   return normalized;
-}
-var qmdModuleSpecifier = "@tobilu/qmd";
-async function defaultQmdStoreFactory(options) {
-  let module;
-  try {
-    module = await import(qmdModuleSpecifier);
-  } catch {
-    throw new Error("Semantic search needs the optional @tobilu/qmd@2.5.3 package.");
-  }
-  const createStore = module.createStore;
-  if (typeof createStore !== "function")
-    throw new Error("The installed QMD package has no compatible createStore export.");
-  return await createStore(options);
-}
-function recordDocument(record) {
-  return `# ${record.key}
-
-kind: ${record.kind}
-
-${canonicalJson(record.value)}
-`;
-}
-var QMD_VECTOR_RESULT_KEYS = [
-  "body",
-  "bodyLength",
-  "chunkPos",
-  "collectionName",
-  "context",
-  "displayPath",
-  "docid",
-  "filepath",
-  "hash",
-  "modifiedAt",
-  "score",
-  "source",
-  "title"
-];
-function semanticManifest(entries) {
-  const immutableEntries = {};
-  for (const [filename, entry] of Object.entries(entries)) {
-    immutableEntries[filename] = Object.freeze({ ...entry });
-  }
-  return Object.freeze({
-    entries: Object.freeze(immutableEntries),
-    profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1),
-    v: 1
-  });
-}
-function parseQmdVectorResult(value) {
-  if (!isPlainRecord(value) || !hasExactKeys(value, QMD_VECTOR_RESULT_KEYS))
-    return null;
-  const pathMatch = typeof value.filepath === "string" ? /^qmd:\/\/oh\/([a-f0-9]{64}\.md)$/u.exec(value.filepath) : null;
-  const filename = pathMatch?.[1];
-  const hash = parseSha256Hex(value.hash);
-  const title = safeCode(value.title, 512);
-  if (filename === undefined || value.displayPath !== `oh/${filename}` || value.collectionName !== "oh" || value.source !== "vec" || value.context !== null || value.modifiedAt !== "" || hash === null || value.docid !== hash.slice(0, 6) || title === null || typeof value.body !== "string" || typeof value.bodyLength !== "number" || !Number.isSafeInteger(value.bodyLength) || value.bodyLength < 0 || value.bodyLength > OH_GRAPH_LIMITS_V1.recordBytes + 4096 || value.body.length !== value.bodyLength || hash !== sha256Hex(value.body) || typeof value.chunkPos !== "number" || !Number.isSafeInteger(value.chunkPos) || value.chunkPos < 0 || typeof value.score !== "number" || !Number.isFinite(value.score) || value.score < 0 || value.score > 1) {
-    return null;
-  }
-  return { body: value.body, filename, hash, score: value.score, title };
-}
-function parseQmdVectorResults(value) {
-  if (!Array.isArray(value) || value.length > 100) {
-    throw new Error("QMD returned an invalid vector result batch.");
-  }
-  return value.map(parseQmdVectorResult).filter((result) => result !== null);
-}
-
-class OhQmdSemanticBackendV1 {
-  profile = OH_EMBEDDING_PROFILE_V1;
-  #cacheDirectory;
-  #databasePath;
-  #factory;
-  #manifest = semanticManifest({});
-  #manifestLoad = null;
-  #store = null;
-  #storeClose = null;
-  #closure = null;
-  #indexQueue = Promise.resolve();
-  #activeSearches = new Set;
-  #closed = false;
-  constructor(options) {
-    this.#cacheDirectory = resolve(options.cacheDirectory);
-    this.#databasePath = resolve(options.databasePath ?? join(this.#cacheDirectory, "qmd.sqlite"));
-    this.#factory = options.storeFactory ?? defaultQmdStoreFactory;
-  }
-  async#open() {
-    if (this.#closed)
-      throw new Error("The semantic backend is closed.");
-    this.#store ??= this.#initializeStore();
-    const store = await this.#store;
-    if (this.#closed) {
-      await this.#closeStore(store);
-      throw new Error("The semantic backend is closed.");
-    }
-    return store;
-  }
-  async#initializeStore() {
-    const documents = join(this.#cacheDirectory, "documents");
-    await mkdir(documents, { recursive: true });
-    await this.#loadManifest();
-    if (this.#closed)
-      throw new Error("The semantic backend is closed.");
-    const store = await this.#factory({
-      dbPath: this.#databasePath,
-      config: {
-        collections: { oh: { path: documents, pattern: "*.md" } },
-        models: { embed: OH_EMBEDDING_PROFILE_V1.model }
-      }
-    });
-    if (this.#closed) {
-      await this.#closeStore(store);
-      throw new Error("The semantic backend is closed.");
-    }
-    return store;
-  }
-  #closeStore(store) {
-    this.#storeClose ??= Promise.resolve().then(() => store.close());
-    return this.#storeClose;
-  }
-  #loadManifest() {
-    this.#manifestLoad ??= this.#readManifest();
-    return this.#manifestLoad;
-  }
-  async#readManifest() {
-    let text;
-    try {
-      text = await readFile(join(this.#cacheDirectory, "manifest.json"), "utf8");
-    } catch (error) {
-      if (error.code === "ENOENT")
-        return;
-      throw error;
-    }
-    let value;
-    try {
-      value = JSON.parse(text);
-    } catch {
-      throw new Error("The semantic manifest is not JSON.");
-    }
-    if (canonicalJson(value) !== text || !isPlainRecord(value) || !hasExactKeys(value, ["entries", "profileSha256", "v"]) || value.v !== 1 || value.profileSha256 !== canonicalSha256(OH_EMBEDDING_PROFILE_V1) || !isPlainRecord(value.entries) || Object.keys(value.entries).length > 65536)
-      throw new Error("The semantic manifest is incompatible or invalid.");
-    const entries = {};
-    for (const [filename, candidate] of Object.entries(value.entries)) {
-      if (!/^[a-f0-9]{64}\.md$/u.test(filename) || !isPlainRecord(candidate) || !hasExactKeys(candidate, ["key", "recordSha256"]))
-        throw new Error("The semantic manifest has an invalid entry.");
-      const key = safeCode(candidate.key, 512);
-      const recordSha256 = parseSha256Hex(candidate.recordSha256);
-      if (key === null || recordSha256 === null || filename !== `${sha256Hex(key)}.md`) {
-        throw new Error("The semantic manifest entry identity is invalid.");
-      }
-      entries[filename] = { key, recordSha256 };
-    }
-    this.#manifest = semanticManifest(entries);
-  }
-  index(records) {
-    if (records.length > 65536) {
-      return Promise.reject(new RangeError("A semantic snapshot may contain at most 65,536 records."));
-    }
-    if (this.#closed)
-      return Promise.reject(new Error("The semantic backend is closed."));
-    const snapshot = [...records];
-    const operation = this.#indexQueue.then(() => this.#indexSnapshot(snapshot));
-    this.#indexQueue = operation.then(() => {
-      return;
-    }, () => {
-      return;
-    });
-    return operation;
-  }
-  async#indexSnapshot(records) {
-    if (this.#closed)
-      throw new Error("The semantic backend is closed.");
-    const documents = join(this.#cacheDirectory, "documents");
-    await mkdir(documents, { recursive: true });
-    await this.#loadManifest();
-    const entries = {};
-    for (const record of records) {
-      const filename = `${sha256Hex(record.key)}.md`;
-      entries[filename] = { key: record.key, recordSha256: record.recordSha256 };
-      const path = join(documents, filename);
-      const temporary = `${path}.${process.pid}.tmp`;
-      await writeFile(temporary, recordDocument(record), { encoding: "utf8", mode: 384 });
-      await rename(temporary, path);
-    }
-    const retained = new Set(Object.keys(entries));
-    for (const filename of await readdir(documents)) {
-      if (/^[a-f0-9]{64}\.md$/u.test(filename) && !retained.has(filename))
-        await unlink(join(documents, filename));
-    }
-    const nextManifest = semanticManifest(entries);
-    const store = await this.#open();
-    await store.update({ collections: ["oh"] });
-    await store.embed({ collection: "oh", model: OH_EMBEDDING_PROFILE_V1.model });
-    const manifestPath = join(this.#cacheDirectory, "manifest.json");
-    const temporaryManifest = `${manifestPath}.${process.pid}.tmp`;
-    await writeFile(temporaryManifest, canonicalJson(nextManifest), { encoding: "utf8", mode: 384 });
-    await rename(temporaryManifest, manifestPath);
-    this.#manifest = nextManifest;
-    return { indexed: records.length, v: 1 };
-  }
-  search(query, limit, authority) {
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
-      return Promise.reject(new RangeError("Semantic limit must be 1 through 100."));
-    }
-    if (this.#closed)
-      return Promise.reject(new Error("The semantic backend is closed."));
-    const operation = this.#searchSnapshot(query, limit, authority);
-    this.#activeSearches.add(operation);
-    operation.then(() => {
-      this.#activeSearches.delete(operation);
-    }, () => {
-      this.#activeSearches.delete(operation);
-    });
-    return operation;
-  }
-  async#searchSnapshot(query, limit, authority) {
-    const store = await this.#open();
-    const manifest = this.#manifest;
-    const results = parseQmdVectorResults(await store.searchVector(query, { collection: "oh", limit: Math.min(100, limit * 3) }));
-    const output = [];
-    const seen = new Set;
-    for (const result of results) {
-      const entry = manifest.entries[result.filename];
-      if (entry === undefined || result.title !== entry.key || seen.has(entry.key))
-        continue;
-      const current = authority.get(entry.key);
-      if (current === null || current.recordSha256 !== entry.recordSha256)
-        continue;
-      const expectedDocument = recordDocument(current);
-      if (result.body !== expectedDocument || result.hash !== sha256Hex(expectedDocument))
-        continue;
-      seen.add(entry.key);
-      output.push({ key: entry.key, recordSha256: entry.recordSha256, score: result.score, v: 1 });
-      if (output.length === limit)
-        break;
-    }
-    return output;
-  }
-  async#finishClose() {
-    await this.#indexQueue;
-    await Promise.allSettled([...this.#activeSearches]);
-    if (this.#store === null)
-      return;
-    try {
-      const store = await this.#store;
-      await this.#closeStore(store);
-    } catch {
-      if (this.#storeClose !== null)
-        await this.#storeClose;
-    }
-  }
-  close() {
-    this.#closed = true;
-    this.#closure ??= this.#finishClose();
-    return this.#closure;
-  }
 }
 
 // src/cloudflare-embedding.ts

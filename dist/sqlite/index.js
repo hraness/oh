@@ -1,4 +1,19 @@
 // @bun
+var __defProp = Object.defineProperty;
+var __returnValue = (v) => v;
+function __exportSetter(name, newValue) {
+  this[name] = __returnValue.bind(null, newValue);
+}
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, {
+      get: all[name],
+      enumerable: true,
+      configurable: true,
+      set: __exportSetter.bind(all, name)
+    });
+};
+
 // src/sqlite/driver.ts
 import { existsSync } from "fs";
 import { Database } from "bun:sqlite";
@@ -433,6 +448,9 @@ function applyOhSqliteMigrations(database) {
     }
   }
 }
+// src/sqlite/port.ts
+import { isProxy as isProxy2 } from "util/types";
+
 // src/graph.ts
 var OH_GRAPH_FORMAT_VERSION_V1 = 1;
 var OH_GRAPH_LIMITS_V1 = Object.freeze({
@@ -441,7 +459,7 @@ var OH_GRAPH_LIMITS_V1 = Object.freeze({
   recordBytes: 1024 * 1024,
   recordsPerSnapshot: 65536
 });
-var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
+var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = Object.freeze([
   "activity",
   "assertion",
   "context",
@@ -460,7 +478,7 @@ var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
   "type-membership",
   "view",
   "vocabulary"
-];
+]);
 var KNOWLEDGE_GRAPH_RECORD_KEYS_V1 = [
   "dependencies",
   "key",
@@ -1386,6 +1404,141 @@ class OhRecordCodecRegistry {
   }
 }
 
+// src/errors.ts
+var OH_OPERATION_SIZE_ERROR_CODE_V1 = "oh.operation-size.v1";
+var OH_CONFLICT_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhConflictError/v1");
+var OH_DEPENDENCY_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhDependencyError/v1");
+var OH_INTEGRITY_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhIntegrityError/v1");
+var OH_OPERATION_SIZE_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhOperationSizeError/v1");
+var OH_PROFILE_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhProfileError/v1");
+function immutableOwnValue(value, key) {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  return descriptor !== undefined && descriptor.get === undefined && descriptor.set === undefined && descriptor.configurable === false && descriptor.writable === false ? descriptor.value : undefined;
+}
+function brandNativeError(value, brand) {
+  Object.defineProperty(value, brand, {
+    configurable: false,
+    enumerable: false,
+    value: true,
+    writable: false
+  });
+}
+function hasNativeErrorBrand(value, brand) {
+  try {
+    return Error.isError(value) && immutableOwnValue(value, brand) === true;
+  } catch {
+    return false;
+  }
+}
+function hasNativeSubclassInstance(constructor, value) {
+  return Function.prototype[Symbol.hasInstance].call(constructor, value);
+}
+function isOhConflictError(value) {
+  return hasNativeErrorBrand(value, OH_CONFLICT_ERROR_BRAND_V1);
+}
+
+class OhConflictError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhConflictError ? isOhConflictError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhConflictError";
+    brandNativeError(this, OH_CONFLICT_ERROR_BRAND_V1);
+  }
+}
+function isOhIntegrityError(value) {
+  return hasNativeErrorBrand(value, OH_INTEGRITY_ERROR_BRAND_V1);
+}
+
+class OhIntegrityError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhIntegrityError ? isOhIntegrityError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhIntegrityError";
+    brandNativeError(this, OH_INTEGRITY_ERROR_BRAND_V1);
+  }
+}
+function isOhDependencyError(value) {
+  return hasNativeErrorBrand(value, OH_DEPENDENCY_ERROR_BRAND_V1);
+}
+
+class OhDependencyError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhDependencyError ? isOhDependencyError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhDependencyError";
+    brandNativeError(this, OH_DEPENDENCY_ERROR_BRAND_V1);
+  }
+}
+function isOhProfileError(value) {
+  return hasNativeErrorBrand(value, OH_PROFILE_ERROR_BRAND_V1);
+}
+
+class OhProfileError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhProfileError ? isOhProfileError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhProfileError";
+    brandNativeError(this, OH_PROFILE_ERROR_BRAND_V1);
+  }
+}
+function isOhOperationSizeError(value) {
+  try {
+    if (!Error.isError(value) || !(value instanceof RangeError))
+      return false;
+    const operationBytes = immutableOwnValue(value, "operationBytes");
+    const maximumOperationBytes = immutableOwnValue(value, "maximumOperationBytes");
+    return immutableOwnValue(value, OH_OPERATION_SIZE_ERROR_BRAND_V1) === true && immutableOwnValue(value, "code") === OH_OPERATION_SIZE_ERROR_CODE_V1 && Number.isSafeInteger(operationBytes) && operationBytes > 0 && Number.isSafeInteger(maximumOperationBytes) && maximumOperationBytes > 0 && operationBytes > maximumOperationBytes;
+  } catch {
+    return false;
+  }
+}
+
+class OhOperationSizeError extends RangeError {
+  static [Symbol.hasInstance](value) {
+    return this === OhOperationSizeError ? isOhOperationSizeError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(operationBytes, maximumOperationBytes) {
+    if (!Number.isSafeInteger(operationBytes) || operationBytes < 1 || !Number.isSafeInteger(maximumOperationBytes) || maximumOperationBytes < 1 || operationBytes <= maximumOperationBytes) {
+      throw new TypeError("Invalid Oh operation size refusal.");
+    }
+    super(`The ${operationBytes}-byte operation exceeds the host-declared ${maximumOperationBytes}-byte canonical bound.`);
+    this.name = "OhOperationSizeError";
+    Object.defineProperties(this, {
+      [OH_OPERATION_SIZE_ERROR_BRAND_V1]: {
+        configurable: false,
+        enumerable: false,
+        value: true,
+        writable: false
+      },
+      code: {
+        configurable: false,
+        enumerable: true,
+        value: OH_OPERATION_SIZE_ERROR_CODE_V1,
+        writable: false
+      },
+      maximumOperationBytes: {
+        configurable: false,
+        enumerable: true,
+        value: maximumOperationBytes,
+        writable: false
+      },
+      operationBytes: {
+        configurable: false,
+        enumerable: true,
+        value: operationBytes,
+        writable: false
+      }
+    });
+  }
+}
 // src/operation.ts
 var OH_OPERATION_MAX_BYTES_V1 = 64 * 1024 * 1024;
 function parsePayload(value) {
@@ -1433,13 +1586,18 @@ function parsePayload(value) {
     v: 1
   } : null;
 }
-function createOhOperationV1(input) {
+function createOhOperationV1(input, options = {}) {
+  const maximumOperationBytes = options.maximumOperationBytes ?? OH_OPERATION_MAX_BYTES_V1;
+  if (!Number.isSafeInteger(maximumOperationBytes) || maximumOperationBytes < 1 || maximumOperationBytes > OH_OPERATION_MAX_BYTES_V1) {
+    throw new TypeError("Invalid Oh operation byte bound.");
+  }
   const payload = parsePayload(input);
   if (payload === null)
     throw new TypeError("Invalid Oh operation payload.");
   const operation = { ...payload, operationSha256: canonicalSha256(payload) };
-  if (Buffer.byteLength(canonicalJson(operation), "utf8") > OH_OPERATION_MAX_BYTES_V1) {
-    throw new RangeError("Oh operation exceeds its canonical byte limit.");
+  const operationBytes = Buffer.byteLength(canonicalJson(operation), "utf8");
+  if (operationBytes > maximumOperationBytes) {
+    throw new OhOperationSizeError(operationBytes, maximumOperationBytes);
   }
   return operation;
 }
@@ -1453,33 +1611,6 @@ function parseOhOperationV1(value) {
 }
 
 // src/store.ts
-class OhConflictError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhConflictError";
-  }
-}
-
-class OhIntegrityError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhIntegrityError";
-  }
-}
-
-class OhDependencyError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhDependencyError";
-  }
-}
-
-class OhProfileError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhProfileError";
-  }
-}
 var OH_CANONICAL_STORE_PROFILE_V1 = createOhStoreProfileV1({
   applicationProfileSha256: null,
   capabilities: {
@@ -1792,6 +1923,8 @@ function transitionOhSnapshotV1(input) {
     sequence: head.sequence + 1,
     spaceId,
     v: 1
+  }, input.maximumOperationBytes === undefined ? {} : {
+    maximumOperationBytes: input.maximumOperationBytes
   });
   const nextHead = {
     generation: operation.sequence,
@@ -2019,6 +2152,434 @@ class OhSemanticBundleIngressV1 {
   }
 }
 
+// src/sync-model.ts
+import { isProxy } from "util/types";
+var OH_SYNC_PROTOCOL_V1 = "oh.sync.v1";
+var OH_SYNC_BUNDLE_MAX_OPERATIONS_V1 = 1000;
+var OH_SYNC_BUNDLE_KEYS_V1 = [
+  "bundleSha256",
+  "contractSha256",
+  "operations",
+  "protocol",
+  "spaceId",
+  "v"
+];
+var OH_SYNC_HEAD_KEYS_V1 = ["operationSha256", "sequence", "v"];
+var OH_SYNC_HEAD_REF_KEYS_V1 = ["operationSha256", "sequence"];
+var OH_OPERATION_KEYS_V1 = [
+  "actorId",
+  "changes",
+  "contractId",
+  "graphRevisionSha256",
+  "instant",
+  "operationId",
+  "operationSha256",
+  "parentOperationSha256",
+  "recordsSha256",
+  "sequence",
+  "spaceId",
+  "v"
+];
+var OH_PUT_CHANGE_KEYS_V1 = ["kind", "record", "v"];
+var OH_TOMBSTONE_CHANGE_KEYS_V1 = ["key", "kind", "priorSha256", "v"];
+var OH_RECORD_KEYS_V1 = ["dependencies", "key", "kind", "recordSha256", "v", "value"];
+var OH_SYNC_INGRESS_VALUE_DEPTH_V1 = 128;
+var OH_SYNC_INGRESS_VALUE_NODES_V1 = OH_GRAPH_LIMITS_V1.recordBytes;
+var OH_SYNC_INGRESS_OPERATION_DEPTH_V1 = OH_SYNC_INGRESS_VALUE_DEPTH_V1 + 4;
+var OH_SYNC_INGRESS_OPERATION_NODES_V1 = OH_OPERATION_MAX_BYTES_V1;
+var OH_SYNC_BUNDLE_MAX_BYTES_V1 = OH_OPERATION_MAX_BYTES_V1 + 4 * 1024;
+var OH_SYNC_INGRESS_BUNDLE_NODES_V1 = OH_SYNC_INGRESS_OPERATION_NODES_V1 + 4 * 1024;
+function exactDataRecordV1(value, expectedKeys) {
+  try {
+    if (typeof value !== "object" || value === null || Array.isArray(value) || isProxy(value))
+      return null;
+    const prototype = Object.getPrototypeOf(value);
+    const keys = Reflect.ownKeys(value);
+    if (prototype !== Object.prototype && prototype !== null || keys.length !== expectedKeys.length || keys.some((key) => typeof key !== "string") || expectedKeys.some((key) => !keys.includes(key)))
+      return null;
+    const detached = Object.create(null);
+    for (const key of expectedKeys) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined)
+        return null;
+      Object.defineProperty(detached, key, {
+        configurable: false,
+        enumerable: true,
+        value: descriptor.value,
+        writable: false
+      });
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
+function exactDataArrayV1(value, maximumLength, clone = true) {
+  try {
+    if (typeof value !== "object" || value === null || isProxy(value) || !Array.isArray(value))
+      return null;
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+    const length = lengthDescriptor?.value;
+    if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0 || length > maximumLength)
+      return null;
+    const keys = Reflect.ownKeys(value);
+    if (keys.length !== length + 1 || !keys.includes("length") || keys.some((key) => key !== "length" && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= length)))
+      return null;
+    const detached = clone ? [] : null;
+    for (let index = 0;index < length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined)
+        return null;
+      detached?.push(descriptor.value);
+    }
+    return detached ?? value;
+  } catch {
+    return null;
+  }
+}
+function stagedSyncOperationV1(value, bundleBudget) {
+  const operation = exactDataRecordV1(value, OH_OPERATION_KEYS_V1);
+  if (operation === null || operation.v !== 1 || operation.contractId !== OH_CONTRACT_ID_V1 || safeCode(operation.actorId) === null || safeCode(operation.operationId) === null || safeCode(operation.spaceId) === null || parseCanonicalInstantV1(operation.instant) === null || parseSha256Hex(operation.operationSha256) === null || parseSha256Hex(operation.graphRevisionSha256) === null || parseSha256Hex(operation.recordsSha256) === null)
+    return null;
+  const parentOperationSha256 = operation.parentOperationSha256 === null ? null : parseSha256Hex(operation.parentOperationSha256);
+  const sequence = Number.isSafeInteger(operation.sequence) && operation.sequence > 0 ? operation.sequence : null;
+  if (sequence === null || operation.parentOperationSha256 !== null && parentOperationSha256 === null || sequence === 1 !== (parentOperationSha256 === null))
+    return null;
+  const changes = exactDataArrayV1(operation.changes, OH_GRAPH_LIMITS_V1.changesPerOperation, false);
+  if (changes === null || changes.length === 0)
+    return null;
+  const aggregateDataBudget = {
+    bytes: 0,
+    maximumBytes: OH_OPERATION_MAX_BYTES_V1,
+    maximumNodes: OH_SYNC_INGRESS_OPERATION_NODES_V1,
+    nodes: 0
+  };
+  for (const change of changes) {
+    const put = exactDataRecordV1(change, OH_PUT_CHANGE_KEYS_V1);
+    if (put !== null && put.kind === "put" && put.v === 1) {
+      const record = exactDataRecordV1(put.record, OH_RECORD_KEYS_V1);
+      if (record === null)
+        return null;
+      const valuePreflight = preflightSyncIngressValueV1(record.value, aggregateDataBudget);
+      const dependenciesPreflight = preflightSyncIngressDependenciesV1(record.dependencies, aggregateDataBudget);
+      if (valuePreflight === null || dependenciesPreflight === null)
+        return null;
+      continue;
+    }
+    const tombstone = exactDataRecordV1(change, OH_TOMBSTONE_CHANGE_KEYS_V1);
+    if (tombstone === null || tombstone.kind !== "tombstone" || tombstone.v !== 1)
+      return null;
+  }
+  const detached = boundedSyncIngressV1(operation, {
+    maximumBytes: OH_OPERATION_MAX_BYTES_V1,
+    maximumDepth: OH_SYNC_INGRESS_OPERATION_DEPTH_V1,
+    maximumNodes: OH_SYNC_INGRESS_OPERATION_NODES_V1
+  }, bundleBudget, true);
+  return detached === null ? null : detached.value;
+}
+function canonicalStringBytesV1(value, maximumBytes) {
+  if (value.length + 2 > maximumBytes)
+    throw new RangeError("String exceeds its canonical byte budget.");
+  let bytes = 2;
+  for (let index = 0;index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 55296 && code <= 56319) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 56320 && next <= 57343))
+        throw new TypeError("Invalid Unicode string.");
+      bytes += 4;
+      index += 1;
+    } else if (code >= 56320 && code <= 57343) {
+      throw new TypeError("Invalid Unicode string.");
+    } else if (code === 34 || code === 92 || code === 8 || code === 9 || code === 10 || code === 12 || code === 13) {
+      bytes += 2;
+    } else if (code <= 31) {
+      bytes += 6;
+    } else if (code <= 127) {
+      bytes += 1;
+    } else if (code <= 2047) {
+      bytes += 2;
+    } else {
+      bytes += 3;
+    }
+    if (bytes > maximumBytes)
+      throw new RangeError("String exceeds its canonical byte budget.");
+  }
+  return bytes;
+}
+function boundedSyncIngressV1(value, limits, aggregate, clone) {
+  const ancestors = new Set;
+  const budget = {
+    bytes: 0,
+    maximumBytes: limits.maximumBytes,
+    maximumNodes: limits.maximumNodes,
+    nodes: 0
+  };
+  const canSpendBytes = (count) => budget.bytes + count <= budget.maximumBytes && (aggregate === null || aggregate.bytes + count <= aggregate.maximumBytes);
+  const spendBytes = (count) => {
+    if (!canSpendBytes(count))
+      throw new RangeError("Sync ingress exceeds its canonical byte budget.");
+    budget.bytes += count;
+    if (aggregate !== null)
+      aggregate.bytes += count;
+  };
+  const canSpendNodes = (count) => budget.nodes + count <= budget.maximumNodes && (aggregate === null || aggregate.nodes + count <= aggregate.maximumNodes);
+  const spendNode = () => {
+    if (!canSpendNodes(1))
+      throw new RangeError("Sync ingress exceeds its node budget.");
+    budget.nodes += 1;
+    if (aggregate !== null)
+      aggregate.nodes += 1;
+  };
+  const detach = (candidate, depth) => {
+    if (depth > limits.maximumDepth)
+      throw new RangeError("Sync ingress exceeds its depth budget.");
+    spendNode();
+    if (candidate === null) {
+      spendBytes(4);
+      return candidate;
+    }
+    if (typeof candidate === "boolean") {
+      spendBytes(candidate ? 4 : 5);
+      return candidate;
+    }
+    if (typeof candidate === "string") {
+      spendBytes(canonicalStringBytesV1(candidate, Math.min(budget.maximumBytes - budget.bytes, aggregate === null ? Number.MAX_SAFE_INTEGER : aggregate.maximumBytes - aggregate.bytes)));
+      return candidate;
+    }
+    if (typeof candidate === "number") {
+      if (!Number.isFinite(candidate) || Object.is(candidate, -0))
+        throw new TypeError("Invalid number.");
+      spendBytes(utf8ByteLength(canonicalJson(candidate)));
+      return candidate;
+    }
+    if (typeof candidate !== "object" || isProxy(candidate))
+      throw new TypeError("Invalid data value.");
+    if (ancestors.has(candidate))
+      throw new TypeError("Cyclic data value.");
+    ancestors.add(candidate);
+    try {
+      if (Array.isArray(candidate)) {
+        const lengthDescriptor = Object.getOwnPropertyDescriptor(candidate, "length");
+        const length = lengthDescriptor?.value;
+        if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0 || !canSpendNodes(length) || !canSpendBytes(2 + Math.max(0, length - 1) + length)) {
+          throw new TypeError("Invalid or over-budget data array.");
+        }
+        const keys2 = Reflect.ownKeys(candidate);
+        if (keys2.length !== length + 1 || !keys2.includes("length") || keys2.some((key) => key !== "length" && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= length))) {
+          throw new TypeError("Invalid data array.");
+        }
+        spendBytes(2 + Math.max(0, length - 1));
+        const detached2 = clone ? [] : null;
+        for (let index = 0;index < length; index += 1) {
+          const descriptor = Object.getOwnPropertyDescriptor(candidate, String(index));
+          if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined) {
+            throw new TypeError("Invalid data array entry.");
+          }
+          const item = detach(descriptor.value, depth + 1);
+          detached2?.push(item);
+        }
+        return detached2 === null ? candidate : Object.freeze(detached2);
+      }
+      const prototype = Object.getPrototypeOf(candidate);
+      if (prototype !== Object.prototype && prototype !== null) {
+        throw new TypeError("Invalid data object.");
+      }
+      let containerBytes = 2;
+      let properties = 0;
+      for (const key in candidate) {
+        if (!Object.hasOwn(candidate, key))
+          continue;
+        properties += 1;
+        if (!canSpendNodes(properties))
+          throw new RangeError("Sync ingress exceeds its node budget.");
+        const remainingBytes = Math.min(budget.maximumBytes - budget.bytes - containerBytes - properties, aggregate === null ? Number.MAX_SAFE_INTEGER : aggregate.maximumBytes - aggregate.bytes - containerBytes - properties);
+        containerBytes += (properties === 1 ? 0 : 1) + canonicalStringBytesV1(key, remainingBytes) + 1;
+        if (!canSpendBytes(containerBytes + properties)) {
+          throw new RangeError("Sync ingress exceeds its canonical byte budget.");
+        }
+      }
+      const keys = Reflect.ownKeys(candidate);
+      if (keys.length !== properties || keys.some((key) => typeof key !== "string")) {
+        throw new TypeError("Invalid data object.");
+      }
+      spendBytes(containerBytes);
+      const detached = clone ? Object.create(null) : null;
+      for (const key of keys) {
+        const descriptor = Object.getOwnPropertyDescriptor(candidate, key);
+        if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined) {
+          throw new TypeError("Invalid data property.");
+        }
+        const item = detach(descriptor.value, depth + 1);
+        if (detached !== null) {
+          Object.defineProperty(detached, key, {
+            configurable: false,
+            enumerable: true,
+            value: item,
+            writable: false
+          });
+        }
+      }
+      return detached === null ? candidate : Object.freeze(detached);
+    } finally {
+      ancestors.delete(candidate);
+    }
+  };
+  try {
+    return Object.freeze({ value: detach(value, 0) });
+  } catch {
+    return null;
+  }
+}
+function preflightSyncIngressValueV1(value, aggregate) {
+  return boundedSyncIngressV1(value, {
+    maximumBytes: OH_GRAPH_LIMITS_V1.recordBytes,
+    maximumDepth: OH_SYNC_INGRESS_VALUE_DEPTH_V1,
+    maximumNodes: OH_SYNC_INGRESS_VALUE_NODES_V1
+  }, aggregate, false);
+}
+function preflightSyncIngressDependenciesV1(value, aggregate) {
+  try {
+    if (typeof value !== "object" || value === null || isProxy(value) || !Array.isArray(value)) {
+      return null;
+    }
+    const length = Object.getOwnPropertyDescriptor(value, "length")?.value;
+    if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0 || length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord)
+      return null;
+    const maximumBytes = length === 0 ? 2 : 1 + length * 515;
+    return boundedSyncIngressV1(value, {
+      maximumBytes,
+      maximumDepth: 1,
+      maximumNodes: length + 1
+    }, aggregate, false);
+  } catch {
+    return null;
+  }
+}
+function syncIngressBundleBudgetV1(spaceId) {
+  const emptyBundle = {
+    bundleSha256: "0".repeat(64),
+    contractSha256: OH_CONTRACT_MANIFEST_V1.contractSha256,
+    operations: [],
+    protocol: OH_SYNC_PROTOCOL_V1,
+    spaceId,
+    v: 1
+  };
+  return {
+    bytes: utf8ByteLength(canonicalJson(emptyBundle)),
+    maximumBytes: OH_SYNC_BUNDLE_MAX_BYTES_V1,
+    maximumNodes: OH_SYNC_INGRESS_BUNDLE_NODES_V1,
+    nodes: 7
+  };
+}
+function spendSyncIngressBudgetV1(budget, bytes, nodes = 0) {
+  if (budget.bytes + bytes > budget.maximumBytes || budget.nodes + nodes > budget.maximumNodes)
+    return false;
+  budget.bytes += bytes;
+  budget.nodes += nodes;
+  return true;
+}
+function measureSyncOperationV1(operation) {
+  const measurement = {
+    bytes: 0,
+    maximumBytes: OH_OPERATION_MAX_BYTES_V1,
+    maximumNodes: OH_SYNC_INGRESS_OPERATION_NODES_V1,
+    nodes: 0
+  };
+  return boundedSyncIngressV1(operation, {
+    maximumBytes: OH_OPERATION_MAX_BYTES_V1,
+    maximumDepth: OH_SYNC_INGRESS_OPERATION_DEPTH_V1,
+    maximumNodes: OH_SYNC_INGRESS_OPERATION_NODES_V1
+  }, measurement, false) === null ? null : measurement;
+}
+function buildOhSyncBundleV1(parsedSpaceId, operations, largestFittingPrefix) {
+  let priorSequence = null;
+  let priorSha256 = null;
+  const parsed = [];
+  const bundleBudget = syncIngressBundleBudgetV1(parsedSpaceId);
+  for (const candidate of operations) {
+    const operation = parseOhOperationV1(candidate);
+    if (operation === null || operation.spaceId !== parsedSpaceId || priorSequence !== null && operation.sequence !== priorSequence + 1 || priorSequence !== null && operation.parentOperationSha256 !== priorSha256) {
+      throw new TypeError("Sync operations must form one ordered chain.");
+    }
+    const measurement = measureSyncOperationV1(operation);
+    if (measurement === null) {
+      throw new RangeError("Sync operation exceeds its canonical byte, node, or depth limit.");
+    }
+    if (!spendSyncIngressBudgetV1(bundleBudget, measurement.bytes + (parsed.length === 0 ? 0 : 1), measurement.nodes)) {
+      if (largestFittingPrefix && parsed.length > 0)
+        break;
+      throw new RangeError("Sync bundle exceeds its canonical byte or node limit.");
+    }
+    parsed.push(operation);
+    priorSequence = operation.sequence;
+    priorSha256 = operation.operationSha256;
+  }
+  const payload = {
+    contractSha256: OH_CONTRACT_MANIFEST_V1.contractSha256,
+    operations: parsed,
+    protocol: OH_SYNC_PROTOCOL_V1,
+    spaceId: parsedSpaceId,
+    v: 1
+  };
+  return { ...payload, bundleSha256: canonicalSha256(payload) };
+}
+function parseSyncHeadRefEnvelopeV1(value) {
+  const operationSha256 = value.operationSha256 === null ? null : parseSha256Hex(value.operationSha256);
+  const sequence = Number.isSafeInteger(value.sequence) && value.sequence >= 0 && !Object.is(value.sequence, -0) ? value.sequence : null;
+  return sequence !== null && (value.operationSha256 === null || operationSha256 !== null) && sequence === 0 === (operationSha256 === null) ? { operationSha256, sequence } : null;
+}
+function parseOhSyncHeadRefV1(value) {
+  const reference = exactDataRecordV1(value, OH_SYNC_HEAD_REF_KEYS_V1);
+  return reference === null ? null : parseSyncHeadRefEnvelopeV1(reference);
+}
+function parseOhSyncHeadV1(value) {
+  const envelope = exactDataRecordV1(value, OH_SYNC_HEAD_KEYS_V1);
+  if (envelope === null || envelope.v !== 1)
+    return null;
+  const reference = parseSyncHeadRefEnvelopeV1(envelope);
+  return reference === null ? null : { ...reference, v: 1 };
+}
+function createOhSyncBundleV1(spaceId, operations, options = {}) {
+  const parsedSpaceId = safeCode(spaceId);
+  const largestFittingPrefix = options.largestFittingPrefix ?? false;
+  if (parsedSpaceId === null || operations.length > OH_SYNC_BUNDLE_MAX_OPERATIONS_V1 || typeof largestFittingPrefix !== "boolean") {
+    throw new TypeError("Invalid sync bundle.");
+  }
+  return buildOhSyncBundleV1(parsedSpaceId, operations, largestFittingPrefix);
+}
+function parseOhSyncBundleV1(value) {
+  const envelope = exactDataRecordV1(value, OH_SYNC_BUNDLE_KEYS_V1);
+  if (envelope === null || envelope.protocol !== OH_SYNC_PROTOCOL_V1 || envelope.v !== 1)
+    return null;
+  const bundleSha256 = parseSha256Hex(envelope.bundleSha256);
+  const contractSha256 = parseSha256Hex(envelope.contractSha256);
+  const spaceId = safeCode(envelope.spaceId);
+  if (bundleSha256 === null || contractSha256 !== OH_CONTRACT_MANIFEST_V1.contractSha256 || spaceId === null)
+    return null;
+  const operations = exactDataArrayV1(envelope.operations, OH_SYNC_BUNDLE_MAX_OPERATIONS_V1);
+  if (operations === null)
+    return null;
+  const detachedOperations = [];
+  const bundleBudget = syncIngressBundleBudgetV1(spaceId);
+  for (const operation of operations) {
+    if (detachedOperations.length > 0 && !spendSyncIngressBudgetV1(bundleBudget, 1))
+      return null;
+    const detached = stagedSyncOperationV1(operation, bundleBudget);
+    if (detached === null)
+      return null;
+    detachedOperations.push(detached);
+  }
+  try {
+    const created = createOhSyncBundleV1(spaceId, detachedOperations);
+    if (detachedOperations.some((operation, index) => canonicalJson(operation) !== canonicalJson(created.operations[index])))
+      return null;
+    return created.bundleSha256 === bundleSha256 ? { ...created, bundleSha256 } : null;
+  } catch {
+    return null;
+  }
+}
+
 // src/sqlite/store.ts
 import { mkdirSync } from "fs";
 import { dirname } from "path";
@@ -2122,6 +2683,9 @@ function normalizeLimit(value, fallback = 50, maximum = 1000) {
     throw new RangeError(`limit must be an integer from 1 through ${maximum}.`);
   }
   return value;
+}
+function exactHeadRef(left, right) {
+  return left.sequence === right.sequence && left.operationSha256 === right.operationSha256;
 }
 function ftsQuery(value) {
   const normalized = boundedText(value.normalize("NFC"), 4096);
@@ -2239,8 +2803,7 @@ class OhSqliteStore {
     }
     return records;
   }
-  #transition(head, changes, operationId) {
-    const records = this.#loadRecords();
+  #transition(head, changes, operationId, records = this.#loadRecords()) {
     for (const change of changes) {
       if (change.kind === "put") {
         records.set(change.record.key, change.record);
@@ -2297,7 +2860,7 @@ class OhSqliteStore {
     if (operation.sequence < 1 || operation.sequence > head.sequence) {
       throw new OhIntegrityError("A stored idempotent operation is not reachable from the current head.");
     }
-    const rows = this.database.query(`SELECT operation_sha256, parent_operation_sha256, sequence
+    const rows = this.database.query(`SELECT ${OPERATION_COLUMNS}
       FROM oh_operations WHERE space_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence`).all(this.spaceId, operation.sequence, head.sequence);
     if (rows.length !== head.sequence - operation.sequence + 1) {
       throw new OhIntegrityError("A stored idempotent operation has an incomplete path to the current head.");
@@ -2305,10 +2868,14 @@ class OhSqliteStore {
     let priorSha256 = operation.parentOperationSha256;
     for (let index = 0;index < rows.length; index += 1) {
       const row = rows[index];
-      if (row === undefined || row.sequence !== operation.sequence + index || row.parent_operation_sha256 !== priorSha256 || index === 0 && row.operation_sha256 !== operation.operationSha256) {
+      if (row === undefined) {
         throw new OhIntegrityError("A stored idempotent operation is not on the current authority chain.");
       }
-      priorSha256 = row.operation_sha256;
+      const reachable = parseStoredOperationRow(row, { spaceId: this.spaceId });
+      if (reachable.sequence !== operation.sequence + index || reachable.parentOperationSha256 !== priorSha256 || index === 0 && reachable.operationSha256 !== operation.operationSha256) {
+        throw new OhIntegrityError("A stored idempotent operation is not on the current authority chain.");
+      }
+      priorSha256 = reachable.operationSha256;
     }
     if (priorSha256 !== head.operationSha256) {
       throw new OhIntegrityError("A stored idempotent operation does not reach the current head digest.");
@@ -2369,8 +2936,10 @@ class OhSqliteStore {
     this.#assertOpen();
     const actorId = safeCode(input.actorId);
     const operationId = safeCode(input.operationId);
-    if (actorId === null || operationId === null)
-      throw new TypeError("Invalid actor or operation ID.");
+    const maximumOperationBytes = input.maximumOperationBytes ?? OH_OPERATION_MAX_BYTES_V1;
+    if (actorId === null || operationId === null || !Number.isSafeInteger(maximumOperationBytes) || maximumOperationBytes < 1 || maximumOperationBytes > OH_OPERATION_MAX_BYTES_V1) {
+      throw new TypeError("Invalid actor, operation ID, or operation byte bound.");
+    }
     const changes = canonicalKnowledgeGraphChangesV1(input.changes);
     if (changes.length === 0 || changes.length > 8192)
       throw new TypeError("A commit needs 1 through 8192 changes.");
@@ -2383,6 +2952,10 @@ class OhSqliteStore {
         this.#assertOperationReachable(existing, head);
         if (existing.actorId !== actorId || canonicalJson(existing.changes) !== canonicalJson(changes)) {
           throw new OhConflictError("The operation ID is already bound to different content.");
+        }
+        const operationBytes = Buffer.byteLength(canonicalJson(existing), "utf8");
+        if (operationBytes > maximumOperationBytes) {
+          throw new OhOperationSizeError(operationBytes, maximumOperationBytes);
         }
         return existing;
       }
@@ -2402,6 +2975,8 @@ class OhSqliteStore {
         sequence: head.sequence + 1,
         spaceId: this.spaceId,
         v: 1
+      }, {
+        maximumOperationBytes
       });
       this.#persist(operation);
       return operation;
@@ -2413,30 +2988,84 @@ class OhSqliteStore {
     const operation = parseOhOperationV1(value);
     if (operation === null || operation.spaceId !== this.spaceId)
       throw new OhIntegrityError("Invalid imported operation.");
+    const result = this.importOperations({
+      expectedHead: {
+        operationSha256: operation.parentOperationSha256,
+        sequence: operation.sequence - 1
+      },
+      operations: [operation]
+    });
+    return { imported: result.imported === 1, operation };
+  }
+  importOperations(input) {
+    this.#assertOpen();
+    this.#assertOperationReplication();
+    const expectedHead = parseOhHeadRefV1(input.expectedHead);
+    if (expectedHead === null || !Array.isArray(input.operations) || input.operations.length > 1000) {
+      throw new TypeError("Invalid operation import interval.");
+    }
+    const operations = input.operations.map((value) => {
+      const operation = parseOhOperationV1(value);
+      if (operation === null || operation.spaceId !== this.spaceId) {
+        throw new OhIntegrityError("Invalid imported operation.");
+      }
+      return operation;
+    });
+    let prior = expectedHead;
+    for (const operation of operations) {
+      if (operation.sequence !== prior.sequence + 1 || operation.parentOperationSha256 !== prior.operationSha256) {
+        throw new OhConflictError("Imported operations do not extend the expected head.");
+      }
+      prior = { operationSha256: operation.operationSha256, sequence: operation.sequence };
+    }
     return withImmediateTransaction(this.database, () => {
-      const head = this.head();
-      this.#assertCurrentHeadAuthority(head);
-      const duplicate = this.database.query(`SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE operation_sha256 = ?`).get(operation.operationSha256);
-      if (duplicate !== null) {
-        const existing = parseStoredOperationRow(duplicate, {
-          operationSha256: operation.operationSha256,
-          spaceId: this.spaceId
-        });
-        this.#assertOperationReachable(existing, head);
-        if (canonicalJson(existing) !== canonicalJson(operation)) {
-          throw new OhIntegrityError("An operation digest is bound to different bytes.");
+      const current = this.head();
+      this.#assertCurrentHeadAuthority(current);
+      this.#headAt(expectedHead);
+      if (!exactHeadRef(current, expectedHead)) {
+        if (operations.length === 0 || current.sequence < prior.sequence) {
+          throw new OhConflictError("The imported operation interval does not extend the local head.");
         }
-        return { imported: false, operation };
+        for (const operation of operations) {
+          const row = this.database.query(`SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? AND sequence = ?`).get(this.spaceId, operation.sequence);
+          if (row === null)
+            throw new OhIntegrityError("An imported replay is missing from the authority chain.");
+          const existing = parseStoredOperationRow(row, { spaceId: this.spaceId });
+          if (existing.operationSha256 !== operation.operationSha256) {
+            throw new OhConflictError("The imported operation interval diverges from the local authority chain.");
+          }
+          if (canonicalJson(existing) !== canonicalJson(operation)) {
+            throw new OhIntegrityError("An operation digest is bound to different bytes.");
+          }
+        }
+        this.#assertOperationReachable(operations[operations.length - 1], current);
+        return { head: current, imported: 0, status: "already-present", v: 1 };
       }
-      if (operation.sequence !== head.sequence + 1 || operation.parentOperationSha256 !== head.operationSha256) {
-        throw new OhConflictError("The imported operation does not extend the local head.");
+      if (operations.length === 0) {
+        return { head: current, imported: 0, status: "already-present", v: 1 };
       }
-      const transition = this.#transition(head, operation.changes, operation.operationId);
-      if (transition.recordsSha256 !== operation.recordsSha256 || transition.graphRevisionSha256 !== operation.graphRevisionSha256) {
-        throw new OhIntegrityError("The imported operation does not reproduce its declared graph head.");
+      const records = this.#loadRecords();
+      let head = current;
+      for (const operation of operations) {
+        const duplicate = this.database.query(`SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? AND operation_id = ?`).get(this.spaceId, operation.operationId);
+        if (duplicate !== null) {
+          throw new OhConflictError("An imported operation ID is already bound on the local authority chain.");
+        }
+        const transition = this.#transition(head, operation.changes, operation.operationId, records);
+        if (transition.recordsSha256 !== operation.recordsSha256 || transition.graphRevisionSha256 !== operation.graphRevisionSha256) {
+          throw new OhIntegrityError("An imported operation does not reproduce its declared graph head.");
+        }
+        this.#persist(operation);
+        head = {
+          generation: operation.sequence,
+          graphRevisionSha256: operation.graphRevisionSha256,
+          operationSha256: operation.operationSha256,
+          recordsSha256: operation.recordsSha256,
+          sequence: operation.sequence,
+          v: 1
+        };
       }
-      this.#persist(operation);
-      return { imported: true, operation };
+      return { head, imported: operations.length, status: "imported", v: 1 };
     });
   }
   exportOperations(afterSequence = 0, limit = 1000) {
@@ -2654,6 +3283,10 @@ class OhSqliteStore {
     const integrity = this.database.query("PRAGMA integrity_check").get();
     if (integrity?.integrity_check !== "ok")
       throw new OhIntegrityError("SQLite integrity_check failed.");
+    const foreignKeyViolations = this.database.query("PRAGMA foreign_key_check").all();
+    if (foreignKeyViolations.length !== 0) {
+      throw new OhIntegrityError("SQLite foreign_key_check failed.");
+    }
     const storedCount = this.database.query("SELECT count(*) AS count FROM oh_operations WHERE space_id = ?").get(this.spaceId)?.count ?? 0;
     const operations = this.database.query(`SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? ORDER BY sequence`).all(this.spaceId).map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
     if (operations.length !== storedCount)
@@ -2729,6 +3362,22 @@ class OhSqliteStore {
     const expectedDependencies = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).flatMap((record) => record.dependencies.map((dependency) => ({ dependency_key: dependency, record_key: record.key })));
     if (canonicalJson(storedDependencies) !== canonicalJson(expectedDependencies)) {
       throw new OhIntegrityError("Materialized dependencies do not match operation replay.");
+    }
+    const expectedSearchDocuments = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map((record) => ({
+      record_key: record.key,
+      record_sha256: record.recordSha256,
+      text: `${record.key} ${record.kind} ${extractSearchText(record.value)}`
+    }));
+    const storedSearchDocuments = this.database.query(`SELECT record_key, record_sha256, text FROM oh_search_documents
+      WHERE space_id = ? ORDER BY record_key`).all(this.spaceId);
+    if (canonicalJson(storedSearchDocuments) !== canonicalJson(expectedSearchDocuments)) {
+      throw new OhIntegrityError("Materialized search documents do not match operation replay.");
+    }
+    const expectedSearchFts = expectedSearchDocuments.map(({ record_key, text }) => ({ record_key, text }));
+    const storedSearchFts = this.database.query(`SELECT record_key, text FROM oh_search_fts
+      WHERE space_id = ? ORDER BY record_key, text, rowid`).all(this.spaceId);
+    if (canonicalJson(storedSearchFts) !== canonicalJson(expectedSearchFts)) {
+      throw new OhIntegrityError("Materialized full-text search rows do not match operation replay.");
     }
     const storedOperationRecords = this.database.query(`SELECT materialized.operation_sha256, materialized.ordinal, materialized.record_key,
         materialized.change_kind, materialized.record_sha256
@@ -2821,6 +3470,24 @@ class OhSqliteStore {
 }
 
 // src/sqlite/port.ts
+function exactReplicationImportInputV1(value) {
+  try {
+    if (typeof value !== "object" || value === null || Array.isArray(value) || isProxy2(value))
+      return null;
+    const prototype = Object.getPrototypeOf(value);
+    const keys = Reflect.ownKeys(value);
+    if (prototype !== Object.prototype && prototype !== null || keys.length !== 2 || !keys.includes("bundle") || !keys.includes("expectedHead") || keys.some((key) => typeof key !== "string"))
+      return null;
+    const bundle = Object.getOwnPropertyDescriptor(value, "bundle");
+    const expectedHead = Object.getOwnPropertyDescriptor(value, "expectedHead");
+    if (bundle === undefined || expectedHead === undefined || !bundle.enumerable || !expectedHead.enumerable || bundle.get !== undefined || bundle.set !== undefined || expectedHead.get !== undefined || expectedHead.set !== undefined)
+      return null;
+    return { bundle: bundle.value, expectedHead: expectedHead.value };
+  } catch {
+    return null;
+  }
+}
+
 class OhSqliteStorePortV1 {
   binding;
   #authority;
@@ -2879,6 +3546,46 @@ function createOhSqliteStoreAuthorityV1(options = {}) {
   });
   const store = new OhSqliteStorePortV1(authority, binding);
   let purge = null;
+  const replication = profile.capabilities.operationReplication ? Object.freeze({
+    binding,
+    exportBundle: async (input) => {
+      const page = authority.changesSince(input.after, {
+        ...input.limit === undefined ? {} : { limit: input.limit },
+        through: input.through
+      });
+      const bundle = createOhSyncBundleV1(binding.spaceId, page.operations, {
+        largestFittingPrefix: true
+      });
+      const last = bundle.operations.at(-1);
+      return Object.freeze({
+        bundle,
+        from: page.from,
+        hasMore: page.hasMore || bundle.operations.length < page.operations.length,
+        through: page.through,
+        to: last === undefined ? page.from : {
+          operationSha256: last.operationSha256,
+          sequence: last.sequence
+        },
+        v: 1
+      });
+    },
+    head: async () => authority.head(),
+    importBundle: async (input) => {
+      const request = exactReplicationImportInputV1(input);
+      const expectedHead = request === null ? null : parseOhSyncHeadRefV1(request.expectedHead);
+      if (request === null || expectedHead === null) {
+        throw new TypeError("Invalid canonical replication request.");
+      }
+      const bundle = parseOhSyncBundleV1(request.bundle);
+      if (bundle === null || bundle.spaceId !== binding.spaceId) {
+        throw new TypeError("Invalid canonical replication bundle.");
+      }
+      return authority.importOperations({
+        expectedHead,
+        operations: bundle.operations
+      });
+    }
+  }) : null;
   const host = Object.freeze({
     binding,
     purgeWorkingSpace: async (input) => {
@@ -2890,7 +3597,8 @@ function createOhSqliteStoreAuthorityV1(options = {}) {
       purge = authority.purgeWorkingSpace(binding, input.purgedAt);
       authority.close();
       return purge;
-    }
+    },
+    replication
   });
   return Object.freeze({ host, store });
 }
@@ -2898,15 +3606,22 @@ export {
   withReadTransaction,
   withImmediateTransaction,
   openOhSqliteDatabase,
+  isOhProfileError,
+  isOhOperationSizeError,
+  isOhIntegrityError,
+  isOhDependencyError,
+  isOhConflictError,
   createOhSqliteStoreAuthorityV1,
   applyOhSqliteMigrations,
   OhSqliteStorePortV1,
   OhSqliteStore,
   OhPurgedSpaceError,
   OhProfileError,
+  OhOperationSizeError,
   OhIntegrityError,
   OhDependencyError,
   OhConflictError,
   OH_SQLITE_SCHEMA_VERSION,
-  OH_SQLITE_MIGRATIONS
+  OH_SQLITE_MIGRATIONS,
+  OH_OPERATION_SIZE_ERROR_CODE_V1
 };

@@ -31,6 +31,7 @@ import {
   OH_WORKING_STORE_PROFILE_V1,
   OhConflictError,
   OhIntegrityError,
+  OhOperationSizeError,
   OhProfileError,
   type OhHeadV1,
   type OhSnapshotV1,
@@ -153,8 +154,10 @@ function stableVisibleProgram(pageSize = 50) {
 }
 
 async function authorityFixture(configuration: Readonly<{
+  canonicalStore?: (store: OhStoreV1) => OhStoreV1;
   canonicalRecords?: readonly ReturnType<typeof entity>[];
   explainCapabilityLifetimeMs?: number;
+  maximumCanonicalOperationBytes?: number;
   monotonicNow?: () => number;
   now?: () => Date;
   pageSize?: number;
@@ -171,15 +174,19 @@ async function authorityFixture(configuration: Readonly<{
       expectedHead: await canonical.store.head(), operationId: "op_authority_seed" });
   }
   const initialCanonicalHead = await canonical.store.head();
+  const selectedCanonicalStore = configuration.canonicalStore?.(canonical.store) ?? canonical.store;
   const selectedWorkingStore = configuration.workingStore?.(working.store) ?? working.store;
   const authority = await createOhMemoryAuthorityV1({
     actorId: "test.memory-agent", adoptionActorId: "test.memory-reviewer",
     canonical: { authorityId: "authority.canonical",
-      expectedBindingSha256: canonical.store.binding.bindingSha256,
-      expectedHead: initialCanonicalHead, store: canonical.store },
+      expectedBindingSha256: selectedCanonicalStore.binding.bindingSha256,
+      expectedHead: initialCanonicalHead, store: selectedCanonicalStore },
     continuationKey: Uint8Array.from({ length: 32 }, (_, index) => index),
     ...(configuration.explainCapabilityLifetimeMs === undefined ? {} : {
       explainCapabilityLifetimeMs: configuration.explainCapabilityLifetimeMs,
+    }),
+    ...(configuration.maximumCanonicalOperationBytes === undefined ? {} : {
+      maximumCanonicalOperationBytes: configuration.maximumCanonicalOperationBytes,
     }),
     ...(configuration.monotonicNow === undefined ? {} : {
       monotonicNow: configuration.monotonicNow,
@@ -192,6 +199,48 @@ async function authorityFixture(configuration: Readonly<{
       store: selectedWorkingStore },
   });
   return { authority, canonical, initialCanonicalHead, working };
+}
+
+async function peerAuthority(
+  canonicalStore: OhStoreV1,
+  workingStore: OhStoreV1,
+  expectedCanonicalHead: OhHeadV1,
+) {
+  return await createOhMemoryAuthorityV1({
+    actorId: "test.memory-agent", adoptionActorId: "test.memory-reviewer",
+    canonical: { authorityId: "authority.canonical",
+      expectedBindingSha256: canonicalStore.binding.bindingSha256,
+      expectedHead: expectedCanonicalHead, store: canonicalStore },
+    continuationKey: Uint8Array.from({ length: 32 }, (_, index) => index),
+    nominationRoutes: [{ destinationPurpose: "kb.review", nominationId: "kb.review" }],
+    programs: [stableVisibleProgram()],
+    working: { authorityId: "authority.working", codecs: entityCodecs(),
+      expectedBindingSha256: workingStore.binding.bindingSha256, store: workingStore },
+  });
+}
+
+function twoPartyCanonicalCommitRendezvous() {
+  const commitCalls: [number, number] = [0, 0];
+  const arrived = new Set<number>();
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  const wrap = (store: OhStoreV1, participant: 0 | 1): OhStoreV1 => new Proxy(store, {
+    get(target, property) {
+      const member = Reflect.get(target, property, target) as unknown;
+      if (typeof member !== "function") return member;
+      if (property !== "commit") {
+        return (...args: unknown[]) => Reflect.apply(member, target, args);
+      }
+      return async (...args: unknown[]) => {
+        commitCalls[participant] += 1;
+        arrived.add(participant);
+        if (arrived.size === 2) release();
+        await released;
+        return await Reflect.apply(member, target, args);
+      };
+    },
+  }) as OhStoreV1;
+  return { commitCalls, wrap };
 }
 
 function staticSnapshot(records: readonly KnowledgeGraphRecordV1[]): OhSnapshotV1 {
@@ -1292,6 +1341,29 @@ describe("stable host-bound Oh memory authority", () => {
     await value.canonical.store.close(); await value.working.store.close();
   });
 
+  test("refuses an adopted operation above the host canonical byte bound before commit", async () => {
+    const value = await authorityFixture({ maximumCanonicalOperationBytes: 1 });
+    const workingHead = await value.working.store.head();
+    await value.authority.agent.remember({ expectedHead: {
+      generation: workingHead.generation,
+      operationSha256: workingHead.operationSha256,
+    }, puts: [{ dependencies: [], key: "entity:bounded-adoption", kind: "entity", v: 1,
+      value: { name: "Bounded adoption" } }], requestId: "remember_bounded_adoption",
+    tombstones: [], v: 1 });
+    const nomination = await value.authority.agent.nominate({ nominationId: "kb.review",
+      roots: ["entity:bounded-adoption"], v: 1 });
+    await expect(value.authority.host.adoptNomination({
+      expectedCanonicalHead: value.initialCanonicalHead,
+      nomination,
+      v: 1,
+    })).rejects.toThrow(OhOperationSizeError);
+    expect(await value.canonical.store.head()).toEqual(value.initialCanonicalHead);
+    expect((await value.canonical.store.snapshot()).records.map(({ key }) => key))
+      .not.toContain("entity:bounded-adoption");
+    await value.canonical.store.close();
+    await value.working.store.close();
+  });
+
   test("descriptor-detaches stable unknown inputs and never executes accessors or proxies", async () => {
     const value = await authorityFixture();
     const workingHead = await value.working.store.head();
@@ -1417,6 +1489,122 @@ describe("stable host-bound Oh memory authority", () => {
     expect(visible.rows.some(({ values }) => values[0] === "canonical"
       && values[1] === "entity:child")).toBe(true);
     await value.canonical.store.close(); await value.working.store.close();
+  });
+
+  test("records one physical adoption under two cross-instance CAS attempts and fails closed",
+    async () => {
+    const sameRendezvous = twoPartyCanonicalCommitRendezvous();
+    let samePrimaryCanonical!: OhStoreV1;
+    const same = await authorityFixture({ canonicalStore: (store) => {
+      samePrimaryCanonical = sameRendezvous.wrap(store, 0);
+      return samePrimaryCanonical;
+    } });
+    const samePeerCanonical = sameRendezvous.wrap(same.canonical.store, 1);
+    expect(samePrimaryCanonical).not.toBe(samePeerCanonical);
+    const samePeer = await peerAuthority(samePeerCanonical, same.working.store,
+      same.initialCanonicalHead);
+    const sameWorkingHead = await same.working.store.head();
+    await same.authority.agent.remember({ expectedHead: {
+      generation: sameWorkingHead.generation,
+      operationSha256: sameWorkingHead.operationSha256,
+    }, puts: [{ dependencies: [], key: "entity:cross-instance-same", kind: "entity", v: 1,
+      value: { name: "Same nomination" } }], requestId: "remember_cross_instance_same",
+    tombstones: [], v: 1 });
+    const sameNomination = await same.authority.agent.nominate({ nominationId: "kb.review",
+      roots: ["entity:cross-instance-same"], v: 1 });
+    const sameRequest = { expectedCanonicalHead: same.initialCanonicalHead,
+      nomination: sameNomination, v: 1 } as const;
+    const sameReceipts = await Promise.all([
+      same.authority.host.adoptNomination(sameRequest),
+      samePeer.host.adoptNomination(sameRequest),
+    ]);
+    // These are separate authority/store-capability instances around one durable SQLite store.
+    // The rendezvous proves that both planned from the prior head and each invoked its distinct
+    // commit capability once before either CAS reached that store. The [1, 1] below is two bounded
+    // CAS attempts; the change history separately proves their one-physical-operation outcome.
+    // This does not simulate independent processes or remote transport.
+    expect(sameRendezvous.commitCalls).toEqual([1, 1]);
+    const sameHead = await same.canonical.store.head();
+    expect(sameReceipts.every(({ head }) => canonicalJson(head) === canonicalJson(sameHead)))
+      .toBe(true);
+    // An exact operation replay may return the one durable operation to both callers; a store
+    // that reports the losing CAS instead lets the authority reconcile it as already present.
+    expect(sameReceipts.every(({ status }) => status === "adopted"
+      || status === "already-present")).toBe(true);
+    expect(sameReceipts.some(({ status }) => status === "adopted")).toBe(true);
+    expect((await same.canonical.store.changesSince(same.initialCanonicalHead,
+      { through: sameHead })).operations).toHaveLength(1);
+    for (const authority of [same.authority, samePeer]) {
+      const page = await authority.agent.query({ bindings: {}, continuation: null,
+        programId: "memory.visible-records", v: 2 });
+      expect(page.identity.canonical.head).toEqual(sameHead);
+    }
+    await same.canonical.store.close(); await same.working.store.close();
+
+    const original = entity("entity:canonical", "Canonical");
+    const differentRendezvous = twoPartyCanonicalCommitRendezvous();
+    let differentPrimaryCanonical!: OhStoreV1;
+    const different = await authorityFixture({ canonicalRecords: [original],
+      canonicalStore: (store) => {
+        differentPrimaryCanonical = differentRendezvous.wrap(store, 0);
+        return differentPrimaryCanonical;
+      } });
+    const differentPeerCanonical = differentRendezvous.wrap(different.canonical.store, 1);
+    expect(differentPrimaryCanonical).not.toBe(differentPeerCanonical);
+    const differentPeer = await peerAuthority(differentPeerCanonical, different.working.store,
+      different.initialCanonicalHead);
+    const firstWorkingHead = await different.working.store.head();
+    await different.authority.agent.remember({ expectedHead: {
+      generation: firstWorkingHead.generation,
+      operationSha256: firstWorkingHead.operationSha256,
+    }, puts: [{ dependencies: [], key: original.key, kind: "entity", v: 1,
+      value: { name: "Replacement A" } }], requestId: "remember_cross_instance_a",
+    tombstones: [], v: 1 });
+    const nominationA = await different.authority.agent.nominate({ nominationId: "kb.review",
+      roots: [original.key], v: 1 });
+    const secondWorkingHead = await different.working.store.head();
+    await different.authority.agent.remember({ expectedHead: {
+      generation: secondWorkingHead.generation,
+      operationSha256: secondWorkingHead.operationSha256,
+    }, puts: [{ dependencies: [], key: original.key, kind: "entity", v: 1,
+      value: { name: "Replacement B" } }], requestId: "remember_cross_instance_b",
+    tombstones: [], v: 1 });
+    const nominationB = await different.authority.agent.nominate({ nominationId: "kb.review",
+      roots: [original.key], v: 1 });
+    const contenders = [{ authority: different.authority, nomination: nominationA },
+      { authority: differentPeer, nomination: nominationB }];
+    const outcomes = await Promise.allSettled(contenders.map(({ authority, nomination }) =>
+      authority.host.adoptNomination({ expectedCanonicalHead: different.initialCanonicalHead,
+        nomination, replacements: [{ expectedPriorRecordSha256: original.recordSha256,
+          key: original.key, v: 1 }], v: 1 })));
+    const fulfilled = outcomes.flatMap((outcome, index) => outcome.status === "fulfilled"
+      ? [{ index, receipt: outcome.value }] : []);
+    const rejected = outcomes.flatMap((outcome, index) => outcome.status === "rejected"
+      ? [{ index, reason: outcome.reason as unknown }] : []);
+    expect(differentRendezvous.commitCalls).toEqual([1, 1]);
+    expect(fulfilled).toHaveLength(1);
+    expect(fulfilled[0]?.receipt.status).toBe("adopted");
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.reason).toBeInstanceOf(OhMemoryAdoptionConflictError);
+    const differentHead = await different.canonical.store.head();
+    const winningNomination = contenders[fulfilled[0]!.index]!.nomination;
+    const winningDigest = winningNomination.closure.records
+      .find(({ key }) => key === original.key)!.recordSha256;
+    expect((await different.canonical.store.snapshot()).records
+      .find(({ key }) => key === original.key)?.recordSha256).toBe(winningDigest);
+    expect((await different.canonical.store.changesSince(different.initialCanonicalHead,
+      { through: differentHead })).operations).toHaveLength(1);
+    expect((rejected[0]!.reason as OhMemoryAdoptionConflictError).conflict.actualHead)
+      .toEqual(differentHead);
+    const losingPage = await contenders[rejected[0]!.index]!.authority.agent.query({
+      bindings: {}, continuation: null, programId: "memory.visible-records", v: 2,
+    });
+    expect(losingPage.identity.canonical.head).toEqual(different.initialCanonicalHead);
+    const winningPage = await contenders[fulfilled[0]!.index]!.authority.agent.query({
+      bindings: {}, continuation: null, programId: "memory.visible-records", v: 2,
+    });
+    expect(winningPage.identity.canonical.head).toEqual(differentHead);
+    await different.canonical.store.close(); await different.working.store.close();
   });
 
   test("replaces canonical records only with exact host-supplied prior digests", async () => {
@@ -1774,6 +1962,88 @@ describe("stable host-bound Oh memory authority", () => {
     await value.canonical.store.close(); await value.working.store.close();
   });
 
+  test("recovers an uncertain successful adoption exactly and rejects a later mismatch", async () => {
+    let throwAfterCommit = true;
+    let authorityCommitCalls = 0;
+    const value = await authorityFixture({
+      canonicalStore: (store) => new Proxy(store, {
+        get(target, property) {
+          const member = Reflect.get(target, property, target) as unknown;
+          if (property === "commit") {
+            return async (...args: unknown[]) => {
+              authorityCommitCalls += 1;
+              const operation = await Reflect.apply(member as (...values: unknown[]) => unknown,
+                target, args);
+              if (throwAfterCommit) {
+                throwAfterCommit = false;
+                throw new Error("simulated transport loss after canonical effect");
+              }
+              return operation;
+            };
+          }
+          return typeof member === "function"
+            ? (...args: unknown[]) => Reflect.apply(member, target, args)
+            : member;
+        },
+      }) as OhStoreV1,
+    });
+    const workingHead = await value.working.store.head();
+    await value.authority.agent.remember({ expectedHead: {
+      generation: workingHead.generation,
+      operationSha256: workingHead.operationSha256,
+    }, puts: [{ dependencies: [], key: "entity:uncertain-adoption", kind: "entity", v: 1,
+      value: { name: "Adopted despite lost response" } }], requestId: "remember_uncertain_adoption",
+    tombstones: [], v: 1 });
+    const nomination = await value.authority.agent.nominate({ nominationId: "kb.review",
+      roots: ["entity:uncertain-adoption"], v: 1 });
+    const request = { expectedCanonicalHead: value.initialCanonicalHead, nomination, v: 1 } as const;
+
+    await expect(value.authority.host.adoptNomination(request))
+      .rejects.toThrow("simulated transport loss after canonical effect");
+    expect(authorityCommitCalls).toBe(1);
+    const effectedHead = await value.canonical.store.head();
+    expect(effectedHead).not.toEqual(value.initialCanonicalHead);
+    expect((await value.canonical.store.snapshot()).records
+      .find(({ key }) => key === "entity:uncertain-adoption")?.recordSha256)
+      .toBe(nomination.closure.records[0]?.recordSha256);
+    const stillPinned = await value.authority.agent.query({ bindings: {}, continuation: null,
+      programId: "memory.visible-records", v: 2 });
+    expect(stillPinned.identity.canonical.head).toEqual(value.initialCanonicalHead);
+
+    const recovered = await value.authority.host.adoptNomination(request);
+    expect(authorityCommitCalls).toBe(1);
+    expect(recovered).toMatchObject({ head: effectedHead, operationSha256: null,
+      priorHead: value.initialCanonicalHead, status: "already-present" });
+    expect((await value.canonical.store.changesSince(value.initialCanonicalHead,
+      { through: effectedHead })).operations).toHaveLength(1);
+    const recoveredPage = await value.authority.agent.query({ bindings: {}, continuation: null,
+      programId: "memory.visible-records", v: 2 });
+    expect(recoveredPage.identity.canonical.head).toEqual(effectedHead);
+
+    const overwritten = entity("entity:uncertain-adoption", "Later conflicting value");
+    await value.canonical.store.commit({ actorId: "test.later-writer",
+      changes: [{ kind: "put", record: overwritten, v: 1 }], expectedHead: effectedHead,
+      operationId: "op_later_uncertain_mismatch" });
+    const mismatchedHead = await value.canonical.store.head();
+    let thrown: unknown;
+    try { await value.authority.host.adoptNomination(request); }
+    catch (error) { thrown = error; }
+    expect(authorityCommitCalls).toBe(1);
+    expect(thrown).toBeInstanceOf(OhMemoryAdoptionConflictError);
+    expect((thrown as OhMemoryAdoptionConflictError).conflict).toMatchObject({
+      actualHead: mismatchedHead,
+      conflicts: [{ canonicalRecordSha256: overwritten.recordSha256,
+        key: "entity:uncertain-adoption",
+        nominatedRecordSha256: nomination.closure.records[0]?.recordSha256, v: 1 }],
+      expectedHead: value.initialCanonicalHead,
+    });
+    const pinnedAfterMismatch = await value.authority.agent.query({ bindings: {}, continuation: null,
+      programId: "memory.visible-records", v: 2 });
+    expect(pinnedAfterMismatch.identity.canonical.head).toEqual(effectedHead);
+    expect(pinnedAfterMismatch.identity.canonical.head).not.toEqual(mismatchedHead);
+    await value.canonical.store.close(); await value.working.store.close();
+  });
+
   test("captures the old canonical pin for in-flight queries and retains their explanations", async () => {
     let shouldBlock = false;
     let releaseSnapshot!: () => void;
@@ -1979,5 +2249,60 @@ describe("stable host-bound Oh memory authority", () => {
     expect(byteBound.commitCalls()).toBe(0);
     expect(await byteBound.canonicalStore.head()).toEqual(byteBound.snapshot.head);
     await byteBound.canonical.store.close(); await byteBound.working.store.close();
+  });
+});
+
+describe("Effect memory host ownership", () => {
+  test("detaches queued requests and keeps FIFO live after an exact foreign failure", async () => {
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const failure = Object.freeze({ kind: "foreign-test-failure" });
+    let calls = 0;
+    const value = await authorityFixture({ canonicalStore: store => new Proxy(store, {
+      get(target, property) {
+        if (property === "changesSince") return async (...args: Parameters<OhStoreV1["changesSince"]>) => {
+          calls += 1;
+          if (calls === 1) {
+            entered.resolve();
+            await release.promise;
+            throw failure;
+          }
+          return await target.changesSince(...args);
+        };
+        const member: unknown = Reflect.get(target, property, target);
+        return typeof member === "function" ? member.bind(target) : member;
+      },
+    }) });
+    try {
+      await put(value.canonical.store, "entity:second", "Second", "op_effect_second");
+      const secondHead = await value.canonical.store.head();
+      const first = value.authority.host.advanceCanonical({
+        expectedHead: value.initialCanonicalHead, nextHead: secondHead, v: 1,
+      }).then(() => undefined, error => error as unknown);
+      await entered.promise;
+      const queuedInput = { expectedHead: value.initialCanonicalHead, nextHead: secondHead, v: 1 };
+      const queued = value.authority.host.advanceCanonical(queuedInput);
+      await put(value.canonical.store, "entity:third", "Third", "op_effect_third");
+      queuedInput.nextHead = await value.canonical.store.head();
+      expect(calls).toBe(1);
+      expect((await value.authority.agent.query({ bindings: {}, continuation: null,
+        programId: "memory.visible-records", v: 2 })).identity.canonical.head).toEqual(value.initialCanonicalHead);
+      release.resolve();
+      expect(await first).toBe(failure);
+      const receipt = await queued;
+      expect(receipt.status).toBe("advanced");
+      expect(receipt.head).toEqual(secondHead);
+      expect(calls).toBe(2);
+      const subsequent = await value.authority.host.advanceCanonical({
+        expectedHead: secondHead, nextHead: queuedInput.nextHead, v: 1,
+      });
+      expect(subsequent.status).toBe("advanced");
+      expect(subsequent.head).toEqual(queuedInput.nextHead);
+      expect(calls).toBe(3);
+    } finally {
+      release.resolve();
+      await value.canonical.store.close();
+      await value.working.store.close();
+    }
   });
 });

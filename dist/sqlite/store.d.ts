@@ -2,9 +2,9 @@ import { type Sha256Hex } from "../canonical";
 import { OH_CONTRACT_MANIFEST_V1 } from "../contract";
 import { type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "../graph";
 import { type OhOperationV1 } from "../operation";
-import { OhConflictError, OhDependencyError, OhIntegrityError, OhProfileError, OhPurgedSpaceError, type OhChangesPageV1, type OhCommitInputV1, type OhDependencyClosureV1, type OhHeadRefV1, type OhHeadV1, type OhSnapshotV1, type OhSpacePurgeReceiptV1, type OhStoreBindingV1 } from "../store";
+import { isOhConflictError, isOhDependencyError, isOhIntegrityError, isOhOperationSizeError, isOhProfileError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, type OhChangesPageV1, type OhCommitInputV1, type OhDependencyClosureV1, type OhHeadRefV1, type OhHeadV1, type OhSnapshotV1, type OhSpacePurgeReceiptV1, type OhStoreBindingV1 } from "../store";
 import { type OhSqliteDatabase } from "./driver";
-export { OhConflictError, OhDependencyError, OhIntegrityError, OhProfileError, OhPurgedSpaceError, };
+export { isOhConflictError, isOhDependencyError, isOhIntegrityError, isOhOperationSizeError, isOhProfileError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, };
 export type { OhCommitInputV1, OhHeadV1 };
 export type OhRecordListOptions = Readonly<{
     kind?: KnowledgeGraphRecordKindV1;
@@ -25,6 +25,12 @@ export type OhReplayVerificationV1 = Readonly<{
     sqliteIntegrity: "ok";
     v: 1;
 }>;
+export type OhOperationImportResultV1 = Readonly<{
+    head: OhHeadV1;
+    imported: number;
+    status: "already-present" | "imported";
+    v: 1;
+}>;
 export declare class OhSqliteStore {
     #private;
     readonly database: OhSqliteDatabase;
@@ -43,6 +49,16 @@ export declare class OhSqliteStore {
         imported: boolean;
         operation: OhOperationV1;
     }>;
+    /**
+     * Imports one already-validated replication interval atomically. A hostile
+     * later operation cannot leave a valid prefix committed. Exact replays are
+     * accepted only when every supplied operation is already on the current
+     * authority chain.
+     */
+    importOperations(input: Readonly<{
+        expectedHead: OhHeadRefV1;
+        operations: readonly unknown[];
+    }>): OhOperationImportResultV1;
     exportOperations(afterSequence?: number, limit?: number): readonly OhOperationV1[];
     snapshotAtHead(options?: Readonly<{
         head?: OhHeadRefV1;

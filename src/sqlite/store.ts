@@ -25,6 +25,7 @@ import { OH_CONTRACT_ID_V1 } from "../ontology";
 import {
   createOhOperationV1,
   graphRevisionSha256V1,
+  OH_OPERATION_MAX_BYTES_V1,
   parseOhOperationV1,
   type OhOperationV1,
 } from "../operation";
@@ -32,9 +33,16 @@ import {
   createOhDependencyClosureV1,
   createOhSpacePurgeReceiptV1,
   emptyOhHeadV1,
+  isOhConflictError,
+  isOhDependencyError,
+  isOhIntegrityError,
+  isOhOperationSizeError,
+  isOhProfileError,
+  OH_OPERATION_SIZE_ERROR_CODE_V1,
   OhConflictError,
   OhDependencyError,
   OhIntegrityError,
+  OhOperationSizeError,
   OhProfileError,
   OhPurgedSpaceError,
   parseOhHeadRefV1,
@@ -57,9 +65,16 @@ import { applyOhSqliteMigrations, OH_SQLITE_SCHEMA_VERSION } from "./migrations"
 const EMPTY_RECORDS_SHA256 = canonicalSha256([]);
 
 export {
+  isOhConflictError,
+  isOhDependencyError,
+  isOhIntegrityError,
+  isOhOperationSizeError,
+  isOhProfileError,
+  OH_OPERATION_SIZE_ERROR_CODE_V1,
   OhConflictError,
   OhDependencyError,
   OhIntegrityError,
+  OhOperationSizeError,
   OhProfileError,
   OhPurgedSpaceError,
 };
@@ -84,6 +99,13 @@ export type OhReplayVerificationV1 = Readonly<{
   operations: number;
   records: number;
   sqliteIntegrity: "ok";
+  v: 1;
+}>;
+
+export type OhOperationImportResultV1 = Readonly<{
+  head: OhHeadV1;
+  imported: number;
+  status: "already-present" | "imported";
   v: 1;
 }>;
 
@@ -242,6 +264,11 @@ function normalizeLimit(value: number | undefined, fallback = 50, maximum = 1000
   return value;
 }
 
+function exactHeadRef(left: OhHeadRefV1, right: OhHeadRefV1): boolean {
+  return left.sequence === right.sequence
+    && left.operationSha256 === right.operationSha256;
+}
+
 function ftsQuery(value: string): string | null {
   const normalized = boundedText(value.normalize("NFC"), 4096);
   if (normalized === null) return null;
@@ -375,8 +402,8 @@ export class OhSqliteStore {
     head: OhHeadV1,
     changes: readonly KnowledgeGraphChangeV1[],
     operationId: string,
+    records = this.#loadRecords(),
   ): Readonly<{ graphRevisionSha256: Sha256Hex; records: Map<string, KnowledgeGraphRecordV1>; recordsSha256: Sha256Hex }> {
-    const records = this.#loadRecords();
     for (const change of changes) {
       if (change.kind === "put") {
         records.set(change.record.key, change.record);
@@ -433,9 +460,7 @@ export class OhSqliteStore {
     if (operation.sequence < 1 || operation.sequence > head.sequence) {
       throw new OhIntegrityError("A stored idempotent operation is not reachable from the current head.");
     }
-    const rows = this.database.query<{
-      operation_sha256: string; parent_operation_sha256: string | null; sequence: number;
-    }, [string, number, number]>(`SELECT operation_sha256, parent_operation_sha256, sequence
+    const rows = this.database.query<OperationRow, [string, number, number]>(`SELECT ${OPERATION_COLUMNS}
       FROM oh_operations WHERE space_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence`)
       .all(this.spaceId, operation.sequence, head.sequence);
     if (rows.length !== head.sequence - operation.sequence + 1) {
@@ -444,12 +469,16 @@ export class OhSqliteStore {
     let priorSha256: string | null = operation.parentOperationSha256;
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
-      if (row === undefined || row.sequence !== operation.sequence + index
-        || row.parent_operation_sha256 !== priorSha256
-        || (index === 0 && row.operation_sha256 !== operation.operationSha256)) {
+      if (row === undefined) {
         throw new OhIntegrityError("A stored idempotent operation is not on the current authority chain.");
       }
-      priorSha256 = row.operation_sha256;
+      const reachable = parseStoredOperationRow(row, { spaceId: this.spaceId });
+      if (reachable.sequence !== operation.sequence + index
+        || reachable.parentOperationSha256 !== priorSha256
+        || (index === 0 && reachable.operationSha256 !== operation.operationSha256)) {
+        throw new OhIntegrityError("A stored idempotent operation is not on the current authority chain.");
+      }
+      priorSha256 = reachable.operationSha256;
     }
     if (priorSha256 !== head.operationSha256) {
       throw new OhIntegrityError("A stored idempotent operation does not reach the current head digest.");
@@ -521,7 +550,13 @@ export class OhSqliteStore {
     this.#assertOpen();
     const actorId = safeCode(input.actorId);
     const operationId = safeCode(input.operationId);
-    if (actorId === null || operationId === null) throw new TypeError("Invalid actor or operation ID.");
+    const maximumOperationBytes = input.maximumOperationBytes ?? OH_OPERATION_MAX_BYTES_V1;
+    if (actorId === null || operationId === null
+      || !Number.isSafeInteger(maximumOperationBytes)
+      || maximumOperationBytes < 1
+      || maximumOperationBytes > OH_OPERATION_MAX_BYTES_V1) {
+      throw new TypeError("Invalid actor, operation ID, or operation byte bound.");
+    }
     const changes = canonicalKnowledgeGraphChangesV1(input.changes);
     if (changes.length === 0 || changes.length > 8192) throw new TypeError("A commit needs 1 through 8192 changes.");
     return withImmediateTransaction(this.database, () => {
@@ -536,6 +571,10 @@ export class OhSqliteStore {
         if (existing.actorId !== actorId || canonicalJson(existing.changes) !== canonicalJson(changes)) {
           throw new OhConflictError("The operation ID is already bound to different content.");
         }
+        const operationBytes = Buffer.byteLength(canonicalJson(existing), "utf8");
+        if (operationBytes > maximumOperationBytes) {
+          throw new OhOperationSizeError(operationBytes, maximumOperationBytes);
+        }
         return existing;
       }
       if (head.generation !== input.expectedHead.generation
@@ -546,7 +585,9 @@ export class OhSqliteStore {
       const operation = createOhOperationV1({ actorId, changes, contractId: OH_CONTRACT_ID_V1,
         graphRevisionSha256: transition.graphRevisionSha256, instant: input.instant ?? canonicalNow(),
         operationId, parentOperationSha256: head.operationSha256,
-        recordsSha256: transition.recordsSha256, sequence: head.sequence + 1, spaceId: this.spaceId, v: 1 });
+        recordsSha256: transition.recordsSha256, sequence: head.sequence + 1, spaceId: this.spaceId, v: 1 }, {
+        maximumOperationBytes,
+      });
       this.#persist(operation);
       return operation;
     });
@@ -557,31 +598,100 @@ export class OhSqliteStore {
     this.#assertOperationReplication();
     const operation = parseOhOperationV1(value);
     if (operation === null || operation.spaceId !== this.spaceId) throw new OhIntegrityError("Invalid imported operation.");
+    const result = this.importOperations({
+      expectedHead: {
+        operationSha256: operation.parentOperationSha256,
+        sequence: operation.sequence - 1,
+      },
+      operations: [operation],
+    });
+    return { imported: result.imported === 1, operation };
+  }
+
+  /**
+   * Imports one already-validated replication interval atomically. A hostile
+   * later operation cannot leave a valid prefix committed. Exact replays are
+   * accepted only when every supplied operation is already on the current
+   * authority chain.
+   */
+  importOperations(input: Readonly<{
+    expectedHead: OhHeadRefV1;
+    operations: readonly unknown[];
+  }>): OhOperationImportResultV1 {
+    this.#assertOpen();
+    this.#assertOperationReplication();
+    const expectedHead = parseOhHeadRefV1(input.expectedHead);
+    if (expectedHead === null || !Array.isArray(input.operations)
+      || input.operations.length > 1000) {
+      throw new TypeError("Invalid operation import interval.");
+    }
+    const operations = input.operations.map((value) => {
+      const operation = parseOhOperationV1(value);
+      if (operation === null || operation.spaceId !== this.spaceId) {
+        throw new OhIntegrityError("Invalid imported operation.");
+      }
+      return operation;
+    });
+    let prior: OhHeadRefV1 = expectedHead;
+    for (const operation of operations) {
+      if (operation.sequence !== prior.sequence + 1
+        || operation.parentOperationSha256 !== prior.operationSha256) {
+        throw new OhConflictError("Imported operations do not extend the expected head.");
+      }
+      prior = { operationSha256: operation.operationSha256, sequence: operation.sequence };
+    }
     return withImmediateTransaction(this.database, () => {
-      const head = this.head();
-      this.#assertCurrentHeadAuthority(head);
-      const duplicate = this.database.query<OperationRow, [string]>(
-        `SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE operation_sha256 = ?`,
-      ).get(operation.operationSha256);
-      if (duplicate !== null) {
-        const existing = parseStoredOperationRow(duplicate, { operationSha256: operation.operationSha256,
-          spaceId: this.spaceId });
-        this.#assertOperationReachable(existing, head);
-        if (canonicalJson(existing) !== canonicalJson(operation)) {
-          throw new OhIntegrityError("An operation digest is bound to different bytes.");
+      const current = this.head();
+      this.#assertCurrentHeadAuthority(current);
+      this.#headAt(expectedHead);
+      if (!exactHeadRef(current, expectedHead)) {
+        if (operations.length === 0 || current.sequence < prior.sequence) {
+          throw new OhConflictError("The imported operation interval does not extend the local head.");
         }
-        return { imported: false, operation };
+        for (const operation of operations) {
+          const row = this.database.query<OperationRow, [string, number]>(
+            `SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? AND sequence = ?`,
+          ).get(this.spaceId, operation.sequence);
+          if (row === null) throw new OhIntegrityError("An imported replay is missing from the authority chain.");
+          const existing = parseStoredOperationRow(row, { spaceId: this.spaceId });
+          if (existing.operationSha256 !== operation.operationSha256) {
+            throw new OhConflictError("The imported operation interval diverges from the local authority chain.");
+          }
+          if (canonicalJson(existing) !== canonicalJson(operation)) {
+            throw new OhIntegrityError("An operation digest is bound to different bytes.");
+          }
+        }
+        this.#assertOperationReachable(operations[operations.length - 1]!, current);
+        return { head: current, imported: 0, status: "already-present", v: 1 };
       }
-      if (operation.sequence !== head.sequence + 1 || operation.parentOperationSha256 !== head.operationSha256) {
-        throw new OhConflictError("The imported operation does not extend the local head.");
+      if (operations.length === 0) {
+        return { head: current, imported: 0, status: "already-present", v: 1 };
       }
-      const transition = this.#transition(head, operation.changes, operation.operationId);
-      if (transition.recordsSha256 !== operation.recordsSha256
-        || transition.graphRevisionSha256 !== operation.graphRevisionSha256) {
-        throw new OhIntegrityError("The imported operation does not reproduce its declared graph head.");
+      const records = this.#loadRecords();
+      let head = current;
+      for (const operation of operations) {
+        const duplicate = this.database.query<OperationRow, [string, string]>(
+          `SELECT ${OPERATION_COLUMNS} FROM oh_operations WHERE space_id = ? AND operation_id = ?`,
+        ).get(this.spaceId, operation.operationId);
+        if (duplicate !== null) {
+          throw new OhConflictError("An imported operation ID is already bound on the local authority chain.");
+        }
+        const transition = this.#transition(head, operation.changes, operation.operationId, records);
+        if (transition.recordsSha256 !== operation.recordsSha256
+          || transition.graphRevisionSha256 !== operation.graphRevisionSha256) {
+          throw new OhIntegrityError("An imported operation does not reproduce its declared graph head.");
+        }
+        this.#persist(operation);
+        head = {
+          generation: operation.sequence,
+          graphRevisionSha256: operation.graphRevisionSha256,
+          operationSha256: operation.operationSha256,
+          recordsSha256: operation.recordsSha256,
+          sequence: operation.sequence,
+          v: 1,
+        };
       }
-      this.#persist(operation);
-      return { imported: true, operation };
+      return { head, imported: operations.length, status: "imported", v: 1 };
     });
   }
 
@@ -819,6 +929,12 @@ export class OhSqliteStore {
     this.#assertOpen();
     const integrity = this.database.query<{ integrity_check: string }, []>("PRAGMA integrity_check").get();
     if (integrity?.integrity_check !== "ok") throw new OhIntegrityError("SQLite integrity_check failed.");
+    const foreignKeyViolations = this.database.query<{
+      fkid: number; parent: string; rowid: number | null; table: string;
+    }, []>("PRAGMA foreign_key_check").all();
+    if (foreignKeyViolations.length !== 0) {
+      throw new OhIntegrityError("SQLite foreign_key_check failed.");
+    }
     const storedCount = this.database.query<{ count: number }, [string]>(
       "SELECT count(*) AS count FROM oh_operations WHERE space_id = ?",
     ).get(this.spaceId)?.count ?? 0;
@@ -888,6 +1004,28 @@ export class OhSqliteStore {
       .flatMap((record) => record.dependencies.map((dependency) => ({ dependency_key: dependency, record_key: record.key })));
     if (canonicalJson(storedDependencies) !== canonicalJson(expectedDependencies)) {
       throw new OhIntegrityError("Materialized dependencies do not match operation replay.");
+    }
+    const expectedSearchDocuments = [...records.values()]
+      .sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0)
+      .map((record) => ({
+        record_key: record.key,
+        record_sha256: record.recordSha256,
+        text: `${record.key} ${record.kind} ${extractSearchText(record.value)}`,
+      }));
+    const storedSearchDocuments = this.database.query<{
+      record_key: string; record_sha256: string; text: string;
+    }, [string]>(`SELECT record_key, record_sha256, text FROM oh_search_documents
+      WHERE space_id = ? ORDER BY record_key`).all(this.spaceId);
+    if (canonicalJson(storedSearchDocuments) !== canonicalJson(expectedSearchDocuments)) {
+      throw new OhIntegrityError("Materialized search documents do not match operation replay.");
+    }
+    const expectedSearchFts = expectedSearchDocuments.map(({ record_key, text }) => ({ record_key, text }));
+    const storedSearchFts = this.database.query<{
+      record_key: string; text: string;
+    }, [string]>(`SELECT record_key, text FROM oh_search_fts
+      WHERE space_id = ? ORDER BY record_key, text, rowid`).all(this.spaceId);
+    if (canonicalJson(storedSearchFts) !== canonicalJson(expectedSearchFts)) {
+      throw new OhIntegrityError("Materialized full-text search rows do not match operation replay.");
     }
     const storedOperationRecords = this.database.query<{
       change_kind: string; operation_sha256: string; ordinal: number; record_key: string; record_sha256: string | null;

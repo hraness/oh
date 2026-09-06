@@ -190,7 +190,7 @@ var OH_GRAPH_LIMITS_V1 = Object.freeze({
   recordBytes: 1024 * 1024,
   recordsPerSnapshot: 65536
 });
-var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
+var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = Object.freeze([
   "activity",
   "assertion",
   "context",
@@ -209,7 +209,7 @@ var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
   "type-membership",
   "view",
   "vocabulary"
-];
+]);
 var KNOWLEDGE_GRAPH_RECORD_KEYS_V1 = [
   "dependencies",
   "key",
@@ -422,6 +422,141 @@ class OhRecordCodecRegistry {
     return this.#sealed;
   }
 }
+// src/errors.ts
+var OH_OPERATION_SIZE_ERROR_CODE_V1 = "oh.operation-size.v1";
+var OH_CONFLICT_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhConflictError/v1");
+var OH_DEPENDENCY_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhDependencyError/v1");
+var OH_INTEGRITY_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhIntegrityError/v1");
+var OH_OPERATION_SIZE_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhOperationSizeError/v1");
+var OH_PROFILE_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhProfileError/v1");
+function immutableOwnValue(value, key) {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  return descriptor !== undefined && descriptor.get === undefined && descriptor.set === undefined && descriptor.configurable === false && descriptor.writable === false ? descriptor.value : undefined;
+}
+function brandNativeError(value, brand) {
+  Object.defineProperty(value, brand, {
+    configurable: false,
+    enumerable: false,
+    value: true,
+    writable: false
+  });
+}
+function hasNativeErrorBrand(value, brand) {
+  try {
+    return Error.isError(value) && immutableOwnValue(value, brand) === true;
+  } catch {
+    return false;
+  }
+}
+function hasNativeSubclassInstance(constructor, value) {
+  return Function.prototype[Symbol.hasInstance].call(constructor, value);
+}
+function isOhConflictError(value) {
+  return hasNativeErrorBrand(value, OH_CONFLICT_ERROR_BRAND_V1);
+}
+
+class OhConflictError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhConflictError ? isOhConflictError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhConflictError";
+    brandNativeError(this, OH_CONFLICT_ERROR_BRAND_V1);
+  }
+}
+function isOhIntegrityError(value) {
+  return hasNativeErrorBrand(value, OH_INTEGRITY_ERROR_BRAND_V1);
+}
+
+class OhIntegrityError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhIntegrityError ? isOhIntegrityError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhIntegrityError";
+    brandNativeError(this, OH_INTEGRITY_ERROR_BRAND_V1);
+  }
+}
+function isOhDependencyError(value) {
+  return hasNativeErrorBrand(value, OH_DEPENDENCY_ERROR_BRAND_V1);
+}
+
+class OhDependencyError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhDependencyError ? isOhDependencyError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhDependencyError";
+    brandNativeError(this, OH_DEPENDENCY_ERROR_BRAND_V1);
+  }
+}
+function isOhProfileError(value) {
+  return hasNativeErrorBrand(value, OH_PROFILE_ERROR_BRAND_V1);
+}
+
+class OhProfileError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhProfileError ? isOhProfileError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhProfileError";
+    brandNativeError(this, OH_PROFILE_ERROR_BRAND_V1);
+  }
+}
+function isOhOperationSizeError(value) {
+  try {
+    if (!Error.isError(value) || !(value instanceof RangeError))
+      return false;
+    const operationBytes = immutableOwnValue(value, "operationBytes");
+    const maximumOperationBytes = immutableOwnValue(value, "maximumOperationBytes");
+    return immutableOwnValue(value, OH_OPERATION_SIZE_ERROR_BRAND_V1) === true && immutableOwnValue(value, "code") === OH_OPERATION_SIZE_ERROR_CODE_V1 && Number.isSafeInteger(operationBytes) && operationBytes > 0 && Number.isSafeInteger(maximumOperationBytes) && maximumOperationBytes > 0 && operationBytes > maximumOperationBytes;
+  } catch {
+    return false;
+  }
+}
+
+class OhOperationSizeError extends RangeError {
+  static [Symbol.hasInstance](value) {
+    return this === OhOperationSizeError ? isOhOperationSizeError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(operationBytes, maximumOperationBytes) {
+    if (!Number.isSafeInteger(operationBytes) || operationBytes < 1 || !Number.isSafeInteger(maximumOperationBytes) || maximumOperationBytes < 1 || operationBytes <= maximumOperationBytes) {
+      throw new TypeError("Invalid Oh operation size refusal.");
+    }
+    super(`The ${operationBytes}-byte operation exceeds the host-declared ${maximumOperationBytes}-byte canonical bound.`);
+    this.name = "OhOperationSizeError";
+    Object.defineProperties(this, {
+      [OH_OPERATION_SIZE_ERROR_BRAND_V1]: {
+        configurable: false,
+        enumerable: false,
+        value: true,
+        writable: false
+      },
+      code: {
+        configurable: false,
+        enumerable: true,
+        value: OH_OPERATION_SIZE_ERROR_CODE_V1,
+        writable: false
+      },
+      maximumOperationBytes: {
+        configurable: false,
+        enumerable: true,
+        value: maximumOperationBytes,
+        writable: false
+      },
+      operationBytes: {
+        configurable: false,
+        enumerable: true,
+        value: operationBytes,
+        writable: false
+      }
+    });
+  }
+}
 // src/operation.ts
 var OH_OPERATION_MAX_BYTES_V1 = 64 * 1024 * 1024;
 function parsePayload(value) {
@@ -469,13 +604,18 @@ function parsePayload(value) {
     v: 1
   } : null;
 }
-function createOhOperationV1(input) {
+function createOhOperationV1(input, options = {}) {
+  const maximumOperationBytes = options.maximumOperationBytes ?? OH_OPERATION_MAX_BYTES_V1;
+  if (!Number.isSafeInteger(maximumOperationBytes) || maximumOperationBytes < 1 || maximumOperationBytes > OH_OPERATION_MAX_BYTES_V1) {
+    throw new TypeError("Invalid Oh operation byte bound.");
+  }
   const payload = parsePayload(input);
   if (payload === null)
     throw new TypeError("Invalid Oh operation payload.");
   const operation = { ...payload, operationSha256: canonicalSha256(payload) };
-  if (Buffer.byteLength(canonicalJson(operation), "utf8") > OH_OPERATION_MAX_BYTES_V1) {
-    throw new RangeError("Oh operation exceeds its canonical byte limit.");
+  const operationBytes = Buffer.byteLength(canonicalJson(operation), "utf8");
+  if (operationBytes > maximumOperationBytes) {
+    throw new OhOperationSizeError(operationBytes, maximumOperationBytes);
   }
   return operation;
 }
@@ -489,33 +629,6 @@ function parseOhOperationV1(value) {
 }
 
 // src/store.ts
-class OhConflictError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhConflictError";
-  }
-}
-
-class OhIntegrityError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhIntegrityError";
-  }
-}
-
-class OhDependencyError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhDependencyError";
-  }
-}
-
-class OhProfileError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhProfileError";
-  }
-}
 var OH_CANONICAL_STORE_PROFILE_V1 = createOhStoreProfileV1({
   applicationProfileSha256: null,
   capabilities: {
@@ -828,6 +941,8 @@ function transitionOhSnapshotV1(input) {
     sequence: head.sequence + 1,
     spaceId,
     v: 1
+  }, input.maximumOperationBytes === undefined ? {} : {
+    maximumOperationBytes: input.maximumOperationBytes
   });
   const nextHead = {
     generation: operation.sequence,
@@ -1065,6 +1180,11 @@ export {
   parseOhHeadV1,
   parseOhHeadRefV1,
   parseOhDependencyClosureV1,
+  isOhProfileError,
+  isOhOperationSizeError,
+  isOhIntegrityError,
+  isOhDependencyError,
+  isOhConflictError,
   emptyOhHeadV1,
   createOhStoreProfileV1,
   createOhStoreBindingV1,
@@ -1074,10 +1194,12 @@ export {
   OhRecordCodecRegistry,
   OhPurgedSpaceError,
   OhProfileError,
+  OhOperationSizeError,
   OhIntegrityError,
   OhDependencyError,
   OhConflictError,
   OH_WORKING_STORE_PROFILE_V1,
+  OH_OPERATION_SIZE_ERROR_CODE_V1,
   OH_DEPENDENCY_CLOSURE_LIMITS_V1,
   OH_CANONICAL_STORE_PROFILE_V1
 };

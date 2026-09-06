@@ -88,9 +88,10 @@ describe("evidence-led product narrative", () => {
   });
 
   test("keeps CLI, SDK, and Skill examples aligned with the released package", async () => {
-    const [page, packageSource, skill] = await Promise.all([
+    const [page, packageSource, publishedSource, skill] = await Promise.all([
       read("site/app/page.tsx"),
       read("package.json"),
+      read("site/published-release.json"),
       read("skills/oh/SKILL.md"),
     ]);
     const packageJson = JSON.parse(packageSource) as Readonly<{
@@ -98,11 +99,14 @@ describe("evidence-led product narrative", () => {
       engines: Readonly<{ bun: string; node: string }>;
       version: string;
     }>;
+    const publishedRelease = JSON.parse(publishedSource) as Readonly<{ version: string }>;
 
-    expect(page).toContain('import ohPackage from "../../package.json"');
-    expect(page).toContain("const releaseVersion = ohPackage.version;");
+    expect(page).toContain('import publishedRelease from "../published-release.json"');
+    expect(page).toContain("const releaseVersion = publishedRelease.version;");
     expect(page).toContain("bun add --global @hraness/oh@${releaseVersion}");
     expect(packageJson.version).toMatch(/^\d+\.\d+\.\d+$/u);
+    expect(publishedRelease.version).toMatch(/^\d+\.\d+\.\d+$/u);
+    expect(skill).toContain(`@hraness/oh@${publishedRelease.version}`);
     expect(page).toContain('import { Oh } from "@hraness/oh/sdk"');
     expect(page).toContain("oh contract");
     expect(page).toContain("oh verify --db research.db --space default");

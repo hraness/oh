@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -87,6 +87,120 @@ describe("local EmbeddingGemma profile", () => {
 });
 
 describe("QMD derived index confinement", () => {
+  test("same-turn close fences the first queued index before filesystem work", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-semantic-immediate-close-test-"));
+    roots.push(root);
+    let factoryCalls = 0;
+    const backend = new OhQmdSemanticBackendV1({ cacheDirectory: root, storeFactory: async () => {
+      factoryCalls += 1;
+      throw new Error("must not acquire");
+    } });
+    const indexing = backend.index([record("Ada")]);
+    const rejection = indexing.then(() => null, (error: unknown) => error);
+    await backend.close();
+    expect(await rejection).toMatchObject({ message: "The semantic backend is closed." });
+    expect(factoryCalls).toBe(0);
+    expect(await readdir(root)).toEqual([]);
+  });
+
+  test("closing before use never acquires a store and preserves validation precedence", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-semantic-unused-close-test-"));
+    roots.push(root);
+    let factoryCalls = 0;
+    const backend = new OhQmdSemanticBackendV1({ cacheDirectory: root, storeFactory: async () => {
+      factoryCalls += 1;
+      throw new Error("must not acquire");
+    } });
+    const authority = new OhSqliteStore({ path: ":memory:" });
+    await Promise.all([backend.close(), backend.close()]);
+    await expect(backend.search("late", 0, authority)).rejects.toBeInstanceOf(RangeError);
+    await expect(backend.search("late", 1, authority)).rejects.toThrow("closed");
+    await expect(backend.index([])).rejects.toThrow("closed");
+    expect(factoryCalls).toBe(0);
+    authority.close();
+  });
+
+  test("preserves the same late-acquisition close error for the caller and every close", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-semantic-late-close-failure-test-"));
+    roots.push(root);
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    const failure = Object.freeze({ code: "CLOSE_FAILED", message: "foreign close failed" });
+    let closeCalls = 0;
+    const backend = new OhQmdSemanticBackendV1({ cacheDirectory: root, storeFactory: async () => {
+      entered.resolve();
+      await release.promise;
+      return {
+        close: async () => { closeCalls += 1; throw failure; },
+        embed: async () => ({}), searchVector: async () => [], update: async () => ({}),
+      };
+    } });
+    const authority = new OhSqliteStore({ path: ":memory:" });
+    const searching = backend.search("first", 1, authority);
+    await entered.promise;
+    const closing = backend.close();
+    const searchFailure = searching.then(() => null, (error: unknown) => error);
+    const closeFailure = closing.then(() => null, (error: unknown) => error);
+    release.resolve();
+    expect(await searchFailure).toBe(failure);
+    expect(await closeFailure).toBe(failure);
+    await expect(backend.close()).rejects.toBe(failure);
+    expect(closeCalls).toBe(1);
+    authority.close();
+  });
+
+  test("drains an active index, rejects the queued snapshot, and closes once after publication", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-semantic-queued-close-test-"));
+    roots.push(root);
+    const first = record("First edition");
+    const second = record("Second edition");
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    let updateCalls = 0;
+    let closeCalls = 0;
+    const backend = new OhQmdSemanticBackendV1({ cacheDirectory: root, storeFactory: async () => ({
+      close: async () => { closeCalls += 1; },
+      update: async () => { updateCalls += 1; entered.resolve(); await release.promise; },
+      embed: async () => ({}), searchVector: async () => [],
+    }) });
+    const active = backend.index([first]);
+    await entered.promise;
+    const queued = backend.index([second]);
+    const queuedRejection = queued.then(() => null, (error: unknown) => error);
+    const closed = backend.close();
+    expect(closeCalls).toBe(0);
+    release.resolve();
+    await expect(active).resolves.toEqual({ indexed: 1, v: 1 });
+    expect(await queuedRejection).toMatchObject({ message: "The semantic backend is closed." });
+    await closed;
+    expect(updateCalls).toBe(1);
+    expect(closeCalls).toBe(1);
+    expect(await readFile(join(root, "manifest.json"), "utf8")).toBe(canonicalJson({
+      entries: { [`${sha256Hex(first.key)}.md`]: { key: first.key, recordSha256: first.recordSha256 } },
+      profileSha256: canonicalSha256(OH_EMBEDDING_PROFILE_V1), v: 1,
+    }));
+  });
+
+  test("a failed index releases the queue and preserves the original rejection object", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-semantic-failed-queue-test-"));
+    roots.push(root);
+    const failure = new TypeError("synthetic embedding failure");
+    const first = record("First edition");
+    const second = record("Second edition");
+    let embeds = 0;
+    const backend = new OhQmdSemanticBackendV1({ cacheDirectory: root, storeFactory: async () => ({
+      close: async () => {}, update: async () => ({}), searchVector: async () => [],
+      embed: async () => { embeds += 1; if (embeds === 1) throw failure; },
+    }) });
+    const failed = backend.index([first]);
+    const succeeded = backend.index([second]);
+    await expect(failed).rejects.toBe(failure);
+    await expect(succeeded).resolves.toEqual({ indexed: 1, v: 1 });
+    expect(embeds).toBe(2);
+    expect(await readFile(join(root, "manifest.json"), "utf8")).toContain(second.recordSha256);
+    await backend.close();
+  });
+
   test("closes idempotently after optional backend initialization fails", async () => {
     const root = await mkdtemp(join(tmpdir(), "oh-semantic-failed-open-test-"));
     roots.push(root);

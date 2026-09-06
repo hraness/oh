@@ -36,6 +36,30 @@ function sha256(value: string): string {
 }
 
 describe("Oh site source contract", () => {
+  test("keeps available installs separate from the prepared version and historical capture", async () => {
+    const [home, publication, packageSource] = await Promise.all([
+      read("app/page.tsx"),
+      read("published-release.json"),
+      readFile(join(site, "..", "package.json"), "utf8"),
+    ]);
+    const publishedRelease = record(JSON.parse(publication) as unknown, "published release");
+    const packageJson = record(JSON.parse(packageSource) as unknown, "source package");
+
+    expect(publishedRelease).toEqual({
+      version: "0.4.1",
+      verificationRun: "https://github.com/hraness/oh/actions/runs/34024985715",
+    });
+    expect(packageJson.version).toBe("0.4.2");
+    expect(home).toContain('import publishedRelease from "../published-release.json"');
+    expect(home).toContain("const releaseVersion = publishedRelease.version;");
+    expect(home).not.toContain("package.json");
+    expect(home).toContain('const capturedVersion = "0.4.0";');
+    expect(home).toContain('const capturedOn = "September 5, 2026";');
+    expect(home).toContain("source CLI ${capturedVersion} · captured ${capturedOn}");
+    expect(home).toContain('href={publishedRelease.verificationRun}');
+    expect(home).not.toContain("@hraness/oh ${releaseVersion} · captured");
+  });
+
   test("renders the shared Ask AI links for both canonical pages", async () => {
     const [packageJson, home, specification, redirect] = await Promise.all([
       read("package.json"),
@@ -176,6 +200,7 @@ describe("Oh site source contract", () => {
 
   test("contains no private paths or unpublished identifiers and uses the Vercel Next.js boundary", async () => {
     const publicPaths = [
+      "published-release.json",
       "app/layout.tsx",
       "app/page.tsx",
       "app/spec/page.tsx",

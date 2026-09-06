@@ -21,6 +21,26 @@ A historical read MUST fail if its sequence is absent or identifies a
 different operation digest. A change page MUST name its source cursor, pinned
 through-head, returned cursor, and whether more operations remain.
 
+A commit may declare `maximumOperationBytes`. The built-in SQLite and direct
+libSQL authorities measure the exact canonical operation before persistence,
+including on an exact operation-ID replay. Exceeding the host-declared bound
+throws `OhOperationSizeError`, a `RangeError` subtype carrying
+`operationBytes` and `maximumOperationBytes`; it never indicates an ambiguous
+post-effect failure. Its public `code` is `oh.operation-size.v1`, and
+`instanceof OhOperationSizeError` remains stable across separately bundled Oh
+entrypoints. Callers validating an unknown caught value may instead use
+`isOhOperationSizeError`; the guard requires a native error with immutable
+branded numeric fields, so copying the public fields onto a plain object is not
+sufficient.
+
+The core `OhConflictError`, `OhIntegrityError`, `OhDependencyError`, and
+`OhProfileError` classes likewise preserve `instanceof` identity across
+separately bundled Oh entrypoints. Their corresponding `isOhConflictError`,
+`isOhIntegrityError`, `isOhDependencyError`, and `isOhProfileError` guards
+require a native error with the immutable brand for that exact error family.
+A branded base class remains visible through an ordinary subclass, but a base
+instance MUST NOT satisfy an arbitrary subclass check.
+
 ## Semantic bundle ingress
 
 Model-facing code SHOULD use `OhSemanticBundleIngressV1` instead of generic
@@ -129,3 +149,17 @@ Operation-record deletion resolves ownership through the canonical operation;
 the purge postcondition also rejects any global orphan or cross-space owner
 mismatch. Purge receipts are immutable and intentionally retain only binding,
 prior-head, and purge-event evidence.
+
+### Direct libSQL shutdown
+
+Calling an authority store's `close()` immediately fences new calls on both its
+store and host handles. Already admitted operations finish their native calls,
+transaction result validation and reconciliation before close resolves. Concurrent
+commits remain concurrent and are arbitrated by SQL compare-and-swap.
+
+The client is borrowed unless `closeClient: true` was selected when opening the
+authority. An owned client is closed once after the drain; repeated `close()` calls
+observe that same result. A failed operation and a failed authority close reject
+their respective Promises with their original values. The standalone
+`purgeOhLibSqlWorkingSpaceV1` helper retains its `finally` contract: when both purge
+and its requested client close fail, the close failure is its rejection value.

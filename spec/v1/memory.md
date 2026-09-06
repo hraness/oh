@@ -253,6 +253,16 @@ exact snapshot. A stale expected head or already-ahead physical head may return
 at its exact nominated digest. This remains one compare-and-swap commit;
 reconciliation never retries it.
 
+A host may set `maximumCanonicalOperationBytes` when creating the authority.
+The SQLite commit constructs and hashes the exact operation, then rejects it
+before persistence when its canonical UTF-8 bytes exceed that bound. This lets
+an application guarantee that every admitted canonical operation fits its
+future encrypted transport without shrinking the separate working-memory
+limit. Exact idempotent replays remain subject to the same bound.
+The pre-effect refusal is an `OhOperationSizeError`, a `RangeError` subtype
+that exposes the exact operation bytes and configured maximum so a host can
+distinguish it from an ambiguous post-effect failure.
+
 An adoption conflict reports the expected and actual complete heads, total
 conflict count, whether the outward list was truncated, and at most 128 entries
 sorted by key. Each entry carries the nominated digest and the current

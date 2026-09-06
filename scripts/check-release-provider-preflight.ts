@@ -7,6 +7,31 @@ function record(value: unknown, label: string): JsonRecord {
   return value as JsonRecord;
 }
 
+function exactEnvironmentPolicy(environmentValue: unknown, policiesValue: unknown): boolean {
+  const environment = record(environmentValue, "npm-release environment readback");
+  const deployment = record(
+    environment.deployment_branch_policy,
+    "npm-release deployment branch policy",
+  );
+  const policies = record(policiesValue, "npm-release branch-policy readback");
+  if (!Array.isArray(environment.protection_rules) || environment.protection_rules.length !== 1) {
+    return false;
+  }
+  const [protection] = environment.protection_rules;
+  if (!Array.isArray(policies.branch_policies) || policies.branch_policies.length !== 1) {
+    return false;
+  }
+  const [policy] = policies.branch_policies;
+  return environment.name === "npm-release"
+    && environment.can_admins_bypass === false
+    && deployment.custom_branch_policies === true
+    && deployment.protected_branches === false
+    && record(protection, "npm-release protection rule").type === "branch_policy"
+    && policies.total_count === 1
+    && record(policy, "npm-release branch policy").name === "v*"
+    && record(policy, "npm-release branch policy").type === "tag";
+}
+
 export function assertReleaseProviderPreflight(value: unknown): void {
   const snapshot = record(value, "release provider preflight");
   const repository = record(snapshot.repository, "repository readback");
@@ -42,6 +67,11 @@ export function assertReleaseProviderPreflight(value: unknown): void {
       && [...ruleset.rules].map((rule) => record(rule, "ruleset rule").type).sort().join(",") === "deletion,update";
   });
   if (matches.length !== 1) throw new Error("No single exact active no-bypass immutable version-tag ruleset was proven.");
+  if (!exactEnvironmentPolicy(snapshot.environment, snapshot.environmentPolicies)) {
+    throw new Error(
+      "npm-release environment must disable administrator bypass, require no reviewer, and admit only v* tags.",
+    );
+  }
 }
 
 if (import.meta.main) {
@@ -50,5 +80,5 @@ if (import.meta.main) {
   const bytes = await readFile(resolve(path));
   if (bytes.byteLength <= 0 || bytes.byteLength > 1_024 * 1_024) throw new Error("Provider readback file exceeded its bound.");
   assertReleaseProviderPreflight(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as unknown);
-  console.log("Verified immutable Releases and exact no-bypass v* update/delete rules.");
+  console.log("Verified immutable Releases, exact no-bypass v* rules, and the tag-only npm-release environment.");
 }

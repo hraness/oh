@@ -14,8 +14,9 @@ bun install --frozen-lockfile --ignore-scripts
 bun run check
 ```
 
-`bun run check` type-checks, runs the complete test suite, and rebuilds the
-committed `dist/` entrypoints. It must finish without changing tracked files.
+`bun run check` type-checks, enforces the declared Effect boundaries, runs the
+complete test suite, and rebuilds the committed `dist/` entrypoints. It must
+finish without changing tracked files.
 
 ## Make a change
 
@@ -29,6 +30,11 @@ committed `dist/` entrypoints. It must finish without changing tracked files.
   remain derived, rebuildable, and rejoined to an exact current record digest.
 - Keep `@tobilu/qmd` optional and dynamically loaded. The root package and
   non-semantic entrypoints must work without it.
+- Keep the local semantic lifecycle within its [documented ownership and
+  validation boundaries](docs/semantic-lifecycle.md), and sync in its
+  [service and transaction boundaries](docs/sync-runtime.md). Effect is an exact
+  build dependency bundled into the admitted runtime graphs; consumers do not
+  install it.
 - Update the matching page under `spec/` when a public behavior or limit
   changes. Update machine-readable schemas and discovery documents in the same
   pull request.
