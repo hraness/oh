@@ -78,6 +78,16 @@ instead of their canonical DER UTF8String bytes, and its `.24` subject claim als
 expected the obsolete shape without owner and repository numeric IDs. Preserve
 both exact public copies and that tag. The corrected DER-encoded, ID-bound signer
 policy is released only as `v0.2.7`.
+The protected `v0.4.0` tag and exact same-run bytes are published as an immutable
+GitHub Release and an npm trusted-publisher package with provenance bound to run
+`34024027946`, attempt 1. Only the final read-only admission failed: the
+environment-bound Fulcio V2 certificate supplies `npm-release` in OID
+`1.3.6.1.4.1.57264.1.23` and the ID-bound
+`repo:hraness@307125679/oh@1348230462:environment:npm-release` subject in OID
+`.24`, while the policy omitted `.23` and expected the ref-bound `.24` shape.
+The independent tag, commit, workflow, repository-ID, event, and run claims
+remain required. Preserve both exact public copies and that tag. The corrected
+environment-bound signer policy is released only as `v0.4.1`.
 
 The tag workflow then:
 
@@ -138,8 +148,11 @@ reviewed annotated tag, commit, and ID-bound artifact bytes. Before npm, a
 read-only gate records its explicit run ID and attempt and treats the version as
 either absent or requires its exact bytes and Sigstore provenance to bind the
 same run at a positive attempt no greater than that preflight attempt, including
-Fulcio extension OID `1.3.6.1.4.1.57264.1.21` and the ID-bound repository subject
-claim in OID `1.3.6.1.4.1.57264.1.24`. The writer rejects another run,
+Fulcio extension OID `1.3.6.1.4.1.57264.1.21`, the exact `npm-release`
+environment name in OID `1.3.6.1.4.1.57264.1.23`, and its ID-bound repository
+subject in OID `.24`. The separate certificate identity and OIDs
+`.6`, `.14`, `.18`, and `.19` retain the exact tag, workflow, and commit binding.
+The writer rejects another run,
 reversed attempt ordering, and a same-attempt absent-to-existing race. A later
 failed-job rerun retaining an earlier absent preflight may publish if the version
 remains absent. If it instead observes exact bytes, it performs no mutation.

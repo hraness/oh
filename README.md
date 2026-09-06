@@ -74,16 +74,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact current release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.4.0
+bun add --global @hraness/oh@0.4.1
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.4.0),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.4.1),
 including the mirrored
-[`hraness-oh-0.4.0.tgz`](https://github.com/hraness/oh/releases/download/v0.4.0/hraness-oh-0.4.0.tgz)
+[`hraness-oh-0.4.1.tgz`](https://github.com/hraness/oh/releases/download/v0.4.1/hraness-oh-0.4.1.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.4.0/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.4.1/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -141,7 +141,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.4.0"
+    "@hraness/oh": "0.4.1"
   }
 }
 ```
@@ -719,9 +719,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.4.0 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.4.0 Release at
-https://github.com/hraness/oh/releases/tag/v0.4.0. Verify the CLI with
+Install @hraness/oh@0.4.1 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.4.1 Release at
+https://github.com/hraness/oh/releases/tag/v0.4.1. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```
