@@ -1,0 +1,86 @@
+{
+  "protocol": "oh.memory-context-replay.v1",
+  "recordedAt": "2026-09-06T21:45:42.822Z",
+  "status": "passed",
+  "purpose": "Verify fresh reader contexts after final integration with current main.",
+  "code": {
+    "sourceSha256": "4eb613cb9b0a9af43585d45b499b634e43c7814c4c499f9423ec10ce93ccfdb7",
+    "gitHead": "bd5353ea9838b02bf286cfce30fc06d484dabd01",
+    "dirty": false,
+    "bun": "1.3.14",
+    "node": "v24.20.0",
+    "bunNodeCompatibility": "24.3.0",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "sourceReport": {
+    "path": ".cache/benchmarks/runs/longmemeval-memory-strategy-fresh-v1.json",
+    "sha256": "e2f9c0378f48601612880cf68c21a7d8d6c01145996a11bba96fac8209930ec2"
+  },
+  "memoryUnitReport": {
+    "path": ".cache/benchmarks/runs/longmemeval-fresh-units-v6.json",
+    "sha256": "d50218c0d58f757fa5bb3b89eb06eb9db388a295fb8c07368c69bb5c60d5d8d9"
+  },
+  "dataset": "longmemeval-s",
+  "split": "test",
+  "seed": 17,
+  "questions": 12,
+  "corpora": 12,
+  "systems": [
+    "bm25-window",
+    "bm25-block",
+    "oh-block",
+    "bm25-fact",
+    "oh-fact-turns",
+    "oh-fact"
+  ],
+  "budget": {
+    "topK": 20,
+    "contextBytes": 12000
+  },
+  "selectionSha256": "d9c615dbd865fe2a13ddfa0a1b28f673ff45ff9388d4a14007733977a9dcb24c",
+  "excludedFamilies": 57,
+  "exclusionReports": [
+    {
+      "path": "benchmarks/results/longmemeval-s-heldout.json",
+      "sha256": "554ac5ef6b4d7ffc887c718b67f3894efc57aa65a43c2e769908bd2cea60e8ab",
+      "groups": 57
+    },
+    {
+      "path": "benchmarks/results/longmemeval-s-heldout-v2.json",
+      "sha256": "2ce1ec1d3d2bebcc1c0137c1935164f77efdc2c4794bdb960629da0b4af7622c",
+      "groups": 57
+    },
+    {
+      "path": "benchmarks/results/longmemeval-s-reader-heldout.json",
+      "sha256": "7d8b9b62ccd4b39675803f8cf60554bca52d61dd650f356131bf0d1ffc7d3ea1",
+      "groups": 12
+    }
+  ],
+  "comparison": {
+    "originalRows": 72,
+    "replayRows": 72,
+    "missingRows": 0,
+    "extraRows": 0,
+    "contextHashMismatches": 0,
+    "contextByteCountMismatches": 0,
+    "originalContextSetSha256": "3d09f50d1289a06cd94b5448b9dc7db72c58a0e502cd7934064b8ef90ac52678",
+    "replayContextSetSha256": "3d09f50d1289a06cd94b5448b9dc7db72c58a0e502cd7934064b8ef90ac52678",
+    "unitPreparationRecordedForEveryCorpus": true,
+    "digestDefinition": "canonicalSha256 of [questionId + colon + system, contextSha256, contextBytes] rows sorted by the first element using localeCompare."
+  },
+  "execution": {
+    "exitCode": 0,
+    "wallSeconds": 17.910543750000002,
+    "paidCalls": 0,
+    "stores": "in-memory"
+  },
+  "qualifications": [
+    "This verifies rendered context stability, not unchanged model responses or new answer-quality evidence."
+  ],
+  "reproduction": {
+    "workingDirectory": "repository root",
+    "description": "Requires the checksum-pinned cached dataset, saved reader and unit reports, and three compact exclusion reports. Verifies exclusion-report hashes, exact question/corpus selection and unit-report hash; replays every system offline and compares all context hashes and byte counts. The literal command below produced this result.",
+    "command": "bun -e 'import { canonicalSha256, sha256Hex } from \"./src/canonical\";\nimport { codeIdentity, excludeGroups, loadDataset, loadExclusions } from \"./scripts/benchmarks/io\";\nimport { selectSplit, selectQuestions } from \"./scripts/benchmarks/datasets\";\nimport { loadUnitReport } from \"./scripts/benchmarks/extract\";\nimport { runRetrieval } from \"./scripts/benchmarks/runner\";\nconst started = performance.now();\nconst sourcePath = \".cache/benchmarks/runs/longmemeval-memory-strategy-fresh-v1.json\";\nconst unitPath = \".cache/benchmarks/runs/longmemeval-fresh-units-v6.json\";\nconst exclusionPaths = [\"benchmarks/results/longmemeval-s-heldout.json\", \"benchmarks/results/longmemeval-s-heldout-v2.json\", \"benchmarks/results/longmemeval-s-reader-heldout.json\"];\nconst sourceBytes = await Bun.file(sourcePath).bytes();\nconst source = JSON.parse(new TextDecoder().decode(sourceBytes));\nconst m = source.manifest;\nconst { files, ...code } = await codeIdentity();\nconst exclusions = await loadExclusions(exclusionPaths, m.dataset);\nif (canonicalSha256(exclusions.reports) !== canonicalSha256(m.exclusions)) throw new Error(\"Exclusion reports changed\");\nconst selected = selectQuestions(excludeGroups(selectSplit(await loadDataset(m.dataset), m.split, m.seed), exclusions.groups), m.limit, m.seed);\nif (JSON.stringify(selected.questions.map((q) => q.id)) !== JSON.stringify(m.selectedQuestions)) throw new Error(\"Question selection changed\");\nif (JSON.stringify(selected.corpora.map((c) => c.id)) !== JSON.stringify(m.selectedCorpora)) throw new Error(\"Corpus selection changed\");\nif (selected.corpora.some((c) => exclusions.groups.has(c.groupId))) throw new Error(\"Excluded family selected\");\nconst memory = await loadUnitReport(unitPath, m.dataset, m.split, m.seed, selected.corpora);\nif (memory.provenance.reportSha256 !== source.memoryUnits.reportSha256) throw new Error(\"Unit report changed\");\nconst replay = await runRetrieval(selected, m.systems, m.budget, m.seed, memory);\nconst key = (r) => `${r.questionId}:${r.system}`;\nconst before = new Map(source.rows.map((r) => [key(r), r]));\nconst after = new Map(replay.rows.map((r) => [key(r), r]));\nif (before.size !== source.rows.length || after.size !== replay.rows.length) throw new Error(\"Duplicate context key\");\nconst contexts = (rows) => rows.map((r) => [key(r), r.contextSha256, r.contextBytes]).sort((a, b) => a[0].localeCompare(b[0]));\nconst comparison = {\n  originalRows: source.rows.length, replayRows: replay.rows.length,\n  missingRows: [...before.keys()].filter((k) => !after.has(k)).length,\n  extraRows: [...after.keys()].filter((k) => !before.has(k)).length,\n  contextHashMismatches: replay.rows.filter((r) => before.get(key(r))?.contextSha256 !== r.contextSha256).length,\n  contextByteCountMismatches: replay.rows.filter((r) => before.get(key(r))?.contextBytes !== r.contextBytes).length,\n  originalContextSetSha256: canonicalSha256(contexts(source.rows)),\n  replayContextSetSha256: canonicalSha256(contexts(replay.rows)),\n  unitPreparationRecordedForEveryCorpus: replay.ingestion.every((i) => i.unitIndexes.blocks !== undefined && i.unitIndexes.facts !== undefined)\n};\nconst passed = comparison.originalRows === 72 && comparison.replayRows === 72\n  && comparison.missingRows === 0 && comparison.extraRows === 0\n  && comparison.contextHashMismatches === 0 && comparison.contextByteCountMismatches === 0\n  && comparison.originalContextSetSha256 === comparison.replayContextSetSha256\n  && comparison.unitPreparationRecordedForEveryCorpus;\nconsole.log(JSON.stringify({\n  protocol: \"oh.memory-context-replay.v1\", recordedAt: new Date().toISOString(), status: passed ? \"passed\" : \"failed\",\n  purpose: \"Verify fresh reader contexts after final integration with current main.\",\n  code, sourceReport: { path: sourcePath, sha256: sha256Hex(sourceBytes) },\n  memoryUnitReport: { path: unitPath, sha256: memory.provenance.reportSha256 },\n  dataset: m.dataset, split: m.split, seed: m.seed, questions: selected.questions.length, corpora: selected.corpora.length,\n  systems: m.systems, budget: m.budget, selectionSha256: m.selectionSha256, excludedFamilies: exclusions.groups.size,\n  exclusionReports: exclusionPaths.map((path, index) => ({ path, ...exclusions.reports[index] })),\n  comparison, execution: { exitCode: passed ? 0 : 1, wallSeconds: (performance.now() - started) / 1000, paidCalls: 0, stores: \"in-memory\" },\n  qualifications: [\"This verifies rendered context stability, not unchanged model responses or new answer-quality evidence.\"]\n}, null, 2));\nif (!passed) process.exit(1);'"
+  }
+}

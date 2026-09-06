@@ -404,6 +404,11 @@ usage accounting is $12.232353, plus $0.016416 retained for four unresolved
 early requests, or $12.248769 against the cumulative $13 ceiling. Those totals
 include the earlier pilot and development work; they are not a provider invoice.
 
+After integrating the final CLI and public-release updates from main, an
+[offline integration replay](results/memory-strategy-fresh-integration-replay.json)
+reproduced the exact selection and all 72 reader context hashes and byte counts.
+It made no model calls and does not add new answer-quality evidence.
+
 These experiments measure memory representations and downstream answers with
 isolated adapters. They do not add an automatic memory-writing policy to Oh.
 Real-agent writing, updating, and successful task resumption remain unmeasured,
