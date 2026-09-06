@@ -33,6 +33,14 @@ entrypoints. Callers validating an unknown caught value may instead use
 branded numeric fields, so copying the public fields onto a plain object is not
 sufficient.
 
+The core `OhConflictError`, `OhIntegrityError`, `OhDependencyError`, and
+`OhProfileError` classes likewise preserve `instanceof` identity across
+separately bundled Oh entrypoints. Their corresponding `isOhConflictError`,
+`isOhIntegrityError`, `isOhDependencyError`, and `isOhProfileError` guards
+require a native error with the immutable brand for that exact error family.
+A branded base class remains visible through an ordinary subclass, but a base
+instance MUST NOT satisfy an arbitrary subclass check.
+
 ## Semantic bundle ingress
 
 Model-facing code SHOULD use `OhSemanticBundleIngressV1` instead of generic

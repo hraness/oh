@@ -245,12 +245,26 @@ import {
   createOhLibSqlStoreAuthorityV1,
 } from "@hraness/oh/libsql";
 import {
+  isOhConflictError,
+  isOhDependencyError,
+  isOhIntegrityError,
   isOhOperationSizeError,
+  isOhProfileError,
   OH_CANONICAL_STORE_PROFILE_V1,
   OH_OPERATION_SIZE_ERROR_CODE_V1,
+  OhConflictError,
+  OhDependencyError,
+  OhIntegrityError,
   OhOperationSizeError,
+  OhProfileError,
 } from "@hraness/oh/store";
-import { OhSqliteStore } from "@hraness/oh/sqlite";
+import {
+  OhConflictError as SqliteOhConflictError,
+  OhDependencyError as SqliteOhDependencyError,
+  OhIntegrityError as SqliteOhIntegrityError,
+  OhProfileError as SqliteOhProfileError,
+  OhSqliteStore,
+} from "@hraness/oh/sqlite";
 
 class SqliteCompatibleClient {
   database = new Database(":memory:", { strict: true });
@@ -297,7 +311,33 @@ assertSizeError(sqliteError, "SQLite");
 if (sqlite.head().sequence !== 0 || sqlite.exportOperations().length !== 0) {
   throw new Error("SQLite size refusal changed durable state.");
 }
+
+const staleHead = sqlite.head();
+sqlite.commit({ actorId: "package.smoke", changes: [{ kind: "put", record, v: 1 }],
+  expectedHead: staleHead, operationId: "op_sqlite_conflict_first" });
+let sqliteConflict;
+try {
+  sqlite.commit({ actorId: "package.smoke", changes: [{ kind: "put", record, v: 1 }],
+    expectedHead: staleHead, operationId: "op_sqlite_conflict_second" });
+} catch (error) { sqliteConflict = error; }
+if (!(sqliteConflict instanceof SqliteOhConflictError)
+  || !(sqliteConflict instanceof OhConflictError)
+  || !isOhConflictError(sqliteConflict)
+  || sqliteConflict.message !== "The expected head does not match the current space head.") {
+  throw new Error("A packed SQLite conflict lost its store-entrypoint error identity.");
+}
 sqlite.close();
+
+for (const [error, ErrorClass, guard, label] of [
+  [new SqliteOhConflictError("conflict"), OhConflictError, isOhConflictError, "conflict"],
+  [new SqliteOhIntegrityError("integrity"), OhIntegrityError, isOhIntegrityError, "integrity"],
+  [new SqliteOhDependencyError("dependency"), OhDependencyError, isOhDependencyError, "dependency"],
+  [new SqliteOhProfileError("profile"), OhProfileError, isOhProfileError, "profile"],
+]) {
+  if (!(error instanceof ErrorClass) || !guard(error) || error.message !== label) {
+    throw new Error("A packed SQLite core error lost its store-entrypoint identity.");
+  }
+}
 
 const client = new SqliteCompatibleClient();
 await bootstrapOhLibSqlAuthorityV1(client);

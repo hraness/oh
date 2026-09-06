@@ -1147,10 +1147,88 @@ class OhRecordCodecRegistry {
 
 // src/errors.ts
 var OH_OPERATION_SIZE_ERROR_CODE_V1 = "oh.operation-size.v1";
+var OH_CONFLICT_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhConflictError/v1");
+var OH_DEPENDENCY_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhDependencyError/v1");
+var OH_INTEGRITY_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhIntegrityError/v1");
 var OH_OPERATION_SIZE_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhOperationSizeError/v1");
+var OH_PROFILE_ERROR_BRAND_V1 = Symbol.for("@hraness/oh/OhProfileError/v1");
 function immutableOwnValue(value, key) {
   const descriptor = Object.getOwnPropertyDescriptor(value, key);
   return descriptor !== undefined && descriptor.get === undefined && descriptor.set === undefined && descriptor.configurable === false && descriptor.writable === false ? descriptor.value : undefined;
+}
+function brandNativeError(value, brand) {
+  Object.defineProperty(value, brand, {
+    configurable: false,
+    enumerable: false,
+    value: true,
+    writable: false
+  });
+}
+function hasNativeErrorBrand(value, brand) {
+  try {
+    return Error.isError(value) && immutableOwnValue(value, brand) === true;
+  } catch {
+    return false;
+  }
+}
+function hasNativeSubclassInstance(constructor, value) {
+  return Function.prototype[Symbol.hasInstance].call(constructor, value);
+}
+function isOhConflictError(value) {
+  return hasNativeErrorBrand(value, OH_CONFLICT_ERROR_BRAND_V1);
+}
+
+class OhConflictError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhConflictError ? isOhConflictError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhConflictError";
+    brandNativeError(this, OH_CONFLICT_ERROR_BRAND_V1);
+  }
+}
+function isOhIntegrityError(value) {
+  return hasNativeErrorBrand(value, OH_INTEGRITY_ERROR_BRAND_V1);
+}
+
+class OhIntegrityError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhIntegrityError ? isOhIntegrityError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhIntegrityError";
+    brandNativeError(this, OH_INTEGRITY_ERROR_BRAND_V1);
+  }
+}
+function isOhDependencyError(value) {
+  return hasNativeErrorBrand(value, OH_DEPENDENCY_ERROR_BRAND_V1);
+}
+
+class OhDependencyError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhDependencyError ? isOhDependencyError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhDependencyError";
+    brandNativeError(this, OH_DEPENDENCY_ERROR_BRAND_V1);
+  }
+}
+function isOhProfileError(value) {
+  return hasNativeErrorBrand(value, OH_PROFILE_ERROR_BRAND_V1);
+}
+
+class OhProfileError extends Error {
+  static [Symbol.hasInstance](value) {
+    return this === OhProfileError ? isOhProfileError(value) : hasNativeSubclassInstance(this, value);
+  }
+  constructor(message) {
+    super(message);
+    this.name = "OhProfileError";
+    brandNativeError(this, OH_PROFILE_ERROR_BRAND_V1);
+  }
 }
 function isOhOperationSizeError(value) {
   try {
@@ -1166,7 +1244,7 @@ function isOhOperationSizeError(value) {
 
 class OhOperationSizeError extends RangeError {
   static [Symbol.hasInstance](value) {
-    return isOhOperationSizeError(value);
+    return this === OhOperationSizeError ? isOhOperationSizeError(value) : hasNativeSubclassInstance(this, value);
   }
   constructor(operationBytes, maximumOperationBytes) {
     if (!Number.isSafeInteger(operationBytes) || operationBytes < 1 || !Number.isSafeInteger(maximumOperationBytes) || maximumOperationBytes < 1 || operationBytes <= maximumOperationBytes) {
@@ -2191,33 +2269,6 @@ function applyOhSqliteMigrations(database) {
 // src/sqlite/port.ts
 import { isProxy as isProxy2 } from "util/types";
 // src/store.ts
-class OhConflictError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhConflictError";
-  }
-}
-
-class OhIntegrityError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhIntegrityError";
-  }
-}
-
-class OhDependencyError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhDependencyError";
-  }
-}
-
-class OhProfileError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "OhProfileError";
-  }
-}
 var OH_CANONICAL_STORE_PROFILE_V1 = createOhStoreProfileV1({
   applicationProfileSha256: null,
   capabilities: {
@@ -3785,6 +3836,11 @@ export {
   withReadTransaction,
   withImmediateTransaction,
   openOhSqliteDatabase,
+  isOhProfileError,
+  isOhOperationSizeError,
+  isOhIntegrityError,
+  isOhDependencyError,
+  isOhConflictError,
   createOhSqliteStoreAuthorityV1,
   applyOhSqliteMigrations,
   OhSqliteStorePortV1,
@@ -3796,5 +3852,6 @@ export {
   OhDependencyError,
   OhConflictError,
   OH_SQLITE_SCHEMA_VERSION,
-  OH_SQLITE_MIGRATIONS
+  OH_SQLITE_MIGRATIONS,
+  OH_OPERATION_SIZE_ERROR_CODE_V1
 };
