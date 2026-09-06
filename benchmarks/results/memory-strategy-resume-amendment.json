@@ -1,0 +1,37 @@
+{
+  "protocol": "oh.extraction-resume-amendment.v1",
+  "at": "2026-09-06T20:57:55.592Z",
+  "originalFreeze": "memory-strategy-fresh-freeze.json",
+  "priorCapacityAmendment": "memory-strategy-capacity-amendment.json",
+  "sourceSha256": "ce3a24e562558e2ac5d7763f3c99fd8f3fbf66a264fe6fffce712ce84eeae926",
+  "gitHead": "722962d15835c493262e3c03ac945566e5fcbbf5",
+  "integratedMain": "764005ea468fef7361ddc1ef4d10361a5d01ed41",
+  "reason": "The prior run stopped on malformed extractor JSON before producing any answers or judge labels for the frozen selection.",
+  "changes": {
+    "newExtractionResponseFormat": "json_object",
+    "extractionConcurrency": {
+      "before": 3,
+      "after": 12
+    },
+    "resumePreservesLaterCachedCorpora": true,
+    "retrievalIndexConstructionExcludedFromQueryLatency": true
+  },
+  "unchanged": [
+    "selected question families",
+    "extractor prompt and chunking",
+    "source validation",
+    "8192 extraction output bound",
+    "reader prompt and output cap",
+    "retrieval ranking and context rendering",
+    "context budget",
+    "judge prompt and decision policy"
+  ],
+  "priorIncompleteExtractionSha256": "876e9e8c8543306b49578eead08144c902cb7fc8a463c9569f62799ac49992c9",
+  "completedChunksReused": 132,
+  "priorIngestionCostUsd": 0.566198,
+  "cumulativeApiExposureBeforeResumeUsd": 9.490716,
+  "cumulativeApiCapUsd": 13,
+  "qualityFeedbackUsedForAmendment": false,
+  "oldReportsRetained": true,
+  "qualification": "The final cache reuses verified earlier chunks generated without explicit JSON mode; it is a documented mixed-format ingestion run, not a fully homogeneous extractor reproduction."
+}

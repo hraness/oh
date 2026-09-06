@@ -1,0 +1,73 @@
+{
+  "protocol": "oh.extraction-schema-amendment.v1",
+  "at": "2026-09-06T21:21:15.171Z",
+  "originalFreeze": "memory-strategy-fresh-freeze.json",
+  "priorResumeAmendment": "memory-strategy-resume-amendment.json",
+  "sourceSha256": "226ac8b7ef955b63cb6186819831168d29f9def4936c0a985c383618030dc732",
+  "gitHead": "87fbba24d1c47db309866ccc256886dc40809994",
+  "reason": "The same source chunk twice produced an invalid extraction envelope under JSON mode; no held-out answers or judge labels have been produced.",
+  "responseFormat": "json_schema",
+  "responseSchemaName": "oh_memory_units_v1",
+  "responseSchemaSha256": "3617d32f63026e7cda75126283c5bc7888273e754b3e472546d73f84ada0ea20",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "units"
+    ],
+    "properties": {
+      "units": {
+        "type": "array",
+        "maxItems": 48,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text",
+            "supports"
+          ],
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "supports": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "turnId",
+                  "quote"
+                ],
+                "properties": {
+                  "turnId": {
+                    "type": "string"
+                  },
+                  "quote": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "unchanged": [
+    "extractor prompt and chunking",
+    "selected question families",
+    "source validation and all existing unit limits",
+    "reader and judge prompts and models",
+    "retrieval ranking and context budgets",
+    "8192 extraction output bound",
+    "13 USD cumulative API ceiling"
+  ],
+  "priorIncompleteExtractionSha256": "efd923802cb4e73db94aa413abb69ccfde525ed7765b0db272a55c065c14ca43",
+  "completedChunksReused": 397,
+  "cumulativeApiExposureBeforeResumeUsd": 10.598733,
+  "qualityFeedbackUsedForAmendment": false,
+  "qualification": "This pre-answer reliability amendment constrains generation to the existing accepted shape. The final bundle mixes verified prompt-only, JSON-mode, and strict-schema chunks; it is not a homogeneous extractor reproduction."
+}

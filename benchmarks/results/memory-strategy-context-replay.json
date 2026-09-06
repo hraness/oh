@@ -1,0 +1,69 @@
+{
+  "protocol": "oh.memory-context-replay.v1",
+  "recordedAt": "2026-09-06T21:01:28Z",
+  "status": "passed",
+  "purpose": "Verify unchanged reader contexts after extraction recovery, separate unit-index timing, and integration of current main.",
+  "code": {
+    "sourceSha256": "ce3a24e562558e2ac5d7763f3c99fd8f3fbf66a264fe6fffce712ce84eeae926",
+    "gitHead": "722962d15835c493262e3c03ac945566e5fcbbf5",
+    "sourceFilesMatchHead": true,
+    "bun": "1.3.14",
+    "node": "v24.20.0",
+    "bunNodeCompatibility": "24.3.0",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "sourceReport": {
+    "path": ".cache/benchmarks/runs/locomo-memory-strategy-dev-v1.json",
+    "sha256": "5a09fb49f74ab77bf0384b804db59467435e6461539407ecf73f083538674394"
+  },
+  "memoryUnitReport": {
+    "path": ".cache/benchmarks/runs/locomo-units-development-v1.json",
+    "sha256": "c775923115c101d466eb8c4f3b7f56b76c24307c99a67ba377726ef3717dc145"
+  },
+  "dataset": "locomo",
+  "split": "dev",
+  "seed": 17,
+  "questions": 60,
+  "corpora": 2,
+  "systems": [
+    "bm25-window",
+    "oh-window",
+    "bm25-block",
+    "oh-block",
+    "bm25-fact-turns",
+    "oh-fact-turns",
+    "bm25-fact",
+    "oh-fact"
+  ],
+  "budget": {
+    "topK": 20,
+    "contextBytes": 12000
+  },
+  "comparison": {
+    "originalRows": 480,
+    "replayRows": 480,
+    "missingRows": 0,
+    "contextHashMismatches": 0,
+    "contextByteCountMismatches": 0,
+    "originalContextSetSha256": "464e83d9cb8c819051462a65c7e0b92b8c9e9cffa796603241fafcded04ea85d",
+    "replayContextSetSha256": "464e83d9cb8c819051462a65c7e0b92b8c9e9cffa796603241fafcded04ea85d",
+    "digestDefinition": "canonicalSha256 of [questionId + colon + system, contextSha256, contextBytes] rows sorted by the first element using localeCompare.",
+    "unitPreparationRecordedForEveryCorpus": true
+  },
+  "execution": {
+    "exitCode": 0,
+    "wallSeconds": 3.614593708,
+    "paidCalls": 0,
+    "stores": "in-memory"
+  },
+  "reproduction": {
+    "workingDirectory": "repository root",
+    "description": "Requires the checksum-pinned cached dataset and the two ignored source reports. Uses their original question selection, verified units, systems, and budget, then compares all context hashes and byte counts. The literal command below produced this result.",
+    "command": "bun -e '\nimport { canonicalSha256, sha256Hex } from \"./src/canonical\";\nimport { loadDataset } from \"./scripts/benchmarks/io\";\nimport { selectSplit, selectQuestions } from \"./scripts/benchmarks/datasets\";\nimport { loadUnitReport } from \"./scripts/benchmarks/extract\";\nimport { runRetrieval } from \"./scripts/benchmarks/runner\";\nconst sourcePath = \".cache/benchmarks/runs/locomo-memory-strategy-dev-v1.json\";\nconst unitPath = \".cache/benchmarks/runs/locomo-units-development-v1.json\";\nconst sourceBytes = await Bun.file(sourcePath).bytes();\nconst source = JSON.parse(new TextDecoder().decode(sourceBytes));\nconst m = source.manifest;\nconst selected = selectQuestions(selectSplit(await loadDataset(m.dataset), m.split, m.seed), m.limit, m.seed);\nif (JSON.stringify(selected.questions.map((q) => q.id)) !== JSON.stringify(m.selectedQuestions)) throw new Error(\"Question selection changed\");\nif (JSON.stringify(selected.corpora.map((c) => c.id)) !== JSON.stringify(m.selectedCorpora)) throw new Error(\"Corpus selection changed\");\nconst memory = await loadUnitReport(unitPath, m.dataset, m.split, m.seed, selected.corpora);\nif (memory.provenance.reportSha256 !== source.memoryUnits.reportSha256) throw new Error(\"Unit report changed\");\nconst replay = await runRetrieval(selected, m.systems, m.budget, m.seed, memory);\nconst key = (r) => `${r.questionId}:${r.system}`;\nconst oldByKey = new Map(source.rows.map((r) => [key(r), r]));\nconst mismatches = replay.rows.filter((r) => { const old = oldByKey.get(key(r)); return !old || old.contextSha256 !== r.contextSha256 || old.contextBytes !== r.contextBytes; });\nconst contexts = (rows) => rows.map((r) => [key(r), r.contextSha256, r.contextBytes]).sort((a, b) => a[0].localeCompare(b[0]));\nconst originalContextSetSha256 = canonicalSha256(contexts(source.rows));\nconst replayContextSetSha256 = canonicalSha256(contexts(replay.rows));\nconst result = { gitHead: new TextDecoder().decode(Bun.spawnSync([\"git\", \"rev-parse\", \"HEAD\"]).stdout).trim(), bun: Bun.version, sourceReportSha256: sha256Hex(sourceBytes), unitReportSha256: memory.provenance.reportSha256, questions: selected.questions.length, corpora: selected.corpora.length, systems: m.systems, budget: m.budget, originalRows: source.rows.length, replayRows: replay.rows.length, mismatches: mismatches.map((r) => key(r)), originalContextSetSha256, replayContextSetSha256, preparationRecorded: replay.ingestion.every((i) => i.unitIndexes.blocks && i.unitIndexes.facts), status: mismatches.length === 0 && source.rows.length === replay.rows.length && originalContextSetSha256 === replayContextSetSha256 ? \"passed\" : \"failed\" };\nconsole.log(JSON.stringify(result, null, 2));\nif (result.status !== \"passed\") process.exit(1);\n'"
+  },
+  "qualifications": [
+    "This verifies rendered context stability, not unchanged model responses or new answer-quality evidence.",
+    "Old block and fact retrieval latency fields include shared index construction; this replay confirms preparation is now reported separately."
+  ]
+}
