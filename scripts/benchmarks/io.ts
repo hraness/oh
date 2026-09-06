@@ -5,6 +5,8 @@ import { canonicalSha256, isPlainRecord, sha256Hex } from "../../src/canonical";
 import { DATASETS, parseLocomo, parseLongMemEval, type Dataset, type DatasetName } from "./datasets";
 
 export const ROOT = resolve(import.meta.dir, "../..");
+// A 120-family extraction can exceed the original 64 MiB pilot bound.
+export const MAX_REPORT_BYTES = 128 * 1024 * 1024;
 
 export function datasetPath(name: DatasetName): string {
   return join(ROOT, ".cache/benchmarks/datasets", `${name}.json`);

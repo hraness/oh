@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { answerMessages, callOpenAI, ledgerExposure, PilotBudget, validatePaidAccess } from "../scripts/benchmarks/model";
+import { answerMessages, callOpenAI, ledgerExposure, PilotBudget, PILOT_MAX_USD, validatePaidAccess } from "../scripts/benchmarks/model";
 import { EXTRACTION_SCHEMA } from "../scripts/benchmarks/units";
 
 const model = "gpt-4.1-mini-2025-04-14" as const;
@@ -13,7 +13,7 @@ function response(overrides: Record<string, unknown> = {}) {
 
 describe("paid pilot boundaries", () => {
   test("rejects missing, unlimited, non-finite, or oversized budgets", () => {
-    for (const maxUsd of [NaN, Infinity, 0, -1, 13.01]) {
+    for (const maxUsd of [NaN, Infinity, 0, -1, PILOT_MAX_USD + 0.01]) {
       expect(() => new PilotBudget({ maxUsd, maxCalls: 2 })).toThrow();
     }
     expect(() => new PilotBudget({ maxUsd: 10, maxCalls: NaN })).toThrow();
@@ -25,6 +25,14 @@ describe("paid pilot boundaries", () => {
     expect(() => budget.reserve(20, model, 20)).toThrow("budget exhausted");
     expect(budget.summary.reservedCalls).toBe(0);
     expect(budget.summary.priorExposureUsd).toBe(12.99999);
+  });
+
+  test("enforces the amended ceiling without resetting prior exposure", () => {
+    const budget = new PilotBudget({ maxUsd: PILOT_MAX_USD, maxCalls: 1, priorExposureMicros: 62_248_760 });
+    expect(() => budget.reserve(20, model, 20)).toThrow("budget exhausted");
+    expect(budget.summary.capUsd).toBe(62.248769);
+    expect(budget.summary.priorExposureUsd).toBe(62.24876);
+    expect(budget.summary.reservedCalls).toBe(0);
   });
 
   test("reserves worst-case cost before dispatch and accounts for prior run exposure", () => {

@@ -2,7 +2,7 @@ import { open } from "node:fs/promises";
 
 import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import { DATASETS, type Corpus, type Dataset, type DatasetName, type Split } from "./datasets";
-import { writeNew } from "./io";
+import { MAX_REPORT_BYTES, writeNew } from "./io";
 import { callOpenAI, MODELS, ModelCompletionError, openPilotLedger, PilotBudget, validatePaidAccess } from "./model";
 import { buildExtractionChunks, EXTRACTION_INSTRUCTION, EXTRACTION_PROFILE, EXTRACTION_SCHEMA, extractionMessages, parseMemoryUnits,
   type MemoryUnit } from "./units";
@@ -89,7 +89,7 @@ export function validateUnitBundle(value: unknown, name: DatasetName, split: Spl
 export async function loadUnitReport(path: string, name: DatasetName, split: Split, seed: number,
   corpora: readonly Corpus[]): Promise<LoadedUnits> {
   const file = Bun.file(path);
-  if (!await file.exists() || file.size > 64 * 1024 * 1024) throw new Error("Memory-unit report must be at most 64 MiB.");
+  if (!await file.exists() || file.size > MAX_REPORT_BYTES) throw new Error("Memory-unit report must be at most 128 MiB.");
   const bytes = await file.bytes();
   const report: unknown = JSON.parse(new TextDecoder().decode(bytes));
   if (!isPlainRecord(report) || report.protocol !== "oh.memory-benchmark.v1" || report.status !== "completed") {
@@ -105,7 +105,7 @@ export async function loadUnitReport(path: string, name: DatasetName, split: Spl
 
 export async function runExtraction(input: Readonly<{ dataset: Dataset; datasetName: DatasetName; split: Split; seed: number;
   paid: boolean; maxUsd: number; maxCalls: number; reader: string; provider: string; output: string; resume?: string;
-  concurrency?: number }>, dependencies: Readonly<{ environment?: Readonly<Record<string, string | undefined>>;
+  concurrency?: number; frozen?: Readonly<{ sourceSha256: string; selectionReportSha256: string }> }>, dependencies: Readonly<{ environment?: Readonly<Record<string, string | undefined>>;
     fetcher?: typeof fetch; openLedger?: typeof openPilotLedger }> = {}): Promise<Record<string, unknown>> {
   const concurrency = input.concurrency ?? 3;
   if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 12) {
@@ -117,12 +117,21 @@ export async function runExtraction(input: Readonly<{ dataset: Dataset; datasetN
   let resumeSha256: string | null = null;
   if (input.resume !== undefined) {
     const file = Bun.file(input.resume);
-    if (!await file.exists() || file.size > 64 * 1024 * 1024) throw new Error("Resume report must be at most 64 MiB.");
+    if (!await file.exists() || file.size > MAX_REPORT_BYTES) throw new Error("Resume report must be at most 128 MiB.");
     const bytes = await file.bytes();
     const report: unknown = JSON.parse(new TextDecoder().decode(bytes));
     if (!isPlainRecord(report) || report.protocol !== "oh.memory-benchmark.v1") throw new TypeError("Invalid extraction resume report.");
     validateUnitBundle(report.unitBundle, input.datasetName, input.split, input.seed, input.dataset.corpora, true);
     previous = report.unitBundle as UnitBundle;
+    if (input.frozen !== undefined && (previous.extractor.maximumOutput !== 8_192
+      || !isPlainRecord(report.manifest) || !isPlainRecord(report.manifest.code)
+      || report.manifest.code.sourceSha256 !== input.frozen.sourceSha256
+      || !isPlainRecord(report.manifest.provenance)
+      || report.manifest.provenance.reportSha256 !== input.frozen.selectionReportSha256
+      || !isPlainRecord(report.provider) || report.provider.responseFormat !== "json_schema"
+      || report.provider.responseSchemaSha256 !== canonicalSha256(EXTRACTION_SCHEMA))) {
+      throw new Error("Resume source does not match the frozen extraction profile.");
+    }
     const ids = new Set(input.dataset.corpora.map((corpus) => corpus.id));
     if (previous.extractor.reader !== input.reader || previous.extractor.provider !== provider
       || previous.corpora.some((corpus) => !ids.has(corpus.corpusId))) throw new Error("Resume source does not match this extraction experiment.");

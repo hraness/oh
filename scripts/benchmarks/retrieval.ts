@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 
-import { canonicalSha256, isPlainRecord } from "../../src/canonical";
+import { boundedText, canonicalSha256, isPlainRecord } from "../../src/canonical";
 import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordV1 } from "../../src/graph";
 import { searchOhV1 } from "../../src/search";
 import { OhSqliteStore } from "../../src/sqlite/store";
@@ -9,12 +9,13 @@ import { buildExtractionChunks, type MemoryUnit } from "./units";
 
 export const SYSTEMS = ["no-memory", "recent", "full-context", "bm25", "bm25-focused", "bm25-window", "bm25-anchor-window",
   "oh-keyword", "oh-focused", "oh-window", "oh-anchor-window", "bm25-block", "oh-block", "bm25-fact-turns", "oh-fact-turns",
-  "bm25-fact", "oh-fact"] as const;
+  "bm25-fact", "oh-fact", "bm25-record-fact", "bm25-record-window"] as const;
 export const DEFAULT_SYSTEMS = SYSTEMS.filter((system) => !system.endsWith("fact") && !system.endsWith("fact-turns")
-  && !system.endsWith("anchor-window"));
+  && !system.endsWith("anchor-window") && !system.startsWith("bm25-record-"));
 export type System = typeof SYSTEMS[number];
 export type RetrievalBudget = Readonly<{ topK: number; contextBytes: number }>;
 export type UnitIndexIngestion = Readonly<{ units: number; buildMs: number }>;
+export type RecordIndexIngestion = Readonly<{ documents: number; buildMs: number }>;
 export type Retrieved = Readonly<{
   context: string; turnIds: readonly string[]; sessionIds: readonly string[]; recordDigests: readonly string[];
   budgetExempt: boolean; omittedForBudget: number;
@@ -95,6 +96,47 @@ export function blockUnits(corpus: Corpus): readonly IndexedUnit[] {
   }));
 }
 
+type RecordFtsIndex = Readonly<{ database: Database; documents: number; buildMs: number }>;
+
+/**
+ * Mirrors src/sqlite/store.ts#ftsQuery exactly (NFC/4096-byte bound, en-US lowercasing, the
+ * 64-character [\p{L}\p{N}][\p{L}\p{N}_-]{0,63} token grammar, duplicate tokens preserved, and the
+ * first-16 cap) so the independent record baseline reproduces production keyword matching bit for bit.
+ */
+function recordFtsMatch(value: string): string | null {
+  const normalized = boundedText(value.normalize("NFC"), 4096);
+  if (normalized === null) return null;
+  const tokens = normalized.toLocaleLowerCase("en-US").match(/[\p{L}\p{N}][\p{L}\p{N}_-]{0,63}/gu)?.slice(0, 16) ?? [];
+  return tokens.length === 0 ? null : tokens.map((token) => `"${token.replaceAll('"', '""')}"`).join(" OR ");
+}
+
+/**
+ * Reads the exact bytes Oh already committed to oh_search_documents (production's derived,
+ * rebuildable search text) into an independent FTS5 index with the same tokenizer, so the record
+ * baseline shares Oh's full-corpus statistics without ever calling store.searchKeyword.
+ */
+function buildRecordFtsIndex(store: OhSqliteStore): RecordFtsIndex {
+  const started = performance.now();
+  const rows = store.database.query<{ record_key: string; text: string }, [string]>(
+    "SELECT record_key, text FROM oh_search_documents WHERE space_id = ? ORDER BY record_key",
+  ).all(store.spaceId);
+  const database = new Database(":memory:");
+  try {
+    database.run("CREATE VIRTUAL TABLE record_documents USING fts5(record_key UNINDEXED, text, tokenize='unicode61 remove_diacritics 2')");
+    const insert = database.prepare("INSERT INTO record_documents (record_key, text) VALUES (?, ?)");
+    database.transaction(() => rows.forEach((row) => insert.run(row.record_key, row.text)))();
+    return { database, documents: rows.length, buildMs: performance.now() - started };
+  } catch (error) { database.close(); throw error; }
+}
+
+function queryRecordFts(index: RecordFtsIndex, query: string, limit: number): readonly string[] {
+  const match = recordFtsMatch(query);
+  if (match === null) return [];
+  return index.database.query<{ record_key: string }, [string, number]>(
+    "SELECT record_key FROM record_documents WHERE record_documents MATCH ? ORDER BY bm25(record_documents), record_key LIMIT ?",
+  ).all(match, limit).map((row) => row.record_key);
+}
+
 export function createUnitIndex(corpus: Corpus, units: readonly IndexedUnit[], sources: readonly KnowledgeGraphRecordV1[], authority: OhSqliteStore) {
   const positions = new Map(corpus.turns.map((turn, index) => [turn.id, index]));
   const sourceBindings = units.map((unit) => unit.sourceTurnIds.map((id) => {
@@ -111,6 +153,7 @@ export function createUnitIndex(corpus: Corpus, units: readonly IndexedUnit[], s
   const store = new OhSqliteStore({ path: ":memory:", spaceId: "benchmark-units" });
   const bm25 = new Database(":memory:");
   const byKey = new Map(records.map((record, index) => [record.key, index]));
+  let recordFts: RecordFtsIndex | undefined;
   try {
     for (let index = 0; index < records.length; index += 128) store.commit({ actorId: "benchmark.units", expectedHead: store.head(),
       operationId: `op_units_${index}`, instant: "2026-01-01T00:00:00.000Z",
@@ -120,10 +163,18 @@ export function createUnitIndex(corpus: Corpus, units: readonly IndexedUnit[], s
     bm25.transaction(() => turns.forEach((turn, index) => insert.run(index, renderTurn(turn))))();
   } catch (error) { store.close(); bm25.close(); throw error; }
   return {
+    prepareRecordIndex(): RecordIndexIngestion {
+      if (recordFts === undefined) recordFts = buildRecordFtsIndex(store);
+      return { documents: recordFts.documents, buildMs: recordFts.buildMs };
+    },
     async retrieve(system: System, query: string, budget: RetrievalBudget): Promise<Retrieved> {
       const terms = queryTerms(query, true);
       let indices: number[];
-      if (system.startsWith("oh-")) {
+      if (system.startsWith("bm25-record-")) {
+        if (recordFts === undefined) recordFts = buildRecordFtsIndex(store);
+        indices = queryRecordFts(recordFts, terms.join(" "), budget.topK)
+          .flatMap((key) => { const position = byKey.get(key); return position === undefined ? [] : [position]; });
+      } else if (system.startsWith("oh-")) {
         const found = await searchOhV1({ store, query: terms.join(" "), mode: "keyword", limit: budget.topK });
         indices = found.results.map(({ record }) => byKey.get(record.key)!);
       } else {
@@ -149,7 +200,7 @@ export function createUnitIndex(corpus: Corpus, units: readonly IndexedUnit[], s
       }
       return pack(validated.flatMap((item) => item.sources), budget.contextBytes);
     },
-    close() { store.close(); bm25.close(); },
+    close() { store.close(); bm25.close(); recordFts?.database.close(); },
   };
 }
 
@@ -161,6 +212,7 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
     dependencies: [], key: `edition:turn-${index.toString().padStart(5, "0")}`, kind: "edition", v: 1,
     value: { ...turn },
   }));
+  const keyToIndex = new Map(records.map((record, index) => [record.key, index]));
   let ohIngestMs: number;
   let bm25IngestMs: number;
   try {
@@ -180,7 +232,9 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
   const rawCandidates = corpus.turns.map((turn) => ({ turn }));
   let blocks: ReturnType<typeof createUnitIndex> | undefined;
   let facts: ReturnType<typeof createUnitIndex> | undefined;
+  let windowRecordFts: RecordFtsIndex | undefined;
   const unitIndexes: { blocks?: UnitIndexIngestion; facts?: UnitIndexIngestion } = {};
+  const recordIndexIngestion: { fact?: RecordIndexIngestion; window?: RecordIndexIngestion } = {};
   const prepare = (systems: readonly System[]) => {
     if (systems.some((system) => system.endsWith("block")) && blocks === undefined) {
       const started = performance.now();
@@ -203,7 +257,14 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
       facts = createUnitIndex(corpus, units, records, store);
       unitIndexes.facts = { units: units.length, buildMs: performance.now() - started };
     }
-    return { ...unitIndexes };
+    if (systems.includes("bm25-record-window") && windowRecordFts === undefined) {
+      windowRecordFts = buildRecordFtsIndex(store);
+      recordIndexIngestion.window = { documents: windowRecordFts.documents, buildMs: windowRecordFts.buildMs };
+    }
+    if (systems.includes("bm25-record-fact") && facts !== undefined && recordIndexIngestion.fact === undefined) {
+      recordIndexIngestion.fact = facts.prepareRecordIndex();
+    }
+    return { ...unitIndexes, ...(Object.keys(recordIndexIngestion).length ? { recordIndexes: { ...recordIndexIngestion } } : {}) };
   };
   const ohCandidate = (index: number): Candidate => {
     const record = store.get(records[index]!.key);
@@ -230,10 +291,14 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
         prepare([system]);
         return facts!.retrieve(system, query, budget);
       }
+      if (system === "bm25-record-window") prepare([system]);
       const focused = system.endsWith("focused") || system.endsWith("window");
       const terms = queryTerms(query, focused);
       let candidates: Candidate[];
-      if (system.startsWith("oh-")) {
+      if (system === "bm25-record-window") {
+        const keys = queryRecordFts(windowRecordFts!, terms.join(" "), budget.topK);
+        candidates = keys.flatMap((key) => { const index = keyToIndex.get(key); return index === undefined ? [] : [ohCandidate(index)]; });
+      } else if (system.startsWith("oh-")) {
         const result = await searchOhV1({ store, query: focused ? terms.join(" ") : query,
           mode: "keyword", limit: budget.topK });
         candidates = result.results.map(({ record }) => ({ turn: fromRecord(record), digest: record.recordSha256 }));
@@ -250,13 +315,13 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
           return [position - 1, position + 1].filter((index) =>
             corpus.turns[index]?.sessionId === candidate.turn.sessionId
             && corpus.turns[index]?.sessionIndex === candidate.turn.sessionIndex)
-            .map((index) => system.startsWith("oh-") ? ohCandidate(index) : rawCandidates[index]!);
+            .map((index) => (system.startsWith("oh-") || system === "bm25-record-window") ? ohCandidate(index) : rawCandidates[index]!);
         };
         candidates = system.endsWith("anchor-window") ? [...candidates, ...candidates.flatMap(neighbors)]
           : candidates.flatMap((candidate) => [candidate, ...neighbors(candidate)]);
       }
       return pack(candidates, budget.contextBytes);
     },
-    close() { blocks?.close(); facts?.close(); store.close(); bm25.close(); },
+    close() { blocks?.close(); facts?.close(); store.close(); bm25.close(); windowRecordFts?.database.close(); },
   };
 }

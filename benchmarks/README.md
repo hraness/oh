@@ -113,9 +113,10 @@ one-question corpora, and report an undiscounted `uncachedReaderCostUsd`
 estimate alongside observed cache-adjusted accounting. Provider caches can be
 shared across similar requests, so cache-discount differences alone do not
 establish an algorithmic efficiency gain. Missing cache details are distinguished
-from reported zero cache use. The current cumulative ceiling is $13, raised
-from the initial $10 only after explicit authorization for a modest follow-up
-round. Each command still requires its own `--max-usd` and `--max-calls`.
+from reported zero cache use. The current cumulative ceiling is $62.248769: the existing $12.248769
+exposure plus an explicitly authorized $50 follow-up. The
+[budget amendment](results/memory-superiority-budget-amendment.json) binds that
+opening exposure to the ledger hash and reserves $5 for answering and judging. Each command still requires its own `--max-usd` and `--max-calls`.
 Separate checkouts do not share that ledger. Do not remove it to restart a
 pilot budget.
 
@@ -166,8 +167,10 @@ chunks are reused, including later corpora if an earlier missing chunk fails.
 The original ingestion cost remains in the report and shared spending ledger.
 The provider schema enforces the existing object shape and array limits; local
 validation still checks UTF-8 byte bounds and exact source quotes. Reports retain
-the schema hash, and resumed caches may include earlier prompt-only or JSON-mode
-chunks. A format change is recorded before any held-out answers are generated.
+the schema hash. Non-frozen legacy experiments may reuse earlier prompt-only
+or JSON-mode chunks. With `--selection`, a resume requires the same source and
+selection hashes, strict JSON schema, and 8,192-token extraction profile. A
+format change is recorded before any held-out answers are generated.
 
 ```sh
 vercel env run --project YOUR_PROJECT --scope YOUR_TEAM --environment development -- \
@@ -190,14 +193,30 @@ claims rather than trusting an old index entry.
   is not raw-turn recall and is reported separately; reader quality is the
   meaningful comparison.
 
-The matched BM25 controls use the same units. A gain from extraction is evidence
-for a memory-representation strategy, not proof that a storage label improves
-answers. A valid quote proves attribution, not semantic entailment. Ingest-time
+The visible-text BM25 controls use the same units but index their rendered
+text. Oh indexes record keys, kinds, object keys and values as well, including
+source digests and session metadata. Both rank with SQLite FTS5 BM25. These
+controls therefore compare indexed representations; they do not isolate a
+different ranking algorithm. A gain from extraction is evidence for a memory
+strategy, with its full ingestion cost included. A valid quote proves attribution, not semantic entailment. Ingest-time
 LLM tokens and cost remain visible when cached units are reused.
 Offline retrieval prepares each requested representation before timing queries
 and reports its shared Oh/BM25 index construction under ingestion. Historical
 development reports created before this separation include lazy index construction
 in the first query; their query latency is unsuitable for paired comparisons.
+
+The explicit-only `bm25-record-fact` and `bm25-record-window` controls copy the
+exact committed search-document text into independent FTS5 indexes. Their query
+normalization, BM25 ordering, record-key tie breaking, source validation and
+context packing match `oh-fact` and `oh-window`. They never call Oh's keyword
+search method. Exact context equality is the expected sanity check, not an
+answer-quality win. The original visible-text controls remain unchanged.
+
+The additional control indexes are prepared before offline query timing, only
+when requested. Their build costs appear under `ingestion[].unitIndexes.recordIndexes`.
+These controls depend on Oh's document preparation; a complete standalone cost
+must include that work as well as the independent index build. Their copied
+index cost alone is not a competing system's ingestion cost.
 
 Use repeated `--exclude-report PRIOR.json` arguments to exclude entire previously
 examined question families before selection. The command records exclusion
@@ -311,7 +330,7 @@ Oh-fact's difference from BM25-window was +10 percentage points, with a paired
 conversation-bootstrap interval of -3.45 to +22.58 points. Only two conversation
 clusters support that interval. These development results justified testing
 the representation on untouched families; they do not establish a general
-quality improvement or an advantage of Oh over matched BM25.
+quality improvement or an advantage of Oh over the visible-text BM25 control.
 
 The [development extraction](results/locomo-units-development-v1.json) accepted
 906 units, rejected nine individual candidates, and cost $0.134719 across 63
@@ -361,7 +380,7 @@ Total extraction accounting is $3.233942 for 831 requests, including the five
 failed requests. The final attempt added $1.559727; its smaller incremental cost
 must not replace the full ingestion cost in a cold-start comparison. Earlier
 reports and their linked resume identities retain the failure and spending
-history. The shared ledger remains subject to the $13 cumulative API ceiling.
+history. These runs used the then-current $13 cumulative API ceiling.
 
 ## Fresh memory representation results
 
@@ -382,10 +401,11 @@ source identities, paired outcomes, and costs:
 
 Oh compact facts improved two answers and regressed none relative to the raw
 BM25 window, for an observed +16.67 percentage points. The paired 95%
-family-bootstrap interval is 0 to +41.67 points. Against matched BM25 facts,
+family-bootstrap interval is 0 to +41.67 points. Against visible-text BM25 facts,
 there were three wins and no losses, with an interval of 0 to +50 points.
-These intervals include no improvement and only 12 independent families were
-tested. This is a promising sample result, not established superiority or an
+These intervals include no improvement and only 12 nominal families were
+tested. LongMemEval families can share conversation content, so those
+family-bootstrap intervals do not establish independent-history uncertainty. This is a promising sample result, not established superiority or an
 official leaderboard score. Neither ranking nor prompts were tuned on these
 answers.
 
@@ -413,3 +433,62 @@ These experiments measure memory representations and downstream answers with
 isolated adapters. They do not add an automatic memory-writing policy to Oh.
 Real-agent writing, updating, and successful task resumption remain unmeasured,
 and no competing OSS implementation was run to establish superiority.
+
+## Frozen finite-pool confirmation
+
+The follow-up uses a saved simple random sample of one fixed representative
+per LongMemEval S family. The representative is the smallest question ID in
+code-unit order. This normally selects the base question when an abstention
+variant also exists; results describe that representative pool, not the
+dataset's full mixture of questions.
+
+Create the sample once, before examining outcomes. Repeat the same
+`--exclude-report` arguments when creating and replaying it:
+
+```sh
+bun run bench:memory select --dataset longmemeval-s --split test --seed 17 \
+  --limit 120 --output .cache/benchmarks/selection.json \
+  --exclude-report benchmarks/results/longmemeval-memory-strategy-fresh-v1.json
+bun run bench:memory retrieval --dataset longmemeval-s --split test --seed 17 \
+  --selection .cache/benchmarks/selection.json --systems bm25-window,bm25-record-window \
+  --exclude-report benchmarks/results/longmemeval-memory-strategy-fresh-v1.json
+```
+
+This example shows the mechanism; a confirmatory run must exclude every
+previously inspected family, using all applicable reports. `select` uses
+`crypto.randomInt` with a partial Fisher–Yates shuffle. The saved IDs, pool
+mapping, method, representative policy, source checksum, split seed and
+exclusion hashes are the replay authority. `--selection` works with extraction,
+retrieval and answering, and cannot be combined with `--limit`. Replaying a
+changed pool or mismatched exclusion set fails rather than drawing replacements.
+
+The [finite-pool analysis](finite-population.md) uses conservative one-sided
+bounds with exact arithmetic. The fixed three-arm decision in
+`scripts/benchmarks/superiority.ts` requires a complete judgment matrix,
+positive simultaneous lower bounds against both raw-window controls, and at
+least five percentage points of observed improvement over each. A failure to
+meet that rule is reported as no established improvement on this run.
+
+
+The [saved 120-family selection](results/longmemeval-superiority-selection-v1.json)
+and [public protocol](results/memory-superiority-freeze-v2.json) define this
+follow-up. The original v1 draft is retained; v2 superseded it before paid
+extraction began. Seed 17 fixes the split. Sampling uses cryptographic
+randomness; the saved draw order and rotating system order fix execution
+order. Gateway model sampling remains unseeded.
+
+Verify the full artifacts before interpreting judgments:
+
+```sh
+bun scripts/benchmarks/confirm.ts \
+  FULL_FREEZE.json \
+  benchmarks/results/longmemeval-superiority-selection-v1.json \
+  UNITS.json ANSWERS.json JUDGE.json NEW_RESULT.json
+```
+
+The public protocol omits only the deployment identifier and records the hash
+of the unchanged full protocol. Use that retained full protocol with the
+completed full extraction, answer and judge reports, not their compact
+summaries. The scorer binds their bytes, source identity, selection, prompts,
+models and budgets to the frozen protocol. It rejects mismatched artifacts and
+cannot certify an incomplete matrix. Run it from the frozen source tree.

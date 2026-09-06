@@ -1,0 +1,13 @@
+{
+  "protocol": "oh.memory-budget-amendment.v1",
+  "date": "2026-09-06",
+  "previousCumulativeCeilingUsd": 13,
+  "openingLedgerSha256": "871729e913d6d367b40ea8d39157aff45c7cce162fc843a12f099e331272fab2",
+  "openingExposureMicros": 12248769,
+  "additionalAuthorizedMicros": 50000000,
+  "cumulativeCeilingMicros": 62248769,
+  "plannedFamilies": 120,
+  "extractionCumulativeCeilingMicros": 57248769,
+  "remainingAllocation": "Reserve $5 of the additional ceiling for answering, judging and unresolved requests. No optional expansion based on scores.",
+  "ledgerPolicy": "Preserve the existing shared ledger and all unresolved reservations. Limits apply across providers and retries."
+}
