@@ -31,6 +31,6 @@ export async function openExistingOhLibSqlStoreAuthorityV1(client: OhLibSqlClien
 
 export async function purgeOhLibSqlWorkingSpaceV1(client: OhLibSqlClientV1,
   options: OhLibSqlStoreAuthorityOptionsV1 & Readonly<{ purgedAt?: string }> = {}):
-  Promise<OhSpacePurgeReceiptV1>> {
+  Promise<OhSpacePurgeReceiptV1> {
   return await purge(client, options);
 }
