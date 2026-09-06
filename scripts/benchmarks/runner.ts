@@ -1,7 +1,7 @@
 import { canonicalSha256, sha256Hex } from "../../src/canonical";
 import { EVIDENCE_REFERENCE_PROTOCOL, type Dataset } from "./datasets";
 import { evidenceMetrics, mean, pairedBootstrap, percentile } from "./metrics";
-import { createRetrievers, type RetrievalBudget, type System } from "./retrieval";
+import { benchmarkBaseline, benchmarkOrder, createRetrievers, type RetrievalBudget, type System } from "./retrieval";
 
 export type RetrievalRow = Readonly<{
   questionId: string; corpusId: string; groupId: string; category: string; system: System;
@@ -31,6 +31,7 @@ export async function runRetrieval(dataset: Dataset, systems: readonly System[],
   const rows: RetrievalRow[] = [];
   const ingestion: { corpusId: string; turns: number; duplicateSessionIds: number; ohMs: number; bm25Ms: number }[] = [];
   const unresolvedReferences: { questionId: string; reference: string }[] = [];
+  let questionIndex = 0;
   for (const corpus of dataset.corpora) {
     const retrievers = createRetrievers(corpus);
     const occurrences = new Map<string, Set<number | undefined>>();
@@ -50,8 +51,8 @@ export async function runRetrieval(dataset: Dataset, systems: readonly System[],
       }
     }
     try {
-      for (const [index, question] of questions.entries()) {
-        const order = [...systems.slice(index % systems.length), ...systems.slice(0, index % systems.length)];
+      for (const question of questions) {
+        const order = benchmarkOrder(systems, questionIndex++);
         for (const system of order) {
           const started = performance.now();
           const retrieved = await retrievers.retrieve(system, question.question, budget);
@@ -73,8 +74,7 @@ export async function runRetrieval(dataset: Dataset, systems: readonly System[],
         summarizeRetrieval(selected.filter((row) => row.category === category))]),
     ) }];
   }));
-  const baseline = systems.includes("bm25-window") ? "bm25-window"
-    : systems.includes("bm25-focused") ? "bm25-focused" : systems[0]!;
+  const baseline = benchmarkBaseline(systems);
   const baselineRows = new Map(rows.filter((row) => row.system === baseline).map((row) => [row.questionId, row]));
   const comparisons = Object.fromEntries(systems.filter((system) => system !== baseline).map((system) => [system,
     { baseline, metric: "turn-recall", interval95: pairedBootstrap(rows.filter((row) => row.system === system)
@@ -91,7 +91,7 @@ export async function runRetrieval(dataset: Dataset, systems: readonly System[],
   const deterministicRows = rows.map(({ retrievalMs: _retrievalMs, ...row }) => row)
     .sort((left, right) => `${left.questionId}:${left.system}`.localeCompare(`${right.questionId}:${right.system}`));
   return { status: "completed", rows, summaries, comparisons, ingestion, unresolvedEvidence: unresolvedReferences.length,
-    evidenceProtocol: EVIDENCE_REFERENCE_PROTOCOL,
+    evidenceProtocol: EVIDENCE_REFERENCE_PROTOCOL, queryOrder: "global-question-rotation.v1",
     evidenceNormalization: { questions: normalizations.length, examples: normalizations.slice(0, 64) },
     unresolvedReferences: unresolvedReferences.slice(0, 64),
     resultSha256: canonicalSha256(deterministicRows),

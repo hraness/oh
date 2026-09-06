@@ -75,6 +75,7 @@ export function pairedBootstrap(observations: readonly Readonly<{ cluster: strin
     groups.set(observation.cluster, group);
   }
   const clusters = [...groups.keys()].sort().map((key) => groups.get(key)!);
+  if (clusters.length < 2) return null;
   const next = random(seed);
   const differences: number[] = [];
   for (let index = 0; index < samples; index += 1) {

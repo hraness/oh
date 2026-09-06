@@ -1,0 +1,1131 @@
+{
+  "protocol": "oh.memory-benchmark.v1",
+  "createdAt": "2026-09-05T22:49:49.112Z",
+  "manifest": {
+    "command": "answer",
+    "dataset": "longmemeval-s",
+    "source": {
+      "bytes": 277383467,
+      "revision": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+      "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+      "url": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/98d7416c24c778c2fee6e6f3006e7a073259d48f/longmemeval_s_cleaned.json"
+    },
+    "split": "dev",
+    "seed": 17,
+    "limit": 12,
+    "systems": [
+      "no-memory",
+      "full-context",
+      "bm25-focused",
+      "bm25-window",
+      "oh-keyword",
+      "oh-focused",
+      "oh-window"
+    ],
+    "budget": {
+      "topK": 20,
+      "contextBytes": 12000
+    },
+    "code": {
+      "sourceSha256": "5f6b543beaf1edf15a4f4b2dd67d9451a44df9b29897753bd24dc6f426abaff2",
+      "gitHead": "70bd7ca6b444c0fe03ba4f52669d0cf0aa1715ff",
+      "dirty": true,
+      "bun": "1.3.14",
+      "node": "v24.20.0",
+      "bunNodeCompatibility": "24.3.0",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "files": [
+        {
+          "path": "bun.lock",
+          "sha256": "442038a76c2af0dda4dda001c777ebbb9968aaf2b64b7bc1bf55e9dc6a9d2a65"
+        },
+        {
+          "path": "package.json",
+          "sha256": "7a850c09029ef5fcf4db2cc63cb7c6094483ee9ec76234acfe5fc99e48445d0a"
+        },
+        {
+          "path": "scripts/benchmark-memory.ts",
+          "sha256": "ae6e204d05d1c0413cf28d1cf085dc377c69d4767c725061bb6766d114b0da5d"
+        },
+        {
+          "path": "scripts/benchmarks/artifacts.ts",
+          "sha256": "ddac744f9b1c2235593cc04914e70812dbfc7159a09537ac9e1c56c8e83805a1"
+        },
+        {
+          "path": "scripts/benchmarks/datasets.ts",
+          "sha256": "cefef13172b92be1b27ff72c97f7c832c813671e2df8bfe284be5c05e8a03e48"
+        },
+        {
+          "path": "scripts/benchmarks/io.ts",
+          "sha256": "64043983706210387ef8696e4a9cf2ec9112be4337f2a9dfac34f3e47d7fa956"
+        },
+        {
+          "path": "scripts/benchmarks/metrics.ts",
+          "sha256": "8852d2947d125c34b119ac6e0eda927d2b7e8484725f26c21371fd39f58757db"
+        },
+        {
+          "path": "scripts/benchmarks/model.ts",
+          "sha256": "b1508c18e269fab53f50ebd49ff46d89652ae5a65855e2ed4bb8b99b1ef6b6b3"
+        },
+        {
+          "path": "scripts/benchmarks/retrieval.ts",
+          "sha256": "8d6cbee9467feb2f5bd0e67df879fa4ba7b5b077d3b911d248e114395612d62f"
+        },
+        {
+          "path": "scripts/benchmarks/runner.ts",
+          "sha256": "bdfe73b07305f4dc9fd40ee408f7e6bf7e979b07af72ae2db230481c992a570e"
+        },
+        {
+          "path": "scripts/benchmarks/state.ts",
+          "sha256": "e0fb052b5a2b6ab2184d1c4baf53068aff952360c6400240a276c2303440a260"
+        },
+        {
+          "path": "src/canonical.test.ts",
+          "sha256": "5de29527ba01b6e0cdc6bddc0a5d759d1fcfff3e7e261df06c1163ef2c0ce4c2"
+        },
+        {
+          "path": "src/canonical.ts",
+          "sha256": "130fef8c25ccf3aee399a81948204752adbf6b7818ce564f09ba633942ebeab6"
+        },
+        {
+          "path": "src/cli.test.ts",
+          "sha256": "dc92796b730b982e09108bc9e754b198cc6badd643bdb6b5b393775b72b2cb33"
+        },
+        {
+          "path": "src/cli.ts",
+          "sha256": "0da4d3b17bac4d081267c324046dcacb6a9f43fc4390fbb11e53651995afd4b5"
+        },
+        {
+          "path": "src/cloudflare-embedding.test.ts",
+          "sha256": "8538b7d7033feacab3fe5ce755af846d52ccbc763801df237ec169e68ac188ca"
+        },
+        {
+          "path": "src/cloudflare-embedding.ts",
+          "sha256": "71aa63b9dab9ef7135b821fc140547f3d7ec6705f432b815f9fbe1124b22a2df"
+        },
+        {
+          "path": "src/contract.ts",
+          "sha256": "246b98886f545cfe75cb1303e14ecff90961f1447e304703d4544b2b6ed17ee9"
+        },
+        {
+          "path": "src/contracts.test.ts",
+          "sha256": "22a9733412f62993fed82f6488453de82ed7b4535a3fb33ed46bfc379bf339f0"
+        },
+        {
+          "path": "src/graph.ts",
+          "sha256": "8643f35ae73dd477608cb342eed7f8c5f30497f3e3936eee00a062a4960cac43"
+        },
+        {
+          "path": "src/index.ts",
+          "sha256": "336de7467e585878b30c48770ea1e71f95dd21a0842e79511e36ca0a1195d628"
+        },
+        {
+          "path": "src/libsql-semantic-v2.test.ts",
+          "sha256": "dc294fb5d1f41623302931fb7ea5f169e5f72c7ad41940b748ae3c4878b8c1ea"
+        },
+        {
+          "path": "src/libsql-semantic-v2.ts",
+          "sha256": "c3c6a7ff08df772300a0549d406cb4a4d67d4c2666b3ba647df535c3c2ad2d42"
+        },
+        {
+          "path": "src/libsql-semantic.test.ts",
+          "sha256": "9cd6b0e34cdf4e84be522f50aeed99c245de5dc52d32958f617edf1311d0536a"
+        },
+        {
+          "path": "src/libsql-semantic.ts",
+          "sha256": "cadda4b84e9db583016e8bd0e3d99c88aa36d0e440c13c4d41132f330fba21ef"
+        },
+        {
+          "path": "src/libsql.test.ts",
+          "sha256": "a1b9a0bbd37aa08c828726e01dcff6b5378ed5bc732c906c96cbdf1f74fb2c0b"
+        },
+        {
+          "path": "src/libsql.ts",
+          "sha256": "ca561827a6097bc813e8f7e10477cfccfe219a7b15ddf74abc89743ebd978833"
+        },
+        {
+          "path": "src/memory-page.ts",
+          "sha256": "617398b0959650218ac2ea1ebf355c20f82640794b3a3bdbe478795057ccd244"
+        },
+        {
+          "path": "src/memory-pages.test.ts",
+          "sha256": "675fcc1f3bfafab2776e902333b29bdf334cc91be7942feb52f06b620e4885a1"
+        },
+        {
+          "path": "src/memory-pages.ts",
+          "sha256": "7915df13e97552c70c5a75a1ecdea6ea96abe467a6a473e3fefbb0958115f49d"
+        },
+        {
+          "path": "src/memory.test.ts",
+          "sha256": "08f66676770826b9cccade64bb110de3e45b158287ae6acbdbf85319c5fd6d4d"
+        },
+        {
+          "path": "src/memory.ts",
+          "sha256": "6295c7305f40e3295f99aece4d78038b917d69caa3339e0fe61957d31899cde0"
+        },
+        {
+          "path": "src/ontology.ts",
+          "sha256": "0044f0d71c595e48f145767279d7175af2748d49faf0763ab07fe4fbe698a107"
+        },
+        {
+          "path": "src/operation.ts",
+          "sha256": "4163691ed74f3dfa86a042e4623e99807aac6df6d6af7def31077e238921373d"
+        },
+        {
+          "path": "src/projection-public.ts",
+          "sha256": "cdb9336e7aec0e79804d51f373628f18ebb536d43344a51ba49e2efef29882b7"
+        },
+        {
+          "path": "src/projection-suss.ts",
+          "sha256": "aa6ebb98cf0b74b8ac1ab5322fe41ae1ec19d53808ffd9559ec792d015804229"
+        },
+        {
+          "path": "src/projection.test.ts",
+          "sha256": "99ec694abfe68f44958ba97ea54aba0d6bbb2c715e082bb5b1ac3f0e856bf1a5"
+        },
+        {
+          "path": "src/projection.ts",
+          "sha256": "b6ae86061378bd7d3b6759c7aa04b344b569b0205253ac90012e5b9654decfc3"
+        },
+        {
+          "path": "src/schema.ts",
+          "sha256": "6f4171f7f70a0a863ea65fd0e3a066f19b039e5757c8487e669058d334592423"
+        },
+        {
+          "path": "src/sdk.ts",
+          "sha256": "0b1eabcb199b3a780f7baf6d2dffe86b55024b220645d6991a8303639ae9b1d3"
+        },
+        {
+          "path": "src/search.ts",
+          "sha256": "1612b784ba0fa842bdf6b6b4aa18add1ddd7d9d5c5990b4b06fce69bf0297562"
+        },
+        {
+          "path": "src/semantic-cloud.ts",
+          "sha256": "8026416dc8409f713115cfab350ab979064260d997478ff940d9d6fffa6394bf"
+        },
+        {
+          "path": "src/semantic.test.ts",
+          "sha256": "cdb6f708a56954f5a7bd614dae80190d503833aad920de3bece2ec57339a9157"
+        },
+        {
+          "path": "src/semantic.ts",
+          "sha256": "5fcdef354cdef76af105dbbc5763c54bf39e2eafc923b4b95b1a10a6fe71a3ba"
+        },
+        {
+          "path": "src/sqlite/driver.ts",
+          "sha256": "7049a46897b7cff9e601366d40dc5c326b8f6c43c6dc528a079a1a3a228d3416"
+        },
+        {
+          "path": "src/sqlite/index.ts",
+          "sha256": "5ec234742b85c38c08c4d5defde01025efddd5facfbb86771ecf84e975e3f385"
+        },
+        {
+          "path": "src/sqlite/migrations.test.ts",
+          "sha256": "54ab7df6eff7ef3804c9786dab09167da2863af3d5edeb8c9bf5054d2bfdffca"
+        },
+        {
+          "path": "src/sqlite/migrations.ts",
+          "sha256": "d7fe488dce50c70ee37d2363ad17950e2e8e60459e56cf01b19ae0a26dfdc64b"
+        },
+        {
+          "path": "src/sqlite/port.test.ts",
+          "sha256": "bfd1470fbc7bed28849ea2b556598e75b007c0d9ebbd5337f2198c5dab4d5a68"
+        },
+        {
+          "path": "src/sqlite/port.ts",
+          "sha256": "0ad110ff6218f06f58d382ae6aab54b4310cd3a33fed35ee92f0be09b72457b0"
+        },
+        {
+          "path": "src/sqlite/runtime.test.ts",
+          "sha256": "f75643581bfbaf4d6371a11308f2c50b1c8bb8381ae1bee3225c03b9e02c0960"
+        },
+        {
+          "path": "src/sqlite/runtime.ts",
+          "sha256": "f44a1535ef9840b2189674a31440270567702ecd233e3ff4bc397ba13241b0c8"
+        },
+        {
+          "path": "src/sqlite/store.test.ts",
+          "sha256": "4112085c83e02fcb64065ba7d100046b1b8436532039c6465ae335f5ffde2203"
+        },
+        {
+          "path": "src/sqlite/store.ts",
+          "sha256": "ad6c1e744dcf1c6309a9f65de8e53e8d120f2427fe9c968bfd2a3d64424ec4f3"
+        },
+        {
+          "path": "src/store.test.ts",
+          "sha256": "b0f637067b1dd9a03498e7378d14d0e2f756b5eba7400df93df073d610a67dc3"
+        },
+        {
+          "path": "src/store.ts",
+          "sha256": "704273269eb0ec714ed4a9882ef7fd1bda40fcf3770bc36842bc5a3a8620c7cf"
+        },
+        {
+          "path": "src/sync.test.ts",
+          "sha256": "b10ada3d7d60e519ffeb43bb3e99897860cb1c2476066eaf6da93fcdc67f9270"
+        },
+        {
+          "path": "src/sync.ts",
+          "sha256": "3e709d8f73232626173dc2cb8c18a23d35131f26d3790e64710e6d06d90ef4f5"
+        },
+        {
+          "path": "tsconfig.json",
+          "sha256": "f8388cc67144cbdc58b321ee745228caea21193e30e106e78a32776864981759"
+        },
+        {
+          "path": "tsconfig.scripts.json",
+          "sha256": "61e27eeeeb22211e6bf6621ad1b2b0e0674c5654e85128f6f4c2bfc694bb85d1"
+        }
+      ]
+    },
+    "selectedCorpora": [
+      "caf9ead2",
+      "29f2956b",
+      "gpt4_194be4b3",
+      "195a1a1b",
+      "d6233ab6",
+      "f0e564bc",
+      "0bc8ad92",
+      "a3838d2b",
+      "4d6b87c8",
+      "ed4ddc30",
+      "70b3e69b",
+      "e3fc4d6e"
+    ],
+    "selectedQuestions": [
+      "4d6b87c8",
+      "f0e564bc",
+      "e3fc4d6e",
+      "d6233ab6",
+      "29f2956b",
+      "a3838d2b",
+      "ed4ddc30",
+      "gpt4_194be4b3",
+      "70b3e69b",
+      "195a1a1b",
+      "caf9ead2",
+      "0bc8ad92"
+    ],
+    "selectionSha256": "7590fac8abd442f96b71e799f4e5b2c1444b2028daa1235c4c6deeb1f9515fd8"
+  },
+  "status": "completed",
+  "stopped": null,
+  "summaries": {
+    "no-memory": {
+      "requested": 12,
+      "completed": 12,
+      "failed": 0,
+      "notRun": 0,
+      "tokenF1CompletedOnly": 0,
+      "tokenF1LowerBound": 0,
+      "inputTokens": 2225,
+      "cachedInputTokens": 0,
+      "outputTokens": 35,
+      "readerCostUsd": 0.00473,
+      "gatewayCostResponses": 0,
+      "gatewayReportedInferenceUsd": null,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 357,
+          "cachedInputTokens": 0,
+          "outputTokens": 6,
+          "readerCostUsd": 0.000762,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "multi-session": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 358,
+          "cachedInputTokens": 0,
+          "outputTokens": 5,
+          "readerCostUsd": 0.000756,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 422,
+          "cachedInputTokens": 0,
+          "outputTokens": 6,
+          "readerCostUsd": 0.000892,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 367,
+          "cachedInputTokens": 0,
+          "outputTokens": 6,
+          "readerCostUsd": 0.000782,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-user": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 356,
+          "cachedInputTokens": 0,
+          "outputTokens": 6,
+          "readerCostUsd": 0.00076,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 365,
+          "cachedInputTokens": 0,
+          "outputTokens": 6,
+          "readerCostUsd": 0.000778,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        }
+      }
+    },
+    "full-context": {
+      "requested": 12,
+      "completed": 12,
+      "failed": 0,
+      "notRun": 0,
+      "tokenF1CompletedOnly": 0.4107526881720431,
+      "tokenF1LowerBound": 0.4107526881720431,
+      "inputTokens": 1440075,
+      "cachedInputTokens": 0,
+      "outputTokens": 353,
+      "readerCostUsd": 2.882974,
+      "gatewayCostResponses": 0,
+      "gatewayReportedInferenceUsd": null,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.5,
+          "tokenF1LowerBound": 0.5,
+          "inputTokens": 241143,
+          "cachedInputTokens": 0,
+          "outputTokens": 5,
+          "readerCostUsd": 0.482326,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "multi-session": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.5,
+          "tokenF1LowerBound": 0.5,
+          "inputTokens": 237705,
+          "cachedInputTokens": 0,
+          "outputTokens": 7,
+          "readerCostUsd": 0.475466,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.5,
+          "tokenF1LowerBound": 0.5,
+          "inputTokens": 242424,
+          "cachedInputTokens": 0,
+          "outputTokens": 10,
+          "readerCostUsd": 0.484928,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.06451612903225806,
+          "tokenF1LowerBound": 0.06451612903225806,
+          "inputTokens": 240737,
+          "cachedInputTokens": 0,
+          "outputTokens": 41,
+          "readerCostUsd": 0.481802,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-user": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.9,
+          "tokenF1LowerBound": 0.9,
+          "inputTokens": 240696,
+          "cachedInputTokens": 0,
+          "outputTokens": 7,
+          "readerCostUsd": 0.481448,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 237370,
+          "cachedInputTokens": 0,
+          "outputTokens": 283,
+          "readerCostUsd": 0.477004,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        }
+      }
+    },
+    "bm25-focused": {
+      "requested": 12,
+      "completed": 12,
+      "failed": 0,
+      "notRun": 0,
+      "tokenF1CompletedOnly": 0.5219806763285024,
+      "tokenF1LowerBound": 0.5219806763285024,
+      "inputTokens": 34989,
+      "cachedInputTokens": 0,
+      "outputTokens": 49,
+      "readerCostUsd": 0.07037,
+      "gatewayCostResponses": 0,
+      "gatewayReportedInferenceUsd": null,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.8333333333333333,
+          "tokenF1LowerBound": 0.8333333333333333,
+          "inputTokens": 6171,
+          "cachedInputTokens": 0,
+          "outputTokens": 5,
+          "readerCostUsd": 0.012382,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "multi-session": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.06521739130434782,
+          "tokenF1LowerBound": 0.06521739130434782,
+          "inputTokens": 5849,
+          "cachedInputTokens": 0,
+          "outputTokens": 16,
+          "readerCostUsd": 0.011826,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 1,
+          "tokenF1LowerBound": 1,
+          "inputTokens": 5759,
+          "cachedInputTokens": 0,
+          "outputTokens": 12,
+          "readerCostUsd": 0.011614,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 5910,
+          "cachedInputTokens": 0,
+          "outputTokens": 4,
+          "readerCostUsd": 0.011852,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-user": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.9,
+          "tokenF1LowerBound": 0.9,
+          "inputTokens": 5743,
+          "cachedInputTokens": 0,
+          "outputTokens": 7,
+          "readerCostUsd": 0.011542,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.3333333333333333,
+          "tokenF1LowerBound": 0.3333333333333333,
+          "inputTokens": 5557,
+          "cachedInputTokens": 0,
+          "outputTokens": 5,
+          "readerCostUsd": 0.011154,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        }
+      }
+    },
+    "bm25-window": {
+      "requested": 12,
+      "completed": 12,
+      "failed": 0,
+      "notRun": 0,
+      "tokenF1CompletedOnly": 0.5120818521556831,
+      "tokenF1LowerBound": 0.5120818521556831,
+      "inputTokens": 35874,
+      "cachedInputTokens": 0,
+      "outputTokens": 84,
+      "readerCostUsd": 0.07242,
+      "gatewayCostResponses": 0,
+      "gatewayReportedInferenceUsd": null,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.8333333333333333,
+          "tokenF1LowerBound": 0.8333333333333333,
+          "inputTokens": 6394,
+          "cachedInputTokens": 0,
+          "outputTokens": 5,
+          "readerCostUsd": 0.012828,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "multi-session": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.08695652173913043,
+          "tokenF1LowerBound": 0.08695652173913043,
+          "inputTokens": 5936,
+          "cachedInputTokens": 0,
+          "outputTokens": 15,
+          "readerCostUsd": 0.011992,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 1,
+          "tokenF1LowerBound": 1,
+          "inputTokens": 5879,
+          "cachedInputTokens": 0,
+          "outputTokens": 12,
+          "readerCostUsd": 0.011854,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.018867924528301886,
+          "tokenF1LowerBound": 0.018867924528301886,
+          "inputTokens": 5892,
+          "cachedInputTokens": 0,
+          "outputTokens": 19,
+          "readerCostUsd": 0.011936,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-user": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.8,
+          "tokenF1LowerBound": 0.8,
+          "inputTokens": 5937,
+          "cachedInputTokens": 0,
+          "outputTokens": 9,
+          "readerCostUsd": 0.011946,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.3333333333333333,
+          "tokenF1LowerBound": 0.3333333333333333,
+          "inputTokens": 5836,
+          "cachedInputTokens": 0,
+          "outputTokens": 24,
+          "readerCostUsd": 0.011864,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        }
+      }
+    },
+    "oh-keyword": {
+      "requested": 12,
+      "completed": 12,
+      "failed": 0,
+      "notRun": 0,
+      "tokenF1CompletedOnly": 0.6053140096618358,
+      "tokenF1LowerBound": 0.6053140096618358,
+      "inputTokens": 35286,
+      "cachedInputTokens": 2688,
+      "outputTokens": 49,
+      "readerCostUsd": 0.066932,
+      "gatewayCostResponses": 0,
+      "gatewayReportedInferenceUsd": null,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.8333333333333333,
+          "tokenF1LowerBound": 0.8333333333333333,
+          "inputTokens": 6136,
+          "cachedInputTokens": 0,
+          "outputTokens": 5,
+          "readerCostUsd": 0.012312,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "multi-session": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.5652173913043478,
+          "tokenF1LowerBound": 0.5652173913043478,
+          "inputTokens": 5853,
+          "cachedInputTokens": 0,
+          "outputTokens": 15,
+          "readerCostUsd": 0.011826,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 1,
+          "tokenF1LowerBound": 1,
+          "inputTokens": 5822,
+          "cachedInputTokens": 0,
+          "outputTokens": 13,
+          "readerCostUsd": 0.011748,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 5928,
+          "cachedInputTokens": 0,
+          "outputTokens": 4,
+          "readerCostUsd": 0.011888,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-user": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.9,
+          "tokenF1LowerBound": 0.9,
+          "inputTokens": 5866,
+          "cachedInputTokens": 0,
+          "outputTokens": 7,
+          "readerCostUsd": 0.011788,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.3333333333333333,
+          "tokenF1LowerBound": 0.3333333333333333,
+          "inputTokens": 5681,
+          "cachedInputTokens": 2688,
+          "outputTokens": 5,
+          "readerCostUsd": 0.00737,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        }
+      }
+    },
+    "oh-focused": {
+      "requested": 12,
+      "completed": 12,
+      "failed": 0,
+      "notRun": 0,
+      "tokenF1CompletedOnly": 0.5886473429951692,
+      "tokenF1LowerBound": 0.5886473429951692,
+      "inputTokens": 34952,
+      "cachedInputTokens": 10240,
+      "outputTokens": 51,
+      "readerCostUsd": 0.054952,
+      "gatewayCostResponses": 0,
+      "gatewayReportedInferenceUsd": null,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.8333333333333333,
+          "tokenF1LowerBound": 0.8333333333333333,
+          "inputTokens": 6107,
+          "cachedInputTokens": 4864,
+          "outputTokens": 5,
+          "readerCostUsd": 0.004958,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "multi-session": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.5652173913043478,
+          "tokenF1LowerBound": 0.5652173913043478,
+          "inputTokens": 5873,
+          "cachedInputTokens": 0,
+          "outputTokens": 15,
+          "readerCostUsd": 0.011866,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 1,
+          "tokenF1LowerBound": 1,
+          "inputTokens": 5759,
+          "cachedInputTokens": 0,
+          "outputTokens": 13,
+          "readerCostUsd": 0.011622,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0,
+          "tokenF1LowerBound": 0,
+          "inputTokens": 5913,
+          "cachedInputTokens": 0,
+          "outputTokens": 4,
+          "readerCostUsd": 0.011858,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-user": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.8,
+          "tokenF1LowerBound": 0.8,
+          "inputTokens": 5743,
+          "cachedInputTokens": 2688,
+          "outputTokens": 9,
+          "readerCostUsd": 0.007526,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.3333333333333333,
+          "tokenF1LowerBound": 0.3333333333333333,
+          "inputTokens": 5557,
+          "cachedInputTokens": 2688,
+          "outputTokens": 5,
+          "readerCostUsd": 0.007122,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        }
+      }
+    },
+    "oh-window": {
+      "requested": 12,
+      "completed": 12,
+      "failed": 0,
+      "notRun": 0,
+      "tokenF1CompletedOnly": 0.5120818521556831,
+      "tokenF1LowerBound": 0.5120818521556831,
+      "inputTokens": 35784,
+      "cachedInputTokens": 26368,
+      "outputTokens": 82,
+      "readerCostUsd": 0.032672,
+      "gatewayCostResponses": 0,
+      "gatewayReportedInferenceUsd": null,
+      "byCategory": {
+        "knowledge-update": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.8333333333333333,
+          "tokenF1LowerBound": 0.8333333333333333,
+          "inputTokens": 6394,
+          "cachedInputTokens": 6016,
+          "outputTokens": 5,
+          "readerCostUsd": 0.003804,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "multi-session": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.08695652173913043,
+          "tokenF1LowerBound": 0.08695652173913043,
+          "inputTokens": 5969,
+          "cachedInputTokens": 1920,
+          "outputTokens": 13,
+          "readerCostUsd": 0.009162,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-assistant": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 1,
+          "tokenF1LowerBound": 1,
+          "inputTokens": 5878,
+          "cachedInputTokens": 2688,
+          "outputTokens": 12,
+          "readerCostUsd": 0.00782,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-preference": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.018867924528301886,
+          "tokenF1LowerBound": 0.018867924528301886,
+          "inputTokens": 5892,
+          "cachedInputTokens": 5504,
+          "outputTokens": 19,
+          "readerCostUsd": 0.00368,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "single-session-user": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.8,
+          "tokenF1LowerBound": 0.8,
+          "inputTokens": 5937,
+          "cachedInputTokens": 5632,
+          "outputTokens": 9,
+          "readerCostUsd": 0.003498,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        },
+        "temporal-reasoning": {
+          "requested": 2,
+          "completed": 2,
+          "failed": 0,
+          "notRun": 0,
+          "tokenF1CompletedOnly": 0.3333333333333333,
+          "tokenF1LowerBound": 0.3333333333333333,
+          "inputTokens": 5714,
+          "cachedInputTokens": 4608,
+          "outputTokens": 24,
+          "readerCostUsd": 0.004708,
+          "gatewayCostResponses": 0,
+          "gatewayReportedInferenceUsd": null
+        }
+      }
+    }
+  },
+  "comparisons": {
+    "no-memory": {
+      "baseline": "bm25-window",
+      "metric": "oh-token-f1.v1",
+      "interval95": {
+        "clusters": 12,
+        "delta": -0.5120818521556831,
+        "lower": -0.7340670859538784,
+        "upper": -0.2811639777595479,
+        "samples": 2000
+      }
+    },
+    "full-context": {
+      "baseline": "bm25-window",
+      "metric": "oh-token-f1.v1",
+      "interval95": {
+        "clusters": 12,
+        "delta": -0.10132916398364016,
+        "lower": -0.3611111111111111,
+        "upper": 0.17632717927909647,
+        "samples": 2000
+      }
+    },
+    "bm25-focused": {
+      "baseline": "bm25-window",
+      "metric": "oh-token-f1.v1",
+      "interval95": {
+        "clusters": 12,
+        "delta": 0.009898824172819247,
+        "lower": -0.014014219305441618,
+        "upper": 0.046855345911949675,
+        "samples": 2000
+      }
+    },
+    "oh-keyword": {
+      "baseline": "bm25-window",
+      "metric": "oh-token-f1.v1",
+      "interval95": {
+        "clusters": 12,
+        "delta": 0.09323215750615259,
+        "lower": -0.013057150669948043,
+        "upper": 0.27342083675143564,
+        "samples": 2000
+      }
+    },
+    "oh-focused": {
+      "baseline": "bm25-window",
+      "metric": "oh-token-f1.v1",
+      "interval95": {
+        "clusters": 12,
+        "delta": 0.07656549083948593,
+        "lower": -0.01620180475799836,
+        "upper": 0.25,
+        "samples": 2000
+      }
+    },
+    "oh-window": {
+      "baseline": "bm25-window",
+      "metric": "oh-token-f1.v1",
+      "interval95": {
+        "clusters": 12,
+        "delta": 0,
+        "lower": 0,
+        "upper": 0,
+        "samples": 2000
+      }
+    }
+  },
+  "qualifications": [
+    "Controlled reader comparison, not a reproduction of MemEval or an official leaderboard submission.",
+    "Gateway family profiles are explicitly unpinned aliases and do not send an unsupported sampling seed; do not merge their scores with direct snapshot runs.",
+    "oh-token-f1.v1 is Unicode word multiset F1 with exact refusal matching; it is not MemEval set-F1, LoCoMo stemmed category scoring, or a native LLM judge.",
+    "No learned fact extraction or embeddings: these adapters measure raw-episode retrieval over the real Oh keyword API.",
+    "Failed and unattempted calls stay in coverage and lower-bound denominators; paired intervals use only completed pairs.",
+    "The shared ledger charges unresolved requests at their conservative reservation. There are no automatic retries.",
+    "Native LongMemEval hypotheses are included for separate official judge evaluation; no judge score is claimed."
+  ],
+  "provider": {
+    "reader": "openai/gpt-4.1",
+    "transport": "vercel-gateway",
+    "authentication": "vercel-project-oidc",
+    "requestedModel": "openai/gpt-4.1",
+    "snapshotPinned": false,
+    "modelSelection": "gateway-family-alias",
+    "samplingSeed": null,
+    "allowedUpstreamProviders": [
+      "openai"
+    ],
+    "temperature": 0,
+    "maxCompletionTokens": 512,
+    "promptProfile": "oh.benchmark.reader.v2",
+    "promptSha256": "a8c6806018c93872268ca5fac594347ff1043ace6d86842d355d9a9933378219",
+    "pricingCheckedAt": "2026-09-05",
+    "pricesUsdPerMillion": {
+      "input": 2,
+      "cachedInput": 0.5,
+      "output": 8
+    },
+    "costAccounting": "Maximum of listed token-rate inference cost and Gateway-reported inference cost when supplied; not a consolidated billing invoice."
+  },
+  "spend": {
+    "capUsd": 10,
+    "maxCalls": 84,
+    "reservedCalls": 84,
+    "priorExposureUsd": 0.541496,
+    "accountedUsd": 3.726546,
+    "confirmedThisRunUsd": 3.18505,
+    "unresolvedThisRunUsd": 0
+  },
+  "phaseAccounting": {
+    "ingestionLlmTokens": 0,
+    "retrievalLlmTokens": 0,
+    "embeddingTokens": 0,
+    "judgeTokens": 0
+  },
+  "fullReportSha256": "bd92910c78ee2da2aad1428a4d0daf07953fa4f3b113d2f9e0e9d095c9687f1c"
+}

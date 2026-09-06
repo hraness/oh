@@ -9,7 +9,7 @@ export function summarizeReport(value: unknown, fullReportSha256: string) {
   }
   const fields = ["protocol", "createdAt", "manifest", "status", "stopped", "summaries", "comparisons", "ingestion",
     "unresolvedEvidence", "unresolvedReferences", "evidenceProtocol", "evidenceNormalization",
-    "resultSha256", "qualifications", "provider", "spend", "phaseAccounting"];
+    "resultSha256", "qualifications", "provider", "spend", "phaseAccounting", "sourceReport", "judgeProtocol", "judgeProfile", "judgeExecution", "queryOrder"];
   return { ...Object.fromEntries(fields.filter((field) => Object.hasOwn(value, field)).map((field) => [field, value[field]])),
     fullReportSha256 };
 }

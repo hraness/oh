@@ -6,14 +6,27 @@ import { searchOhV1 } from "../../src/search";
 import { OhSqliteStore } from "../../src/sqlite/store";
 import type { Corpus, Turn } from "./datasets";
 
-export const SYSTEMS = ["no-memory", "recent", "full-context", "bm25", "bm25-focused", "bm25-window",
-  "oh-keyword", "oh-focused", "oh-window"] as const;
+export const SYSTEMS = ["no-memory", "recent", "full-context", "bm25", "bm25-focused", "bm25-window", "bm25-anchor-window",
+  "oh-keyword", "oh-focused", "oh-window", "oh-anchor-window"] as const;
 export type System = typeof SYSTEMS[number];
 export type RetrievalBudget = Readonly<{ topK: number; contextBytes: number }>;
 export type Retrieved = Readonly<{
   context: string; turnIds: readonly string[]; sessionIds: readonly string[]; recordDigests: readonly string[];
   budgetExempt: boolean; omittedForBudget: number;
 }>;
+
+export function benchmarkBaseline(systems: readonly System[]): System {
+  const priorities: readonly System[] = ["bm25-anchor-window", "bm25-window", "bm25-focused"];
+  const baseline = priorities.find((system) => systems.includes(system)) ?? systems[0];
+  if (baseline === undefined) throw new TypeError("A benchmark requires at least one system.");
+  return baseline;
+}
+
+export function benchmarkOrder(systems: readonly System[], questionIndex: number): readonly System[] {
+  if (systems.length === 0 || !Number.isSafeInteger(questionIndex) || questionIndex < 0) throw new TypeError("Invalid benchmark order.");
+  const offset = questionIndex % systems.length;
+  return [...systems.slice(offset), ...systems.slice(0, offset)];
+}
 
 const stopwords = new Set(("a an the is are was were be been being do does did have has had "
   + "what which who whom whose when where why how can could would should will shall "
@@ -122,14 +135,15 @@ export function createRetrievers(corpus: Corpus) {
         candidates = hits.map((hit) => rawCandidates[hit.turn_index]!);
       }
       if (system.endsWith("window")) {
-        candidates = candidates.flatMap((candidate) => {
+        const neighbors = (candidate: Candidate): Candidate[] => {
           const position = positions.get(candidate.turn.id)!;
-          const neighbors = [position - 1, position + 1].filter((index) =>
+          return [position - 1, position + 1].filter((index) =>
             corpus.turns[index]?.sessionId === candidate.turn.sessionId
-            && corpus.turns[index]?.sessionIndex === candidate.turn.sessionIndex);
-          return [candidate, ...neighbors.map((index) => system.startsWith("oh-")
-            ? ohCandidate(index) : rawCandidates[index]!)];
-        });
+            && corpus.turns[index]?.sessionIndex === candidate.turn.sessionIndex)
+            .map((index) => system.startsWith("oh-") ? ohCandidate(index) : rawCandidates[index]!);
+        };
+        candidates = system.endsWith("anchor-window") ? [...candidates, ...candidates.flatMap(neighbors)]
+          : candidates.flatMap((candidate) => [candidate, ...neighbors(candidate)]);
       }
       return pack(candidates, budget.contextBytes);
     },

@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import { parseLocomo, parseLongMemEval, selectSplit, selectQuestions } from "../scripts/benchmarks/datasets";
 import { evidenceMetrics, pairedBootstrap, tokenF1 } from "../scripts/benchmarks/metrics";
-import { createRetrievers } from "../scripts/benchmarks/retrieval";
+import { createRetrievers, renderTurn } from "../scripts/benchmarks/retrieval";
+import { runRetrieval } from "../scripts/benchmarks/runner";
 
 function locomo(id = "conversation-a") {
   return {
@@ -145,10 +146,35 @@ describe("honest benchmark metrics", () => {
     expect(interval).toEqual({ clusters: 4, delta: 0.5, lower: 0.5, upper: 0.5, samples: 200 });
     expect(pairedBootstrap(observations, 17, 200)).toEqual(interval);
     expect(pairedBootstrap([], 17, 200)).toBeNull();
+    expect(pairedBootstrap([{ cluster: "one", left: 0, right: 1 }], 17, 200)).toBeNull();
   });
 });
 
 describe("isolated memory retrieval", () => {
+  test("can reserve context for ranked anchors before adding lengthy neighbors", async () => {
+    const turns = [
+      { id: "a", sessionId: "one", date: "2026-01-01", speaker: "Ada", text: "orbital amber" },
+      { id: "b", sessionId: "one", date: "2026-01-01", speaker: "Bea", text: "unrelated background ".repeat(30) },
+      { id: "c", sessionId: "two", date: "2026-01-02", speaker: "Ada", text: "orbital cobalt" },
+    ];
+    const contextBytes = Buffer.byteLength(`${renderTurn(turns[0]!)}\n\n${renderTurn(turns[1]!)}`);
+    const memory = createRetrievers({ id: "anchor-test", groupId: "anchor-test", turns });
+    try {
+      expect((await memory.retrieve("oh-window", "orbital", { topK: 2, contextBytes })).turnIds).toEqual(["a", "b"]);
+      for (const system of ["oh-anchor-window", "bm25-anchor-window"] as const) {
+        const result = await memory.retrieve(system, "orbital", { topK: 2, contextBytes });
+        expect(result.turnIds).toEqual(["a", "c"]);
+        expect(Buffer.byteLength(result.context)).toBeLessThanOrEqual(contextBytes);
+      }
+    } finally { memory.close(); }
+  });
+
+  test("rotates baseline order across independent one-question corpora", async () => {
+    const data = parseLongMemEval([longmem("first"), longmem("second")]);
+    const report = await runRetrieval(data, ["no-memory", "bm25-focused"], { topK: 2, contextBytes: 2_000 }, 17);
+    expect(report.rows.map((row) => row.system)).toEqual(["no-memory", "bm25-focused", "bm25-focused", "no-memory"]);
+  });
+
   test("preserves repeated native session IDs without merging occurrences or crossing their boundaries", async () => {
     const data = parseLongMemEval([{ ...longmem(), haystack_session_ids: ["shared", "shared"],
       haystack_dates: ["2023/05/09 (Tue) 10:00", "2023/05/09 (Tue) 10:00"],

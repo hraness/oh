@@ -8,7 +8,7 @@ import { codeIdentity, displayPath, fetchDataset, loadDataset, ROOT, writeJson, 
 import { SYSTEMS, type System } from "./benchmarks/retrieval";
 import { runRetrieval } from "./benchmarks/runner";
 
-const HELP = `Usage: bun run bench:memory <fetch|retrieval|state|projection|answer|summarize> [options]
+const HELP = `Usage: bun run bench:memory <fetch|retrieval|state|projection|answer|judge|summarize> [options]
 
   --dataset locomo|longmemeval-s|longmemeval-oracle   Default: locomo
   --split dev|test|all                            Default: dev; split by conversation/family
@@ -24,15 +24,20 @@ const HELP = `Usage: bun run bench:memory <fetch|retrieval|state|projection|answ
   --sizes N,N                                    Projection chain sizes; default: 16,32,48
   --repeat N                                     Projection timed repetitions; default: 5
   --paid --max-usd N --max-calls N                 Required for answer; USD cap at most 10
-  --reader MODEL                                 Pinned GPT-4.1 or GPT-4.1-mini snapshot
+  --reader MODEL                                 Direct snapshot or explicit Gateway alias
+  --provider openai|vercel-gateway                Default: openai
+  --answer-tokens N                              Default: 512; maximum: 4096
+  --judge-model MODEL                            Default: GPT-4o profile for the provider
   --help
 
 Datasets are checksum-pinned, fetched explicitly, and cached under .cache/benchmarks.
 Every Oh store is in-memory. No production database, hosted cache, or sync is accessed.
 LoCoMo is CC BY-NC 4.0; review that license for your use. Datasets are not bundled.
 LongMemEval oracle contains only evidence sessions; it is not the S leaderboard split.
-Model runs require OPENAI_API_KEY and explicit paid limits. No key is logged.
-Use bun --env-file=.env.benchmark run bench:memory answer ... for a dedicated ignored key file.
+Paid limits are mandatory. Direct OpenAI uses OPENAI_API_KEY; Gateway uses VERCEL_OIDC_TOKEN.
+Use vercel env run --project PROJECT -- bun run bench:memory answer --provider vercel-gateway ...
+No credential is logged or persisted. Both transports share the same spending ledger.
+Use bun --env-file=.env.benchmark run bench:memory answer ... for a dedicated direct-OpenAI key file.
 Offline scores are evidence recall, not LLM answer accuracy. See benchmarks/research.json.
 `;
 
@@ -48,10 +53,11 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     systems: { type: "string" }, "top-k": { type: "string" }, "context-bytes": { type: "string" },
     output: { type: "string" }, "summary-output": { type: "string" }, input: { type: "string" }, steps: { type: "string" },
     sizes: { type: "string" }, repeat: { type: "string" }, paid: { type: "boolean" },
-    "max-usd": { type: "string" }, "max-calls": { type: "string" }, reader: { type: "string" }, help: { type: "boolean" },
+    "max-usd": { type: "string" }, "max-calls": { type: "string" }, reader: { type: "string" },
+    provider: { type: "string" }, "answer-tokens": { type: "string" }, "judge-model": { type: "string" }, help: { type: "boolean" },
   } });
   if (values.help || positionals.length === 0) { console.log(HELP); return; }
-  if (positionals.length !== 1 || !["fetch", "retrieval", "state", "projection", "answer", "summarize"].includes(positionals[0]!)) {
+  if (positionals.length !== 1 || !["fetch", "retrieval", "state", "projection", "answer", "judge", "summarize"].includes(positionals[0]!)) {
     throw new TypeError("Unknown benchmark command. Use --help.");
   }
   const command = positionals[0]!;
@@ -76,16 +82,26 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   if (await Bun.file(output).exists()) throw new Error("Report already exists; choose a new output path.");
   if (values["summary-output"] !== undefined && (resolve(values["summary-output"]) === output
     || await Bun.file(values["summary-output"]).exists())) throw new Error("Summary must use a distinct, new output path.");
-  const reader = values.reader ?? (name === "locomo" ? "gpt-4.1-mini-2025-04-14" : "gpt-4.1-2025-04-14");
-  const paidOptions = { paid: values.paid === true, maxUsd: Number(values["max-usd"]), maxCalls: Number(values["max-calls"]), reader };
-  if (command === "answer") {
+  const provider = values.provider ?? "openai";
+  const family = command === "judge" ? "gpt-4o" : name === "locomo" ? "gpt-4.1-mini" : "gpt-4.1";
+  const snapshotDate = command === "judge" ? "2024-08-06" : "2025-04-14";
+  const reader = (command === "judge" ? values["judge-model"] : values.reader)
+    ?? (provider === "vercel-gateway" ? `openai/${family}` : `${family}-${snapshotDate}`);
+  const paidOptions = { paid: values.paid === true, maxUsd: Number(values["max-usd"]), maxCalls: Number(values["max-calls"]),
+    reader, provider, maximumOutput: integer(values["answer-tokens"], 512, 1, 4_096) };
+  if (command === "answer" || command === "judge") {
     const { validatePaidAccess } = await import("./benchmarks/model");
     validatePaidAccess(paidOptions);
   }
   const code = await codeIdentity();
   let manifest: object;
   let result: Record<string, unknown>;
-  if (command === "state") {
+  if (command === "judge") {
+    if (!values.input) throw new TypeError("judge requires --input with an existing answer report.");
+    const { runJudge } = await import("./benchmarks/judge");
+    manifest = { command, dataset: name, source: DATASETS[name], split, seed, code };
+    result = await runJudge({ input: values.input, output, datasetName: name, split: split as Split, seed, ...paidOptions });
+  } else if (command === "state") {
     const { runState } = await import("./benchmarks/state");
     const steps = integer(values.steps, 32, 1, 256);
     manifest = { command, seed, steps, code };
@@ -125,11 +141,11 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       return [system, metrics];
     })) : result.summaries;
   console.log(JSON.stringify({ output: displayPath(output), protocol: report.protocol, command,
-    dataset: command === "retrieval" || command === "answer" ? name : undefined,
-    split: command === "retrieval" || command === "answer" ? split : undefined,
+    dataset: command === "retrieval" || command === "answer" || command === "judge" ? name : undefined,
+    split: command === "retrieval" || command === "answer" || command === "judge" ? split : undefined,
     seed, sourceSha256: code.sourceSha256, gitHead: code.gitHead,
     status: result.status ?? "completed", summaries, comparisons: result.comparisons,
-    spend: result.spend, stopped: result.stopped, unresolvedEvidence: result.unresolvedEvidence,
+    provider: result.provider, spend: result.spend, stopped: result.stopped, unresolvedEvidence: result.unresolvedEvidence,
     evidenceProtocol: result.evidenceProtocol, evidenceNormalization: result.evidenceNormalization,
     unresolvedReferences: result.unresolvedReferences, resultSha256: result.resultSha256 }, null, 2));
   if (result.status === "failed" || result.status === "incomplete") process.exitCode = 1;

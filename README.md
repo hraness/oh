@@ -775,8 +775,11 @@ variants are experimental benchmark adapters, not changes to Oh's default
 search policy and not implementations of Letta, Mem0, or another competitor.
 Retrieval adapters share the same top-K seed count and UTF-8 context-byte
 budget; recent context uses the byte budget alone. Full context is explicitly
-exempt, and bytes are not reported as tokens. Paired comparisons prefer the
-matching BM25-window baseline rather than a smaller plain-retrieval context.
+exempt, and bytes are not reported as tokens. Experimental `oh-anchor-window`
+and `bm25-anchor-window` variants reserve room for ranked matches before filling
+remaining space with neighboring turns. They do not change production search.
+Paired comparisons prefer the matching BM25 variant rather than a smaller
+plain-retrieval context.
 
 Reports include source-file hashes, dataset revision and checksum, selected
 question IDs, context digests, per-category scores, missing-annotation counts,
@@ -803,21 +806,75 @@ bun run bench:memory answer --dataset longmemeval-s --split dev --limit 24 \
 ```
 
 Alternatively, pass an ignored `.env.benchmark` file explicitly with
-`bun --env-file=.env.benchmark run bench:memory answer ...`. Keys are never
-included in reports. The runner uses pinned GPT-4.1-family snapshots and the
-same answer prompt across adapters. It reserves conservative maximum request
-cost before dispatch and shares a locked spending ledger across runs in this
-checkout. Unresolved requests retain their reservation, and no request is
-retried automatically. The cumulative cap cannot exceed $10; separate
+`bun --env-file=.env.benchmark run bench:memory answer ...`. Direct OpenAI uses
+pinned GPT-4.1-family snapshots. Credentials are never included in reports.
+
+An existing Vercel project can instead supply short-lived OIDC authentication
+without exporting its secrets to a file. Select your project and team explicitly:
+
+```sh
+vercel env run --project YOUR_PROJECT --scope YOUR_TEAM --environment development -- \
+  bun run bench:memory answer --provider vercel-gateway \
+  --reader openai/gpt-4.1-mini --dataset locomo --split dev --limit 24 \
+  --paid --max-usd 10 --max-calls 96
+```
+
+The Gateway transport reads only `VERCEL_OIDC_TOKEN`, uses a fixed HTTPS
+endpoint, restricts upstream routing to OpenAI, and does not configure remote
+keys, environment variables, or deployments. Its explicit `openai/gpt-4.1-mini`
+and `openai/gpt-4.1` profiles are family aliases, not verified dated snapshots;
+reports distinguish those runs from direct OpenAI. Dated profiles still reject
+an alias response unless routing metadata proves the requested snapshot.
+Gateway does not advertise a sampling seed, so the runner does not send one.
+
+Every adapter in a run uses the same answer prompt and output-token limit.
+Reader profile `oh.benchmark.reader.v2` requests short, complete answers without
+restatements or citations, with a default 512-token output bound configurable
+through `--answer-tokens`. Empty or clipped completions retain their known cost
+and remain failed cases while other questions continue. Transport, identity,
+authentication, and spending failures stop the run; nothing is silently retried.
+
+Both transports reserve conservative maximum request cost before dispatch and
+share one locked spending ledger across runs in this checkout. Unresolved
+requests retain their reservation. Usage-based inference accounting includes
+Gateway-reported inference cost when available; it is not a consolidated billing
+invoice. Runs rotate system order across the entire question sequence, including
+one-question corpora, and report an undiscounted `uncachedReaderCostUsd`
+estimate alongside observed cache-adjusted accounting. Provider caches can be
+shared across similar requests, so cache-discount differences alone do not
+establish an algorithmic efficiency gain. Missing cache details are distinguished
+from reported zero cache use. The cumulative cap cannot exceed $10; separate
 checkouts do not share that ledger. Do not remove it to restart a pilot budget.
 
 The reader's diagnostic `oh-token-f1.v1` metric is **not** MemEval set-F1,
 LoCoMo's native scorer, or an LLM judge. Failed and unattempted requests remain
 visible in coverage and lower-bound denominators. LongMemEval hypotheses are
-included for separate native evaluation. No judge or learned extraction score
-is claimed. Read the [source and protocol audit](benchmarks/research.json) for
-lessons from Lemmalog, Letta, PropMem, Graphiti, Mem0, Hindsight, and SimpleMem,
-including differences that prevent direct leaderboard comparisons.
+also included for separate native evaluation.
+
+Grade an existing reader report without re-running the memory system:
+
+```sh
+vercel env run --project YOUR_PROJECT --scope YOUR_TEAM --environment development -- \
+  bun run bench:memory judge --provider vercel-gateway \
+  --dataset longmemeval-s --split dev --input RUN.json \
+  --paid --max-usd 10 --max-calls 96
+```
+
+The judge validates the reader report against the pinned dataset, split, seed,
+and complete question/system matrix. Only this separate judging step receives
+gold references. LongMemEval uses the [attributed native prompt text](benchmarks/profiles/longmemeval-judge-v1.json);
+LoCoMo uses a separately labelled semantic-reference diagnostic. The renderer
+was checked against all twelve category/abstention combinations of the pinned
+upstream function. Verdicts must be an entire yes/no answer, not a substring.
+The Gateway GPT-4o alias and its 16-token minimum differ from the native pinned
+judge's 10-token setting; these results are not an exact leaderboard reproduction.
+Judging shares the same cumulative spending ledger, and failed or missing
+answers remain visible in denominators. LLM judging is fallible, and one
+conversation cannot produce a meaningful cluster-bootstrap interval.
+
+Read the [source and protocol audit](benchmarks/research.json) for lessons from
+Lemmalog, Letta, PropMem, Graphiti, Mem0, Hindsight, and SimpleMem, including
+differences that prevent direct leaderboard comparisons.
 
 Use `bun run bench:memory --help` for all options. `--output` and
 `--summary-output` accept new report paths and refuse existing files. Use
@@ -856,10 +913,55 @@ result digests, including proofs and work-unit counts, match the
 [after](benchmarks/results/projection-after.json) reports. These are local
 microbenchmarks, not production latency guarantees.
 
-The [reader preflight](benchmarks/results/reader-preflight.json) is blocked on
-benchmark credentials and dispatched no provider requests. End-to-end answer
-quality, learned extraction, actual agent memory-writing behavior, and
-comparative OSS leaderboard performance remain unverified.
+### Recorded reader results
+
+The initial [direct-key preflight](benchmarks/results/reader-preflight.json)
+remains a historical blocked attempt. Vercel project OIDC subsequently enabled
+reader and judge runs using only the public datasets. The algorithms, prompts,
+and selections were [frozen before the held-out run](benchmarks/results/heldout-reader-freeze.json).
+
+These are **judge-assessed results on small held-out samples**, not full-dataset
+or official leaderboard scores:
+
+| System | LoCoMo: 48 questions, 8 conversations | LongMemEval S: 12 questions |
+| --- | ---: | ---: |
+| No memory | 9/48 (18.8%) | 5/12 (41.7%) |
+| Full history | 29/48 (60.4%) | 8/12 (66.7%) |
+| BM25 window | 23/48 (47.9%) | 8/12 (66.7%) |
+| Oh window | 25/48 (52.1%) | 8/12 (66.7%) |
+
+Oh's LoCoMo difference from BM25 is +4.17 percentage points, with a paired
+conversation-bootstrap interval of -4.35 to +16.28 points. That does **not**
+establish superiority. LongMemEval's paired outcomes are identical in this
+sample, not proven equivalent in the population. Five LongMemEval questions
+and nine LoCoMo questions are unanswerable, which matters when interpreting
+the no-memory baseline.
+
+Oh-window used 36,982 reader input tokens against full history's 1,460,995 on
+the LongMemEval sample, with the same judged score. On LoCoMo it used 142,933
+against 1,635,570, but full history scored higher. These are reader-context
+trade-offs, not total-system cost savings. Token F1 alone ranked full history
+below Oh on LoCoMo even though the semantic judge ranked it higher.
+
+The anchor-first ablation was **not promoted**: on the development samples it
+reduced Oh's judged correctness from 9/12 to 8/12 on LongMemEval and from 11/24
+to 10/24 on LoCoMo. It remains an explicit experimental adapter, not the default
+reader comparison or a production search change. Those outcomes were not used
+to tune on the held-out questions.
+
+Inspect the [LoCoMo reader](benchmarks/results/locomo-reader-heldout.json),
+[LoCoMo judge](benchmarks/results/locomo-judge-heldout.json),
+[LongMemEval reader](benchmarks/results/longmemeval-s-reader-heldout.json), and
+[LongMemEval judge](benchmarks/results/longmemeval-s-judge-heldout.json) reports
+for selections, category results, input tokens, and source identities.
+The [pilot audit](benchmarks/results/reader-audit.json) reconciles all 1,341
+request reservations with the ledger: $8.159259 in usage-based accounting plus
+$0.016416 retained for four unresolved early requests, or $8.175675 against the
+$10 cumulative cap. This is not a consolidated provider invoice.
+
+The tested state guarantees, bounded retrieval, and downstream reader results
+remain distinct. Learned extraction, real-agent memory-writing behavior, and
+superiority over comparable OSS systems are still unproven.
 
 ## Verify a checkout
 

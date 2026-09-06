@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { answerMessages, callOpenAI, ledgerExposure, PilotBudget } from "../scripts/benchmarks/model";
+import { answerMessages, callOpenAI, ledgerExposure, PilotBudget, validatePaidAccess } from "../scripts/benchmarks/model";
 
 const model = "gpt-4.1-mini-2025-04-14" as const;
 const messages = [{ role: "user", content: "What color?" }] as const;
@@ -54,6 +54,75 @@ describe("paid pilot boundaries", () => {
     expect(JSON.stringify(events)).not.toContain("benchmark-test-value");
   });
 
+  test("routes the pinned snapshot through Gateway with OIDC and an OpenAI-only filter", async () => {
+    const budget = new PilotBudget({ maxUsd: 1, maxCalls: 1 });
+    const events: unknown[] = [];
+    const result = await callOpenAI({ apiKey: "benchmark-oidc-value", provider: "vercel-gateway",
+      model, messages, budget, seed: 17, record: async (event) => { events.push(event); },
+      fetcher: (async (url, options) => {
+        expect(url).toBe("https://ai-gateway.vercel.sh/v1/chat/completions");
+        expect(options?.redirect).toBe("error");
+        const body = JSON.parse(String(options?.body));
+        expect(body).toMatchObject({ model: `openai/${model}`, max_tokens: 256,
+          providerOptions: { gateway: { only: ["openai"], order: ["openai"] } } });
+        expect(body).not.toHaveProperty("models");
+        expect(String(options?.body)).not.toContain("benchmark-oidc-value");
+        return response({ model: `openai/${model}`, providerMetadata: { gateway: { cost: "0.00002",
+          routing: { finalProvider: "openai", resolvedProviderApiModelId: model } } } });
+      }) as typeof fetch });
+    expect(result.reportedModel).toBe(`openai/${model}`);
+    expect(result.usage).toMatchObject({ micros: 20, gatewayReportedMicros: 20 });
+    expect(ledgerExposure(events)).toBe(20);
+    expect(JSON.stringify(events)).not.toContain("benchmark-oidc-value");
+  });
+
+  test("does not swap OpenAI keys and project OIDC tokens between providers", () => {
+    const input = { paid: true, maxUsd: 1, maxCalls: 1, reader: model };
+    const environment = { OPENAI_API_KEY: "direct-test-value", VERCEL_OIDC_TOKEN: "oidc-test-value" };
+    expect(validatePaidAccess(input, environment).apiKey).toBe("direct-test-value");
+    expect(validatePaidAccess({ ...input, provider: "vercel-gateway" }, environment).apiKey).toBe("oidc-test-value");
+    expect(() => validatePaidAccess({ ...input, provider: "vercel-gateway" }, { OPENAI_API_KEY: "direct-test-value" }))
+      .toThrow("VERCEL_OIDC_TOKEN");
+    expect(() => validatePaidAccess(input, { VERCEL_OIDC_TOKEN: "oidc-test-value" })).toThrow("OPENAI_API_KEY");
+    expect(() => validatePaidAccess({ ...input, provider: "arbitrary-endpoint" }, environment)).toThrow("provider");
+  });
+
+  test("supports an explicitly selected Gateway alias without claiming a snapshot pin", async () => {
+    const gatewayModel = "openai/gpt-4.1-mini" as const;
+    const result = await callOpenAI({ apiKey: "benchmark-oidc-value", provider: "vercel-gateway", model: gatewayModel,
+      messages, budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17,
+      fetcher: (async (_url, options) => {
+        const body = JSON.parse(String(options?.body));
+        expect(body.model).toBe(gatewayModel);
+        expect(body).not.toHaveProperty("seed");
+        return response({ model: gatewayModel });
+      }) as typeof fetch });
+    expect(result.reportedModel).toBe(gatewayModel);
+    expect(result.snapshotPinned).toBe(false);
+    expect(() => validatePaidAccess({ paid: true, reader: gatewayModel, maxUsd: 1, maxCalls: 1 },
+      { OPENAI_API_KEY: "direct-test-value" })).toThrow("Gateway");
+  });
+
+  test("accepts a Gateway family label only when routing proves the exact upstream snapshot", async () => {
+    const result = await callOpenAI({ apiKey: "benchmark-oidc-value", provider: "vercel-gateway", model, messages,
+      budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17,
+      fetcher: (async () => response({ model: "openai/gpt-4.1-mini", providerMetadata: { gateway: {
+        routing: { finalProvider: "openai", resolvedProviderApiModelId: model },
+      } } })) as typeof fetch });
+    expect(result.modelEvidence).toBe("gateway-routing");
+    expect(result.reportedModel).toBe("openai/gpt-4.1-mini");
+  });
+
+  test("refuses a Gateway response with an unpinned model or a different provider", async () => {
+    for (const overrides of [{ model: "openai/gpt-4.1-mini" }, { model: `openai/${model}`,
+      providerMetadata: { gateway: { routing: { finalProvider: "azure" } } } }]) {
+      const budget = new PilotBudget({ maxUsd: 1, maxCalls: 1 });
+      await expect(callOpenAI({ apiKey: "benchmark-oidc-value", provider: "vercel-gateway", model, messages,
+        budget, seed: 17, fetcher: (async () => response(overrides)) as typeof fetch })).rejects.toThrow();
+      expect(budget.summary.unresolvedThisRunUsd).toBeGreaterThan(0);
+    }
+  });
+
   test("retains unknown charges, sanitizes provider failures, and never retries", async () => {
     const budget = new PilotBudget({ maxUsd: 1, maxCalls: 2 });
     let calls = 0;
@@ -67,6 +136,20 @@ describe("paid pilot boundaries", () => {
     expect(budget.summary.confirmedThisRunUsd).toBe(0);
   });
 
+  test("reports safe provider parameter diagnostics without echoing error payloads", async () => {
+    let failure: unknown;
+    try {
+      await callOpenAI({ apiKey: "benchmark-test-value", model, messages,
+        budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17,
+        fetcher: (async () => Response.json({ error: { code: "integer_below_minimum", param: "max_output_tokens",
+          message: "Invalid max_output_tokens. Expected a value >= 16. benchmark-test-value" } }, { status: 400 })) as typeof fetch });
+    } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toContain("max_output_tokens");
+    expect((failure as Error).message).toContain("minimum=16");
+    expect((failure as Error).message).not.toContain("benchmark-test-value");
+  });
+
   test("rejects missing usage and truncated or mismatched model results", async () => {
     for (const overrides of [{ usage: null }, { model: "other-model" }, {
       choices: [{ finish_reason: "length", message: { content: "partial answer" } }],
@@ -78,6 +161,31 @@ describe("paid pilot boundaries", () => {
         expect(budget.summary.unresolvedThisRunUsd).toBeGreaterThan(0);
       }
     }
+  });
+
+  test("retains verified usage on a clipped completion instead of losing its cost", async () => {
+    const budget = new PilotBudget({ maxUsd: 1, maxCalls: 1 });
+    await expect(callOpenAI({ apiKey: "benchmark-test-value", model, messages, budget, seed: 17,
+      fetcher: (async () => response({ choices: [{ finish_reason: "length", message: { content: "partial answer" } }] })) as typeof fetch }))
+      .rejects.toMatchObject({ usage: { inputTokens: 20, outputTokens: 2, micros: 10 } });
+    expect(budget.summary.confirmedThisRunUsd).toBe(0.00001);
+    expect(budget.summary.unresolvedThisRunUsd).toBe(0);
+  });
+
+  test("reserves and enforces an explicit completion-token bound", async () => {
+    let calls = 0;
+    const fetcher = (async (_url, options) => {
+      calls += 1;
+      expect(JSON.parse(String(options?.body)).max_completion_tokens).toBe(512);
+      return response();
+    }) as typeof fetch;
+    await callOpenAI({ apiKey: "benchmark-test-value", model, messages, maximumOutput: 512,
+      budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17, fetcher });
+    await expect(callOpenAI({ apiKey: "benchmark-test-value", model, messages, maximumOutput: 4_097,
+      budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17, fetcher })).rejects.toThrow();
+    await expect(callOpenAI({ apiKey: "benchmark-oidc-value", provider: "vercel-gateway", model, messages,
+      maximumOutput: 10, budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17, fetcher })).rejects.toThrow("at least 16");
+    expect(calls).toBe(1);
   });
 
   test("does not call a provider without a key or if durable reservation fails", async () => {
