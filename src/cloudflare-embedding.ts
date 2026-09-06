@@ -6,7 +6,7 @@ import {
   utf8ByteLength,
   type Sha256Hex,
 } from "./canonical";
-import { normalizeOhEmbeddingV1 } from "./semantic";
+import { normalizeOhEmbeddingV1 } from "./semantic-model";
 
 const cloudflareEmbeddingProfilePayload = Object.freeze({
   dimensions: 768,

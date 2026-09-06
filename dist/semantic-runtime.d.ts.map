@@ -1,0 +1,1 @@
+{"version":3,"file":"semantic-runtime.d.ts","sourceRoot":"","sources":["../src/semantic-runtime.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,yBAAyB,EAAE,MAAM,kBAAkB,CAAC;AAClE,OAAO,EAA8C,KAAK,eAAe,EAAE,MAAM,qBAAqB,CAAC;AAGvG,KAAK,gBAAgB,GAAG,IAAI,CAAC,yBAAyB,EAAE,SAAS,CAAC,CAAC;AAWnE,wBAAgB,oBAAoB,CAAC,OAAO,EAAE,eAAe,GAAG,gBAAgB,CAmC/E"}
