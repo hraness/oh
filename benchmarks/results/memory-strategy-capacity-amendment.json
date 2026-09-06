@@ -1,0 +1,19 @@
+{
+  "protocol": "oh.extraction-capacity-amendment.v1",
+  "at": "2026-09-06T19:44:03.643Z",
+  "originalFreeze": "memory-strategy-fresh-freeze.json",
+  "sourceSha256": "000cea4b0854b21419818bfa78e4006de33b106e873d15334e1ac4cd85b14694",
+  "reason": "The initial complete-history extraction stopped on a clipped response after nine calls; no benchmark reader answers or judge labels were produced for this selection.",
+  "changes": {
+    "extractionMaximumOutputTokens": { "before": 4096, "after": 8192 },
+    "resumeVerifiedCompletedChunks": true,
+    "completedChunksReused": 8
+  },
+  "unchanged": ["selected question families", "extractor prompt", "chunking", "source validation", "reader prompt and output cap", "retrieval systems", "context budget", "judge prompt and decision policy"],
+  "priorIncompleteExtraction": ".cache/benchmarks/runs/longmemeval-fresh-units-v1.json",
+  "priorExtractionUsageUsd": 0.040948,
+  "cumulativeApiExposureBeforeResumeUsd": 8.965466,
+  "cumulativeApiCapUsd": 13,
+  "qualityFeedbackUsedForAmendment": false,
+  "oldReportsRetained": true
+}

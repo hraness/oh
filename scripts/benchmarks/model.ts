@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { canonicalSha256, isPlainRecord, sha256Hex } from "../../src/canonical";
 import type { Dataset, DatasetName, Question } from "./datasets";
+import type { LoadedUnits } from "./extract";
 import { ROOT, writeNew } from "./io";
 import { mean, pairedBootstrap, tokenF1 } from "./metrics";
 import { benchmarkBaseline, benchmarkOrder, createRetrievers, type RetrievalBudget, type System } from "./retrieval";
@@ -58,6 +59,8 @@ export function answerMessages(question: Pick<Question, "question" | "questionDa
     content: JSON.stringify({ question: question.question, questionDate: question.questionDate, memory: context }) }];
 }
 
+export const PILOT_MAX_USD = 13;
+
 export class PilotBudget {
   readonly #cap: number;
   readonly #maximumCalls: number;
@@ -68,9 +71,9 @@ export class PilotBudget {
   #calls = 0;
 
   constructor(options: Readonly<{ maxUsd: number; maxCalls: number; priorExposureMicros?: number }>) {
-    if (!Number.isFinite(options.maxUsd) || options.maxUsd <= 0 || options.maxUsd > 10
+    if (!Number.isFinite(options.maxUsd) || options.maxUsd <= 0 || options.maxUsd > PILOT_MAX_USD
       || !Number.isSafeInteger(options.maxCalls) || options.maxCalls < 1 || options.maxCalls > 10_000) {
-      throw new RangeError("Paid runs require --max-usd greater than 0 and at most 10, and --max-calls from 1 through 10000.");
+      throw new RangeError(`Paid runs require --max-usd greater than 0 and at most ${PILOT_MAX_USD}, and --max-calls from 1 through 10000.`);
     }
     this.#cap = Math.floor(options.maxUsd * 1_000_000);
     this.#maximumCalls = options.maxCalls;
@@ -81,7 +84,7 @@ export class PilotBudget {
 
   reserve(inputBytes: number, model: Model, maximumOutput: number): Reservation {
     if (!Object.hasOwn(MODELS, model) || !Number.isSafeInteger(inputBytes) || inputBytes < 0
-      || !Number.isSafeInteger(maximumOutput) || maximumOutput < 1 || maximumOutput > 4_096) throw new TypeError("Invalid model request bounds.");
+      || !Number.isSafeInteger(maximumOutput) || maximumOutput < 1 || maximumOutput > 8_192) throw new TypeError("Invalid model request bounds.");
     const inputUpperBound = inputBytes + 2_048;
     const contextWindow = model === "gpt-4o-2024-08-06" || model === "openai/gpt-4o" ? 128_000 : 1_047_576;
     if (inputUpperBound + maximumOutput > contextWindow) throw new RangeError("Conservative model context bound exceeded; no truncation is performed.");
@@ -185,9 +188,15 @@ export async function openPilotLedger() {
     const content = await file.exists() ? await file.text() : "";
     const exposure = ledgerExposure(content.split("\n").filter(Boolean).map((line): unknown => JSON.parse(line)));
     const handle = await open(path, "a", 0o600);
+    let writes = Promise.resolve();
     return { exposure,
-      async append(event: LedgerEvent) { await handle.appendFile(`${JSON.stringify(event)}\n`); await handle.sync(); },
-      async close() { await handle.close(); await lock.close(); await unlink(lockPath); },
+      append(event: LedgerEvent) {
+        writes = writes.then(async () => { await handle.appendFile(`${JSON.stringify(event)}\n`); await handle.sync(); });
+        return writes;
+      },
+      async close() {
+        try { await writes; } finally { await handle.close(); await lock.close(); await unlink(lockPath); }
+      },
     };
   } catch (error) { await lock.close(); await unlink(lockPath); throw error; }
 }
@@ -227,17 +236,20 @@ function providerFailureDetails(value: unknown): string {
 
 export async function callOpenAI(options: Readonly<{
   apiKey: string; model: Model; messages: readonly Message[]; budget: PilotBudget; seed: number;
-  provider?: ReaderProvider; maximumOutput?: number; record?: (event: LedgerEvent) => Promise<void>; fetcher?: typeof fetch;
+  provider?: ReaderProvider; maximumOutput?: number; responseFormat?: "json_object";
+  record?: (event: LedgerEvent) => Promise<void>; fetcher?: typeof fetch;
 }>) {
   const provider = readerProvider(options.provider);
   const selection = readerSelection(options.model, provider);
   if (!options.apiKey.trim()) throw new Error(`${provider === "openai" ? "OPENAI_API_KEY" : "VERCEL_OIDC_TOKEN"} is required; no provider request was made.`);
   const maximumOutput = options.maximumOutput ?? 256;
   if (provider === "vercel-gateway" && maximumOutput < 16) throw new RangeError("Gateway completion token bound must be at least 16.");
+  if (options.responseFormat !== undefined && options.responseFormat !== "json_object") throw new TypeError("Unsupported response format.");
   const requestedModel = selection.requestedModel;
   const endpoint = provider === "openai" ? "https://api.openai.com/v1/chat/completions"
     : "https://ai-gateway.vercel.sh/v1/chat/completions";
   const body = { model: requestedModel, messages: options.messages, temperature: 0, store: false,
+    ...(options.responseFormat === undefined ? {} : { response_format: { type: options.responseFormat } }),
     ...(provider === "openai" ? { max_completion_tokens: maximumOutput, seed: options.seed } : { max_tokens: maximumOutput,
       providerOptions: { gateway: { only: ["openai"], order: ["openai"] } } }) };
   const reservation = options.budget.reserve(Buffer.byteLength(JSON.stringify(options.messages)), options.model, maximumOutput);
@@ -303,8 +315,12 @@ export function validatePaidAccess(input: Readonly<{ paid: boolean; maxUsd: numb
 export async function runAnswer(input: Readonly<{
   dataset: Dataset; datasetName: DatasetName; systems: readonly System[]; budget: RetrievalBudget; seed: number;
   paid: boolean; maxUsd: number; maxCalls: number; reader: string; output: string; provider?: string; maximumOutput?: number;
+  memory?: LoadedUnits;
 }>): Promise<Record<string, unknown>> {
   const { apiKey, provider, selection } = validatePaidAccess(input);
+  if (input.systems.some((system) => system.includes("fact")) && input.dataset.corpora.some((corpus) => !input.memory?.units.has(corpus.id))) {
+    throw new Error("Every selected fact corpus requires verified memory units before paid work.");
+  }
   const maximumOutput = input.maximumOutput ?? 512;
   if (!Number.isSafeInteger(maximumOutput) || maximumOutput < 1 || maximumOutput > 4_096) throw new RangeError("Invalid answer token bound.");
   const checkpointPath = `${input.output}.answers.jsonl`;
@@ -319,7 +335,7 @@ export async function runAnswer(input: Readonly<{
   try {
     for (const corpus of input.dataset.corpora) {
       if (stopped !== null) break;
-      const retrievers = createRetrievers(corpus);
+      const retrievers = createRetrievers(corpus, input.memory?.units.get(corpus.id));
       try {
         for (const question of input.dataset.questions.filter((question) => question.corpusId === corpus.id)) {
           if (stopped !== null) break;
@@ -384,7 +400,8 @@ export async function runAnswer(input: Readonly<{
   });
   const summaries = Object.fromEntries(input.systems.map((system) => {
     const selected = rows.filter((row) => row.system === system);
-    return [system, { ...summarize(selected), byCategory: Object.fromEntries([...new Set(selected.map((row) => row.category))]
+    return [system, { ...summarize(selected), ingestionCostUsd: system.includes("fact") ? input.memory?.provenance.ingestionCostUsd ?? 0 : 0,
+      byCategory: Object.fromEntries([...new Set(selected.map((row) => row.category))]
       .sort().map((category) => [category, summarize(selected.filter((row) => row.category === category))])) }];
   }));
   const baseline = benchmarkBaseline(input.systems);
@@ -406,14 +423,20 @@ export async function runAnswer(input: Readonly<{
       allowedUpstreamProviders: ["openai"], temperature: 0, maxCompletionTokens: maximumOutput,
       promptProfile: ANSWER_PROFILE, promptSha256: sha256Hex(ANSWER_INSTRUCTION), pricingCheckedAt: "2026-09-05", pricesUsdPerMillion: MODELS[input.reader as Model],
       costAccounting: "Maximum of listed token-rate inference cost and Gateway-reported inference cost when supplied; not a consolidated billing invoice." },
-    spend: budget.summary, phaseAccounting: { ingestionLlmTokens: 0, retrievalLlmTokens: 0, embeddingTokens: 0, judgeTokens: 0 },
+    spend: budget.summary, memoryUnits: input.memory?.provenance ?? null,
+    phaseAccounting: { ingestionLlmTokens: input.memory === undefined ? 0
+      : input.memory.provenance.inputTokens + input.memory.provenance.outputTokens,
+      ingestionCostUsd: input.memory?.provenance.ingestionCostUsd ?? 0, ingestionReused: input.memory !== undefined,
+      retrievalLlmTokens: 0, embeddingTokens: 0, judgeTokens: 0 },
     nativeLongMemEvalPredictions: input.datasetName.startsWith("longmemeval") ? Object.fromEntries(input.systems.map((system) => [system,
       rows.filter((row) => row.system === system && row.status === "completed")
         .map((row) => ({ question_id: row.questionId, hypothesis: row.prediction! }))])) : null,
     qualifications: ["Controlled reader comparison, not a reproduction of MemEval or an official leaderboard submission.",
       "Gateway family profiles are explicitly unpinned aliases and do not send an unsupported sampling seed; do not merge their scores with direct snapshot runs.",
       "oh-token-f1.v1 is Unicode word multiset F1 with exact refusal matching; it is not MemEval set-F1, LoCoMo stemmed category scoring, or a native LLM judge.",
-      "No learned fact extraction or embeddings: these adapters measure raw-episode retrieval over the real Oh keyword API.",
+      input.memory === undefined ? "No learned fact extraction or embeddings: these adapters measure raw-episode retrieval over the real Oh keyword API."
+        : "Extracted memories are question-blind, cached, and source-bound. Ingestion tokens and cost are reported separately, not treated as free.",
+      "Fact text and source-turn hydration are separate ablations; a valid citation does not prove a claim is semantically correct.",
       "Failed and unattempted calls stay in coverage and lower-bound denominators; paired intervals use only completed pairs.",
       "The shared ledger charges unresolved requests at their conservative reservation. There are no automatic retries.",
       "Native LongMemEval hypotheses are included for separate official judge evaluation; no judge score is claimed."] };

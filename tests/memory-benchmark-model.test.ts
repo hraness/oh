@@ -12,11 +12,18 @@ function response(overrides: Record<string, unknown> = {}) {
 
 describe("paid pilot boundaries", () => {
   test("rejects missing, unlimited, non-finite, or oversized budgets", () => {
-    for (const maxUsd of [NaN, Infinity, 0, -1, 10.01]) {
+    for (const maxUsd of [NaN, Infinity, 0, -1, 13.01]) {
       expect(() => new PilotBudget({ maxUsd, maxCalls: 2 })).toThrow();
     }
     expect(() => new PilotBudget({ maxUsd: 10, maxCalls: NaN })).toThrow();
     expect(() => new PilotBudget({ maxUsd: 10, maxCalls: 0 })).toThrow();
+  });
+
+  test("retains prior spending when an explicitly bounded follow-up ceiling is used", () => {
+    const budget = new PilotBudget({ maxUsd: 13, maxCalls: 1, priorExposureMicros: 12_999_990 });
+    expect(() => budget.reserve(20, model, 20)).toThrow("budget exhausted");
+    expect(budget.summary.reservedCalls).toBe(0);
+    expect(budget.summary.priorExposureUsd).toBe(12.99999);
   });
 
   test("reserves worst-case cost before dispatch and accounts for prior run exposure", () => {
@@ -74,6 +81,27 @@ describe("paid pilot boundaries", () => {
     expect(result.usage).toMatchObject({ micros: 20, gatewayReportedMicros: 20 });
     expect(ledgerExposure(events)).toBe(20);
     expect(JSON.stringify(events)).not.toContain("benchmark-oidc-value");
+  });
+
+  test("opts into JSON-object transport on either provider without changing prompts or defaults", async () => {
+    for (const provider of ["openai", "vercel-gateway"] as const) {
+      const budget = new PilotBudget({ maxUsd: 1, maxCalls: 2 });
+      const calls: Record<string, unknown>[] = [];
+      const fetcher = (async (_url, options) => {
+        calls.push(JSON.parse(String(options?.body)));
+        return response({ choices: [{ finish_reason: "stop", message: { content: '{"units":[]}' } }] });
+      }) as typeof fetch;
+      const plain = await callOpenAI({ apiKey: "benchmark-test-value", provider, model, messages, budget, seed: 17, fetcher });
+      const json = await callOpenAI({ apiKey: "benchmark-test-value", provider, model, messages, budget, seed: 17, fetcher,
+        responseFormat: "json_object" });
+      expect(calls).toHaveLength(2);
+      expect(calls[0]).not.toHaveProperty("response_format");
+      expect(calls[1]).toEqual({ ...calls[0], response_format: { type: "json_object" } });
+      expect(calls[1]!.messages).toEqual(messages);
+      expect(json.prediction).toBe('{"units":[]}');
+      expect(json.requestSha256).not.toBe(plain.requestSha256);
+      expect(budget.summary.unresolvedThisRunUsd).toBe(0);
+    }
   });
 
   test("does not swap OpenAI keys and project OIDC tokens between providers", () => {
@@ -181,7 +209,7 @@ describe("paid pilot boundaries", () => {
     }) as typeof fetch;
     await callOpenAI({ apiKey: "benchmark-test-value", model, messages, maximumOutput: 512,
       budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17, fetcher });
-    await expect(callOpenAI({ apiKey: "benchmark-test-value", model, messages, maximumOutput: 4_097,
+    await expect(callOpenAI({ apiKey: "benchmark-test-value", model, messages, maximumOutput: 8_193,
       budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17, fetcher })).rejects.toThrow();
     await expect(callOpenAI({ apiKey: "benchmark-oidc-value", provider: "vercel-gateway", model, messages,
       maximumOutput: 10, budget: new PilotBudget({ maxUsd: 1, maxCalls: 1 }), seed: 17, fetcher })).rejects.toThrow("at least 16");

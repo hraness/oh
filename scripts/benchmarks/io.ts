@@ -1,8 +1,8 @@
 import { mkdir, open, readFile, readdir } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 
-import { canonicalSha256, sha256Hex } from "../../src/canonical";
-import { DATASETS, parseLocomo, parseLongMemEval, type DatasetName } from "./datasets";
+import { canonicalSha256, isPlainRecord, sha256Hex } from "../../src/canonical";
+import { DATASETS, parseLocomo, parseLongMemEval, type Dataset, type DatasetName } from "./datasets";
 
 export const ROOT = resolve(import.meta.dir, "../..");
 
@@ -65,6 +65,40 @@ export async function loadDataset(name: DatasetName) {
   if (sha256Hex(bytes) !== source.sha256) throw new Error("Cached dataset checksum mismatch.");
   const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
   return name === "locomo" ? parseLocomo(value) : parseLongMemEval(value);
+}
+
+export function excludeGroups(dataset: Dataset, groups: ReadonlySet<string>): Dataset {
+  const corpora = dataset.corpora.filter((corpus) => !groups.has(corpus.groupId));
+  const ids = new Set(corpora.map((corpus) => corpus.id));
+  const questions = dataset.questions.filter((question) => ids.has(question.corpusId));
+  if (corpora.length === 0 || questions.length === 0) throw new Error("No untouched question families remain after exclusions.");
+  return { corpora, questions };
+}
+
+export function priorReportGroups(value: unknown, name: DatasetName): readonly string[] {
+  if (!isPlainRecord(value) || value.protocol !== "oh.memory-benchmark.v1" || !isPlainRecord(value.manifest)
+    || value.manifest.dataset !== name || !isPlainRecord(value.manifest.source)
+    || value.manifest.source.sha256 !== DATASETS[name].sha256 || !Array.isArray(value.manifest.selectedCorpora)
+    || value.manifest.selectedCorpora.length > 20_000
+    || value.manifest.selectedCorpora.some((id) => typeof id !== "string" || id.length < 1 || id.length > 512)) {
+    throw new TypeError("Exclusions require a selection report for the same pinned dataset.");
+  }
+  return [...new Set((value.manifest.selectedCorpora as string[]).map((id) => name === "locomo" ? id : id.replace(/_abs$/, "")))];
+}
+
+export async function loadExclusions(paths: readonly string[], name: DatasetName) {
+  if (paths.length > 32) throw new RangeError("Too many exclusion reports.");
+  const groups = new Set<string>();
+  const reports: { sha256: string; groups: number }[] = [];
+  for (const path of paths) {
+    const file = Bun.file(path);
+    if (!await file.exists() || file.size > 64 * 1024 * 1024) throw new Error("Exclusion report must be at most 64 MiB.");
+    const bytes = await file.bytes();
+    const selected = priorReportGroups(JSON.parse(new TextDecoder().decode(bytes)), name);
+    selected.forEach((group) => groups.add(group));
+    reports.push({ sha256: sha256Hex(bytes), groups: selected.length });
+  }
+  return { groups, reports };
 }
 
 export async function codeIdentity() {

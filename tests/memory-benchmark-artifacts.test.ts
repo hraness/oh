@@ -12,6 +12,14 @@ describe("benchmark evidence artifacts", () => {
     expect(JSON.stringify(summary)).not.toContain("SENTINEL");
   });
 
+  test("summarizes extraction evidence without publishing derived memory text", () => {
+    const manifest = { command: "extract", code: { sourceSha256: "a".repeat(64) } };
+    const summary = summarizeReport({ protocol: "oh.memory-benchmark.v1", manifest,
+      extraction: { totalUnits: 2, rejectedUnits: 0 }, unitBundle: { text: "RAW_FACT_SENTINEL" } }, "b".repeat(64));
+    expect(summary).toMatchObject({ manifest, extraction: { totalUnits: 2 } });
+    expect(JSON.stringify(summary)).not.toContain("RAW_FACT_SENTINEL");
+  });
+
   test("refuses arbitrary JSON or a missing source fingerprint", () => {
     expect(() => summarizeReport({}, "b".repeat(64))).toThrow();
     expect(() => summarizeReport({ protocol: "oh.memory-benchmark.v1", manifest: { code: {} }, summaries: {} }, "b".repeat(64))).toThrow();

@@ -4,11 +4,12 @@ import { parseArgs } from "node:util";
 import { canonicalSha256, isPlainRecord, sha256Hex } from "../src/canonical";
 import { exportSummary, summarizeReport } from "./benchmarks/artifacts";
 import { DATASETS, selectQuestions, selectSplit, type DatasetName, type Split } from "./benchmarks/datasets";
-import { codeIdentity, displayPath, fetchDataset, loadDataset, ROOT, writeJson, writeNew } from "./benchmarks/io";
-import { SYSTEMS, type System } from "./benchmarks/retrieval";
+import { codeIdentity, displayPath, excludeGroups, fetchDataset, loadDataset, loadExclusions, ROOT, writeJson, writeNew } from "./benchmarks/io";
+import { DEFAULT_SYSTEMS, SYSTEMS, type System } from "./benchmarks/retrieval";
+import type { LoadedUnits } from "./benchmarks/extract";
 import { runRetrieval } from "./benchmarks/runner";
 
-const HELP = `Usage: bun run bench:memory <fetch|retrieval|state|projection|answer|judge|summarize> [options]
+const HELP = `Usage: bun run bench:memory <fetch|extract|retrieval|state|projection|answer|judge|summarize> [options]
 
   --dataset locomo|longmemeval-s|longmemeval-oracle   Default: locomo
   --split dev|test|all                            Default: dev; split by conversation/family
@@ -19,11 +20,15 @@ const HELP = `Usage: bun run bench:memory <fetch|retrieval|state|projection|answ
   --context-bytes N                              Default: 12000 (UTF-8, not tokens)
   --output PATH                                  New JSON report; never overwrites
   --summary-output PATH                          Optional new compact report
-  --input PATH                                   Existing report for summarize
+  --input PATH                                   Existing report for summarize or judge
+  --units PATH                                   Verified question-blind extraction report
+  --resume-units PATH                            Resume verified completed extraction chunks
+  --extraction-concurrency N                     Default: 3; maximum: 12
+  --exclude-report PATH                          Exclude previously used families; repeatable
   --steps N                                      State mutations per seed; default: 32
   --sizes N,N                                    Projection chain sizes; default: 16,32,48
   --repeat N                                     Projection timed repetitions; default: 5
-  --paid --max-usd N --max-calls N                 Required for answer; USD cap at most 10
+  --paid --max-usd N --max-calls N                 Required for extract/answer/judge; cap <=13
   --reader MODEL                                 Direct snapshot or explicit Gateway alias
   --provider openai|vercel-gateway                Default: openai
   --answer-tokens N                              Default: 512; maximum: 4096
@@ -51,13 +56,15 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const { values, positionals } = parseArgs({ args, allowPositionals: true, strict: true, options: {
     dataset: { type: "string" }, split: { type: "string" }, seed: { type: "string" }, limit: { type: "string" },
     systems: { type: "string" }, "top-k": { type: "string" }, "context-bytes": { type: "string" },
-    output: { type: "string" }, "summary-output": { type: "string" }, input: { type: "string" }, steps: { type: "string" },
+    output: { type: "string" }, "summary-output": { type: "string" }, input: { type: "string" }, units: { type: "string" }, steps: { type: "string" },
     sizes: { type: "string" }, repeat: { type: "string" }, paid: { type: "boolean" },
     "max-usd": { type: "string" }, "max-calls": { type: "string" }, reader: { type: "string" },
-    provider: { type: "string" }, "answer-tokens": { type: "string" }, "judge-model": { type: "string" }, help: { type: "boolean" },
+    provider: { type: "string" }, "answer-tokens": { type: "string" }, "judge-model": { type: "string" },
+    "exclude-report": { type: "string", multiple: true }, "resume-units": { type: "string" },
+    "extraction-concurrency": { type: "string" }, help: { type: "boolean" },
   } });
   if (values.help || positionals.length === 0) { console.log(HELP); return; }
-  if (positionals.length !== 1 || !["fetch", "retrieval", "state", "projection", "answer", "judge", "summarize"].includes(positionals[0]!)) {
+  if (positionals.length !== 1 || !["fetch", "extract", "retrieval", "state", "projection", "answer", "judge", "summarize"].includes(positionals[0]!)) {
     throw new TypeError("Unknown benchmark command. Use --help.");
   }
   const command = positionals[0]!;
@@ -83,20 +90,30 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   if (values["summary-output"] !== undefined && (resolve(values["summary-output"]) === output
     || await Bun.file(values["summary-output"]).exists())) throw new Error("Summary must use a distinct, new output path.");
   const provider = values.provider ?? "openai";
-  const family = command === "judge" ? "gpt-4o" : name === "locomo" ? "gpt-4.1-mini" : "gpt-4.1";
+  const family = command === "judge" ? "gpt-4o" : command === "extract" || name === "locomo" ? "gpt-4.1-mini" : "gpt-4.1";
   const snapshotDate = command === "judge" ? "2024-08-06" : "2025-04-14";
   const reader = (command === "judge" ? values["judge-model"] : values.reader)
     ?? (provider === "vercel-gateway" ? `openai/${family}` : `${family}-${snapshotDate}`);
   const paidOptions = { paid: values.paid === true, maxUsd: Number(values["max-usd"]), maxCalls: Number(values["max-calls"]),
     reader, provider, maximumOutput: integer(values["answer-tokens"], 512, 1, 4_096) };
-  if (command === "answer" || command === "judge") {
+  if (command === "extract" || command === "answer" || command === "judge") {
     const { validatePaidAccess } = await import("./benchmarks/model");
     validatePaidAccess(paidOptions);
   }
+  const exclusions = await loadExclusions(values["exclude-report"] ?? [], name);
   const code = await codeIdentity();
   let manifest: object;
   let result: Record<string, unknown>;
-  if (command === "judge") {
+  if (command === "extract") {
+    const { runExtraction } = await import("./benchmarks/extract");
+    const concurrency = integer(values["extraction-concurrency"], 3, 1, 12);
+    const limit = values.limit === undefined ? undefined : integer(values.limit, 1, 1, 20_000);
+    const selected = selectQuestions(excludeGroups(selectSplit(await loadDataset(name), split as Split, seed), exclusions.groups), limit, seed);
+    manifest = { command, dataset: name, source: DATASETS[name], split, seed, limit: limit ?? null, concurrency, code, exclusions: exclusions.reports,
+      selectedCorpora: selected.corpora.map((corpus) => corpus.id) };
+    result = await runExtraction({ dataset: selected, datasetName: name, split: split as Split, seed, output, concurrency,
+      ...(values["resume-units"] === undefined ? {} : { resume: values["resume-units"] }), ...paidOptions });
+  } else if (command === "judge") {
     if (!values.input) throw new TypeError("judge requires --input with an existing answer report.");
     const { runJudge } = await import("./benchmarks/judge");
     manifest = { command, dataset: name, source: DATASETS[name], split, seed, code };
@@ -115,20 +132,27 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     result = await runProjection(sizes, repeat);
   } else {
     const systems = values.systems === undefined ? (command === "answer"
-      ? ["no-memory", "full-context", "bm25-window", "oh-window"] : [...SYSTEMS]) : values.systems.split(",");
+      ? ["no-memory", "full-context", "bm25-window", "oh-window"] : [...DEFAULT_SYSTEMS]) : values.systems.split(",");
     if (systems.length === 0 || new Set(systems).size !== systems.length || systems.some((system) => !SYSTEMS.includes(system as System))) {
       throw new TypeError("Unknown or duplicate benchmark systems.");
     }
     const budget = { topK: integer(values["top-k"], 20, 1, 100), contextBytes: integer(values["context-bytes"], 12_000, 1, 4_000_000) };
     const limit = values.limit === undefined ? undefined : integer(values.limit, 1, 1, 20_000);
-    const selected = selectQuestions(selectSplit(await loadDataset(name), split as Split, seed), limit, seed);
+    const selected = selectQuestions(excludeGroups(selectSplit(await loadDataset(name), split as Split, seed), exclusions.groups), limit, seed);
+    let memory: LoadedUnits | undefined;
+    if (systems.some((system) => system.includes("fact"))) {
+      if (!values.units) throw new TypeError("Fact systems require --units with a completed extraction report.");
+      const { loadUnitReport } = await import("./benchmarks/extract");
+      memory = await loadUnitReport(values.units, name, split as Split, seed, selected.corpora);
+    }
     manifest = { command, dataset: name, source: DATASETS[name], split, seed, limit: limit ?? null, systems, budget, code,
-      selectedCorpora: selected.corpora.map((corpus) => corpus.id), selectedQuestions: selected.questions.map((question) => question.id),
+      exclusions: exclusions.reports, selectedCorpora: selected.corpora.map((corpus) => corpus.id), selectedQuestions: selected.questions.map((question) => question.id),
       selectionSha256: canonicalSha256(selected.questions.map((question) => question.id).sort()) };
     if (command === "answer") {
       const { runAnswer } = await import("./benchmarks/model");
-      result = await runAnswer({ dataset: selected, datasetName: name, systems: systems as System[], budget, seed, output, ...paidOptions });
-    } else result = await runRetrieval(selected, systems as System[], budget, seed);
+      result = await runAnswer({ dataset: selected, datasetName: name, systems: systems as System[], budget, seed, output,
+        ...(memory === undefined ? {} : { memory }), ...paidOptions });
+    } else result = await runRetrieval(selected, systems as System[], budget, seed, memory);
   }
   const report = { protocol: "oh.memory-benchmark.v1", createdAt: new Date().toISOString(), manifest, ...result };
   const raw = `${JSON.stringify(report, null, 2)}\n`;
@@ -145,7 +169,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     split: command === "retrieval" || command === "answer" || command === "judge" ? split : undefined,
     seed, sourceSha256: code.sourceSha256, gitHead: code.gitHead,
     status: result.status ?? "completed", summaries, comparisons: result.comparisons,
-    provider: result.provider, spend: result.spend, stopped: result.stopped, unresolvedEvidence: result.unresolvedEvidence,
+    provider: result.provider, spend: result.spend, stopped: result.stopped, extraction: result.extraction, memoryUnits: result.memoryUnits,
+    unresolvedEvidence: result.unresolvedEvidence,
     evidenceProtocol: result.evidenceProtocol, evidenceNormalization: result.evidenceNormalization,
     unresolvedReferences: result.unresolvedReferences, resultSha256: result.resultSha256 }, null, 2));
   if (result.status === "failed" || result.status === "incomplete") process.exitCode = 1;

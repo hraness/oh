@@ -4,12 +4,13 @@ import { writeJson } from "./io";
 export function summarizeReport(value: unknown, fullReportSha256: string) {
   if (!isPlainRecord(value) || value.protocol !== "oh.memory-benchmark.v1" || !isPlainRecord(value.manifest)
     || !isPlainRecord(value.manifest.code) || parseSha256Hex(value.manifest.code.sourceSha256) === null
-    || parseSha256Hex(fullReportSha256) === null || value.summaries === undefined) {
+    || parseSha256Hex(fullReportSha256) === null || (value.summaries === undefined
+      && !(value.manifest.command === "extract" && isPlainRecord(value.extraction)))) {
     throw new TypeError("Not a recognized benchmark report.");
   }
   const fields = ["protocol", "createdAt", "manifest", "status", "stopped", "summaries", "comparisons", "ingestion",
     "unresolvedEvidence", "unresolvedReferences", "evidenceProtocol", "evidenceNormalization",
-    "resultSha256", "qualifications", "provider", "spend", "phaseAccounting", "sourceReport", "judgeProtocol", "judgeProfile", "judgeExecution", "queryOrder"];
+    "resultSha256", "qualifications", "provider", "spend", "phaseAccounting", "sourceReport", "judgeProtocol", "judgeProfile", "judgeExecution", "queryOrder", "memoryUnits", "extraction"];
   return { ...Object.fromEntries(fields.filter((field) => Object.hasOwn(value, field)).map((field) => [field, value[field]])),
     fullReportSha256 };
 }

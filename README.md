@@ -843,8 +843,11 @@ one-question corpora, and report an undiscounted `uncachedReaderCostUsd`
 estimate alongside observed cache-adjusted accounting. Provider caches can be
 shared across similar requests, so cache-discount differences alone do not
 establish an algorithmic efficiency gain. Missing cache details are distinguished
-from reported zero cache use. The cumulative cap cannot exceed $10; separate
-checkouts do not share that ledger. Do not remove it to restart a pilot budget.
+from reported zero cache use. The current cumulative ceiling is $13, raised
+from the initial $10 only after explicit authorization for a modest follow-up
+round. Each command still requires its own `--max-usd` and `--max-calls`.
+Separate checkouts do not share that ledger. Do not remove it to restart a
+pilot budget.
 
 The reader's diagnostic `oh-token-f1.v1` metric is **not** MemEval set-F1,
 LoCoMo's native scorer, or an LLM judge. Failed and unattempted requests remain
@@ -871,6 +874,60 @@ judge's 10-token setting; these results are not an exact leaderboard reproductio
 Judging shares the same cumulative spending ledger, and failed or missing
 answers remain visible in denominators. LLM judging is fallible, and one
 conversation cannot produce a meaningful cluster-bootstrap interval.
+
+Identical rendered judge prompts share one verdict and one charge within a
+run. Exact LoCoMo abstentions are checked deterministically, and other
+responses use the frozen judge. This prevents identical answers from receiving
+different labels merely because different systems produced them.
+
+### Question-blind memory units
+
+A separate ingest-time experiment extracts dated, self-contained facts with
+verbatim source quotes. It receives only conversation segments: never benchmark
+questions, answers, evidence labels, or answer-location annotations. Each
+segment stays within one session occurrence and date, and oversized turns are
+split losslessly. Invalid individual claims are counted and rejected. Malformed
+or clipped batches stop the run without automatic retries.
+
+Extraction requests JSON-object output and runs three requests concurrently by
+default; `--extraction-concurrency` accepts 1 through 12. Resume an interrupted
+run with `--resume-units PREVIOUS.json` and a new output path. Verified completed
+chunks are reused, including later corpora if an earlier missing chunk fails.
+The original ingestion cost remains in the report and shared spending ledger.
+
+```sh
+vercel env run --project YOUR_PROJECT --scope YOUR_TEAM --environment development -- \
+  bun run bench:memory extract --provider vercel-gateway --dataset locomo --split dev \
+  --paid --max-usd 10 --max-calls 100 --output .cache/benchmarks/units.json
+bun run bench:memory retrieval --dataset locomo --split dev \
+  --systems bm25-window,oh-block,oh-fact-turns,oh-fact --units .cache/benchmarks/units.json
+```
+
+The extraction report binds the dataset, split, seed, source-corpus digest,
+extractor prompt, units, and source quotes. Loading it checks those bindings.
+Retrieval rejoins each support to its current Oh record digest, excluding stale
+claims rather than trusting an old index entry.
+
+- `oh-block` and `bm25-block` index small same-session raw blocks without an LLM,
+  then return the original turns.
+- `oh-fact-turns` and `bm25-fact-turns` use extracted text only as a search index,
+  then return the original supporting turns.
+- `oh-fact` and `bm25-fact` return compact extracted text. Their citation coverage
+  is not raw-turn recall and is reported separately; reader quality is the
+  meaningful comparison.
+
+The matched BM25 controls use the same units. A gain from extraction is evidence
+for a memory-representation strategy, not proof that a storage label improves
+answers. A valid quote proves attribution, not semantic entailment. Ingest-time
+LLM tokens and cost remain visible when cached units are reused.
+Offline retrieval prepares each requested representation before timing queries
+and reports its shared Oh/BM25 index construction under ingestion. Historical
+development reports created before this separation include lazy index construction
+in the first query; their query latency is unsuitable for paired comparisons.
+
+Use repeated `--exclude-report PRIOR.json` arguments to exclude entire previously
+examined question families before selection. The command records exclusion
+report hashes and refuses to fall back to used families when none remain.
 
 Read the [source and protocol audit](benchmarks/research.json) for lessons from
 Lemmalog, Letta, PropMem, Graphiti, Mem0, Hindsight, and SimpleMem, including
