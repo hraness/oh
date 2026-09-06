@@ -8,6 +8,7 @@ import type { LoadedUnits } from "./extract";
 import { ROOT, writeNew } from "./io";
 import { mean, pairedBootstrap, tokenF1 } from "./metrics";
 import { benchmarkBaseline, benchmarkOrder, createRetrievers, type RetrievalBudget, type System } from "./retrieval";
+import { EXTRACTION_SCHEMA } from "./units";
 
 export const MODELS = {
   "gpt-4.1-mini-2025-04-14": { input: 0.4, cachedInput: 0.1, output: 1.6 },
@@ -236,7 +237,7 @@ function providerFailureDetails(value: unknown): string {
 
 export async function callOpenAI(options: Readonly<{
   apiKey: string; model: Model; messages: readonly Message[]; budget: PilotBudget; seed: number;
-  provider?: ReaderProvider; maximumOutput?: number; responseFormat?: "json_object";
+  provider?: ReaderProvider; maximumOutput?: number; responseFormat?: "json_object" | "memory_units_v1";
   record?: (event: LedgerEvent) => Promise<void>; fetcher?: typeof fetch;
 }>) {
   const provider = readerProvider(options.provider);
@@ -244,15 +245,22 @@ export async function callOpenAI(options: Readonly<{
   if (!options.apiKey.trim()) throw new Error(`${provider === "openai" ? "OPENAI_API_KEY" : "VERCEL_OIDC_TOKEN"} is required; no provider request was made.`);
   const maximumOutput = options.maximumOutput ?? 256;
   if (provider === "vercel-gateway" && maximumOutput < 16) throw new RangeError("Gateway completion token bound must be at least 16.");
-  if (options.responseFormat !== undefined && options.responseFormat !== "json_object") throw new TypeError("Unsupported response format.");
+  if (options.responseFormat !== undefined && !["json_object", "memory_units_v1"].includes(options.responseFormat)) {
+    throw new TypeError("Unsupported response format.");
+  }
+  const responseFormat = options.responseFormat === "memory_units_v1"
+    ? { type: "json_schema", json_schema: { name: "oh_memory_units_v1", strict: true, schema: EXTRACTION_SCHEMA } }
+    : options.responseFormat === "json_object" ? { type: "json_object" } : undefined;
   const requestedModel = selection.requestedModel;
   const endpoint = provider === "openai" ? "https://api.openai.com/v1/chat/completions"
     : "https://ai-gateway.vercel.sh/v1/chat/completions";
   const body = { model: requestedModel, messages: options.messages, temperature: 0, store: false,
-    ...(options.responseFormat === undefined ? {} : { response_format: { type: options.responseFormat } }),
+    ...(responseFormat === undefined ? {} : { response_format: responseFormat }),
     ...(provider === "openai" ? { max_completion_tokens: maximumOutput, seed: options.seed } : { max_tokens: maximumOutput,
       providerOptions: { gateway: { only: ["openai"], order: ["openai"] } } }) };
-  const reservation = options.budget.reserve(Buffer.byteLength(JSON.stringify(options.messages)), options.model, maximumOutput);
+  const inputBytes = Buffer.byteLength(JSON.stringify(options.messages))
+    + (responseFormat === undefined ? 0 : Buffer.byteLength(JSON.stringify(responseFormat)));
+  const reservation = options.budget.reserve(inputBytes, options.model, maximumOutput);
   await options.record?.({ v: 1, id: reservation.id, kind: "reserved", micros: reservation.micros });
   const start = performance.now();
   let response: Response;

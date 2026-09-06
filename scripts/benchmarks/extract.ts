@@ -4,7 +4,7 @@ import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../s
 import { DATASETS, type Corpus, type Dataset, type DatasetName, type Split } from "./datasets";
 import { writeNew } from "./io";
 import { callOpenAI, MODELS, ModelCompletionError, openPilotLedger, PilotBudget, validatePaidAccess } from "./model";
-import { buildExtractionChunks, EXTRACTION_INSTRUCTION, EXTRACTION_PROFILE, extractionMessages, parseMemoryUnits,
+import { buildExtractionChunks, EXTRACTION_INSTRUCTION, EXTRACTION_PROFILE, EXTRACTION_SCHEMA, extractionMessages, parseMemoryUnits,
   type MemoryUnit } from "./units";
 
 type Usage = Awaited<ReturnType<typeof callOpenAI>>["usage"];
@@ -154,7 +154,7 @@ export async function runExtraction(input: Readonly<{ dataset: Dataset; datasetN
           let charged = false;
           try {
             const completion = await callOpenAI({ apiKey, provider, model: input.reader as keyof typeof MODELS,
-              messages: extractionMessages(chunk), maximumOutput: 8_192, responseFormat: "json_object",
+              messages: extractionMessages(chunk), maximumOutput: 8_192, responseFormat: "memory_units_v1",
               seed: input.seed, budget, record: ledger.append,
               ...(dependencies.fetcher === undefined ? {} : { fetcher: dependencies.fetcher }) });
             account(completion.usage); charged = true;
@@ -194,7 +194,8 @@ export async function runExtraction(input: Readonly<{ dataset: Dataset; datasetN
       rejectedUnits: summaries.reduce((sum, corpus) => sum + corpus.rejected, 0), usage: totals,
       unitBundleSha256: canonicalSha256(bundle), profile: EXTRACTION_PROFILE, promptSha256: sha256Hex(EXTRACTION_INSTRUCTION) },
     provider: { extractor: input.reader, transport: provider, requestedModel: selection.requestedModel,
-      snapshotPinned: selection.snapshotPinned, maximumOutput: 8_192, temperature: 0, responseFormat: "json_object" }, spend: budget.summary,
+      snapshotPinned: selection.snapshotPinned, maximumOutput: 8_192, temperature: 0, responseFormat: "json_schema",
+      responseSchemaSha256: canonicalSha256(EXTRACTION_SCHEMA) }, spend: budget.summary,
     qualifications: ["Question-blind ingestion of complete selected corpora; questions, reference answers, and evidence labels are never sent to the extractor.",
       "A supported quote proves source attribution, not semantic entailment of the extracted claim. Extraction can omit or misinterpret facts.",
       "Invalid individual claims are counted and rejected, not ingested. Malformed or clipped batches stop extraction without automatic retries.",

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { answerMessages, callOpenAI, ledgerExposure, PilotBudget, validatePaidAccess } from "../scripts/benchmarks/model";
+import { EXTRACTION_SCHEMA } from "../scripts/benchmarks/units";
 
 const model = "gpt-4.1-mini-2025-04-14" as const;
 const messages = [{ role: "user", content: "What color?" }] as const;
@@ -113,6 +114,28 @@ describe("paid pilot boundaries", () => {
       .toThrow("VERCEL_OIDC_TOKEN");
     expect(() => validatePaidAccess(input, { VERCEL_OIDC_TOKEN: "oidc-test-value" })).toThrow("OPENAI_API_KEY");
     expect(() => validatePaidAccess({ ...input, provider: "arbitrary-endpoint" }, environment)).toThrow("provider");
+  });
+
+  test("sends the fixed strict extraction schema and reserves its input overhead on either provider", async () => {
+    for (const provider of ["openai", "vercel-gateway"] as const) {
+      const budget = new PilotBudget({ maxUsd: 1, maxCalls: 1 });
+      const events: { kind: string; micros: number }[] = [];
+      await callOpenAI({ apiKey: "benchmark-test-value", provider, model, messages, budget, seed: 17,
+        responseFormat: "memory_units_v1", record: async (event) => { events.push(event); },
+        fetcher: (async (_url, options) => {
+          const body = JSON.parse(String(options?.body));
+          const format = { type: "json_schema", json_schema: { name: "oh_memory_units_v1", strict: true, schema: EXTRACTION_SCHEMA } };
+          expect(body.response_format).toEqual(format);
+          expect(body.messages).toEqual(messages);
+          const expected = new PilotBudget({ maxUsd: 1, maxCalls: 1 }).reserve(
+            Buffer.byteLength(JSON.stringify(messages)) + Buffer.byteLength(JSON.stringify(format)), model, 256);
+          expect(events[0]).toMatchObject({ kind: "reserved", micros: expected.micros });
+          expect(EXTRACTION_SCHEMA.properties.units.maxItems).toBe(48);
+          expect(EXTRACTION_SCHEMA.properties.units.items.properties.supports.maxItems).toBe(3);
+          return response();
+        }) as typeof fetch });
+      expect(budget.summary.unresolvedThisRunUsd).toBe(0);
+    }
   });
 
   test("supports an explicitly selected Gateway alias without claiming a snapshot pin", async () => {

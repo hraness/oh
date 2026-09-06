@@ -7,7 +7,7 @@ import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { DATASETS, type Corpus } from "../scripts/benchmarks/datasets";
 import { corpusIdentity, runExtraction, validateUnitBundle, type UnitBundle } from "../scripts/benchmarks/extract";
 import { ledgerExposure, type openPilotLedger } from "../scripts/benchmarks/model";
-import { buildExtractionChunks, EXTRACTION_INSTRUCTION, EXTRACTION_PROFILE, parseMemoryUnits } from "../scripts/benchmarks/units";
+import { buildExtractionChunks, EXTRACTION_INSTRUCTION, EXTRACTION_PROFILE, EXTRACTION_SCHEMA, parseMemoryUnits } from "../scripts/benchmarks/units";
 
 const reader = "openai/gpt-4.1-mini";
 const base = { datasetName: "locomo", split: "dev", seed: 17, paid: true, maxUsd: 1, maxCalls: 100,
@@ -48,7 +48,9 @@ describe("extraction transport and resume reliability", () => {
       let calls = 0;
       const fake = runtime((async (_url, options) => {
         const body = JSON.parse(String(options?.body));
-        expect(body.response_format).toEqual({ type: "json_object" });
+        expect(body.response_format).toEqual({ type: "json_schema", json_schema: {
+          name: "oh_memory_units_v1", strict: true, schema: EXTRACTION_SCHEMA,
+        } });
         expect(body.max_tokens).toBe(8_192);
         expect(body.messages[0].content).toBe(EXTRACTION_INSTRUCTION);
         expect(body.messages[1].content).toBe(expectedMessages[calls++]);
@@ -63,7 +65,8 @@ describe("extraction transport and resume reliability", () => {
       expect(calls).toBe(14);
       expect(maximum).toBe(concurrency ?? 3);
       expect(result.extraction).toMatchObject({ concurrency: concurrency ?? 3, reusedChunks: 0 });
-      expect(result.provider).toMatchObject({ responseFormat: "json_object", maximumOutput: 8_192 });
+      expect(result.provider).toMatchObject({ responseFormat: "json_schema", maximumOutput: 8_192,
+        responseSchemaSha256: canonicalSha256(EXTRACTION_SCHEMA) });
       expect(fake.isClosed()).toBe(true);
       expect(ledgerExposure(fake.events)).toBe(14 * 24);
     });
@@ -77,6 +80,22 @@ describe("extraction transport and resume reliability", () => {
       })).rejects.toThrow("concurrency");
     }
     expect(opened).toBe(0);
+  });
+
+  test("still rejects an oversized envelope if a provider violates the requested schema", async () => {
+    await temporary(async (directory) => {
+      const source = corpus("oversized", 1);
+      const units = Array.from({ length: 49 }, () => ({ text: "Ada moved to Paris.",
+        supports: [{ turnId: source.turns[0]!.id, quote: "I moved to Paris." }] }));
+      const fake = runtime((async () => completion(JSON.stringify({ units }))) as typeof fetch);
+      const result = await runExtraction({ ...base, dataset: { corpora: [source], questions: [] },
+        output: join(directory, "report.json") }, fake.dependencies);
+      expect(result.status).toBe("incomplete");
+      expect(result.stopped).toBe("Malformed or oversized extraction envelope.");
+      expect((result.unitBundle as UnitBundle).corpora[0]!.chunks).toHaveLength(0);
+      expect(result.spend).toMatchObject({ reservedCalls: 1, confirmedThisRunUsd: 0.000024 });
+      expect(fake.isClosed()).toBe(true);
+    });
   });
 
   test("preserves later cached corpora and successful in-flight chunks when an earlier resumed chunk fails", async () => {
