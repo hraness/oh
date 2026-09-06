@@ -194,7 +194,7 @@ var OH_GRAPH_LIMITS_V1 = Object.freeze({
   recordBytes: 1024 * 1024,
   recordsPerSnapshot: 65536
 });
-var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
+var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = Object.freeze([
   "activity",
   "assertion",
   "context",
@@ -213,7 +213,7 @@ var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
   "type-membership",
   "view",
   "vocabulary"
-];
+]);
 var KNOWLEDGE_GRAPH_RECORD_KEYS_V1 = [
   "dependencies",
   "key",

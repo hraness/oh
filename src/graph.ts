@@ -19,12 +19,12 @@ export const OH_GRAPH_LIMITS_V1 = Object.freeze({
   recordsPerSnapshot: 65_536,
 });
 
-export const OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
+export const OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = Object.freeze([
   "activity", "assertion", "context", "dependency-manifest", "edition", "entity",
   "evidence", "identity-operation", "inquiry", "inquiry-event", "review-decision",
   "rights-decision", "schema", "shape", "statement", "type-membership", "view",
   "vocabulary",
-] as const;
+] as const);
 export type KnowledgeGraphRecordKindV1 = (typeof OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1)[number];
 
 export type KnowledgeGraphRecordV1 = Readonly<{

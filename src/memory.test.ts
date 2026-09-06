@@ -31,6 +31,7 @@ import {
   OH_WORKING_STORE_PROFILE_V1,
   OhConflictError,
   OhIntegrityError,
+  OhOperationSizeError,
   OhProfileError,
   type OhHeadV1,
   type OhSnapshotV1,
@@ -156,6 +157,7 @@ async function authorityFixture(configuration: Readonly<{
   canonicalStore?: (store: OhStoreV1) => OhStoreV1;
   canonicalRecords?: readonly ReturnType<typeof entity>[];
   explainCapabilityLifetimeMs?: number;
+  maximumCanonicalOperationBytes?: number;
   monotonicNow?: () => number;
   now?: () => Date;
   pageSize?: number;
@@ -182,6 +184,9 @@ async function authorityFixture(configuration: Readonly<{
     continuationKey: Uint8Array.from({ length: 32 }, (_, index) => index),
     ...(configuration.explainCapabilityLifetimeMs === undefined ? {} : {
       explainCapabilityLifetimeMs: configuration.explainCapabilityLifetimeMs,
+    }),
+    ...(configuration.maximumCanonicalOperationBytes === undefined ? {} : {
+      maximumCanonicalOperationBytes: configuration.maximumCanonicalOperationBytes,
     }),
     ...(configuration.monotonicNow === undefined ? {} : {
       monotonicNow: configuration.monotonicNow,
@@ -1334,6 +1339,29 @@ describe("stable host-bound Oh memory authority", () => {
       nextHead: value.initialCanonicalHead, v: 1 }))
       .rejects.toThrow("Invalid canonical memory advance request");
     await value.canonical.store.close(); await value.working.store.close();
+  });
+
+  test("refuses an adopted operation above the host canonical byte bound before commit", async () => {
+    const value = await authorityFixture({ maximumCanonicalOperationBytes: 1 });
+    const workingHead = await value.working.store.head();
+    await value.authority.agent.remember({ expectedHead: {
+      generation: workingHead.generation,
+      operationSha256: workingHead.operationSha256,
+    }, puts: [{ dependencies: [], key: "entity:bounded-adoption", kind: "entity", v: 1,
+      value: { name: "Bounded adoption" } }], requestId: "remember_bounded_adoption",
+    tombstones: [], v: 1 });
+    const nomination = await value.authority.agent.nominate({ nominationId: "kb.review",
+      roots: ["entity:bounded-adoption"], v: 1 });
+    await expect(value.authority.host.adoptNomination({
+      expectedCanonicalHead: value.initialCanonicalHead,
+      nomination,
+      v: 1,
+    })).rejects.toThrow(OhOperationSizeError);
+    expect(await value.canonical.store.head()).toEqual(value.initialCanonicalHead);
+    expect((await value.canonical.store.snapshot()).records.map(({ key }) => key))
+      .not.toContain("entity:bounded-adoption");
+    await value.canonical.store.close();
+    await value.working.store.close();
   });
 
   test("descriptor-detaches stable unknown inputs and never executes accessors or proxies", async () => {

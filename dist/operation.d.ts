@@ -19,6 +19,8 @@ export type OhOperationPayloadV1 = Readonly<{
 export type OhOperationV1 = OhOperationPayloadV1 & Readonly<{
     operationSha256: Sha256Hex;
 }>;
-export declare function createOhOperationV1(input: OhOperationPayloadV1): OhOperationV1;
+export declare function createOhOperationV1(input: OhOperationPayloadV1, options?: Readonly<{
+    maximumOperationBytes?: number;
+}>): OhOperationV1;
 export declare function parseOhOperationV1(value: unknown): OhOperationV1 | null;
 //# sourceMappingURL=operation.d.ts.map

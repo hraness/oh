@@ -50,7 +50,9 @@ application-profile digest, and declared capabilities. A supported runtime
 MUST reject a later attempt to open the same space under different binding
 bytes. A working profile disables operation replication and enables only
 host-controlled whole-space purge. A canonical profile cannot be purged by
-that API.
+that API. Its local SQLite authority may instead expose a canonical-only
+replication handle under host control; the promise-based agent store never
+carries that capability.
 
 Purge deletes the space head, complete operation history, current records,
 dependency and operation materializations, sync state, and derived keyword
@@ -78,10 +80,11 @@ before it is returned as current.
 
 ## Replay verification
 
-`oh verify` runs SQLite `integrity_check`, parses every canonical operation,
-replays the operation chain from an empty graph, recomputes record-set and graph
-revision digests, checks dependencies, compares the materialized records, and
-requires the reconstructed head to equal the stored head.
+`oh verify` runs SQLite `integrity_check` and `foreign_key_check`, parses every
+canonical operation, replays the operation chain from an empty graph,
+recomputes record-set and graph revision digests, checks dependencies, compares
+the materialized records, operation-record rows, search documents, and FTS rows,
+and requires the reconstructed head to equal the stored head.
 
 Backup and restore procedures SHOULD preserve the database and WAL atomically.
 An application SHOULD run replay verification after an untrusted transfer or

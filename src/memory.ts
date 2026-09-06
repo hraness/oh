@@ -24,7 +24,7 @@ import {
   type KnowledgeGraphChangeV1,
   type KnowledgeGraphRecordV1,
 } from "./graph";
-import { parseOhOperationV1 } from "./operation";
+import { OH_OPERATION_MAX_BYTES_V1, parseOhOperationV1 } from "./operation";
 import {
   OH_PROJECTION_SEMANTICS_V1,
   OH_PROJECTION_LIMITS_V1,
@@ -545,6 +545,7 @@ export type OhMemoryAuthorityV1 = Readonly<{
 
 export type OhMemoryAuthorityOptionsV1 = OhMemoryFacadeOptionsV2 & Readonly<{
   adoptionActorId: string;
+  maximumCanonicalOperationBytes?: number;
 }>;
 
 type LaneSnapshot = Readonly<{
@@ -2488,6 +2489,13 @@ function adoptionConflict(
 export async function createOhMemoryAuthorityV1(
   options: OhMemoryAuthorityOptionsV1,
 ): Promise<OhMemoryAuthorityV1> {
+  const maximumCanonicalOperationBytes = options.maximumCanonicalOperationBytes
+    ?? OH_OPERATION_MAX_BYTES_V1;
+  if (!Number.isSafeInteger(maximumCanonicalOperationBytes)
+    || maximumCanonicalOperationBytes < 1
+    || maximumCanonicalOperationBytes > OH_OPERATION_MAX_BYTES_V1) {
+    throw new TypeError("Invalid canonical memory operation byte bound.");
+  }
   const memoryActorId = safeCode(options.actorId, 128);
   const adoptionActorId = safeCode(options.adoptionActorId, 128);
   if (memoryActorId === null || adoptionActorId === null) {
@@ -2694,7 +2702,9 @@ export async function createOhMemoryAuthorityV1(
       try {
         returnedOperation = await canonicalStore.commit({ actorId: adoptionActorId, changes,
           expectedHead: { generation: priorHead.generation,
-            operationSha256: priorHead.operationSha256 }, operationId });
+            operationSha256: priorHead.operationSha256 },
+          maximumOperationBytes: maximumCanonicalOperationBytes,
+          operationId });
       } catch (error) {
         if (!(error instanceof OhConflictError)) throw error;
         const actualHead = await readPhysicalCanonicalHead();
