@@ -5,7 +5,6 @@ import { canonicalJson, opaqueId, safeCode, type JsonValue } from "./canonical";
 import { OH_CONTRACT_MANIFEST_V1 } from "./contract";
 import { OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1, createKnowledgeGraphRecordV1,
   type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
-import { Oh } from "./sdk";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
 import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
@@ -244,6 +243,8 @@ export async function runOhCli(arguments_: readonly string[]): Promise<number> {
     print({ manifest: OH_CONTRACT_MANIFEST_V1, sqliteSchemaVersion: OH_SQLITE_SCHEMA_VERSION, v: 1 });
     return 0;
   }
+  // Static commands and invalid input need no store or sync runtime.
+  const { Oh } = await import("./sdk");
   const oh = Oh.open({ databasePath: validated.databasePath, spaceId: validated.spaceId });
   try {
     if (command === "init") { print({ head: oh.head(), spaceId: oh.store.spaceId, v: 1 }); return 0; }
