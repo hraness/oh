@@ -36,7 +36,7 @@ function sha256(value: string): string {
 }
 
 describe("Oh site source contract", () => {
-  test("keeps available installs separate from the prepared version and historical capture", async () => {
+  test("derives available installs from verified publication and preserves the historical capture", async () => {
     const [home, publication, packageSource] = await Promise.all([
       read("app/page.tsx"),
       read("published-release.json"),
@@ -46,8 +46,8 @@ describe("Oh site source contract", () => {
     const packageJson = record(JSON.parse(packageSource) as unknown, "source package");
 
     expect(publishedRelease).toEqual({
-      version: "0.4.1",
-      verificationRun: "https://github.com/hraness/oh/actions/runs/34024985715",
+      version: "0.4.2",
+      verificationRun: "https://github.com/hraness/oh/actions/runs/34059936931",
     });
     expect(packageJson.version).toBe("0.4.2");
     expect(home).toContain('import publishedRelease from "../published-release.json"');
