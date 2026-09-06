@@ -24,6 +24,41 @@ async function run(arguments_: readonly string[], cwd = REPOSITORY_ROOT): Promis
 }
 
 describe("oh CLI", () => {
+  test("loads the SDK only after a store command passes validation", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-cli-lazy-test-"));
+    roots.push(root);
+    const probe = `
+      import { createRequire } from "node:module";
+      import { dirname, sep } from "node:path";
+      const require = createRequire(${JSON.stringify(CLI_PATH)});
+      const effectRoot = dirname(require.resolve("effect/package.json")) + sep;
+      const loaded = () => Object.keys(require.cache).some((path) => path.startsWith(effectRoot));
+      const { runOhCli } = await import(${JSON.stringify(CLI_PATH)});
+      if (loaded()) throw new Error("CLI import loaded Effect");
+      for (const args of [["help"], ["version"], ["contract"]]) {
+        if (await runOhCli(args) !== 0) throw new Error("Static command failed");
+        if (loaded()) throw new Error("Static command loaded Effect");
+      }
+      let rejected = false;
+      try { await runOhCli(["sync", "export", "--limit", "0"]); }
+      catch (error) { if (!(error instanceof TypeError)) throw error; rejected = true; }
+      if (!rejected || loaded()) throw new Error("Invalid command crossed the SDK boundary");
+      // A real store command is also the positive control for the cache observer.
+      if (await runOhCli(["init"]) !== 0 || !loaded()) {
+        throw new Error("Store command did not load the runtime");
+      }
+    `;
+    const child = Bun.spawn([process.execPath, "--eval", probe], {
+      cwd: root, stderr: "pipe", stdout: "pipe",
+    });
+    const [code, stderr, stdout] = await Promise.all([
+      child.exited, new Response(child.stderr).text(), new Response(child.stdout).text(),
+    ]);
+    expect({ code, stderr }).toEqual({ code: 0, stderr: "" });
+    expect(stdout).toContain('"spaceId":"default"');
+    expect(existsSync(join(root, ".oh", "oh.sqlite"))).toBe(true);
+  });
+
   test("initializes, writes, searches, and verifies one local database", async () => {
     const root = await mkdtemp(join(tmpdir(), "oh-cli-test-"));
     roots.push(root);
@@ -89,7 +124,7 @@ describe("oh CLI", () => {
       expect(existsSync(join(root, ".oh")), invocation.join(" ")).toBe(false);
       expect(existsSync(database), invocation.join(" ")).toBe(false);
     }
-  }, 15_000);
+  });
 
   test("serves the static contract without creating a default store", async () => {
     const root = await mkdtemp(join(tmpdir(), "oh-cli-contract-test-"));

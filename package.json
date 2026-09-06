@@ -101,7 +101,7 @@
   },
   "scripts": {
     "build": "bun run build:js && bun run build:portable && bun run build:types",
-    "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
+    "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
     "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog",
     "build:types": "tsc -p tsconfig.build.json",
     "check": "bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:package",
