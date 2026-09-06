@@ -21,6 +21,18 @@ A historical read MUST fail if its sequence is absent or identifies a
 different operation digest. A change page MUST name its source cursor, pinned
 through-head, returned cursor, and whether more operations remain.
 
+A commit may declare `maximumOperationBytes`. The built-in SQLite and direct
+libSQL authorities measure the exact canonical operation before persistence,
+including on an exact operation-ID replay. Exceeding the host-declared bound
+throws `OhOperationSizeError`, a `RangeError` subtype carrying
+`operationBytes` and `maximumOperationBytes`; it never indicates an ambiguous
+post-effect failure. Its public `code` is `oh.operation-size.v1`, and
+`instanceof OhOperationSizeError` remains stable across separately bundled Oh
+entrypoints. Callers validating an unknown caught value may instead use
+`isOhOperationSizeError`; the guard requires a native error with immutable
+branded numeric fields, so copying the public fields onto a plain object is not
+sufficient.
+
 ## Semantic bundle ingress
 
 Model-facing code SHOULD use `OhSemanticBundleIngressV1` instead of generic

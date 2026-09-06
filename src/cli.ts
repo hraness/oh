@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFile } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
 
 import { canonicalJson, opaqueId, safeCode, type JsonValue } from "./canonical";
 import { OH_CONTRACT_MANIFEST_V1 } from "./contract";
@@ -7,7 +7,7 @@ import { OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1, createKnowledgeGraphRecordV1,
   type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
 import { Oh } from "./sdk";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
-import { createOhSyncBundleV1, parseOhSyncBundleV1 } from "./sync";
+import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync";
 
 export const OH_PACKAGE_VERSION = "0.4.0" as const;
 
@@ -174,7 +174,7 @@ async function validateInvocation(command: string, parsed: ParsedArguments): Pro
       assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, "file"]);
       const file = one(parsed, "file");
       if (file === undefined) throw new TypeError("sync import needs --file.");
-      syncBundle = parseOhSyncBundleV1(JSON.parse(await readFile(file, "utf8")));
+      syncBundle = parseOhSyncBundleV1(await readSyncBundleFile(file));
       if (syncBundle === null) throw new TypeError("Invalid sync bundle.");
     } else {
       throw new TypeError("sync needs export or import.");
@@ -190,6 +190,21 @@ async function validateInvocation(command: string, parsed: ParsedArguments): Pro
 }
 
 function print(value: unknown): void { process.stdout.write(`${canonicalJson(value)}\n`); }
+
+async function readSyncBundleFile(path: string): Promise<unknown> {
+  // `sync export` writes one terminal LF after the bounded canonical bundle.
+  const maximumFileBytes = OH_SYNC_BUNDLE_MAX_BYTES_V1 + 1;
+  const metadata = await lstat(path);
+  if (!metadata.isFile() || !Number.isSafeInteger(metadata.size)
+    || metadata.size > maximumFileBytes) {
+    throw new RangeError(`Sync bundle file must be a regular file of at most ${maximumFileBytes} bytes.`);
+  }
+  const contents = await readFile(path);
+  if (contents.byteLength > maximumFileBytes) {
+    throw new RangeError(`Sync bundle file must be at most ${maximumFileBytes} bytes.`);
+  }
+  return JSON.parse(contents.toString("utf8")) as unknown;
+}
 
 const HELP = `oh ${OH_PACKAGE_VERSION}
 
@@ -283,14 +298,25 @@ export async function runOhCli(arguments_: readonly string[]): Promise<number> {
       if (action === "export") {
         const after = integer(one(parsed, "after"), "after") ?? 0;
         const limit = integer(one(parsed, "limit"), "limit") ?? 1000;
-        print(createOhSyncBundleV1(oh.store.spaceId, oh.store.exportOperations(after, limit))); return 0;
+        print(createOhSyncBundleV1(oh.store.spaceId, oh.store.exportOperations(after, limit), {
+          largestFittingPrefix: true,
+        })); return 0;
       }
       if (action === "import") {
         const bundle = validated.syncBundle;
         if (bundle === null) throw new TypeError("Invalid prepared sync import command.");
-        let imported = 0;
-        for (const operation of bundle.operations) if (oh.store.importOperation(operation).imported) imported += 1;
-        print({ head: oh.head(), imported, v: 1 }); return 0;
+        const first = bundle.operations[0];
+        if (first === undefined) {
+          print({ head: oh.head(), imported: 0, v: 1 }); return 0;
+        }
+        const imported = oh.store.importOperations({
+          expectedHead: {
+            operationSha256: first.parentOperationSha256,
+            sequence: first.sequence - 1,
+          },
+          operations: bundle.operations,
+        });
+        print({ head: imported.head, imported: imported.imported, v: 1 }); return 0;
       }
       throw new TypeError("sync needs export or import.");
     }

@@ -429,6 +429,7 @@ export type OhMemoryAuthorityV1 = Readonly<{
 }>;
 export type OhMemoryAuthorityOptionsV1 = OhMemoryFacadeOptionsV2 & Readonly<{
     adoptionActorId: string;
+    maximumCanonicalOperationBytes?: number;
 }>;
 export declare function parseOhMemoryNominationV1(value: unknown): OhMemoryNominationV1 | null;
 /**

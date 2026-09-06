@@ -8,6 +8,7 @@ import {
   safeCode,
   type Sha256Hex,
 } from "./canonical";
+import { OhOperationSizeError } from "./errors";
 import { OH_CONTRACT_ID_V1 } from "./ontology";
 import { canonicalKnowledgeGraphChangesV1, OH_GRAPH_LIMITS_V1, type KnowledgeGraphChangeV1 } from "./graph";
 
@@ -58,12 +59,21 @@ function parsePayload(value: unknown): OhOperationPayloadV1 | null {
     : null;
 }
 
-export function createOhOperationV1(input: OhOperationPayloadV1): OhOperationV1 {
+export function createOhOperationV1(
+  input: OhOperationPayloadV1,
+  options: Readonly<{ maximumOperationBytes?: number }> = {},
+): OhOperationV1 {
+  const maximumOperationBytes = options.maximumOperationBytes ?? OH_OPERATION_MAX_BYTES_V1;
+  if (!Number.isSafeInteger(maximumOperationBytes) || maximumOperationBytes < 1
+    || maximumOperationBytes > OH_OPERATION_MAX_BYTES_V1) {
+    throw new TypeError("Invalid Oh operation byte bound.");
+  }
   const payload = parsePayload(input);
   if (payload === null) throw new TypeError("Invalid Oh operation payload.");
   const operation = { ...payload, operationSha256: canonicalSha256(payload) };
-  if (Buffer.byteLength(canonicalJson(operation), "utf8") > OH_OPERATION_MAX_BYTES_V1) {
-    throw new RangeError("Oh operation exceeds its canonical byte limit.");
+  const operationBytes = Buffer.byteLength(canonicalJson(operation), "utf8");
+  if (operationBytes > maximumOperationBytes) {
+    throw new OhOperationSizeError(operationBytes, maximumOperationBytes);
   }
   return operation;
 }

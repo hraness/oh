@@ -237,6 +237,102 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
       "-e",
       "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory']) await import(p)",
     ], consumer);
+    await writeFile(join(consumer, "operation-size-identity.mjs"), `
+import { Database } from "bun:sqlite";
+import { createKnowledgeGraphRecordV1 } from "@hraness/oh";
+import {
+  bootstrapOhLibSqlAuthorityV1,
+  createOhLibSqlStoreAuthorityV1,
+} from "@hraness/oh/libsql";
+import {
+  isOhOperationSizeError,
+  OH_CANONICAL_STORE_PROFILE_V1,
+  OH_OPERATION_SIZE_ERROR_CODE_V1,
+  OhOperationSizeError,
+} from "@hraness/oh/store";
+import { OhSqliteStore } from "@hraness/oh/sqlite";
+
+class SqliteCompatibleClient {
+  database = new Database(":memory:", { strict: true });
+
+  #execute(statement) {
+    const sql = typeof statement === "string" ? statement : statement.sql;
+    const args = typeof statement === "string" ? [] : statement.args ?? [];
+    const bindings = args.map((value) => value instanceof Date
+      ? value.toISOString() : value instanceof ArrayBuffer ? new Uint8Array(value) : value);
+    if (/^\\s*(?:SELECT|PRAGMA)\\b/iu.test(sql)) {
+      return { rows: this.database.query(sql).all(...bindings) };
+    }
+    const result = this.database.query(sql).run(...bindings);
+    return { rows: [], rowsAffected: result.changes };
+  }
+
+  async execute(statement) { return this.#execute(statement); }
+
+  async batch(statements) {
+    return this.database.transaction((items) => items.map((statement) => this.#execute(statement)))(statements);
+  }
+
+  close() { this.database.close(); }
+}
+
+const record = createKnowledgeGraphRecordV1({
+  dependencies: [], key: "entity:bounded", kind: "entity", v: 1, value: { name: "Bounded" },
+});
+function assertSizeError(error, source) {
+  if (!(error instanceof OhOperationSizeError) || !isOhOperationSizeError(error)
+    || error.code !== OH_OPERATION_SIZE_ERROR_CODE_V1
+    || error.maximumOperationBytes !== 1 || error.operationBytes <= 1) {
+    throw new Error(source + " did not preserve the packed cross-entrypoint size-error identity.");
+  }
+}
+
+const sqlite = new OhSqliteStore({ path: ":memory:", spaceId: "package-size-sqlite" });
+let sqliteError;
+try {
+  sqlite.commit({ actorId: "package.smoke", changes: [{ kind: "put", record, v: 1 }],
+    expectedHead: sqlite.head(), maximumOperationBytes: 1, operationId: "op_sqlite_bounded" });
+} catch (error) { sqliteError = error; }
+assertSizeError(sqliteError, "SQLite");
+if (sqlite.head().sequence !== 0 || sqlite.exportOperations().length !== 0) {
+  throw new Error("SQLite size refusal changed durable state.");
+}
+sqlite.close();
+
+const client = new SqliteCompatibleClient();
+await bootstrapOhLibSqlAuthorityV1(client);
+const authority = await createOhLibSqlStoreAuthorityV1(client, {
+  profile: OH_CANONICAL_STORE_PROFILE_V1,
+  realmId: "realm:package-size-libsql",
+  spaceId: "package-size-libsql",
+});
+let libsqlError;
+try {
+  await authority.store.commit({ actorId: "package.smoke", changes: [{ kind: "put", record, v: 1 }],
+    expectedHead: await authority.store.head(), maximumOperationBytes: 1,
+    operationId: "op_libsql_bounded" });
+} catch (error) { libsqlError = error; }
+assertSizeError(libsqlError, "libSQL");
+if ((await authority.store.head()).sequence !== 0) {
+  throw new Error("libSQL size refusal changed durable state.");
+}
+await authority.store.close();
+client.close();
+
+const copied = Object.create(RangeError.prototype);
+Object.defineProperties(copied, {
+  [Symbol.for("@hraness/oh/OhOperationSizeError/v1")]: {
+    configurable: false, value: true, writable: false,
+  },
+  code: { configurable: false, value: OH_OPERATION_SIZE_ERROR_CODE_V1, writable: false },
+  maximumOperationBytes: { configurable: false, value: 1, writable: false },
+  operationBytes: { configurable: false, value: 2, writable: false },
+});
+if (copied instanceof OhOperationSizeError || isOhOperationSizeError(copied)) {
+  throw new Error("A copied plain object forged the size-error discriminator.");
+}
+`, { mode: 0o600 });
+    await run([process.execPath, "run", "./operation-size-identity.mjs"], consumer);
     await run([
       "node",
       "--input-type=module",

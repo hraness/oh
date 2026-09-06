@@ -11,7 +11,11 @@ import { OH_CONTRACT_MANIFEST_V1 } from "./contract";
 import { canonicalKnowledgeGraphChangesV1, knowledgeGraphRecordRefV1, OH_GRAPH_LIMITS_V1,
   parseKnowledgeGraphRecordV1,
   type KnowledgeGraphRecordV1 } from "./graph";
-import { parseOhOperationV1, type OhOperationV1 } from "./operation";
+import {
+  OH_OPERATION_MAX_BYTES_V1,
+  parseOhOperationV1,
+  type OhOperationV1,
+} from "./operation";
 import {
   createOhDependencyClosureV1,
   createOhSpacePurgeReceiptV1,
@@ -21,6 +25,7 @@ import {
   OH_WORKING_STORE_PROFILE_V1,
   OhConflictError,
   OhIntegrityError,
+  OhOperationSizeError,
   OhProfileError,
   OhPurgedSpaceError,
   parseOhHeadRefV1,
@@ -1261,8 +1266,14 @@ class OhLibSqlStoreV1 implements OhStoreV1 {
     this.#assertOpen();
     const actorId = safeCode(input.actorId);
     const operationId = safeCode(input.operationId);
+    const maximumOperationBytes = input.maximumOperationBytes ?? OH_OPERATION_MAX_BYTES_V1;
     const changes = canonicalKnowledgeGraphChangesV1(input.changes);
-    if (actorId === null || operationId === null || changes.length === 0) throw new TypeError("Invalid Oh commit input.");
+    if (actorId === null || operationId === null || changes.length === 0
+      || !Number.isSafeInteger(maximumOperationBytes)
+      || maximumOperationBytes < 1
+      || maximumOperationBytes > OH_OPERATION_MAX_BYTES_V1) {
+      throw new TypeError("Invalid Oh commit input.");
+    }
     if (changes.length > OH_LIBSQL_STORE_LIMITS_V1.changesPerCommit) {
       throw new RangeError("A direct libSQL commit exceeds its change-count bound.");
     }
@@ -1277,6 +1288,10 @@ class OhLibSqlStoreV1 implements OhStoreV1 {
       if (duplicate.actorId !== actorId || canonicalJson(duplicate.changes) !== canonicalJson(changes)) {
         throw new OhConflictError("The operation ID is already bound to different content.");
       }
+      const operationBytes = utf8ByteLength(canonicalJson(duplicate));
+      if (operationBytes > maximumOperationBytes) {
+        throw new OhOperationSizeError(operationBytes, maximumOperationBytes);
+      }
       return duplicate;
     }
     if (!Number.isSafeInteger(input.expectedHead.generation) || input.expectedHead.generation < 0
@@ -1286,9 +1301,15 @@ class OhLibSqlStoreV1 implements OhStoreV1 {
     }
     const snapshot = await this.#currentMaterializedSnapshot(current, OH_GRAPH_LIMITS_V1.recordsPerSnapshot);
     const transition = transitionOhSnapshotV1({ actorId, changes,
-      instant: input.instant ?? canonicalNow(), operationId, snapshot, spaceId: this.binding.spaceId });
+      instant: input.instant ?? canonicalNow(), maximumOperationBytes,
+      operationId, snapshot, spaceId: this.binding.spaceId });
     const operation = transition.operation;
-    if (utf8ByteLength(canonicalJson(operation)) > OH_LIBSQL_STORE_LIMITS_V1.operationBytes) {
+    const operationJson = canonicalJson(operation);
+    const operationBytes = utf8ByteLength(operationJson);
+    if (operationBytes > maximumOperationBytes) {
+      throw new OhOperationSizeError(operationBytes, maximumOperationBytes);
+    }
+    if (operationBytes > OH_LIBSQL_STORE_LIMITS_V1.operationBytes) {
       throw new RangeError("A direct libSQL operation exceeds its canonical byte bound.");
     }
     const existsOperation = "EXISTS (SELECT 1 FROM oh_authority_operations WHERE operation_sha256 = ?)";
@@ -1301,7 +1322,7 @@ class OhLibSqlStoreV1 implements OhStoreV1 {
           WHERE space_id = ? AND generation = ? AND head_operation_sha256 IS ?)`,
       args: [operation.operationSha256, this.binding.spaceId, operation.sequence, operation.operationId,
         operation.parentOperationSha256, operation.graphRevisionSha256, operation.recordsSha256,
-        canonicalJson(operation), operation.instant, this.binding.spaceId, current.generation,
+        operationJson, operation.instant, this.binding.spaceId, current.generation,
         current.operationSha256],
     }];
     for (const [ordinal, change] of operation.changes.entries()) {

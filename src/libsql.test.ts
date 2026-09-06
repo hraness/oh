@@ -18,6 +18,7 @@ import {
   OH_WORKING_STORE_PROFILE_V1,
   OhConflictError,
   OhIntegrityError,
+  OhOperationSizeError,
   OhProfileError,
   OhPurgedSpaceError,
 } from "./store";
@@ -337,6 +338,41 @@ describe("direct libSQL Oh authority", () => {
     });
     expect((await reopened.store.head()).operationSha256).toBe((await authority.store.head()).operationSha256);
     await reopened.store.close();
+    await authority.store.close();
+    client.close();
+  });
+
+  test("honors the host-declared operation byte bound before replay or persistence", async () => {
+    const client = await bootstrappedClient();
+    const authority = await createOhLibSqlStoreAuthorityV1(client, {
+      profile: OH_CANONICAL_STORE_PROFILE_V1, realmId: "realm:operation-bound", spaceId: "operation-bound",
+    });
+    const empty = await authority.store.head();
+    const firstChanges = [{ kind: "put" as const,
+      record: entity("entity:bounded", "Bounded"), v: 1 as const }];
+    const first = await authority.store.commit({ actorId: "agent.bound", changes: firstChanges,
+      expectedHead: empty, operationId: "op_bounded_first" });
+
+    const replayError: unknown = await authority.store.commit({ actorId: "agent.bound", changes: firstChanges,
+      expectedHead: empty, maximumOperationBytes: 1,
+      operationId: "op_bounded_first" }).catch((error: unknown) => error);
+    const commitError: unknown = await authority.store.commit({ actorId: "agent.bound", changes: [{ kind: "put",
+      record: entity("entity:rejected", "Rejected"), v: 1 }], expectedHead: await authority.store.head(),
+    maximumOperationBytes: 1, operationId: "op_bounded_rejected" }).catch((error: unknown) => error);
+    for (const error of [replayError, commitError]) {
+      expect(error).toBeInstanceOf(OhOperationSizeError);
+      expect(error).toBeInstanceOf(RangeError);
+      expect(error).toMatchObject({ maximumOperationBytes: 1,
+        operationBytes: expect.any(Number) });
+    }
+
+    expect(await authority.store.head()).toMatchObject({
+      operationSha256: first.operationSha256,
+      sequence: 1,
+    });
+    expect(client.database.query<{ count: number }, [string]>(`SELECT count(*) AS count
+      FROM oh_authority_operations WHERE space_id = ?`).get("operation-bound")?.count).toBe(1);
+    expect((await authority.store.snapshot()).records.map(({ key }) => key)).toEqual(["entity:bounded"]);
     await authority.store.close();
     client.close();
   });

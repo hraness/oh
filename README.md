@@ -254,6 +254,14 @@ only on `authority.host`; do not expose that object or raw database credentials
 through a model tool. Read the [store-port specification](spec/v1/store.md) for
 exact snapshot, change-feed, codec ingress, closure, and purge behavior.
 
+A Bun SQLite authority opened with the canonical profile instead exposes
+`authority.host.replication`. Its `exportBundle` result preserves the pinned
+change-feed `from`, `to`, `through`, and `hasMore` evidence; `importBundle`
+strictly parses and applies the complete bundle atomically. The capability is
+absent from `authority.store` and is `null` for working profiles. Long-running
+hosts can capture a bounded bundle, close local custody for network I/O, then
+reopen and revalidate before one atomic import.
+
 ## Compose working and canonical memory
 
 The stable `@hraness/oh/memory` entrypoint uses the same Oh kernel twice, not a
@@ -261,6 +269,16 @@ separate memory database model. Trusted host code supplies two distinct
 physical store handles, their expected binding digests, one exact canonical
 head, sealed working codecs, digest-identified fact extractors, and closed
 registries of named projection programs and nomination routes.
+
+Hosts that must fit canonical history into a narrower encrypted transport can
+set `maximumCanonicalOperationBytes`. The exact canonical operation is checked
+before its compare-and-swap persists; working-memory capacity is unaffected.
+This pre-effect refusal is an `OhOperationSizeError`, a `RangeError` subtype
+with the actual and configured canonical byte counts and the stable code
+`oh.operation-size.v1`. The class remains recognizable across Oh package
+entrypoints; `isOhOperationSizeError` is also exported for validating unknown
+caught values without accepting a plain object that merely copied those public
+fields.
 
 Use `createOhMemoryAuthorityV1` for an application integration. It returns an
 `agent` object with only `remember`, `query`, `explain`, and `nominate`, plus a
@@ -649,10 +667,18 @@ try {
 
 The consumer owns credentials, client construction, retry policy, and remote
 availability. The transport handshakes before exchanging data and refuses a
-different contract or a non-fast-forward history.
+different contract or a non-fast-forward history. Canonical bundles share one
+64 MiB plus 4 KiB byte/node budget across at most 1,000 operations. If a retry
+finds that another writer has advanced beyond its submitted tail, the libSQL
+adapter acknowledges that tail only after every submitted sequence, digest,
+and canonical operation still matches the bounded remote row range. Histories
+larger than one bundle advance through the largest fitting operation prefix in
+each direction.
 
 For offline transfer, `oh sync export` writes a bounded bundle to stdout and
-`oh sync import --file <path>` verifies and imports it idempotently.
+`oh sync import --file <path>` verifies and imports it idempotently in one
+atomic transaction. Import refuses non-regular or oversized bundle files before
+opening the local authority.
 
 ## Boundaries and limitations
 

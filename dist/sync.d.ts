@@ -2,12 +2,16 @@ import { type Sha256Hex } from "./canonical";
 import { type OhContractManifestV1 } from "./contract";
 import { type OhOperationV1 } from "./operation";
 import type { OhSqliteStore } from "./sqlite/store";
+import type { OhHeadRefV1 } from "./store";
 export declare const OH_SYNC_PROTOCOL_V1: "oh.sync.v1";
 export type OhSyncHeadV1 = Readonly<{
     operationSha256: Sha256Hex | null;
     sequence: number;
     v: 1;
 }>;
+export declare const OH_SYNC_BUNDLE_MAX_BYTES_V1: number;
+export declare function parseOhSyncHeadRefV1(value: unknown): OhHeadRefV1 | null;
+export declare function parseOhSyncHeadV1(value: unknown): OhSyncHeadV1 | null;
 export type OhSyncBundleV1 = Readonly<{
     bundleSha256: Sha256Hex;
     contractSha256: Sha256Hex;
@@ -16,7 +20,9 @@ export type OhSyncBundleV1 = Readonly<{
     spaceId: string;
     v: 1;
 }>;
-export declare function createOhSyncBundleV1(spaceId: string, operations: readonly OhOperationV1[]): OhSyncBundleV1;
+export declare function createOhSyncBundleV1(spaceId: string, operations: readonly OhOperationV1[], options?: Readonly<{
+    largestFittingPrefix?: boolean;
+}>): OhSyncBundleV1;
 export declare function parseOhSyncBundleV1(value: unknown): OhSyncBundleV1 | null;
 export interface OhOperationSyncTransportV1 {
     handshake(manifest: OhContractManifestV1): Promise<void>;

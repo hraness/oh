@@ -1,3 +1,5 @@
+import { isProxy } from "node:util/types";
+
 import { canonicalJson } from "../canonical";
 import {
   createOhStoreBindingV1,
@@ -11,7 +13,6 @@ import {
   type OhHeadV1,
   type OhSnapshotV1,
   type OhSpacePurgeReceiptV1,
-  type OhStoreAuthorityV1,
   type OhStoreBindingV1,
   type OhStoreHostControlV1,
   type OhStoreProfileV1,
@@ -19,8 +20,17 @@ import {
   type OhStoreVerificationV1,
 } from "../store";
 import type { OhOperationV1 } from "../operation";
+import {
+  createOhSyncBundleV1,
+  parseOhSyncBundleV1,
+  parseOhSyncHeadRefV1,
+  type OhSyncBundleV1,
+} from "../sync";
 import type { OhSqliteDatabase } from "./driver";
-import { OhSqliteStore } from "./store";
+import {
+  OhSqliteStore,
+  type OhOperationImportResultV1,
+} from "./store";
 
 export type OhSqliteStoreAuthorityOptionsV1 = Readonly<{
   database?: OhSqliteDatabase;
@@ -29,6 +39,59 @@ export type OhSqliteStoreAuthorityOptionsV1 = Readonly<{
   realmId?: string;
   spaceId?: string;
 }>;
+
+export interface OhSqliteCanonicalReplicationV1 {
+  readonly binding: OhStoreBindingV1;
+  exportBundle(input: Readonly<{
+    after: OhHeadRefV1;
+    limit?: number;
+    through: OhHeadRefV1;
+  }>): Promise<Readonly<{
+    bundle: OhSyncBundleV1;
+    from: OhChangesPageV1["from"];
+    hasMore: boolean;
+    through: OhChangesPageV1["through"];
+    to: OhChangesPageV1["to"];
+    v: 1;
+  }>>;
+  head(): Promise<OhHeadV1>;
+  importBundle(input: Readonly<{
+    bundle: unknown;
+    expectedHead: OhHeadRefV1;
+  }>): Promise<OhOperationImportResultV1>;
+}
+
+export interface OhSqliteStoreHostControlV1 extends OhStoreHostControlV1 {
+  readonly replication: OhSqliteCanonicalReplicationV1 | null;
+}
+
+export type OhSqliteStoreAuthorityV1 = Readonly<{
+  host: OhSqliteStoreHostControlV1;
+  store: OhStoreV1;
+}>;
+
+function exactReplicationImportInputV1(value: unknown): Readonly<{
+  bundle: unknown;
+  expectedHead: unknown;
+}> | null {
+  try {
+    if (typeof value !== "object" || value === null || Array.isArray(value) || isProxy(value)) return null;
+    const prototype = Object.getPrototypeOf(value);
+    const keys = Reflect.ownKeys(value);
+    if ((prototype !== Object.prototype && prototype !== null)
+      || keys.length !== 2 || !keys.includes("bundle") || !keys.includes("expectedHead")
+      || keys.some((key) => typeof key !== "string")) return null;
+    const bundle = Object.getOwnPropertyDescriptor(value, "bundle");
+    const expectedHead = Object.getOwnPropertyDescriptor(value, "expectedHead");
+    if (bundle === undefined || expectedHead === undefined
+      || !bundle.enumerable || !expectedHead.enumerable
+      || bundle.get !== undefined || bundle.set !== undefined
+      || expectedHead.get !== undefined || expectedHead.set !== undefined) return null;
+    return { bundle: bundle.value, expectedHead: expectedHead.value };
+  } catch {
+    return null;
+  }
+}
 
 export class OhSqliteStorePortV1 implements OhStoreV1 {
   readonly binding: OhStoreBindingV1;
@@ -91,7 +154,7 @@ export class OhSqliteStorePortV1 implements OhStoreV1 {
  */
 export function createOhSqliteStoreAuthorityV1(
   options: OhSqliteStoreAuthorityOptionsV1 = {},
-): OhStoreAuthorityV1 {
+): OhSqliteStoreAuthorityV1 {
   const profile = parseOhStoreProfileV1(options.profile ?? OH_CANONICAL_STORE_PROFILE_V1);
   if (profile === null) throw new TypeError("Invalid SQLite store profile.");
   const spaceId = options.spaceId ?? "default";
@@ -104,7 +167,57 @@ export function createOhSqliteStoreAuthorityV1(
   });
   const store = new OhSqliteStorePortV1(authority, binding);
   let purge: OhSpacePurgeReceiptV1 | null = null;
-  const host: OhStoreHostControlV1 = Object.freeze({
+  const replication: OhSqliteCanonicalReplicationV1 | null =
+    profile.capabilities.operationReplication
+      ? Object.freeze({
+          binding,
+          exportBundle: async (input: Readonly<{
+            after: OhHeadRefV1;
+            limit?: number;
+            through: OhHeadRefV1;
+          }>) => {
+            const page = authority.changesSince(input.after, {
+              ...(input.limit === undefined ? {} : { limit: input.limit }),
+              through: input.through,
+            });
+            const bundle = createOhSyncBundleV1(binding.spaceId, page.operations, {
+              largestFittingPrefix: true,
+            });
+            const last = bundle.operations.at(-1);
+            return Object.freeze({
+              bundle,
+              from: page.from,
+              hasMore: page.hasMore || bundle.operations.length < page.operations.length,
+              through: page.through,
+              to: last === undefined ? page.from : {
+                operationSha256: last.operationSha256,
+                sequence: last.sequence,
+              },
+              v: 1 as const,
+            });
+          },
+          head: async () => authority.head(),
+          importBundle: async (input: Readonly<{
+            bundle: unknown;
+            expectedHead: OhHeadRefV1;
+          }>) => {
+            const request = exactReplicationImportInputV1(input);
+            const expectedHead = request === null ? null : parseOhSyncHeadRefV1(request.expectedHead);
+            if (request === null || expectedHead === null) {
+              throw new TypeError("Invalid canonical replication request.");
+            }
+            const bundle = parseOhSyncBundleV1(request.bundle);
+            if (bundle === null || bundle.spaceId !== binding.spaceId) {
+              throw new TypeError("Invalid canonical replication bundle.");
+            }
+            return authority.importOperations({
+              expectedHead,
+              operations: bundle.operations,
+            });
+          },
+        })
+      : null;
+  const host: OhSqliteStoreHostControlV1 = Object.freeze({
     binding,
     purgeWorkingSpace: async (input: Readonly<{ purgedAt?: string }>) => {
       if (profile.profileKind !== "working" || !profile.capabilities.wholeSpacePurge) {
@@ -115,6 +228,7 @@ export function createOhSqliteStoreAuthorityV1(
       authority.close();
       return purge;
     },
+    replication,
   });
   return Object.freeze({ host, store });
 }

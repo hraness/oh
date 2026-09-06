@@ -2,6 +2,7 @@ import { type Sha256Hex } from "./canonical";
 import { OhRecordCodecRegistry } from "./contract";
 export { OhRecordCodecRegistry } from "./contract";
 import { type KnowledgeGraphChangeV1, type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
+export { isOhOperationSizeError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhOperationSizeError, } from "./errors";
 import { type OhOperationV1 } from "./operation";
 export declare class OhConflictError extends Error {
     constructor(message: string);
@@ -29,6 +30,7 @@ export type OhCommitInputV1 = Readonly<{
     changes: readonly KnowledgeGraphChangeV1[];
     expectedHead: Pick<OhHeadV1, "generation" | "operationSha256">;
     instant?: string;
+    maximumOperationBytes?: number;
     operationId: string;
 }>;
 export type OhSnapshotV1 = Readonly<{
@@ -166,6 +168,7 @@ export declare function transitionOhSnapshotV1(input: Readonly<{
     actorId: string;
     changes: readonly KnowledgeGraphChangeV1[];
     instant: string;
+    maximumOperationBytes?: number;
     operationId: string;
     snapshot: OhSnapshotV1;
     spaceId: string;

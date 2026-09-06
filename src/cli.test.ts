@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, truncate, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+
+import { canonicalJson, canonicalSha256 } from "./canonical";
+import { createKnowledgeGraphRecordV1 } from "./graph";
+import { createOhOperationV1 } from "./operation";
+import { OhSqliteStore } from "./sqlite/store";
+import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1 } from "./sync";
 
 const roots: string[] = [];
 const CLI_PATH = join(import.meta.dir, "cli.ts");
@@ -98,6 +104,52 @@ describe("oh CLI", () => {
     });
     expect(existsSync(join(root, ".oh"))).toBe(false);
     expect((await run(["contract", "--db", database, "--space", "contract.test"], root)).code).toBe(0);
+    expect(existsSync(database)).toBe(false);
+  });
+
+  test("imports a sync bundle atomically when a later operation is invalid", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-cli-atomic-import-test-"));
+    roots.push(root);
+    const database = join(root, "target.sqlite");
+    const bundlePath = join(root, "hostile-bundle.json");
+    const source = new OhSqliteStore({ path: ":memory:" });
+    const entity = (key: string, name: string) => createKnowledgeGraphRecordV1({
+      dependencies: [], key, kind: "entity", v: 1, value: { name },
+    });
+    source.commit({ actorId: "agent.test", changes: [{ kind: "put",
+      record: entity("entity:first", "First"), v: 1 }], expectedHead: source.head(),
+    operationId: "op_first" });
+    source.commit({ actorId: "agent.test", changes: [{ kind: "put",
+      record: entity("entity:second", "Second"), v: 1 }], expectedHead: source.head(),
+    operationId: "op_second" });
+    const [first, second] = source.exportOperations();
+    if (first === undefined || second === undefined) throw new Error("Expected two operations.");
+    const { operationSha256: _operationSha256, ...payload } = second;
+    const hostileSecond = createOhOperationV1({ ...payload,
+      graphRevisionSha256: canonicalSha256("hostile graph revision"),
+      recordsSha256: canonicalSha256("hostile records") });
+    await writeFile(bundlePath,
+      canonicalJson(createOhSyncBundleV1(source.spaceId, [first, hostileSecond])), "utf8");
+    source.close();
+
+    const imported = await run(["sync", "import", "--db", database, "--file", bundlePath]);
+    expect(imported.code).toBe(1);
+    expect(imported.stderr).toContain("does not reproduce");
+    const verified = await run(["verify", "--db", database]);
+    expect(verified.code).toBe(0);
+    expect(JSON.parse(verified.stdout)).toMatchObject({ operations: 0, records: 0 });
+  });
+
+  test("rejects an oversized sparse sync bundle before opening the database", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-cli-bounded-import-test-"));
+    roots.push(root);
+    const database = join(root, "target.sqlite");
+    const bundlePath = join(root, "oversized-bundle.json");
+    await writeFile(bundlePath, "", "utf8");
+    await truncate(bundlePath, OH_SYNC_BUNDLE_MAX_BYTES_V1 + 2);
+    const imported = await run(["sync", "import", "--db", database, "--file", bundlePath]);
+    expect(imported.code).toBe(1);
+    expect(imported.stderr).toContain("regular file of at most");
     expect(existsSync(database)).toBe(false);
   });
 });
