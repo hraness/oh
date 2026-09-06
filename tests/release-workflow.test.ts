@@ -46,6 +46,7 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
   expect(workflow.match(/^\s+actions: read$/gmu)).toHaveLength(1);
   const githubJob = workflow.slice(workflow.indexOf("  publish_github:"), workflow.indexOf("  publish_npm:"));
   const npmJob = workflow.slice(workflow.indexOf("  publish_npm:"), workflow.indexOf("  pre_npm:"));
+  expect(npmJob).toContain("environment: npm-release");
   expect(npmJob).toContain("id-token: write");
   expect(npmJob).not.toContain("contents: write");
   expect(githubJob).toContain("contents: write");

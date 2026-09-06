@@ -5,8 +5,8 @@ of bytes, not a rebuild performed independently by each registry.
 
 Before releasing, enable immutable GitHub Releases and configure npm trusted
 publishing for repository `hraness/oh`, workflow `.github/workflows/release.yml`,
-and package `@hraness/oh`. Do not add a long-lived npm token or publish from a
-developer machine.
+GitHub Environment `npm-release`, and package `@hraness/oh`.
+Do not add a long-lived npm token or publish from a developer machine.
 
 Keep an active no-bypass ruleset named `Immutable version tags`, scoped exactly
 to `refs/tags/v*`. It allows creation, blocks updates and deletions, contains no
@@ -15,15 +15,19 @@ provider prerequisite; the workflow never weakens or rewrites it.
 
 Before creating any stable tag, an owner with repository-administration read
 access must save bounded JSON containing the repository readback, the separate
-`GET /repos/hraness/oh/immutable-releases` readback, and expanded ruleset
-readbacks under the keys `repository`, `immutableReleases`, and `rulesets`, then
+`GET /repos/hraness/oh/immutable-releases` readback, expanded ruleset readbacks,
+the `GET /repos/hraness/oh/environments/npm-release` readback, and its bounded
+deployment-branch-policy listing under the keys `repository`,
+`immutableReleases`, `rulesets`, `environment`, and `environmentPolicies`, then
 run `bun run release:preflight -- ADMIN_READBACK.json`. Use GitHub REST API
 version `2026-03-10` for the immutable-Releases request. The command fails unless
 the dedicated readback proves both `enabled: true` and `enforced_by_owner: true`,
-and there is exactly one active, no-bypass `refs/tags/v*` ruleset containing only
-update and deletion restrictions. The tag workflow token intentionally lacks
-administration access, so this pre-tag admin readback cannot be weakened or
-substituted by the publication workflow.
+there is exactly one active, no-bypass `refs/tags/v*` ruleset containing only
+update and deletion restrictions, and the publishing environment disables
+administrator bypass, has no reviewer gate, and admits only tag pattern `v*`.
+The tag workflow token intentionally lacks administration access, so this
+pre-tag admin readback cannot be weakened or substituted by the publication
+workflow.
 
 ## One-time npm coordinate bootstrap
 
@@ -39,7 +43,7 @@ After the coordinate exists, configure the permanent publisher with a current
 npm client:
 
 ```sh
-npm trust github @hraness/oh --repo hraness/oh --file release.yml --allow-publish --yes
+npm trust github @hraness/oh --repo hraness/oh --file release.yml --environment npm-release --allow-publish --yes
 ```
 
 Verify the publisher before preparing a new version. The bootstrap is the sole
@@ -87,8 +91,9 @@ The tag workflow then:
    `SHA256SUMS`—with exactly the same tarball and checksum bytes as the tested
    artifact; npm mutation cannot begin unless this proof succeeds;
 5. publishes the tarball through a separate dependency-free job with only
-   `id-token: write`, using npm trusted publishing with OIDC provenance, no
-   GitHub token, and no traditional npm credential;
+   `id-token: write`, a no-reviewer `npm-release` environment restricted to
+   immutable `v*` tags, npm trusted publishing with OIDC provenance, no GitHub
+   token, and no traditional npm credential;
 6. in a read-only job, installs the pinned Sigstore verifier and
    cryptographically proves npm provenance binds the tarball to the exact tag,
    commit, repository, and release workflow; and
