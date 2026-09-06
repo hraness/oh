@@ -25,7 +25,7 @@ import {
   parseOhSyncBundleV1,
   parseOhSyncHeadRefV1,
   type OhSyncBundleV1,
-} from "../sync";
+} from "../sync-model";
 import type { OhSqliteDatabase } from "./driver";
 import {
   OhSqliteStore,

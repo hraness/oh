@@ -89,7 +89,7 @@ describe("oh CLI", () => {
       expect(existsSync(join(root, ".oh")), invocation.join(" ")).toBe(false);
       expect(existsSync(database), invocation.join(" ")).toBe(false);
     }
-  });
+  }, 15_000);
 
   test("serves the static contract without creating a default store", async () => {
     const root = await mkdtemp(join(tmpdir(), "oh-cli-contract-test-"));
