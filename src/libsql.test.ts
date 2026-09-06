@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { Database, type SQLQueryBindings } from "bun:sqlite";
+import { Effect } from "effect";
+import { createAuthority } from "./libsql-program";
+import { LibSqlAuthorityClient, libSqlAuthorityClientLive } from "./libsql-platform";
 
 import { canonicalJson } from "./canonical";
 import { createKnowledgeGraphRecordV1 } from "./graph";
@@ -690,4 +693,246 @@ describe("direct libSQL Oh authority", () => {
     await expect(authority.host.purgeWorkingSpace({})).rejects.toThrow(OhProfileError);
     await authority.store.close(); client.close();
   });
+});
+
+function gate<A = void>() {
+  let resolve!: (value: A) => void;
+  let reject!: (cause: unknown) => void;
+  const promise = new Promise<A>((accept, refuse) => { resolve = accept; reject = refuse; });
+  return { promise, resolve, reject };
+}
+
+describe("libSQL authority lifetime", () => {
+  test("close fences new calls and drains a complete admitted transaction before native close", async () => {
+    const provider = await bootstrappedClient();
+    const entered = gate();
+    const release = gate();
+    const events: string[] = [];
+    let hold = false;
+    const client: OhLibSqlClientV1 = {
+      execute: statement => provider.execute(statement),
+      batch: async (statements, mode) => {
+        if (hold && mode === "write") {
+          entered.resolve();
+          await release.promise;
+          events.push("write-settled");
+        }
+        return provider.batch(statements, mode);
+      },
+      close: () => { events.push("close"); },
+    };
+    try {
+      const { store } = await createOhLibSqlStoreAuthorityV1(client, { closeClient: true });
+      const head = await store.head();
+      hold = true;
+      const commit = store.commit({ actorId: "actor", operationId: "op_drain", expectedHead: head,
+        changes: [{ kind: "put", v: 1, record: entity("entity:drain", "Drain") }] });
+      await entered.promise;
+      const close = store.close();
+      expect(store.close()).toBe(close);
+      await expect(store.head()).rejects.toThrow("closed");
+      await expect(store.commit({ actorId: "actor", operationId: "op_after_close", expectedHead: head,
+        changes: [{ kind: "put", v: 1, record: entity("entity:late", "Late") }] })).rejects.toThrow("closed");
+      expect(events).toEqual([]);
+      release.resolve();
+      const operation = await commit;
+      await close;
+      expect(operation.operationId).toBe("op_drain");
+      expect(events).toEqual(["write-settled", "close"]);
+      expect(provider.database.query<{ count: number }, []>("SELECT count(*) AS count FROM oh_authority_operations").get()?.count).toBe(1);
+    } finally { release.resolve(); provider.close(); }
+  });
+
+  test("failed writes finish reconciliation before close and retain independent operation/close errors", async () => {
+    const provider = await bootstrappedClient();
+    const entered = gate();
+    const release = gate();
+    const writeFailure = Object.freeze({ operation: "uncertain-write" });
+    const closeFailure = Object.freeze({ operation: "close" });
+    const events: string[] = [];
+    let failWrite = false;
+    let writeCount = 0;
+    const client: OhLibSqlClientV1 = {
+      execute: async statement => {
+        if (failWrite) events.push("reconcile");
+        return provider.execute(statement);
+      },
+      batch: async (statements, mode) => {
+        if (failWrite && mode === "write") {
+          writeCount += 1;
+          entered.resolve();
+          await release.promise;
+          events.push("write-failed");
+          throw writeFailure;
+        }
+        return provider.batch(statements, mode);
+      },
+      close: () => { events.push("close"); throw closeFailure; },
+    };
+    try {
+      const { store } = await createOhLibSqlStoreAuthorityV1(client, { closeClient: true });
+      const head = await store.head();
+      failWrite = true;
+      const committed = store.commit({ actorId: "actor", operationId: "op_failed_drain", expectedHead: head,
+        changes: [{ kind: "put", v: 1, record: entity("entity:drain", "Drain") }] }).catch(cause => cause);
+      await entered.promise;
+      const closed = store.close().catch(cause => cause);
+      expect(events).toEqual([]);
+      release.resolve();
+      expect(await committed).toBe(writeFailure);
+      expect(await closed).toBe(closeFailure);
+      expect(writeCount).toBe(1);
+      expect(events).toEqual(["write-failed", "reconcile", "reconcile", "close"]);
+      expect(await store.close().catch(cause => cause)).toBe(closeFailure);
+      expect(events.filter(event => event === "close")).toHaveLength(1);
+    } finally { release.resolve(); provider.close(); }
+  });
+
+  test("a lost write response reconciles exact replay once before close", async () => {
+    const provider = await bootstrappedClient();
+    const entered = gate();
+    const release = gate();
+    let loseResponse = false;
+    let writes = 0;
+    let closes = 0;
+    const client: OhLibSqlClientV1 = {
+      execute: statement => provider.execute(statement),
+      batch: async (statements, mode) => {
+        const result = await provider.batch(statements, mode);
+        if (loseResponse && mode === "write") {
+          writes += 1;
+          entered.resolve();
+          await release.promise;
+          throw "lost-response";
+        }
+        return result;
+      },
+      close: () => { closes += 1; },
+    };
+    try {
+      const { store } = await createOhLibSqlStoreAuthorityV1(client, { closeClient: true });
+      const head = await store.head();
+      loseResponse = true;
+      const committed = store.commit({ actorId: "actor", operationId: "op_lost_response", expectedHead: head,
+        changes: [{ kind: "put", v: 1, record: entity("entity:drain", "Drain") }] });
+      await entered.promise;
+      const closed = store.close();
+      expect(closes).toBe(0);
+      release.resolve();
+      expect((await committed).operationId).toBe("op_lost_response");
+      await closed;
+      expect(writes).toBe(1);
+      expect(closes).toBe(1);
+    } finally { release.resolve(); provider.close(); }
+  });
+
+  test("one authority admits concurrent commits and lets atomic SQL select the CAS winner", async () => {
+    const provider = await bootstrappedClient();
+    const bothEntered = gate();
+    const release = gate();
+    let hold = false;
+    let writes = 0;
+    const client: OhLibSqlClientV1 = {
+      execute: statement => provider.execute(statement),
+      batch: async (statements, mode) => {
+        if (hold && mode === "write") {
+          writes += 1;
+          if (writes === 2) bothEntered.resolve();
+          await release.promise;
+        }
+        return provider.batch(statements, mode);
+      },
+    };
+    try {
+      const { store } = await createOhLibSqlStoreAuthorityV1(client);
+      const head = await store.head();
+      hold = true;
+      const commits = ["first", "second"].map(id => store.commit({ actorId: "actor",
+        operationId: `op_${id}`, expectedHead: head,
+        changes: [{ kind: "put", v: 1, record: entity(`entity:${id}`, id) }] }));
+      const results = Promise.allSettled(commits);
+      await bothEntered.promise;
+      const closed = store.close();
+      release.resolve();
+      const settled = await results;
+      await closed;
+      expect(settled.filter(result => result.status === "fulfilled")).toHaveLength(1);
+      const rejected = settled.find(result => result.status === "rejected");
+      expect(rejected?.status === "rejected" ? rejected.reason : null).toBeInstanceOf(OhConflictError);
+      expect(writes).toBe(2);
+      expect(provider.database.query<{ count: number }, []>("SELECT count(*) AS count FROM oh_authority_operations").get()?.count).toBe(1);
+    } finally { release.resolve(); provider.close(); }
+  });
+
+  test("borrowed clients remain open while their authority still fences calls", async () => {
+    const provider = await bootstrappedClient();
+    try {
+      const { store } = await createOhLibSqlStoreAuthorityV1(provider);
+      await store.close();
+      await expect(store.head()).rejects.toThrow("closed");
+      expect((await provider.execute("SELECT 1 AS ready")).rows).toHaveLength(1);
+    } finally { provider.close(); }
+  });
+
+  test("a synchronously reentrant native close observes the same close without closing twice", async () => {
+    const provider = await bootstrappedClient();
+    let closeAuthority: (() => Promise<void>) | undefined;
+    let reentered: Promise<void> | undefined;
+    let closes = 0;
+    const client: OhLibSqlClientV1 = {
+      execute: statement => provider.execute(statement),
+      batch: (statements, mode) => provider.batch(statements, mode),
+      close: () => { closes += 1; reentered = closeAuthority?.(); },
+    };
+    try {
+      const { store } = await createOhLibSqlStoreAuthorityV1(client, { closeClient: true });
+      closeAuthority = () => store.close();
+      const closed = store.close();
+      await closed;
+      expect(reentered).toBe(closed);
+      expect(closes).toBe(1);
+    } finally { provider.close(); }
+  });
+
+  test("standalone purge preserves original rejection and finally-close precedence", async () => {
+    const original = Object.freeze({ kind: "provider-rejection" });
+    const closeFailure = Object.freeze({ kind: "close-rejection" });
+    const client: OhLibSqlClientV1 = {
+      execute: async () => { throw original; }, batch: async () => { throw original; },
+    };
+    expect(await bootstrapOhLibSqlAuthorityV1(client).catch(cause => cause)).toBe(original);
+    expect(await purgeOhLibSqlWorkingSpaceV1(client).catch(cause => cause)).toBe(original);
+    let closes = 0;
+    const closingClient = { ...client, close() { closes += 1; throw closeFailure; } };
+    expect(await purgeOhLibSqlWorkingSpaceV1(closingClient, { closeClient: true }).catch(cause => cause)).toBe(closeFailure);
+    expect(closes).toBe(1);
+  });
+});
+
+
+test("libSQL programs sample the injected clock only for a missing operation instant", async () => {
+  const provider = await bootstrappedClient();
+  let sampled = 0;
+  const defaultInstant = "2026-09-06T12:00:00.000Z";
+  const suppliedInstant = "2026-09-06T13:00:00.000Z";
+  try {
+    const program = await Effect.runPromise(Effect.gen(function* () {
+      const client = yield* LibSqlAuthorityClient;
+      return yield* createAuthority({ ...client, currentInstant: Effect.sync(() => {
+        sampled += 1;
+        return defaultInstant;
+      }) });
+    }).pipe(Effect.provide(libSqlAuthorityClientLive(provider))));
+    expect(sampled).toBe(1); // Space initialization also samples its declared clock.
+    const first = await Effect.runPromise(program.commit({ actorId: "actor", operationId: "op_clock_default",
+      expectedHead: await Effect.runPromise(program.head()),
+      changes: [{ kind: "put", v: 1, record: entity("entity:default", "Default") }] }));
+    expect(first.instant).toBe(defaultInstant);
+    expect(sampled).toBe(2);
+    const second = await Effect.runPromise(program.commit({ actorId: "actor", operationId: "op_clock_supplied",
+      expectedHead: await Effect.runPromise(program.head()), instant: suppliedInstant,
+      changes: [{ kind: "put", v: 1, record: entity("entity:supplied", "Supplied") }] }));
+    expect(second.instant).toBe(suppliedInstant);
+    expect(sampled).toBe(2);
+  } finally { provider.close(); }
 });
