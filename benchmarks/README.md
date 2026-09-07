@@ -15,6 +15,46 @@ bun run bench:memory state
 bun run bench:memory projection
 ```
 
+### Offline stress helpers
+
+Four helpers stress correctness and recovery paths without a network, a
+provider, or a dataset download. Each takes the source digest you expect the
+checkout to have and an absolute path to a new report file outside the checkout:
+
+```sh
+bun run bench:stress:projection --expected-source-sha256 "$OH_STRESS_SOURCE_SHA256" --output "$OH_STRESS_OUTPUT_ROOT/projection.json"
+bun run bench:stress:resume --expected-source-sha256 "$OH_STRESS_SOURCE_SHA256" --output "$OH_STRESS_OUTPUT_ROOT/resume.json"
+bun run bench:stress:sqlite --expected-source-sha256 "$OH_STRESS_SOURCE_SHA256" --output "$OH_STRESS_OUTPUT_ROOT/sqlite.json"
+bun run bench:stress:retrieval --expected-source-sha256 "$OH_STRESS_SOURCE_SHA256" --output "$OH_STRESS_OUTPUT_ROOT/retrieval.json"
+```
+
+Set `OH_STRESS_OUTPUT_ROOT` to a directory you own outside the checkout. The
+helpers resolve the output parent to its real path and require it to be outside
+the repository. They reject every existing output destination, including a
+symlink, and never create output-parent directories. Review the tree you intend
+to measure first, read its digest from `io.codeIdentity().sourceSha256`, and pass
+that value as `OH_STRESS_SOURCE_SHA256`. Each helper records the identity before
+and after its run and succeeds only when the expected, before, and after digests
+are identical. A successful report names the exact source it exercised.
+
+The matrices are bounded and fixed: 63 projection evaluations (20 graph fixtures
+in 3 input permutations plus 3 proof-budget cases); 9 generic extraction-resume
+scenarios (3 concurrency levels by 3 completion orders, each with 3 planned
+interruptions); 12 SQLite crash cycles of 64 records each; and a retrieval grid
+of 9216 cells and 27648 grid calls plus 24 stale-source cases. These helpers
+need fresh verification against the current tree; the counts describe what the
+helpers run, not a recorded result.
+
+The projection helper's proof-budget cases assert that the existing evaluation
+caps truncate proofs exactly where the public limits say they do; a run that
+exceeds a cap is reported as a failure rather than granted a larger budget. The
+extraction-resume helper drives a synthetic in-process transport with injected
+transport, environment, and ledger dependencies, so no provider is contacted and no
+real budget ledger is opened. Everything these helpers exercise is synthetic:
+they check deterministic correctness, resume accounting, and crash recovery,
+which is separate from reader accuracy, semantic quality, or any comparison with
+other systems. Reported timings are descriptive measurements of one machine.
+
 The state benchmark exercises the real working/canonical authority, compares
 updates and multi-hop results with an independent replay oracle, and checks
 proof provenance, conflicting authorities, canonical pins, idempotency, and
@@ -35,7 +75,9 @@ its download uses `gh` and its data is licensed CC BY-NC 4.0. Review that
 noncommercial license for your intended use. The cleaned LongMemEval release
 is MIT-licensed. Neither dataset is included in the npm package.
 
-All stores use SQLite `:memory:`. Downloads and reports live in
+The state, projection, and retrieval paths use SQLite `:memory:`. The SQLite
+crash stress helper is the one exception: it uses a disposable database file in
+a temporary directory that it creates, owns, and removes. Downloads and reports live in
 `.cache/benchmarks/`; no production database, hosted cache, or sync destination
 is read or written. Ingestion receives only raw turns, dates, speakers, and
 provided image captions. Answers, evidence labels, and supplied summaries stay
