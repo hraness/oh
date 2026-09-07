@@ -304,3 +304,10 @@ export async function loadClaudeStudyImport(input:Readonly<{manifest:Pin;jobs:re
     return Object.freeze({invocations:immutableMap(entries),summary,manifest,freeze,capacityPauses});
   } catch(error) {if(error instanceof ClaudeStudyImportError)throw error;return fail("native-or-io-rejection");}
 }
+
+/** Read-only primitives reused by separately versioned ancestry validators. V1 acceptance is unchanged. */
+export const claudeStudyImportInternals = Object.freeze({
+  record, keys, array, string, hash, integer, absolute, rel, pin, same, at, json, time, frozen,
+  readBoundedFile, pinned, sourceIdentity, closedFiles, inventoryReader, checkedJobs, binding,
+  zeroUsage, addUsage, immutableMap, supervisorJson, supervisorTime, verifyCapacity,
+});
