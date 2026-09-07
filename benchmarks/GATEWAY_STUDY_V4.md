@@ -1,5 +1,7 @@
 # Gateway response continuation
 
+This run later stopped on an extraction at its output-token limit. The separate [v5 continuation](GATEWAY_STUDY_V5.md) retains every captured response and records truncation as a failed extraction with zero memory.
+
 `bun run bench:gateway:v4` continues the fixed memory comparison after four successful Gateway responses were rejected because optional routing fields were absent. It imports those saved responses under a separately frozen parser correction and sends only the remaining 4,916 extraction chunks. No completed request is sent again.
 
 The correction accepts an alias-only response when the returned model, original model, canonical slug, successful model attempt and sole OpenAI provider attempt agree with the request. Every reported model identifier is still checked. Missing resolved model or snapshot identifiers remain `null`; an alias is never presented as a pinned snapshot. This change does not alter request bodies, model choices or generation settings.

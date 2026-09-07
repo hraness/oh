@@ -238,8 +238,7 @@ function parseUsage(value: unknown, gateway: Record<string, unknown>, reservatio
     costBasis: gatewayReportedMicros === null ? "token-rate-estimate" : "maximum-token-rate-and-gateway-reported", billedUsd: null };
 }
 
-/** Replaying stored bytes uses exactly the same parser as an admitted live response. */
-export function parseGatewayStudyResponse(requestInput: GatewayStudyRequest, reservation: GatewayStudyReservation, raw: GatewayStudyRaw): GatewayStudyResult {
+function checkedGatewayStudyResponse(requestInput: GatewayStudyRequest, reservation: GatewayStudyReservation, raw: GatewayStudyRaw) {
   const request = checkedRequest(requestInput);
   if (canonicalSha256(reservation) !== canonicalSha256(expectedReservation(request, reservation.id))) fail("reservation/request binding mismatch");
   if (raw.requestSha256 !== request.requestSha256 || !(raw.body instanceof Uint8Array)
@@ -258,7 +257,11 @@ export function parseGatewayStudyResponse(requestInput: GatewayStudyRequest, res
   const checked = identity(value, choice.message, request), usage = parseUsage(value.usage, checked.gateway, reservation);
   const base = { requestSha256: request.requestSha256, rawSha256: sha256Hex(raw.body), rawBytes: raw.body.byteLength,
     usage, identity: checked.identity };
-  const content = choice.message.content, refusal = choice.message.refusal;
+  return { request, choice, message: choice.message, base };
+}
+function completeGatewayStudyResponse(checked: ReturnType<typeof checkedGatewayStudyResponse>): GatewayStudyResult {
+  const { request, choice, message, base } = checked;
+  const content = message.content, refusal = message.refusal;
   if (refusal !== undefined && refusal !== null && (typeof refusal !== "string" || refusal.trim().length === 0)) fail("invalid refusal evidence");
   if (choice.finish_reason === "content_filter") {
     if (request.phase !== "extract" || (content !== null && content !== undefined && typeof content !== "string")) fail("content filter outside extraction policy");
@@ -273,11 +276,17 @@ export function parseGatewayStudyResponse(requestInput: GatewayStudyRequest, res
   return frozen({ ...base, kind: "completed", prediction: content.trim(), finishReason: "stop" });
 }
 
-/** Capture and ledger callbacks must durably finish; callback failure never dispatches another request. */
-export async function invokeGatewayStudy(options: Readonly<{
+/** Replaying stored bytes uses exactly the same parser as an admitted live response. */
+export function parseGatewayStudyResponse(request: GatewayStudyRequest, reservation: GatewayStudyReservation, raw: GatewayStudyRaw): GatewayStudyResult {
+  return completeGatewayStudyResponse(checkedGatewayStudyResponse(request, reservation, raw));
+}
+
+export type GatewayStudyInvokeOptions = Readonly<{
   request: GatewayStudyRequest; oidcToken: string; reservationId: string; budget: GatewayStudyBudget;
   record: (event: GatewayStudyLedgerEvent) => Promise<void>; capture: (raw: GatewayStudyRaw) => Promise<void>; fetcher?: GatewayStudyFetcher;
-}>): Promise<GatewayStudyResult> {
+}>;
+async function invokeGatewayStudyWithParser<Result extends Readonly<{ usage: GatewayStudyUsage }>>(options: GatewayStudyInvokeOptions,
+  parse: (request: GatewayStudyRequest, reservation: GatewayStudyReservation, raw: GatewayStudyRaw) => Result): Promise<Result> {
   const request = checkedRequest(options.request);
   if (typeof options.oidcToken !== "string" || options.oidcToken.trim().length === 0
     || typeof options.record !== "function" || typeof options.capture !== "function") fail("OIDC and durable callbacks required before dispatch");
@@ -313,8 +322,17 @@ export async function invokeGatewayStudy(options: Readonly<{
   const raw: GatewayStudyRaw = { requestSha256: request.requestSha256, httpStatus: response?.status ?? null,
     body, bodyComplete, receivedBytes, transportError };
   await options.capture({ ...raw, body: new Uint8Array(body) });
-  const result = parseGatewayStudyResponse(request, reservation, raw);
+  const result = parse(request, reservation, raw);
   await options.record({ v: 1, id: reservation.id, kind: "settled", micros: result.usage.micros });
   options.budget.settle(reservation, result.usage);
   return result;
 }
+
+/** Capture and ledger callbacks must durably finish; callback failure never dispatches another request. */
+export function invokeGatewayStudy(options: GatewayStudyInvokeOptions): Promise<GatewayStudyResult> {
+  return invokeGatewayStudyWithParser(options, parseGatewayStudyResponse);
+}
+
+/** Versioned policies share authenticated envelopes and one networking implementation; v3 remains strict. */
+export const gatewayStudyTransportInternals = Object.freeze({ checkedResponse: checkedGatewayStudyResponse,
+  completeResponse: completeGatewayStudyResponse, invokeWithParser: invokeGatewayStudyWithParser, frozen });

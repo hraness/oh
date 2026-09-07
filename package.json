@@ -105,6 +105,7 @@
     "bench:claude:v2": "bun run ./scripts/benchmarks/claude-study-v2.ts",
     "bench:gateway:v3": "bun run ./scripts/benchmarks/gateway-study-v3.ts",
     "bench:gateway:v4": "bun run ./scripts/benchmarks/gateway-study-v4.ts",
+    "bench:gateway:v5": "bun run ./scripts/benchmarks/gateway-study-v5.ts",
     "bench:stress:projection": "bun run ./scripts/benchmarks/stress-projection.ts",
     "bench:stress:resume": "bun run ./scripts/benchmarks/stress-extraction-resume.ts",
     "bench:stress:sqlite": "bun run ./scripts/benchmarks/stress-sqlite-crash.ts",

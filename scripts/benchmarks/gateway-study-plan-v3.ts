@@ -108,7 +108,7 @@ export function completeGatewayExtraction(job: GatewayExtractionJob, response: G
 }
 
 export function gatewayStudyMemory(legacy: ClaudeLegacyExtraction, imported: ReadonlyMap<string, ClaudeExtractionOutcomeV3>,
-  newRows: readonly GatewayExtractionRow[]) {
+  newRows: readonly Pick<GatewayExtractionRow, "ordinal" | "corpusId" | "corpusSha256" | "payload">[]) {
   const parents = [...imported.values()].map(outcome => {
     const parent = originalParent(outcome);
     return { ordinal: parent.ordinal, corpusId: parent.corpusId, corpusSha256: parent.corpusSha256,
