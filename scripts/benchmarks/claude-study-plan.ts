@@ -87,7 +87,7 @@ function base(phase: string, ordinal: number, identity: unknown, input: ClaudeRe
   return { ordinal, request: input, requestSha256,
     key: canonicalSha256({ profile: CLAUDE_STUDY_PROFILE, phase, ordinal, identity, requestSha256 }) };
 }
-function accepted(job: JobBase, result: ClaudeInvocation): ClaudeCompletion {
+export function acceptClaudeStudyCompletion(job: JobBase, result: ClaudeInvocation): ClaudeCompletion {
   if (result.protocol !== CLAUDE_SUBSCRIPTION_PROFILE || result.status !== "completed" || result.exitCode !== 0
     || result.timedOut || result.outputBoundExceeded || result.completion === null
     || result.requestSha256 !== job.requestSha256 || claudeRequestSha256(job.request) !== job.requestSha256
@@ -138,7 +138,7 @@ export function makeClaudeExtractionJobs(corporaInput: readonly Corpus[], legacy
 }
 
 export function completeClaudeExtraction(job: ClaudeExtractionJob, result: ClaudeInvocation): ClaudeExtractionResult {
-  const completion = accepted(job, result);
+  const completion = acceptClaudeStudyCompletion(job, result);
   const parsed = parseMemoryUnits(JSON.parse(completion.prediction), job.chunk);
   const payload = { id: job.chunk.id, units: parsed.units, rejected: parsed.rejected };
   return deepFreeze({ jobKey: job.key, requestSha256: job.requestSha256, corpusId: job.corpusId,
@@ -187,7 +187,7 @@ export async function makeClaudeReaderJobs(input: Readonly<{
 
 export function completeClaudeReader(job: ClaudeReaderJob, question: Question, result: ClaudeInvocation): ClaudeReaderRow {
   same(questionView(question), job.question, "authenticated diagnostic question");
-  const completion = accepted(job, result);
+  const completion = acceptClaudeStudyCompletion(job, result);
   return deepFreeze({ jobKey: job.key, ordinal: job.ordinal, questionId: question.id, corpusId: question.corpusId,
     groupId: job.groupId, category: question.category, system: job.system, status: "completed", prediction: completion.prediction,
     tokenF1: tokenF1(completion.prediction, question.answer), requestSha256: job.requestSha256,
@@ -231,7 +231,7 @@ export function makeClaudeJudgePlan(input: Readonly<{
 }
 
 export function completeClaudeJudge(job: ClaudeJudgeJob, result: ClaudeInvocation): ClaudeJudgeResult {
-  const completion = accepted(job, result), correct = parseJudgeDecision(completion.prediction);
+  const completion = acceptClaudeStudyCompletion(job, result), correct = parseJudgeDecision(completion.prediction);
   if (correct === null) return fail("judge output is not a native yes/no decision");
   return deepFreeze({ jobKey: job.key, requestSha256: job.requestSha256, correct, completion });
 }

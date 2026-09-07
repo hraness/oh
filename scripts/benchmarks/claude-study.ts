@@ -198,7 +198,7 @@ export async function executeClaudeJobs<J extends AnyJob, T>(jobs: readonly J[],
   }
   return { status: "completed", rows, cached, invoked };
 }
-function memory(legacy: ClaudeLegacyExtraction, extractions: readonly ClaudeExtractionResult[]): readonly ClaudeCorpusMemory[] {
+function memory(legacy: ClaudeLegacyExtraction, extractions: readonly Pick<ClaudeExtractionResult, "ordinal" | "corpusId" | "corpusSha256" | "payload">[]): readonly ClaudeCorpusMemory[] {
   const newByOrdinal = new Map(extractions.map(row => [row.ordinal, row]));
   if (newByOrdinal.size !== legacy.missingChunks || extractions.length !== legacy.missingChunks) fail("missing extraction coverage");
   const result: { corpusId: string; corpusSha256: string; chunks: ClaudeCorpusMemory["chunks"][number][] }[] = [];
@@ -219,20 +219,32 @@ function memory(legacy: ClaudeLegacyExtraction, extractions: readonly ClaudeExtr
 }
 
 export async function checkPriorBatches(directory: string, freezeSha256: string): Promise<void> {
+  return checkPriorClaudeStudyBatches(directory, freezeSha256, "v1");
+}
+/** Versioned runners share custody checks, never a failed-batch exception. */
+export async function checkPriorClaudeStudyBatches(directory: string, freezeSha256: string, version: "v1" | "v2",
+  expectedImport?: Readonly<{ sha256: string; count: number }>): Promise<void> {
+  if (version === "v2" && (!expectedImport || parseSha256Hex(expectedImport.sha256) === null
+    || !Number.isSafeInteger(expectedImport.count) || expectedImport.count < 1)) fail("expected frozen import is required");
   const nowSeconds = Date.now() / 1000;
   const names = (await readdir(directory)).filter(name => /^batch-[0-9a-f-]{36}-started\.json$/.test(name));
   if (names.length > 4096) fail("too many batch receipts");
   for (const name of names) {
     const started = await bytes(join(directory, name), 32768);
     const admission: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(started));
-    if (!isPlainRecord(admission) || admission.protocol !== "oh.memory-claude-subscription-batch-admission.v1"
+    if (!isPlainRecord(admission) || admission.protocol !== `oh.memory-claude-subscription-batch-admission.${version}`
       || admission.freezeSha256 !== freezeSha256 || typeof admission.runId !== "string"
       || name !== `batch-${admission.runId}-started.json`) fail("prior batch admission changed");
     const closed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await bytes(join(directory, `batch-${admission.runId}.json`), 32768)));
-    if (!isPlainRecord(closed) || closed.protocol !== "oh.memory-claude-subscription-batch.v1"
+    if (!isPlainRecord(closed) || closed.protocol !== `oh.memory-claude-subscription-batch.${version}`
       || closed.runId !== admission.runId || closed.freezeSha256 !== freezeSha256 || closed.failed !== false
       || closed.admissionSha256 !== sha256Hex(started) || closed.sourceVerifiedAtClose !== true
       || closed.cliVerifiedAtClose !== true || closed.storeClosed !== true) fail("prior batch needs custody review");
+    if (version === "v2" && (closed.importVerifiedAtClose !== true
+      || typeof admission.importedStudySha256 !== "string" || parseSha256Hex(admission.importedStudySha256) === null
+      || admission.importedStudySha256 !== expectedImport?.sha256 || admission.importedFirstResponses !== expectedImport?.count
+      || closed.importedStudySha256 !== admission.importedStudySha256
+      || closed.importedFirstResponses !== admission.importedFirstResponses)) fail("prior import custody changed");
     const pause = closed.capacityPause;
     if (pause !== undefined && pause !== null) {
       if (!isPlainRecord(pause) || !hasExactKeys(pause, ["status", "isUsingOverage", "overageStatus", "overageDisabledReason", "rateLimitType", "resetsAt", "unifiedWindows"])
@@ -347,6 +359,10 @@ export async function runClaudeStudy(input: Readonly<{ directory: string; freeze
   if (failed) throw new Error("Claude study batch stopped; private checkpoint evidence is preserved.", { cause: failure });
   return receipt;
 }
+
+/** Shared native identities and bounded I/O; the v1 procedure and CLI remain strict. */
+export const claudeStudyInternals = Object.freeze({ path, digest, pin, same, bytes, verified, durableJson, pinned,
+  procedure, loadInputs, studyIdentity, parseFreeze, memory });
 
 async function main(args: readonly string[]) {
   const [command, ...rest] = args;

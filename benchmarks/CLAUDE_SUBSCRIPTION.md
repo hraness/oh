@@ -45,3 +45,28 @@ Private study files have bounded sizes and restricted permissions. Full streams 
 The harness finishes extraction before constructing reader jobs. It requires all three arms for every selected family before judging, preserves exact-prompt judge aliases with one physical owner, and assesses superiority only after the entire judgment matrix is complete. It retains the native paired finite-population decision rule, including the minimum observed gain and both comparison bounds. These statistics describe the fixed eligible pool under this model realization; they do not establish general superiority across memory systems.
 
 A completed comparison records actual Claude terminal usage, per-model usage, legacy provenance, reader rows, all judgment cases and the assessment. CLI dollar figures are list-price estimates. Actual billed dollars and the number of physical model attempts remain unknown; estimates are never added to the original paid ledger or represented as charges. Batch receipts record the exact comparison artifact hash after source, CLI and process-custody checks pass.
+
+## Continue a closed extraction-format failure with v2
+
+`bun run bench:claude:v2` defines a separate, post-start amendment for a v1 study whose final completed extraction response has an invalid JSON or top-level native envelope. Preserve the original study and runtime unchanged. V1 remains incomplete. V2 imports every first response through a pinned, read-only inventory and complete supervisor closure, reproduces the exact terminal format failure, and verifies all preceding valid payloads. It accepts no other failed-batch exception.
+
+V2 applies one rule to imported and future extractor responses: malformed JSON or a malformed or oversized top-level envelope contributes zero memory and receives an explicit invalid disposition. Valid empty and all-rejected native envelopes remain valid. The original response is never repaired, regenerated or relabelled as a new invocation. Transport, source, custody, capacity and unexpected parser failures still stop the study.
+
+Prepare a clean, separately committed runtime with the import manifest and native disabled-overage evidence:
+
+```sh
+bun run bench:claude:v2 prepare \
+  --directory /absolute/path/to/new-v2-study \
+  --import-manifest /absolute/path/to/closed-v1-import.json \
+  --import-sha256 IMPORT_MANIFEST_SHA256 \
+  --capacity-evidence /absolute/path/to/claude-stream.jsonl
+
+bun run bench:claude:v2 run \
+  --directory /absolute/path/to/new-v2-study \
+  --freeze-sha256 V2_FREEZE_SHA256 \
+  --max-new-calls 32
+```
+
+The import manifest binds the original freeze, source directory, complete raw inventory, supervisor configuration and closure receipts, and exact ordered native extraction prefix. Both source checkouts stay frozen. New checkpoint receipts live only in the v2 study. Imported usage, including the malformed response, is retained once; import replay makes no model calls. Any active capacity pause from v1 still blocks new calls until every qualifying window resets.
+
+V2 keeps every selected family, original parent boundary, generation request, model setting, retrieval arm and reader/judge case. Reports distinguish resolved parents, valid chunks, invalid parents and affected corpora. Removing a malformed chunk can also remove distracting information, so zero memory is not a guaranteed accuracy lower bound. This is a changed end-to-end failure policy adopted without examining correctness outcomes. The numerical comparison rule is retained, but the results must not be presented as the original preregistered procedure or as preserving its confirmatory error control without further justification. A separate final audit must reconstruct all memory, reader contexts, judge cases and usage across both immutable stores.
