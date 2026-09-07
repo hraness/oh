@@ -1,5 +1,5 @@
 /**
- * Effect architecture checks v1.2. Copy with its tests into the owning repository.
+ * Effect architecture checks v1.4.0. Copy with its tests into the owning repository.
  * Build-time only: use that repository's TypeScript, no compiler patch/plugin.
  * This constrains reviewed modules; it is not a purity or security proof.
  */
@@ -100,6 +100,56 @@ export function inspectEffectArchitecture(
     return !!symbol?.declarations?.some(d => d.getSourceFile().isDeclarationFile);
   };
   const isEffect = (node: ts.Node): boolean => effectVariants(checker.getTypeAtLocation(node)).length > 0;
+  const canFail = (node: ts.Node): boolean => effectVariants(checker.getTypeAtLocation(node)).some(variance => {
+    const fields = checker.getTypeOfSymbolAtLocation(variance, node);
+    const error = fields.getProperty("_E");
+    const signature = error && checker.getTypeOfSymbolAtLocation(error, node).getCallSignatures()[0];
+    return signature !== undefined && !(checker.getReturnTypeOfSignature(signature).flags & ts.TypeFlags.Never);
+  });
+  const containsFallibleYield = (node: ts.Node): boolean => {
+    // A nested generator executes under its own interpreter, outside this catch.
+    if (ts.isFunctionLike(node)) return false;
+    if (ts.isYieldExpression(node) && node.expression && canFail(node.expression)) return true;
+    return ts.forEachChild(node, containsFallibleYield) ?? false;
+  };
+  // Resolve only statically bound generator values supplied to a real Effect gen.
+  // Factories, mutation and arbitrary wrapper calls require semantic review.
+  const generatorFunctions = new Set<ts.Node>();
+  const resolveGenerator = (expression: ts.Expression, seen = new Set<ts.Symbol>()): void => {
+    while (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) ||
+      ts.isTypeAssertionExpression(expression) || ts.isSatisfiesExpression(expression)) expression = expression.expression;
+    if (ts.isFunctionExpression(expression) && expression.asteriskToken) {
+      generatorFunctions.add(expression);
+      return;
+    }
+    const symbol = actualSymbol(ts.isPropertyAccessExpression(expression) ? expression.name : expression);
+    if (!symbol || seen.has(symbol)) return;
+    seen.add(symbol);
+    for (const declaration of symbol.declarations ?? []) {
+      if (ts.isFunctionDeclaration(declaration) && declaration.asteriskToken && declaration.body) {
+        generatorFunctions.add(declaration);
+      } else if (ts.isVariableDeclaration(declaration) && declaration.initializer &&
+        ts.isVariableDeclarationList(declaration.parent) && declaration.parent.flags & ts.NodeFlags.Const) {
+        resolveGenerator(declaration.initializer, seen);
+      }
+    }
+  };
+  const collectGenerators = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && externalEffectSymbol(node.expression)?.getName() === "gen") {
+      for (const argument of node.arguments) resolveGenerator(argument);
+    }
+    ts.forEachChild(node, collectGenerators);
+  };
+  for (const source of program.getSourceFiles()) {
+    if (!source.isDeclarationFile && !program.isSourceFileFromExternalLibrary(source)) collectGenerators(source);
+  }
+  const insideEffectGenerator = (node: ts.Node): boolean => {
+    for (let parent = node.parent; parent; parent = parent.parent) {
+      if (!ts.isFunctionLike(parent)) continue;
+      return generatorFunctions.has(parent);
+    }
+    return false;
+  };
   const checkChannels = (node: ts.Node): void => {
     const type = checker.getTypeAtLocation(node);
     for (const variance of effectVariants(type)) {
@@ -122,18 +172,17 @@ export function inspectEffectArchitecture(
     const local = relative(root, file).replaceAll("\\", "/");
     if (local.startsWith("../") || /(?:^|\/)[^/]+\.(?:test|spec)\.[cm]?tsx?$/.test(local)) continue;
     if (ignored.some(dir => file === dir || file.startsWith(dir + "/"))) continue;
-    let importsEffect = false;
-    const findEffectImports = (node: ts.Node): void => {
+    const findEffectImports = (node: ts.Node): boolean => {
       if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-        node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier) && effectModule.test(node.moduleSpecifier.text)) importsEffect = true;
+        node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier) && effectModule.test(node.moduleSpecifier.text)) return true;
       if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
         (ts.isIdentifier(node.expression) && node.expression.text === "require" && isAmbient(node.expression)))) {
         const argument = node.arguments[0];
-        if (argument && ts.isStringLiteral(argument) && effectModule.test(argument.text)) importsEffect = true;
+        if (argument && ts.isStringLiteral(argument) && effectModule.test(argument.text)) return true;
       }
-      ts.forEachChild(node, findEffectImports);
+      return ts.forEachChild(node, findEffectImports) ?? false;
     };
-    findEffectImports(source);
+    const importsEffect = findEffectImports(source);
     if (!modules.has(file)) {
       if (importsEffect) report(source, "unclassified-module", "Production Effect import/export needs an explicit reviewed architecture role.");
       continue;
@@ -162,11 +211,16 @@ export function inspectEffectArchitecture(
         rule: "suppression", message: "Architecture/typing suppression requires removal or an explicit owner-reviewed policy change." });
     }
     const visit = (node: ts.Node): void => {
+      if (ts.isTryStatement(node) && node.catchClause && insideEffectGenerator(node) && containsFallibleYield(node.tryBlock)) {
+        report(node.catchClause, "javascript-effect-catch", "JavaScript catch does not handle typed Effect failures; use catchTag, catchAll or Exit.");
+      }
       if (ts.isExpressionStatement(node)) {
         let expression = node.expression;
         while (ts.isParenthesizedExpression(expression) || ts.isVoidExpression(expression)) expression = expression.expression;
+        const assignedSymbol = ts.isBinaryExpression(expression) && ts.isIdentifier(expression.left)
+          ? checker.getSymbolAtLocation(expression.left) : undefined;
         const storesValue = ts.isBinaryExpression(expression) && expression.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-          (!ts.isIdentifier(expression.left) || (references.get(checker.getSymbolAtLocation(expression.left)!) ?? 0) > 0);
+          (!ts.isIdentifier(expression.left) || (assignedSymbol !== undefined && (references.get(assignedSymbol) ?? 0) > 0));
         if (isEffect(expression) && !storesValue) report(expression, "floating-effect", "Effect work must be composed, returned or executed by its owner.");
       }
       if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) {

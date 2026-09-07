@@ -146,9 +146,6 @@ function parseCanonicalInstantV1(value) {
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value ? value : null;
 }
-function canonicalNow() {
-  return new Date().toISOString();
-}
 function safeCode(value, maximumLength = 128) {
   return typeof value === "string" && value.length <= maximumLength && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
 }

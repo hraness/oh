@@ -28,6 +28,8 @@ const fixtures: Readonly<Record<string, string>> = {
   "native.ts": `import {Effect} from "effect"; import {readFile} from "node:fs/promises"; export const read=Effect.tryPromise({try:()=>readFile("sample"),catch:()=>({ _tag:"ReadFailed" as const })});`,
   "native-dynamic.ts": `import {Effect} from "effect"; export const read=Effect.tryPromise({try:()=>import("node:fs/promises"),catch:()=>({ _tag:"ReadFailed" as const })});`,
   "adapter-dynamic.ts": `import {Effect} from "effect"; export const read=Effect.tryPromise({try:()=>import("node:fs/promises"),catch:()=>({ _tag:"ReadFailed" as const })});`,
+  "adapter-runner.ts": `import {Effect} from "effect"; export const result=Effect.runPromise(Effect.succeed(1));`,
+  "adapter-floating.ts": `import {Effect} from "effect"; export const read=Effect.gen(function*(){ Effect.log("dropped adapter work"); return 1; });`,
   "unknown-error.ts": `import {Effect} from "effect"; export const x:Effect.Effect<number,unknown>=Effect.fail("bad");`,
   "any-error.ts": `import {Effect} from "effect"; export const x:Effect.Effect<number,any>=Effect.succeed(1);`,
   "asserted.ts": `import {Effect} from "effect"; export const x=Effect.fail("bad") as Effect.Effect<never,never>;`,
@@ -36,6 +38,19 @@ const fixtures: Readonly<Record<string, string>> = {
   "suppressed-error.ts": `import {Effect} from "effect"; // @ts-expect-error\nexport const x:Effect.Effect<never,never>=Effect.fail("bad");`,
   "unclassified.ts": `import {Effect} from "effect"; export const x=Effect.succeed(1);`,
   "unclassified-dynamic.ts": `export const load=()=>import("effect");`,
+  "javascript-catch.ts": `import {Effect} from "effect"; export const program=Effect.gen(function*(){ try { return yield* Effect.fail("bad"); } catch { return 1; } });`,
+  "javascript-catch-alias.ts": `import {gen as compose, fail} from "effect/Effect"; export const program=compose(function*(){ try { return yield* fail("bad"); } catch { return 1; } });`,
+  "typed-catch.ts": `import {Effect} from "effect"; export const program=Effect.gen(function*(){ try { return yield* Effect.fail("bad").pipe(Effect.catchAll(()=>Effect.succeed(1))); } catch { return 2; } });`,
+  "exit-catch.ts": `import {Effect} from "effect"; export const program=Effect.gen(function*(){ try { return (yield* Effect.exit(Effect.fail("bad")))._tag; } catch { return "sync failure"; } });`,
+  "nested-generator-catch.ts": `import {Effect} from "effect"; export const program=Effect.gen(function*(){ try { return Effect.gen(function*(){ return yield* Effect.fail("bad"); }); } catch { return Effect.succeed(1); } });`,
+  "plain-generator-catch.ts": `import {Effect} from "effect"; export function* values(){ try { yield Effect.fail("bad"); } catch { yield Effect.succeed(1); } }`,
+  "javascript-catch-parenthesized.ts": `import {Effect} from "effect"; export const program=Effect.gen((function*(){ try { return yield* Effect.fail("bad"); } catch { return 1; } }));`,
+  "javascript-catch-declared.ts": `import {Effect} from "effect"; function* operation(){ try { return yield* Effect.fail("bad"); } catch { return 1; } } export const program=Effect.gen(operation);`,
+  "javascript-catch-generator-alias.ts": `import {Effect} from "effect"; const operation=function*(){ try { return yield* Effect.fail("bad"); } catch { return 1; } }; const alias=operation; export const program=Effect.gen(alias);`,
+  "imported-generator.ts": `import {Effect} from "effect"; export function* operation(){ try { return yield* Effect.fail("bad"); } catch { return 1; } }`,
+  "imported-generator-use.ts": `import {Effect} from "effect"; import {operation as aliased} from "./imported-generator.js"; export const program=Effect.gen(aliased);`,
+  "typed-catch-declared.ts": `import {Effect} from "effect"; function* operation(){ try { return yield* Effect.fail("bad").pipe(Effect.catchAll(()=>Effect.succeed(1))); } catch { return 2; } } export const program=Effect.gen(operation);`,
+  "plain-generator-consumer.ts": `import {Effect} from "effect"; const local={gen:(operation:()=>Generator<unknown,number,unknown>)=>operation()}; function* operation(){ try { yield Effect.fail("bad"); return 1; } catch { return 2; } } export const iterator=local.gen(operation);`,
 };
 for(const [name, source] of Object.entries(fixtures)) writeFileSync(join(fixtureRoot,name),source);
 const program=ts.createProgram({rootNames:Object.keys(fixtures).map(name=>join(fixtureRoot,name)),options:{
@@ -44,7 +59,7 @@ const program=ts.createProgram({rootNames:Object.keys(fixtures).map(name=>join(f
 }});
 const findings=inspectEffectArchitecture(program,{
   root:fixtureRoot,modules:Object.keys(fixtures).filter(n=>!n.startsWith("unclassified")),
-  adapters:["adapter.ts","adapter-dynamic.ts"],runtimeRoots:["root.ts"],
+  adapters:["adapter.ts","adapter-dynamic.ts","adapter-runner.ts","adapter-floating.ts"],runtimeRoots:["root.ts"],
 });
 const rules=(file:string)=>findings.filter(f=>f.file===file).map(f=>f.rule);
 try {
@@ -64,6 +79,8 @@ try {
     expect(rules("ambient.ts")).toContain("ambient-io");
     expect(rules("native.ts")).toContain("native-import");
     expect(rules("native-dynamic.ts")).toContain("native-import");
+    expect(rules("adapter-runner.ts")).toContain("runtime-owner");
+    expect(rules("adapter-floating.ts")).toContain("floating-effect");
   });
   test("rejects erased channels, unsafe assertions and defect conversion",()=>{
     expect(rules("unknown-error.ts")).toContain("explicit-channel");
@@ -81,6 +98,19 @@ try {
   test("fails closed when a governed file is not in the compilation",()=>{
     expect(inspectEffectArchitecture(program,{root:fixtureRoot,modules:["missing.ts"],adapters:[],runtimeRoots:[]})
       .some(f=>f.rule==="policy-source")).toBe(true);
+  });
+  test("rejects JavaScript catches for typed generator failures without rejecting handled exits or nested generators",()=>{
+    expect(rules("javascript-catch.ts")).toContain("javascript-effect-catch");
+    expect(rules("javascript-catch-alias.ts")).toContain("javascript-effect-catch");
+    for(const file of ["typed-catch.ts","exit-catch.ts","nested-generator-catch.ts","plain-generator-catch.ts"]) expect(rules(file)).toEqual([]);
+  });
+  test("follows statically bound generator arguments while preserving plain generators and handled failures",()=>{
+    const rejected=["javascript-catch-parenthesized.ts","javascript-catch-declared.ts","javascript-catch-generator-alias.ts","imported-generator.ts"];
+    const accepted=["imported-generator-use.ts","typed-catch-declared.ts","plain-generator-consumer.ts"];
+    const selected=new Set([...rejected,...accepted].map(file=>join(fixtureRoot,file)));
+    expect(ts.getPreEmitDiagnostics(program).filter(d=>d.file&&selected.has(d.file.fileName))).toEqual([]);
+    for(const file of rejected) expect(rules(file)).toContain("javascript-effect-catch");
+    for(const file of accepted) expect(rules(file)).toEqual([]);
   });
 } finally {
   rmSync(fixtureRoot,{recursive:true,force:true});
