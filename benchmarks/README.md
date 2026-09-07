@@ -5,6 +5,8 @@ correctness, evidence retrieval from public conversations, and an opt-in
 model reader. A retrieval score is not an answer-accuracy score, and passing
 state tests does not establish that an agent writes useful memories.
 
+For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below.
+
 Start with the network-free checks:
 
 ```sh

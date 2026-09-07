@@ -101,6 +101,7 @@
   },
   "scripts": {
     "bench:memory": "bun run ./scripts/benchmark-memory.ts",
+    "bench:claude": "bun run ./scripts/benchmarks/claude-study.ts",
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run build:js && bun run build:portable && bun run build:types",
     "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
