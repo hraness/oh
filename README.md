@@ -68,6 +68,9 @@ not a claim about a real study.
 
 ## Install and first run
 
+This source tree prepares version `0.4.3`. Published installation commands remain
+on the verified release below until the new package completes publication.
+
 The installation instructions below use `0.4.2`, the
 [verified public release](https://github.com/hraness/oh/actions/runs/34059936931).
 
@@ -644,6 +647,8 @@ resurrected; allocate a new epoch for a new lifetime. Hosted failure is a
 missing convenience lane, never permission to weaken exact graph or Datalog
 operations. Read the
 [isolated hosted semantic-cache V2 specification](spec/v2/semantic-cloud.md).
+The [hosted V2 lifecycle](docs/hosted-semantic-runtime.md) documents native
+operation drain, client ownership and the bundled runtime boundary.
 The released V1 API and digests remain available unchanged for compatibility;
 V1 and V2 cannot open the same semantic database simultaneously.
 
