@@ -13,6 +13,15 @@ function provider(req = request(), overrides: Record<string, unknown> = {}) {
     providerMetadata: { gateway: { cost: "0.00002", routing: { finalProvider: "openai", resolvedProviderApiModelId: snapshot } } },
     ...overrides };
 }
+function aliasProvider(req = request()) {
+  const base = provider(req);
+  const routing: Record<string, unknown> = { originalModelId: req.model, canonicalSlug: req.model,
+    resolvedProvider: "openai", finalProvider: "openai", modelAttemptCount: 1, totalProviderAttemptCount: 1,
+    modelAttempts: [{ canonicalSlug: req.model, success: true, providerAttemptCount: 1,
+      providerAttempts: [{ provider: "openai", credentialType: "system", success: true, statusCode: 200,
+        providerRequestId: "synthetic-request", providerResponseId: "synthetic-response" }] }] };
+  return { ...base, model: req.model, providerMetadata: { gateway: { ...base.providerMetadata.gateway, routing } } };
+}
 function raw(req = request(), value: unknown = provider(req), status = 200): GatewayStudyRaw {
   const body = new TextEncoder().encode(typeof value === "string" ? value : JSON.stringify(value));
   return { requestSha256: req.requestSha256, httpStatus: status, body, bodyComplete: true, receivedBytes: body.length, transportError: null };
@@ -88,6 +97,51 @@ describe("Gateway v3 frozen requests and bounded exposure", () => {
 });
 
 describe("Gateway v3 authenticated raw response parsing", () => {
+  test("corroborated alias-only routing never invents an optional provider model ID or snapshot", () => {
+    for (const phase of ["extract", "reader", "judge"] as const) {
+      const req = request(phase), value = aliasProvider(req), result = parse(value, phase);
+      expect(result.identity).toEqual({ requestedModel: req.model, reportedModel: req.model,
+        resolvedProviderApiModelId: null, resolvedSnapshot: null, snapshotPinned: false, finalProvider: "openai",
+        reportedModelAttemptCount: 1, reportedProviderAttemptCount: 1, physicalAttemptCount: null });
+      expect(result.kind).toBe("completed");
+    }
+  });
+  test("alias-only routing requires its full corroborating inventory and rejects every conflicting supplied identity", () => {
+    const base = aliasProvider(), routing = base.providerMetadata.gateway.routing;
+    const attempt = (routing.modelAttempts as Array<Record<string, unknown>>)[0]!;
+    const providerAttempt = (attempt.providerAttempts as Array<Record<string, unknown>>)[0]!;
+    const changed = (extra: Record<string, unknown>) => ({ ...base, providerMetadata: { gateway: { ...base.providerMetadata.gateway,
+      routing: { ...routing, ...extra } } } });
+    for (const field of ["originalModelId", "canonicalSlug", "resolvedProvider", "modelAttemptCount", "totalProviderAttemptCount", "modelAttempts"]) {
+      expect(() => parse(changed({ [field]: undefined }))).toThrow();
+    }
+    for (const extra of [{ originalModelId: "openai/gpt-4o" }, { canonicalSlug: "openai/gpt-4o" }, { resolvedProvider: "azure" },
+      { finalProvider: "azure" }, { resolvedProviderApiModelId: null }, { internalResolvedModelId: "openai:gpt-4o" },
+      { modelAttemptCount: 2 }, { totalProviderAttemptCount: 2 },
+      { modelAttempts: [{ ...attempt, canonicalSlug: "openai/gpt-4o" }] },
+      { modelAttempts: [{ ...attempt, canonicalSlug: "gpt-4.1-mini" }] },
+      { modelAttempts: [{ ...attempt, modelId: "openai:gpt-4o" }] },
+      { modelAttempts: [{ ...attempt, providerAttemptCount: undefined }] },
+      { modelAttempts: [{ ...attempt, providerAttempts: undefined }] },
+      ...[{ provider: "azure" }, { success: false }, { statusCode: 503 }, { statusCode: "200" },
+        { providerApiModelId: "gpt-4o" }, { internalModelId: "openai:gpt-4o" }].map(extra => ({
+          modelAttempts: [{ ...attempt, providerAttempts: [{ ...providerAttempt, ...extra }] }] }))]) {
+      expect(() => parse(changed(extra))).toThrow();
+    }
+    expect(() => parse({ ...base, model: "gpt-4.1-mini" })).toThrow();
+    expect(() => parse({ ...base, model: "openai/gpt-4.1-mini-2025-04-14" })).toThrow();
+    expect(parse(changed({ internalResolvedModelId: "openai:gpt-4.1-mini", modelAttempts: [{ ...attempt,
+      modelId: "openai:gpt-4.1-mini", providerAttempts: [{ ...providerAttempt, providerApiModelId: "gpt-4.1-mini" }] }] })).identity.resolvedSnapshot).toBeNull();
+  });
+  test("resolved snapshot responses still require consistent optional attempt IDs when inventories exist", () => {
+    const value = provider(), routing = value.providerMetadata.gateway.routing;
+    for (const modelAttempts of [[{ canonicalSlug: "openai/gpt-4.1-mini", success: true, providerAttemptCount: 1 }],
+      [{ modelId: "openai:gpt-4.1-mini", canonicalSlug: "openai/gpt-4.1-mini", success: true,
+        providerAttempts: [{ provider: "openai", success: true }] }]]) {
+      expect(() => parse({ ...value, providerMetadata: { gateway: { ...value.providerMetadata.gateway,
+        routing: { ...routing, modelAttempts } } } })).toThrow();
+    }
+  });
   test("keeps requested aliases separate from returned snapshots and uses conservative cost", () => {
     const result = parse(provider());
     expect(result.kind).toBe("completed");

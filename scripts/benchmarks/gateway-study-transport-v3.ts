@@ -31,7 +31,7 @@ export type GatewayStudyRaw = Readonly<{ requestSha256: string; httpStatus: numb
   bodyComplete: boolean; receivedBytes: number; transportError: "network" | "body-read" | "response-bound" | null }>;
 export type GatewayStudyFetcher = (...parameters: Parameters<typeof fetch>) => ReturnType<typeof fetch>;
 export type GatewayStudyIdentity = Readonly<{ requestedModel: GatewayStudyModel; reportedModel: string;
-  resolvedProviderApiModelId: string; resolvedSnapshot: string | null; snapshotPinned: false; finalProvider: "openai";
+  resolvedProviderApiModelId: string | null; resolvedSnapshot: string | null; snapshotPinned: false; finalProvider: "openai";
   reportedModelAttemptCount: number | null; reportedProviderAttemptCount: number | null; physicalAttemptCount: null }>;
 export type GatewayStudyResult = Readonly<{ requestSha256: string; rawSha256: string; rawBytes: number;
   usage: GatewayStudyUsage; identity: GatewayStudyIdentity }> & (
@@ -150,10 +150,12 @@ function plainModel(value: string): string { return value.startsWith("openai/") 
 function consistentModel(value: unknown, family: string, resolved: string): boolean {
   return compatibleModel(value, family) && (plainModel(value) === family || plainModel(value) === plainModel(resolved));
 }
-function checkedProviderAttempt(provider: unknown, family: string, resolved: string): void {
+function checkedProviderAttempt(provider: unknown, family: string, resolved: string, allowMissingModel = false): void {
   if (!isPlainRecord(provider) || provider.provider !== "openai" || provider.success !== true) fail("unexpected reported provider attempt");
+  if (provider.statusCode !== undefined && (!integer(provider.statusCode) || provider.statusCode < 200 || provider.statusCode > 299)
+    || provider.attemptNumber !== undefined && provider.attemptNumber !== 1) fail("invalid reported provider success or attempt number");
   const labels = [provider.providerApiModelId, provider.modelId, provider.internalModelId].filter(label => label !== undefined);
-  if (labels.length === 0 || labels.some(label => typeof label !== "string"
+  if (!allowMissingModel && labels.length === 0 || labels.some(label => typeof label !== "string"
     || !consistentModel(label.startsWith("openai:") ? label.slice(7) : label, family, resolved))) fail("provider attempt model mismatch");
 }
 function identity(value: Record<string, unknown>, message: Record<string, unknown>, request: GatewayStudyRequest): { identity: GatewayStudyIdentity; gateway: Record<string, unknown> } {
@@ -163,9 +165,20 @@ function identity(value: Record<string, unknown>, message: Record<string, unknow
   if (copies.some(copy => canonicalSha256(copy) !== canonicalSha256(metadata))) fail("conflicting Gateway metadata");
   if (!isPlainRecord(metadata) || !isPlainRecord(metadata.gateway) || !isPlainRecord(metadata.gateway.routing)) fail("missing authenticated Gateway routing metadata");
   const gateway = metadata.gateway, routing = gateway.routing as Record<string, unknown>, family = request.model.slice(7);
-  const resolved = routing.resolvedProviderApiModelId;
-  if (routing.finalProvider !== "openai" || !compatibleModel(resolved, family) || !compatibleModel(value.model, family)
-    || (plainModel(value.model) !== family && plainModel(value.model) !== plainModel(resolved))) fail("model or provider mismatch");
+  const resolved = routing.resolvedProviderApiModelId === undefined ? null : routing.resolvedProviderApiModelId;
+  const aliasOnly = routing.resolvedProviderApiModelId === undefined;
+  if (routing.finalProvider !== "openai" || !compatibleModel(value.model, family)
+    || !aliasOnly && (!compatibleModel(resolved, family) || !consistentModel(value.model, family, resolved))) fail("model or provider mismatch");
+  const resolvedLabel = typeof resolved === "string" ? resolved : family;
+  if (routing.originalModelId !== undefined && routing.originalModelId !== request.model
+    || routing.canonicalSlug !== undefined && routing.canonicalSlug !== request.model
+    || routing.resolvedProvider !== undefined && routing.resolvedProvider !== "openai"
+    || routing.internalResolvedModelId !== undefined && (typeof routing.internalResolvedModelId !== "string"
+      || !consistentModel(routing.internalResolvedModelId.startsWith("openai:") ? routing.internalResolvedModelId.slice(7)
+        : routing.internalResolvedModelId, family, resolvedLabel))) fail("conflicting reported routing identity");
+  if (aliasOnly && (value.model !== request.model || routing.originalModelId !== request.model || routing.canonicalSlug !== request.model
+    || routing.resolvedProvider !== "openai" || routing.modelAttemptCount !== 1 || routing.totalProviderAttemptCount !== 1
+    || !Array.isArray(routing.modelAttempts) || routing.modelAttempts.length !== 1)) fail("incomplete corroborating alias identity");
   const count = routing.modelAttemptCount;
   if (count !== undefined && count !== 1) fail("multiple or invalid reported model attempts");
   const totalProviderAttemptCount = routing.totalProviderAttemptCount;
@@ -173,27 +186,30 @@ function identity(value: Record<string, unknown>, message: Record<string, unknow
   let providerAttemptCount: number | null = totalProviderAttemptCount === 1 ? 1 : null;
   if (routing.attempts !== undefined) {
     if (!Array.isArray(routing.attempts) || routing.attempts.length !== 1) fail("legacy provider attempt inventory mismatch");
-    checkedProviderAttempt(routing.attempts[0], family, resolved);
+    checkedProviderAttempt(routing.attempts[0], family, resolvedLabel, aliasOnly);
     providerAttemptCount = 1;
   }
   if (routing.modelAttempts !== undefined) {
     if (!Array.isArray(routing.modelAttempts) || routing.modelAttempts.length !== 1) fail("model attempt inventory mismatch");
     const attempt: unknown = routing.modelAttempts[0];
-    if (!isPlainRecord(attempt) || attempt.success !== true || !consistentModel(attempt.canonicalSlug, family, resolved)
-      || typeof attempt.modelId !== "string" || !attempt.modelId.startsWith("openai:")
-      || !consistentModel(attempt.modelId.slice(7), family, resolved)) fail("unexpected reported model attempt");
+    if (!isPlainRecord(attempt) || attempt.success !== true || !consistentModel(attempt.canonicalSlug, family, resolvedLabel)
+      || (!aliasOnly || attempt.modelId !== undefined) && (typeof attempt.modelId !== "string" || !attempt.modelId.startsWith("openai:")
+        || !consistentModel(attempt.modelId.slice(7), family, resolvedLabel))) fail("unexpected reported model attempt");
+    if (aliasOnly && (attempt.canonicalSlug !== request.model || attempt.providerAttemptCount !== 1 || !Array.isArray(attempt.providerAttempts)
+      || attempt.providerAttempts.length !== 1)) fail("incomplete corroborating alias provider inventory");
     if (attempt.providerAttemptCount !== undefined) {
       if (attempt.providerAttemptCount !== 1) fail("multiple or invalid reported provider attempts");
       providerAttemptCount = 1;
     }
     if (attempt.providerAttempts !== undefined) {
       if (!Array.isArray(attempt.providerAttempts) || attempt.providerAttempts.length !== 1) fail("provider attempt inventory mismatch");
-      checkedProviderAttempt(attempt.providerAttempts[0], family, resolved);
+      checkedProviderAttempt(attempt.providerAttempts[0], family, resolvedLabel, aliasOnly);
       providerAttemptCount = 1;
     }
   }
   return { gateway, identity: { requestedModel: request.model, reportedModel: value.model,
-    resolvedProviderApiModelId: resolved, resolvedSnapshot: plainModel(resolved) === family ? null : plainModel(resolved),
+    resolvedProviderApiModelId: typeof resolved === "string" ? resolved : null,
+    resolvedSnapshot: resolved === null || plainModel(resolvedLabel) === family ? null : plainModel(resolvedLabel),
     snapshotPinned: false, finalProvider: "openai", reportedModelAttemptCount: count === 1 || routing.modelAttempts !== undefined ? 1 : null,
     reportedProviderAttemptCount: providerAttemptCount, physicalAttemptCount: null } };
 }

@@ -1,5 +1,7 @@
 # Gateway memory comparison amendment
 
+The initial Gateway run stopped after four saved responses lacked optional routing model fields. The separately frozen [v4 continuation](GATEWAY_STUDY_V4.md) imports them without resubmission and carries their full reserved exposure within this budget.
+
 `bun run bench:gateway:v3` implements a separately frozen, post-start amendment to the closed Claude subscription studies. It imports every captured first response and sends only unattempted native extraction chunks to Vercel AI Gateway. Codex or the maintainer writes the harness; the models complete benchmark prompts.
 
 This approved run keeps the original 120 selected families, all three retrieval arms and the full 360-case answering and judgment matrix. Of the 5,971 originally missing extraction chunks, 1,051 already have captured responses. The import reproduces 1,049 valid payloads, one invalid native envelope and one explicitly reported refusal-driven Claude model fallback. Both invalid responses contribute zero memory. Their original bytes and models remain identifiable; neither parent is sent to Gateway again. The original API, Claude v1 and Claude v2 studies remain incomplete.
