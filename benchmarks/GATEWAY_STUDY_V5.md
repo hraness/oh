@@ -29,15 +29,17 @@ bun run bench:gateway:v5 prepare \
   --authority-sha256 AUTHORITY_SHA256
 ```
 
-Retain the printed freeze hash and unchanged runtime. Use the project and scope from the authority:
+Retain the printed freeze hash and unchanged runtime. For a supervised study, the launch configuration must use the project and scope from the authority and the direct frozen script path:
 
 ```sh
 vercel env run --project APPROVED_PROJECT --scope APPROVED_SCOPE --environment development -- \
-  bun run bench:gateway:v5 run \
+  bun /absolute/frozen/runtime/scripts/benchmarks/gateway-study-v5.ts run \
   --directory /absolute/path/to/new-study \
   --freeze-sha256 FREEZE_SHA256 \
   --max-new-calls 32
 ```
+
+This shows the child command only. Use the [takeover runbook](GATEWAY_STUDY_V5_TAKEOVER.md) to preserve the exact argv in a reviewed supervisor configuration, launch it once, verify process closure, and prepare the final audit. An existing study must continue from its recorded configuration and frozen runtime.
 
 A successfully closed pause at the call limit may resume in batches of at most 256 calls. Budget exhaustion, interruption or failed evidence requires review before further dispatch.
 
