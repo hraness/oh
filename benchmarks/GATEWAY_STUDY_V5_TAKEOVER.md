@@ -104,6 +104,23 @@ Use the authority's selected project OIDC identity. Extraction and reader use `o
 
 The total amendment exposure cap is **$40 across all phases**, including the full **$0.809209** prior carry at every reservation prefix. That carry is $0.121802 from v3 plus $0.687407 from v4, including its unresolved truncated-response reservation. Never append old settlements or substitute reported cost for reserved old exposure. The closing figure excludes later in-flight reservations; report its timestamp and batch.
 
+## Read progress across phases
+
+Read the phase before interpreting a count. Each batch shares one call limit across extraction, readers and judges. The acceptance receipt's `totalNewJobCount` counts all physical v5 jobs accumulated across batches. Native `newTransportInvocations` counts only new calls admitted in the current batch.
+
+| Native result | Meaning of `resolved` and `required` | Cumulative physical v5 jobs |
+| --- | --- | --- |
+| Paused extraction | Completed v5 extraction parents out of 4,732 | `resolved` |
+| Paused reader | Completed reader cases out of 360 | `4732 + resolved` |
+| Paused judge | Completed unique judge requests out of the planned unique requests | `4732 + 360 + resolved` |
+| Completed judge | All 360 judged cases after expanding shared request results | `4732 + 360 + physical judge requests` |
+
+Identical judge requests share one physical request, so a paused judge count may represent fewer requests than cases. Once readers begin, extraction remains complete at 4,732 v5 responses, or 4,920 Gateway extraction first responses including the 188 imports. Keep subsequent reader and judge counts separate.
+
+For example, a batch starting with 92 extractions remaining can use its 256-call limit for those extractions and 164 readers. Its accepted total would be 4,896 physical v5 jobs and its native result would be paused reader, 164 of 360. These illustrative counts show how the phase transition changes reporting.
+
+The supervisor exiting successfully establishes process completion. Study completion additionally requires a pinned native result with `status: completed`, `phase: judge`, and `resolved: 360` / `required: 360`, plus a non-null `comparisonArtifact`, top-level `stopReason: null`, no failure or interruption, and all successful closure flags. Read that native closure through the acceptance receipt; the acceptance does not copy the comparison artifact field. The separate final audit below still remains required.
+
 ## Verify the complete result and deliver
 
 Require all 4,732 new v5 extractions, all 360 reader/judge cases, exactly one native comparison artifact, and the final numbered batch acceptance. Authenticate `gateway-v5-final-auditor-acceptance.json`, `gateway-v5-final-preparation-acceptance.json`, their referenced reviews and the full pinned tool packet before executing them.
