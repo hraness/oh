@@ -3,6 +3,7 @@ import { chmod, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { setImmediate as nextEventLoopTurn } from "node:timers/promises";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import type { Corpus, Question } from "../scripts/benchmarks/datasets";
 import { corpusIdentity } from "../scripts/benchmarks/extract";
@@ -55,21 +56,65 @@ async function fixture() {
     poolSize: 120, profile: await loadJudgeProfile(),
     importedJobKeys: [...Array.from({ length: 4732 }, (_, i) => h(`extraction-${i}`)), ...importedReaderResults.map(r => r.job.key)].sort() };
 }
+function fourRequestBarrier() {
+  type Wave = { arrivals: number; gate: ReturnType<typeof Promise.withResolvers<void>>; timer: ReturnType<typeof setTimeout> };
+  let wave: Wave | undefined, closed: Error | undefined;
+  function cancel(error: Error) {
+    closed = error;
+    if (wave !== undefined) { clearTimeout(wave.timer); wave.gate.reject(error); wave = undefined; }
+  }
+  return {
+    arrive() {
+      if (closed !== undefined) return Promise.reject(closed);
+      if (wave === undefined) {
+        const gate = Promise.withResolvers<void>();
+        wave = { arrivals: 0, gate, timer: setTimeout(() => cancel(new Error(`Synthetic wave admitted ${wave?.arrivals ?? 0}/4 requests`)), 4000) };
+      }
+      const current = wave;
+      if (++current.arrivals === 4) { clearTimeout(current.timer); wave = undefined; current.gate.resolve(); }
+      return current.gate.promise;
+    },
+    close() { cancel(new Error("Synthetic execution ended before its four-request wave drained")); },
+  };
+}
 async function execute(f: Awaited<ReturnType<typeof fixture>>, path: string, maximumNewCalls: number,
   control: { failFirstJudge?: boolean; stop?: boolean; failNewReader?: boolean } = {}) {
+  // These fixtures have 28 new readers, 120 judge owners and only complete four-request waves.
+  if (maximumNewCalls % 4 !== 0) throw new Error("Synthetic fixture requires call limits divisible by four");
   const store = await openGatewayStudyV6Store(path, h("run-freeze")), state = gatewayStudyV6Internals.newExecutionState(), calls: { key: string; phase: string }[] = [];
   const progress: Record<string, unknown>[] = [], budget = new GatewayStudyBudget({ maxUsd: 40, maxCalls: maximumNewCalls,
     priorExposureMicros: prior + gatewayV6LedgerExposure(store.events, prior) });
+  const arrivals = fourRequestBarrier(), failureObserved = Promise.withResolvers<void>(), siblings = Promise.withResolvers<void>();
+  const transports: ReturnType<typeof invokeGatewayStudyV6>[] = [];
+  let failedJudgeKey: string | undefined, observedFailure = false, finished = false;
+  // Tests may wait for the failure event before attaching their assertion to the overall execution.
+  void failureObserved.promise.catch(() => {}); void siblings.promise.catch(() => {});
   let judge = 0, reader = 0, inflight = 0, peak = 0;
   const running = gatewayStudyV6Internals.executePhases({ ...f, store, state, budget, maximumNewCalls, oidcToken: "synthetic-only",
-    stopped: () => control.stop ?? false, qualify: () => {}, progress: row => progress.push(row), invoke: options => invokeGatewayStudyV6({ ...options,
-      fetcher: async () => {
+    stopped: () => control.stop ?? false, qualify: () => {}, progress: row => progress.push(row), invoke: options => {
+      const transport = invokeGatewayStudyV6({ ...options, fetcher: async () => {
         calls.push({ key: options.reservationId, phase: options.request.phase }); inflight++; peak = Math.max(peak, inflight);
         const failing = options.request.phase === "judge" ? ++judge === 1 && control.failFirstJudge : ++reader === 1 && control.failNewReader;
-        await new Promise(resolve => setTimeout(resolve, failing ? 0 : 2)); inflight--;
-        return Response.json(envelope(options.request, Boolean(failing)));
-      } }) });
-  return { store, state, budget, calls, progress, running, counters: () => ({ inflight, peak }) };
+        if (failing && options.request.phase === "judge") failedJudgeKey = options.reservationId;
+        try {
+          await arrivals.arrive();
+          if (control.failFirstJudge && options.request.phase === "judge" && !failing) await siblings.promise;
+          return Response.json(envelope(options.request, Boolean(failing)));
+        } finally { inflight--; }
+      } }).catch(error => {
+        if (options.reservationId === failedJudgeKey) { observedFailure = true; failureObserved.resolve(); }
+        throw error;
+      });
+      transports.push(transport); return transport;
+    } }).finally(() => {
+      finished = true; arrivals.close();
+      if (!observedFailure) failureObserved.reject(new Error("Synthetic execution ended without the expected judge failure"));
+      siblings.reject(new Error("Synthetic execution ended while judge siblings were held"));
+    });
+  void running.catch(() => {});
+  return { store, state, budget, calls, progress, running, counters: () => ({ inflight, peak }), finished: () => finished,
+    failedJudgeObserved: failureObserved.promise, releaseJudgeSiblings: () => siblings.resolve(),
+    drain: async () => { siblings.resolve(); arrivals.close(); await Promise.allSettled(transports); } };
 }
 
 describe("Gateway v6 freeze and budget boundary", () => {
@@ -140,12 +185,17 @@ describe("Gateway v6 fixed reader dispatch and drained judge continuation", () =
   test("a judge failure drains its three siblings, retains the reservation and dispatches no subsequent wave", async () => {
     const f = await fixture(), path = await directory(), run = await execute(f, path, 256, { failFirstJudge: true });
     try {
+      await run.failedJudgeObserved;
+      await nextEventLoopTurn(); // Let an incorrect fail-fast execution propagate while siblings stay held.
+      expect(run.finished()).toBe(false); expect(run.counters()).toEqual({ inflight: 3, peak: 4 });
+      expect(run.calls).toHaveLength(32); expect(run.store.events.filter(e => e.kind === "settled")).toHaveLength(28);
+      run.releaseJudgeSiblings();
       await expect(run.running).rejects.toThrow("outside the exact-cap extraction policy");
       expect(run.state.phase).toBe("judge"); expect(run.calls).toHaveLength(32); expect(run.counters()).toEqual({ inflight: 0, peak: 4 });
       expect(run.store.events.filter(e => e.kind === "reserved")).toHaveLength(32); expect(run.store.events.filter(e => e.kind === "settled")).toHaveLength(31);
       expect(run.budget.summary.unresolvedThisRunUsd).toBeGreaterThan(0);
       expect(run.progress.filter(p => p.phase === "judge")).toHaveLength(0);
-    } finally { await run.store.close(); }
+    } finally { run.releaseJudgeSiblings(); await run.running.catch(() => {}); await run.drain(); await run.store.close(); }
   });
   test("interruption and imported occupancy prevent any new transport", async () => {
     const f = await fixture(), path = await directory(), run = await execute(f, path, 4, { stop: true });
