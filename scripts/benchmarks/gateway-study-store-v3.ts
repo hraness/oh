@@ -10,7 +10,7 @@ import type { GatewayJob } from "./gateway-study-plan-v3";
 
 const PROFILE = "oh.memory-gateway-store.v3" as const;
 const M = 1024 * 1024;
-type StoreProfile = typeof PROFILE | "oh.memory-gateway-store.v5";
+type StoreProfile = typeof PROFILE | "oh.memory-gateway-store.v5" | "oh.memory-gateway-store.v6";
 type SavedResult = Pick<GatewayStudyResult, "requestSha256" | "rawSha256" | "rawBytes" | "usage" | "identity">;
 type ResponseParser<R extends SavedResult> = (request: GatewayStudyRequest, reservation: GatewayStudyReservation, raw: GatewayStudyRaw) => R;
 function fail(reason: string): never { throw new Error(`Gateway study store: ${reason}.`); }

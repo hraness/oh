@@ -40,7 +40,10 @@ jobs:
         with:
           python-version: '3.14'
       - name: Check benchmark audit and supervisor tools
-        run: python -B -m unittest discover -s tests -p 'test_*supervisor.py' && python -B -m unittest discover -s tests -p 'test_gateway_v5_audit_helpers.py'
+        run: |
+          python -B -m unittest discover -s tests -p 'test_*supervisor.py'
+          python -B -m unittest discover -s tests -p 'test_gateway_v5_audit_helpers.py'
+          python -B -m unittest discover -s tests -p 'test_gateway_v6_*.py'
       - name: Run complete check
         run: bun run check
       - name: Require a reproducible generated tree

@@ -1,5 +1,7 @@
 # Continue and verify the Gateway memory comparison
 
+**Current status: v5 is blocked after a reader reached its output limit. Do not restart v5 or run its ordinary closer on batch 021.** See the [v6 takeover guide](GATEWAY_STUDY_V6_TAKEOVER.md) for the preserved evidence and separate amendment work. The procedures below document the original v5 workflow and remain subject to that stop.
+
 The v5 comparison runs from an immutable checkout while implementation and audit tools continue to receive commits on [PR #42](https://github.com/hraness/oh/pull/42), branch `devin/memory-superiority-20260906`. Use this runbook to transfer ownership of the existing run. A newer PR head is not permission to change its frozen runtime.
 
 The study keeps 120 selected families and 360 reader/judge cases across `oh-fact`, `bm25-window`, and `bm25-record-window`. Its 8,413 extraction parents comprise 2,442 legacy parents, 1,051 Claude first responses, four earlier Gateway responses, 184 v4 responses, and 4,732 initially unattempted v5 parents. A completed v5 prefix is reused on every continuation. See the [failure policy](GATEWAY_STUDY_V5.md) before interpreting results.
