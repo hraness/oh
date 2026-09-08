@@ -194,6 +194,9 @@ def _group_exists(pgid):
         return True
     except ProcessLookupError:
         return False
+    except PermissionError:
+        # Denied probes cannot establish that the group has disappeared.
+        return True
 
 
 def _wait_for_group(proc, pgid, timeout=None):
@@ -354,15 +357,14 @@ def run_mode(job_dir, expected_config_sha256):
             pgid = child_pgid_holder["pgid"]
             try:
                 os.killpg(pgid, signal.SIGTERM)
-            except ProcessLookupError:
+            except (ProcessLookupError, PermissionError):
                 pass
             group_gone = _wait_for_group(proc, pgid, timeout=10)
             if not group_gone:
                 try:
                     os.killpg(pgid, signal.SIGKILL)
-                except ProcessLookupError:
+                except (ProcessLookupError, PermissionError):
                     pass
-                proc.wait()
                 group_gone = _wait_for_group(proc, pgid, timeout=10)
         try:
             os.fsync(log_fd)

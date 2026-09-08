@@ -1,4 +1,5 @@
 import contextlib
+import errno
 import hashlib
 import importlib.util
 import io
@@ -96,6 +97,60 @@ class ConfigValidationTests(unittest.TestCase):
         raw = json.dumps(cfg).encode()
         with self.assertRaises(bs.ConfigError):
             bs.validate_config(raw)
+
+
+class ProcessGroupPermissionTests(unittest.TestCase):
+    def test_denied_probe_waits_for_fresh_disappearance(self):
+        proc = mock.Mock()
+        pgid = 12345
+        probes = [PermissionError(errno.EPERM, "denied"), None,
+                  ProcessLookupError(errno.ESRCH, "gone")]
+        with mock.patch.object(bs.os, "killpg", side_effect=probes) as killpg, \
+                mock.patch.object(bs.time, "sleep") as sleep:
+            self.assertTrue(bs._wait_for_group(proc, pgid))
+        self.assertEqual(killpg.call_args_list, [mock.call(pgid, 0)] * 3)
+        self.assertEqual(proc.poll.call_count, 3)
+        self.assertEqual(sleep.call_args_list, [mock.call(0.1)] * 2)
+
+    def test_persistent_probe_denial_times_out_without_absence(self):
+        proc = mock.Mock()
+        with mock.patch.object(bs.os, "killpg", side_effect=PermissionError(errno.EPERM, "denied")), \
+                mock.patch.object(bs.time, "monotonic", side_effect=[0, 0, 1]), \
+                mock.patch.object(bs.time, "sleep"):
+            self.assertFalse(bs._wait_for_group(proc, 12345, timeout=1))
+        self.assertEqual(proc.poll.call_count, 2)
+
+    def test_denied_cleanup_signals_preserve_incomplete_status(self):
+        with tempfile.TemporaryDirectory() as directory:
+            job_dir = os.path.join(directory, "job")
+            os.mkdir(job_dir, 0o700)
+            cfg = {"cwd": directory, "argv": [sys.executable, "-c", "pass"],
+                   "jobDir": job_dir, "requireAbsent": []}
+            canonical = bs._canonical_bytes(cfg)
+            with open(os.path.join(job_dir, "config.json"), "wb") as f:
+                f.write(canonical)
+            proc = mock.Mock(pid=12345, returncode=None)
+            proc.wait.side_effect = RuntimeError("injected wait failure")
+            with mock.patch.object(bs, "ps_lstart", return_value="synthetic-start"), \
+                    mock.patch.object(bs, "sysctl_boottime", return_value="synthetic-boot"), \
+                    mock.patch.object(bs.signal, "signal"), \
+                    mock.patch.object(bs.subprocess, "Popen", return_value=proc) as popen, \
+                    mock.patch.object(bs.os, "getpgid", return_value=proc.pid), \
+                    mock.patch.object(bs.os, "killpg", side_effect=PermissionError(errno.EPERM, "denied")) as killpg, \
+                    mock.patch.object(bs.time, "monotonic", side_effect=[0, 10, 20, 30]), \
+                    mock.patch.object(bs.time, "sleep"):
+                bs.run_mode(job_dir, hashlib.sha256(canonical).hexdigest())
+            with open(os.path.join(job_dir, "status.json")) as f:
+                status = json.load(f)
+            self.assertEqual(status["state"], "cleanup-incomplete")
+            self.assertFalse(status["groupGone"])
+            self.assertNotIn("exitCode", status)
+            popen.assert_called_once()
+            proc.wait.assert_called_once_with()
+            self.assertEqual(proc.poll.call_count, 2)
+            self.assertEqual(killpg.call_args_list, [mock.call(proc.pid, signal.SIGTERM),
+                             mock.call(proc.pid, 0), mock.call(proc.pid, signal.SIGKILL),
+                             mock.call(proc.pid, 0)])
 
 
 @unittest.skipUnless(IS_MACOS, "integration test requires macOS ps/sysctl")
