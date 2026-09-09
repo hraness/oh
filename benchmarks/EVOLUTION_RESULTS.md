@@ -111,7 +111,7 @@ comparison before that representation can be selected.
 ## Native query and neighborhood ablation
 
 The first Oh packing matrix used raw query text and isolated native hits. Its
-BM25 control used focused query terms and adjacent source turns. The next
+BM25 control used focused query terms and adjacent source turns. The completed
 factorial comparison separates those differences through actual Oh search:
 raw query with direct hits, raw query with neighbors, focused query with direct
 hits, and focused query with neighbors. A focused query removes the existing
@@ -123,6 +123,38 @@ adapter into this reusable runner; it is not a novel search engine. Focused test
 verify its legacy behavior, authority and source provenance, budgets and session
 boundaries. The ablation preserves every previous treatment and reader prompt.
 Source excerpts remain a separately versioned candidate.
+
+| Configuration | Nano | Mini |
+| --- | ---: | ---: |
+| BM25 96 KB | 75/100 | 82/100 |
+| Oh raw query, direct hits, 96 KB | 66/100 | 72/100 |
+| Oh raw query, neighbors, 96 KB | 69/100 | 77/100 |
+| Oh focused query, direct hits, 96 KB | 71/100 | 76/100 |
+| Oh focused query, neighbors, 96 KB | 71/100 | 82/100 |
+| Oh focused query, neighbors, 48 KB | 71/100 | 74/100 |
+
+With mini, query focusing and adjacent turns together recover ten correct
+answers in aggregate, reaching the matched BM25 score. With nano, the combined
+arm improves by five and remains four below BM25. These are development
+comparisons on the same 100 questions, not independent confirmation. The combined
+48 KB arm retains nano's 71 correct answers but loses eight with mini relative
+to its 96 KB version; context compression affects the two readers differently.
+
+The 1,200 logical cases used 1,194 distinct reader attempts: 1,193 verified
+responses and the same earlier timeout. All 794 new reader requests succeeded
+in 415.77 seconds; 103 new judge requests succeeded in 35.32 seconds. The
+remaining judgments reused exact cached requests. Campaign exposure after this
+stage is $5.133559 ($5.095903 known usage plus $0.037656 unresolved). The
+[compact result](results/memory-evolution-neighbors-100-v1.json) pins each arm,
+category, phase timing and cost. Equal aggregate scores do not imply equal
+question outcomes or a demonstrated equivalence bound. The
+[paired results](results/memory-evolution-neighbors-100-paired-v1.json) show two
+wins and two losses for mini, and two wins and six losses for nano, for the
+combined 96 KB Oh treatment against BM25. The
+[within-Oh comparisons](results/memory-evolution-neighbors-100-factorial-v1.json)
+show mini's combined treatment gaining eleven questions and losing one versus
+raw direct hits. Nano's equal 71 totals at 48 and 96 KB contain seven wins and
+seven losses; reducing the cap changes which questions are answered correctly.
 
 ## Selection and confirmation
 
