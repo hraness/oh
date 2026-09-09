@@ -1,0 +1,102 @@
+{
+  "protocol": "oh.memory.evolution-spans-offline-aggregate.v1",
+  "status": "historical-prototype-observation",
+  "dataset": "longmemeval-s",
+  "datasetSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+  "selectionSha256": "88b6a0039f6bad371ef6a3b5ba967eaa0361b13320e8d1036e7bb6658c5715cf",
+  "split": "development",
+  "seed": 17,
+  "questions": 100,
+  "measurementSource": {
+    "prototypeSha256": "a2d21b1822cef8ff63178c09ab3abe3e8ce2e19053524b376ba3b204af954671",
+    "prototypeTestsSha256": "a86d2ed8a18ef2d2fbc5e8114c61948e5c34399321e3462c0ed0f881dadd12cc",
+    "retrievalSourceSha256": "93107b139d6f702502cf5d7da7350ddfc8e7e2e29f834213fdb4eb4dce810828",
+    "runtimeSourceSha256": "a2b75a88cac6e18473192be18e70ccd1c2a96698cbe112aa55c41f6898451018",
+    "bun": "1.3.14",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "aggregateReceiptSha256": "258e4b983ea871b1a6b0ce2a0c491e4c230c631f7db9515c7f27b6bebaa4a288"
+  },
+  "rows": [
+    {
+      "variantId": "oh-source-spans-24k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 91,
+      "meanEvidenceSessionRecall": 0.938,
+      "meanContextBytes": 23183.05,
+      "meanSpans": 65.88
+    },
+    {
+      "variantId": "oh-keyword-k100-b24k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 87,
+      "meanEvidenceSessionRecall": 0.9051666666666667,
+      "meanContextBytes": 23955.72,
+      "meanSpans": null
+    },
+    {
+      "variantId": "oh-keyword-k100-b96k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 96,
+      "meanEvidenceSessionRecall": 0.97,
+      "meanContextBytes": 94451.68,
+      "meanSpans": null
+    },
+    {
+      "variantId": "oh-keyword-top100-pool",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 97,
+      "meanEvidenceSessionRecall": 0.9783333333333334,
+      "meanContextBytes": 124367.4,
+      "meanSpans": null
+    }
+  ],
+  "pairs": [
+    {
+      "treatment": "oh-source-spans-24k",
+      "control": "oh-keyword-k100-b24k",
+      "completeEvidenceWins": 4,
+      "completeEvidenceLosses": 0
+    },
+    {
+      "treatment": "oh-source-spans-24k",
+      "control": "oh-keyword-k100-b96k",
+      "completeEvidenceWins": 0,
+      "completeEvidenceLosses": 5
+    },
+    {
+      "treatment": "oh-source-spans-24k",
+      "control": "oh-keyword-top100-pool",
+      "completeEvidenceWins": 0,
+      "completeEvidenceLosses": 6
+    }
+  ],
+  "timing": {
+    "wallMs": 22488.687209,
+    "preparationMs": 5844.914751000002,
+    "nativePoolMs": 11143.940879000016,
+    "spanPackingAndValidationMs": 2009.5542509999982,
+    "newNativeQueries": 100,
+    "reusedBaselineCases": 200
+  },
+  "cost": {
+    "modelCalls": 0,
+    "providerRequests": 0,
+    "providerCostUsd": 0,
+    "fetchAttempts": 0
+  },
+  "qualification": [
+    "Historical observation from the source-pinned predecessor prototype; the checked-in publication port was not rerun on these 100 questions.",
+    "The publication port adds expected-budget validation; source ranking and packing are unchanged.",
+    "Only the authorized development partition was selected. No answer or judge scoring and no provider requests were performed.",
+    "Evidence-session recall cannot show whether an answer-bearing span within a retrieved session survived compression.",
+    "No answer accuracy, superiority, linguistic sentence resolution, or temporal reasoning claim.",
+    "This is one timing sample; pool time includes lazy authority preparation.",
+    "No raw conversations, answer labels, question identifiers, or machine paths are published."
+  ]
+}

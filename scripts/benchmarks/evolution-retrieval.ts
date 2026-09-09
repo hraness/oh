@@ -9,6 +9,7 @@ import type { Corpus, Turn } from "./datasets";
 import { pack, queryTerms, renderTurn, type RetrievalBudget } from "./retrieval";
 
 export const EVOLUTION_RETRIEVAL_SYSTEMS = ["bm25-window", "bm25-session", "oh-keyword",
+  "oh-keyword-window", "oh-focused", "oh-focused-window",
   "oh-semantic", "oh-hybrid", "bm25-facets", "oh-facets"] as const;
 export type EvolutionRetrievalSystem = typeof EVOLUTION_RETRIEVAL_SYSTEMS[number];
 export type EvolutionRetrievalVariant = Readonly<{ id: string; system: EvolutionRetrievalSystem; budget: RetrievalBudget }>;
@@ -321,6 +322,12 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
       coveredFacets = lexicalFacetCoverage(facets, preview.turnIds.map(id => turns[byTurn.get(id)!]!));
     } else if (variant.system === "bm25-window") indices = rawRank(question, topK).flatMap(index => [index, ...neighbors(index)]);
     else if (variant.system === "bm25-session") indices = rawRank(question, topK, true);
+    else if (variant.system === "oh-keyword-window" || variant.system === "oh-focused" || variant.system === "oh-focused-window") {
+      // Isolate query focusing and conversation adjacency while keeping native Oh ranking.
+      const focused = variant.system !== "oh-keyword-window";
+      const hits = await ohRank(focused ? queryTerms(question, true).join(" ") : question, topK, "keyword");
+      indices = variant.system === "oh-focused" ? hits : hits.flatMap(index => [index, ...neighbors(index)]);
+    }
     else indices = await ohRank(question, topK, variant.system === "oh-keyword" ? "keyword" : variant.system === "oh-semantic" ? "semantic" : "hybrid");
     currentSources(indices);
     const packed = pack(indices.map(index => ({ turn: turns[index]!, digest: records[index]!.recordSha256 })), variant.budget.contextBytes);

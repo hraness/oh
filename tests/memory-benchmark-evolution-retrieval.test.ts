@@ -63,6 +63,49 @@ describe("evolution prepared raw-source retrieval", () => {
     } finally { await prepared.close(); await plain.close(); }
   });
 
+  test("native focused controls retain the established Oh focused/window behavior", async () => {
+    const prepared = await prepareEvolutionCorpus(corpus), legacy = createRetrievers(corpus, undefined, { lazyOh: true });
+    try {
+      for (const question of ["What color is Ada's kayak?", "What does the bicycle have?", "???"]) {
+        for (const contextBytes of [1, 130, 24_000]) {
+          for (const [system, previous] of [["oh-focused", "oh-focused"], ["oh-focused-window", "oh-window"]] as const) {
+            const result = await prepared.retrieve(question, variant(system, 2, contextBytes));
+            expect(result.context).toBe((await legacy.retrieve(previous, question, { topK: 2, contextBytes })).context);
+            validateEvolutionContextSources(corpus, result);
+            expect(result.querySha256).toBe(sha256Hex(question));
+          }
+        }
+      }
+      expect(prepared.stats.authorityBuilds).toBe(1);
+    } finally { legacy.close(); await prepared.close(); }
+  });
+
+  test("focusing finds a subject beyond common query words and adjacency recovers its reply without crossing occurrences", async () => {
+    const common = "what is the of to in on at for from by with about as and or";
+    const input: Corpus = { id: "conversation-context", groupId: "conversation-context", turns: [
+      { id: "noise", sessionId: "noise", date: "2025", speaker: "Ada", text: common },
+      { id: "question", sessionId: "boat", sessionIndex: 0, date: "2025", speaker: "Ada", text: "Kayak?" },
+      { id: "reply", sessionId: "boat", sessionIndex: 0, date: "2025", speaker: "Lin", text: "Crimson." },
+      { id: "other", sessionId: "boat", sessionIndex: 1, date: "2025", speaker: "Lin", text: "Unrelated reply." },
+    ] };
+    const prepared = await prepareEvolutionCorpus(input), query = `${common} kayak`;
+    try {
+      expect((await prepared.retrieve(query, variant("oh-keyword", 1))).turnIds).toEqual(["noise"]);
+      expect((await prepared.retrieve(query, variant("oh-keyword-window", 1))).turnIds).toEqual(["noise"]);
+      expect((await prepared.retrieve(query, variant("oh-focused", 1))).turnIds).toEqual(["question"]);
+      const focusedWindow = await prepared.retrieve(query, variant("oh-focused-window", 1));
+      expect(focusedWindow.turnIds).toEqual(["question", "reply"]);
+      expect(focusedWindow.context).toContain("Crimson.");
+      expect(focusedWindow.context).not.toContain("Unrelated reply.");
+      const rawWindow = await prepared.retrieve("kayak", variant("oh-keyword-window", 1));
+      expect(rawWindow.context).toBe(focusedWindow.context);
+      for (const system of ["oh-keyword-window", "oh-focused", "oh-focused-window"] as const) {
+        validateEvolutionContextSources(input, await prepared.retrieve(query, variant(system, 1)));
+        expect((await prepared.retrieve(query, variant(system, 1, 1))).context).toBe("");
+      }
+    } finally { await prepared.close(); }
+  });
+
   test("covers distinctive query clauses under a whole-source UTF-8 budget", async () => {
     const noisy: Corpus = { id: "facets", groupId: "facets", turns: [
       ...Array.from({ length: 5 }, (_, index) => ({ id: `noise-${index}`, sessionId: `n${index}`,

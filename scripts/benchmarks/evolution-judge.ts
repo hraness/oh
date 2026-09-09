@@ -2,7 +2,7 @@ import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex } from "..
 import type { Dataset } from "./datasets";
 import { assertExactEvolutionCoverage, evolutionRunnerQuestionId } from "./evolution-dataset";
 import { makeEvolutionRequest, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
-import { validateEvolutionReaderPlan, type EvolutionContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
+import { validateEvolutionReaderPlan, type EvolutionAnyContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
 import { validateEvolutionAttemptFailure, type EvolutionAttemptFailure } from "./evolution-store";
 import { buildJudgePrompt, loadJudgeProfile, parseJudgeDecision } from "./judge";
 
@@ -58,7 +58,7 @@ export function validateEvolutionJudgePlan(plan: EvolutionJudgePlan): EvolutionJ
 }
 
 /** Pure gold-bearing stage. The caller authenticates response bytes before supplying responses. */
-export function makeEvolutionJudgePlan(input: Readonly<{ contextPlan: EvolutionContextPlan; readerPlan: EvolutionReaderPlan;
+export function makeEvolutionJudgePlan(input: Readonly<{ contextPlan: EvolutionAnyContextPlan; readerPlan: EvolutionReaderPlan;
   responses: ReadonlyMap<string, EvolutionResponse>; failures?: ReadonlyMap<string, EvolutionAttemptFailure>; dataset: Dataset; profile: EvolutionJudgeProfileId;
   rubric: Awaited<ReturnType<typeof loadJudgeProfile>>; readerOutputSha256: string }>): EvolutionJudgePlan {
   const reader = validateEvolutionReaderPlan(input.readerPlan, input.contextPlan);

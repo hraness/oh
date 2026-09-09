@@ -1,14 +1,14 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex } from "../../src/canonical";
 import { EVOLUTION_PROFILES, type EvolutionProfileId } from "./evolution-model";
-import { EVOLUTION_RETRIEVAL_SYSTEMS, type EvolutionRetrievalSystem } from "./evolution-retrieval";
+import { EVOLUTION_EXPERIMENT_SYSTEMS, evolutionGenomeCompatible, type EvolutionExperimentSystem } from "./evolution-variants";
 
 export type EvolutionReaderGene = Extract<EvolutionProfileId, `${string}-reader`>;
-export type EvolutionGenome = Readonly<{ system: EvolutionRetrievalSystem; topK: number; contextBytes: number; reader: EvolutionReaderGene }>;
+export type EvolutionGenome = Readonly<{ system: EvolutionExperimentSystem; topK: number; contextBytes: number; reader: EvolutionReaderGene }>;
 export type EvolutionGeneAxis = keyof EvolutionGenome;
 const AXES: readonly EvolutionGeneAxis[] = ["system", "topK", "contextBytes", "reader"];
 export type EvolutionPopulationPolicy = Readonly<{ protocol: "oh.evolution-population-policy.v1";
   mode: "fixed-reader-memory" | "system-frontier"; fixedReader: EvolutionReaderGene | null;
-  allowed: Readonly<{ system: readonly EvolutionRetrievalSystem[]; topK: readonly number[];
+  allowed: Readonly<{ system: readonly EvolutionExperimentSystem[]; topK: readonly number[];
     contextBytes: readonly number[]; reader: readonly EvolutionReaderGene[] }>;
   maximumPopulation: number; policySha256: string }>;
 export type EvolutionCandidate = Readonly<{ protocol: "oh.evolution-candidate.v1"; id: string; policySha256: string;
@@ -49,15 +49,16 @@ export function parseEvolutionPopulationPolicy(value: unknown): EvolutionPopulat
     || allowed[axis].length > 32 || !unique(allowed[axis])) fail("invalid or duplicate allowed gene values");
   const systems = allowed.system as unknown[], topKs = allowed.topK as unknown[];
   const contexts = allowed.contextBytes as unknown[], readers = allowed.reader as unknown[];
-  if (systems.some(system => !EVOLUTION_RETRIEVAL_SYSTEMS.includes(system as EvolutionRetrievalSystem))
+  if (systems.some(system => !EVOLUTION_EXPERIMENT_SYSTEMS.includes(system as EvolutionExperimentSystem))
     || topKs.some(k => !integer(k, 100) || k < 1) || contexts.some(bytes => !integer(bytes, 4_000_000) || bytes < 1)
     || readers.some(value => !reader(value))) fail("unsupported gene value");
+  if (systems.includes("oh-source-spans") && (!topKs.includes(100) || !contexts.some(bytes => Number(bytes) <= 96_000))) fail("span domain has no compatible top100 byte budget");
   if (value.mode === "fixed-reader-memory") {
     if (!reader(value.fixedReader) || readers.length !== 1 || readers[0] !== value.fixedReader) fail("fixed-reader memory policy cannot breed another reader");
   } else if (value.fixedReader !== null) fail("system frontier must declare no fixed reader");
   const payload = { protocol: "oh.evolution-population-policy.v1" as const,
     mode: value.mode as EvolutionPopulationPolicy["mode"], fixedReader: value.fixedReader as EvolutionReaderGene | null,
-    allowed: { system: [...systems] as EvolutionRetrievalSystem[], topK: [...topKs] as number[],
+    allowed: { system: [...systems] as EvolutionExperimentSystem[], topK: [...topKs] as number[],
       contextBytes: [...contexts] as number[], reader: [...readers] as EvolutionReaderGene[] }, maximumPopulation: value.maximumPopulation };
   return immutable({ ...payload, policySha256: canonicalSha256(payload) });
 }
@@ -69,8 +70,9 @@ function policy(value: EvolutionPopulationPolicy): EvolutionPopulationPolicy {
 }
 function genome(value: unknown, p: EvolutionPopulationPolicy): EvolutionGenome {
   if (!isPlainRecord(value) || !hasExactKeys(value, AXES)
-    || AXES.some(axis => !(p.allowed[axis] as readonly unknown[]).includes(value[axis]))) fail("genome is outside the explicit allowed gene values");
-  return immutable({ system: value.system as EvolutionRetrievalSystem, topK: value.topK as number,
+    || AXES.some(axis => !(p.allowed[axis] as readonly unknown[]).includes(value[axis]))
+    || !evolutionGenomeCompatible(value as unknown as EvolutionGenome)) fail("genome is outside the explicit allowed gene values or compatible span domain");
+  return immutable({ system: value.system as EvolutionExperimentSystem, topK: value.topK as number,
     contextBytes: value.contextBytes as number, reader: value.reader as EvolutionReaderGene });
 }
 function lineageOptions(value: Readonly<{ hypothesis: string; seed: number }>) {
@@ -113,11 +115,12 @@ function choice(seed: number, identity: unknown, length: number): number {
 export function mutateEvolutionCandidate(parentInput: EvolutionCandidate, inputPolicy: EvolutionPopulationPolicy,
   options: Readonly<{ hypothesis: string; seed: number; axis?: EvolutionGeneAxis }>): EvolutionCandidate {
   const p = policy(inputPolicy), parent = validateEvolutionCandidate(parentInput, p); lineageOptions(options);
-  const available = AXES.filter(axis => (p.mode !== "fixed-reader-memory" || axis !== "reader")
-    && (p.allowed[axis] as readonly unknown[]).some(value => value !== parent.genome[axis]));
+  const alternativesFor = (axis: EvolutionGeneAxis) => (p.allowed[axis] as readonly unknown[]).filter(value => value !== parent.genome[axis]
+    && evolutionGenomeCompatible({ ...parent.genome, [axis]: value } as EvolutionGenome));
+  const available = AXES.filter(axis => (p.mode !== "fixed-reader-memory" || axis !== "reader") && alternativesFor(axis).length > 0);
   if (!available.length || options.axis !== undefined && !available.includes(options.axis)) fail("no allowed single-axis mutation");
   const axis = options.axis ?? available[choice(options.seed, [parent.id, "axis"], available.length)]!;
-  const alternatives = (p.allowed[axis] as readonly unknown[]).filter(value => value !== parent.genome[axis]);
+  const alternatives = alternativesFor(axis);
   const changed = { ...parent.genome, [axis]: alternatives[choice(options.seed, [parent.id, axis], alternatives.length)] };
   return makeCandidate(p, genome(changed, p), options, [parent], "mutation", axis);
 }
@@ -126,7 +129,7 @@ export function crossoverEvolutionCandidates(leftInput: EvolutionCandidate, righ
   const p = policy(inputPolicy), left = validateEvolutionCandidate(leftInput, p), right = validateEvolutionCandidate(rightInput, p);
   lineageOptions(options);
   if (left.id === right.id) fail("crossover needs two distinct compatible parents");
-  const mixed: Record<string, unknown> = {};
+  let mixed: Record<string, unknown> = {};
   for (const axis of AXES) mixed[axis] = choice(options.seed, [left.id, right.id, axis], 2) ? left.genome[axis] : right.genome[axis];
   // With two or more different loci, inherit at least one distinguishing gene from each parent.
   const different = AXES.filter(axis => left.genome[axis] !== right.genome[axis]);
@@ -134,6 +137,16 @@ export function crossoverEvolutionCandidates(leftInput: EvolutionCandidate, righ
     const first = choice(options.seed, [left.id, right.id, "left-locus"], different.length);
     mixed[different[first]!] = left.genome[different[first]!]!;
     mixed[different[(first + 1) % different.length]!] = right.genome[different[(first + 1) % different.length]!]!;
+  }
+  if (!evolutionGenomeCompatible(mixed as unknown as EvolutionGenome)) {
+    let combinations: EvolutionGenome[] = [{ ...left.genome }];
+    for (const axis of different) combinations = combinations.flatMap(g => [
+      { ...g, [axis]: left.genome[axis] }, { ...g, [axis]: right.genome[axis] }]);
+    const compatible = combinations.filter(evolutionGenomeCompatible);
+    const hybrids = compatible.filter(g => different.some(axis => g[axis] === left.genome[axis])
+      && different.some(axis => g[axis] === right.genome[axis]));
+    const choices = hybrids.length ? hybrids : compatible;
+    mixed = choices[choice(options.seed, [left.id, right.id, "compatible-loci"], choices.length)]!;
   }
   return makeCandidate(p, genome(mixed, p), options, [left, right], "crossover", null);
 }

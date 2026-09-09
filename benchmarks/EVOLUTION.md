@@ -22,8 +22,9 @@ manifest. A high development score is not a confirmatory superiority result.
    confirmation set. Publish official benchmark metrics separately from proxy
    development metrics and from the accuracy–cost–latency comparison.
 
-The initial adapter includes BM25 window/session controls, Oh keyword search,
-lexical question-facet packing, and an optional actual Oh semantic/hybrid path.
+The adapter includes BM25 window/session controls, Oh keyword search with
+separate query-focusing and neighborhood controls, lexical question-facet
+packing, and an optional actual Oh semantic/hybrid path.
 Semantic experiments require the pinned optional QMD backend. An unavailable,
 failed or stale backend is an explicit failure. The initial CLI configuration
 does not activate that optional backend; qualify it through the adapter before
@@ -169,6 +170,35 @@ responses. Paired comparisons vary retrieval with reader fixed, or reader with
 retrieval fixed. Group/history counts are declared units, not asserted
 independent samples. Development reports make no superiority or confidence claim.
 
+## Propose a population from a pinned report
+
+`scripts/benchmarks/evolution-propose.ts` is an offline handoff command. It
+does not execute readers, judges, retrieval, or provider requests. Supply the
+absolute report path **and an externally recorded SHA-256**; internal report
+references do not make a mutable local report trusted. The supplied authorized
+configuration must exactly match the reader phase receipt's `configPin` path and
+digest. A new proposal output is created with private mode `0600` and is never
+overwritten.
+
+```sh
+bun scripts/benchmarks/evolution-propose.ts \
+  --report /absolute/run/report.json --report-sha256 <recorded-report-sha256> \
+  --reader-plan /absolute/run/readers.json --reader-output /absolute/run/readers-complete.json \
+  --config /absolute/authorized-config.json --reader gpt5-nano-reader \
+  --parent-limit 2 --child-limit 8 --maximum-population 12 \
+  --output /absolute/run/population-proposal.json
+```
+
+The utility reconstructs complete reader response-or-failure coverage, retains
+only one fixed reader, and uses observed development answer scores. Verified
+responses contribute captured usage; occupied failures contribute their full
+preserved reservation and score zero. Parent selection is Pareto-based with
+optional explicit category specialists. Children are untested deterministic
+single-axis mutations or crossovers limited to the declared configuration's
+systems, top-K values, and context budgets. A configuration domain cannot be
+extended by a proposal; add and qualify a new ablation explicitly before it can
+appear as a child.
+
 For final comparisons, reproduce strong baselines under declared readers,
 context/tool budgets, source order and visibility cutoffs. Publish ingestion
 cost, amortization, storage and complete latency alongside accuracy. Treat
@@ -201,6 +231,12 @@ neighbor packing, so the comparison does not isolate a search-engine effect.
 The lexical facet variant selected the same source-turn sets as BM25 window on
 all 100 questions: 90 contexts were identical and ten reordered existing turns.
 Neither result measures answer accuracy.
+
+The [completed reader and packing experiments](EVOLUTION_RESULTS.md) report
+paired accuracy, cost and dispatch timings. The [source-excerpt adapter](EVOLUTION_SPANS.md)
+uses an explicit V2 context plan to keep original byte offsets and source pools
+separate from whole-turn contexts. The [proposed confirmation method](EVOLUTION_CONFIRMATION.md)
+describes the remaining external baseline and fresh-history qualification.
 
 References: [LoCoMo evaluator](https://github.com/snap-research/locomo/blob/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/task_eval/evaluation.py),
 [LongMemEval evaluator](https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f4ef0e2ab8f2e582289761153549043fc/src/evaluation/evaluate_qa.py),

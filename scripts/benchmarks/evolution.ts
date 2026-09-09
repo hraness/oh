@@ -6,9 +6,9 @@ import { codeIdentity, writeJson } from "./io";
 import { evolutionPin, readEvolutionPin, verifyEvolutionCampaign, type EvolutionPin } from "./evolution-budget";
 import { projectEvolutionRunnerInput, selectEvolutionPartition, validateEvolutionDatasetManifest } from "./evolution-dataset";
 import { EVOLUTION_PROFILES, type EvolutionProfileId, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
-import { createEvolutionContextSourceValidator, EVOLUTION_RETRIEVAL_SYSTEMS, type EvolutionRetrievalVariant } from "./evolution-retrieval";
-import { makeEvolutionContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan, validateEvolutionContextPlan,
-  type EvolutionContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
+import { isEvolutionSpanVariant, parseEvolutionExperimentVariant, type EvolutionExperimentVariant } from "./evolution-variants";
+import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan, validateEvolutionAnyContextPlan,
+  validateEvolutionContextPlanSources, type EvolutionAnyContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
 import { openEvolutionStore, validateEvolutionAttemptFailure, type EvolutionAttemptFailure, type EvolutionStore } from "./evolution-store";
 import { invokeEvolutionRequest, type EvolutionCredential } from "./evolution-transport";
 import { runLabPaidQueue } from "./lab-paid-queue";
@@ -16,9 +16,9 @@ import { loadJudgeProfile } from "./judge";
 import { makeEvolutionJudgePlan, validateEvolutionJudgePlan, type EvolutionJudgePlan } from "./evolution-judge";
 import { buildEvolutionReport } from "./evolution-report";
 
-export type EvolutionRunConfig = Readonly<{ protocol: "oh.memory.evolution-run.v1"; dataset: "longmemeval-s" | "locomo";
+export type EvolutionRunConfig = Readonly<{ protocol: "oh.memory.evolution-run.v1" | "oh.memory.evolution-run.v2"; dataset: "longmemeval-s" | "locomo";
   datasetPin: EvolutionPin; manifestPin: EvolutionPin; campaignPin: EvolutionPin; limit: number; seed: number;
-  variants: readonly EvolutionRetrievalVariant[]; readers: readonly EvolutionProfileId[];
+  variants: readonly EvolutionExperimentVariant[]; readers: readonly EvolutionProfileId[];
   judge: "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"; directory: string; storeDirectory: string;
   concurrency: number }>;
 function fail(reason: string): never { throw new TypeError(`Evolution runner: ${reason}.`); }
@@ -29,17 +29,13 @@ function path(value: unknown): string {
 }
 export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "dataset", "datasetPin", "manifestPin", "campaignPin", "limit", "seed",
-    "variants", "readers", "judge", "directory", "storeDirectory", "concurrency"]) || value.protocol !== "oh.memory.evolution-run.v1"
+    "variants", "readers", "judge", "directory", "storeDirectory", "concurrency"]) || !["oh.memory.evolution-run.v1", "oh.memory.evolution-run.v2"].includes(String(value.protocol))
     || !["longmemeval-s", "locomo"].includes(String(value.dataset)) || !positive(value.limit, 2000) || !positive(value.seed, 1_000_000)
     || !positive(value.concurrency, 12) || !Array.isArray(value.variants) || value.variants.length < 1 || value.variants.length > 32
     || !Array.isArray(value.readers) || value.readers.length < 1 || value.readers.length > 8
     || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge"].includes(String(value.judge))) fail("invalid explicit configuration");
-  const variants = value.variants.map((v: unknown) => {
-    if (!isPlainRecord(v) || !hasExactKeys(v, ["id", "system", "budget"]) || typeof v.id !== "string" || !/^[a-z0-9][a-z0-9:-]{0,99}$/.test(v.id)
-      || !EVOLUTION_RETRIEVAL_SYSTEMS.includes(v.system as never) || !isPlainRecord(v.budget) || !hasExactKeys(v.budget, ["topK", "contextBytes"])
-      || !positive(v.budget.topK, 100) || !positive(v.budget.contextBytes, 1_000_000)) fail("invalid retrieval variant");
-    return { id: v.id, system: v.system as EvolutionRetrievalVariant["system"], budget: { topK: v.budget.topK, contextBytes: v.budget.contextBytes } };
-  });
+  const variants = value.variants.map(parseEvolutionExperimentVariant);
+  if (variants.some(isEvolutionSpanVariant) !== (value.protocol === "oh.memory.evolution-run.v2")) fail("span treatments require explicit run V2; native-only configurations remain V1");
   const readers = value.readers.map((r: unknown) => {
     if (typeof r !== "string" || !r.endsWith("-reader") || !Object.hasOwn(EVOLUTION_PROFILES, r)) fail("invalid reader profile");
     return r as EvolutionProfileId;
@@ -50,7 +46,7 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   const directory = path(value.directory), storeDirectory = path(value.storeDirectory);
   if (directory === storeDirectory || directory.startsWith(storeDirectory + "/") || storeDirectory.startsWith(directory + "/")) fail("run and campaign store paths overlap");
   if (datasetPin.sha256 !== DATASETS[value.dataset as "longmemeval-s" | "locomo"].sha256) fail("dataset source does not match pinned official release");
-  return { protocol: value.protocol, dataset: value.dataset as "longmemeval-s" | "locomo", datasetPin, manifestPin, campaignPin,
+  return { protocol: value.protocol as EvolutionRunConfig["protocol"], dataset: value.dataset as "longmemeval-s" | "locomo", datasetPin, manifestPin, campaignPin,
     limit: value.limit, seed: value.seed, variants, readers, judge: value.judge as EvolutionRunConfig["judge"], directory, storeDirectory, concurrency: value.concurrency };
 }
 async function json(pin: EvolutionPin, maximum = 128 * 1024 * 1024): Promise<unknown> {
@@ -67,33 +63,33 @@ async function selected(config: EvolutionRunConfig) {
     || manifest.dataset !== config.dataset) fail("manifest/source disagreement");
   return { dataset: selectQuestions(selectEvolutionPartition(dataset, manifest, "development"), config.limit, config.seed), manifest };
 }
+export const EVOLUTION_CONTEXT_SOURCE_FILES = ["scripts/benchmarks/evolution-retrieval.ts", "scripts/benchmarks/retrieval.ts",
+  "scripts/benchmarks/evolution-dataset.ts", "scripts/benchmarks/evolution-plan.ts", "scripts/benchmarks/evolution-spans.ts",
+  "scripts/benchmarks/evolution-variants.ts", "package.json", "bun.lock"] as const;
 async function retrievalIdentity() {
   const source = await codeIdentity();
-  const files = source.files.filter(f => f.path.startsWith("src/") || ["scripts/benchmarks/evolution-retrieval.ts", "scripts/benchmarks/retrieval.ts",
-    "scripts/benchmarks/evolution-dataset.ts", "scripts/benchmarks/evolution-plan.ts", "package.json", "bun.lock"].includes(f.path));
+  const files = source.files.filter(f => f.path.startsWith("src/") || (EVOLUTION_CONTEXT_SOURCE_FILES as readonly string[]).includes(f.path));
   return canonicalSha256({ files, bun: Bun.version });
 }
 async function contextFor(config: EvolutionRunConfig, selection?: Awaited<ReturnType<typeof selected>>) {
   const file = join(config.directory, "contexts.json"), stat = Bun.file(file);
   if (!await stat.exists() || stat.size > 128 * 1024 * 1024) fail("missing or oversized context plan");
-  const context = validateEvolutionContextPlan(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await stat.bytes())) as EvolutionContextPlan);
+  const context = validateEvolutionAnyContextPlan(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await stat.bytes())) as EvolutionAnyContextPlan);
   const projected = projectEvolutionRunnerInput((selection ?? await selected(config)).dataset);
   if (context.manifestSha256 !== config.manifestPin.sha256 || context.retrievalSourceSha256 !== await retrievalIdentity()
     || canonicalSha256(context.variants) !== canonicalSha256(config.variants)
     || context.inputSha256 !== canonicalSha256(projected)
     || canonicalSha256(context.questions) !== canonicalSha256(projected.questions)) fail("prepared context source/configuration/selection mismatch");
-  for (const corpus of projected.corpora) {
-    const validate = createEvolutionContextSourceValidator({ ...corpus, groupId: corpus.id });
-    const ids = new Set(projected.questions.filter(q => q.corpusId === corpus.id).map(q => q.id));
-    for (const c of context.cases) if (ids.has(c.questionId)) validate(c.result);
-  }
+  if ((context.protocol === "oh.memory.evolution-context-plan.v2") !== (config.protocol === "oh.memory.evolution-run.v2")) fail("context plan version differs from run configuration");
+  validateEvolutionContextPlanSources(context, projected);
   return context;
 }
 export async function prepareEvolution(configPin: EvolutionPin) {
   const config = await configInput(configPin), input = await selected(config), started = performance.now();
-  const context = await makeEvolutionContextPlan({ dataset: projectEvolutionRunnerInput(input.dataset), variants: config.variants,
+  const context = await makeEvolutionExperimentContextPlan({ dataset: projectEvolutionRunnerInput(input.dataset), variants: config.variants,
     manifestSha256: config.manifestPin.sha256, retrievalSourceSha256: await retrievalIdentity() });
   await readEvolutionPin(configPin); await readEvolutionPin(config.manifestPin);
+  if (Buffer.byteLength(JSON.stringify(context.plan, null, 2) + "\n") > 128 * 1024 * 1024) fail("context plan exceeds 128 MiB; reduce the explicit selection or treatments");
   const contextPath = join(config.directory, "contexts.json"); await writeJson(contextPath, context.plan);
   await writeJson(join(config.directory, "preparation.json"), { protocol: "oh.memory.evolution-preparation.v1", configPin,
     contextPlanSha256: context.plan.planSha256, timing: context.timing, wallMs: performance.now() - started, modelCalls: 0 });

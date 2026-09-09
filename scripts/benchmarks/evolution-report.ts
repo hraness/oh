@@ -6,8 +6,7 @@ import { EVOLUTION_LME_NATIVE_REFERENCE, makeEvolutionJudgePlan, scoreEvolutionJ
 import { LOCOMO_F1_PROTOCOL, LOCOMO_F1_REFERENCE, scoreLocomoF1, summarizeEvolutionPairs, summarizeEvolutionScores,
   type EvolutionMetric, type EvolutionMetricCase, type EvolutionScore } from "./evolution-metrics";
 import { parseEvolutionResponse, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
-import { validateEvolutionContextPlan, validateEvolutionReaderPlan, type EvolutionContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
-import { createEvolutionContextSourceValidator } from "./evolution-retrieval";
+import { validateEvolutionContextPlanSources, validateEvolutionReaderPlan, type EvolutionAnyContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
 import { validateEvolutionAttemptFailure, type EvolutionAttemptFailure } from "./evolution-store";
 import { loadJudgeProfile } from "./judge";
 
@@ -78,16 +77,10 @@ function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: s
 }
 
 /** Source provenance is checked independently of the context's self-authored digest. Ranking is not rerun. */
-function authenticateContexts(dataset: Dataset, plan: EvolutionContextPlan, manifestSha256: string): void {
-  validateEvolutionContextPlan(plan);
+function authenticateContexts(dataset: Dataset, plan: EvolutionAnyContextPlan, manifestSha256: string): void {
   const projected = projectEvolutionRunnerInput(dataset);
-  if (plan.manifestSha256 !== manifestSha256 || plan.inputSha256 !== canonicalSha256(projected)
-    || !same(plan.questions, projected.questions)) fail("context selection or input changed");
-  const questions = new Map(projected.questions.map(q => [q.id, q]));
-  const validators = new Map(projected.corpora.map(c => [c.id, createEvolutionContextSourceValidator({ ...c, groupId: c.id })]));
-  for (const c of plan.cases) {
-    validators.get(questions.get(c.questionId)!.corpusId)!(c.result);
-  }
+  if (plan.manifestSha256 !== manifestSha256) fail("context selection or input changed");
+  validateEvolutionContextPlanSources(plan, projected);
 }
 
 export type EvolutionRawResponseLoader = (request: EvolutionRequest, response: EvolutionResponse) => Promise<Uint8Array>;
@@ -199,7 +192,7 @@ function cost(responses: ReadonlyMap<string, EvolutionResponse>, failures: Reado
 
 /** No requests are sent here. Responses and occupied failures are authenticated separately. */
 export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; manifestBytes: Uint8Array; manifestSha256: string;
-  contextPlan: EvolutionContextPlan; readerPlan: EvolutionReaderPlan; judgePlan: EvolutionJudgePlan;
+  contextPlan: EvolutionAnyContextPlan; readerPlan: EvolutionReaderPlan; judgePlan: EvolutionJudgePlan;
   readerOutputBytes: Uint8Array; judgeOutputBytes: Uint8Array; judgeOutputSha256: string; loadRawResponse: EvolutionRawResponseLoader;
   loadServiceMs?: EvolutionServiceMsLoader; loadAttemptFailure?: EvolutionAttemptFailureLoader }>) {
   const manifest = selectedManifest(input.dataset, input.manifestBytes, input.manifestSha256);
