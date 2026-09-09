@@ -1,6 +1,6 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
 import { assertExactEvolutionCoverage, type EvolutionRunnerInput, type EvolutionRunnerQuestion } from "./evolution-dataset";
-import { createEvolutionContextSourceValidator, prepareEvolutionCorpus, type EvolutionRetrievalResult, type EvolutionRetrievalVariant } from "./evolution-retrieval";
+import { createEvolutionContextSourceValidator, prepareEvolutionCorpus, type EvolutionPreparedCorpus, type EvolutionRetrievalResult, type EvolutionRetrievalVariant } from "./evolution-retrieval";
 import { createOhSourceSpanPacker, OH_SPAN_POLICY, OH_SPAN_POOL_VARIANT, type OhSourceSpanResult } from "./evolution-spans";
 import { isEvolutionSpanVariant, parseEvolutionExperimentVariant, type EvolutionExperimentVariant } from "./evolution-variants";
 import { makeEvolutionRequest, makeEvolutionProfileWindowRequest, evolutionReaderContract, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "./evolution-model";
@@ -28,6 +28,7 @@ export type EvolutionReaderPlan = Readonly<{ protocol: "oh.memory.evolution-read
 function fail(reason: string): never { throw new TypeError(`Evolution plan: ${reason}.`); }
 const digest = (value: string) => { if (parseSha256Hex(value) === null) fail("invalid digest"); return value; };
 const pair = (question: string, variant: string) => JSON.stringify([question, variant]);
+const semanticVariant = (variant: Readonly<{ system: string }>) => variant.system === "oh-semantic" || variant.system === "oh-hybrid";
 
 /** Prepare once, then run any reader matrix against the identical source-backed contexts.
  * The input has already crossed the gold-free projection boundary; no labels enter retrieval. */
@@ -43,15 +44,25 @@ export async function makeEvolutionContextPlan(input: Readonly<{ dataset: Evolut
     const questions = dataset.questions.filter(q => q.corpusId === corpus.id);
     if (questions.length === 0) fail("unselected corpus");
     const start = performance.now();
-    const prepared = await prepareEvolutionCorpus({ ...corpus, groupId: corpus.id },
-      input.semanticCacheDirectory === undefined ? {} : { semanticCacheDirectory: input.semanticCacheDirectory });
-    const preparationMs = performance.now() - start, queryStart = performance.now();
+    const prepared = new Map<boolean, EvolutionPreparedCorpus>();
     try {
-      for (const question of questions) for (const variant of variants) {
-        cases.push({ questionId: question.id, variantId: variant.id, result: await prepared.retrieve(question.question, variant) });
+      // Each mode retains its own source identity, including in a mixed plan.
+      for (const semantic of new Set(variants.map(semanticVariant))) {
+        prepared.set(semantic, await prepareEvolutionCorpus({ ...corpus, groupId: corpus.id },
+          !semantic || input.semanticCacheDirectory === undefined ? {} : { semanticCacheDirectory: input.semanticCacheDirectory }));
       }
-      timing.push({ corpusId: corpus.id, preparationMs, retrievalMs: performance.now() - queryStart, queries: prepared.stats.queryCount });
-    } finally { await prepared.close(); }
+      const preparationMs = performance.now() - start, queryStart = performance.now();
+      for (const question of questions) for (const variant of variants) {
+        cases.push({ questionId: question.id, variantId: variant.id,
+          result: await prepared.get(semanticVariant(variant))!.retrieve(question.question, variant) });
+      }
+      timing.push({ corpusId: corpus.id, preparationMs, retrievalMs: performance.now() - queryStart,
+        queries: [...prepared.values()].reduce((sum, value) => sum + value.stats.queryCount, 0) });
+    } finally {
+      const closed = await Promise.allSettled([...prepared.values()].map(value => value.close()));
+      const failure = closed.find(result => result.status === "rejected");
+      if (failure?.status === "rejected") throw failure.reason;
+    }
   }
   const questionOrder = new Map(dataset.questions.map((q, i) => [q.id, i])), variantOrder = new Map(variants.map((v, i) => [v.id, i]));
   cases.sort((a, b) => questionOrder.get(a.questionId)! - questionOrder.get(b.questionId)! || variantOrder.get(a.variantId)! - variantOrder.get(b.variantId)!);
@@ -250,6 +261,7 @@ export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPla
   const poolByQuestion = new Map(plan.protocol === "oh.memory.evolution-context-plan.v2" ? plan.pools.map(p => [p.questionId, p.result]) : []);
   for (const corpus of input.corpora) {
     const source = { ...corpus, groupId: corpus.id }, validate = createEvolutionContextSourceValidator(source);
+    let validateSemantic: ReturnType<typeof createEvolutionContextSourceValidator> | undefined;
     const spans = plan.protocol === "oh.memory.evolution-context-plan.v2" ? createOhSourceSpanPacker(source) : undefined;
     const questions = new Map(input.questions.filter(q => q.corpusId === corpus.id).map(q => [q.id, q]));
     for (const q of questions.values()) { const pool = poolByQuestion.get(q.id); if (pool !== undefined) validate(pool); }
@@ -258,7 +270,15 @@ export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPla
       if (c.result.protocol === "oh.evolution-source-spans.v1") {
         const variant = plan.variants.find(v => v.id === c.variantId)!;
         spans!.validate(c.result, poolByQuestion.get(c.questionId)!, q.question, { contextBytes: variant.budget.contextBytes });
-      } else validate(c.result);
+      } else {
+        // The validated variant/result binding chooses the expected prepared identity.
+        // A resealed keyword result must not be admitted as semantic (or vice versa).
+        const variant = plan.variants.find(v => v.id === c.variantId)!;
+        if (semanticVariant(variant)) {
+          validateSemantic ??= createEvolutionContextSourceValidator(source, { semantic: true });
+          validateSemantic(c.result);
+        } else validate(c.result);
+      }
     }
   }
   const corpusIds = new Set(input.corpora.map(c => c.id));

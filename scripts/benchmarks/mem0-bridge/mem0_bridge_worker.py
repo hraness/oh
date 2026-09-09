@@ -16,7 +16,10 @@ import sys
 from pathlib import Path
 from typing import Any, Literal, Optional
 
-MAX_FRAME_BYTES = 1_048_576
+BATCH_EMBEDDINGS = os.environ.get("MEM0_EMBEDDING_BATCH", "off")
+if BATCH_EMBEDDINGS not in {"off", "v2"}:
+    raise ValueError("MEM0_EMBEDDING_BATCH must be off or v2")
+MAX_FRAME_BYTES = 8_388_608 if BATCH_EMBEDDINGS == "v2" else 1_048_576
 MAX_TEXT_BYTES = 262_144
 MAX_TOP_K = 50
 def _vector_dimensions() -> int:
@@ -91,13 +94,19 @@ class FramedRpc:
         self.namespace = namespace
         self.serial = 0
 
-    def call(self, operation: Literal["llm", "embed"], payload: dict[str, Any]) -> dict[str, Any]:
+    def call(self, operation: Literal["llm", "embed", "embed-batch"], payload: dict[str, Any]) -> dict[str, Any]:
         self.serial += 1
         rpc_id = f"provider-{self.serial}"
-        _write({"kind": "rpc", "id": rpc_id, "operation": operation,
-                "namespace": self.namespace, "payload": payload})
+        batch = operation == "embed-batch"
+        frame = {"kind": "rpc-batch" if batch else "rpc", "id": rpc_id, "operation": operation,
+                 "namespace": self.namespace, "payload": payload}
+        if batch:
+            frame["protocol"] = "oh.memory.mem0-rpc.v2"
+        _write(frame)
         reply = _read()
-        _exact(reply, {"kind", "id", "ok", "result"}, "rpc result")
+        _exact(reply, {"kind", "id", "ok", "result", "protocol"} if batch else {"kind", "id", "ok", "result"}, "rpc result")
+        if batch and reply["protocol"] != "oh.memory.mem0-rpc.v2":
+            raise BridgeError("batch RPC result protocol")
         if reply["kind"] != "rpc-result" or reply["id"] != rpc_id or reply["ok"] is not True:
             raise BridgeError("RPC reply did not match provider request")
         if not isinstance(reply["result"], dict):
@@ -151,9 +160,44 @@ class RpcEmbedder(EmbeddingBase):
         return [float(n) for n in vector]
 
 
+    def embed_batch(self, texts, memory_action="add"):
+        if BATCH_EMBEDDINGS == "off":
+            return super().embed_batch(texts, memory_action)
+        if not isinstance(texts, list) or len(texts) > 1024:
+            raise BridgeError("batch embedding input list bound")
+        if memory_action not in {"add", "search", "update"}:
+            raise BridgeError("unsupported batch embedding action")
+        for text in texts:
+            _text(text, "batch embedding text")
+        embeddings = []
+        # The SDK native OpenAI provider uses at most100 inputs/request. Keep
+        # our exact text bytes; the parent can subdivide under its input cap.
+        batch_size = min(100, 262_144 // VECTOR_DIMENSIONS)
+        for start in range(0, len(texts), batch_size):
+            chunk = texts[start:start + batch_size]
+            result = self.rpc.call("embed-batch", {"texts": chunk, "action": memory_action})
+            _exact(result, {"embeddings"}, "batch embedding RPC result")
+            vectors = result["embeddings"]
+            if not isinstance(vectors, list) or len(vectors) != len(chunk):
+                raise BridgeError("batch embedding result count")
+            for vector in vectors:
+                if (not isinstance(vector, list) or len(vector) != VECTOR_DIMENSIONS or
+                        any(isinstance(n, bool) or not isinstance(n, (int, float)) or not math.isfinite(n) for n in vector)):
+                    raise BridgeError("batch embedding result dimensions")
+                embeddings.append([float(n) for n in vector])
+        return embeddings
+
+
+def _frame_limit(value: dict[str, Any]) -> int:
+    if (BATCH_EMBEDDINGS == "v2" and value.get("protocol") == "oh.memory.mem0-rpc.v2"
+            and value.get("kind") in {"rpc-batch", "rpc-result"}):
+        return MAX_FRAME_BYTES
+    return 1_048_576
+
+
 def _write(value: dict[str, Any]) -> None:
     encoded = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    if len(encoded) > MAX_FRAME_BYTES:
+    if len(encoded) > _frame_limit(value):
         raise BridgeError("outbound frame exceeds bound")
     sys.stdout.buffer.write(encoded + b"\n")
     sys.stdout.buffer.flush()
@@ -172,6 +216,8 @@ def _read() -> dict[str, Any]:
         raise BridgeError("invalid JSON frame") from error
     if not isinstance(value, dict):
         raise BridgeError("frame must be an object")
+    if len(raw) - 1 > _frame_limit(value):
+        raise FrameFatal("inbound protocol frame exceeds bound")
     return value
 
 

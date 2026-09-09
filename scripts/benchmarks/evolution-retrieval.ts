@@ -9,7 +9,7 @@ import type { Corpus, Turn } from "./datasets";
 import { pack, queryTerms, renderTurn, type RetrievalBudget } from "./retrieval";
 
 export const EVOLUTION_RETRIEVAL_SYSTEMS = ["bm25-window", "bm25-session", "oh-keyword",
-  "oh-keyword-window", "oh-focused", "oh-focused-window",
+  "oh-keyword-window", "oh-focused", "oh-focused-window", "oh-focused-window-opening",
   "oh-semantic", "oh-hybrid", "bm25-facets", "oh-facets"] as const;
 export type EvolutionRetrievalSystem = typeof EVOLUTION_RETRIEVAL_SYSTEMS[number];
 export type EvolutionRetrievalVariant = Readonly<{ id: string; system: EvolutionRetrievalSystem; budget: RetrievalBudget }>;
@@ -179,12 +179,15 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
   const byKey = new Map(records.map((record, index) => [record.key, index]));
   const byTurn = new Map(turns.map((turn, index) => [turn.id, index]));
   const sessions: number[][] = [], occurrences = new Map<string, number[]>();
+  const occurrenceKey = (turn: Turn) => JSON.stringify([turn.sessionId, turn.sessionIndex ?? null]);
   turns.forEach((turn, index) => {
-    const key = JSON.stringify([turn.sessionId, turn.sessionIndex ?? null]);
+    const key = occurrenceKey(turn);
     let session = occurrences.get(key);
     if (session === undefined) { session = []; sessions.push(session); occurrences.set(key, session); }
     session.push(index);
   });
+  const openings = new Map([...occurrences].map(([key, indices]) => [key,
+    indices.find(index => turns[index]!.speaker.toLowerCase() === "user") ?? indices[0]!]));
   const database = new Database(":memory:");
   try {
     database.run("CREATE VIRTUAL TABLE passages USING fts5(turn_index UNINDEXED, text, tokenize='unicode61 remove_diacritics 2')");
@@ -234,6 +237,31 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
   }
   const neighbors = (index: number): number[] => [index - 1, index + 1].filter(i => turns[i] !== undefined
     && turns[i]!.sessionId === turns[index]!.sessionId && turns[i]!.sessionIndex === turns[index]!.sessionIndex);
+  /** Add the opening user message once per represented occurrence. Admission
+   * of an opener and its first retained candidate is atomic: an opener cannot
+   * displace the source that introduced it. Later displacement remains a
+   * measured tradeoff of this explicitly selected experiment. */
+  function packOpeningIndices(candidates: readonly number[], budget: number) {
+    const selected: number[] = [], seen = new Set<number>(), represented = new Set<string>();
+    let bytes = 0, omittedForBudget = 0;
+    const size = (index: number) => Buffer.byteLength(renderTurn(turns[index]!));
+    const add = (index: number) => { bytes += size(index) + (selected.length ? 2 : 0); selected.push(index); seen.add(index); };
+    for (const index of candidates) {
+      if (seen.has(index)) continue;
+      seen.add(index);
+      const needed = size(index) + (selected.length ? 2 : 0);
+      if (bytes + needed > budget) { omittedForBudget++; continue; }
+      const key = occurrenceKey(turns[index]!), opening = openings.get(key)!;
+      if (!represented.has(key) && opening !== index && !seen.has(opening)) {
+        // The two messages need one separator between them, as well as the
+        // separator from any preceding context. A rejected opener stays omitted.
+        if (bytes + needed + size(opening) + 2 <= budget) add(opening);
+        else { seen.add(opening); omittedForBudget++; }
+      }
+      add(index); represented.add(key);
+    }
+    return { indices: selected, omittedForBudget };
+  }
   function rawRank(question: string, topK: number, wholeSession = false): number[] {
     const match = queryTerms(question, true).map(term => `"${term}"`).join(" OR ");
     if (!match) return [];
@@ -292,7 +320,7 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
     stats.queryCount += 1;
     const isFacets = variant.system.endsWith("facets"), facets = isFacets ? evolutionQuestionFacets(question) : [];
     const topK = variant.budget.topK;
-    let indices: number[], coveredFacets: number[] = [];
+    let indices: number[], coveredFacets: number[] = [], openingOmissions: number | undefined;
     if (isFacets) {
       const rank = variant.system === "oh-facets" ? (q: string) => ohRank(q, topK, "keyword") : async (q: string) => rawRank(q, topK);
       const rankings = await Promise.all([rank(queryTerms(question, true).join(" ")), ...facets.map(rank)]);
@@ -322,11 +350,16 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
       coveredFacets = lexicalFacetCoverage(facets, preview.turnIds.map(id => turns[byTurn.get(id)!]!));
     } else if (variant.system === "bm25-window") indices = rawRank(question, topK).flatMap(index => [index, ...neighbors(index)]);
     else if (variant.system === "bm25-session") indices = rawRank(question, topK, true);
-    else if (variant.system === "oh-keyword-window" || variant.system === "oh-focused" || variant.system === "oh-focused-window") {
+    else if (variant.system === "oh-keyword-window" || variant.system === "oh-focused" || variant.system === "oh-focused-window"
+      || variant.system === "oh-focused-window-opening") {
       // Isolate query focusing and conversation adjacency while keeping native Oh ranking.
       const focused = variant.system !== "oh-keyword-window";
       const hits = await ohRank(focused ? queryTerms(question, true).join(" ") : question, topK, "keyword");
       indices = variant.system === "oh-focused" ? hits : hits.flatMap(index => [index, ...neighbors(index)]);
+      if (variant.system === "oh-focused-window-opening") {
+        const completed = packOpeningIndices(indices, variant.budget.contextBytes);
+        indices = completed.indices; openingOmissions = completed.omittedForBudget;
+      }
     }
     else indices = await ohRank(question, topK, variant.system === "oh-keyword" ? "keyword" : variant.system === "oh-semantic" ? "semantic" : "hybrid");
     currentSources(indices);
@@ -335,7 +368,7 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
       variantSha256: canonicalSha256(variant), querySha256: sha256Hex(question), context: packed.context,
       contextSha256: sha256Hex(packed.context), contextBytes: Buffer.byteLength(packed.context),
       turnIds: packed.turnIds, sessionIds: packed.sessionIds, sources: packed.turnIds.map(id => sources[byTurn.get(id)!]!),
-      omittedForBudget: packed.omittedForBudget, facets, coveredFacets, coverageKind: isFacets ? "lexical-clause" as const : null };
+      omittedForBudget: openingOmissions ?? packed.omittedForBudget, facets, coveredFacets, coverageKind: isFacets ? "lexical-clause" as const : null };
     return immutable({ ...payload, resultSha256: canonicalSha256(payload) });
   }
   return Object.freeze({ identity,

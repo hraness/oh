@@ -32,6 +32,12 @@ failed or stale backend is an explicit failure. The initial CLI configuration
 does not activate that optional backend; qualify it through the adapter before
 adding it to the paid CLI protocol.
 
+V1 context plans authenticate semantic and hybrid results against the pinned
+semantic preparation identity. Mixed native/semantic plans retain separate
+prepared corpora, and each result must match its declared retrieval mode.
+Supplying an unused semantic cache leaves native-only plan bytes unchanged.
+This qualification does not enable semantic preparation in the V3 CLI builder.
+
 Explicit event/state timelines, entity joins, episodic summaries, bounded second
 retrieval, external framework adapters and a reflective GEPA integration remain
 separate experiments. The population primitives provide typed lineage and
@@ -323,6 +329,28 @@ in the full denominator, and keep development optimization separate from confirm
 The [completed 1,600-case comparison](EVOLUTION_RESULTS.md#answer-contract-comparison)
 records the four contracts with nano and mini under matched BM25 and Oh retrieval,
 including fresh legacy controls and native-rubric 16-token grading.
+
+## Opening-message completion experiment
+
+`oh-focused-window-opening` keeps the existing focused native Oh top-K ranking
+and its preceding/following turns. For each session occurrence represented in the
+retained candidates, it also attempts to include that occurrence's first explicit
+`user` message. Conversations with named speakers use their first source turn.
+Repeated session IDs remain distinct through their occurrence index.
+
+The opening message and its introducing retained candidate must fit together in
+the existing whole-turn UTF-8 context budget. If they do not fit, the candidate
+keeps its original admission opportunity and the opening message is omitted.
+An admitted opening can displace later candidates; the offline screen records
+both recovered and lost annotated turns across the entire development sample.
+No source text is synthesized, truncated or labeled using reference answers.
+The previous retrieval systems and their request identities remain unchanged.
+
+This opt-in treatment tests whether the beginning of a conversation supplies
+facts missed by isolated keyword matches and their immediate neighbors. The
+comparison holds top-K, context allowance, reader contract and judge fixed.
+Source coverage is a diagnostic, and reader accuracy still requires a paid
+comparison. It is not a selected production default or a benchmark victory.
 
 ## Explicit concurrency experiments
 

@@ -529,3 +529,49 @@ families; repeated arms add no independent questions. Grading uses the native
 LongMemEval rubric and contains-yes rule with a Gateway GPT-4o alias and a
 16-token output cap. It is not a pinned-snapshot, native 10-token or full-set
 evaluation, and these development results do not establish superiority.
+
+## Opening-message source screen
+
+The next retrieval treatment adds a session occurrence's opening user message
+when native focused search retrieves a later turn. Its 96 KB context keeps the
+same top100 hits and immediate neighbors. An opening message can only be added
+when it and the candidate that introduced its session fit together; later
+candidates can still be displaced. Conversations without a named `user` role
+use their first source turn.
+
+The source-only screen prepared all 200 original/candidate contexts before
+opening the existing annotation-ID projection. It preserved all 100 original
+control results exactly. Complete annotated-turn coverage rose from 81 to 87
+of 94 annotated questions: seven became complete and one became incomplete.
+It recovered 13 annotated turns across nine questions and displaced one on one
+question. The six questions without annotations do not enter this coverage
+fraction. Average context sizes were 94,228 and 94,335 bytes.
+
+Among the selected nano reader's 19 prior errors, five became annotation-complete;
+three of mini's 15 prior errors did so. The displaced case had previously been
+answered correctly by both. These are retrospective source-availability strata,
+not predicted accuracy gains. Equivalent unannotated evidence may exist, and a
+reader may still fail when all annotated turns are present.
+
+Preparation took 16.45 seconds after host admission and made no provider calls.
+The [compact screen](results/memory-evolution-opening-turns-source100-v1.json)
+records every gain and loss in aggregate, source/context pins and the uncommitted
+offline-source qualification. Paid answer quality remains unmeasured. This uses
+the same exposed development questions and establishes no benchmark superiority.
+
+## Mem0 embedding-batch qualification
+
+The opt-in Mem0 bridge transports the SDK's existing embedding lists in bounded
+batches. One synthetic chunk with three extracted facts required six fake
+provider requests through the default single-text path and four through the
+batch path. Both used the real pinned Mem0 SDK and local Qdrant, returned the
+same ordered memories and search results, replayed every settled call and
+closed cleanly. No actual provider requests or spending were involved.
+
+The [compact qualification](results/memory-evolution-mem0-batch-qualification-v1.json)
+records the fixture, runtime and source pins. Subsequent focused tests cover
+protocol-specific frame limits and reservation of ledger storage for outstanding
+response capture and settlement. The SDK fixture predates those boundary
+changes; its small responses fit the new limits. The existing single-text path
+remains the default. This establishes transport compatibility for the fixture,
+not a measured improvement in live latency, cost or benchmark accuracy.

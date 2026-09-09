@@ -1,0 +1,95 @@
+{
+  "protocol": "oh.memory.opening-turns-source-screen.v1",
+  "status": "completed-offline-source-screen",
+  "dataset": {
+    "name": "longmemeval-s",
+    "partition": "development",
+    "questions": 100,
+    "questionsWithAnnotatedTurns": 94,
+    "questionsWithoutAnnotatedTurns": 6,
+    "inputSha256": "88b6a0039f6bad371ef6a3b5ba967eaa0361b13320e8d1036e7bb6658c5715cf",
+    "freshness": "Previously exposed development questions; no new independent evidence."
+  },
+  "comparison": {
+    "baseline": "oh-focused-window-96k",
+    "candidate": "oh-focused-window-opening-96k",
+    "nativeTopK": 100,
+    "contextByteCap": 96000,
+    "matching": "Same focused native hits and adjacent-turn policy; candidate adds first user turn per represented session occurrence, falling back to its first turn when no user is named. Opening and introducing candidate admission is atomic; later displacement is measured."
+  },
+  "coverage": {
+    "metric": "All annotated answer turns present in packed source context",
+    "baseline": 81,
+    "candidate": 87,
+    "denominator": 94,
+    "newlyComplete": 7,
+    "newlyIncomplete": 1,
+    "unchanged": 86,
+    "questionsWithAnyRecoveredAnnotation": 9,
+    "questionsWithAnyDisplacedAnnotation": 1,
+    "recoveredAnnotatedTurns": 13,
+    "displacedAnnotatedTurns": 1
+  },
+  "packing": {
+    "baselineMeanContextBytes": 94227.96,
+    "candidateMeanContextBytes": 94334.56,
+    "exactPriorBaselineResultsPreserved": 100,
+    "contextsPrepared": 200,
+    "corporaPrepared": 100
+  },
+  "retrospectivePriorAnswerStrata": [
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "priorErrors": 19,
+      "newlyAnnotationCompleteAmongPriorErrors": 5,
+      "newlyAnnotationIncompleteAmongPriorErrors": 0,
+      "priorErrorQuestionsWithAnyRecoveredAnnotation": 7,
+      "priorCorrectQuestionsNowAnnotationIncomplete": 1
+    },
+    {
+      "reader": "gpt5-mini-explicit-abstention-v1-reader",
+      "priorErrors": 15,
+      "newlyAnnotationCompleteAmongPriorErrors": 3,
+      "newlyAnnotationIncompleteAmongPriorErrors": 0,
+      "priorErrorQuestionsWithAnyRecoveredAnnotation": 5,
+      "priorCorrectQuestionsNowAnnotationIncomplete": 1
+    }
+  ],
+  "execution": {
+    "providerCalls": 0,
+    "fetchAttempts": 0,
+    "providerSpendMicros": 0,
+    "preparationWallMs": 16453.116333,
+    "totalAuditWallMs": 16475.994625,
+    "queueWaitIncluded": false,
+    "toolchain": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "source": {
+      "baseGitHead": "c1e672ff25952345227ed98dfced8bd448c91680",
+      "workingTreeDirty": true,
+      "sourceSha256": "f28ebfebe1f0cd62901cacad7a15355714f54f9cc8a7c669c812b09c9faac3d9",
+      "retrievalFileSha256": "4a504445a5b20dc93b74e14f23c1c37356f3204b27400941f2d11ae2da334a7f",
+      "qualification": "Offline uncommitted candidate at preparation; not a paid execution receipt."
+    }
+  },
+  "artifactPins": {
+    "summaryFileSha256": "1125df0abb40565808a4d923b2b4776f2023c617364fdbb5e66561cebf0d294a",
+    "preparationFileSha256": "fd7324e801ae05c86c7bba7b6b913011aad66d3f1ba4cb4d52d93a2e5de04de1",
+    "contextFileSha256": "680386cd7ee6e47d70cbf68bbd1f75099b2d036c670c0da0eacb7891cc003717",
+    "contextPlanSha256": "da7dc22a5de45a33fdbeb73d85fc8e6127d4e50f015aeea33619d12532ac5c90",
+    "caseAuditFileSha256": "a34127194ef94483982fa1492365967103294e4561c27e245ec04dbb5ea81b6a",
+    "evidenceIdsFileSha256": "d5a29d494418b60c68c8db89bcb17726dfc3dce0b9eeaeafa8cee7b5810f84fb",
+    "scriptSha256": "f6d2d7ac3faf6951602b0318a8f8678ac6e33ba882865d6c557b8f3dfbb702ff",
+    "sourceReviewReceiptSha256": "e5ab317f0bed0bf1d0f09226959668d82c20df600d1d9a765af4c2383892482e"
+  },
+  "qualifications": [
+    "All200 contexts were written before loading the separately pinned annotation-ID projection.",
+    "Annotation completeness is not semantic sufficiency: equivalent unannotated evidence can exist.",
+    "No new reader answers or judge grades were generated. Coverage gains do not forecast answer accuracy.",
+    "Retrospective prior-error strata use earlier immutable official grades; one newly incomplete case was previously correct for both selected readers.",
+    "Same100 development selection, no benchmark saturation or superiority claim."
+  ]
+}
