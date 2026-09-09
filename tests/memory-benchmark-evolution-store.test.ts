@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { sha256Hex } from "../src/canonical";
 import { type EvolutionCampaign } from "../scripts/benchmarks/evolution-budget";
 import { makeEvolutionRequest, parseEvolutionResponse, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
-import { openEvolutionStore, type EvolutionRaw } from "../scripts/benchmarks/evolution-store";
+import { openEvolutionStore, validateEvolutionAttemptFailure, type EvolutionRaw } from "../scripts/benchmarks/evolution-store";
 import { invokeEvolutionRequest } from "../scripts/benchmarks/evolution-transport";
 
 const roots: string[] = [];
@@ -84,6 +84,44 @@ describe("memory evolution exclusive replay ledger", () => {
         reopened.admit(request("another")); expect(reopened.summary().calls).toBe(2);
       } finally { await reopened.close(); }
     }
+  });
+
+  test("projects only durable unresolved attempts with exact identity and recorded transport evidence", async () => {
+    const path = await directory(), c = campaign(path), reserved = request("reserved"), network = request("network"), settled = request("settled"), store = await openEvolutionStore({ directory: path, campaign: c });
+    try {
+      store.admit(reserved);
+      const unknown = store.readAttemptFailure(reserved);
+      expect(unknown).toEqual({ requestSha256: reserved.requestSha256, profileSha256: reserved.profileSha256, repeat: 0,
+        storeStatus: "reserved", reason: "dispatch-outcome-unknown", rawSha256: null, rawBytes: null, transport: null,
+        serviceMs: null, reservationMicros: reserved.reservationMicros });
+      expect(validateEvolutionAttemptFailure(unknown, reserved)).toEqual(unknown);
+      for (const changed of [
+        { ...unknown, profileSha256: "f".repeat(64) }, { ...unknown, repeat: 101 }, { ...unknown, usage: { micros: 0 } },
+        { ...unknown, reservationMicros: 0 }, { ...unknown, rawBytes: 0 },
+      ]) expect(() => validateEvolutionAttemptFailure(changed, reserved)).toThrow();
+
+      const raw: EvolutionRaw = { httpStatus: null, body: new Uint8Array(0), complete: false, receivedBytes: 0, error: "network", serviceMs: 120_000 };
+      store.admit(network); store.capture(network, raw);
+      const captured = store.readAttemptFailure(network);
+      expect(captured).toEqual({ requestSha256: network.requestSha256, profileSha256: network.profileSha256, repeat: 0,
+        storeStatus: "captured", reason: "unverifiable-first-response", rawSha256: sha256Hex(raw.body), rawBytes: 0,
+        transport: { httpStatus: null, complete: false, receivedBytes: 0, error: "network" }, serviceMs: 120_000,
+        reservationMicros: network.reservationMicros });
+      expect(validateEvolutionAttemptFailure(captured, network)).toEqual(captured);
+      expect(Object.isFrozen(captured.transport)).toBeTrue();
+
+      store.admit(settled); store.capture(settled, capture(settled)); store.finalize(settled);
+      expect(() => store.readAttemptFailure(request("missing"))).toThrow("unresolved failed");
+      expect(() => store.readAttemptFailure(settled)).toThrow("unresolved failed");
+      const validCaptured = request("valid-captured"); store.admit(validCaptured); store.capture(validCaptured, capture(validCaptured));
+      expect(() => store.readAttemptFailure(validCaptured)).toThrow("unresolved failed");
+    } finally { await store.close(); }
+    const reopened = await openEvolutionStore({ directory: path, campaign: c });
+    try { expect(reopened.readAttemptFailure(network)).toEqual({ requestSha256: network.requestSha256, profileSha256: network.profileSha256, repeat: 0,
+      storeStatus: "captured", reason: "unverifiable-first-response", rawSha256: sha256Hex(new Uint8Array(0)), rawBytes: 0,
+      transport: { httpStatus: null, complete: false, receivedBytes: 0, error: "network" }, serviceMs: 120_000,
+      reservationMicros: network.reservationMicros }); }
+    finally { await reopened.close(); }
   });
 
   test("two concurrent exact requests dispatch at most once and different repeats remain explicit", async () => {

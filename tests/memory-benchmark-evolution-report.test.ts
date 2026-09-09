@@ -6,12 +6,15 @@ import { makeEvolutionJudgePlan, type EvolutionJudgeProfileId } from "../scripts
 import { EVOLUTION_GATEWAY_ENDPOINT, parseEvolutionResponse, type EvolutionRequest, type EvolutionResponse } from "../scripts/benchmarks/evolution-model";
 import { makeEvolutionContextPlan, makeEvolutionReaderPlan } from "../scripts/benchmarks/evolution-plan";
 import { buildEvolutionReport } from "../scripts/benchmarks/evolution-report";
+import type { EvolutionAttemptFailure } from "../scripts/benchmarks/evolution-store";
 import { loadJudgeProfile } from "../scripts/benchmarks/judge";
 
 const bytes = (value: unknown) => new TextEncoder().encode(canonicalJson(value));
-const phase = (kind: "reader" | "judge", planSha256: string, responses: ReadonlyMap<string, EvolutionResponse>, wallMs?: number) => bytes({
+const phase = (kind: "reader" | "judge", planSha256: string, responses: ReadonlyMap<string, EvolutionResponse>, wallMs?: number,
+  failures?: readonly EvolutionAttemptFailure[]) => bytes({
   protocol: "oh.memory.evolution-phase.v1", phase: kind, planSha256, complete: true,
   ...(wallMs === undefined ? {} : { wallMs }),
+  ...(failures === undefined ? {} : { failures }),
   responses: [...responses].map(([requestSha256, response]) => ({ requestSha256, response })),
 });
 function raw(request: EvolutionRequest, answer: string, finish = "stop") {
@@ -80,11 +83,36 @@ function reseal<T extends { planSha256: string }>(value: T): T {
   const { planSha256: _old, ...payload } = value;
   return { ...payload, planSha256: canonicalSha256(payload) } as T;
 }
+function attemptFailure(request: EvolutionRequest, mode: "network" | "malformed" | "reserved"): EvolutionAttemptFailure {
+  const shared = { requestSha256: request.requestSha256, profileSha256: request.profileSha256, repeat: 0,
+    reservationMicros: request.reservationMicros };
+  if (mode === "reserved") return { ...shared, storeStatus: "reserved", reason: "dispatch-outcome-unknown",
+    rawSha256: null, rawBytes: null, transport: null, serviceMs: null };
+  const raw = new TextEncoder().encode(mode === "network" ? "" : "invalid JSON");
+  return { ...shared, storeStatus: "captured", reason: "unverifiable-first-response", rawSha256: sha256Hex(raw), rawBytes: raw.length,
+    transport: { httpStatus: mode === "network" ? null : 200, complete: mode !== "network", receivedBytes: raw.length,
+      error: mode === "network" ? "network" : null }, serviceMs: mode === "network" ? 120_001.639083 : 14 };
+}
+async function allFailedReaders() {
+  const f = await fixture(true), failures = new Map(f.input.readerPlan.requests.map((request, index) =>
+    [request.requestSha256, attemptFailure(request, index % 2 ? "reserved" : "network")] as const));
+  const responses = new Map<string, EvolutionResponse>();
+  const readerOutputBytes = phase("reader", f.input.readerPlan.planSha256, responses, 130_000, [...failures.values()]);
+  const judgePlan = makeEvolutionJudgePlan({ contextPlan: f.input.contextPlan, readerPlan: f.input.readerPlan, responses, failures,
+    dataset: f.input.dataset, profile: f.input.judgePlan.profile, rubric: await loadJudgeProfile(), readerOutputSha256: sha256Hex(readerOutputBytes) });
+  const judgeOutputBytes = phase("judge", judgePlan.planSha256, new Map(), 0, []);
+  const failureLoads: string[] = [];
+  const input = { ...f.input, readerOutputBytes, judgePlan, judgeOutputBytes, judgeOutputSha256: sha256Hex(judgeOutputBytes),
+    loadAttemptFailure: async (request: EvolutionRequest) => { failureLoads.push(request.requestSha256); return failures.get(request.requestSha256)!; } };
+  return { f, input, responses, failures, failureLoads };
+}
 
 describe("authenticated memory evolution reports", () => {
   test("counts the full denominator, separates failures, and charges shared physical requests once", async () => {
     const f = await fixture(), report = await buildEvolutionReport(f.input);
-    expect(report.coverage).toEqual({ logicalReaderCases: 12, logicalJudgeCases: 12, expectedQuestionsPerArm: 3, completePhysicalResponses: true });
+    expect(report.coverage).toEqual({ logicalReaderCases: 12, logicalJudgeCases: 12, expectedQuestionsPerArm: 3, completePhysicalResponses: true,
+      completeAttemptCoverage: true, verifiedPhysicalResponses: f.input.readerPlan.requests.length + f.input.judgePlan.requests.length,
+      capturedUnverifiableAttempts: 0, unknownDispatches: 0 });
     expect(report.dataset).toMatchObject({ selectedQuestions: 3, selectedCorpora: 2, declaredGroups: 2, declaredHistories: 1, partition: "development" });
     for (const arm of report.arms) {
       expect(arm.readerFailures).toBe(arm.reader === "qwen37-flash-reader" ? 1 : 0);
@@ -174,6 +202,92 @@ describe("authenticated memory evolution reports", () => {
       expect(metric(arm, "locomo-f1").overall.mean).toBe(0);
       expect(metric(arm, "evidence-recall").overall.mean).toBe(0.75);
     }
+  });
+
+  test("authenticates captured timeouts and unknown dispatches without inventing usage or losing denominator", async () => {
+    const f = await allFailedReaders(), report = await buildEvolutionReport(f.input);
+    const reserved = [...f.failures.values()].filter(f => f.storeStatus === "reserved").length;
+    const captured = f.failures.size - reserved, reservation = [...f.failures.values()].reduce((sum, f) => sum + f.reservationMicros, 0);
+    expect(f.input.judgePlan.requests).toEqual([]);
+    expect(report.coverage).toMatchObject({ logicalReaderCases: 12, logicalJudgeCases: 12, completeAttemptCoverage: true,
+      completePhysicalResponses: false, verifiedPhysicalResponses: 0, capturedUnverifiableAttempts: captured, unknownDispatches: reserved });
+    expect(report.cost).toMatchObject({ accountedMicros: reservation, knownUsageMicros: 0, unresolvedReservationMicros: reservation });
+    expect(report.cost.reader).toMatchObject({ physicalRequests: captured, occupiedRequests: f.failures.size, unknownDispatches: reserved,
+      usageCoverage: { knownRequests: 0, unknownRequests: f.failures.size }, identities: [] });
+    expect(report.cost.reader.byRequestedModel.length).toBe(2);
+    expect(report.cost.reader.byRequestedModel.reduce((sum, row) => sum + row.unresolvedReservationMicros, 0)).toBe(reservation);
+    expect(report.cost.judge.occupiedRequests).toBe(0);
+    expect(report.latency.reader.physical).toMatchObject({ attributedPhysicalRequests: captured, count: captured,
+      unknownDispatches: reserved, unmeasuredPhysicalRequests: 0, p50Ms: 120_001.639083, p95Ms: 120_001.639083 });
+    for (const arm of report.arms) {
+      expect(arm).toMatchObject({ readerFailures: 3, judgeFailures: 0 });
+      expect(metric(arm, "judge-accuracy").overall).toMatchObject({ cases: 3, scored: 3, failed: 3, mean: 0 });
+      expect(metric(arm, "locomo-f1").overall.mean).toBe(0);
+      expect(metric(arm, "evidence-recall").overall.mean).toBe(0.75);
+    }
+    expect(f.failureLoads.length).toBe(f.failures.size);
+    expect(new Set(f.failureLoads).size).toBe(f.failureLoads.length);
+    expect(f.f.loaded).toEqual([]);
+    const publicText = JSON.stringify(report);
+    for (const privateValue of ["PRIVATE-", "unverifiable-first-response", ...f.failures.keys()]) expect(publicText).not.toContain(privateValue);
+  });
+
+  test("malformed judge captures score zero separately while reader F1 and known usage remain intact", async () => {
+    const f = await fixture(true), failures = new Map(f.input.judgePlan.requests.map(request =>
+      [request.requestSha256, attemptFailure(request, "malformed")] as const));
+    const judgeOutputBytes = phase("judge", f.input.judgePlan.planSha256, new Map(), 100, [...failures.values()]);
+    const report = await buildEvolutionReport({ ...f.input, judgeOutputBytes, judgeOutputSha256: sha256Hex(judgeOutputBytes),
+      loadAttemptFailure: async request => failures.get(request.requestSha256)! });
+    const known = [...f.readerResponses.values()].reduce((sum, response) => sum + response.usage.micros, 0);
+    const unresolved = [...failures.values()].reduce((sum, f) => sum + f.reservationMicros, 0);
+    expect(report.cost).toMatchObject({ knownUsageMicros: known, unresolvedReservationMicros: unresolved, accountedMicros: known + unresolved });
+    expect(report.cost.judge).toMatchObject({ physicalRequests: failures.size, usageCoverage: { knownRequests: 0, unknownRequests: failures.size }, identities: [] });
+    for (const arm of report.arms) {
+      expect(arm.judgeFailures).toBe(3 - arm.readerFailures);
+      expect(metric(arm, "judge-accuracy").overall).toMatchObject({ cases: 3, scored: 3, failed: 3, mean: 0 });
+      expect(metric(arm, "locomo-f1").overall.mean).toBe(2 / 3);
+    }
+  });
+
+  test("rejects forged, missing, duplicate, foreign and unbacked failure receipts", async () => {
+    const f = await allFailedReaders();
+    const { loadAttemptFailure: _omitted, ...withoutLoader } = f.input;
+    await expect(buildEvolutionReport(withoutLoader)).rejects.toThrow("failure loader required");
+    const mutations: Array<(receipt: any) => void> = [
+      receipt => { receipt.failures.pop(); },
+      receipt => { receipt.failures.push(receipt.failures[0]); },
+      receipt => { receipt.failures[0].requestSha256 = "f".repeat(64); },
+      receipt => { receipt.failures[0].profileSha256 = "e".repeat(64); },
+      receipt => { receipt.failures[0].reservationMicros = 0; },
+      receipt => { receipt.failures[0].repeat = 1; },
+      receipt => { receipt.failures[0].rawSha256 = "d".repeat(64); },
+      receipt => { receipt.failures[0].serviceMs = 1; },
+      receipt => { receipt.failures[0].usage = { micros: 0 }; },
+      receipt => { receipt.complete = false; },
+    ];
+    for (const mutate of mutations) {
+      const receipt = JSON.parse(new TextDecoder().decode(f.input.readerOutputBytes)); mutate(receipt);
+      const readerOutputBytes = bytes(receipt), judgePlan = reseal({ ...f.input.judgePlan, readerOutputSha256: sha256Hex(readerOutputBytes) });
+      await expect(buildEvolutionReport({ ...f.input, readerOutputBytes, judgePlan })).rejects.toThrow();
+    }
+    const first = f.input.readerPlan.requests[0]!, forgedResponse = f.f.readerResponses.get(first.requestSha256)!;
+    const overlap = JSON.parse(new TextDecoder().decode(f.input.readerOutputBytes));
+    overlap.responses.push({ requestSha256: first.requestSha256, response: forgedResponse });
+    const readerOutputBytes = bytes(overlap), judgePlan = reseal({ ...f.input.judgePlan, readerOutputSha256: sha256Hex(readerOutputBytes) });
+    await expect(buildEvolutionReport({ ...f.input, readerOutputBytes, judgePlan })).rejects.toThrow();
+    await expect(buildEvolutionReport({ ...f.input, loadAttemptFailure: async () => { throw new Error("unoccupied request"); } })).rejects.toThrow("unoccupied request");
+  });
+
+  test("judge planning requires the exact disjoint reader outcome matrix and bound failure identity", async () => {
+    const f = await allFailedReaders(), rubric = await loadJudgeProfile();
+    const input = { contextPlan: f.input.contextPlan, readerPlan: f.input.readerPlan, responses: f.responses, failures: f.failures,
+      dataset: f.input.dataset, profile: f.input.judgePlan.profile, rubric, readerOutputSha256: sha256Hex(f.input.readerOutputBytes) };
+    expect(makeEvolutionJudgePlan(input).cases.every(c => c.readerFailed && c.requestSha256 === null)).toBeTrue();
+    const first = f.input.readerPlan.requests[0]!, missing = new Map(f.failures); missing.delete(first.requestSha256);
+    expect(() => makeEvolutionJudgePlan({ ...input, failures: missing })).toThrow();
+    expect(() => makeEvolutionJudgePlan({ ...input, responses: new Map([[first.requestSha256, f.f.readerResponses.get(first.requestSha256)!]]) })).toThrow();
+    const foreign = new Map(f.failures); foreign.set(first.requestSha256, { ...foreign.get(first.requestSha256)!, profileSha256: "d".repeat(64) });
+    expect(() => makeEvolutionJudgePlan({ ...input, failures: foreign })).toThrow();
   });
 
   test("rejects closed selections and shared-history partition drift before reading response bytes", async () => {

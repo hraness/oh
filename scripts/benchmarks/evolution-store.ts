@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { lstatSync, realpathSync } from "node:fs";
 import { chmod, lstat, mkdir, open, realpath, unlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
+import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
 import { parseEvolutionCampaign, type EvolutionCampaign } from "./evolution-budget";
 import { validateEvolutionRequest, parseEvolutionResponse, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
 
@@ -11,6 +11,10 @@ const MAX_RAW = 2 * 1024 * 1024, MAX_REQUEST = 8 * 1024 * 1024, MAX_RESULT = 2 *
 const MAX_REPLAY_BYTES = 4 * 1024 * 1024 * 1024;
 export type EvolutionRaw = Readonly<{ httpStatus: number | null; body: Uint8Array; complete: boolean;
   receivedBytes: number; error: "network" | "body-read" | "response-bound" | null; serviceMs?: number }>;
+export type EvolutionAttemptFailure = Readonly<{ requestSha256: string; profileSha256: string; repeat: number;
+  storeStatus: "reserved" | "captured"; reason: "dispatch-outcome-unknown" | "unverifiable-first-response";
+  rawSha256: string | null; rawBytes: number | null; transport: Omit<EvolutionRaw, "body" | "serviceMs"> | null;
+  serviceMs: number | null; reservationMicros: number }>;
 type Status = "reserved" | "captured" | "settled";
 type Row = { key: string; repeat: number; request: string; reservation: number; charge: number; status: Status;
   raw: Uint8Array | null; raw_sha: string | null; raw_meta: string | null; result: string | null };
@@ -41,6 +45,28 @@ function rawMetadata(value: unknown, rawBytes: number): Omit<EvolutionRaw, "body
     || value.httpStatus !== null && (!integer(value.httpStatus, 599) || value.httpStatus < 100)
     || value.complete && (value.error !== null || value.receivedBytes !== rawBytes)) fail("invalid captured transport metadata");
   return value as Omit<EvolutionRaw, "body">;
+}
+
+/** Shape/identity validation only; a reporter must also authenticate this projection against its occupied store. */
+export function validateEvolutionAttemptFailure(value: unknown, requestInput: EvolutionRequest, expectedRepeat = 0): EvolutionAttemptFailure {
+  const request = validateEvolutionRequest(requestInput);
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["requestSha256", "profileSha256", "repeat", "storeStatus", "reason",
+    "rawSha256", "rawBytes", "transport", "serviceMs", "reservationMicros"])
+    || value.requestSha256 !== request.requestSha256 || value.profileSha256 !== request.profileSha256
+    || !integer(expectedRepeat, 100) || value.repeat !== expectedRepeat || value.reservationMicros !== request.reservationMicros
+    || value.serviceMs !== null && (typeof value.serviceMs !== "number" || !Number.isFinite(value.serviceMs)
+      || value.serviceMs < 0 || Object.is(value.serviceMs, -0) || value.serviceMs > 86_400_000)) fail("invalid failed-attempt identity or bounds");
+  if (value.storeStatus === "reserved") {
+    if (value.reason !== "dispatch-outcome-unknown" || value.rawSha256 !== null || value.rawBytes !== null
+      || value.transport !== null || value.serviceMs !== null) fail("reserved failure cannot invent response evidence");
+  } else if (value.storeStatus === "captured") {
+    if (value.reason !== "unverifiable-first-response" || parseSha256Hex(value.rawSha256) === null || !integer(value.rawBytes, MAX_RAW)
+      || !isPlainRecord(value.transport) || !hasExactKeys(value.transport, ["httpStatus", "complete", "receivedBytes", "error"])) fail("invalid failed capture evidence");
+    rawMetadata(value.transport, value.rawBytes);
+  } else fail("failed attempt must remain occupied");
+  const copied = structuredClone(value) as EvolutionAttemptFailure;
+  if (copied.transport !== null) Object.freeze(copied.transport);
+  return Object.freeze(copied);
 }
 
 /** One durable, exclusive campaign owner. Reopen authenticates every occupied row once.
@@ -185,6 +211,21 @@ export async function openEvolutionStore(input: Readonly<{ directory: string; ca
         if (found === undefined) return { kind: "miss" as const };
         if (found.status !== "settled") return { kind: "occupied" as const, status: found.status };
         return { kind: "hit" as const, result: found.parsed! };
+      },
+      /** Call only after the phase's admitted work has drained. This never settles or releases an uncertain charge. */
+      readAttemptFailure(request: EvolutionRequest, repeat = 0): EvolutionAttemptFailure {
+        return db.transaction(() => {
+          const found = entryFor(request, repeat);
+          if (found === undefined || found.status === "settled" || found.parsed !== null) fail("no unresolved failed attempt");
+          const row = db.query<Row, [string]>("SELECT * FROM jobs WHERE key=?").get(found.key);
+          if (row === null || canonicalSha256(validateRow(row)) !== canonicalSha256(found)) fail("failed attempt changed");
+          const meta = row.raw_meta === null ? null : rawMetadata(boundedJson(row.raw_meta, 1024), row.raw!.length);
+          const transport = meta === null ? null : { httpStatus: meta.httpStatus, complete: meta.complete, receivedBytes: meta.receivedBytes, error: meta.error };
+          return validateEvolutionAttemptFailure({ requestSha256: request.requestSha256, profileSha256: request.profileSha256, repeat,
+            storeStatus: found.status, reason: found.status === "reserved" ? "dispatch-outcome-unknown" : "unverifiable-first-response",
+            rawSha256: row.raw_sha, rawBytes: row.raw?.length ?? null, transport, serviceMs: found.serviceMs,
+            reservationMicros: found.reservation }, request, repeat);
+        }).immediate();
       },
       readServiceMs(request: EvolutionRequest, repeat = 0): number | null {
         const found = entryFor(request, repeat);

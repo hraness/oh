@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { sha256Hex } from "../src/canonical";
 import { DATASETS } from "../scripts/benchmarks/datasets";
-import { parseEvolutionArgs, parseEvolutionRunConfig } from "../scripts/benchmarks/evolution";
+import { evolutionPhaseAttempts, parseEvolutionArgs, parseEvolutionRunConfig } from "../scripts/benchmarks/evolution";
+import { makeEvolutionRequest, parseEvolutionResponse, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 
 const root = "/example/evolution-runner-test";
 const hash = (label: string) => sha256Hex(`evolution-runner-test:${label}`);
@@ -23,6 +24,20 @@ const config = () => ({
   concurrency: 2,
 });
 const args = (command: string, flags: readonly string[]) => [command, "--config", `${root}/config.json`, "--config-sha256", hash("config"), ...flags];
+const phaseRequest = (suffix: string) => makeEvolutionRequest("gpt4o-official-snapshot-judge", [{ role: "user", content: `Is ${suffix} correct?` }]);
+function response(request: EvolutionRequest) {
+  const raw = new TextEncoder().encode(JSON.stringify({ model: request.model, choices: [{ index: 0, finish_reason: "stop",
+    message: { role: "assistant", content: "yes" } }], usage: { prompt_tokens: 10, completion_tokens: 1, total_tokens: 11 } }));
+  return parseEvolutionResponse(raw, request);
+}
+function reservedFailure(request: EvolutionRequest) {
+  return { requestSha256: request.requestSha256, profileSha256: request.profileSha256, repeat: 0,
+    storeStatus: "reserved" as const, reason: "dispatch-outcome-unknown" as const, rawSha256: null, rawBytes: null,
+    transport: null, serviceMs: null, reservationMicros: request.reservationMicros };
+}
+const attempts = (requests: readonly EvolutionRequest[], responses: readonly unknown[], failures: readonly unknown[], complete = true) => ({
+  protocol: "oh.memory.evolution-phase.v1", phase: "reader", planSha256: hash("phase-plan"), complete, responses, failures,
+});
 
 describe("memory evolution runner configuration and CLI contracts", () => {
   test("accepts the closed configuration and preserves its pin-bound reader matrix", () => {
@@ -63,6 +78,11 @@ describe("memory evolution runner configuration and CLI contracts", () => {
       "--max-usd", "0.01", "--max-new-calls", "1", "--output", `${root}/reader-receipt.json`,
     ]));
     expect(run.flags.get("max-usd")).toBe("0.01");
+    const replay = parseEvolutionArgs(args("run-reader", [
+      "--plan", `${root}/readers.json`, "--plan-sha256", hash("readers"),
+      "--max-usd", "0.01", "--max-new-calls", "0", "--output", `${root}/reader-replay-receipt.json`,
+    ]));
+    expect(replay.flags.get("max-new-calls")).toBe("0");
     for (const value of [
       args("prepare", ["--ignored", "x"]),
       ["prepare", "--config", `${root}/config.json`],
@@ -70,7 +90,26 @@ describe("memory evolution runner configuration and CLI contracts", () => {
       args("readers", ["--context", `${root}/contexts.json`]),
       args("run-reader", ["--plan", `${root}/readers.json`, "--plan-sha256", hash("readers"), "--max-usd", "01", "--max-new-calls", "1", "--output", `${root}/receipt.json`]),
       args("run-reader", ["--plan", `${root}/readers.json`, "--plan-sha256", hash("readers"), "--max-usd", "0.01", "--max-new-calls", "01", "--output", `${root}/receipt.json`]),
+      args("run-reader", ["--plan", `${root}/readers.json`, "--plan-sha256", hash("readers"), "--max-usd", "0.01", "--max-new-calls", "-0", "--output", `${root}/receipt.json`]),
+      args("run-reader", ["--plan", `${root}/readers.json`, "--plan-sha256", hash("readers"), "--max-usd", "0.01", "--max-new-calls", "0.0", "--output", `${root}/receipt.json`]),
       ["prepare", "--config", `${root}/nested/../config.json`, "--config-sha256", hash("config")],
     ]) expect(() => parseEvolutionArgs(value)).toThrow();
+  });
+
+  test("requires a complete disjoint response-or-failure receipt for every planned request", () => {
+    const first = phaseRequest("first"), second = phaseRequest("second"), requests = [first, second];
+    const validResponse = { requestSha256: first.requestSha256, response: response(first) }, failure = reservedFailure(second);
+    const parsed = evolutionPhaseAttempts(attempts(requests, [validResponse], [failure]), "reader", hash("phase-plan"), requests);
+    expect([...parsed.responses]).toEqual([[first.requestSha256, validResponse.response]]);
+    expect([...parsed.failures]).toEqual([[second.requestSha256, failure]]);
+    for (const receipt of [
+      attempts(requests, [], []),
+      attempts(requests, [validResponse], []),
+      attempts(requests, [validResponse], [reservedFailure(first)]),
+      attempts(requests, [validResponse], [{ ...failure, requestSha256: "f".repeat(64) }]),
+      attempts(requests, [validResponse], [{ ...failure, repeat: 1 }]),
+      attempts(requests, [validResponse], [{ ...failure, usage: { micros: 0 } }]),
+      attempts(requests, [validResponse], [failure], false),
+    ]) expect(() => evolutionPhaseAttempts(receipt, "reader", hash("phase-plan"), requests)).toThrow();
   });
 });

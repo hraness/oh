@@ -93,6 +93,8 @@ The returned context file hash supplies the pin for `readers`. Its returned plan
 hash supplies the pin for `run-reader`. Preserve every phase output and use a new
 output path when resuming. All reader, planner and judge requests in a campaign
 must share its store and spending ledger.
+Use `--max-new-calls 0` to reconstruct a phase from its existing store without
+admitting any new requests. Missing attempts keep that replay incomplete.
 
 Paid execution requires clean committed source, explicit per-invocation call
 limits and a spending limit identical to the pinned campaign descriptor.
@@ -131,6 +133,11 @@ mutation. Duplicate requests cannot dispatch concurrently. A valid captured
 response can be finalized after interruption without calling the provider again.
 Unknown reservations remain occupied. Known occupied failures do not become
 cache misses, and later invocations can advance unrelated missing requests.
+After admitted work drains, a phase can include separately authenticated failure
+receipts for occupied attempts. These retain their full reservations and score
+as failed answers. A reservation without a capture is an unknown dispatch
+outcome; it does not prove a provider response occurred. Missing attempts and
+global source, authority or custody errors still prevent a complete report.
 
 The store reserves response-storage headroom and bounds aggregate stored data at
 4 GiB. One owner holds `active.lock`; stale ownership needs explicit diagnosis.
@@ -153,8 +160,10 @@ alias, sixteen output tokens and strict yes/no parsing; reports label that
 adapted stack separately. Source prompt parity does not establish live provider
 qualification.
 
-Reports authenticate captured raw bytes, account for each physical reader/judge
-request once and retain failed answers in denominators. They distinguish
+Reports authenticate captured raw bytes and occupied-attempt failure receipts,
+account for each request once and retain failed answers in denominators. Known
+usage and unresolved reservations are reported separately; their sum is a
+conservative exposure, not an invoice. Reports distinguish
 attributed request cost from incremental spending when a run reuses cached
 responses. Paired comparisons vary retrieval with reader fixed, or reader with
 retrieval fixed. Group/history counts are declared units, not asserted

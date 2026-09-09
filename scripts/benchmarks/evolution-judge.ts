@@ -3,6 +3,7 @@ import type { Dataset } from "./datasets";
 import { assertExactEvolutionCoverage, evolutionRunnerQuestionId } from "./evolution-dataset";
 import { makeEvolutionRequest, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
 import { validateEvolutionReaderPlan, type EvolutionContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
+import { validateEvolutionAttemptFailure, type EvolutionAttemptFailure } from "./evolution-store";
 import { buildJudgePrompt, loadJudgeProfile, parseJudgeDecision } from "./judge";
 
 export type EvolutionJudgeProfileId = "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge";
@@ -58,21 +59,29 @@ export function validateEvolutionJudgePlan(plan: EvolutionJudgePlan): EvolutionJ
 
 /** Pure gold-bearing stage. The caller authenticates response bytes before supplying responses. */
 export function makeEvolutionJudgePlan(input: Readonly<{ contextPlan: EvolutionContextPlan; readerPlan: EvolutionReaderPlan;
-  responses: ReadonlyMap<string, EvolutionResponse>; dataset: Dataset; profile: EvolutionJudgeProfileId;
+  responses: ReadonlyMap<string, EvolutionResponse>; failures?: ReadonlyMap<string, EvolutionAttemptFailure>; dataset: Dataset; profile: EvolutionJudgeProfileId;
   rubric: Awaited<ReturnType<typeof loadJudgeProfile>>; readerOutputSha256: string }>): EvolutionJudgePlan {
   const reader = validateEvolutionReaderPlan(input.readerPlan, input.contextPlan);
   if (input.profile === "gpt4o-official-snapshot-judge" && input.rubric.sha256 !== EVOLUTION_LME_NATIVE_REFERENCE.parityRubricSha256) {
     fail("direct native judge requires the parity-qualified rubric");
   }
-  assertExactEvolutionCoverage(reader.requests.map(r => r.requestSha256), [...input.responses.keys()]);
+  const failures = input.failures ?? new Map<string, EvolutionAttemptFailure>();
+  assertExactEvolutionCoverage(reader.requests.map(r => r.requestSha256), [...input.responses.keys(), ...failures.keys()]);
+  for (const request of reader.requests) {
+    const failure = failures.get(request.requestSha256);
+    if (failure !== undefined) {
+      validateEvolutionAttemptFailure(failure, request);
+      if (failure.repeat !== 0) fail("reader plan does not authorize a repeated attempt");
+    }
+  }
   const questions = new Map(input.dataset.questions.map(q => [evolutionRunnerQuestionId(q.id), q]));
   assertExactEvolutionCoverage([...questions.keys()], input.contextPlan.questions.map(q => q.id));
   const requests = new Map<string, EvolutionRequest>();
   const cases = reader.cases.map(c => {
-    const question = questions.get(c.questionId)!, response = input.responses.get(c.requestSha256)!;
-    if (response.requestSha256 !== c.requestSha256) fail("response belongs to another reader request");
+    const question = questions.get(c.questionId)!, response = input.responses.get(c.requestSha256);
+    if (response !== undefined && response.requestSha256 !== c.requestSha256) fail("response belongs to another reader request");
     let requestSha256: string | null = null;
-    if (response.status === "completed" && response.answer !== null) {
+    if (response?.status === "completed" && response.answer !== null) {
       const prompt = buildJudgePrompt(question, response.answer, input.rubric);
       const messages = input.profile === "gpt4o-official-snapshot-judge"
         ? [{ role: "user" as const, content: prompt }]

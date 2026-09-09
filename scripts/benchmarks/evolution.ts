@@ -9,7 +9,7 @@ import { EVOLUTION_PROFILES, type EvolutionProfileId, type EvolutionRequest, typ
 import { createEvolutionContextSourceValidator, EVOLUTION_RETRIEVAL_SYSTEMS, type EvolutionRetrievalVariant } from "./evolution-retrieval";
 import { makeEvolutionContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan, validateEvolutionContextPlan,
   type EvolutionContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
-import { openEvolutionStore, type EvolutionStore } from "./evolution-store";
+import { openEvolutionStore, validateEvolutionAttemptFailure, type EvolutionAttemptFailure, type EvolutionStore } from "./evolution-store";
 import { invokeEvolutionRequest, type EvolutionCredential } from "./evolution-transport";
 import { runLabPaidQueue } from "./lab-paid-queue";
 import { loadJudgeProfile } from "./judge";
@@ -108,21 +108,24 @@ export async function prepareEvolutionReaders(configPin: EvolutionPin, contextPi
     physicalRequests: plan.requests.length, maximumReservationMicros: plan.requests.reduce((s, r) => s + r.reservationMicros, 0), modelCalls: 0 };
 }
 export type EvolutionPhaseOutput = Readonly<{ protocol: "oh.memory.evolution-phase.v1"; phase: "reader" | "judge"; planSha256: string;
-  responses: readonly Readonly<{ requestSha256: string; response: EvolutionResponse }>[]; complete: boolean }>;
+  responses: readonly Readonly<{ requestSha256: string; response: EvolutionResponse }>[];
+  failures?: readonly EvolutionAttemptFailure[]; complete: boolean }>;
 function authenticateReaderResponses(store: EvolutionStore, reader: EvolutionReaderPlan, value: unknown) {
-  const responses = evolutionPhaseResponses(value, "reader", reader.planSha256);
-  if (responses.size !== reader.requests.length) fail("reader response coverage mismatch");
+  const { responses, failures } = evolutionPhaseAttempts(value, "reader", reader.planSha256, reader.requests);
   for (const request of reader.requests) {
     const cached = store.lookup(request), response = responses.get(request.requestSha256);
-    if (cached.kind !== "hit" || response === undefined || canonicalSha256(cached.result) !== canonicalSha256(response)) fail("reader receipt does not match captured campaign evidence");
+    if (failures.has(request.requestSha256)) {
+      if (canonicalSha256(store.readAttemptFailure(request)) !== canonicalSha256(failures.get(request.requestSha256))) fail("failed reader does not match occupied campaign evidence");
+    } else if (cached.kind !== "hit" || response === undefined || canonicalSha256(cached.result) !== canonicalSha256(response)) fail("reader receipt does not match captured campaign evidence");
   }
-  return responses;
+  return { responses, failures };
 }
 export async function executeEvolutionPhase(input: Readonly<{ configPin: EvolutionPin; planPin: EvolutionPin;
   phase: "reader" | "judge"; maxUsd: number; maxNewCalls: number; credential: EvolutionCredential; output: string }>) {
   const config = await configInput(input.configPin), authority = await verifyEvolutionCampaign(config.campaignPin);
   if (!Number.isSafeInteger(input.maxUsd * 1_000_000) || input.maxUsd * 1_000_000 !== authority.campaign.additionalBudgetMicros
-    || !positive(input.maxNewCalls, 20_000)) fail("explicit spending/call bound differs from campaign");
+    || !Number.isSafeInteger(input.maxNewCalls) || input.maxNewCalls < 0 || Object.is(input.maxNewCalls, -0)
+    || input.maxNewCalls > 20_000) fail("explicit spending/call bound differs from campaign");
   if (input.credential.kind === "gateway-oidc" && canonicalSha256(input.credential.auth) !== canonicalSha256(authority.auth)) fail("selected OIDC identity mismatch");
   const plan = await json(input.planPin) as EvolutionReaderPlan | EvolutionJudgePlan;
   const requests = input.phase === "reader" ? validateEvolutionReaderPlan(plan as EvolutionReaderPlan, await contextFor(config)).requests : validateEvolutionJudgePlan(plan as EvolutionJudgePlan).requests;
@@ -143,7 +146,7 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
   catch (error) { await output.close(); throw error; }
   let stopped = false; const stop = () => { stopped = true; };
   process.on("SIGINT", stop); process.on("SIGTERM", stop);
-  const started = performance.now(), responses = new Map<string, EvolutionResponse>(), initial = store.summary();
+  const started = performance.now(), responses = new Map<string, EvolutionResponse>(), failures = new Map<string, EvolutionAttemptFailure>(), initial = store.summary();
   const errors: Array<{ key: string | null; error: string }> = [];
   let admissionAttempts = 0, verified = false;
   try {
@@ -156,7 +159,7 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
         try {
           if (cached.status !== "captured") throw new Error("unresolved");
           responses.set(request.requestSha256, store.finalize(request));
-        } catch { errors.push({ key: request.requestSha256, error: "occupied-first-response-unresolved" }); }
+        } catch { /* The drained phase will project the occupied attempt separately from a verified response. */ }
       } else pending.push({ key: request.requestSha256, request });
     }
     const execution = await runLabPaidQueue(pending.slice(0, input.maxNewCalls), { concurrency: config.concurrency, stopped: () => stopped,
@@ -165,21 +168,27 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
         const invoked = await invokeEvolutionRequest({ request: job.request, store, credential: input.credential, stopped: () => stopped });
         responses.set(job.key, invoked.result); return { requestSha256: job.key, status: invoked.result.status };
       } });
+    // Only inspect unresolved attempts after every admitted job has drained; misses remain incomplete.
+    for (const request of requests) if (!responses.has(request.requestSha256) && store.lookup(request).kind === "occupied") {
+      failures.set(request.requestSha256, store.readAttemptFailure(request));
+    }
     await readEvolutionPin(input.planPin); await readEvolutionPin(input.configPin); await verifyEvolutionCampaign(config.campaignPin);
     if ((await codeIdentity()).sourceSha256 !== source.sourceSha256) fail("source changed during phase");
-    errors.push(...execution.errors.map(e => ({ key: e.key, error: "first-response-or-admission-failure" })));
+    errors.push(...execution.errors.filter(e => !failures.has(e.key)).map(e => ({ key: e.key, error: "first-response-or-admission-failure" })));
     verified = true;
   } catch { errors.push({ key: null, error: "phase-validation-failed" }); }
   let budget: ReturnType<EvolutionStore["summary"]> | null = null;
   try { budget = store.summary(); } catch { verified = false; errors.push({ key: null, error: "final-store-verification-failed" }); }
   const result: EvolutionPhaseOutput = { protocol: "oh.memory.evolution-phase.v1", phase: input.phase, planSha256,
     responses: requests.flatMap(r => { const response = responses.get(r.requestSha256); return response ? [{ requestSha256: r.requestSha256, response }] : []; }),
-    complete: verified && responses.size === requests.length && errors.length === 0 };
+    failures: requests.flatMap(r => { const failure = failures.get(r.requestSha256); return failure ? [failure] : []; }),
+    complete: verified && responses.size + failures.size === requests.length && errors.length === 0 };
   const receipt = { ...result, source, configPin: input.configPin, planPin: input.planPin, campaignSha256: authority.campaignSha256,
     admissionAttempts, errors, initialBudget: initial, budget, wallMs: performance.now() - started, interrupted: stopped, verified };
   try { await output.truncate(0); await output.write(JSON.stringify(receipt, null, 2) + "\n", 0, "utf8"); await output.sync(); }
   finally { process.off("SIGINT", stop); process.off("SIGTERM", stop); await output.close(); await store.close(); }
-  return { status: result.complete ? "completed" : "incomplete", cases: responses.size, required: requests.length,
+  return { status: result.complete ? "completed" : "incomplete", cases: responses.size + failures.size, verifiedResponses: responses.size,
+    failedAttempts: failures.size, required: requests.length,
     admissionAttempts, errors: errors.length, budget, output: input.output };
 }
 export function evolutionPhaseResponses(value: unknown, phase: "reader" | "judge", planSha256: string): Map<string, EvolutionResponse> {
@@ -193,14 +202,30 @@ export function evolutionPhaseResponses(value: unknown, phase: "reader" | "judge
   }
   return result;
 }
+export function evolutionPhaseAttempts(value: unknown, phase: "reader" | "judge", planSha256: string, requests: readonly EvolutionRequest[]) {
+  const responses = evolutionPhaseResponses(value, phase, planSha256);
+  const expected = new Map(requests.map(request => [request.requestSha256, request]));
+  if (expected.size !== requests.length || !isPlainRecord(value) || value.failures !== undefined && !Array.isArray(value.failures)) fail("invalid attempted-request matrix");
+  const rows = (value.failures ?? []) as unknown[];
+  if (rows.length > requests.length || responses.size + rows.length !== requests.length
+    || [...responses.keys()].some(key => !expected.has(key))) fail("incomplete attempted-request coverage");
+  const failures = new Map<string, EvolutionAttemptFailure>();
+  for (const row of rows) {
+    if (!isPlainRecord(row) || typeof row.requestSha256 !== "string") fail("invalid failed-attempt receipt");
+    const request = expected.get(row.requestSha256);
+    if (request === undefined || responses.has(row.requestSha256) || failures.has(row.requestSha256)) fail("duplicate or foreign failed attempt");
+    failures.set(row.requestSha256, validateEvolutionAttemptFailure(row, request));
+  }
+  return { responses, failures };
+}
 export async function prepareEvolutionJudges(configPin: EvolutionPin, readerPlanPin: EvolutionPin, readerOutputPin: EvolutionPin) {
   const config = await configInput(configPin), selection = await selected(config), contextPlan = await contextFor(config, selection);
   const readerPlan = validateEvolutionReaderPlan(await json(readerPlanPin) as EvolutionReaderPlan, contextPlan);
   const authority = await verifyEvolutionCampaign(config.campaignPin), store = await openEvolutionStore({ directory: config.storeDirectory, campaign: authority.campaign });
   let plan: EvolutionJudgePlan;
   try {
-    const responses = authenticateReaderResponses(store, readerPlan, await json(readerOutputPin));
-    plan = makeEvolutionJudgePlan({ contextPlan, readerPlan, responses, dataset: selection.dataset,
+    const attempts = authenticateReaderResponses(store, readerPlan, await json(readerOutputPin));
+    plan = makeEvolutionJudgePlan({ contextPlan, readerPlan, ...attempts, dataset: selection.dataset,
       profile: config.judge, rubric: await loadJudgeProfile(), readerOutputSha256: readerOutputPin.sha256 });
   } finally { await store.close(); }
   await writeJson(join(config.directory, "judge-inputs.json"), { readerPlanPin, readerOutputPin });
@@ -217,8 +242,8 @@ async function authenticatePreparedJudge(config: EvolutionRunConfig, store: Evol
   if (readerOutputPin.sha256 !== plan.readerOutputSha256) fail("judge reader receipt pin changed");
   const selection = await selected(config), contextPlan = await contextFor(config, selection);
   const readerPlan = validateEvolutionReaderPlan(await json(readerPlanPin) as EvolutionReaderPlan, contextPlan);
-  const responses = authenticateReaderResponses(store, readerPlan, await json(readerOutputPin));
-  const expected = makeEvolutionJudgePlan({ contextPlan, readerPlan, responses, dataset: selection.dataset,
+  const attempts = authenticateReaderResponses(store, readerPlan, await json(readerOutputPin));
+  const expected = makeEvolutionJudgePlan({ contextPlan, readerPlan, ...attempts, dataset: selection.dataset,
     profile: config.judge, rubric: await loadJudgeProfile(), readerOutputSha256: readerOutputPin.sha256 });
   if (canonicalSha256(expected) !== canonicalSha256(plan)) fail("judge plan differs from complete authenticated reader evidence");
 }
@@ -237,6 +262,7 @@ export async function reportEvolution(input: Readonly<{ configPin: EvolutionPin;
         if (cached.kind !== "hit" || canonicalSha256(cached.result) !== canonicalSha256(response)) fail("report does not match settled first-response evidence");
         return store.readRaw(request);
       },
+      loadAttemptFailure: async request => store.readAttemptFailure(request),
       loadServiceMs: async (request, response) => {
         const cached = store.lookup(request);
         if (cached.kind !== "hit" || canonicalSha256(cached.result) !== canonicalSha256(response)) fail("report does not match settled first-response evidence");
@@ -265,7 +291,7 @@ export function parseEvolutionArgs(args: readonly string[]) {
   for (const name of allowed.filter(name => name.endsWith("-sha256"))) evolutionPin({ path: flags.get(name.slice(0, -7)), sha256: flags.get(name) });
   if (command.startsWith("run-")) {
     if (!/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(flags.get("max-usd")!) || Number(flags.get("max-usd")) <= 0
-      || !/^[1-9]\d*$/.test(flags.get("max-new-calls")!) || !positive(Number(flags.get("max-new-calls")), 20_000)) fail("invalid explicit paid bounds");
+      || !/^(?:0|[1-9]\d*)$/.test(flags.get("max-new-calls")!) || Number(flags.get("max-new-calls")) > 20_000) fail("invalid explicit paid bounds");
     path(flags.get("output"));
   }
   return { command, flags };

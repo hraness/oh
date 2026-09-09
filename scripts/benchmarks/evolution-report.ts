@@ -8,6 +8,7 @@ import { LOCOMO_F1_PROTOCOL, LOCOMO_F1_REFERENCE, scoreLocomoF1, summarizeEvolut
 import { parseEvolutionResponse, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
 import { validateEvolutionContextPlan, validateEvolutionReaderPlan, type EvolutionContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
 import { createEvolutionContextSourceValidator } from "./evolution-retrieval";
+import { validateEvolutionAttemptFailure, type EvolutionAttemptFailure } from "./evolution-store";
 import { loadJudgeProfile } from "./judge";
 
 function fail(message: string): never { throw new TypeError(`Evolution report: ${message}.`); }
@@ -91,6 +92,8 @@ function authenticateContexts(dataset: Dataset, plan: EvolutionContextPlan, mani
 
 export type EvolutionRawResponseLoader = (request: EvolutionRequest, response: EvolutionResponse) => Promise<Uint8Array>;
 export type EvolutionServiceMsLoader = (request: EvolutionRequest, response: EvolutionResponse) => Promise<number | null>;
+/** The caller derives this projection from the exclusively owned, replay-validated campaign store. */
+export type EvolutionAttemptFailureLoader = (request: EvolutionRequest) => Promise<EvolutionAttemptFailure>;
 function boundedServiceMs(value: unknown, label: string): number | null {
   if (value === null) return null;
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || Object.is(value, -0) || value > 86_400_000) fail(`invalid ${label} service duration`);
@@ -100,38 +103,60 @@ function percentile(values: readonly number[], fraction: number): number | null 
   if (values.length === 0) return null;
   return values[Math.ceil(values.length * fraction) - 1]!;
 }
-function serviceDistribution(requestSha256s: readonly string[], serviceMs: ReadonlyMap<string, number | null>) {
-  const physical = [...new Set(requestSha256s)], measured = physical.map(key => serviceMs.get(key) ?? null).filter((value): value is number => value !== null).sort((a, b) => a - b);
+function serviceDistribution(requestSha256s: readonly string[], serviceMs: ReadonlyMap<string, number | null>, failures: ReadonlyMap<string, EvolutionAttemptFailure>) {
+  const occupied = [...new Set(requestSha256s)], physical = occupied.filter(key => failures.get(key)?.storeStatus !== "reserved");
+  const measured = physical.map(key => serviceMs.get(key) ?? null).filter((value): value is number => value !== null).sort((a, b) => a - b);
   return { logicalCases: requestSha256s.length, attributedPhysicalRequests: physical.length, count: measured.length,
+    unknownDispatches: occupied.length - physical.length,
     measuredPhysicalRequests: measured.length,
     unmeasuredPhysicalRequests: physical.length - measured.length, totalMs: measured.reduce((sum, value) => sum + value, 0),
     p50Ms: percentile(measured, 0.5), p95Ms: percentile(measured, 0.95) };
 }
 async function authenticatePhase(input: Readonly<{ bytes: Uint8Array; phase: "reader" | "judge"; planSha256: string;
-  requests: readonly EvolutionRequest[]; loadRawResponse: EvolutionRawResponseLoader; loadServiceMs?: EvolutionServiceMsLoader }>) {
+  requests: readonly EvolutionRequest[]; loadRawResponse: EvolutionRawResponseLoader; loadServiceMs?: EvolutionServiceMsLoader;
+  loadAttemptFailure?: EvolutionAttemptFailureLoader }>) {
   const value = json(input.bytes, 256 * 1024 * 1024);
   if (!isPlainRecord(value) || value.protocol !== "oh.memory.evolution-phase.v1" || value.phase !== input.phase
     || value.planSha256 !== input.planSha256 || value.complete !== true || !Array.isArray(value.responses)
-    || value.responses.length > 100_000) fail("phase is incomplete or does not match the plan");
+    || value.responses.length > 100_000 || value.failures !== undefined && (!Array.isArray(value.failures)
+      || value.responses.length + value.failures.length > 100_000)) fail("phase is incomplete or does not match the plan");
   const receipts = value.responses.map(row => {
     if (!isPlainRecord(row) || !hasExactKeys(row, ["requestSha256", "response"]) || typeof row.requestSha256 !== "string"
       || !isPlainRecord(row.response)) fail("invalid response receipt");
     return { requestSha256: row.requestSha256, response: row.response as unknown as EvolutionResponse };
   });
-  assertExactEvolutionCoverage(input.requests.map(r => r.requestSha256), receipts.map(r => r.requestSha256));
-  const byRequest = new Map(receipts.map(r => [r.requestSha256, r.response])), authenticated = new Map<string, EvolutionResponse>(), serviceMs = new Map<string, number | null>();
+  const failureReceipts = (value.failures ?? []).map((row: unknown) => {
+    if (!isPlainRecord(row) || typeof row.requestSha256 !== "string") fail("invalid attempt-failure receipt");
+    return row as unknown as EvolutionAttemptFailure;
+  });
+  assertExactEvolutionCoverage(input.requests.map(r => r.requestSha256), [...receipts.map(r => r.requestSha256), ...failureReceipts.map(r => r.requestSha256)]);
+  const byRequest = new Map(receipts.map(r => [r.requestSha256, r.response])), byFailure = new Map(failureReceipts.map(r => [r.requestSha256, r]));
+  const authenticated = new Map<string, EvolutionResponse>(), failures = new Map<string, EvolutionAttemptFailure>(), serviceMs = new Map<string, number | null>();
   for (let start = 0; start < input.requests.length; start += 8) {
     const batch = await Promise.all(input.requests.slice(start, start + 8).map(async request => {
+      const failure = byFailure.get(request.requestSha256);
+      if (failure !== undefined) {
+        validateEvolutionAttemptFailure(failure, request);
+        if (failure.repeat !== 0 || input.loadAttemptFailure === undefined) fail("authenticated first-attempt failure loader required");
+        const authenticatedFailure = validateEvolutionAttemptFailure(await input.loadAttemptFailure(request), request);
+        if (!same(failure, authenticatedFailure)) fail("phase failure receipt does not match occupied campaign evidence");
+        return { key: request.requestSha256, response: null, failure: authenticatedFailure,
+          duration: boundedServiceMs(authenticatedFailure.serviceMs, input.phase) };
+      }
       const receipt = byRequest.get(request.requestSha256)!, raw = await input.loadRawResponse(request, receipt);
       const response = parseEvolutionResponse(raw, request);
       if (!same(response, receipt)) fail("phase receipt does not match captured raw response");
       const duration = input.loadServiceMs === undefined ? null : boundedServiceMs(await input.loadServiceMs(request, response), input.phase);
-      return [request.requestSha256, response, duration] as const;
+      return { key: request.requestSha256, response, failure: null, duration };
     }));
-    for (const [key, response, duration] of batch) { authenticated.set(key, response); serviceMs.set(key, duration); }
+    for (const { key, response, failure, duration } of batch) {
+      if (response !== null) authenticated.set(key, response);
+      if (failure !== null) failures.set(key, failure);
+      serviceMs.set(key, duration);
+    }
   }
   const phaseWallMs = value.wallMs === undefined ? null : boundedServiceMs(value.wallMs, `${input.phase} phase wall`);
-  return { responses: authenticated, serviceMs, phaseWallMs };
+  return { responses: authenticated, failures, serviceMs, phaseWallMs };
 }
 
 type ReportMetric = EvolutionMetric | "evidence-precision" | "evidence-f1";
@@ -152,24 +177,31 @@ function evidence(expectedIds: readonly string[], retrievedIds: readonly string[
   return { precision: retrieved.size ? found / retrieved.size : 0, recall: found / expected.size,
     f1: 2 * found / (expected.size + retrieved.size), all: Number(found === expected.size) };
 }
-function cost(responses: ReadonlyMap<string, EvolutionResponse>) {
-  const values = [...responses.values()];
-  const totals = (rows: readonly EvolutionResponse[]) => ({ physicalRequests: rows.length,
-    accountedMicros: rows.reduce((n, r) => n + r.usage.micros, 0), tokenRateMicros: rows.reduce((n, r) => n + r.usage.tokenRateMicros, 0),
+function cost(responses: ReadonlyMap<string, EvolutionResponse>, failures: ReadonlyMap<string, EvolutionAttemptFailure>, requests: readonly EvolutionRequest[]) {
+  const values = [...responses.values()], failed = [...failures.values()];
+  const totals = (rows: readonly EvolutionResponse[], unverified: readonly EvolutionAttemptFailure[]) => ({
+    physicalRequests: rows.length + unverified.filter(f => f.storeStatus === "captured").length,
+    occupiedRequests: rows.length + unverified.length, unknownDispatches: unverified.filter(f => f.storeStatus === "reserved").length,
+    knownUsageMicros: rows.reduce((n, r) => n + r.usage.micros, 0),
+    unresolvedReservationMicros: unverified.reduce((n, f) => n + f.reservationMicros, 0),
+    accountedMicros: rows.reduce((n, r) => n + r.usage.micros, 0) + unverified.reduce((n, f) => n + f.reservationMicros, 0),
+    usageCoverage: { knownRequests: rows.length, unknownRequests: unverified.length },
+    tokenRateMicros: rows.reduce((n, r) => n + r.usage.tokenRateMicros, 0),
     gatewayReportedMicros: rows.some(r => r.usage.gatewayReportedMicros !== null)
       ? rows.reduce((n, r) => n + (r.usage.gatewayReportedMicros ?? 0), 0) : null,
     inputTokens: rows.reduce((n, r) => n + r.usage.inputTokens, 0), outputTokens: rows.reduce((n, r) => n + r.usage.outputTokens, 0),
     cachedInputTokens: rows.reduce((n, r) => n + r.usage.cachedInputTokens, 0), reasoningTokens: rows.reduce((n, r) => n + r.usage.reasoningTokens, 0) });
-  return { ...totals(values), byRequestedModel: [...new Set(values.map(r => r.identity.requestedModel))].sort().map(model => ({ model,
-    ...totals(values.filter(r => r.identity.requestedModel === model)) })),
+  const requestedModels = new Map(requests.map(r => [r.requestSha256, r.model]));
+  return { ...totals(values, failed), byRequestedModel: [...new Set(requests.map(r => r.model))].sort().map(model => ({ model,
+    ...totals(values.filter(r => r.identity.requestedModel === model), failed.filter(f => requestedModels.get(f.requestSha256) === model)) })),
     identities: [...new Map(values.map(r => [canonicalSha256(r.identity), r.identity])).values()] };
 }
 
-/** No requests are sent here. Each prediction and charge is replayed from its captured provider bytes. */
+/** No requests are sent here. Responses and occupied failures are authenticated separately. */
 export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; manifestBytes: Uint8Array; manifestSha256: string;
   contextPlan: EvolutionContextPlan; readerPlan: EvolutionReaderPlan; judgePlan: EvolutionJudgePlan;
   readerOutputBytes: Uint8Array; judgeOutputBytes: Uint8Array; judgeOutputSha256: string; loadRawResponse: EvolutionRawResponseLoader;
-  loadServiceMs?: EvolutionServiceMsLoader }>) {
+  loadServiceMs?: EvolutionServiceMsLoader; loadAttemptFailure?: EvolutionAttemptFailureLoader }>) {
   const manifest = selectedManifest(input.dataset, input.manifestBytes, input.manifestSha256);
   authenticateContexts(input.dataset, input.contextPlan, input.manifestSha256);
   const readers = validateEvolutionReaderPlan(input.readerPlan, input.contextPlan), judges = validateEvolutionJudgePlan(input.judgePlan);
@@ -178,15 +210,17 @@ export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; m
     || sha256Hex(input.judgeOutputBytes) !== input.judgeOutputSha256) fail("phase bytes changed");
   const readerPhase = await authenticatePhase({ bytes: input.readerOutputBytes, phase: "reader", planSha256: readers.planSha256,
     requests: readers.requests, loadRawResponse: input.loadRawResponse,
-    ...(input.loadServiceMs === undefined ? {} : { loadServiceMs: input.loadServiceMs }) });
+    ...(input.loadServiceMs === undefined ? {} : { loadServiceMs: input.loadServiceMs }),
+    ...(input.loadAttemptFailure === undefined ? {} : { loadAttemptFailure: input.loadAttemptFailure }) });
   const readerResponses = readerPhase.responses;
   const rubric = await loadJudgeProfile();
   const rebuilt = makeEvolutionJudgePlan({ contextPlan: input.contextPlan, readerPlan: readers, responses: readerResponses,
-    dataset: input.dataset, profile: judges.profile, rubric, readerOutputSha256 });
+    failures: readerPhase.failures, dataset: input.dataset, profile: judges.profile, rubric, readerOutputSha256 });
   if (!same(judges, rebuilt)) fail("judge plan differs from the complete authenticated reader and gold matrix");
   const judgePhase = await authenticatePhase({ bytes: input.judgeOutputBytes, phase: "judge", planSha256: judges.planSha256,
     requests: judges.requests, loadRawResponse: input.loadRawResponse,
-    ...(input.loadServiceMs === undefined ? {} : { loadServiceMs: input.loadServiceMs }) });
+    ...(input.loadServiceMs === undefined ? {} : { loadServiceMs: input.loadServiceMs }),
+    ...(input.loadAttemptFailure === undefined ? {} : { loadAttemptFailure: input.loadAttemptFailure }) });
   const judgeResponses = judgePhase.responses;
   const groupLabels = new Map([...new Set(manifest.questions.map(q => q.groupId))].sort().map((g, i) => [g, `group-${i + 1}`]));
   const historyLabels = new Map([...new Set(manifest.questions.map(q => q.historyId))].sort().map((h, i) => [h, `history-${i + 1}`]));
@@ -214,7 +248,7 @@ export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; m
       const judgeFailed = !readerFailed && decision === null;
       readerFailures += Number(readerFailed); judgeFailures += Number(judgeFailed);
       scores["judge-accuracy"].push({ id, score: decision ?? 0, failed: readerFailed || judgeFailed });
-      if (locomo) scores["locomo-f1"].push({ id, score: readerFailed ? 0 : scoreLocomoF1(q, response.answer!), failed: readerFailed });
+      if (locomo) scores["locomo-f1"].push({ id, score: readerFailed ? 0 : scoreLocomoF1(q, response!.answer!), failed: readerFailed });
       const context = contexts.get(pair(id, variant.id))!;
       // LoCoMo labels turns; LongMemEval labels sessions. Unresolved LoCoMo labels stay in the denominator.
       const e = locomo ? evidence(q.evidenceTurnIds, context.turnIds) : evidence(q.evidenceSessionIds, context.sessionIds);
@@ -234,7 +268,7 @@ export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; m
       return { kind: reference.kind, left: { variantId: left.variantId, reader: left.reader }, right: { variantId: right.variantId, reader: right.reader },
         metrics: metrics.map(metric => paired(cases, left.scores[metric], right.scores[metric], metric)) }; });
   });
-  const readerCost = cost(readerResponses), judgeCost = cost(judgeResponses);
+  const readerCost = cost(readerResponses, readerPhase.failures, readers.requests), judgeCost = cost(judgeResponses, judgePhase.failures, judges.requests);
   const direct = judges.profile === "gpt4o-official-snapshot-judge";
   return { protocol: "oh.memory.evolution-report.v1" as const, status: "complete" as const,
     qualification: "Development-only descriptive evidence; no superiority claim, independent-sample count, or confidence interval.",
@@ -250,18 +284,23 @@ export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; m
         : direct ? "Pinned direct GPT-4o-2024-08-06, native LongMemEval prompts and contains-yes grading; this development selection is not the official full-set score."
         : "Gateway GPT-4o alias proxy with a system message, 16 output tokens and strict yes/no parsing; not the official snapshot protocol.",
       officialLocomoF1: locomo ? { protocol: LOCOMO_F1_PROTOCOL, reference: LOCOMO_F1_REFERENCE } : null,
-      failurePolicy: "Every eligible question remains in answer-score denominators. Reader failures score zero; judge failures score zero only for judge accuracy and are counted separately. Missing physical responses prevent a complete report.",
+      failurePolicy: "Every eligible question remains in answer-score denominators. Reader failures score zero; judge failures score zero only for judge accuracy and are counted separately. Authenticated occupied attempts without a verifiable answer score zero and retain their full reservations. Never-admitted requests or unauthenticated missing evidence prevent a complete report.",
       evidenceUnit: locomo ? "turn" : "session", evidenceQualification: "Retrieval evidence is scored independently of answer success. No evidence labels means unscored, not perfect; unresolved labels remain in the denominator.",
       answerCitationF1: null, citationQualification: "Not measured: the reader prompt asks for an answer without citations." },
     coverage: { logicalReaderCases: readers.cases.length, logicalJudgeCases: judges.cases.length,
-      expectedQuestionsPerArm: cases.length, completePhysicalResponses: true },
+      expectedQuestionsPerArm: cases.length, completePhysicalResponses: readerPhase.failures.size + judgePhase.failures.size === 0,
+      completeAttemptCoverage: true, verifiedPhysicalResponses: readerResponses.size + judgeResponses.size,
+      capturedUnverifiableAttempts: [...readerPhase.failures.values(), ...judgePhase.failures.values()].filter(f => f.storeStatus === "captured").length,
+      unknownDispatches: readerCost.unknownDispatches + judgeCost.unknownDispatches },
     cost: { reader: readerCost, judge: judgeCost, accountedMicros: readerCost.accountedMicros + judgeCost.accountedMicros,
-      qualification: "Captured usage counted once per distinct physical request in these phases, including failures. This is attributed request cost, not incremental spend for a cache-reusing invocation or a provider invoice. Reasoning tokens are already included in output tokens." },
-    latency: { reader: { phaseWallMs: readerPhase.phaseWallMs, physical: serviceDistribution(readers.requests.map(request => request.requestSha256), readerPhase.serviceMs) },
-      judge: { phaseWallMs: judgePhase.phaseWallMs, physical: serviceDistribution(judges.requests.map(request => request.requestSha256), judgePhase.serviceMs) },
-      qualification: "Service time is captured once per physical request from dispatch through first-response body completion. Arm values attribute that captured physical-request duration to each arm that reuses it from cache; they do not measure a cache-hit invocation. Phase wall time is the receipt-reported phase elapsed time and includes queueing and concurrency." },
+      knownUsageMicros: readerCost.knownUsageMicros + judgeCost.knownUsageMicros,
+      unresolvedReservationMicros: readerCost.unresolvedReservationMicros + judgeCost.unresolvedReservationMicros,
+      qualification: "Known captured usage plus full unresolved reservations, counted once per distinct occupied request in these phases. Accounted cost is conservative exposure, not a provider invoice or incremental spend for a cache-reusing invocation. Token totals and provider identities cover verified responses only; unknown usage is not zero. Reserved requests without captures do not prove dispatch. Reasoning tokens are already included in output tokens." },
+    latency: { reader: { phaseWallMs: readerPhase.phaseWallMs, physical: serviceDistribution(readers.requests.map(request => request.requestSha256), readerPhase.serviceMs, readerPhase.failures) },
+      judge: { phaseWallMs: judgePhase.phaseWallMs, physical: serviceDistribution(judges.requests.map(request => request.requestSha256), judgePhase.serviceMs, judgePhase.failures) },
+      qualification: "Service time is captured once per attempted physical request through first-response body completion or failure. Reserved requests without captures are excluded from physical latency counts because dispatch is unknown. Arm values attribute each captured duration to every arm reusing it; they do not measure a cache-hit invocation. Phase wall time is receipt-reported elapsed time including queueing and concurrency." },
     arms: rawArms.map(arm => ({ variantId: arm.variantId, reader: arm.reader, readerFailures: arm.readerFailures, judgeFailures: arm.judgeFailures,
-      latency: { reader: serviceDistribution(arm.readerRequestSha256s, readerPhase.serviceMs), judge: serviceDistribution(arm.judgeRequestSha256s, judgePhase.serviceMs) },
+      latency: { reader: serviceDistribution(arm.readerRequestSha256s, readerPhase.serviceMs, readerPhase.failures), judge: serviceDistribution(arm.judgeRequestSha256s, judgePhase.serviceMs, judgePhase.failures) },
       metrics: metrics.map(metric => summarize(cases, arm.scores[metric], metric)) })),
     comparisonPolicy: "Left minus right. Each non-first variant is paired against the first variant at a fixed reader; each non-first reader is paired against the first reader at a fixed variant. No mixed-treatment comparisons.",
     comparisons };
