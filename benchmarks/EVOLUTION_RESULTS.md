@@ -559,6 +559,45 @@ records every gain and loss in aggregate, source/context pins and the uncommitte
 offline-source qualification. Paid answer quality remains unmeasured. This uses
 the same exposed development questions and establishes no benchmark superiority.
 
+## Opening-message answer comparison
+
+The opening-message treatment improved mini and reduced nano's score on the
+fixed 100 exposed development questions. Both treatments retained top100 and
+the same 96,000-byte context limit. The 200 prior Oh request objects and reader
+captures were reused exactly; the opening treatment required 200 new answers.
+
+| Reader contract | Original Oh | Opening completion | Matched BM25 |
+| --- | ---: | ---: | ---: |
+| Low-effort nano, combined instruction | 81/100 | 76/100 | 78/100 |
+| Medium-effort mini, explicit abstention | 85/100 | 88/100 | 86/100 |
+
+Against original Oh, opening completion had five wins and ten losses with nano,
+and seven wins and four losses with mini. Against the preceding matched BM25
+controls, it had seven wins and nine losses with nano, and six wins and four
+losses with mini. The BM25 comparison uses the fresh controls from the 1,600-answer
+instruction experiment, with identical reader profiles and judge settings.
+
+All 400 reader answers were verified. One opening/nano judge request returned
+HTTP 502; it remains zero in the full denominator and retains its conservative
+reservation. There were 267 new physical calls: 200 readers and 67 judges after
+request reuse. New verified usage was $0.830422, plus $0.006863 unresolved,
+for $0.837285 in added conservative exposure. The runner's reader and judge
+phases took 47.27 and 12.90 seconds at concurrency 32; this excludes source
+preparation, host admission and the intervals between commands.
+
+The [complete paired result](results/memory-evolution-opening-400-v1.json)
+retains category outcomes, source and request identities, failure accounting,
+reuse and cost reconciliation. The shared successor campaign now records
+$7.337967 in conservative exposure across 2,464 calls. Adding the separately
+recorded $38.537650 historical exposure gives $45.875617 before Mem0 activity.
+Attributed report costs include reused requests and are not extra spending.
+
+The source-coverage gain did not yield a consistent answer-quality gain.
+Opening completion remains a candidate for mini, with no general promotion.
+This is repeated development evidence on 100 questions and 94 declared
+families, using the adapted Gateway-alias judge described above. It establishes
+neither clear superiority nor an official full-set score.
+
 ## Mem0 embedding-batch qualification
 
 The opt-in Mem0 bridge transports the SDK's existing embedding lists in bounded

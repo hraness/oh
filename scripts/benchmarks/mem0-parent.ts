@@ -136,7 +136,7 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
   child.stdin.on("error", error => { workerError = error; kill(); });
   child.stderr.on("data", chunk => { stderrBytes += Buffer.byteLength(chunk); if (stderrBytes > MAX_FRAME) kill(); });
   const remaining = () => { const value = clock.remaining(); if (value <= 0 || workerError !== null || stderrBytes > MAX_FRAME) { kill(); fail("worker timeout, error or stderr bound"); } return value; };
-  const bounded = async <T>(promise: Promise<T>, label: string): Promise<T> => { let timer: ReturnType<typeof setTimeout> | null = null; try { return await Promise.race([promise, new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error(label)), remaining()); })]); } catch { kill(); fail(label); } finally { if (timer !== null) clearTimeout(timer); } };
+  const bounded = async <T>(promise: Promise<T>, label: string): Promise<T> => { let timer: ReturnType<typeof setTimeout> | null = null; try { return await Promise.race([promise, new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error(label)), remaining()); })]); } catch (error) { kill(); throw error; } finally { if (timer !== null) clearTimeout(timer); } };
   const write = async (value: unknown) => {
     const raw = Buffer.from(JSON.stringify(value) + "\n"); if (raw.length > frameValueLimit(value)) fail("outbound worker frame bound");
     await bounded(new Promise<void>((resolve, reject) => { child.stdin!.write(raw, error => error ? reject(error) : resolve()); }), "worker write deadline");

@@ -3,7 +3,7 @@ import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
-import { invokeMem0Request, makeMem0EmbeddingRequest, makeMem0LlmRequest, openMem0Ledger, parseMem0Response } from "../scripts/benchmarks/mem0-ledger";
+import { invokeMem0Request, makeMem0BatchEmbeddingRequest, makeMem0EmbeddingRequest, makeMem0LlmRequest, openMem0Ledger, parseMem0BatchEmbeddingResponse, parseMem0Response } from "../scripts/benchmarks/mem0-ledger";
 
 const hex = (char: string) => char.repeat(64);
 const policy = { protocol: "oh.memory.mem0-bridge-policy.v1", runSha256: hex("a"), namespace: hex("b"),
@@ -23,6 +23,28 @@ async function ledger(cap = 1_000_000, maximumCalls = 3) {
 function raw(request: ReturnType<typeof makeMem0LlmRequest>, content = '{"memory":[]}') { return new TextEncoder().encode(JSON.stringify({ model: request.profile.model, providerMetadata: { gateway: { routing: { finalProvider: request.profile.provider, originalModelId: request.profile.model, canonicalSlug: request.profile.model }, cost: 0.000002 } }, usage: { prompt_tokens: 2, completion_tokens: 1, total_tokens: 3, prompt_tokens_details: { cached_tokens: 0 }, completion_tokens_details: { reasoning_tokens: 0 } }, choices: [{ finish_reason: "stop", message: { role: "assistant", content, refusal: null } }] })); }
 function embedRaw(request: ReturnType<typeof makeMem0EmbeddingRequest>) { return new TextEncoder().encode(JSON.stringify({ object: "list", model: request.profile.model, providerMetadata: { gateway: { routing: { finalProvider: request.profile.provider, originalModelId: request.profile.model, canonicalSlug: request.profile.model }, cost: 0.000002 } }, usage: { prompt_tokens: 2, total_tokens: 2, prompt_tokens_details: { cached_tokens: 0 } }, data: [{ index: 0, embedding: [0.1, 0.2, 0.3] }] })); }
 function oidc() { const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url"), now = Math.floor(Date.now() / 1000); return `${encode({ alg: "RS256" })}.${encode({ sub: "owner:scope:project:test:environment:development", aud: "https://vercel.com/scope", iss: "https://oidc.vercel.com/scope", iat: now, exp: now + 600 })}.signature`; }
+test("Gateway decimal-string cost rounds upward exactly within the existing reservation", () => {
+  const request = makeMem0EmbeddingRequest({ ...policy, embeddingProfile: { ...policy.embeddingProfile, maxInputTokens: 1_000_000, inputNanodollarsPerToken: 1_000_000 } }, 30, "query-embed", "alpha");
+  const response = (cost: unknown) => { const value = JSON.parse(new TextDecoder().decode(embedRaw(request))); value.providerMetadata.gateway.cost = cost; return Buffer.from(JSON.stringify(value)); };
+  const accepted: readonly (readonly [string, number])[] = [["0", 0], ["0.000000", 0], ["0.00001454", 15], ["0.000001", 1], ["0.0000010000000000000000001", 2], ["0." + "0".repeat(125) + "1", 1], ["999.999999", 999_999_999], ["1000", 1_000_000_000], ["1000.0000000", 1_000_000_000]];
+  for (const [value, expected] of accepted) expect(parseMem0Response(response(value), request).usage.gatewayReportedMicros).toBe(expected);
+  for (const value of ["", " 0", "0 ", "0\n", "+0", "-0", "-1", ".1", "1.", "00", "01.0", "1e-6", "Infinity", "NaN", "0x10", "1,000", "０", "0.000001\u0000", null, true, {}]) expect(() => parseMem0Response(response(value), request)).toThrow("invalid gateway cost");
+  for (const value of ["0." + "0".repeat(126) + "1", "1000.0000000000000000001", "9".repeat(128)]) expect(() => parseMem0Response(response(value), request)).toThrow("gateway cost bound");
+  expect(parseMem0Response(response(undefined), request).usage.gatewayReportedMicros).toBeNull();
+  const small = makeMem0EmbeddingRequest(policy, 31, "query-embed", "alpha"), excessive = JSON.parse(new TextDecoder().decode(embedRaw(small)));
+  excessive.providerMetadata.gateway.cost = "0.000301";
+  expect(() => parseMem0Response(Buffer.from(JSON.stringify(excessive)), small)).toThrow("usage exceeds reservation");
+});
+test("decimal costs work for extraction and batch usage without changing numeric parsed identities", () => {
+  const llm = makeMem0LlmRequest(policy, 32, [{ role: "system", content: "Extract facts." }, { role: "user", content: "Synthetic source." }]);
+  const llmRaw = JSON.parse(new TextDecoder().decode(raw(llm))); llmRaw.providerMetadata.gateway.cost = "0.000002";
+  expect(parseMem0Response(Buffer.from(JSON.stringify(llmRaw)), llm).usage.gatewayReportedMicros).toBe(2);
+  const batch = makeMem0BatchEmbeddingRequest(policy, 33, "ingest-embed", ["alpha", "beta"]), body = JSON.parse(new TextDecoder().decode(embedRaw(makeMem0EmbeddingRequest(policy, 33, "ingest-embed", "alpha"))));
+  body.providerMetadata.gateway.cost = "0.00001454"; body.data.push({ index: 1, embedding: [0.4, 0.5, 0.6] });
+  expect(parseMem0BatchEmbeddingResponse(Buffer.from(JSON.stringify(body)), batch).usage).toMatchObject({ gatewayReportedMicros: 15, micros: 15 });
+  const numeric = makeMem0EmbeddingRequest(policy, 34, "query-embed", "alpha"), numericRaw = embedRaw(numeric), parsed = parseMem0Response(numericRaw, numeric);
+  expect(parsed.usage).toEqual({ inputTokens: 2, outputTokens: 0, tokenRateMicros: 1, gatewayReportedMicros: 2, micros: 2 });
+});
 describe("Mem0 typed parent ledger", () => {
   test("replays a settled extraction once and carries pinned cumulative antecedent exposure", async () => { const fixture = await ledger(), current = await fixture.ledger; const request = makeMem0LlmRequest(policy, 0, [{ role: "system", content: "extract" }, { role: "user", content: "alpha" }]); await current.admit(request); const body = raw(request); await current.capture(request, body, { httpStatus: 200, complete: true, receivedBytes: body.length, error: null, serviceMs: 9 }); const result = await current.finalize(request); expect(result.value).toEqual({ content: '{"memory":[]}' }); expect(current.summary()).toMatchObject({ calls: 1, antecedentExposureMicros: 17, combinedExposureMicros: result.usage.micros + 17 }); expect(current.lookup(request).kind).toBe("hit"); await expect(current.admit(request)).rejects.toThrow("duplicate"); await current.close(); });
   test("captures malformed first responses as charged occupied requests", async () => { const fixture = await ledger(), current = await fixture.ledger; const request = makeMem0EmbeddingRequest(policy, 1, "ingest-embed", "alpha"); await current.admit(request); const body = new TextEncoder().encode("not json"); await current.capture(request, body, { httpStatus: 200, complete: true, receivedBytes: body.length, error: null, serviceMs: 3 }); await expect(current.finalize(request)).rejects.toThrow(); expect(current.lookup(request)).toEqual({ kind: "occupied", state: "captured" }); expect(current.summary().exposureMicros).toBe(request.reservationMicros); await current.close(); });
