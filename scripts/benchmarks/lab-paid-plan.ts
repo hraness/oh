@@ -99,7 +99,7 @@ export async function makeLabPaidReaderPlan(dataset: Dataset, inputVariants: rea
   const selected = selection(dataset), chosen = variants(inputVariants);
   const cases: LabPaidReaderCase[] = [], prepared: LabPaidJob[] = [];
   for (const corpus of selected.corpora) {
-    const shared = createRetrievers(corpus);
+    const shared = createRetrievers(corpus, undefined, { lazyOh: true });
     let native: Awaited<ReturnType<typeof createLabMemory>> | undefined, session: ReturnType<typeof createLabSession> | undefined;
     let user: ReturnType<typeof createLabUser> | undefined;
     let userHybrid: ReturnType<typeof createLabUserHybrid> | undefined;

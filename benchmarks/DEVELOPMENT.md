@@ -230,3 +230,16 @@ The paired reader comparison uses windows at topK20/24 KB as its baseline, the h
 The completed 300-case reader matrix scored **70/100 for the hybrid**, **68/100 for the 24 KB baseline**, and **68/100 for the 96 KB window diagnostic**. The hybrid's paired grouped bootstrap interval is −3.1 to +7.2 percentage points, spanning zero. It is a candidate for further development, not a demonstrated improvement or a new default. The 96 KB arm averages 94.2 KB versus the baseline's 23.9 KB; its additional complete-evidence recall produced no net answer gain.
 
 The run reused 100 baseline readers, made 279 new reader/judge requests in 47.13 seconds at concurrency eight, and accounted for $1.174516. All cases completed without new reader failures or unresolved reservations. Shared amendment exposure reached $23.223035 under the $40 cap; the run's narrower total ceiling was $24. These results motivate a separate reader-model experiment with explicit request, price and failure policies.
+
+## Skip unused authority setup
+
+Raw-only development sweeps now create the Oh authority when a selected method needs it. Window, focused and human-turn BM25 comparisons can reuse their raw indexes without ingesting an unused authority. Oh methods, block/fact indexes and record-window paths still initialize their required authority; direct and frozen runners retain eager initialization by default. Lazy construction copies the raw corpus first, so later caller mutation cannot change the eventual authority.
+
+The [setup comparison](results/memory-development-lazy-authority-v1.json) replays the eight hybrid-screen variants on the same 100 LongMemEval and 400 LoCoMo development questions. All 4,000 context digests, turn lists, byte counts and metrics match exactly after removing only retrieval timing. No model call was made.
+
+| Dataset | Setup before → after | Sweep before → after | Total before → after |
+| --- | --- | --- | --- |
+| LongMemEval, 800 rows | 21.05 → 1.05 s | 21.36 → 1.29 s | 22.17 → 1.89 s |
+| LoCoMo, 3,200 rows | 0.47 → 0.01 s | 2.05 → 1.36 s | 2.21 → 1.50 s |
+
+The sweep includes setup and retrieval; total also includes dataset loading and report preparation. These single ordered measurements show a setup reduction for the tested configurations, with total time reduced by factors of 11.74 and 1.48. Filesystem cache state and host load can affect the ratios. The figures exclude host scheduling; the verification itself waited 1,225.4 seconds for admission. This change does not improve model-call latency or answer accuracy. It makes subsequent raw-retrieval experiments cheaper to prepare without changing their outputs.

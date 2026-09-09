@@ -1,4 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
+import { Database } from "bun:sqlite";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { OhSqliteStore } from "../src/sqlite/store";
 import type { Dataset } from "../scripts/benchmarks/datasets";
@@ -94,16 +95,18 @@ describe("paid development request planning", () => {
     for (const key of ["answer", "unanswerable", "evidenceTurnIds", "evidenceSessionIds"]) Object.defineProperty(q, key, forbidden);
     for (const key of ["answer", "has_answer"]) Object.defineProperty(raw, key, forbidden);
     const dataset = { corpora: [{ ...original.corpora[0]!, turns: [raw] }], questions: [q] };
-    const closed = spyOn(OhSqliteStore.prototype, "close");
+    const closed = spyOn(OhSqliteStore.prototype, "close"), rawClosed = spyOn(Database.prototype, "close");
     try {
       const plan = await makeLabPaidReaderPlan(dataset, [variant("native", "oh-memory-api"), variant("raw")], namespace);
       expect(reads).toBe(0);
-      expect(closed.mock.calls.length).toBe(3);
+      // Native canonical/working authorities, plus native and shared raw indexes.
+      expect(closed.mock.calls.length).toBe(2);
+      expect(rawClosed.mock.calls.length).toBe(4);
       expect(plan.jobs).toHaveLength(1);
       expect(Object.keys(JSON.parse(plan.jobs[0]!.request.body.messages[1]!.content))).toEqual(["question", "questionDate", "memory"]);
       expect(Object.keys(plan.cases[0]!)).not.toContain("answer");
       expect(Object.keys(plan.cases[0]!)).not.toContain("retrievedTurns");
-    } finally { closed.mockRestore(); }
+    } finally { closed.mockRestore(); rawClosed.mockRestore(); }
   });
 
   test("uses byte-identical contexts and canonical requests for every supported lab adapter", async () => {
@@ -129,13 +132,14 @@ describe("paid development request planning", () => {
   });
 
   test("closes stores when request planning fails and rejects unsupported or ambiguous selections", async () => {
-    const dataset = fixture(), closed = spyOn(OhSqliteStore.prototype, "close");
+    const dataset = fixture(), closed = spyOn(OhSqliteStore.prototype, "close"), rawClosed = spyOn(Database.prototype, "close");
     try {
       const excessive = { ...dataset, corpora: [{ ...dataset.corpora[0]!, turns: Array.from({ length: 3 }, (_, i) => ({
         ...dataset.corpora[0]!.turns[0]!, id: `turn-${i}`, text: "x".repeat(400_000) })) }] };
       await expect(makeLabPaidReaderPlan(excessive, [variant("full", "full-context"), variant("raw")], namespace)).rejects.toThrow("context bound");
-      expect(closed.mock.calls.length).toBe(1);
-    } finally { closed.mockRestore(); }
+      expect(closed).not.toHaveBeenCalled();
+      expect(rawClosed.mock.calls.length).toBe(1);
+    } finally { closed.mockRestore(); rawClosed.mockRestore(); }
     await expect(makeLabPaidReaderPlan(dataset, [aliases[0]!], namespace)).rejects.toThrow("two or three");
     await expect(makeLabPaidReaderPlan(dataset, [aliases[0]!, aliases[0]!], namespace)).rejects.toThrow("duplicate variant");
     await expect(makeLabPaidReaderPlan(dataset, [variant("fact", "oh-fact"), variant("raw")], namespace)).rejects.toThrow("unsupported fact");

@@ -221,26 +221,39 @@ export function createUnitIndex(corpus: Corpus, units: readonly IndexedUnit[], s
   };
 }
 
-export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUnit[]) {
-  const ohStart = performance.now();
-  const store = new OhSqliteStore({ path: ":memory:", spaceId: "benchmark" });
+export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUnit[], options: Readonly<{ lazyOh?: boolean }> = {}) {
+  if (options.lazyOh === true) corpus = { id: corpus.id, groupId: corpus.groupId, turns: corpus.turns.map(turn => ({
+    id: turn.id, sessionId: turn.sessionId, ...(turn.sessionIndex === undefined ? {} : { sessionIndex: turn.sessionIndex }),
+    date: turn.date, speaker: turn.speaker, text: turn.text,
+  })) };
+  let closed = false;
+  let authority: { store: OhSqliteStore; records: KnowledgeGraphRecordV1[]; keyToIndex: Map<string, number> } | undefined;
+  let ohIngestMs = 0;
+  const ensureAuthority = () => {
+    if (closed) throw new Error("Benchmark retriever is closed.");
+    if (authority !== undefined) return authority;
+    const started = performance.now();
+    const records = corpus.turns.map((turn, index) => createKnowledgeGraphRecordV1({
+      dependencies: [], key: `edition:turn-${index.toString().padStart(5, "0")}`, kind: "edition", v: 1,
+      value: { ...turn },
+    }));
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "benchmark" });
+    try { ingestRecords(store, records, "benchmark.ingest", "op_benchmark_"); }
+    catch (error) { store.close(); throw error; }
+    authority = { store, records, keyToIndex: new Map(records.map((record, index) => [record.key, index])) };
+    ohIngestMs = performance.now() - started;
+    return authority;
+  };
   const bm25 = new Database(":memory:");
-  const records = corpus.turns.map((turn, index) => createKnowledgeGraphRecordV1({
-    dependencies: [], key: `edition:turn-${index.toString().padStart(5, "0")}`, kind: "edition", v: 1,
-    value: { ...turn },
-  }));
-  const keyToIndex = new Map(records.map((record, index) => [record.key, index]));
-  let ohIngestMs: number;
   let bm25IngestMs: number;
   try {
-    ingestRecords(store, records, "benchmark.ingest", "op_benchmark_");
-    ohIngestMs = performance.now() - ohStart;
+    if (options.lazyOh !== true) ensureAuthority();
     const bm25Start = performance.now();
     bm25.run("CREATE VIRTUAL TABLE passages USING fts5(turn_index UNINDEXED, text, tokenize='unicode61 remove_diacritics 2')");
     const insert = bm25.prepare("INSERT INTO passages (turn_index, text) VALUES (?, ?)");
     bm25.transaction(() => corpus.turns.forEach((turn, index) => insert.run(index, renderTurn(turn))))();
     bm25IngestMs = performance.now() - bm25Start;
-  } catch (error) { store.close(); bm25.close(); throw error; }
+  } catch (error) { authority?.store.close(); bm25.close(); throw error; }
   const positions = new Map(corpus.turns.map((turn, index) => [turn.id, index]));
   const rawCandidates = corpus.turns.map((turn) => ({ turn }));
   let blocks: ReturnType<typeof createUnitIndex> | undefined;
@@ -249,9 +262,12 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
   const unitIndexes: { blocks?: UnitIndexIngestion; facts?: UnitIndexIngestion } = {};
   const recordIndexIngestion: { fact?: RecordIndexIngestion; window?: RecordIndexIngestion } = {};
   const prepare = (systems: readonly System[]) => {
+    if (options.lazyOh === true && closed) throw new Error("Benchmark retriever is closed.");
+    if (options.lazyOh === true && systems.some(system => system.startsWith("oh-"))) ensureAuthority();
     if (systems.some((system) => system.endsWith("block")) && blocks === undefined) {
       const started = performance.now();
       const units = blockUnits(corpus);
+      const { store, records } = ensureAuthority();
       blocks = createUnitIndex(corpus, units, records, store);
       unitIndexes.blocks = { units: units.length, buildMs: performance.now() - started };
     }
@@ -267,11 +283,12 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
         }
         return { ...unit, sourceTurnIds: [...new Set(unit.supports.map((support) => support.turnId))] };
       });
+      const { store, records } = ensureAuthority();
       facts = createUnitIndex(corpus, units, records, store);
       unitIndexes.facts = { units: units.length, buildMs: performance.now() - started };
     }
     if (systems.includes("bm25-record-window") && windowRecordFts === undefined) {
-      windowRecordFts = buildRecordFtsIndex(store);
+      windowRecordFts = buildRecordFtsIndex(ensureAuthority().store);
       recordIndexIngestion.window = { documents: windowRecordFts.documents, buildMs: windowRecordFts.buildMs };
     }
     if (systems.includes("bm25-record-fact") && facts !== undefined && recordIndexIngestion.fact === undefined) {
@@ -280,14 +297,16 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
     return { ...unitIndexes, ...(Object.keys(recordIndexIngestion).length ? { recordIndexes: { ...recordIndexIngestion } } : {}) };
   };
   const ohCandidate = (index: number): Candidate => {
+    const { store, records } = ensureAuthority();
     const record = store.get(records[index]!.key);
     if (record === null) throw new Error("Benchmark record is missing from current Oh authority.");
     return { turn: fromRecord(record), digest: record.recordSha256 };
   };
   return {
-    ohIngestMs, bm25IngestMs, prepare,
+    get ohIngestMs() { return ohIngestMs; }, bm25IngestMs, prepare,
     fullContextBytes: Buffer.byteLength(pack(rawCandidates, 0, true).context),
     async retrieve(system: System, query: string, budget: RetrievalBudget): Promise<Retrieved> {
+      if (options.lazyOh === true && closed) throw new Error("Benchmark retriever is closed.");
       if (!Number.isSafeInteger(budget.topK) || budget.topK < 1 || budget.topK > 100
         || !Number.isSafeInteger(budget.contextBytes) || budget.contextBytes < 1 || budget.contextBytes > 4_000_000) {
         throw new RangeError("Invalid retrieval budget.");
@@ -310,9 +329,9 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
       let candidates: Candidate[];
       if (system === "bm25-record-window") {
         const keys = queryRecordFts(windowRecordFts!, terms.join(" "), budget.topK);
-        candidates = keys.flatMap((key) => { const index = keyToIndex.get(key); return index === undefined ? [] : [ohCandidate(index)]; });
+        candidates = keys.flatMap((key) => { const index = ensureAuthority().keyToIndex.get(key); return index === undefined ? [] : [ohCandidate(index)]; });
       } else if (system.startsWith("oh-")) {
-        const result = await searchOhV1({ store, query: focused ? terms.join(" ") : query,
+        const result = await searchOhV1({ store: ensureAuthority().store, query: focused ? terms.join(" ") : query,
           mode: "keyword", limit: budget.topK });
         candidates = result.results.map(({ record }) => ({ turn: fromRecord(record), digest: record.recordSha256 }));
       } else {
@@ -335,6 +354,6 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
       }
       return pack(candidates, budget.contextBytes);
     },
-    close() { blocks?.close(); facts?.close(); store.close(); bm25.close(); windowRecordFts?.database.close(); },
+    close() { closed = true; blocks?.close(); facts?.close(); authority?.store.close(); bm25.close(); windowRecordFts?.database.close(); },
   };
 }

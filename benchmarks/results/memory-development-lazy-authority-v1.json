@@ -1,0 +1,229 @@
+{
+  "protocol": "oh.memory-development-lazy-authority.v1",
+  "modelCalls": 0,
+  "implementation": {
+    "scripts/benchmarks/retrieval.ts": "d144602ade74c7b70183df368c42961101dfe1373e969bac65afa0b58ff89129",
+    "scripts/benchmarks/lab.ts": "85fddb003aa756a89c88d96af8fc33662e05038e71110a527e8ee0363eed7e89",
+    "scripts/benchmarks/lab-paid-plan.ts": "99ae6ef3622549a7810b1e1a57f3e7377d64f015d2f18264ae06a5b4016d11a5",
+    "scripts/benchmarks/lab-user.ts": "c372c093b23bc86dad7cace679c65c6e05c5f71c7d97fe59745b4b0294f8adce",
+    "tests/memory-benchmark-lazy-oh.test.ts": "c7c8ae1b86f84c8c1de4fc05ce00891bfbe03b3fef7e46ee543ff6ba6fa17798",
+    "tests/memory-benchmark-lab-user-integration.test.ts": "90a8e2d66fdbf6f7680f9d403d82cdffef8473058be1b950dbe59101dcb5b909",
+    "tests/memory-benchmark-lab-user-hybrid-integration.test.ts": "a245625febfa63b237efe092c5f61b4b73ad643b16eeaf333b583c9783996517"
+  },
+  "datasets": [
+    {
+      "dataset": "longmemeval-s",
+      "questions": 100,
+      "groups": 94,
+      "variants": [
+        {
+          "id": "bm25-window:k20:b24000",
+          "system": "bm25-window",
+          "budget": {
+            "topK": 20,
+            "contextBytes": 24000
+          }
+        },
+        {
+          "id": "bm25-window:k20:b96000",
+          "system": "bm25-window",
+          "budget": {
+            "topK": 20,
+            "contextBytes": 96000
+          }
+        },
+        {
+          "id": "bm25-window:k100:b24000",
+          "system": "bm25-window",
+          "budget": {
+            "topK": 100,
+            "contextBytes": 24000
+          }
+        },
+        {
+          "id": "bm25-window:k100:b96000",
+          "system": "bm25-window",
+          "budget": {
+            "topK": 100,
+            "contextBytes": 96000
+          }
+        },
+        {
+          "id": "bm25-user-hybrid:k20:b24000",
+          "system": "bm25-user-hybrid",
+          "budget": {
+            "topK": 20,
+            "contextBytes": 24000
+          }
+        },
+        {
+          "id": "bm25-user-hybrid:k20:b96000",
+          "system": "bm25-user-hybrid",
+          "budget": {
+            "topK": 20,
+            "contextBytes": 96000
+          }
+        },
+        {
+          "id": "bm25-user-hybrid:k100:b24000",
+          "system": "bm25-user-hybrid",
+          "budget": {
+            "topK": 100,
+            "contextBytes": 24000
+          }
+        },
+        {
+          "id": "bm25-user-hybrid:k100:b96000",
+          "system": "bm25-user-hybrid",
+          "budget": {
+            "topK": 100,
+            "contextBytes": 96000
+          }
+        }
+      ],
+      "rows": 800,
+      "selectionSha256": "8663b8281a92e0d440dd1144682f7f0c61e3db51f6335fe59801d674b8a36b39",
+      "normalizedRowsSha256": "d6cc6c2a90948e366e5232bd06f0a914337b4ebf679ef43696a273b7c49a45d9",
+      "allRowsEqual": true,
+      "eager": {
+        "report": "lab-lme100-hybrid-v1.json",
+        "sha256": "9f1f662fa370a153c40cc5997f6981d97fd502bedec7c739c52ecaaf361856a9",
+        "timing": {
+          "elapsedMs": 21355.976417,
+          "corpusPreparations": 100,
+          "independentVariantCorpusPreparations": 800,
+          "corpusPreparationMs": 21045.034914000014,
+          "retrievalMs": 260.83446099999196,
+          "datasetLoadMs": 664.305417,
+          "totalMs": 22168.521042
+        }
+      },
+      "lazy": {
+        "report": "lab-lme100-hybrid-lazy-v1.json",
+        "sha256": "9fc00e67db3d813a7b2844896853049574406b331dde95ad4fcbfd82797af5bb",
+        "timing": {
+          "elapsedMs": 1287.4883750000001,
+          "corpusPreparations": 100,
+          "independentVariantCorpusPreparations": 800,
+          "corpusPreparationMs": 1048.360703000001,
+          "retrievalMs": 204.1121899999979,
+          "datasetLoadMs": 522.048084,
+          "totalMs": 1888.8101669999999
+        }
+      },
+      "elapsedSpeedup": 16.587315918095182,
+      "totalSpeedup": 11.736764990634446
+    },
+    {
+      "dataset": "locomo",
+      "questions": 400,
+      "groups": 2,
+      "variants": [
+        {
+          "id": "bm25-window:k20:b24000",
+          "system": "bm25-window",
+          "budget": {
+            "topK": 20,
+            "contextBytes": 24000
+          }
+        },
+        {
+          "id": "bm25-window:k20:b96000",
+          "system": "bm25-window",
+          "budget": {
+            "topK": 20,
+            "contextBytes": 96000
+          }
+        },
+        {
+          "id": "bm25-window:k100:b24000",
+          "system": "bm25-window",
+          "budget": {
+            "topK": 100,
+            "contextBytes": 24000
+          }
+        },
+        {
+          "id": "bm25-window:k100:b96000",
+          "system": "bm25-window",
+          "budget": {
+            "topK": 100,
+            "contextBytes": 96000
+          }
+        },
+        {
+          "id": "bm25-user-hybrid:k20:b24000",
+          "system": "bm25-user-hybrid",
+          "budget": {
+            "topK": 20,
+            "contextBytes": 24000
+          }
+        },
+        {
+          "id": "bm25-user-hybrid:k20:b96000",
+          "system": "bm25-user-hybrid",
+          "budget": {
+            "topK": 20,
+            "contextBytes": 96000
+          }
+        },
+        {
+          "id": "bm25-user-hybrid:k100:b24000",
+          "system": "bm25-user-hybrid",
+          "budget": {
+            "topK": 100,
+            "contextBytes": 24000
+          }
+        },
+        {
+          "id": "bm25-user-hybrid:k100:b96000",
+          "system": "bm25-user-hybrid",
+          "budget": {
+            "topK": 100,
+            "contextBytes": 96000
+          }
+        }
+      ],
+      "rows": 3200,
+      "selectionSha256": "9dca30d195cf4a51485d0d9a7be18c41a97e2dc64da3ffd6c265115cacdfc7ee",
+      "normalizedRowsSha256": "9858bcdb3a3acb0710e9c612791d0aa49dc209b4ccbc38ef4c9cd0584795af51",
+      "allRowsEqual": true,
+      "eager": {
+        "report": "lab-locomo400-hybrid-v1.json",
+        "sha256": "d622b34b9605f916af584ebcf60113b5624b6e58be6f6e419b1a714fd576fd8a",
+        "timing": {
+          "elapsedMs": 2047.5634999999966,
+          "corpusPreparations": 2,
+          "independentVariantCorpusPreparations": 16,
+          "corpusPreparationMs": 468.49933299999975,
+          "retrievalMs": 1494.4335310000824,
+          "datasetLoadMs": 11.11779199999728,
+          "totalMs": 2208.7287919999944
+        }
+      },
+      "lazy": {
+        "report": "lab-locomo400-hybrid-lazy-v1.json",
+        "sha256": "9e2a90194a80ca88cf3ede3aac26a7edc4998401ccfc97fb45149ee79791bfcd",
+        "timing": {
+          "elapsedMs": 1362.1820000000002,
+          "corpusPreparations": 2,
+          "independentVariantCorpusPreparations": 16,
+          "corpusPreparationMs": 14.40191700000014,
+          "retrievalMs": 1276.3616100000077,
+          "datasetLoadMs": 11.132665999999972,
+          "totalMs": 1497.3905
+        }
+      },
+      "elapsedSpeedup": 1.5031497259543851,
+      "totalSpeedup": 1.475051960059847
+    }
+  ],
+  "qualifications": [
+    "Each dataset uses the same eight fixed development variants before and after. All 4000 rows match after removing only row retrieval timing.",
+    "This is one ordered full-size pass per implementation on one host. Cache state and host load can affect timing ratios.",
+    "Reported total times include dataset loading and report preparation but exclude host queue waits. The lazy verification waited 1225.4 seconds for admission.",
+    "The gain comes primarily from skipping unused Oh authority construction in raw-only lab configurations. Oh methods and block/fact authority paths still initialize the store when needed.",
+    "Direct and frozen runners retain eager initialization by default. The development lab, its paid plan preparation, and filtered human-turn adapters opt into lazy initialization.",
+    "These 4000 rows are parity verification of existing experiments, not additional independent quality evidence. No provider latency, accuracy, or saturation claim follows."
+  ]
+}

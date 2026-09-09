@@ -43,7 +43,7 @@ export async function runLab(dataset: Dataset, variants: readonly LabVariant[], 
   let questionIndex = 0;
   for (const corpus of dataset.corpora) {
     const built = performance.now();
-    const retrievers = createRetrievers(corpus, memory?.units.get(corpus.id));
+    const retrievers = createRetrievers(corpus, memory?.units.get(corpus.id), { lazyOh: true });
     let native: Awaited<ReturnType<typeof createLabMemory>> | undefined;
     let session: ReturnType<typeof createLabSession> | undefined;
     let user: ReturnType<typeof createLabUser> | undefined;
@@ -104,6 +104,7 @@ export async function runLab(dataset: Dataset, variants: readonly LabVariant[], 
     resultSha256: canonicalSha256(deterministic), modelCalls: 0, memoryUnits: memory?.provenance ?? null,
     qualifications: ["Development screening only; evidence recall is not answer accuracy or a superiority claim.",
       "All variants share the same questions and reuse corpus indexes; variant order rotates per question.",
+      "Development retrievers initialize Oh authority only for methods that use it; frozen runners retain eager setup.",
       "Independent variant corpus preparations is a counterfactual count, not a measured speedup or physical index count.",
       "Full context is an unbounded control; other systems use the stated byte budget.",
       "Fact support citation recall is not raw-turn evidence recall.",

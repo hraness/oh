@@ -29,7 +29,7 @@ function snapshot(turn: Turn): Turn {
 export function createLabUser(corpus: Corpus): LabUser {
   const turns = Object.freeze(corpus.turns.filter(turn => turn.speaker.toLocaleLowerCase("en-US") !== "assistant").map(snapshot));
   const filtered = Object.freeze({ id: corpus.id, groupId: corpus.groupId, turns });
-  const retrievers = turns.length ? createRetrievers(filtered) : undefined;
+  const retrievers = turns.length ? createRetrievers(filtered, undefined, { lazyOh: true }) : undefined;
   let closed = false;
   const ensureOpen = () => { if (closed) throw new Error("Lab user retriever is closed."); };
 

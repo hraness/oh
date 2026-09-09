@@ -1,4 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
+import { Database } from "bun:sqlite";
 import { sha256Hex } from "../src/canonical";
 import { createLabUserHybrid } from "../scripts/benchmarks/lab-user-hybrid";
 import { LAB_SYSTEMS, labVariants, runLab, type LabVariant } from "../scripts/benchmarks/lab";
@@ -52,10 +53,11 @@ describe("lab user-hybrid integration", () => {
   test("closes the private filtered index and caller-owned inclusive index after an offline failure", async () => {
     const failing = { ...question, evidenceTurnIds: ["u"] };
     Object.defineProperty(failing, "evidenceTurnIds", { get() { throw new Error("metrics failure"); } });
-    const closed = spyOn(OhSqliteStore.prototype, "close");
+    const closed = spyOn(OhSqliteStore.prototype, "close"), rawClosed = spyOn(Database.prototype, "close");
     try {
       await expect(runLab({ corpora: [corpus], questions: [failing] }, variants)).rejects.toThrow("metrics failure");
-      expect(closed.mock.calls.length).toBe(2);
-    } finally { closed.mockRestore(); }
+      expect(closed).not.toHaveBeenCalled();
+      expect(rawClosed.mock.calls.length).toBe(2);
+    } finally { closed.mockRestore(); rawClosed.mockRestore(); }
   });
 });

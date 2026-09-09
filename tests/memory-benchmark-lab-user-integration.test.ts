@@ -1,4 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
+import { Database } from "bun:sqlite";
 import { sha256Hex } from "../src/canonical";
 import { createLabUser } from "../scripts/benchmarks/lab-user";
 import { LAB_SYSTEMS, labVariants, runLab, type LabVariant } from "../scripts/benchmarks/lab";
@@ -61,10 +62,11 @@ describe("lab user system integration", () => {
   test("closes both original and user indexes when offline metrics fail after retrieval", async () => {
     const failing = { ...question, evidenceTurnIds: ["u1"] };
     Object.defineProperty(failing, "evidenceTurnIds", { get() { throw new Error("metrics failure"); } });
-    const closed = spyOn(OhSqliteStore.prototype, "close");
+    const closed = spyOn(OhSqliteStore.prototype, "close"), rawClosed = spyOn(Database.prototype, "close");
     try {
       await expect(runLab({ corpora: [corpus], questions: [failing] }, selected)).rejects.toThrow("metrics failure");
-      expect(closed.mock.calls.length).toBe(2);
-    } finally { closed.mockRestore(); }
+      expect(closed).not.toHaveBeenCalled();
+      expect(rawClosed.mock.calls.length).toBe(2);
+    } finally { closed.mockRestore(); rawClosed.mockRestore(); }
   });
 });
