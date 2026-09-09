@@ -89,9 +89,41 @@ The first full-development round completed 1,300 LongMemEval query/variant evalu
 
 The native API control matches focused BM25 throughout the full development results. Its 24-question result was not evidence of an independent retrieval advantage. The first fusion configuration does not beat windows. Sessions are promising for LongMemEval at 24 KB; blocks are promising for LoCoMo. These patterns are candidate-selection signals, not reader scores or statistical superiority.
 
-A byte ceiling does not equal actual context use. On LoCoMo, the focused and fusion topK20 variants use about 4 KB, windows about 9.8 KB, and blocks about 21.5 KB under the 24 KB cap. The next experiment increases candidate lists under the same byte caps to separate underfilled retrieval from context-size effects. Session topK counts sessions; block topK counts blocks; turn topK counts turns, so equal numeric topK is not an equal number of source turns.
+A byte ceiling does not equal actual context use. On LoCoMo, the focused and fusion topK20 variants use about 4 KB, windows about 9.8 KB, and blocks about 21.5 KB under the 24 KB cap. The depth experiment increased candidate lists under the same byte caps to separate underfilled retrieval from context-size effects. Session topK counts sessions; block topK counts blocks; turn topK counts turns, so equal numeric topK is not an equal number of source turns.
 
 The [initial screen](results/memory-development-lab-lme24-v1.json) and [full development report](results/memory-development-full-v1.json) contain aggregate metrics, exact source and private-report checksums, timing and qualifications.
+
+## Candidate-depth experiment
+
+The [depth report](results/memory-development-depth-v1.json) contains the same five retrieval methods at topK40 and topK100 with 12/24 KB caps. The 2,000 LongMemEval evaluations took 31.92 seconds; 8,000 LoCoMo evaluations took 20.98 seconds, excluding scheduler waits. This round omits native API materialization, so these times are not a measured speedup over the first full comparison.
+
+LongMemEval complete-evidence retrieval is identical for every question at topK20, 40 and 100 within each tested method and cap. Deeper candidates do not resolve its current complete-evidence failures. LoCoMo benefits from depth:
+
+| TopK100 method | All evidence, 12 KB | Mean bytes | All evidence, 24 KB | Mean bytes |
+| --- | --- | --- | --- | --- |
+| Windows | 225/312 (72.12%) | 11,974 | 244/312 (78.21%) | 23,934 |
+| Blocks | 235/312 (75.32%) | 11,980 | 260/312 (83.33%) | 23,979 |
+| Fusion | 236/312 (75.64%) | 11,966 | 249/312 (79.81%) | 18,683 |
+
+At 12 KB, fusion exceeds blocks by only one question, with opposite differences in the two conversations. Blocks remain ahead at 24 KB; fusion uses less actual context. Keep these matched-depth controls in a reader comparison. These results do not justify a universal fusion win or a statistical superiority claim.
+
+## Session allocation experiment
+
+The lab-only `bm25-diverse-window` policy reserves half the byte allowance for the first fitting raw anchor in each ranked session occurrence, then visits neighboring turns across those occurrences before backfilling unused anchors and neighbors. It uses a fixed top100 focused-BM25 source ranking; requested topK counts anchors and may yield more raw turns after expansion. It never crosses a session occurrence, rewrites dates, reads labels, or creates synthetic evidence. Ranking is cached per question and corpus. The existing `bm25-anchor-window` control places all ranked anchors before neighbors without the session reservation.
+
+This policy was specified before the depth results: test the same complete development sets at topK20 and 12/24 KB, then compare it with the strongest matching-budget depth controls. Its development promotion rule requires better LongMemEval complete-evidence recall without reduced session recall, and no more than one percentage point of LoCoMo regression at the same cap. Category slices are diagnostics, never routing inputs. A failed promotion remains a documented negative experiment, not a change to product defaults.
+
+The [completed allocation report](results/memory-development-diverse-v1.json) contains 1,500 LongMemEval evaluations in 32.62 seconds and 6,000 LoCoMo evaluations in 9.23 seconds, excluding scheduler waits. All rows and old-control outputs were independently checked. The tested allocation policy **failed promotion**:
+
+| TopK20 method | LongMemEval all evidence, 12 / 24 KB | LoCoMo all evidence, 12 / 24 KB |
+| --- | --- | --- |
+| Windows | 65/93 / 69/93 | 216/312 / 216/312 |
+| Anchor-first windows | 65/93 / 67/93 | 216/312 / 216/312 |
+| Session-diverse windows | 52/93 / 59/93 | 216/312 / 216/312 |
+
+The half-budget reservation loses complete evidence on LongMemEval and adds no LoCoMo complete-evidence wins. Keep this adapter as an explicit reproducibility experiment; do not promote it or change the default methods. The recorded generation source precedes a cleanup-only change that moves adapter construction inside the shared retriever's `try/finally`; successful retrieval and packing are unchanged.
+
+The next feedback step is a small paired reader/judge experiment, with window/block/fusion controls at matched depth on LoCoMo and window/session at 24 KB on LongMemEval. An unbounded full-context or evidence-session oracle diagnostic should isolate reader limitations. Further changes need an explicit hypothesis and development result; the current evidence does not support spending another round on the same unchanged depth settings.
 
 ## Research basis
 

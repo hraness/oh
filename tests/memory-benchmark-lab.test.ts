@@ -40,16 +40,16 @@ describe("development lab", () => {
   });
 
   test("lab-only systems preserve labels and native source provenance in a complete matrix", async () => {
-    const variants = labVariants(["bm25-session", "oh-memory-api", "bm25-fusion"], [1, 3], [1000]);
+    const variants = labVariants(["bm25-session", "oh-memory-api", "bm25-fusion", "bm25-diverse-window"], [1, 3], [1000]);
     const sweep = await runLab(dataset, variants);
-    expect(sweep.rows).toHaveLength(12);
+    expect(sweep.rows).toHaveLength(16);
     const again = await runLab(dataset, variants);
     expect(again.resultSha256).toBe(sweep.resultSha256);
     expect(sweep.ingestion[0]!.native!.queryCalls).toBe(1);
     expect(sweep.ingestion[0]!.native!.sourceRecordCount).toBe(3);
     expect(sweep.rows.filter(r => r.system === "oh-memory-api").every(r => r.recordDigests.length === r.retrievedTurns.length)).toBe(true);
     expect(sweep.rows.every(r => r.contextBytes <= 1000)).toBe(true);
-    expect(sweep.rows.map(r => r.system).every(s => s === "bm25-session" || s === "oh-memory-api" || s === "bm25-fusion")).toBe(true);
+    expect(sweep.rows.map(r => r.system).every(s => s === "bm25-session" || s === "oh-memory-api" || s === "bm25-fusion" || s === "bm25-diverse-window")).toBe(true);
   });
 
   test("controls do not multiply with budgets and invalid sweeps fail before indexing", () => {
