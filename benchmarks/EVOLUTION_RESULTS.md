@@ -189,7 +189,12 @@ usage per 100 questions is $0.044339/$0.270478 for nano/mini at 24 KB and
 $0.052059/$0.325798 at 48 KB. These include exact cached responses and are not
 incremental stage spending. The
 [compact result](results/memory-evolution-spans-100-v1.json) records the complete
-scores, source/rubric pins, costs and phase timings.
+scores, source/rubric pins, costs and phase timings. The
+[paired BM25 comparisons](results/memory-evolution-spans-100-paired-v1.json) and
+[matched packing comparisons](results/memory-evolution-spans-100-packing-paired-v1.json)
+show that excerpts at 24 KB tie whole-turn Oh's totals while changing individual
+outcomes and costing more. At 48 KB, excerpts have eight wins and eleven losses
+with nano, and two wins and eight losses with mini, against whole-turn Oh.
 
 ## Selection and confirmation
 
