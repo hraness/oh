@@ -6,8 +6,8 @@ import { buildJudgePrompt, loadJudgeProfile, parseJudgeDecision } from "./judge"
 import { makeGatewayStudyRequest } from "./gateway-study-transport-v3";
 import { MODELS } from "./model";
 import { canonicalReaderJudgeRequest, type FrozenJudgeRequest, type LabReaderJudgeResult } from "./lab-reader-profile-judge";
-import { LAB_GPT5_MINI_READER_PROFILE, LAB_GPT5_MINI_MAX_OUTPUT, labGpt5MiniReaderProfile, type LabReaderRequest, type LabReaderResult } from "./lab-reader-profile";
-import { LAB_READER_PROFILE_VARIANTS, validateLabReaderProfilePlan, type LabReaderProfileCase, type LabReaderProfilePlan } from "./lab-reader-profile-plan";
+import { LAB_GPT5_MINI_MEDIUM_MAX_OUTPUT, LAB_GPT5_MINI_MEDIUM_READER_PROFILE, LAB_GPT5_MINI_READER_PROFILE, LAB_GPT5_MINI_MAX_OUTPUT, labGpt5MiniReaderProfile, type LabGpt5MiniReaderProfileSelector, type LabReaderRequest, type LabReaderResult } from "./lab-reader-profile";
+import { LAB_READER_PROFILE_VARIANTS, readerProfileForPlan, validateLabReaderProfilePlan, type LabReaderProfileCase, type LabReaderProfilePlan } from "./lab-reader-profile-plan";
 
 function fail(reason: string): never { throw new TypeError(`Lab reader profile scoring: ${reason}.`); }
 function digest(value: unknown): value is string { return typeof value === "string" && /^[a-f0-9]{64}$/.test(value); }
@@ -26,6 +26,21 @@ export const LAB_GPT5_MINI_READER_FAILURE_POLICY = frozen({
     decisionSource: "reader-failure-policy", judgeRequest: "none", partialPrediction: "never-accepted", denominator: "all-fixed-cases" },
 } as const);
 export const LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256 = canonicalSha256(LAB_GPT5_MINI_READER_FAILURE_POLICY);
+/** A separate policy prevents an 8192-token medium run from being resealed as the original 2048-token experiment. */
+export const LAB_GPT5_MINI_MEDIUM_READER_FAILURE_POLICY = frozen({
+  profile: "oh.lab-gpt5-mini-medium-reader-failure-policy.v1", readerProfile: LAB_GPT5_MINI_MEDIUM_READER_PROFILE,
+  eligibility: { model: "openai/gpt-5-mini", provider: "openai", kind: "terminal", finishReason: "length", reason: "length",
+    maximumOutput: LAB_GPT5_MINI_MEDIUM_MAX_OUTPUT, outputTokens: "within-reservation", prediction: null,
+    response: "verified-through-reader-profile-and-raw-custody" },
+  disposition: { status: "terminal-reader-failure", reason: "output-token-limit", correct: 0,
+    decisionSource: "reader-failure-policy", judgeRequest: "none", partialPrediction: "never-accepted", denominator: "all-fixed-cases" },
+} as const);
+export const LAB_GPT5_MINI_MEDIUM_READER_FAILURE_POLICY_SHA256 = canonicalSha256(LAB_GPT5_MINI_MEDIUM_READER_FAILURE_POLICY);
+function failurePolicy(selector: LabGpt5MiniReaderProfileSelector) {
+  return selector === "minimal"
+    ? { value: LAB_GPT5_MINI_READER_FAILURE_POLICY, sha256: LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256 }
+    : { value: LAB_GPT5_MINI_MEDIUM_READER_FAILURE_POLICY, sha256: LAB_GPT5_MINI_MEDIUM_READER_FAILURE_POLICY_SHA256 };
+}
 
 type JudgeIdentity = Readonly<Omit<LabReaderProfileCase, "jobKey" | "requestSha256"> & {
   readerJobKey: string; readerRequestSha256: string; readerResponseSha256: string }>;
@@ -99,6 +114,7 @@ function completeMap(jobs: readonly { key: string }[], responses: ReadonlyMap<st
 export async function makeLabReaderProfileJudgePlan(dataset: Dataset, readerPlan: LabReaderProfilePlan,
   responses: ReadonlyMap<string, LabReaderResult>, parentReaderPlan: LabPaidReaderPlan): Promise<ProfileJudgePlan> {
   validateLabReaderProfilePlan(dataset, readerPlan, parentReaderPlan);
+  const selectedReaderProfile = readerProfileForPlan(readerPlan), policy = failurePolicy(selectedReaderProfile);
   completeMap(readerPlan.jobs, responses);
   const bound = new Map<string, LabReaderResult>();
   for (const job of readerPlan.jobs) bound.set(job.key, structuredClone(boundResponse(job.request, responses.get(job.key))) as LabReaderResult);
@@ -110,7 +126,7 @@ export async function makeLabReaderProfileJudgePlan(dataset: Dataset, readerPlan
     const { jobKey: readerJobKey, requestSha256: readerRequestSha256, ...aliases } = c;
     const identity: JudgeIdentity = { ...aliases, readerJobKey, readerRequestSha256, readerResponseSha256: canonicalSha256(response) };
     if (response.kind === "terminal") return { ...identity, kind: "reader-failure", status: "terminal-reader-failure",
-      policySha256: LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256, reason: "output-token-limit", correct: 0, decisionSource: "reader-failure-policy" };
+      policySha256: policy.sha256, reason: "output-token-limit", correct: 0, decisionSource: "reader-failure-policy" };
     const request = makeGatewayStudyRequest({ phase: "judge", messages: [{ role: "system", content: CLAUDE_JUDGE_SYSTEM },
       { role: "user", content: buildJudgePrompt(questions.get(c.questionId) ?? fail("question alias"), response.prediction, profile) }] }) as FrozenJudgeRequest;
     canonicalReaderJudgeRequest(request);
@@ -120,11 +136,11 @@ export async function makeLabReaderProfileJudgePlan(dataset: Dataset, readerPlan
   });
   const payload = { profile: "oh.lab-reader-profile-judge-plan.v1" as const, namespaceSha256: fixedReader.namespaceSha256,
     readerPlanSha256: fixedReader.planSha256, readerPlan: fixedReader, judgeProfileSha256: profile.sha256,
-    policySha256: LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256, cases, jobs: [...jobs.values()], casesSha256: canonicalSha256(cases) };
+    policySha256: policy.sha256, cases, jobs: [...jobs.values()], casesSha256: canonicalSha256(cases) };
   return frozen({ ...payload, planSha256: canonicalSha256(payload) });
 }
 /** Structural revalidation; the builder checked original parent/dataset binding. */
-function validateEmbeddedReader(plan: ProfileJudgePlan) {
+function validateEmbeddedReader(plan: ProfileJudgePlan): LabGpt5MiniReaderProfileSelector {
   const reader = plan.readerPlan;
   if (!exact(reader, ["profile", "namespaceSha256", "parentPlanSha256", "variants", "cases", "jobs", "casesSha256", "planSha256"])
     || reader.profile !== "oh.lab-reader-profile-plan.v1" || reader.namespaceSha256 !== plan.namespaceSha256
@@ -134,6 +150,7 @@ function validateEmbeddedReader(plan: ProfileJudgePlan) {
   same(planSha256, canonicalSha256(payload), "embedded reader digest");
   same(reader.casesSha256, canonicalSha256(reader.cases), "embedded reader cases digest");
   same(reader.variants, LAB_READER_PROFILE_VARIANTS, "reader variants");
+  const selectedReaderProfile = readerProfileForPlan(reader);
   const jobs = new Map<string, LabReaderRequest>();
   for (const job of reader.jobs) {
     if (!exact(job, ["key", "ordinal", "request"]) || job.ordinal !== 0 || jobs.has(job.key)) fail("reader job shape");
@@ -166,18 +183,20 @@ function validateEmbeddedReader(plan: ProfileJudgePlan) {
     responseDigests.set(c.jobKey, judged.readerResponseSha256);
   }
   same([...jobs.keys()], [...owners], "unused or unordered reader jobs");
+  return selectedReaderProfile;
 }
 export function scoreLabReaderProfileJudgePlan(plan: ProfileJudgePlan,
   responses: ReadonlyMap<string, LabReaderJudgeResult>): readonly ProfileScore[] {
   if (!exact(plan, ["profile", "namespaceSha256", "readerPlanSha256", "readerPlan", "judgeProfileSha256", "policySha256", "cases", "jobs", "casesSha256", "planSha256"])
     || plan.profile !== "oh.lab-reader-profile-judge-plan.v1" || !digest(plan.namespaceSha256) || !digest(plan.readerPlanSha256)
-    || !digest(plan.judgeProfileSha256) || plan.policySha256 !== LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256
+    || !digest(plan.judgeProfileSha256) || !digest(plan.policySha256)
     || !Array.isArray(plan.cases) || plan.cases.length < 2 || plan.cases.length > 200 || plan.cases.length % 2
     || !Array.isArray(plan.jobs)) fail("complete judge matrix/shape");
   const { planSha256, ...payload } = plan;
   same(planSha256, canonicalSha256(payload), "judge plan digest");
   same(plan.casesSha256, canonicalSha256(plan.cases), "judge cases digest");
-  validateEmbeddedReader(plan);
+  const selectedReaderProfile = validateEmbeddedReader(plan);
+  if (plan.policySha256 !== failurePolicy(selectedReaderProfile).sha256) fail("reader failure policy");
   const jobs = new Map<string, ProfileJudgeJob>(), scores = new Map<string, 0 | 1>(), owners = new Map<string, number>();
   for (const job of plan.jobs) {
     if (!exact(job, ["key", "ordinal", "request"]) || job.ordinal !== 0 || jobs.has(job.key)) fail("judge job shape");

@@ -10,14 +10,14 @@ import * as judge from "../scripts/benchmarks/judge";
 import { parseReaderJudge, reserveReaderJudge, type FrozenJudgeRequest, type LabReaderJudgeRequest, type LabReaderJudgeResult } from "../scripts/benchmarks/lab-reader-profile-judge";
 import type { LabReaderResult } from "../scripts/benchmarks/lab-reader-profile";
 import { LAB_READER_PROFILE_VARIANTS, makeLabReaderProfilePlan } from "../scripts/benchmarks/lab-reader-profile-plan";
-import { LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256, makeLabReaderProfileJudgePlan, scoreLabReaderProfileJudgePlan, type ProfileJudgePlan } from "../scripts/benchmarks/lab-reader-profile-scoring";
+import { LAB_GPT5_MINI_MEDIUM_READER_FAILURE_POLICY_SHA256, LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256, makeLabReaderProfileJudgePlan, scoreLabReaderProfileJudgePlan, type ProfileJudgePlan } from "../scripts/benchmarks/lab-reader-profile-scoring";
 
 function seal<T extends { cases: readonly unknown[] }>(value: T) {
   const { planSha256: _old, ...payload } = value as T & { planSha256?: string };
   const next = { ...payload, casesSha256: canonicalSha256(value.cases) };
   return { ...next, planSha256: canonicalSha256(next) };
 }
-function fixture(count = 2) {
+function fixture(count = 2, readerProfile: "minimal" | "medium" = "minimal") {
   const dataset: Dataset = { corpora: [{ id: "c", groupId: "group", turns: [{ id: "t", sessionId: "s", date: "2026-01-01", speaker: "user", text: "Bicycle is red." }] }],
     questions: Array.from({ length: count }, (_, i) => ({ id: `q${i}`, corpusId: "c", category: "single-session-user", question: `Bicycle color, question ${i}?`, questionDate: "2026-01-01", answer: "red", unanswerable: false, evidenceTurnIds: ["t"], evidenceSessionIds: ["s"] })) };
   const variants = [{ id: LAB_READER_PROFILE_VARIANTS[0], system: "bm25-window" as const, budget: { topK: 20, contextBytes: 24000 } },
@@ -32,7 +32,7 @@ function fixture(count = 2) {
       system: variant.system, variant: variant.id, contextSha256: sha256Hex(context), contextBytes: Buffer.byteLength(context), requestSha256: request.requestSha256, jobKey: key });
   }
   const parent: LabPaidReaderPlan = seal({ profile: "oh.lab-paid-reader-plan.v2" as const, readerPolicy: "question-last-v1" as const, namespaceSha256, variants, cases, jobs });
-  const reader = makeLabReaderProfilePlan(dataset, parent, sha256Hex("new-reader"));
+  const reader = makeLabReaderProfilePlan(dataset, parent, sha256Hex("new-reader"), readerProfile);
   const responses = new Map(reader.jobs.map(j => [j.key, response(j.request, "red") as LabReaderResult]));
   return { dataset, parent, reader, responses };
 }
@@ -106,6 +106,21 @@ test("length failures count zero without partial answers, gold access or judge j
   const partial = new Map(failures); partial.set(key, { ...failures.get(key)!, prediction: "partial" } as unknown as LabReaderResult);
   await expect(makeLabReaderProfileJudgePlan(f.dataset, f.reader, partial, f.parent)).rejects.toThrow("terminal reader policy");
   expect(() => scoreLabReaderProfileJudgePlan(seal({ ...plan, policySha256: GATEWAY_READER_FAILURE_V6_POLICY_SHA256 }), new Map())).toThrow();
+});
+
+test("medium profile completes under its own request binding and applies its distinct 8192-token terminal policy", async () => {
+  const complete = fixture(2, "medium"), completePlan = await makeLabReaderProfileJudgePlan(complete.dataset, complete.reader, complete.responses, complete.parent);
+  expect(completePlan.policySha256).toBe(LAB_GPT5_MINI_MEDIUM_READER_FAILURE_POLICY_SHA256);
+  expect(completePlan.policySha256).not.toBe(LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256);
+  expect(scoreLabReaderProfileJudgePlan(completePlan, judgedResponses(completePlan))).toHaveLength(4);
+
+  const terminal = fixture(2, "medium"), failures = new Map(terminal.reader.jobs.map(job => [job.key, response(job.request, "partial medium answer", true) as LabReaderResult]));
+  const terminalPlan = await makeLabReaderProfileJudgePlan(terminal.dataset, terminal.reader, failures, terminal.parent);
+  expect(terminalPlan.jobs).toHaveLength(0);
+  expect(terminalPlan.policySha256).toBe(LAB_GPT5_MINI_MEDIUM_READER_FAILURE_POLICY_SHA256);
+  expect(JSON.stringify(terminalPlan)).not.toContain("partial medium answer");
+  expect(scoreLabReaderProfileJudgePlan(terminalPlan, new Map()).every(score => score.correct === 0 && score.status === "terminal-reader-failure")).toBe(true);
+  expect(() => scoreLabReaderProfileJudgePlan(seal({ ...terminalPlan, policySha256: LAB_GPT5_MINI_READER_FAILURE_POLICY_SHA256 }), new Map())).toThrow("reader failure policy");
 });
 
 test("mixed failures keep denominator; malformed normalized usage and model cannot enter scoring", async () => {

@@ -1,26 +1,38 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 
 export const LAB_GPT5_MINI_READER_PROFILE = "oh.memory.lab-reader-profile.gpt-5-mini.v1" as const;
+export const LAB_GPT5_MINI_MEDIUM_READER_PROFILE = "oh.memory.lab-reader-profile.gpt-5-mini-medium.v1" as const;
 export const LAB_GPT5_MINI_ENDPOINT = "https://ai-gateway.vercel.sh/v1/chat/completions" as const;
 export const LAB_GPT5_MINI_RESPONSE_BYTES = 1_048_576;
 export const LAB_GPT5_MINI_MAX_OUTPUT = 2_048;
+export const LAB_GPT5_MINI_MEDIUM_MAX_OUTPUT = 8_192;
 export const LAB_GPT5_MINI_TIMEOUT_MS = 120_000;
 
 const PRICE = Object.freeze({ input: 0.25, cachedInput: 0.03, output: 2 });
 const PROFILE = Object.freeze({ id: LAB_GPT5_MINI_READER_PROFILE, model: "openai/gpt-5-mini" as const,
   provider: "openai" as const, reasoning: Object.freeze({ effort: "minimal" as const }),
   maximumOutput: LAB_GPT5_MINI_MAX_OUTPUT, timeoutMs: LAB_GPT5_MINI_TIMEOUT_MS, pricing: PRICE });
+const MEDIUM_PROFILE = Object.freeze({ id: LAB_GPT5_MINI_MEDIUM_READER_PROFILE, model: "openai/gpt-5-mini" as const,
+  provider: "openai" as const, reasoning: Object.freeze({ effort: "medium" as const }),
+  maximumOutput: LAB_GPT5_MINI_MEDIUM_MAX_OUTPUT, timeoutMs: LAB_GPT5_MINI_TIMEOUT_MS, pricing: PRICE });
 
 export type LabReaderMessage = Readonly<{ role: "system" | "user"; content: string }>;
-export type LabReaderRequest = Readonly<{ protocol: typeof LAB_GPT5_MINI_READER_PROFILE;
+export type LabGpt5MiniReaderProfileSelector = "minimal" | "medium";
+export type LabGpt5MiniReaderProfileId = typeof LAB_GPT5_MINI_READER_PROFILE | typeof LAB_GPT5_MINI_MEDIUM_READER_PROFILE;
+type LabReaderRequestBase = Readonly<{
   endpoint: typeof LAB_GPT5_MINI_ENDPOINT; body: Readonly<{ model: "openai/gpt-5-mini";
-    messages: readonly LabReaderMessage[]; stream: false; store: false; max_tokens: 2_048;
-    reasoning: Readonly<{ effort: "minimal" }>;
+    messages: readonly LabReaderMessage[]; stream: false; store: false;
     providerOptions: Readonly<{ gateway: Readonly<{ only: readonly ["openai"]; order: readonly ["openai"] }> }> }>;
-  requestSha256: string; profileSha256: string; inputBytes: number; inputUpperBound: number;
-  maximumOutput: 2_048; timeoutMs: 120_000 }>;
+  requestSha256: string; profileSha256: string; inputBytes: number; inputUpperBound: number; timeoutMs: 120_000 }>;
+export type LabReaderRequest =
+  | (LabReaderRequestBase & Readonly<{ protocol: typeof LAB_GPT5_MINI_READER_PROFILE;
+    body: LabReaderRequestBase["body"] & Readonly<{ max_tokens: 2_048; reasoning: Readonly<{ effort: "minimal" }> }>;
+    maximumOutput: 2_048 }>)
+  | (LabReaderRequestBase & Readonly<{ protocol: typeof LAB_GPT5_MINI_MEDIUM_READER_PROFILE;
+    body: LabReaderRequestBase["body"] & Readonly<{ max_tokens: 8_192; reasoning: Readonly<{ effort: "medium" }> }>;
+    maximumOutput: 8_192 }>);
 export type LabReaderReservation = Readonly<{ id: string; requestSha256: string; inputUpperBound: number;
-  maximumOutput: 2_048; micros: number }>;
+  maximumOutput: 2_048 | 8_192; micros: number }>;
 export type LabReaderRaw = Readonly<{ requestSha256: string; httpStatus: number | null; body: Uint8Array;
   bodyComplete: boolean; receivedBytes: number; transportError: "network" | "body-read" | "response-bound" | null }>;
 export type LabReaderUsage = Readonly<{ inputTokens: number; cachedInputTokens: number; outputTokens: number;
@@ -42,25 +54,38 @@ function validMessages(messages: readonly LabReaderMessage[]): boolean {
       && (message.role === "system" || message.role === "user") && typeof message.content === "string"
       && message.content.length > 0 && !/\p{Surrogate}/u.test(message.content));
 }
+function profile(selector: LabGpt5MiniReaderProfileSelector | undefined) {
+  if (selector === undefined || selector === "minimal") return PROFILE;
+  if (selector === "medium") return MEDIUM_PROFILE;
+  fail("unknown profile selector");
+}
+function profileForProtocol(value: unknown) {
+  if (value === LAB_GPT5_MINI_READER_PROFILE) return PROFILE;
+  if (value === LAB_GPT5_MINI_MEDIUM_READER_PROFILE) return MEDIUM_PROFILE;
+  fail("unknown profile");
+}
 
 /** Builds the documented non-streaming Chat Completions fields. Runtime acceptance remains canary-only. */
-export function makeLabGpt5MiniReaderRequest(messages: readonly LabReaderMessage[]): LabReaderRequest {
+export function makeLabGpt5MiniReaderRequest(messages: readonly LabReaderMessage[], options: Readonly<{ profile?: LabGpt5MiniReaderProfileSelector }> = {}): LabReaderRequest {
   if (!validMessages(messages)) fail("invalid two-message text prompt");
+  if (!isPlainRecord(options) || !hasExactKeys(options, options.profile === undefined ? [] : ["profile"])) fail("invalid request options");
+  const selected = profile(options.profile);
   const copied = structuredClone(messages);
-  const body = { model: PROFILE.model, messages: copied, stream: false as const, store: false as const,
-    max_tokens: PROFILE.maximumOutput, reasoning: structuredClone(PROFILE.reasoning),
+  const body = { model: selected.model, messages: copied, stream: false as const, store: false as const,
+    max_tokens: selected.maximumOutput, reasoning: structuredClone(selected.reasoning),
     providerOptions: { gateway: { only: ["openai"] as ["openai"], order: ["openai"] as ["openai"] } } };
   const inputBytes = Buffer.byteLength(JSON.stringify(copied));
   const inputUpperBound = inputBytes + 2_048;
-  if (inputUpperBound + PROFILE.maximumOutput > 400_000) fail("conservative context bound exceeded");
-  const profileSha256 = canonicalSha256(PROFILE);
-  return frozen({ protocol: LAB_GPT5_MINI_READER_PROFILE, endpoint: LAB_GPT5_MINI_ENDPOINT, body,
-    requestSha256: canonicalSha256({ protocol: LAB_GPT5_MINI_READER_PROFILE, endpoint: LAB_GPT5_MINI_ENDPOINT, body, profileSha256 }),
-    profileSha256, inputBytes, inputUpperBound, maximumOutput: PROFILE.maximumOutput, timeoutMs: PROFILE.timeoutMs });
+  if (inputUpperBound + selected.maximumOutput > 400_000) fail("conservative context bound exceeded");
+  const profileSha256 = canonicalSha256(selected);
+  return frozen({ protocol: selected.id, endpoint: LAB_GPT5_MINI_ENDPOINT, body,
+    requestSha256: canonicalSha256({ protocol: selected.id, endpoint: LAB_GPT5_MINI_ENDPOINT, body, profileSha256 }),
+    profileSha256, inputBytes, inputUpperBound, maximumOutput: selected.maximumOutput, timeoutMs: selected.timeoutMs }) as LabReaderRequest;
 }
 
 function checkedRequest(value: LabReaderRequest): LabReaderRequest {
-  const expected = makeLabGpt5MiniReaderRequest(value.body.messages);
+  const selected = profileForProtocol(value.protocol);
+  const expected = makeLabGpt5MiniReaderRequest(value.body.messages, { profile: selected === PROFILE ? "minimal" : "medium" });
   if (canonicalSha256(value) !== canonicalSha256(expected)) fail("request changed after preparation");
   return expected;
 }
@@ -149,3 +174,5 @@ export function parseLabGpt5MiniReaderResponse(requestInput: LabReaderRequest, r
 
 export const labGpt5MiniReaderProfile = Object.freeze({ profile: PROFILE, makeRequest: makeLabGpt5MiniReaderRequest,
   reserve: reserveLabGpt5MiniReader, parse: parseLabGpt5MiniReaderResponse });
+/** Closed, opt-in profiles. The original export above remains the minimal default. */
+export const labGpt5MiniReaderProfiles = Object.freeze({ minimal: PROFILE, medium: MEDIUM_PROFILE });

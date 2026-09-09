@@ -1,5 +1,5 @@
 import { canonicalSha256 } from "../../src/canonical";
-import { makeLabGpt5MiniReaderRequest, parseLabGpt5MiniReaderResponse, reserveLabGpt5MiniReader, type LabReaderRaw, type LabReaderRequest, type LabReaderReservation, type LabReaderResult } from "./lab-reader-profile";
+import { LAB_GPT5_MINI_READER_PROFILE, LAB_GPT5_MINI_MEDIUM_READER_PROFILE, makeLabGpt5MiniReaderRequest, parseLabGpt5MiniReaderResponse, reserveLabGpt5MiniReader, type LabReaderRaw, type LabReaderRequest, type LabReaderReservation, type LabReaderResult } from "./lab-reader-profile";
 import { makeGatewayStudyRequest, type GatewayStudyRaw, type GatewayStudyRequest, type GatewayStudyReservation } from "./gateway-study-transport-v3";
 import { gatewayReservation } from "./gateway-study-store-v3";
 import { parseGatewayStudyV6, type GatewayStudyV6Result } from "./gateway-study-transport-v6";
@@ -13,8 +13,8 @@ function fail(reason: string): never { throw new TypeError(`Lab reader/judge bri
 
 /** Reconstructs either accepted GPT-5-mini reader requests or the frozen GPT-4o judge profile. */
 export function canonicalReaderJudgeRequest(request: LabReaderJudgeRequest): LabReaderJudgeRequest {
-  if ("protocol" in request && request.protocol === "oh.memory.lab-reader-profile.gpt-5-mini.v1") {
-    const expected = makeLabGpt5MiniReaderRequest(request.body.messages);
+  if ("protocol" in request && (request.protocol === LAB_GPT5_MINI_READER_PROFILE || request.protocol === LAB_GPT5_MINI_MEDIUM_READER_PROFILE)) {
+    const expected = makeLabGpt5MiniReaderRequest(request.body.messages, { profile: request.protocol === LAB_GPT5_MINI_MEDIUM_READER_PROFILE ? "medium" : "minimal" });
     if (canonicalSha256(expected) !== canonicalSha256(request)) fail("reader request differs from accepted profile");
     return expected;
   }

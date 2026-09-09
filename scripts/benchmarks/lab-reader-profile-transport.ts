@@ -1,5 +1,5 @@
 import { canonicalSha256 } from "../../src/canonical";
-import { LAB_GPT5_MINI_RESPONSE_BYTES, makeLabGpt5MiniReaderRequest,
+import { LAB_GPT5_MINI_MEDIUM_READER_PROFILE, LAB_GPT5_MINI_RESPONSE_BYTES, makeLabGpt5MiniReaderRequest,
   type LabReaderRaw, type LabReaderRequest, type LabReaderReservation, type LabReaderResult } from "./lab-reader-profile";
 
 type Cache = Readonly<{
@@ -15,7 +15,7 @@ export async function invokeLabGpt5MiniReader(options: Readonly<{
   request: LabReaderRequest; cache: Cache; oidcToken: string; qualify(): Promise<void>; fetcher?: Fetcher;
 }>): Promise<Readonly<{ cached: boolean; result: LabReaderResult }>> {
   const { cache, oidcToken, qualify } = options, fetcher = options.fetcher ?? fetch;
-  const request = makeLabGpt5MiniReaderRequest(options.request.body.messages);
+  const request = makeLabGpt5MiniReaderRequest(options.request.body.messages, { profile: options.request.protocol === LAB_GPT5_MINI_MEDIUM_READER_PROFILE ? "medium" : "minimal" });
   if (canonicalSha256(request) !== canonicalSha256(options.request)) throw new TypeError("Reader request differs from the canonical profile.");
   if (typeof oidcToken !== "string" || oidcToken.trim() === "") throw new TypeError("Qualified project OIDC is required.");
   await qualify();

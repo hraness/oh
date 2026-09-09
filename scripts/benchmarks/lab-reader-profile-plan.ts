@@ -1,7 +1,7 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord } from "../../src/canonical";
 import type { Dataset } from "./datasets";
 import { validateLabPaidReaderPlan, type LabPaidReaderPlan } from "./lab-paid-plan";
-import { makeLabGpt5MiniReaderRequest, type LabReaderRequest, type LabReaderResult } from "./lab-reader-profile";
+import { LAB_GPT5_MINI_READER_PROFILE, LAB_GPT5_MINI_MEDIUM_READER_PROFILE, makeLabGpt5MiniReaderRequest, type LabGpt5MiniReaderProfileSelector, type LabReaderRequest, type LabReaderResult } from "./lab-reader-profile";
 import { canonicalReaderJudgeRequest, type FrozenJudgeRequest } from "./lab-reader-profile-judge";
 
 export const LAB_READER_PROFILE_VARIANTS = Object.freeze(["bm25-window:k20:b24000", "bm25-user-hybrid:k100:b24000"] as const);
@@ -34,7 +34,7 @@ function frozen<T>(value: T): T {
 }
 
 /** Validates a gold-free parent reader plan, then preserves its selected messages, contexts and order byte for byte. */
-export function makeLabReaderProfilePlan(dataset: Dataset, parent: LabPaidReaderPlan, namespaceSha256: string): LabReaderProfilePlan {
+export function makeLabReaderProfilePlan(dataset: Dataset, parent: LabPaidReaderPlan, namespaceSha256: string, readerProfile: LabGpt5MiniReaderProfileSelector = "minimal"): LabReaderProfilePlan {
   if (!digest(namespaceSha256)) fail("invalid namespace");
   validateLabPaidReaderPlan(dataset, parent);
   const selected = parent.variants.filter(v => selectedVariant(v.id));
@@ -47,7 +47,7 @@ export function makeLabReaderProfilePlan(dataset: Dataset, parent: LabPaidReader
     if (!selectedVariant(c.variant)) continue;
     const original = source.get(c.jobKey);
     if (original === undefined || original.phase !== "reader") fail("parent reader alias");
-    const request = makeLabGpt5MiniReaderRequest(original.request.body.messages);
+    const request = makeLabGpt5MiniReaderRequest(original.request.body.messages, { profile: readerProfile });
     const jobKey = canonicalSha256({ namespaceSha256, requestSha256: request.requestSha256 });
     // Equal requests may serve several cases. The first case owns the physical job's position.
     if (!jobs.has(jobKey)) jobs.set(jobKey, { key: jobKey, ordinal: 0, request });
@@ -62,6 +62,14 @@ export function makeLabReaderProfilePlan(dataset: Dataset, parent: LabPaidReader
   return frozen({ ...payload, planSha256: canonicalSha256(payload) });
 }
 
+/** A matrix uses one explicit reader profile; mixed requests cannot share its policy or score. */
+export function readerProfileForPlan(plan: LabReaderProfilePlan): LabGpt5MiniReaderProfileSelector {
+  const protocol = plan.jobs[0]?.request.protocol;
+  if (plan.jobs.length === 0 || ![LAB_GPT5_MINI_READER_PROFILE, LAB_GPT5_MINI_MEDIUM_READER_PROFILE].includes(protocol as typeof LAB_GPT5_MINI_READER_PROFILE)
+    || plan.jobs.some(job => job.request.protocol !== protocol)) fail("unknown or mixed reader profiles");
+  return protocol === LAB_GPT5_MINI_READER_PROFILE ? "minimal" : "medium";
+}
+
 /** Rebuilds only the deterministic conversion, never retrieval or gold. Parent binding also rejects rehashed alias/context/order drift. */
 export function validateLabReaderProfilePlan(dataset: Dataset, plan: LabReaderProfilePlan, parent: LabPaidReaderPlan): void {
   if (!isPlainRecord(plan) || !hasExactKeys(plan, PLAN_KEYS) || plan.profile !== "oh.lab-reader-profile-plan.v1"
@@ -71,7 +79,7 @@ export function validateLabReaderProfilePlan(dataset: Dataset, plan: LabReaderPr
     || !Array.isArray(plan.jobs) || plan.jobs.length < 1 || plan.jobs.length > plan.cases.length) fail("plan shape");
   const { planSha256, ...payload } = plan;
   if (canonicalSha256(plan.cases) !== plan.casesSha256 || canonicalSha256(payload) !== planSha256) fail("plan digest");
-  const expected = makeLabReaderProfilePlan(dataset, parent, plan.namespaceSha256);
+  const expected = makeLabReaderProfilePlan(dataset, parent, plan.namespaceSha256, readerProfileForPlan(plan));
   if (canonicalSha256(plan) !== canonicalSha256(expected)) fail("parent conversion binding");
 }
 

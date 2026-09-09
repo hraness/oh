@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { makeLabGpt5MiniReaderRequest, parseLabGpt5MiniReaderResponse, reserveLabGpt5MiniReader, type LabReaderRaw } from "../scripts/benchmarks/lab-reader-profile";
+import { LAB_GPT5_MINI_MEDIUM_READER_PROFILE, makeLabGpt5MiniReaderRequest, parseLabGpt5MiniReaderResponse, reserveLabGpt5MiniReader, type LabReaderRaw } from "../scripts/benchmarks/lab-reader-profile";
 
 const request = makeLabGpt5MiniReaderRequest([{ role: "system", content: "Use memory." }, { role: "user", content: "What happened?" }]);
 const reservation = reserveLabGpt5MiniReader(request, "canary_1");
@@ -18,6 +18,33 @@ describe("lab GPT-5 mini reader profile", () => {
     expect(request.body).toEqual({ model: "openai/gpt-5-mini", messages: [{ role: "system", content: "Use memory." }, { role: "user", content: "What happened?" }], stream: false, store: false, max_tokens: 2048, reasoning: { effort: "minimal" }, providerOptions: { gateway: { only: ["openai"], order: ["openai"] } } });
     expect("temperature" in request.body).toBeFalse();
     expect(reservation.micros).toBeGreaterThanOrEqual(4096);
+  });
+  test("keeps the minimal request as the default and makes medium an explicit 8192-token profile", () => {
+    const defaultRequest = makeLabGpt5MiniReaderRequest([{ role: "system", content: "Use memory." }, { role: "user", content: "What happened?" }]);
+    const medium = makeLabGpt5MiniReaderRequest(defaultRequest.body.messages, { profile: "medium" });
+    const mediumReservation = reserveLabGpt5MiniReader(medium, "medium_1");
+    expect(defaultRequest).toEqual(request);
+    expect(medium).toMatchObject({ protocol: LAB_GPT5_MINI_MEDIUM_READER_PROFILE, maximumOutput: 8192,
+      body: { model: "openai/gpt-5-mini", max_tokens: 8192, reasoning: { effort: "medium" }, stream: false, store: false,
+        providerOptions: { gateway: { only: ["openai"], order: ["openai"] } } } });
+    expect(medium.profileSha256).not.toBe(request.profileSha256);
+    expect(medium.requestSha256).not.toBe(request.requestSha256);
+    expect(mediumReservation.maximumOutput).toBe(8192);
+    expect(mediumReservation.micros).toBeGreaterThanOrEqual(16_384);
+  });
+  test("binds profile identity, effort, and cap through canonical request, reservation, and parsing", () => {
+    const medium = makeLabGpt5MiniReaderRequest(request.body.messages, { profile: "medium" });
+    const mediumReservation = reserveLabGpt5MiniReader(medium, "medium_2");
+    const mediumBody = new TextEncoder().encode(JSON.stringify(response({ usage: { prompt_tokens: 12, completion_tokens: 8000, total_tokens: 8012 } })));
+    const mediumRaw: LabReaderRaw = { requestSha256: medium.requestSha256, httpStatus: 200, body: mediumBody, bodyComplete: true, receivedBytes: mediumBody.byteLength, transportError: null };
+    expect(parseLabGpt5MiniReaderResponse(medium, mediumReservation, mediumRaw)).toMatchObject({ kind: "completed", usage: { outputTokens: 8000 } });
+    const changedEffort = structuredClone(medium) as { body: { reasoning: { effort: string } } };
+    changedEffort.body.reasoning.effort = "minimal";
+    expect(() => reserveLabGpt5MiniReader(changedEffort as typeof medium, "medium_3")).toThrow("request changed");
+    const changedCap = structuredClone(medium) as { maximumOutput: number; body: { max_tokens: number } };
+    changedCap.maximumOutput = 2048; changedCap.body.max_tokens = 2048;
+    expect(() => reserveLabGpt5MiniReader(changedCap as typeof medium, "medium_4")).toThrow("request changed");
+    expect(() => makeLabGpt5MiniReaderRequest(request.body.messages, { profile: "high" as "medium" })).toThrow("unknown profile");
   });
   test("parses a compatible completed response and retains raw metadata", () => {
     const result = parseLabGpt5MiniReaderResponse(request, reservation, raw(response()));

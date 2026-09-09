@@ -289,7 +289,7 @@ changes or evidence of benchmark saturation.
 
 `bun run bench:lab:profile --help` describes the public command. It uses the
 fixed 100-question LongMemEval development selection and the two 24 KB variants
-above. It accepts a SHA-256-pinned private JSON config with exactly these fields:
+above. It accepts a SHA-256-pinned private JSON config with these required fields and one optional closed reader selector:
 
 | Field | Meaning |
 | --- | --- |
@@ -303,6 +303,7 @@ above. It accepts a SHA-256-pinned private JSON config with exactly these fields
 | `maxUsd` | Cumulative amendment ceiling, at most 40; includes all prior exposure. |
 | `maxCalls` | Maximum new physical requests for this run, at most 400. |
 | `concurrency` | Simultaneous requests, from 1 through 12. |
+| `readerProfile` (optional) | `minimal` (default, 2,048 output tokens) or `medium` (8,192 output tokens including reasoning). |
 
 Use canonical absolute paths. Output parent directories and the legacy cache
 must be owned by the current user with mode `0700`; pinned files use private
@@ -335,8 +336,18 @@ judge JSON. The run rechecks those inputs, reserves before dispatch, drains
 started requests after a failure, and reports scores only for a complete matrix.
 A failure never converts an occupied request into a cache miss.
 
-The four public-command integration tests use synthetic benchmark data and
+The five public-command integration tests use synthetic benchmark data and
 a mocked transport. They exercise a complete 200-case matrix through real
 request capture and scoring, call-limit admission, immutable outputs and
-changed-config rejection. Live model qualification comes from the separately
+changed-config rejection, plus a separate complete medium-profile matrix. Live model qualification comes from the separately
 audited comparison above; the mocked tests do not measure answer quality.
+
+The medium profile is a separate experiment using the same GPT-5 mini alias,
+OpenAI routing and pricing, with medium reasoning and a larger output allowance
+for reasoning tokens. It preserves parent messages, contexts and question order.
+Requests, reservations and terminal-failure policy have distinct profile digests;
+a matrix cannot mix profiles. Existing minimal request and failure-policy bytes
+remain unchanged. More reasoning may improve abstention, arithmetic or counting
+errors, but the larger allowance also changes cost and latency. At this source
+checkpoint the medium profile has only mocked validation, with no measured
+accuracy result or promotion.

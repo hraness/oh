@@ -9,7 +9,7 @@ import { verifyPinnedLabPaidBudgetInput } from "./lab-paid-budget";
 import { runLabPaidQueue } from "./lab-paid-queue";
 import { pairedBootstrap } from "./metrics";
 import type { LabPaidReaderPlan } from "./lab-paid-plan";
-import type { LabReaderResult } from "./lab-reader-profile";
+import type { LabGpt5MiniReaderProfileSelector, LabReaderResult } from "./lab-reader-profile";
 import { labReaderProfileLedgerExposure, openLabReaderProfileCustody } from "./lab-reader-profile-custody";
 import { reserveReaderJudge, parseReaderJudge, type LabReaderJudgeRequest, type LabReaderJudgeResult } from "./lab-reader-profile-judge";
 import { invokeLabReaderJudge } from "./lab-reader-profile-transport-union";
@@ -19,10 +19,12 @@ import { makeLabReaderProfileJudgePlan, scoreLabReaderProfileJudgePlan } from ".
 
 const PROTOCOL = "oh.memory.lab-reader-profile-run.v1" as const;
 const QUALIFICATION = "Fixed seed-17, 100-question LongMemEval development comparison. GPT-5 mini/OpenAI Gateway alias with minimal reasoning and 2048 output tokens; unchanged parent retrieval and messages. Frozen GPT-4o judge; reader length failures remain in the denominator. Reuse only byte-identical cached judgments. Timing excludes preparation, authentication and initial preflight. No held-out or superiority claim.";
+const qualification = (profile: LabGpt5MiniReaderProfileSelector | undefined) => profile === "medium"
+  ? QUALIFICATION.replace("minimal reasoning and 2048 output tokens", "medium reasoning and 8192 output tokens (including reasoning)") : QUALIFICATION;
 export type LabReaderProfilePin = Readonly<{ path: string; sha256: string }>;
 export type LabReaderProfileRunConfig = Readonly<{ budgetPin: LabReaderProfilePin; parentPin: LabReaderProfilePin;
   legacyDirectory: string; legacyLedger: LabReaderProfilePin & Readonly<{ bytes: number }>;
-  directory: string; output: string; planPath: string; maxUsd: number; maxCalls: number; concurrency: number }>;
+  readerProfile?: LabGpt5MiniReaderProfileSelector; directory: string; output: string; planPath: string; maxUsd: number; maxCalls: number; concurrency: number }>;
 type Command = Readonly<{ mode: "prepare"; configPin: LabReaderProfilePin }>
   | Readonly<{ mode: "run"; configPin: LabReaderProfilePin; paid: true; planSha256: string; maxUsd: number }>;
 type Runtime = Readonly<{ oidcToken: string; fetcher?: NonNullable<Parameters<typeof invokeLabReaderJudge>[0]["fetcher"]>; stopped?: () => boolean }>;
@@ -40,16 +42,18 @@ function pin(value: unknown): LabReaderProfilePin {
 }
 function same(a: unknown, b: unknown, reason: string) { if (canonicalSha256(a) !== canonicalSha256(b)) fail(reason); }
 function inside(child: string, parent: string) { return child === parent || child.startsWith(parent + sep); }
-/** The private config selects data and bounded limits, never code, credentials, model profiles or an alternate judge. */
+/** The private config selects data and bounded limits, a closed reader profile, never code, credentials, arbitrary model parameters or an alternate judge. */
 export function parseLabReaderProfileRunConfig(value: unknown): LabReaderProfileRunConfig {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["budgetPin", "parentPin", "legacyDirectory", "legacyLedger", "directory", "output", "planPath", "maxUsd", "maxCalls", "concurrency"])
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["budgetPin", "parentPin", "legacyDirectory", "legacyLedger", "directory", "output", "planPath", "maxUsd", "maxCalls", "concurrency", ...("readerProfile" in value ? ["readerProfile"] : [])])
+    || "readerProfile" in value && value.readerProfile !== "minimal" && value.readerProfile !== "medium"
     || !usd(value.maxUsd) || !integer(value.maxCalls, 400) || !integer(value.concurrency, 12)
     || !isPlainRecord(value.legacyLedger) || !hasExactKeys(value.legacyLedger, ["path", "sha256", "bytes"])
     || typeof value.legacyLedger.bytes !== "number" || !Number.isSafeInteger(value.legacyLedger.bytes)
     || value.legacyLedger.bytes < 0 || Object.is(value.legacyLedger.bytes, -0) || value.legacyLedger.bytes > 32 * 1024 * 1024) fail("invalid bounded config");
   const config = { budgetPin: pin(value.budgetPin), parentPin: pin(value.parentPin), legacyDirectory: path(value.legacyDirectory),
     legacyLedger: Object.freeze({ ...pin({ path: value.legacyLedger.path, sha256: value.legacyLedger.sha256 }), bytes: value.legacyLedger.bytes }),
-    directory: path(value.directory), output: path(value.output), planPath: path(value.planPath), maxUsd: value.maxUsd, maxCalls: value.maxCalls, concurrency: value.concurrency };
+    directory: path(value.directory), output: path(value.output), planPath: path(value.planPath), maxUsd: value.maxUsd, maxCalls: value.maxCalls, concurrency: value.concurrency,
+    ...("readerProfile" in value ? { readerProfile: value.readerProfile as LabGpt5MiniReaderProfileSelector } : {}) };
   if (config.legacyLedger.path !== join(config.legacyDirectory, "ledger.jsonl")) fail("legacy ledger path binding");
   const outputs = [config.planPath, config.output, ...[".started.json", ".readers.json", ".judges.json"].map(suffix => config.output + suffix)];
   const files = [config.budgetPin.path, config.parentPin.path, config.legacyLedger.path, ...outputs];
@@ -124,7 +128,7 @@ export function createLabReaderProfileRunner(dependencies: Readonly<{ verifyBudg
     const dataset = selectQuestions(selectSplit(await load("longmemeval-s"), "dev", 17), 100, 17);
     if (dataset.questions.length !== 100 || canonicalSha256(dataset.questions.map(q => q.id)) !== parent.selectionSha256) fail("parent question order or count changed");
     const namespaceSha256 = canonicalSha256({ protocol: PROTOCOL, configPin: fixedPin, budgetPin: config.budgetPin, parentPin: config.parentPin });
-    const reader = makeLabReaderProfilePlan(dataset, parent.reader as LabPaidReaderPlan, namespaceSha256);
+    const reader = makeLabReaderProfilePlan(dataset, parent.reader as LabPaidReaderPlan, namespaceSha256, config.readerProfile);
     return { configPin: fixedPin, config, ancestry, dataset, parent: parent.reader as LabPaidReaderPlan, namespaceSha256, reader };
   }
   async function prepare(configPin: LabReaderProfilePin) {
@@ -132,7 +136,7 @@ export function createLabReaderProfileRunner(dependencies: Readonly<{ verifyBudg
     await absent(config.directory); await absent(config.planPath);
     const source = await codeIdentity(), implementation = await implementationPins();
     const plan = { protocol: PROTOCOL, configPin: context.configPin, config, budgetFingerprint: ancestry.fingerprint,
-      source, implementation, namespaceSha256: context.namespaceSha256, reader: context.reader, qualification: QUALIFICATION };
+      source, implementation, namespaceSha256: context.namespaceSha256, reader: context.reader, qualification: qualification(config.readerProfile) };
     await ancestry.recheck(); await pinnedBytes(context.configPin); await pinnedBytes(config.parentPin);
     await pinnedBytes(config.legacyLedger, 32 * 1024 * 1024, config.legacyLedger.bytes);
     same(await implementationPins(), implementation, "preparation implementation changed");
@@ -149,7 +153,7 @@ export function createLabReaderProfileRunner(dependencies: Readonly<{ verifyBudg
     if (!isPlainRecord(plan) || !hasExactKeys(plan, ["protocol", "configPin", "config", "budgetFingerprint", "source", "implementation", "namespaceSha256", "reader", "qualification"])
       || !isPlainRecord(plan.source) || typeof plan.source.sourceSha256 !== "string") fail("prepared plan shape");
     for (const [a, b] of [[plan.protocol, PROTOCOL], [plan.configPin, context.configPin], [plan.config, config], [plan.budgetFingerprint, ancestry.fingerprint],
-      [plan.namespaceSha256, context.namespaceSha256], [plan.reader, context.reader], [plan.qualification, QUALIFICATION]]) same(a, b, "prepared plan binding");
+      [plan.namespaceSha256, context.namespaceSha256], [plan.reader, context.reader], [plan.qualification, qualification(config.readerProfile)]]) same(a, b, "prepared plan binding");
     validateLabReaderProfilePlan(dataset, context.reader, parent);
     let stopped = false; const stop = () => { stopped = true; }; const isStopped = () => stopped || runtime.stopped?.() === true;
     const checkPins = async () => {
@@ -224,7 +228,7 @@ export function createLabReaderProfileRunner(dependencies: Readonly<{ verifyBudg
     await writeGatewayStudyJson(config.output, { protocol: PROTOCOL, startedAt, finishedAt: new Date().toISOString(), elapsedMs: performance.now() - began,
       planSha256: planPin.sha256, status: complete ? "completed" : "incomplete", failure, accounting,
       exposureMicros: accounting === null ? null : ancestry.priorExposureMicros + accounting.exposureMicros,
-      phases, scores: complete ? scores : null, byVariant, pairedDevelopmentBootstrap: paired, qualification: QUALIFICATION });
+      phases, scores: complete ? scores : null, byVariant, pairedDevelopmentBootstrap: paired, qualification: qualification(config.readerProfile) });
     return { status: complete ? "completed" as const : "incomplete" as const, planSha256: planPin.sha256, cases: complete ? scores!.length : 0,
       newCalls: accounting?.newCalls ?? null, settledCalls: accounting?.settledCalls ?? null,
       localExposureMicros: accounting?.exposureMicros ?? null, legacyHits: phases.reduce((sum, p) => sum + p.legacyHits.length, 0) };
@@ -237,6 +241,7 @@ if (import.meta.main && process.argv.length === 3 && process.argv[2] === "--help
        bun run bench:lab:profile run --config PATH --config-sha256 SHA --paid --plan-sha256 SHA --max-usd TOTAL
 The hashed private config fixes the parent/budget/legacy-ledger pins, new output paths,
 maxUsd (cumulative, at most 40), maxCalls (at most 400), and concurrency (at most 12).
+Optional readerProfile is minimal (default, 2048) or medium (8192 including reasoning).
 Preparation makes zero model calls. Run requires selected-project VERCEL_OIDC_TOKEN.
 Fixed 100-question LongMemEval development sample, seed 17, two reader variants.
 Never retry or reset occupied first responses. Carry every previous ledger once.
