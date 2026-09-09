@@ -30,3 +30,21 @@ test("command deadline aborts an outstanding dispatcher and kills then drains th
   finally { await worker.close(); }
   expect(aborted).toBe(true); expect(closed).toBe(true); expect(worker.durationPolicySha256).toBe(canonicalSha256(policy));
 }, 5000);
+
+test("RPC rejection preserves its original cause and value while aborting and draining the child", async () => {
+  const source = corpus(), namespace = sha256Hex("namespace"), cause = new Error("synthetic provider metadata"), failure = new TypeError("invalid gateway cost", { cause });
+  for (const rejection of [failure, "synthetic non-Error rejection"]) {
+    let aborted = false, closed = false, ended = false;
+    const dispatcher = { derivation: { corpusSha256: source.corpusSha256, namespace }, embeddingDimensions: 3, maximumCallTimeoutMs: 10,
+      beginIngest() {}, endActivity() { ended = true; }, abort() { aborted = true; },
+      async handle() { throw rejection; }, async close() { closed = true; },
+    } as unknown as ReturnType<typeof createMem0RpcDispatcher>;
+    const code = `const rl=require('node:readline').createInterface({input:process.stdin}); rl.on('line',line=>{const c=JSON.parse(line);if(c.kind==='prepare')console.log(JSON.stringify({kind:'result',id:c.id,ok:true,result:{prepared:true}}));else if(c.kind==='add')console.log(JSON.stringify({kind:'rpc',id:'one',operation:'embed',namespace:c.namespace,payload:{text:'alpha',action:'search'}}));});`;
+    const worker = await startMem0Worker({ command: [process.execPath, "-e", code], workerDirectory: "/tmp", mem0Directory: "/tmp", dispatcher, corpus: source });
+    let actual: unknown;
+    try { await worker.prepare(); try { await worker.add(source.chunks[0]!.chunkId); } catch (error) { actual = error; } }
+    finally { await worker.close(); }
+    expect(actual).toBe(rejection); expect(aborted).toBe(true); expect(ended).toBe(true); expect(closed).toBe(true);
+  }
+  expect(failure.cause).toBe(cause);
+}, 5000);

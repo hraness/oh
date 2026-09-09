@@ -182,7 +182,22 @@ function gateway(envelope: Record<string, unknown>, selected: Mem0CallProfile) {
   if (envelope.model !== selected.model || route.finalProvider !== selected.provider || route.originalModelId !== selected.model || route.canonicalSlug !== selected.model) fail("gateway route mismatch");
   return meta.gateway as Record<string, unknown>;
 }
-function micros(value: unknown): number | null { if (value === undefined) return null; if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || Object.is(value, -0)) fail("invalid gateway cost"); const result = Math.ceil(value * 1_000_000); if (!integer(result, 1_000_000_000)) fail("gateway cost bound"); return result; }
+function micros(value: unknown): number | null {
+  if (typeof value === "string") {
+    // Gateway can serialize dollars as a decimal string. Bound before parsing,
+    // then round upward exactly so a positive fractional micro is never lost.
+    if (value.length > 128) fail("gateway cost bound");
+    const match = /^(0|[1-9][0-9]*)(?:\.([0-9]+))?$/.exec(value);
+    if (!match || match[0] !== value) fail("invalid gateway cost");
+    const fraction = match[2] ?? "", scale = 10n ** BigInt(fraction.length);
+    const numerator = BigInt(match[1]! + fraction) * 1_000_000n;
+    const result = (numerator + scale - 1n) / scale;
+    if (result > 1_000_000_000n) fail("gateway cost bound");
+    return Number(result);
+  }
+  // Preserve the historical numeric path and its settled result identities.
+  if (value === undefined) return null; if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || Object.is(value, -0)) fail("invalid gateway cost"); const result = Math.ceil(value * 1_000_000); if (!integer(result, 1_000_000_000)) fail("gateway cost bound"); return result;
+}
 function usageDetail(value: unknown, allowed: readonly string[], maximum: number): void {
   if (value === undefined) return;
   if (!isPlainRecord(value) || Object.keys(value).some(key => !allowed.includes(key))) fail("ambiguous usage detail");

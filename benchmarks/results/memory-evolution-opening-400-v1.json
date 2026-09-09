@@ -1,0 +1,2345 @@
+{
+  "protocol": "oh.memory.opening-paid-audit-summary.v1",
+  "status": "complete",
+  "questionsPerArm": 100,
+  "logicalReaderCases": 400,
+  "comparisons": [
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "candidate": "oh-focused-window-opening-96k",
+      "reference": "oh-focused-window-96k",
+      "comparisonScope": "Within-stage; prior Oh answers reused by exact request/capture identity.",
+      "overall": {
+        "questions": 100,
+        "wins": 5,
+        "losses": 10,
+        "ties": 85,
+        "candidateCorrect": 76,
+        "referenceCorrect": 81,
+        "meanDelta": -0.05,
+        "candidateReaderFailures": 0,
+        "referenceReaderFailures": 0,
+        "candidateJudgeFailures": 1,
+        "referenceJudgeFailures": 0
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 0,
+          "losses": 1,
+          "ties": 16,
+          "candidateCorrect": 13,
+          "referenceCorrect": 14,
+          "meanDelta": -0.058823529411764705,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 4,
+          "losses": 6,
+          "ties": 18,
+          "candidateCorrect": 18,
+          "referenceCorrect": 20,
+          "meanDelta": -0.07142857142857142,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 1,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidateCorrect": 17,
+          "referenceCorrect": 17,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 2,
+          "ties": 3,
+          "candidateCorrect": 1,
+          "referenceCorrect": 3,
+          "meanDelta": -0.4,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidateCorrect": 11,
+          "referenceCorrect": 11,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 1,
+          "losses": 1,
+          "ties": 20,
+          "candidateCorrect": 16,
+          "referenceCorrect": 16,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "candidate": "oh-focused-window-opening-96k",
+      "reference": "window-96k",
+      "comparisonScope": "Cross-stage descriptive; exact same reader profile, question set and native16 rubric; BM25 is the fresh answer-contracts1600 control.",
+      "overall": {
+        "questions": 100,
+        "wins": 7,
+        "losses": 9,
+        "ties": 84,
+        "candidateCorrect": 76,
+        "referenceCorrect": 78,
+        "meanDelta": -0.02,
+        "candidateReaderFailures": 0,
+        "referenceReaderFailures": 0,
+        "candidateJudgeFailures": 1,
+        "referenceJudgeFailures": 0
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 0,
+          "losses": 3,
+          "ties": 14,
+          "candidateCorrect": 13,
+          "referenceCorrect": 16,
+          "meanDelta": -0.17647058823529413,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 7,
+          "losses": 4,
+          "ties": 17,
+          "candidateCorrect": 18,
+          "referenceCorrect": 15,
+          "meanDelta": 0.10714285714285714,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 1,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidateCorrect": 17,
+          "referenceCorrect": 17,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 1,
+          "ties": 4,
+          "candidateCorrect": 1,
+          "referenceCorrect": 2,
+          "meanDelta": -0.2,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidateCorrect": 11,
+          "referenceCorrect": 11,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidateCorrect": 16,
+          "referenceCorrect": 17,
+          "meanDelta": -0.045454545454545456,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-mini-explicit-abstention-v1-reader",
+      "candidate": "oh-focused-window-opening-96k",
+      "reference": "oh-focused-window-96k",
+      "comparisonScope": "Within-stage; prior Oh answers reused by exact request/capture identity.",
+      "overall": {
+        "questions": 100,
+        "wins": 7,
+        "losses": 4,
+        "ties": 89,
+        "candidateCorrect": 88,
+        "referenceCorrect": 85,
+        "meanDelta": 0.03,
+        "candidateReaderFailures": 0,
+        "referenceReaderFailures": 0,
+        "candidateJudgeFailures": 0,
+        "referenceJudgeFailures": 0
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 1,
+          "ties": 15,
+          "candidateCorrect": 15,
+          "referenceCorrect": 15,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 2,
+          "losses": 3,
+          "ties": 23,
+          "candidateCorrect": 22,
+          "referenceCorrect": 23,
+          "meanDelta": -0.03571428571428571,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidateCorrect": 17,
+          "referenceCorrect": 16,
+          "meanDelta": 0.058823529411764705,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidateCorrect": 3,
+          "referenceCorrect": 2,
+          "meanDelta": 0.2,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidateCorrect": 11,
+          "referenceCorrect": 11,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 2,
+          "losses": 0,
+          "ties": 20,
+          "candidateCorrect": 20,
+          "referenceCorrect": 18,
+          "meanDelta": 0.09090909090909091,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-mini-explicit-abstention-v1-reader",
+      "candidate": "oh-focused-window-opening-96k",
+      "reference": "window-96k",
+      "comparisonScope": "Cross-stage descriptive; exact same reader profile, question set and native16 rubric; BM25 is the fresh answer-contracts1600 control.",
+      "overall": {
+        "questions": 100,
+        "wins": 6,
+        "losses": 4,
+        "ties": 90,
+        "candidateCorrect": 88,
+        "referenceCorrect": 86,
+        "meanDelta": 0.02,
+        "candidateReaderFailures": 0,
+        "referenceReaderFailures": 0,
+        "candidateJudgeFailures": 0,
+        "referenceJudgeFailures": 0
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 1,
+          "ties": 15,
+          "candidateCorrect": 15,
+          "referenceCorrect": 15,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 2,
+          "losses": 3,
+          "ties": 23,
+          "candidateCorrect": 22,
+          "referenceCorrect": 23,
+          "meanDelta": -0.03571428571428571,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidateCorrect": 17,
+          "referenceCorrect": 17,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidateCorrect": 3,
+          "referenceCorrect": 2,
+          "meanDelta": 0.2,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidateCorrect": 11,
+          "referenceCorrect": 11,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 2,
+          "losses": 0,
+          "ties": 20,
+          "candidateCorrect": 20,
+          "referenceCorrect": 18,
+          "meanDelta": 0.09090909090909091,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "logicalReaderCases": 400,
+    "logicalJudgeCases": 400,
+    "expectedQuestionsPerArm": 100,
+    "completePhysicalResponses": false,
+    "completeAttemptCoverage": true,
+    "verifiedPhysicalResponses": 687,
+    "capturedUnverifiableAttempts": 1,
+    "unknownDispatches": 0
+  },
+  "arms": [
+    {
+      "variantId": "oh-focused-window-96k",
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "latency": {
+        "reader": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 554243.4232850001,
+          "p50Ms": 4528.013042000006,
+          "p95Ms": 12342.606958000004
+        },
+        "judge": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 102702.60529600014,
+          "p50Ms": 821.1354169999249,
+          "p95Ms": 1837.937042000005
+        }
+      },
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.81,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8235294117647058,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7142857142857143,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.6,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7272727272727273,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.09676150486354748,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10836736166176436,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.13318132789824325,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.046412456540333775,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.05802815605447185,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.0491202363732008,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.11297059160866843,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.9484999999999999,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9232142857142858,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8636363636363636,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.16992611771453167,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.19361418149411153,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.2273946372648023,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08866948424762397,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10949214468396054,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09331167580387469,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1933113842348537,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.91,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8571428571428571,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7727272727272727,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "variantId": "oh-focused-window-96k",
+      "reader": "gpt5-mini-explicit-abstention-v1-reader",
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "latency": {
+        "reader": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 745558.5715839996,
+          "p50Ms": 6298.980709000025,
+          "p95Ms": 16389.568207999982
+        },
+        "judge": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 95423.57766899967,
+          "p50Ms": 805.7688329999801,
+          "p95Ms": 1288.3487919999752
+        }
+      },
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.85,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8823529411764706,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8214285714285714,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9411764705882353,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.4,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8181818181818182,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.09676150486354748,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10836736166176436,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.13318132789824325,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.046412456540333775,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.05802815605447185,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.0491202363732008,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.11297059160866843,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.9484999999999999,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9232142857142858,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8636363636363636,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.16992611771453167,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.19361418149411153,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.2273946372648023,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08866948424762397,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10949214468396054,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09331167580387469,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1933113842348537,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.91,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8571428571428571,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7727272727272727,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "variantId": "oh-focused-window-opening-96k",
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "readerFailures": 0,
+      "judgeFailures": 1,
+      "latency": {
+        "reader": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 461894.840627,
+          "p50Ms": 4119.351333000002,
+          "p95Ms": 8259.354749999999
+        },
+        "judge": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 119986.86833900036,
+          "p50Ms": 896.1948340000017,
+          "p95Ms": 2577.4107919999988
+        }
+      },
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 1,
+            "mean": 0.76,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7647058823529411,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 1,
+              "mean": 0.6428571428571429,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.2,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7272727272727273,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.09869822653528396,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.11075508075777289,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1331635968909299,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04766787177866967,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.057426082689240585,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04992957196514509,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1187134564727291,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.9468333333333334,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9053571428571429,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8787878787878788,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.173007599551753,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1974636815301777,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.22721052115935714,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09093049919359675,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10835403726708075,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09478747273421706,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.20235145018169776,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.91,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8214285714285714,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8181818181818182,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "variantId": "oh-focused-window-opening-96k",
+      "reader": "gpt5-mini-explicit-abstention-v1-reader",
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "latency": {
+        "reader": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 689815.3267510001,
+          "p50Ms": 5860.662374999996,
+          "p95Ms": 14160.961499999998
+        },
+        "judge": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 112738.48333099936,
+          "p50Ms": 842.110457999981,
+          "p95Ms": 3017.1002500000013
+        }
+      },
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.88,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8823529411764706,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7857142857142857,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.6,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9090909090909091,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.09869822653528396,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.11075508075777289,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1331635968909299,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04766787177866967,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.057426082689240585,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04992957196514509,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1187134564727291,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.9468333333333334,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9053571428571429,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8787878787878788,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.173007599551753,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1974636815301777,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.22721052115935714,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09093049919359675,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10835403726708075,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09478747273421706,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.20235145018169776,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.91,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8214285714285714,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8181818181818182,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "costAttribution": {
+    "reader": {
+      "physicalRequests": 400,
+      "occupiedRequests": 400,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 1536069,
+      "unresolvedReservationMicros": 0,
+      "accountedMicros": 1536069,
+      "usageCoverage": {
+        "knownRequests": 400,
+        "unknownRequests": 0
+      },
+      "tokenRateMicros": 1536069,
+      "gatewayReportedMicros": 1536069,
+      "inputTokens": 8994424,
+      "outputTokens": 193911,
+      "cachedInputTokens": 403712,
+      "reasoningTokens": 173696,
+      "byRequestedModel": [
+        {
+          "model": "openai/gpt-5-mini",
+          "physicalRequests": 200,
+          "occupiedRequests": 200,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 1283548,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 1283548,
+          "usageCoverage": {
+            "knownRequests": 200,
+            "unknownRequests": 0
+          },
+          "tokenRateMicros": 1283548,
+          "gatewayReportedMicros": 1283548,
+          "inputTokens": 4481712,
+          "outputTokens": 109153,
+          "cachedInputTokens": 245632,
+          "reasoningTokens": 99392
+        },
+        {
+          "model": "openai/gpt-5-nano",
+          "physicalRequests": 200,
+          "occupiedRequests": 200,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 252521,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 252521,
+          "usageCoverage": {
+            "knownRequests": 200,
+            "unknownRequests": 0
+          },
+          "tokenRateMicros": 252521,
+          "gatewayReportedMicros": 252521,
+          "inputTokens": 4512712,
+          "outputTokens": 84758,
+          "cachedInputTokens": 158080,
+          "reasoningTokens": 74304
+        }
+      ],
+      "identities": [
+        {
+          "requestedModel": "openai/gpt-5-nano",
+          "reportedModel": "openai/gpt-5-nano",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        },
+        {
+          "requestedModel": "openai/gpt-5-mini",
+          "reportedModel": "openai/gpt-5-mini",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        }
+      ]
+    },
+    "judge": {
+      "physicalRequests": 288,
+      "occupiedRequests": 288,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 125528,
+      "unresolvedReservationMicros": 6863,
+      "accountedMicros": 132391,
+      "usageCoverage": {
+        "knownRequests": 287,
+        "unknownRequests": 1
+      },
+      "tokenRateMicros": 125528,
+      "gatewayReportedMicros": 125528,
+      "inputTokens": 47451,
+      "outputTokens": 683,
+      "cachedInputTokens": 0,
+      "reasoningTokens": 0,
+      "byRequestedModel": [
+        {
+          "model": "openai/gpt-4o",
+          "physicalRequests": 288,
+          "occupiedRequests": 288,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 125528,
+          "unresolvedReservationMicros": 6863,
+          "accountedMicros": 132391,
+          "usageCoverage": {
+            "knownRequests": 287,
+            "unknownRequests": 1
+          },
+          "tokenRateMicros": 125528,
+          "gatewayReportedMicros": 125528,
+          "inputTokens": 47451,
+          "outputTokens": 683,
+          "cachedInputTokens": 0,
+          "reasoningTokens": 0
+        }
+      ],
+      "identities": [
+        {
+          "requestedModel": "openai/gpt-4o",
+          "reportedModel": "openai/gpt-4o",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        }
+      ]
+    },
+    "accountedMicros": 1668460,
+    "knownUsageMicros": 1661597,
+    "unresolvedReservationMicros": 6863,
+    "qualification": "Known captured usage plus full unresolved reservations, counted once per distinct occupied request in these phases. Accounted cost is conservative exposure, not a provider invoice or incremental spend for a cache-reusing invocation. Token totals and provider identities cover verified responses only; unknown usage is not zero. Reserved requests without captures do not prove dispatch. Reasoning tokens are already included in output tokens."
+  },
+  "physicalCosts": [
+    {
+      "phase": "reader",
+      "physicalRequests": 400,
+      "verifiedResponses": 400,
+      "capturedFailures": 0,
+      "knownUsageMicros": 1536069,
+      "unresolvedReservationMicros": 0
+    },
+    {
+      "phase": "judge",
+      "physicalRequests": 288,
+      "verifiedResponses": 287,
+      "capturedFailures": 1,
+      "knownUsageMicros": 125528,
+      "unresolvedReservationMicros": 6863
+    }
+  ],
+  "latency": {
+    "reader": {
+      "phaseWallMs": 47269.014166,
+      "physical": {
+        "logicalCases": 400,
+        "attributedPhysicalRequests": 400,
+        "count": 400,
+        "unknownDispatches": 0,
+        "measuredPhysicalRequests": 400,
+        "unmeasuredPhysicalRequests": 0,
+        "totalMs": 2451512.162246999,
+        "p50Ms": 5111.8190419999955,
+        "p95Ms": 13822.417291999998
+      }
+    },
+    "judge": {
+      "phaseWallMs": 12900.608124999999,
+      "physical": {
+        "logicalCases": 288,
+        "attributedPhysicalRequests": 288,
+        "count": 288,
+        "unknownDispatches": 0,
+        "measuredPhysicalRequests": 288,
+        "unmeasuredPhysicalRequests": 0,
+        "totalMs": 312664.6083420004,
+        "p50Ms": 842.110457999981,
+        "p95Ms": 2288.0458339999986
+      }
+    },
+    "qualification": "Service time is captured once per attempted physical request through first-response body completion or failure. Reserved requests without captures are excluded from physical latency counts because dispatch is unknown. Arm values attribute each captured duration to every arm reusing it; they do not measure a cache-hit invocation. Phase wall time is receipt-reported elapsed time including queueing and concurrency."
+  },
+  "incrementalPhaseAccounting": {
+    "newPhysicalCalls": 267,
+    "knownUsageMicros": 830422,
+    "unresolvedReservationMicros": 6863,
+    "exposureMicros": 837285,
+    "initialBudget": {
+      "calls": 2197,
+      "exposureMicros": 6500682,
+      "confirmedMicros": 6500682,
+      "unresolvedMicros": 0,
+      "additionalBudgetMicros": 10000000,
+      "maximumCalls": 4000,
+      "historicalExposureMicros": 38537650,
+      "combinedExposureMicros": 45038332
+    },
+    "terminalBudget": {
+      "calls": 2464,
+      "exposureMicros": 7337967,
+      "confirmedMicros": 7331104,
+      "unresolvedMicros": 6863,
+      "additionalBudgetMicros": 10000000,
+      "maximumCalls": 4000,
+      "historicalExposureMicros": 38537650,
+      "combinedExposureMicros": 45875617
+    },
+    "phases": [
+      {
+        "phase": "reader",
+        "admissionAttempts": 200,
+        "wallMs": 47269.014166,
+        "executionPolicy": {
+          "protocol": "oh.memory.evolution-paid-queue.v2",
+          "concurrency": 32
+        }
+      },
+      {
+        "phase": "judge",
+        "admissionAttempts": 67,
+        "wallMs": 12900.608124999999,
+        "executionPolicy": {
+          "protocol": "oh.memory.evolution-paid-queue.v2",
+          "concurrency": 32
+        }
+      }
+    ]
+  },
+  "reuse": {
+    "exactPriorRequestObjects": 200,
+    "exactPriorReaderCaptures": 200
+  },
+  "scoring": {
+    "judgeProfile": "gpt4o-gateway-native-rubric-16-judge-v1",
+    "judgeRule": "native-contains-yes",
+    "judgeReference": {
+      "evaluator": "https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f4ef0e2ab8f2e582289761153549043fc/src/evaluation/evaluate_qa.py",
+      "sourceSha256": "ecce9c4c79dc89d99534ac17b383a5cbb5b9f0c69ee98adaf0684742e3d95251",
+      "parityRubricSha256": "00d319ba0a194a69871576d8c677c1557d7706f69b599c9b7beee32441d58cfc"
+    },
+    "judgeQualification": "Gateway GPT-4o alias with native LongMemEval prompts, one user message and contains-yes grading, adapted to 16 output tokens. The requested model is not a pinned snapshot and the output cap differs from the native 10-token evaluator; not an official protocol reproduction or full-set score.",
+    "officialLocomoF1": null,
+    "failurePolicy": "Every eligible question remains in answer-score denominators. Reader failures score zero; judge failures score zero only for judge accuracy and are counted separately. Authenticated occupied attempts without a verifiable answer score zero and retain their full reservations. Never-admitted requests or unauthenticated missing evidence prevent a complete report.",
+    "evidenceUnit": "session",
+    "evidenceQualification": "Retrieval evidence is scored independently of answer success. No evidence labels means unscored, not perfect; unresolved labels remain in the denominator.",
+    "answerCitationF1": null,
+    "citationQualification": "Not measured: the reader prompt asks for an answer without citations."
+  },
+  "sourcePins": {
+    "current": {
+      "reportSha256": "835d1f94a0f9df4e5b969e8d4043216b16a9050c0c65ad8283f83ceaea51f193",
+      "readerPlanFileSha256": "5634e7da8e9adf35d8a9bb6552fb1e419f1830a72a15d87789209f84120c985e",
+      "readerOutputSha256": "246ee77ea6956e10c180e8c7ae069cb44f3820cc9853d99c1a09e0f7c74d5d32",
+      "judgePlanFileSha256": "584b6fbc14549d823e01ec869d4dc148dc49b503e5f673a7c3f46059f3ab31ee",
+      "judgeOutputSha256": "2808728160875853bb640d72bd7d2c39ee72be05d0d406986938c44433a04c2d",
+      "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+      "configSha256": "2d7e90def8ea1b7ddbdc8b0ec02b2975bb3c816fc256be06e50d585fa007d1f4"
+    },
+    "prior": [
+      {
+        "stageFileSha256": "2ddd62e8c59c4e4dff2f43f45290757c19c033307a9caf934e03da9c90030216",
+        "pins": {
+          "reportSha256": "86da5eda00dfb10cc2614b5c1c6a68c330b4fec476b8bee72a4d292ceb1de46a",
+          "readerPlanFileSha256": "f8734db696f57f7d545ab72b0adf2b7eb28060efcee459fd0a239dd7a7bad579",
+          "readerOutputSha256": "bbb056215c51818063ab31fc3d70fd5d63ba20d2756f4164346e50e7688e7bad",
+          "judgePlanFileSha256": "73920b4535e21dfa712bc64d6be85d859b6f68812f8f78dbe0e9dc1197289dc5",
+          "judgeOutputSha256": "fcc70a9bf572f3cf5bc2784e0ba0e356da9a671f1bd0e37f3c8c08acc9f57260",
+          "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+          "configSha256": "e12e7fc9135991e708eb16df51259f32e96dee48b1dcbc762ab0bd54bd1501f1"
+        }
+      },
+      {
+        "stageFileSha256": "dd71e7d130e2833cf7a0a422b8e55e796241df8c15c0297a3eecce248c76e2fd",
+        "pins": {
+          "reportSha256": "0d61609ec29c9631eb6b83e29ed7cb15d09959188573f316f76566589ab11837",
+          "readerPlanFileSha256": "1a3e59819e2a2fdb3631a5ca35a2ea597505a76ebb72165bf63200d9e9f85029",
+          "readerOutputSha256": "5be5f4acafc1f14a91ef57392bc72d6b7b91c8eb40c28164a88fb5e351b8e72f",
+          "judgePlanFileSha256": "8fa4299ab710c053c04ce34bc64823df3d45902a635d7cf487d9d9c2c9ae7334",
+          "judgeOutputSha256": "507940307d1b34fbda6a107ca3cf7f1953f7df616c414c8ff2fa26a3cd3d5b78",
+          "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+          "configSha256": "80f1c800b2c67fa14ce868b4fc2232f77a62e2dc54a86f3b701d488c64c97406"
+        }
+      }
+    ]
+  },
+  "qualification": [
+    "Same reused100 development questions; descriptive paired outcomes, no fresh confirmation or superiority claim.",
+    "All attempted reader/judge failures remain zero in full100 denominators and are counted separately.",
+    "Gateway GPT4o alias with native prompt/contains-yes rule and16-token cap; not pinned official snapshot/10-token reproduction.",
+    "Recorded answer scores remain unchanged, including known judge/source anomalies. No retrospective score repairs.",
+    "Incremental phase costs count physical calls once; per-arm and cross-stage attribution can share requests."
+  ],
+  "auditProjection": {
+    "auditedProjectionSha256": "fde6532b438884de2ded9697edb4865e5cea26d0a2fc6e1ebacec84766c38c8c",
+    "amendment": "Two qualification phrases clarified; all numerical fields and artifact pins unchanged."
+  }
+}
