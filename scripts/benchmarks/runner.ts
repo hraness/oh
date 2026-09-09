@@ -12,7 +12,7 @@ export type RetrievalRow = Readonly<{
   evidenceKind?: "derived-unit"; supportCitationRecall?: number | null;
 }>;
 
-export function summarizeRetrieval(rows: readonly RetrievalRow[]) {
+export function summarizeRetrieval(rows: readonly Omit<RetrievalRow, "system">[]) {
   return {
     questions: rows.length,
     annotatedQuestions: rows.filter((row) => row.metrics.turnRecall !== null).length,

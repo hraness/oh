@@ -5,6 +5,8 @@ correctness, evidence retrieval from public conversations, and an opt-in
 model reader. A retrieval score is not an answer-accuracy score, and passing
 state tests does not establish that an agent writes useful memories.
 
+For fast development sweeps across shared corpus indexes, use the [development lab](DEVELOPMENT.md). It compares retrieval variants without model calls and records full development results before promoting candidates to paid answer comparisons.
+
 For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below. The separately frozen [Gateway amendment](GATEWAY_STUDY_V3.md) preserves closed subscription responses and uses budgeted Gateway calls for unattempted work.
 
 Start with the network-free checks:

@@ -137,6 +137,25 @@ function queryRecordFts(index: RecordFtsIndex, query: string, limit: number): re
   ).all(match, limit).map((row) => row.record_key);
 }
 
+/** Batch only the disposable benchmark index; every write still uses the authoritative commit. */
+function ingestRecords(store: OhSqliteStore, records: readonly KnowledgeGraphRecordV1[], actorId: string, prefix: string): void {
+  // Each commit revalidates the growing graph. Bound larger batches by count and serialized bytes
+  // to avoid repeating that scan for every 128 small records or retaining oversized operations.
+  for (let start = 0; start < records.length;) {
+    const changes: Array<{ kind: "put"; record: KnowledgeGraphRecordV1; v: 1 }> = [];
+    let bytes = 2;
+    while (start + changes.length < records.length && changes.length < 512) {
+      const change = { kind: "put" as const, record: records[start + changes.length]!, v: 1 as const };
+      const nextBytes = Buffer.byteLength(JSON.stringify(change)) + (changes.length ? 1 : 0);
+      if (changes.length > 0 && bytes + nextBytes > 4 * 1024 * 1024) break;
+      changes.push(change); bytes += nextBytes;
+    }
+    store.commit({ actorId, expectedHead: store.head(), operationId: `${prefix}${start}`,
+      instant: "2026-01-01T00:00:00.000Z", changes });
+    start += changes.length;
+  }
+}
+
 export function createUnitIndex(corpus: Corpus, units: readonly IndexedUnit[], sources: readonly KnowledgeGraphRecordV1[], authority: OhSqliteStore) {
   const positions = new Map(corpus.turns.map((turn, index) => [turn.id, index]));
   const sourceBindings = units.map((unit) => unit.sourceTurnIds.map((id) => {
@@ -155,9 +174,7 @@ export function createUnitIndex(corpus: Corpus, units: readonly IndexedUnit[], s
   const byKey = new Map(records.map((record, index) => [record.key, index]));
   let recordFts: RecordFtsIndex | undefined;
   try {
-    for (let index = 0; index < records.length; index += 128) store.commit({ actorId: "benchmark.units", expectedHead: store.head(),
-      operationId: `op_units_${index}`, instant: "2026-01-01T00:00:00.000Z",
-      changes: records.slice(index, index + 128).map((record) => ({ kind: "put", record, v: 1 })) });
+    ingestRecords(store, records, "benchmark.units", "op_units_");
     bm25.run("CREATE VIRTUAL TABLE units USING fts5(unit_index UNINDEXED, text, tokenize='unicode61 remove_diacritics 2')");
     const insert = bm25.prepare("INSERT INTO units (unit_index, text) VALUES (?, ?)");
     bm25.transaction(() => turns.forEach((turn, index) => insert.run(index, renderTurn(turn))))();
@@ -216,11 +233,7 @@ export function createRetrievers(corpus: Corpus, memoryUnits?: readonly MemoryUn
   let ohIngestMs: number;
   let bm25IngestMs: number;
   try {
-    for (let index = 0; index < records.length; index += 128) {
-      store.commit({ actorId: "benchmark.ingest", expectedHead: store.head(), operationId: `op_benchmark_${index}`,
-        instant: "2026-01-01T00:00:00.000Z",
-        changes: records.slice(index, index + 128).map((record) => ({ kind: "put", record, v: 1 })) });
-    }
+    ingestRecords(store, records, "benchmark.ingest", "op_benchmark_");
     ohIngestMs = performance.now() - ohStart;
     const bm25Start = performance.now();
     bm25.run("CREATE VIRTUAL TABLE passages USING fts5(turn_index UNINDEXED, text, tokenize='unicode61 remove_diacritics 2')");
