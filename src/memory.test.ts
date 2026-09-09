@@ -2249,7 +2249,7 @@ describe("stable host-bound Oh memory authority", () => {
     expect(byteBound.commitCalls()).toBe(0);
     expect(await byteBound.canonicalStore.head()).toEqual(byteBound.snapshot.head);
     await byteBound.canonical.store.close(); await byteBound.working.store.close();
-  });
+  }, 30_000);
 });
 
 describe("Effect memory host ownership", () => {

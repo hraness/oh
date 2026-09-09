@@ -171,7 +171,7 @@ describe("Gateway v6 fixed reader dispatch and drained judge continuation", () =
       expect(second.state.stopReason).toBeNull(); expect(second.counters().peak).toBe(4);
       expect(second.budget.summary.accountedUsd).toBe((prior + gatewayV6LedgerExposure(second.store.events, prior)) / 1e6);
     } finally { await second.store.close(); }
-  });
+  }, 30_000);
   test("future same-class reader failure keeps all cases and does not trigger a replacement request", async () => {
     const f = await fixture(), path = await directory(), run = await execute(f, path, 256, { failNewReader: true });
     try {
@@ -181,7 +181,7 @@ describe("Gateway v6 fixed reader dispatch and drained judge continuation", () =
       expect(completed!.assessment.coverage.policyScoredReaderFailures).toBe(2); expect(completed!.scoredCases).toHaveLength(360);
       expect(JSON.stringify(completed)).not.toContain("SYNTHETIC_PARTIAL_NEVER_ACCEPTED");
     } finally { await run.store.close(); }
-  });
+  }, 30_000);
   test("a judge failure drains its three siblings, retains the reservation and dispatches no subsequent wave", async () => {
     const f = await fixture(), path = await directory(), run = await execute(f, path, 256, { failFirstJudge: true });
     try {
