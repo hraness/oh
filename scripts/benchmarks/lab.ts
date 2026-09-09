@@ -11,8 +11,11 @@ import { createLabMemory, type LabMemoryMetadata } from "./lab-memory";
 import { createLabSession } from "./lab-session";
 import { createLabFusion } from "./lab-fusion";
 import { createLabDiverse } from "./lab-diverse";
+import { createLabUser } from "./lab-user";
+import { createLabUserHybrid } from "./lab-user-hybrid";
 
-export const LAB_SYSTEMS = [...SYSTEMS, "oh-memory-api", "bm25-session", "bm25-fusion", "bm25-diverse-window"] as const;
+export const LAB_SYSTEMS = [...SYSTEMS, "oh-memory-api", "bm25-session", "bm25-fusion", "bm25-diverse-window",
+  "bm25-user-focused", "user-context", "bm25-user-hybrid"] as const;
 export type LabSystem = typeof LAB_SYSTEMS[number];
 export type LabVariant = Readonly<{ id: string; system: LabSystem; budget: RetrievalBudget }>;
 export type LabRow = Omit<RetrievalRow, "system"> & Readonly<{ system: LabSystem; variant: string }>;
@@ -25,7 +28,7 @@ export function labVariants(systems: readonly LabSystem[], topKs: readonly numbe
   if (!valid(topKs, 100) || !valid(contextBytes, 4_000_000)) throw new RangeError("Invalid or duplicate retrieval budgets.");
   const variants = systems.flatMap<LabVariant>(system => system === "full-context" || system === "no-memory"
     ? [{ id: system, system, budget: { topK: 1, contextBytes: 1 } }]
-    : (system === "recent" ? [1] : topKs).flatMap(topK => contextBytes.map(bytes => ({ id: `${system}:k${topK}:b${bytes}`, system, budget: { topK, contextBytes: bytes } }))));
+    : (system === "recent" || system === "user-context" ? [1] : topKs).flatMap(topK => contextBytes.map(bytes => ({ id: `${system}:k${topK}:b${bytes}`, system, budget: { topK, contextBytes: bytes } }))));
   if (variants.length > 128) throw new RangeError("At most 128 variants per sweep.");
   return variants;
 }
@@ -43,6 +46,8 @@ export async function runLab(dataset: Dataset, variants: readonly LabVariant[], 
     const retrievers = createRetrievers(corpus, memory?.units.get(corpus.id));
     let native: Awaited<ReturnType<typeof createLabMemory>> | undefined;
     let session: ReturnType<typeof createLabSession> | undefined;
+    let user: ReturnType<typeof createLabUser> | undefined;
+    let userHybrid: ReturnType<typeof createLabUserHybrid> | undefined;
     try {
       const fusion = variants.some(v => v.system === "bm25-fusion") ? createLabFusion(corpus, retrievers) : undefined;
       const diverse = variants.some(v => v.system === "bm25-diverse-window") ? createLabDiverse(corpus, retrievers) : undefined;
@@ -50,6 +55,8 @@ export async function runLab(dataset: Dataset, variants: readonly LabVariant[], 
         ...(fusion ? ["bm25-block" as const] : [])])]);
       if (variants.some(v => v.system === "oh-memory-api")) native = await createLabMemory(corpus);
       if (variants.some(v => v.system === "bm25-session")) session = createLabSession(corpus);
+      if (variants.some(v => v.system === "bm25-user-focused" || v.system === "user-context")) user = createLabUser(corpus);
+      if (variants.some(v => v.system === "bm25-user-hybrid")) userHybrid = createLabUserHybrid(corpus, retrievers);
       ingestion.push({ corpusId: corpus.id, turns: corpus.turns.length, buildMs: performance.now() - built,
         ...(native ? { native: native.native } : {}) });
       for (const question of questions.get(corpus.id)!) {
@@ -60,6 +67,9 @@ export async function runLab(dataset: Dataset, variants: readonly LabVariant[], 
             : variant.system === "bm25-session" ? await session!.retrieve(question.question, variant.budget)
             : variant.system === "bm25-fusion" ? await fusion!.retrieve(question.question, variant.budget)
             : variant.system === "bm25-diverse-window" ? await diverse!.retrieve(question.question, variant.budget)
+            : variant.system === "bm25-user-focused" ? await user!.retrieve(question.question, variant.budget, "focused")
+            : variant.system === "user-context" ? await user!.retrieve(question.question, variant.budget, "context")
+            : variant.system === "bm25-user-hybrid" ? await userHybrid!.retrieve(question.question, variant.budget)
             : await retrievers.retrieve(variant.system, question.question, variant.budget);
           const retrievalMs = performance.now() - began;
           const derived = retrieved.evidenceKind === "derived-unit";
@@ -75,7 +85,7 @@ export async function runLab(dataset: Dataset, variants: readonly LabVariant[], 
         }
       }
     } finally {
-      try { await native?.close(); } finally { try { session?.close(); } finally { retrievers.close(); } }
+      try { await native?.close(); } finally { try { session?.close(); } finally { try { userHybrid?.close(); } finally { try { user?.close(); } finally { retrievers.close(); } } } }
     }
   }
   const summaries = Object.fromEntries(variants.map(variant => {
@@ -101,6 +111,8 @@ export async function runLab(dataset: Dataset, variants: readonly LabVariant[], 
       "bm25-session ranks whole sessions; topK counts session hits before raw-turn packing.",
       "bm25-fusion combines up to 100 raw and 100 block-source turns by reciprocal rank, caches source ranks per question, then packs original turns.",
       "bm25-diverse-window reserves half the bytes for ranked session anchors, then expands same-occurrence raw neighbors; topK counts anchors, not output turns.",
+      "bm25-user-focused and user-context remove only explicit assistant-role turns; assistant-only facts can be lost. user-context remains byte-bounded and is not full-context.",
+      "bm25-user-hybrid alternates filtered human-turn and original-corpus BM25 ranks before packing original raw turns; it remains byte-bounded.",
       "Do not tune on final-test results. Paid reader and judge experiments remain separately budgeted."] };
 }
 
@@ -108,7 +120,7 @@ const HELP = `Usage: bun run bench:lab [options]
   --dataset locomo|longmemeval-s     Default: locomo
   --limit N                        Default: 24 development questions
   --systems NAME,NAME              Default: bm25-window,oh-window,bm25-block,oh-block,full-context
-  Extra lab systems: oh-memory-api (native provenance + host BM25), bm25-session, bm25-fusion, bm25-diverse-window
+  Extra lab systems: oh-memory-api (native provenance + host BM25), bm25-session, bm25-fusion, bm25-diverse-window, bm25-user-focused, user-context, bm25-user-hybrid
   --top-k N,N                      Default: 10,20,40
   --context-bytes N,N              Default: 4000,12000,24000
   --units PATH                     Optional verified development extraction report

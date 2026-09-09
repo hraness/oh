@@ -8,8 +8,10 @@ import { createLabDiverse } from "./lab-diverse";
 import { createLabFusion } from "./lab-fusion";
 import { createLabMemory } from "./lab-memory";
 import { createLabSession } from "./lab-session";
+import { createLabUser } from "./lab-user";
+import { createLabUserHybrid } from "./lab-user-hybrid";
 import { LAB_SYSTEMS, type LabSystem, type LabVariant } from "./lab";
-import { answerMessages } from "./model";
+import { labReaderMessages, type LabReaderPolicy } from "./lab-paid-reader";
 import { createRetrievers, SYSTEMS, type Retrieved, type System } from "./retrieval";
 
 const freeze = gatewayStudyTransportInternals.frozen;
@@ -17,9 +19,12 @@ export type LabPaidJob = Readonly<{ key: string; ordinal: 0; phase: "reader" | "
 export type LabPaidReaderCase = Readonly<{ ordinal: number; questionId: string; corpusId: string; groupId: string;
   category: string; system: LabSystem; variant: string; contextSha256: string; contextBytes: number;
   requestSha256: string; jobKey: string }>;
-export type LabPaidReaderPlan = Readonly<{ profile: "oh.lab-paid-reader-plan.v1"; namespaceSha256: string;
+export type LabPaidReaderPlan = Readonly<{ namespaceSha256: string;
   variants: readonly LabVariant[]; cases: readonly LabPaidReaderCase[]; jobs: readonly LabPaidJob[];
-  casesSha256: string; planSha256: string }>;
+  casesSha256: string; planSha256: string }> & (
+  Readonly<{ profile: "oh.lab-paid-reader-plan.v1" }>
+  | Readonly<{ profile: "oh.lab-paid-reader-plan.v2"; readerPolicy: "question-last-v1" }>
+);
 type JudgeIdentity = Readonly<Pick<LabPaidReaderCase, "ordinal" | "questionId" | "corpusId" | "groupId" | "category" | "system" | "variant"> & {
   readerJobKey: string; readerRequestSha256: string; readerResponseSha256: string }>;
 export type LabPaidJudgeCase = JudgeIdentity & (
@@ -88,17 +93,22 @@ function uniqueJobs(prepared: readonly LabPaidJob[]): readonly LabPaidJob[] {
 }
 
 /** No provider calls: all stores close before the immutable gold-free plan is returned. */
-export async function makeLabPaidReaderPlan(dataset: Dataset, inputVariants: readonly LabVariant[], namespaceSha256: string): Promise<LabPaidReaderPlan> {
+export async function makeLabPaidReaderPlan(dataset: Dataset, inputVariants: readonly LabVariant[], namespaceSha256: string, readerPolicy: LabReaderPolicy = "legacy-v1"): Promise<LabPaidReaderPlan> {
   if (!digest(namespaceSha256)) fail("invalid cache namespace");
+  if (readerPolicy !== "legacy-v1" && readerPolicy !== "question-last-v1") fail("unknown reader policy");
   const selected = selection(dataset), chosen = variants(inputVariants);
   const cases: LabPaidReaderCase[] = [], prepared: LabPaidJob[] = [];
   for (const corpus of selected.corpora) {
     const shared = createRetrievers(corpus);
     let native: Awaited<ReturnType<typeof createLabMemory>> | undefined, session: ReturnType<typeof createLabSession> | undefined;
+    let user: ReturnType<typeof createLabUser> | undefined;
+    let userHybrid: ReturnType<typeof createLabUserHybrid> | undefined;
     try {
       shared.prepare(chosen.flatMap(v => SYSTEMS.includes(v.system as System) ? [v.system as System] : []));
       if (chosen.some(v => v.system === "oh-memory-api")) native = await createLabMemory(corpus);
       if (chosen.some(v => v.system === "bm25-session")) session = createLabSession(corpus);
+      if (chosen.some(v => v.system === "bm25-user-focused" || v.system === "user-context")) user = createLabUser(corpus);
+      if (chosen.some(v => v.system === "bm25-user-hybrid")) userHybrid = createLabUserHybrid(corpus, shared);
       const fusion = createLabFusion(corpus, shared), diverse = createLabDiverse(corpus, shared);
       for (const [questionIndex, question] of selected.questions.entries()) {
         if (question.corpusId !== corpus.id) continue;
@@ -107,8 +117,11 @@ export async function makeLabPaidReaderPlan(dataset: Dataset, inputVariants: rea
             : variant.system === "bm25-session" ? await session!.retrieve(question.question, variant.budget)
             : variant.system === "bm25-fusion" ? await fusion.retrieve(question.question, variant.budget)
             : variant.system === "bm25-diverse-window" ? await diverse.retrieve(question.question, variant.budget)
+            : variant.system === "bm25-user-focused" ? await user!.retrieve(question.question, variant.budget, "focused")
+            : variant.system === "user-context" ? await user!.retrieve(question.question, variant.budget, "context")
+            : variant.system === "bm25-user-hybrid" ? await userHybrid!.retrieve(question.question, variant.budget)
             : await shared.retrieve(variant.system, question.question, variant.budget);
-          const physical = job(namespaceSha256, "reader", answerMessages(question, retrieved.context));
+          const physical = job(namespaceSha256, "reader", labReaderMessages(question, retrieved.context, readerPolicy));
           cases.push({ ordinal: questionIndex * chosen.length + variantIndex, questionId: question.id, corpusId: corpus.id,
             groupId: corpus.groupId, category: question.category, system: variant.system, variant: variant.id,
             contextSha256: sha256Hex(retrieved.context), contextBytes: Buffer.byteLength(retrieved.context),
@@ -116,11 +129,13 @@ export async function makeLabPaidReaderPlan(dataset: Dataset, inputVariants: rea
           prepared.push(physical);
         }
       }
-    } finally { try { await native?.close(); } finally { try { session?.close(); } finally { shared.close(); } } }
+    } finally { try { await native?.close(); } finally { try { session?.close(); } finally { try { userHybrid?.close(); } finally { try { user?.close(); } finally { shared.close(); } } } } }
   }
   cases.sort((a, b) => a.ordinal - b.ordinal);
   const byKey = new Map(prepared.map(j => [j.key, j]));
-  const payload = { profile: "oh.lab-paid-reader-plan.v1" as const, namespaceSha256, variants: chosen,
+  const identity = readerPolicy === "legacy-v1" ? { profile: "oh.lab-paid-reader-plan.v1" as const }
+    : { profile: "oh.lab-paid-reader-plan.v2" as const, readerPolicy };
+  const payload = { ...identity, namespaceSha256, variants: chosen,
     cases, jobs: uniqueJobs(cases.map(c => byKey.get(c.jobKey)!)), casesSha256: canonicalSha256(cases) };
   return freeze({ ...payload, planSha256: canonicalSha256(payload) });
 }
@@ -153,8 +168,12 @@ function boundResponse(j: LabPaidJob, response: GatewayStudyV6Result | undefined
   return response;
 }
 function validateReader(dataset: Dataset, plan: LabPaidReaderPlan) {
-  if (!exact(plan, ["profile", "namespaceSha256", "variants", "cases", "jobs", "casesSha256", "planSha256"])
-    || plan.profile !== "oh.lab-paid-reader-plan.v1" || !digest(plan.namespaceSha256)) fail("reader plan shape");
+  const readerPolicy: LabReaderPolicy = plan.profile === "oh.lab-paid-reader-plan.v1" ? "legacy-v1"
+    : plan.profile === "oh.lab-paid-reader-plan.v2" && plan.readerPolicy === "question-last-v1" ? plan.readerPolicy
+    : fail("reader plan profile or policy");
+  const keys = ["profile", "namespaceSha256", "variants", "cases", "jobs", "casesSha256", "planSha256"];
+  if (!exact(plan, readerPolicy === "legacy-v1" ? keys : [...keys, "readerPolicy"])
+    || !digest(plan.namespaceSha256)) fail("reader plan shape");
   const { planSha256, ...payload } = plan;
   if (canonicalSha256(payload) !== planSha256 || canonicalSha256(plan.cases) !== plan.casesSha256) fail("reader plan digest");
   const chosen = variants(plan.variants), selected = selection(dataset);
@@ -167,8 +186,9 @@ function validateReader(dataset: Dataset, plan: LabPaidReaderPlan) {
       || c.groupId !== corpus.groupId || c.category !== q.category || c.system !== v.system || c.variant !== v.id) fail("reader matrix alias drift");
     const j = jobs.get(c.jobKey) ?? fail("missing reader job");
     const user: unknown = JSON.parse(j.request.body.messages[1]!.content);
-    if (!exact(user, ["question", "questionDate", "memory"]) || !isPlainRecord(user) || typeof user.memory !== "string") fail("reader message shape");
-    same(j.request, makeGatewayStudyRequest({ phase: "reader", messages: answerMessages(q, user.memory) }), "reader prompt binding");
+    if (!exact(user, ["question", "questionDate", "memory"])
+      || !isPlainRecord(user) || typeof user.memory !== "string") fail("reader message shape");
+    same(j.request, makeGatewayStudyRequest({ phase: "reader", messages: labReaderMessages(q, user.memory, readerPolicy) }), "reader prompt binding");
     if (c.contextSha256 !== sha256Hex(user.memory) || c.contextBytes !== Buffer.byteLength(user.memory)
       || c.requestSha256 !== j.request.requestSha256) fail("reader context/request alias binding");
     if (!owners.includes(j.key)) owners.push(j.key);

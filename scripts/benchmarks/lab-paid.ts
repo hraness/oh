@@ -6,6 +6,7 @@ import { DATASETS, selectQuestions, selectSplit, type DatasetName } from "./data
 import { ROOT, codeIdentity, loadDataset, writeJson } from "./io";
 import { labVariants, type LabSystem } from "./lab";
 import { verifyPinnedLabPaidBudgetInput } from "./lab-paid-budget";
+import type { LabReaderPolicy } from "./lab-paid-reader";
 import { openLabPaidCache } from "./lab-paid-cache";
 import { executeLabPaidPhase } from "./lab-paid-executor";
 import { makeLabPaidReaderPlan, makeLabPaidJudgePlan, scoreLabPaidJudgePlan, validateLabPaidReaderPlan,
@@ -95,12 +96,13 @@ export function summarizeLabPaidScores(cases: readonly LabPaidScoredCase[], vari
 export async function main(args = process.argv.slice(2)) {
   const { values, positionals } = parseArgs({ args, allowPositionals: true, strict: true, options: {
     help: { type: "boolean" }, paid: { type: "boolean" }, dataset: { type: "string" }, limit: { type: "string" },
-    systems: { type: "string" }, "top-k": { type: "string" }, "context-bytes": { type: "string" },
+    systems: { type: "string" }, "reader-policy": { type: "string" }, "top-k": { type: "string" }, "context-bytes": { type: "string" },
     "budget-input": { type: "string" }, "budget-sha256": { type: "string" }, output: { type: "string" },
     plan: { type: "string" }, "plan-sha256": { type: "string" }, "max-usd": { type: "string" },
     "max-calls": { type: "string" }, concurrency: { type: "string" } } });
   if (values.help) { console.log(`Usage: bun run bench:lab:paid prepare|run [options]
 prepare --dataset locomo|longmemeval-s --limit 8 --systems bm25-window,bm25-session
+  --reader-policy legacy-v1|question-last-v1
   --top-k 20 --context-bytes 24000 --budget-input PATH --budget-sha256 SHA --output PATH
 run --paid --plan PATH --plan-sha256 SHA --max-usd TOTAL_AMENDMENT_CAP
   --max-calls 48 --concurrency 4 --output PATH
@@ -114,7 +116,7 @@ New output files are required. Do not retry occupied incomplete requests or rese
   if (await occupied(output) || await occupied(output + ".started.json")
     || await occupied(output + ".judges.json")) fail("output already occupied");
   const allowed = positionals[0] === "prepare"
-    ? new Set(["output", "dataset", "limit", "systems", "top-k", "context-bytes", "budget-input", "budget-sha256"])
+    ? new Set(["output", "dataset", "limit", "systems", "reader-policy", "top-k", "context-bytes", "budget-input", "budget-sha256"])
     : new Set(["output", "paid", "plan", "plan-sha256", "max-usd", "max-calls", "concurrency"]);
   if (Object.keys(values).some(key => !allowed.has(key))) fail("option does not apply to this action");
   if (positionals[0] === "prepare") {
@@ -127,7 +129,9 @@ New output files are required. Do not retry occupied incomplete requests or rese
     const dataset = await selection(name, limit);
     const variants = labVariants((values.systems ?? "bm25-window,bm25-session").split(",") as LabSystem[],
       [integer(values["top-k"], 20, 100)], [integer(values["context-bytes"], 24000, 4_000_000)]);
-    const reader = await makeLabPaidReaderPlan(dataset, variants, namespaceSha256);
+    const readerPolicy = values["reader-policy"] ?? "legacy-v1";
+    if (readerPolicy !== "legacy-v1" && readerPolicy !== "question-last-v1") fail("unknown reader policy");
+    const reader = await makeLabPaidReaderPlan(dataset, variants, namespaceSha256, readerPolicy as LabReaderPolicy);
     const plan: Plan = { profile: PROFILE, createdAt: new Date().toISOString(), cacheDirectory: CACHE,
       dataset: name, datasetSha256: DATASETS[name].sha256, split: "dev", seed: 17, limit,
       selectedQuestions: dataset.questions.map(q => q.id), selectedGroups: [...new Set(dataset.corpora.map(c => c.groupId))],
@@ -195,7 +199,8 @@ New output files are required. Do not retry occupied incomplete requests or rese
   const complete = failure === null && scores !== undefined;
   const report = { profile: PROFILE, status: complete ? "completed" : "incomplete", startedAt, finishedAt: new Date().toISOString(),
     elapsedMs: performance.now() - started, planPin, namespaceSha256: plan.namespaceSha256, dataset: plan.dataset,
-    selectionSha256: plan.selectionSha256, source: before, concurrency, plannedCases: plan.reader.cases.length,
+    selectionSha256: plan.selectionSha256, source: before, concurrency,
+    readerPolicy: plan.reader.profile === "oh.lab-paid-reader-plan.v1" ? "legacy-v1" : plan.reader.readerPolicy, plannedCases: plan.reader.cases.length,
     reader: phase(readerResult), judge: phase(judgeResult), budget: budget?.summary ?? null, failure,
     scores: complete ? scores : null, summary: complete ? summarizeLabPaidScores(scores!, plan.reader.variants.map(v => v.id)) : null,
     qualification: "Only completed full matrices have scores. Processing-started counts include admission rejections; use ledger reservations for conservative request exposure. Provider aliases are not pinned snapshots. No retry of occupied requests. Frozen dispatch remains paused until this ledger is included in its budget." };

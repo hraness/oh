@@ -67,15 +67,15 @@ bun run bench:lab:paid run --paid \
   --output .cache/benchmarks/lab/lme-paid8-results.json
 ```
 
-**`--max-usd` is the total shared amendment cap, not extra spending for this command.** The existing amendment exposure is $18.268639, including unresolved reservations. The runner adds the current shared cache exposure once, leaving at most $21.731361 before any new cache charges under the $40 cap. The example narrows that ceiling to $20 total, leaving at most $1.731361 beyond the historical exposure. The original $21.655385 historical ledger remains a separate authenticated anchor. `--max-calls` counts new reader and judge reservations together; cache hits consume none. Eight questions across two variants need at most 32 new calls. A lower call limit can leave an incomplete report.
+**`--max-usd` is the total shared amendment cap, not extra spending for this command.** The fixed ancestral amendment exposure is $18.268639, including unresolved reservations. The runner adds the current shared cache exposure once, leaving at most $21.731361 before any new cache charges under the $40 cap. The example narrows that ceiling to $20 total, leaving at most $1.731361 beyond the historical exposure. The original $21.655385 historical ledger remains a separate authenticated anchor. `--max-calls` counts new reader and judge reservations together; cache hits consume none. Eight questions across two variants need at most 32 new calls. A lower call limit can leave an incomplete report.
 
-Concurrency accepts integers 1–12 and defaults to four. Each free slot admits another request after its worst-case cost is reserved durably. Stop or failure closes admission and drains requests already admitted. These limits describe the implementation; observed provider capacity has not yet been established.
+Concurrency accepts integers 1–12 and defaults to four. Each free slot admits another request after its worst-case cost is reserved durably. Stop or failure closes admission and drains requests already admitted. The measured eight-slot development runs below completed without new transport failures; they do not establish a provider-wide capacity limit.
 
 All runs use `.cache/benchmarks/lab-paid` in this checkout. Preserve that directory and its ledger across plans and output filenames. An exact namespace plus provider-request digest owns one physical response, even when several question/variant cases share it. Changing retrieval without changing the actual request can therefore reuse the response. Reuse is not an independent model repeat. Completed entries authenticate their original raw capture before reuse; occupied incomplete entries fail preflight. Never delete, reset, rename around, or resubmit them to obtain another answer. Resuming an incomplete run requires a new report path and reuses completed requests; an occupied failed request requires a separately reviewed resolution.
 
 Readers use the fixed `openai/gpt-4.1-mini` alias and judges use `openai/gpt-4o`, with the existing bounded request profiles. Provider aliases are not pinned model snapshots. Gold answers enter only the separate judge stage. Exact-policy terminal reader truncations receive zero, retain their cases in the denominator, and generate no judge request. Other transport or validation failures leave the experiment incomplete. Scores are published only for the complete paired matrix, with grouped paired bootstrap summaries; small independent-group counts limit interpretation.
 
-The report records cache hits, phase completion, failures, elapsed time and conservative budget exposure. Its `.started.json` and `.judges.json` sidecars preserve admission and separate judge preparation; all output paths must be new. Keep the plan, reports and raw cache private. After the canary, prepare a new fixed 24-question development plan before considering the full development set. Current synthetic implementation tests verify cache, budget, concurrency and scoring behavior; they are not real reader quality scores. Development scores guide candidate selection and do not establish held-out superiority.
+The report records cache hits, phase completion, failures, elapsed time and conservative budget exposure. Its `.started.json` and `.judges.json` sidecars preserve admission and separate judge preparation; all output paths must be new. Keep the plan, reports and raw cache private. After the canary, prepare a new fixed 24-question development plan before considering the full development set. Synthetic implementation tests verify cache, budget, concurrency and scoring behavior; real development measurements are reported below. Development scores guide candidate selection and do not establish held-out superiority.
 
 ## Deliver work without delaying every experiment
 
@@ -155,3 +155,78 @@ The next feedback step is a small paired reader/judge experiment, with window/bl
 LongMemEval separates indexing, retrieval and reading, with session/turn granularity, key expansion and time-aware retrieval experiments. Its official implementation also supports oracle evidence and alternative reading methods. Those are useful controls and independent experiment axes, rather than reasons to perform another full extraction for every change. See the [official repository](https://github.com/xiaowu0162/LongMemEval) and [paper](https://arxiv.org/abs/2410.10813).
 
 Vercel documents provider-dependent prompt caching and routing controls. Configure these deliberately for a new development experiment and include them in its identity; do not mutate the frozen comparison. See [provider options](https://vercel.com/docs/ai-gateway/models-and-providers/provider-options) and [prompt caching](https://vercel.com/i/prompt-caching-across-providers).
+
+## Paid development measurements
+
+The [paid development report](results/memory-development-paid-canary-v1.json) records nested, fixed LongMemEval samples. The full sample contains 100 questions across 94 families. Readers use `openai/gpt-4.1-mini`; the separate judge uses `openai/gpt-4o`. Both are provider aliases. Windows and sessions use topK20 and a 24 KB ceiling throughout.
+
+| Questions | Reader policy | Window correct | Session correct | New requests | Execution seconds | Accounted USD |
+| --- | --- | --- | --- | --- | --- | --- |
+| 8 | Legacy | 5/8 | 5/8 | 44 | 26.93 | 0.433496 |
+| 8 | Question last | 5/8 | 5/8 | 35 | 20.90 | 0.428605 |
+| 24 | Legacy | 17/24 | 17/24 | 58 | 9.11 | 0.091001 |
+| 24 | Question last | 17/24 | 18/24 | 46 | 6.96 | 0.085321 |
+| 100 | Legacy | 68/100 | 65/100 | 271 | 50.90 | 0.419213 |
+| 100 | Question last | 64/100 | 66/100 | 215 | 38.73 | 0.399144 |
+
+The eight-question runs also include unbounded full context, which scored 5/8 under each policy and missed the same three questions. It used about 510 KB per question versus 24 KB for the bounded methods. A replay authenticated all 24 reader responses and 20 distinct judge responses in 0.46 seconds with zero new calls. That replay is the same sample, not an independent repeat.
+
+Choose the optional policy with `--reader-policy question-last-v1` during preparation. It puts memory before the question and date in the fixed two-message request, reinforces the distinction between the archive and current question, and asks the reader to collect distinct entities before counting. The versioned reader plan binds its policy and exact request bytes. Retrieval contexts, question selection, model aliases and output limits remain fixed within each paired policy comparison. Prepare a new plan to choose a policy; never rewrite an old request or reset its cache entry.
+
+The 24-question session gain did not establish a dependable improvement. On all 100 development questions, the policy lost four window answers overall and gained one session answer overall. The window comparison had four wins and eight losses; sessions had eight wins and seven losses. Grouped development bootstrap intervals for the changes were −10.9 to +2.9 percentage points and −6.2 to +8.8 points, respectively. Both system and key-order instructions change together, so this experiment does not isolate key order alone. **The legacy policy remains the default.** Two initially off-topic full-context answers became relevant but incomplete; relevance alone did not improve their scores.
+
+Later runs reuse earlier first responses: the 100-question legacy run had 48 reader cache hits and 38 judge cache hits, while the question-last run had 48 and 80. At concurrency eight, these runs made 271 and 215 new requests respectively. Reported execution times exclude host scheduling, context preparation, Vercel CLI authentication and initial source/dataset preflight. Different request counts and context sizes prevent a simple latency comparison between sample sizes.
+
+All paired matrices completed, with no new transport failures or unresolved new reservations. The seven runs, including the zero-cost replay, made 669 new requests and accounted for $1.856780. Shared amendment exposure reached $20.125419 after adding the fixed $18.268639 ancestry once. The two 100-question runs used a stricter $22 total ceiling within the unchanged $40 amendment cap. These are conservative usage estimates, not a billing invoice. Development results guide implementation choices; they do not establish held-out superiority, equivalence or saturation.
+
+## Human-turn retrieval experiment
+
+The opt-in `bm25-user-focused` and `user-context` methods remove only explicit assistant-role turns. Named human speakers remain, including both LoCoMo participants. The focused method ranks the filtered raw turns with BM25. The context method packs those turns in original chronological order under the requested byte ceiling; it is bounded and does not guarantee that all human history fits. Neither method uses question labels, answers or evidence annotations.
+
+This experiment tests whether removing verbose assistant replies makes personal evidence easier to retrieve and read. It can discard facts found only in assistant replies, so it is not a production or default change. Compare focused retrieval at matched byte ceilings, and identify larger chronological contexts separately as a diagnostic.
+
+```sh
+bun run bench:lab --dataset longmemeval-s --limit 100 \
+  --systems bm25-window,bm25-user-focused,user-context \
+  --top-k 20,100 --context-bytes 24000,96000 \
+  --output .cache/benchmarks/lab/lme-user-turns.json
+```
+
+The [human-turn screen](results/memory-development-user-v1.json) completed 1,000 LongMemEval and 4,000 LoCoMo query/variant evaluations with zero model calls. Total run times were 20.11 and 2.52 seconds, excluding a 422.7-second host queue wait. All questions remain in the reports; complete-evidence recall is defined on 93 and 312 annotated questions respectively.
+
+| Method | LongMemEval all evidence, 24 / 96 KB | LoCoMo all evidence, 24 / 96 KB |
+| --- | --- | --- |
+| Windows, topK20 | 69/93 / 74/93 | 216/312 / 216/312 |
+| Windows, topK100 | 69/93 / 79/93 | 244/312 / 254/312 |
+| Human focused, topK20 | 55/93 / 55/93 | 181/312 / 181/312 |
+| Human focused, topK100 | 59/93 / 59/93 | 214/312 / 215/312 |
+| Human chronological context | 8/93 / 77/93 | 66/312 / 283/312 |
+
+Human-only focused retrieval loses evidence and underfills the available context; at topK20 it averages 7.2 KB on LongMemEval under the 24 KB ceiling. The chronological 96 KB diagnostic averages 74.0 KB and recovers more evidence than the 24 KB window baseline, but it consumes substantially more context and loses assistant-only information. On LoCoMo, named speakers are retained, so this chronological arm is a byte-bounded raw conversation control. These results do not justify promoting human-only retrieval. The paid comparison tests whether the extra chronological evidence helps the reader while retaining the matched 24 KB window baseline.
+
+The paired 100-question reader comparison rejected both human-only candidates under both policies:
+
+| Reader policy | Window 24 KB | Human focused 24 KB | Human chronological 96 KB | New requests | Execution seconds | Accounted USD |
+| --- | --- | --- | --- | --- | --- | --- |
+| Legacy | 68/100 | 58/100 | 55/100 | 313 | 56.79 | 0.965018 |
+| Question last | 64/100 | 55/100 | 54/100 | 284 | 58.74 | 0.958082 |
+
+Each run reused all 100 baseline readers. The legacy chronological arm includes one exact-policy output-limit failure scored zero; its partial response was not accepted or retried. All 300 cases in each run remain in the denominator. The higher chronological retrieval recall did not translate into better answers. No human-only method is promoted. These two runs added $1.923100 of accounted usage, bringing shared amendment exposure to $22.048519. The second used a stricter $24 total ceiling within the $40 authorization.
+
+## Assistant-inclusive hybrid experiment
+
+The opt-in `bm25-user-hybrid` alternates human-only and original BM25 ranks, removes duplicate turn IDs, and packs original source turns under the requested byte ceiling. This preserves a route to assistant-only evidence. It uses no labels, derived facts or semantic embeddings. Each source contributes at most 100 ranked turns, and topK limits the final union before packing. Exact-question rank caching amortizes repeated budget variants; it is not an independent ranking-speed measurement. The experiment owns its filtered index and shares the original index with the surrounding sweep.
+
+```sh
+bun run bench:lab --dataset longmemeval-s --limit 100 \
+  --systems bm25-window,bm25-user-hybrid --top-k 20,100 \
+  --context-bytes 24000,96000 --output .cache/benchmarks/lab/lme-hybrid.json
+```
+
+The [hybrid screen](results/memory-development-hybrid-v1.json) evaluated eight variants on all 100 LongMemEval and 400 LoCoMo development questions. It completed 800 and 3,200 query/variant rows in 22.17 and 2.21 seconds, excluding a 1,186.5-second host queue wait. At topK100 and 24 KB, the hybrid recovered complete evidence on 69/93 LongMemEval questions, equal to windows. At 96 KB it reached 74/93 versus windows' 79/93. On LoCoMo the hybrid equals focused BM25, because neither named speaker is an assistant-role turn. No independent hybrid retrieval advantage is established.
+
+The paired reader comparison uses windows at topK20/24 KB as its baseline, the hybrid at topK100/24 KB as a matched-byte candidate, and windows at topK100/96 KB as a larger-context diagnostic. The last arm changes depth and context size together; report both changes and actual context use when comparing its accuracy.
+
+The completed 300-case reader matrix scored **70/100 for the hybrid**, **68/100 for the 24 KB baseline**, and **68/100 for the 96 KB window diagnostic**. The hybrid's paired grouped bootstrap interval is −3.1 to +7.2 percentage points, spanning zero. It is a candidate for further development, not a demonstrated improvement or a new default. The 96 KB arm averages 94.2 KB versus the baseline's 23.9 KB; its additional complete-evidence recall produced no net answer gain.
+
+The run reused 100 baseline readers, made 279 new reader/judge requests in 47.13 seconds at concurrency eight, and accounted for $1.174516. All cases completed without new reader failures or unresolved reservations. Shared amendment exposure reached $23.223035 under the $40 cap; the run's narrower total ceiling was $24. These results motivate a separate reader-model experiment with explicit request, price and failure policies.
