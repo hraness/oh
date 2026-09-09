@@ -53,16 +53,26 @@ function boundedString(value: unknown, maximumBytes: number): string | null {
 
 function segmentText(text: string, budget: number): string[] {
   const parts: string[] = [];
-  let current = "";
-  let cost = 0;
-  for (const character of text) {
-    const width = jsonBytes(character) - 2;
+  let start = 0, cost = 0;
+  for (let index = 0; index < text.length;) {
+    const code = text.charCodeAt(index);
+    // JSON uses short escapes for quotes, backslashes and five controls; lone surrogates use six bytes.
+    let width: number, units = 1;
+    if (code === 0x22 || code === 0x5c) width = 2;
+    else if (code < 0x20) width = code === 8 || code === 9 || code === 10 || code === 12 || code === 13 ? 2 : 6;
+    else if (code < 0x80) width = 1;
+    else if (code < 0x800) width = 2;
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      const next = text.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) { width = 4; units = 2; }
+      else width = 6;
+    } else width = code >= 0xdc00 && code <= 0xdfff ? 6 : 3;
     if (width > budget) throw new RangeError("Extraction chunk cannot hold a single code point of turn text.");
-    if (cost + width > budget) { parts.push(current); current = ""; cost = 0; }
-    current += character;
+    if (cost + width > budget) { parts.push(text.slice(start, index)); start = index; cost = 0; }
     cost += width;
+    index += units;
   }
-  parts.push(current);
+  parts.push(text.slice(start));
   return parts;
 }
 

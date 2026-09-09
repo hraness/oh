@@ -502,3 +502,12 @@ The reserved experiment is complete: do not use its outcomes for further tuning 
 replacement sampling. No population-superiority, saturation or production-default
 promotion is claimed. The older frozen 120-family comparison remains a separate,
 incomplete study requiring its preserved launcher-custody recovery.
+
+
+## Faster extraction chunk construction
+
+The extraction splitter now computes each code point's JSON-escaped UTF-8 width directly and slices the original text at chunk boundaries. It avoids per-character JSON serialization and temporary buffers while preserving the exact extraction chunks, IDs and prompts, including control characters and isolated UTF-16 surrogates.
+
+A bounded private prototype compared 222,487 segmentation cases and 26,732 chunk/prompt pairs against the original implementation. Matching failures remain failures. Five-sample synthetic chunk-construction medians improved from 9.154 to 0.617 ms for 256 KiB of ASCII, 12.954 to 1.298 ms for mixed Unicode/escapes, and 63.619 to 6.680 ms for a 1 MiB surrogate-heavy turn: **9.52–14.84× faster for this stage**. See the [compact measurement and parity report](results/memory-segmentation-performance-v1.json).
+
+These measurements cover synthetic chunk construction under concurrent benchmark load. They do not measure whole-study startup, model latency or memory use. The active frozen comparison retains its original generation source. Separately, tracing that source found repeated ancestry reconstruction and full-plan cloning before and after each batch; sharing authenticated immutable plans across an import session is the next performance investigation. Fresh byte, source, inventory and ledger checks must remain in place.
