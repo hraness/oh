@@ -67,8 +67,8 @@
     },
     {
       "path": "scripts/benchmarks/evolution-propose.ts",
-      "sha256": "a5a22ec8f92b4afbaf13b24bf05c8714aa2ae35d406892440f2a111c6d811e07",
-      "bytes": 25038
+      "sha256": "99fea61c12f76dc37363f334ba4aab80571a9b7e1ba4bcde5106e42db5eb9bf3",
+      "bytes": 39499
     },
     {
       "path": "tests/memory-benchmark-evolution-retrieval.test.ts",
@@ -77,8 +77,8 @@
     },
     {
       "path": "tests/memory-benchmark-evolution-propose.test.ts",
-      "sha256": "d8e1a4b9ca572a2fa4bd67a0217b8ea9a47ca3eb4a8059103b599b239901fca3",
-      "bytes": 10026
+      "sha256": "465e507d476258533e5eeefe4e3eba2a850854fc9fc2727ee85b0f9275f9adfa",
+      "bytes": 16681
     }
   ],
   "sourceContract": "oh.evolution-source-spans.v1",
@@ -111,12 +111,12 @@
     "providerCostUsd": 0,
     "combinedFocused": {
       "command": "bun test tests/memory-benchmark-evolution-*.test.ts",
-      "tests": 109,
-      "assertions": 1218,
+      "tests": 111,
+      "assertions": 1237,
       "exitCode": 0,
-      "scope": "Current combined source, including V2 proposal repair and native query/neighborhood controls."
+      "scope": "Current combined source, including pinned prior-proposal continuation and independent lineage review."
     },
-    "independentReview": "Separate reviewers checked V2 source/pool/reader/report bindings, the native factorial implementation, proposal V2 compatibility, and compact live result projections. Source and budget claims remain distinct from benchmark superiority."
+    "independentReview": "Separate reviewers checked V2 source/pool/reader/report bindings, the native factorial implementation, proposal V2 compatibility, and compact live result projections. Source and budget claims remain distinct from benchmark superiority. Continuation review reproduced rejection of pinned-object drift, forged historical fitness/selection, invented children and archived generation forgery; eight independent tests passed with 46 assertions."
   },
   "selfReview": {
     "bounds": "Current-source corpus, UTF-8 windows, window cache, span count and expected context budget are bounded. Truncated native pools fail; serialized CLI context plans over 128 MiB are rejected before publication.",
@@ -134,5 +134,5 @@
     "publishedArtifactPinsMustNotBeMigrated": true,
     "productionMemoryApiChanged": false
   },
-  "measurementRelationship": "The companion aggregate describes only the source-pinned predecessor prototype. No real-data or provider evaluation has been rerun for this V2 integration; tests use synthetic source and response fixtures."
+  "measurementRelationship": "The companion offline aggregate describes the source-pinned predecessor prototype. Live V2 runs carry separate source-pinned phase receipts and results; this manifest records implementation identity and synthetic validation, not a new accuracy measurement."
 }

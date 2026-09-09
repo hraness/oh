@@ -12,7 +12,7 @@ import { open } from "node:fs/promises";
 import { resolve } from "node:path";
 import { canonicalJson, canonicalSha256, sha256Hex } from "../../src/canonical";
 import { createEvolutionSeedCandidate, crossoverEvolutionCandidates, mutateEvolutionCandidate, parseEvolutionPopulationPolicy,
-  selectEvolutionParents, type EvolutionCandidate, type EvolutionDevelopmentFitness, type EvolutionGeneAxis } from "./evolution-population";
+  selectEvolutionParents, validateEvolutionCandidate, type EvolutionCandidate, type EvolutionDevelopmentFitness, type EvolutionGeneAxis } from "./evolution-population";
 import { evolutionPhaseAttempts, parseEvolutionRunConfig } from "./evolution";
 import { validateEvolutionAttemptFailure } from "./evolution-store";
 import { validateEvolutionRequest, type EvolutionRequest } from "./evolution-model";
@@ -37,6 +37,15 @@ function absolutePath(value: unknown, label: string): string {
   if (resolve(result) !== result) fail(`${label} must be an absolute canonical path`);
   return result;
 }
+function jsonRecord(bytes: Uint8Array, label: string): RecordValue {
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength < 1 || bytes.byteLength > 256 * 1024 * 1024) fail(`${label} byte bound exceeded`);
+  let value: unknown;
+  try { value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); } catch { fail(`invalid ${label} JSON`); }
+  return record(value, label);
+}
+function samePinnedRecord(supplied: RecordValue, pinned: RecordValue, label: string): void {
+  if (canonicalJson(supplied) !== canonicalJson(pinned)) fail(`${label} object differs from pinned bytes`);
+}
 async function jsonFile(path: string, label: string): Promise<readonly [RecordValue, Uint8Array]> {
   const absolute = absolutePath(path, label), file = await open(absolute, "r");
   let bytes: Uint8Array;
@@ -47,12 +56,10 @@ async function jsonFile(path: string, label: string): Promise<readonly [RecordVa
     const { bytesRead } = await file.read(bytes, 0, bytes.length, 0);
     if (bytesRead !== bytes.length) fail(`${label} changed while reading`);
   } finally { await file.close(); }
-  let value: unknown;
-  try { value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); } catch { fail(`invalid ${label} JSON`); }
-  return [record(value, label), bytes];
+  return [jsonRecord(bytes, label), bytes];
 }
 export function parseEvolutionProposalArgs(args: readonly string[]) {
-  const names = new Set(["report", "report-sha256", "reader-plan", "reader-output", "config", "reader", "parent-limit", "child-limit", "maximum-population", "output", "specialists"]);
+  const names = new Set(["report", "report-sha256", "reader-plan", "reader-output", "config", "reader", "parent-limit", "child-limit", "maximum-population", "output", "specialists", "previous-proposal", "previous-proposal-sha256"]);
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index], value = args[index + 1];
@@ -61,6 +68,8 @@ export function parseEvolutionProposalArgs(args: readonly string[]) {
   }
   for (const required of ["report", "report-sha256", "reader-plan", "reader-output", "config", "reader", "parent-limit", "child-limit", "maximum-population", "output"]) if (!values.has(required)) fail(`missing --${required}`);
   digest(values.get("report-sha256"), "report SHA-256");
+  if (values.has("previous-proposal") !== values.has("previous-proposal-sha256")) fail("previous proposal path and SHA-256 must be supplied together");
+  if (values.has("previous-proposal")) { absolutePath(values.get("previous-proposal"), "previous proposal"); digest(values.get("previous-proposal-sha256"), "previous proposal SHA-256"); }
   for (const name of ["report", "reader-plan", "reader-output", "config", "output"]) absolutePath(values.get(name), name);
   for (const name of ["parent-limit", "child-limit", "maximum-population"]) if (!/^(?:0|[1-9]\d*)$/.test(values.get(name)!)) fail(`invalid ${name}`);
   return values;
@@ -106,12 +115,121 @@ function uniqueGenome(candidate: EvolutionCandidate, seen: Set<string>, output: 
 }
 
 export type EvolutionProposalBuildInput = Readonly<{ flags: ReadonlyMap<string, string>; report: RecordValue; reportBytes: Uint8Array; reportSha256: string;
-  readerPlan: RecordValue; readerOutput: RecordValue; readerOutputSha256: string; config: RecordValue; configSha256: string }>;
+  readerPlan: RecordValue; readerPlanBytes: Uint8Array; readerOutput: RecordValue; readerOutputBytes: Uint8Array; readerOutputSha256: string;
+  config: RecordValue; configBytes: Uint8Array; configSha256: string;
+  previousProposal?: RecordValue; previousProposalBytes?: Uint8Array; previousProposalSha256?: string }>;
+type ArchivedCandidate = Readonly<{ status: "observed" | "proposed"; candidate: EvolutionCandidate }>;
+function priorProposal(source: EvolutionProposalBuildInput, profile: string) {
+  if (source.previousProposal === undefined && source.previousProposalBytes === undefined && source.previousProposalSha256 === undefined) return null;
+  if (source.previousProposal === undefined || source.previousProposalBytes === undefined || source.previousProposalSha256 === undefined) fail("incomplete previous proposal input");
+  const proposalSha256 = digest(source.previousProposalSha256, "previous proposal SHA-256");
+  if (!(source.previousProposalBytes instanceof Uint8Array) || sha256Hex(source.previousProposalBytes) !== proposalSha256) fail("previous proposal bytes do not match the supplied pin");
+  const value = jsonRecord(source.previousProposalBytes, "previous proposal");
+  samePinnedRecord(source.previousProposal, value, "previous proposal");
+  if (value.protocol !== "oh.memory.evolution-population-proposal.v1" || value.status !== "proposal-only") fail("previous proposal is not a proposal-only record");
+  const priorInputs = record(value.inputs, "previous proposal inputs"), priorLineage = record(value.lineage, "previous proposal lineage");
+  if (text(priorInputs.fixedReader, "previous fixed reader") !== profile) fail("previous proposal reader changed");
+  const priorInputPins = {
+    reportSha256: digest(record(priorInputs.report, "previous report input").sha256, "previous report input pin"),
+    configSha256: digest(record(priorInputs.config, "previous config input").sha256, "previous config input pin"),
+    readerPlanSha256: digest(record(priorInputs.readerPlan, "previous reader plan input").sha256, "previous reader plan input pin"),
+    readerOutputSha256: digest(record(priorInputs.readerOutput, "previous reader output input").sha256, "previous reader output input pin"),
+  };
+  for (const [name, pin] of Object.entries(priorInputPins)) if (pin !== digest(priorLineage[name], `previous ${name} lineage pin`)) fail("previous proposal input and lineage pins differ");
+  const priorPolicyValue = record(value.policy, "previous proposal policy"), { policySha256, ...policyPayload } = priorPolicyValue;
+  const policy = parseEvolutionPopulationPolicy(policyPayload);
+  if (digest(policySha256, "previous policy SHA-256") !== policy.policySha256 || policy.fixedReader !== profile) fail("previous policy changed");
+  const observed = record(value.observed, "previous observed candidates"), proposed = record(value.proposed, "previous proposed candidates");
+  const observedCandidates = array(observed.candidates, "previous observed candidates").map(candidate => {
+    try { return validateEvolutionCandidate(record(candidate, "previous observed candidate") as unknown as EvolutionCandidate, policy); } catch { fail("invalid previous observed candidate"); }
+  });
+  const proposedCandidates = array(proposed.candidates, "previous proposed candidates").map(candidate => {
+    try { return validateEvolutionCandidate(record(candidate, "previous proposed candidate") as unknown as EvolutionCandidate, policy); } catch { fail("invalid previous proposed candidate"); }
+  });
+  const byId = new Map(observedCandidates.map(candidate => [candidate.id, candidate]));
+  if (byId.size !== observedCandidates.length || new Set(proposedCandidates.map(candidate => candidate.id)).size !== proposedCandidates.length
+    || proposedCandidates.some(candidate => byId.has(candidate.id))) fail("previous candidate identity is duplicate");
+  const selection = record(observed.selection, "previous selection"), parentIds = array(selection.parentIds, "previous selected parent IDs").map(value => digest(value, "previous selected parent ID"));
+  const fitness = array(observed.fitness, "previous observed fitness").map(value => record(value, "previous observed fitness"));
+  const fitnessByCandidateId = new Map(fitness.map(value => [digest(value.candidateId, "previous fitness candidate ID"), value]));
+  if (parentIds.length < 1 || parentIds.length !== new Set(parentIds).size || parentIds.some(id => !byId.has(id) || !fitnessByCandidateId.has(id))
+    || fitnessByCandidateId.size !== observedCandidates.length || fitness.some(value => digest(value.reportSha256, "previous fitness report pin") !== priorInputPins.reportSha256)) fail("previous selected parents are not completely observed");
+  const historicalIdentity = record(value.identity, "previous evaluation identity");
+  const historicalLimit = integer(selection.requestedLimit, "previous selection limit", 1, observedCandidates.length);
+  const historicalSpecialists = array(selection.specialistCategories, "previous selection specialists").map(value => text(value, "previous selection specialist"));
+  let replayedSelection: ReturnType<typeof selectEvolutionParents>;
+  try {
+    replayedSelection = selectEvolutionParents({ policy, candidates: observedCandidates, results: fitness as unknown as EvolutionDevelopmentFitness[],
+      identity: historicalIdentity as never, limit: historicalLimit, ...(historicalSpecialists.length ? { specialistCategories: historicalSpecialists } : {}) });
+  } catch { return fail("previous observed fitness or selection is not reproducible"); }
+  if (canonicalJson(selection) !== canonicalJson(replayedSelection)
+    || digest(priorLineage.selectionSha256, "previous selection lineage pin") !== replayedSelection.selectionSha256) fail("previous selection does not match pinned fitness and identity");
+  const historyValue = value.history === undefined ? [] : array(record(value.history, "previous history").archive, "previous archive");
+  const archive = historyValue.map(value => {
+    const row = record(value, "previous archive row");
+    if (row.status !== "observed" && row.status !== "proposed") fail("invalid previous archive status");
+    try { return { status: row.status, candidate: validateEvolutionCandidate(record(row.candidate, "previous archive candidate") as unknown as EvolutionCandidate, policy) } as ArchivedCandidate; }
+    catch { return fail("invalid previous archived candidate"); }
+  });
+  const all = [...archive, ...observedCandidates.map(candidate => ({ status: "observed" as const, candidate })), ...proposedCandidates.map(candidate => ({ status: "proposed" as const, candidate }))];
+  const seen = new Map<string, ArchivedCandidate>();
+  for (const row of all) {
+    const prior = seen.get(row.candidate.id);
+    if (prior !== undefined && prior.candidate.genomeSha256 !== row.candidate.genomeSha256) fail("previous archive candidate identity changed");
+    seen.set(row.candidate.id, row);
+  }
+  for (const row of seen.values()) {
+    const candidate = row.candidate, parents = candidate.parentIds.map(parentId => seen.get(parentId)?.candidate);
+    if (candidate.origin === "seed") continue;
+    if (parents.some(parent => parent === undefined) || candidate.generation !== Math.max(...parents.map(parent => parent!.generation)) + 1) fail("previous candidate lineage is not preserved");
+    let rebuilt: EvolutionCandidate;
+    try {
+      rebuilt = candidate.origin === "mutation"
+        ? mutateEvolutionCandidate(parents[0]!, policy, { hypothesis: candidate.hypothesis, seed: candidate.seed, axis: candidate.mutationAxis as EvolutionGeneAxis })
+        : crossoverEvolutionCandidates(parents[0]!, parents[1]!, policy, { hypothesis: candidate.hypothesis, seed: candidate.seed });
+    } catch { return fail("previous candidate lineage is not reproducible"); }
+    if (canonicalJson(candidate) !== canonicalJson(rebuilt)) fail("previous candidate lineage is not reproducible");
+  }
+  const requestedChildren = integer(proposed.requestedChildren, "previous requested children", 0, 128);
+  if (integer(proposed.createdChildren, "previous created children", 0, requestedChildren) !== proposedCandidates.length
+    || integer(proposed.omittedChildren, "previous omitted children", 0, requestedChildren) !== requestedChildren - proposedCandidates.length
+    || observedCandidates.length + requestedChildren > policy.maximumPopulation) fail("previous child bounds changed");
+  const expectedChildren: EvolutionCandidate[] = [], priorGenomes = new Set(archive.map(row => row.candidate.genomeSha256));
+  for (const candidate of observedCandidates) priorGenomes.add(candidate.genomeSha256);
+  const axes: readonly EvolutionGeneAxis[] = ["system", "topK", "contextBytes"];
+  for (const parent of [...replayedSelection.parents].sort((left, right) => left.id.localeCompare(right.id))) for (const axis of axes) {
+    if (expectedChildren.length >= requestedChildren) break;
+    try { uniqueGenome(mutateEvolutionCandidate(parent, policy, { hypothesis: `Deterministic one-axis ${axis} mutation from pinned development parent.`,
+      seed: seedFor({ reportSha256: priorInputPins.reportSha256, parent: parent.id, axis }), axis }), priorGenomes, expectedChildren); } catch (error) {
+      if (!(error instanceof TypeError) || !error.message.includes("single-axis")) throw error;
+    }
+  }
+  const historicalParents = [...replayedSelection.parents].sort((left, right) => left.id.localeCompare(right.id));
+  for (let left = 0; left < historicalParents.length && expectedChildren.length < requestedChildren; left++) for (let right = left + 1; right < historicalParents.length && expectedChildren.length < requestedChildren; right++) {
+    uniqueGenome(crossoverEvolutionCandidates(historicalParents[left]!, historicalParents[right]!, policy, { hypothesis: "Deterministic crossover of pinned development parents.",
+      seed: seedFor({ reportSha256: priorInputPins.reportSha256, left: historicalParents[left]!.id, right: historicalParents[right]!.id }) }), priorGenomes, expectedChildren);
+  }
+  if (canonicalJson(proposedCandidates) !== canonicalJson(expectedChildren)) fail("previous proposed children do not match pinned parent provenance");
+  return { proposalSha256, policy, observedCandidates, proposedCandidates, selectedParents: [...replayedSelection.parents], archive: [...seen.values()] };
+}
 /** Builds deterministic candidates from a caller-authenticated report pin; it sends no requests. */
 export function buildEvolutionProposal(source: EvolutionProposalBuildInput) {
-const input = source.flags, { report, readerPlan, readerOutput, config } = source;
+const input = source.flags;
 const reportSha256 = digest(source.reportSha256, "externally supplied report SHA-256"), configSha256 = digest(source.configSha256, "config SHA-256"), profile = text(input.get("reader")!, "reader profile");
 if (!(source.reportBytes instanceof Uint8Array) || sha256Hex(source.reportBytes) !== reportSha256) fail("report bytes do not match the externally supplied report pin");
+const report = jsonRecord(source.reportBytes, "report");
+samePinnedRecord(source.report, report, "report");
+if (!(source.configBytes instanceof Uint8Array) || sha256Hex(source.configBytes) !== configSha256) fail("config bytes do not match the supplied pin");
+const config = jsonRecord(source.configBytes, "config");
+samePinnedRecord(source.config, config, "config");
+const readerPlan = jsonRecord(source.readerPlanBytes, "reader plan");
+samePinnedRecord(source.readerPlan, readerPlan, "reader plan");
+if (!(source.readerOutputBytes instanceof Uint8Array) || sha256Hex(source.readerOutputBytes) !== digest(source.readerOutputSha256, "reader output SHA-256")) fail("reader output bytes do not match the supplied pin");
+const readerOutput = jsonRecord(source.readerOutputBytes, "reader output");
+samePinnedRecord(source.readerOutput, readerOutput, "reader output");
+const hasPriorFlags = input.has("previous-proposal") || input.has("previous-proposal-sha256");
+const hasPriorPayload = source.previousProposal !== undefined || source.previousProposalBytes !== undefined || source.previousProposalSha256 !== undefined;
+if (hasPriorFlags !== hasPriorPayload) fail("previous proposal flags and payload must be supplied together");
 const parentLimit = integer(Number(input.get("parent-limit")), "parent limit", 1, 128), childLimit = integer(Number(input.get("child-limit")), "child limit", 0, 128);
 const maximumPopulation = integer(Number(input.get("maximum-population")), "maximum population", 1, 128);
 if (report.protocol !== "oh.memory.evolution-report.v1" || report.status !== "complete") fail("complete authenticated evolution report required");
@@ -132,9 +250,23 @@ const receiptConfigPin = record(readerOutput.configPin, "reader receipt config p
 if (absolutePath(receiptConfigPin.path, "reader receipt config path") !== absolutePath(input.get("config"), "config")
   || digest(receiptConfigPin.sha256, "reader receipt config sha256") !== configSha256) fail("supplied config does not exactly match the reader receipt pin");
 const variants = parsedConfig.variants.map(variant => ({ id: variant.id, system: variant.system, topK: variant.budget.topK, contextBytes: variant.budget.contextBytes }));
-const policy = parseEvolutionPopulationPolicy({ protocol: "oh.evolution-population-policy.v1", mode: "fixed-reader-memory", fixedReader: profile,
+const prior = priorProposal(source, profile);
+if (prior !== null && digest(input.get("previous-proposal-sha256"), "previous proposal CLI SHA-256") !== prior.proposalSha256) fail("previous proposal CLI pin does not match supplied bytes");
+const policy = prior?.policy ?? parseEvolutionPopulationPolicy({ protocol: "oh.evolution-population-policy.v1", mode: "fixed-reader-memory", fixedReader: profile,
   allowed: { system: [...new Set(variants.map(variant => variant.system))], topK: [...new Set(variants.map(variant => variant.topK))],
     contextBytes: [...new Set(variants.map(variant => variant.contextBytes))], reader: [profile] }, maximumPopulation });
+if (prior !== null && maximumPopulation !== policy.maximumPopulation) fail("continuation maximum population differs from the pinned policy");
+const continuationCandidates = prior === null ? null : [...prior.selectedParents, ...prior.proposedCandidates];
+if (continuationCandidates !== null) {
+  const byId = new Map(continuationCandidates.map(candidate => [candidate.id, candidate]));
+  if (byId.size !== continuationCandidates.length) fail("previous selected and proposed candidate identity is duplicate");
+  sameSet(variants.map(variant => variant.id), continuationCandidates.map(candidate => candidate.id), "next configuration and previous candidate IDs");
+  for (const variant of variants) {
+    const candidate = byId.get(variant.id)!;
+    if (candidate.genome.system !== variant.system || candidate.genome.topK !== variant.topK || candidate.genome.contextBytes !== variant.contextBytes
+      || candidate.genome.reader !== profile) fail("next configuration does not exactly express the pinned candidate phenotype");
+  }
+}
 const planProfiles = array(readerPlan.readerProfiles, "reader profiles").map(value => text(value, "reader profile"));
 if (!planProfiles.includes(profile)) fail("fixed reader is absent from pinned reader plan");
 const requests = array(readerPlan.requests, "reader requests").map(value => validateEvolutionRequest(record(value, "reader request") as unknown as EvolutionRequest));
@@ -193,8 +325,10 @@ for (const variant of variants) {
     if (failure !== undefined) return sum + integer(failure.reservationMicros, "unresolved reservation micros", 0, 1_000_000_000_000);
     fail("attempt coverage changed");
   }, 0);
-  const candidate = createEvolutionSeedCandidate({ system: variant.system as never, topK: variant.topK, contextBytes: variant.contextBytes, reader: profile as never }, policy,
-    { hypothesis: "Observed declared development configuration; no answer-tuned mutation.", seed: seedFor({ reportSha256, profile, variant: variant.id }) });
+  const candidate = continuationCandidates === null
+    ? createEvolutionSeedCandidate({ system: variant.system as never, topK: variant.topK, contextBytes: variant.contextBytes, reader: profile as never }, policy,
+      { hypothesis: "Observed declared development configuration; no answer-tuned mutation.", seed: seedFor({ reportSha256, profile, variant: variant.id }) })
+    : continuationCandidates.find(candidate => candidate.id === variant.id)!;
   candidates.push(candidate);
   const timing = latency(arm, knownPhysical.length, unknownDispatches);
   if (unknownDispatches !== 0 || timing.unmeasured !== 0) fail("unmeasured reader timing cannot enter parent selection");
@@ -206,7 +340,10 @@ const specialistCategories = input.has("specialists") && input.get("specialists"
 if (specialistCategories.some(category => category.length === 0) || new Set(specialistCategories).size !== specialistCategories.length) fail("invalid specialist category list");
 const selection = selectEvolutionParents({ policy, candidates, results: fitness, identity: evaluationIdentity, limit: parentLimit,
   ...(specialistCategories.length ? { specialistCategories } : {}) });
-const children: EvolutionCandidate[] = [], seen = new Set(candidates.map(candidate => candidate.genomeSha256));
+const archive: ArchivedCandidate[] = prior === null ? [] : [...prior.archive];
+const seen = new Set(archive.map(row => row.candidate.genomeSha256));
+for (const candidate of candidates) seen.add(candidate.genomeSha256);
+const children: EvolutionCandidate[] = [];
 const axes: readonly EvolutionGeneAxis[] = ["system", "topK", "contextBytes"];
 for (const parent of [...selection.parents].sort((left, right) => left.id.localeCompare(right.id))) for (const axis of axes) {
   if (children.length >= childLimit) break;
@@ -223,11 +360,12 @@ for (let left = 0; left < parents.length && children.length < childLimit; left++
 const output = { protocol: "oh.memory.evolution-population-proposal.v1", status: "proposal-only", qualification: "Development-only candidate proposal from an externally pinned report produced by the authenticated reporter. This command does not reopen the store. Verified responses use captured usage; authenticated unresolved attempts use their full preserved reservation conservatively and remain zero-scored. No model calls, answer tuning, new fitness, held-out score, or superiority claim.",
   inputs: { report: { path: absolutePath(input.get("report"), "report"), sha256: reportSha256 }, config: { path: absolutePath(input.get("config"), "config"), sha256: configSha256,
       receiptPin: { path: absolutePath(receiptConfigPin!.path, "reader receipt config path"), sha256: digest(receiptConfigPin!.sha256, "reader receipt config sha256") } },
-    readerPlan: { path: absolutePath(input.get("reader-plan"), "reader plan"), sha256: pins.readerPlanSha256 }, readerOutput: { path: absolutePath(input.get("reader-output"), "reader output"), sha256: pins.readerOutputSha256 }, fixedReader: profile },
+    readerPlan: { path: absolutePath(input.get("reader-plan"), "reader plan"), sha256: pins.readerPlanSha256 }, readerOutput: { path: absolutePath(input.get("reader-output"), "reader output"), sha256: pins.readerOutputSha256 }, fixedReader: profile,
+    ...(prior === null ? {} : { previousProposal: { path: absolutePath(input.get("previous-proposal"), "previous proposal"), sha256: prior.proposalSha256 } }) },
   lineage: { reportSha256, configSha256, readerPlanSha256: pins.readerPlanSha256, readerOutputSha256: pins.readerOutputSha256,
-    selectionSha256: selection.selectionSha256 },
-  policy, identity: evaluationIdentity, observed: { candidates, fitness, selection }, proposed: { requestedChildren: childLimit, createdChildren: children.length,
-    omittedChildren: childLimit - children.length, candidates: children, qualification: "Mutations change one declared retrieval axis; crossovers combine only selected parents and declared system/top-K/context domains." } };
+    ...(prior === null ? {} : { previousProposalSha256: prior.proposalSha256 }), selectionSha256: selection.selectionSha256 },
+  policy, identity: evaluationIdentity, history: { archive }, observed: { candidates, fitness, selection }, proposed: { requestedChildren: childLimit, createdChildren: children.length,
+    omittedChildren: childLimit - children.length, candidates: children, qualification: "Mutations change one declared retrieval axis; crossovers combine only selected parents and declared system/top-K/context domains. Proposed children are untested and have no observed fitness." } };
 return output;
 }
 
@@ -236,10 +374,12 @@ if (import.meta.main) {
   const [report, reportBytes] = await jsonFile(flags.get("report")!, "report");
   const reportSha256 = digest(flags.get("report-sha256"), "report SHA-256");
   if (sha256Hex(reportBytes) !== reportSha256) fail("report bytes do not match the externally supplied report pin");
-  const [readerPlan] = await jsonFile(flags.get("reader-plan")!, "reader plan");
+  const [readerPlan, readerPlanBytes] = await jsonFile(flags.get("reader-plan")!, "reader plan");
   const [readerOutput, readerOutputBytes] = await jsonFile(flags.get("reader-output")!, "reader output");
   const [config, configBytes] = await jsonFile(flags.get("config")!, "config");
-  const output = buildEvolutionProposal({ flags, report, reportBytes, reportSha256, readerPlan, readerOutput, readerOutputSha256: sha256Hex(readerOutputBytes), config, configSha256: sha256Hex(configBytes) });
+  const previous = flags.has("previous-proposal") ? await jsonFile(flags.get("previous-proposal")!, "previous proposal") : null;
+  const output = buildEvolutionProposal({ flags, report, reportBytes, reportSha256, readerPlan, readerPlanBytes, readerOutput, readerOutputBytes, readerOutputSha256: sha256Hex(readerOutputBytes), config, configBytes, configSha256: sha256Hex(configBytes),
+    ...(previous === null ? {} : { previousProposal: previous[0], previousProposalBytes: previous[1], previousProposalSha256: flags.get("previous-proposal-sha256")! }) });
   const outputPath = absolutePath(flags.get("output"), "output"), file = await open(outputPath, "wx", 0o600);
   const outputBytes = new TextEncoder().encode(`${canonicalJson(output)}\n`);
   try { await file.writeFile(outputBytes); await file.sync(); }

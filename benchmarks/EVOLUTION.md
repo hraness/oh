@@ -199,6 +199,31 @@ systems, top-K values, and context budgets. A configuration domain cannot be
 extended by a proposal; add and qualify a new ablation explicitly before it can
 appear as a child.
 
+To evaluate one proposal generation against the next paired development matrix, keep
+one fixed reader and make the new configuration's variant IDs equal to the exact
+candidate IDs selected as parents plus every proposed child. Each variant must
+also reproduce that candidate's system, top-K and context budget. Supply the
+prior output and its independently recorded file hash:
+
+```sh
+bun scripts/benchmarks/evolution-propose.ts \
+  --report /absolute/next/report.json --report-sha256 <next-recorded-report-sha256> \
+  --reader-plan /absolute/next/readers.json --reader-output /absolute/next/readers-complete.json \
+  --config /absolute/next/authorized-config.json --reader gpt5-nano-reader \
+  --parent-limit 2 --child-limit 8 --maximum-population 12 \
+  --previous-proposal /absolute/previous/population-proposal.json \
+  --previous-proposal-sha256 <previous-recorded-file-sha256> \
+  --output /absolute/next/population-proposal.json
+```
+
+Continuation retains the pinned policy and candidate archive. It re-measures the
+prior selected parents and children on the current complete paired matrix before
+selection; it does not compare fitness across report matrices or assign fitness
+to unevaluated ancestors or new children. A changed candidate ID, phenotype,
+reader, policy bound, previous input/lineage pin, or incomplete paired coverage
+rejects the handoff. The previous proposal flags are optional, so the seed-mode
+command remains valid for a first generation.
+
 For final comparisons, reproduce strong baselines under declared readers,
 context/tool budgets, source order and visibility cutoffs. Publish ingestion
 cost, amortization, storage and complete latency alongside accuracy. Treat
