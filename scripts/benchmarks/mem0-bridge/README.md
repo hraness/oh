@@ -153,3 +153,31 @@ The [reader-context adapter](../../../benchmarks/MEM0_READER_CONTEXT.md) packs t
 current SDK search projection into a separately identified 48/96 KB derived-memory
 context. It preserves SDK order and does not claim that an extraction is supported
 by its attributed source. Actual Mem0 accuracy remains a separate paid evaluation.
+
+An optional parent dispatcher flag, `batchEmbeddings: true`, enables a separate
+`oh.memory.mem0-rpc.v2` channel and `oh.memory.mem0-call.v2` batch embedding
+requests. The default remains the existing single-text path. The SDK's existing
+`embed_batch` list is transmitted in stable groups of at most100 texts; the parent
+may split these further to satisfy the pinned aggregate input byte allowance.
+Texts retain their exact bytes and order. Every returned vector has a unique
+in-range index and the configured finite dimensions before the original order is
+reconstructed. The same ledger admits, captures and settles both request formats
+against one authority; a batch is one physical HTTP reservation, not one per text.
+
+Only opted-in batches can use8MiB responses/worker frames. Legacy responses and
+frames remain limited to1MiB. Each batch RPC has at most262,144 vector components,
+and the existing total ledger storage/call/cost caps remain unchanged. Before
+admitting a batch, and on every later admission to that ledger, the parent
+reserves derived file headroom for the new reservation row and all outstanding
+raw-capture/settlement rows, including legacy requests. The obligation is
+reconstructed from existing replay state; no ledger schema changes. These
+bounds can produce groups smaller than100. Batch mode changes transport; it does
+not parallelize or reorder extraction chunks, change SDK prompts, add NLP models,
+automatically retry failures, or activate the private live qualification helper.
+
+`qualify_fake_batch_parent.ts` compares the default path and opt-in batch path
+through the real pinned SDK using one synthetic chunk and three extracted facts.
+It requires a caller-supplied pinned Python environment and writes a private
+receipt. Both modes use fake responses and a socket-blocked worker. No benchmark
+source or actual provider credential is used. Run it through the host scheduler
+where required, supplying `--python` and a fresh `--output` path.

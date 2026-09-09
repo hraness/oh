@@ -2,7 +2,7 @@
  * It creates only source-derived, opaque receipts. The worker can request a
  * typed call but cannot choose its profile, endpoint, namespace, or cost. */
 import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
-import { invokeMem0Request, makeMem0EmbeddingRequest, makeMem0LlmRequest, validateMem0BridgePolicy, type Mem0BridgePolicy, type Mem0Credential, type Mem0Fetcher, type Mem0Request, type Mem0Result, type openMem0Ledger } from "./mem0-ledger";
+import { invokeMem0Request, makeMem0BatchEmbeddingRequest, splitMem0EmbeddingBatch, MEM0_MAX_BATCH_RESPONSE_BYTES, makeMem0EmbeddingRequest, makeMem0LlmRequest, validateMem0BridgePolicy, type Mem0BridgePolicy, type Mem0Credential, type Mem0Fetcher, type Mem0AnyRequest, type Mem0AnyResult, type openMem0Ledger } from "./mem0-ledger";
 
 import { createMem0DurationClock, MEM0_QUALIFICATION_DURATION_POLICY } from "./mem0-duration";
 
@@ -69,25 +69,40 @@ export function makeMem0DerivationReceipt(policyInput: unknown, corpusInput: unk
   const policySha256 = canonicalSha256(policy), payload = { protocol: "oh.memory.mem0-derivation.v1" as const, policySha256, corpusSha256: corpus.corpusSha256, sourceReceiptSha256: corpus.sourceReceiptSha256, runSha256, namespace, chunkCount: corpus.chunks.length };
   return Object.freeze({ ...payload, receiptSha256: canonicalSha256(payload) });
 }
-function rpc(value: unknown, policy: Mem0BridgePolicy): Readonly<{ id: string; operation: "llm" | "embed"; payload: Record<string, unknown> }> {
+function rpc(value: unknown, policy: Mem0BridgePolicy, batchEnabled: boolean): Readonly<{ id: string; operation: "llm" | "embed" | "embed-batch"; payload: Record<string, unknown> }> {
+  if (isPlainRecord(value) && value.kind === "rpc-batch") {
+    const current = exact(value, ["kind", "protocol", "id", "operation", "namespace", "payload"]);
+    if (!batchEnabled || current.protocol !== "oh.memory.mem0-rpc.v2" || current.operation !== "embed-batch" || typeof current.id !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(current.id) || current.namespace !== policy.namespace || !isPlainRecord(current.payload)) fail("batch RPC requires explicit opt-in and identity");
+    return { id: current.id, operation: "embed-batch", payload: current.payload };
+  }
   const current = exact(value, ["kind", "id", "operation", "namespace", "payload"]); if (current.kind !== "rpc" || typeof current.id !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(current.id) || (current.operation !== "llm" && current.operation !== "embed") || current.namespace !== policy.namespace || !isPlainRecord(current.payload)) fail("invalid worker RPC"); return { id: current.id, operation: current.operation, payload: current.payload };
 }
 /** A serial dispatcher for one worker. It is deliberately not a generic provider
  * proxy: activity derives each SDK call from a selected source chunk or question. */
-export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpus: unknown; ledger: Ledger; credential: Mem0Credential; fetcher?: Mem0Fetcher }>) {
+export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpus: unknown; ledger: Ledger; credential: Mem0Credential; fetcher?: Mem0Fetcher; batchEmbeddings?: boolean }>) {
   const policy = validateMem0BridgePolicy(input.policy), corpus = validateMem0SelectedCorpus(input.corpus), derivation = makeMem0DerivationReceipt(policy, corpus);
-  const cancellation = new AbortController();
+  if (input.batchEmbeddings !== undefined && typeof input.batchEmbeddings !== "boolean") fail("batch embedding opt-in");
+  const batchEmbeddings = input.batchEmbeddings === true, cancellation = new AbortController();
   let ordinal = 0, activity: Activity | null = null, closed = false, chain: Promise<void> = Promise.resolve();
   const serial = <T>(action: () => Promise<T>): Promise<T> => { const next = chain.then(action, action); chain = next.then(() => undefined, () => undefined); return next; };
-  const choose = (request: Mem0Request) => input.fetcher === undefined
+  const choose = (request: Mem0AnyRequest) => input.fetcher === undefined
     ? invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, signal: cancellation.signal })
     : invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, fetcher: input.fetcher, signal: cancellation.signal });
-  return Object.freeze({ derivation, abort: () => cancellation.abort(), maximumCallTimeoutMs: Math.max(policy.llmProfile.timeoutMs, policy.embeddingProfile.timeoutMs), embeddingDimensions: policy.embeddingProfile.embeddingDimensions,
+  return Object.freeze({ derivation, batchEmbeddings, abort: () => cancellation.abort(), maximumCallTimeoutMs: Math.max(policy.llmProfile.timeoutMs, policy.embeddingProfile.timeoutMs), embeddingDimensions: policy.embeddingProfile.embeddingDimensions,
     beginIngest(chunkIdInput: unknown) { if (closed || cancellation.signal.aborted || activity !== null) fail("invalid ingest activity"); const chunkId = opaque(chunkIdInput), chunk = corpus.chunks.find(candidate => candidate.chunkId === chunkId); if (!chunk) fail("unknown source chunk"); activity = Object.freeze({ kind: "ingest", chunk }); },
     beginQuery(questionSha256: unknown) { if (closed || activity !== null || !sha(questionSha256)) fail("invalid query activity"); activity = Object.freeze({ kind: "query", questionSha256 }); },
     endActivity() { if (activity === null) fail("no active activity"); activity = null; },
-    async handle(value: unknown) { return serial(async () => { if (closed || activity === null) fail("RPC without active source-derived activity"); const frame = rpc(value, policy); let result: Mem0Result;
+    async handle(value: unknown) { return serial(async () => { if (closed || activity === null) fail("RPC without active source-derived activity"); const frame = rpc(value, policy, batchEmbeddings); let result: Mem0AnyResult;
       if (frame.operation === "llm") { if (activity.kind !== "ingest") fail("query cannot extract"); const payload = exact(frame.payload, ["messages", "responseFormat"]), format = payload.responseFormat; if (format !== null && format !== undefined && format !== "json_object" && (!isPlainRecord(format) || !hasExactKeys(format, ["type"]) || format.type !== "json_object")) fail("unexpected extraction response format"); const request = makeMem0LlmRequest(policy, ordinal++, payload.messages); result = await choose(request); if (result.kind !== "llm" || !("content" in result.value)) fail("LLM result identity"); return Object.freeze({ kind: "rpc-result", id: frame.id, ok: true, result: Object.freeze({ content: result.value.content }) }); }
+      if (frame.operation === "embed-batch") {
+        const payload = exact(frame.payload, ["texts", "action"]);
+        if (payload.action !== "add" && payload.action !== "update" && payload.action !== "search" || activity.kind === "query" && payload.action !== "search") fail("batch embedding activity mismatch");
+        const groups = splitMem0EmbeddingBatch(policy, payload.texts);
+        const requests = groups.map(texts => makeMem0BatchEmbeddingRequest(policy, ordinal++, activity!.kind === "query" ? "query-embed" : "ingest-embed", texts));
+        const embeddings: (readonly number[])[] = [];
+        for (const request of requests) { const response = await choose(request); if (response.kind !== "embedding-batch") fail("batch embedding result identity"); embeddings.push(...response.value.embeddings); }
+        return Object.freeze({ kind: "rpc-result", protocol: "oh.memory.mem0-rpc.v2", id: frame.id, ok: true, result: Object.freeze({ embeddings: Object.freeze(embeddings) }) });
+      }
       const payload = exact(frame.payload, ["text", "action"]); if (payload.action !== "add" && payload.action !== "update" && payload.action !== "search") fail("embedding action"); if (activity.kind === "query" && payload.action !== "search") fail("embedding activity mismatch"); const request = makeMem0EmbeddingRequest(policy, ordinal++, activity.kind === "query" ? "query-embed" : "ingest-embed", payload.text); result = await choose(request); if (result.kind !== "embedding" || !("embedding" in result.value)) fail("embedding result identity"); return Object.freeze({ kind: "rpc-result", id: frame.id, ok: true, result: Object.freeze({ embedding: result.value.embedding }) });
     }); },
     async close() { await chain; if (activity !== null) fail("cannot close active activity"); closed = true; },
@@ -100,10 +115,14 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
   const corpus = validateMem0SelectedCorpus(input.corpus), command = [...input.command];
   if (command.length < 2 || command.length > 16 || command.some(part => typeof part !== "string" || part.length < 1 || part.length > 4096 || part.includes("\0")) || input.dispatcher.derivation.corpusSha256 !== corpus.corpusSha256) fail("worker command or corpus binding");
   if (input.persistentVectorStore !== undefined && typeof input.persistentVectorStore !== "boolean") fail("persistent vector-store flag");
+  const frameLimit = input.dispatcher.batchEmbeddings === true ? MEM0_MAX_BATCH_RESPONSE_BYTES : MAX_FRAME;
+  const frameValueLimit = (value: unknown) => input.dispatcher.batchEmbeddings === true && isPlainRecord(value)
+    && value.protocol === "oh.memory.mem0-rpc.v2" && (value.kind === "rpc-batch" || value.kind === "rpc-result")
+    ? MEM0_MAX_BATCH_RESPONSE_BYTES : MAX_FRAME;
   const clock = createMem0DurationClock(input.durationPolicy ?? MEM0_QUALIFICATION_DURATION_POLICY);
   if (input.dispatcher.maximumCallTimeoutMs > clock.policy.drainMs) fail("provider timeout exceeds drain policy");
   const { spawn } = await import("node:child_process");
-  const child = spawn(command[0]!, command.slice(1), { cwd: input.workerDirectory, stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH ?? "", PYTHONPATH: input.workerDirectory, MEM0_DIR: input.mem0Directory, MEM0_VECTOR_DIMENSIONS: String(input.dispatcher.embeddingDimensions), MEM0_VECTOR_PERSISTENCE: input.persistentVectorStore === true ? "local" : "memory", MEM0_TELEMETRY: "false", NO_PROXY: "*", HTTP_PROXY: "", HTTPS_PROXY: "", ALL_PROXY: "", http_proxy: "", https_proxy: "", all_proxy: "" } });
+  const child = spawn(command[0]!, command.slice(1), { cwd: input.workerDirectory, stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH ?? "", PYTHONPATH: input.workerDirectory, MEM0_DIR: input.mem0Directory, MEM0_VECTOR_DIMENSIONS: String(input.dispatcher.embeddingDimensions), MEM0_VECTOR_PERSISTENCE: input.persistentVectorStore === true ? "local" : "memory", MEM0_EMBEDDING_BATCH: input.dispatcher.batchEmbeddings === true ? "v2" : "off", MEM0_TELEMETRY: "false", NO_PROXY: "*", HTTP_PROXY: "", HTTPS_PROXY: "", ALL_PROXY: "", http_proxy: "", https_proxy: "", all_proxy: "" } });
   if (!child.stdin || !child.stdout || !child.stderr) { child.kill(); fail("worker pipes unavailable"); }
   let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
   const lifecycleTimer = setTimeout(() => { broken = true; input.dispatcher.abort(); child.kill(); forceKillTimer = setTimeout(() => child.kill("SIGKILL"), clock.policy.killGraceMs); }, clock.policy.lifecycleMs);
@@ -119,12 +138,12 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
   const remaining = () => { const value = clock.remaining(); if (value <= 0 || workerError !== null || stderrBytes > MAX_FRAME) { kill(); fail("worker timeout, error or stderr bound"); } return value; };
   const bounded = async <T>(promise: Promise<T>, label: string): Promise<T> => { let timer: ReturnType<typeof setTimeout> | null = null; try { return await Promise.race([promise, new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error(label)), remaining()); })]); } catch { kill(); fail(label); } finally { if (timer !== null) clearTimeout(timer); } };
   const write = async (value: unknown) => {
-    const raw = Buffer.from(JSON.stringify(value) + "\n"); if (raw.length > MAX_FRAME) fail("outbound worker frame bound");
+    const raw = Buffer.from(JSON.stringify(value) + "\n"); if (raw.length > frameValueLimit(value)) fail("outbound worker frame bound");
     await bounded(new Promise<void>((resolve, reject) => { child.stdin!.write(raw, error => error ? reject(error) : resolve()); }), "worker write deadline");
   };
   const nextFrame = async (): Promise<Record<string, unknown>> => {
-    while (true) { const end = buffered.indexOf(10); if (end >= 0) { const line = buffered.subarray(0, end); buffered = buffered.subarray(end + 1); if (line.length === 0 || line.length > MAX_FRAME) { kill(); fail("worker frame bound"); } try { const parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(line)); if (!isPlainRecord(parsed)) fail("worker frame object"); return parsed; } catch { kill(); fail("worker frame JSON"); } }
-      const next = await bounded(iterator.next(), "worker frame deadline"); if (next.done) { ended = true; fail("worker closed frame stream"); } buffered = Buffer.concat([buffered, Buffer.from(next.value)]); if (buffered.length > MAX_FRAME + 1) { kill(); fail("worker oversized frame"); } }
+    while (true) { const end = buffered.indexOf(10); if (end >= 0) { const line = buffered.subarray(0, end); buffered = buffered.subarray(end + 1); if (line.length === 0 || line.length > frameLimit) { kill(); fail("worker frame bound"); } try { const parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(line)); if (!isPlainRecord(parsed)) fail("worker frame object"); if (line.length > frameValueLimit(parsed)) fail("worker protocol frame bound"); return parsed; } catch { kill(); fail("worker frame JSON"); } }
+      const next = await bounded(iterator.next(), "worker frame deadline"); if (next.done) { ended = true; fail("worker closed frame stream"); } buffered = Buffer.concat([buffered, Buffer.from(next.value)]); if (buffered.length > frameLimit + 1) { kill(); fail("worker oversized frame"); } }
   };
   const send = async (commandValue: Record<string, unknown>, begin: (() => void) | null) => {
     if (closed || broken || ended || active) fail("worker activity overlap or closed"); active = true; clock.beginCommand(); let began = false;
@@ -133,7 +152,7 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
       await write(commandValue);
       while (true) {
         const frame = await nextFrame();
-        if (frame.kind === "rpc") { const reply = await bounded(input.dispatcher.handle(frame), "worker RPC deadline"); await write(reply); continue; }
+        if (frame.kind === "rpc" || frame.kind === "rpc-batch") { const reply = await bounded(input.dispatcher.handle(frame), "worker RPC deadline"); await write(reply); continue; }
         const result = exact(frame, ["kind", "id", "ok", "result"]);
         if (result.kind !== "result" || result.id !== commandValue.id || result.ok !== true || !isPlainRecord(result.result)) fail("worker command result");
         return result.result;

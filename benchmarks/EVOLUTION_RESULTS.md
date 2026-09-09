@@ -558,3 +558,20 @@ The [compact screen](results/memory-evolution-opening-turns-source100-v1.json)
 records every gain and loss in aggregate, source/context pins and the uncommitted
 offline-source qualification. Paid answer quality remains unmeasured. This uses
 the same exposed development questions and establishes no benchmark superiority.
+
+## Mem0 embedding-batch qualification
+
+The opt-in Mem0 bridge transports the SDK's existing embedding lists in bounded
+batches. One synthetic chunk with three extracted facts required six fake
+provider requests through the default single-text path and four through the
+batch path. Both used the real pinned Mem0 SDK and local Qdrant, returned the
+same ordered memories and search results, replayed every settled call and
+closed cleanly. No actual provider requests or spending were involved.
+
+The [compact qualification](results/memory-evolution-mem0-batch-qualification-v1.json)
+records the fixture, runtime and source pins. Subsequent focused tests cover
+protocol-specific frame limits and reservation of ledger storage for outstanding
+response capture and settlement. The SDK fixture predates those boundary
+changes; its small responses fit the new limits. The existing single-text path
+remains the default. This establishes transport compatibility for the fixture,
+not a measured improvement in live latency, cost or benchmark accuracy.

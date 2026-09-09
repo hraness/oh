@@ -1,0 +1,73 @@
+{
+  "protocol": "oh.memory.mem0-batch-qualification-summary.v1",
+  "scope": "Synthetic integration qualification of the real pinned Mem0 SDK and local Qdrant; no benchmark questions or provider calls.",
+  "sourceBase": "479de0df8670657001476ed7ffd3ffc8c6f11d84",
+  "candidatePatchSha256": "18e33195fe7496516614fd373beb195896f6e30a80e6e02bc6b62d31f5d0d801",
+  "runtime": {
+    "mem0": "2.0.20",
+    "mem0Commit": "9a7924befd7026e41e445ba809370009e5e985a6",
+    "qdrantClient": "1.19.0"
+  },
+  "fixture": {
+    "sourceChunks": 1,
+    "extractedFacts": 3,
+    "providerResponses": "deterministic fake transport",
+    "workerSocketGuard": true,
+    "orderedEmbeddedTextDigestIdentical": true,
+    "orderedSearchResultIdentical": true,
+    "singleText": {
+      "fakePhysicalCalls": 6,
+      "llmCalls": 1,
+      "singleEmbeddingCalls": 5,
+      "batchEmbeddingCalls": 0,
+      "searchResults": 3,
+      "replayedSettledCalls": 6,
+      "workerExit": {
+        "code": 0,
+        "signal": null,
+        "graceful": true
+      }
+    },
+    "optInBatch": {
+      "fakePhysicalCalls": 4,
+      "llmCalls": 1,
+      "singleEmbeddingCalls": 2,
+      "batchEmbeddingCalls": 1,
+      "batchRpc": 1,
+      "searchResults": 3,
+      "replayedSettledCalls": 4,
+      "workerExit": {
+        "code": 0,
+        "signal": null,
+        "graceful": true
+      }
+    }
+  },
+  "actualProviderCalls": 0,
+  "actualCostMicros": 0,
+  "validation": {
+    "initialFocusedTests": 19,
+    "initialAssertions": 248,
+    "finalFrameFocusedTests": 7,
+    "finalFrameAssertions": 49,
+    "pythonFrameChecks": 10,
+    "strictScopedTypecheckPassed": true,
+    "legacyWireHashGoldenPassed": true,
+    "storageHeadroomFocusedTests": 4,
+    "storageHeadroomAssertions": 27
+  },
+  "evidence": {
+    "sdkReceiptFileSha256": "5df2227b0bf54bad6fa998cd27891beb41b933a3cb49af9bd8c6fe578b74c6ca",
+    "sdkReceiptPayloadSha256": "8ec5bddb81fbb3087cece6eabfedf588cbdf08f7c37cea30d63e9e8c92d38976",
+    "initialFocusedLogSha256": "5fa9809f04426e7820643742e15a993662f7cf896f925e98daa4436ce489d4c3",
+    "finalFrameLogSha256": "173a250dde4c2c881aed05fd376304b09f412b481ddaf66278d4139f33eb8704",
+    "pythonFrameLogSha256": "5dde8c039cd154c9f6fcc6261eb6840de831d061e00fd5bf51161a316b761f7e"
+  },
+  "qualification": [
+    "Six to four is a physical fake-request reduction for this fixture, not measured paid cost savings, production latency or answer quality.",
+    "The SDK proof completed before final frame hardening. Later production edits restrict ordinary frames to1MiB in batch-enabled mode; only explicit V2 batch frames may use8MiB. The fixture three-by1536 vector response is below1MiB.",
+    "The subsequent boundary change passed focused parent and Python frame tests. The successful real-SDK proof was not repeated.",
+    "Batch mode remains explicit opt-in. The current single-text live qualification and shared spending authority are unchanged.",
+    "A later admission guard additionally reserves room for outstanding capture and settlement rows before dispatch in batch-bearing ledgers. This boundary passed four focused tests; the original tiny SDK proof was not rerun."
+  ]
+}

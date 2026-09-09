@@ -37,10 +37,21 @@ export type Mem0Result = Readonly<{ requestSha256: string; profileSha256: string
   kind: CallKind; value: Readonly<{ content: string }> | Readonly<{ embedding: readonly number[] }>;
   usage: Readonly<{ inputTokens: number; outputTokens: number; tokenRateMicros: number; gatewayReportedMicros: number | null; micros: number }> }>;
 export type Mem0Credential = Readonly<{ token: string; auth: GatewayStudyAuth }>;
+export type Mem0BatchEmbeddingRequest = Readonly<Omit<Mem0Request, "protocol" | "kind" | "operation"> & {
+  protocol: "oh.memory.mem0-call.v2"; kind: "embedding-batch"; operation: "ingest-embed" | "query-embed"; inputCount: number;
+}>;
+export type Mem0BatchEmbeddingResult = Readonly<Omit<Mem0Result, "kind" | "value"> & {
+  protocol: "oh.memory.mem0-result.v2"; kind: "embedding-batch"; value: Readonly<{ embeddings: readonly (readonly number[])[] }>;
+}>;
+export type Mem0AnyRequest = Mem0Request | Mem0BatchEmbeddingRequest;
+export type Mem0AnyResult = Mem0Result | Mem0BatchEmbeddingResult;
+export const MEM0_MAX_BATCH_INPUTS = 100, MEM0_MAX_BATCH_RESPONSE_BYTES = 8 * 1024 * 1024;
+const MAX_BATCH_VECTOR_VALUES = 262_144;
+function responseBound(request: Mem0AnyRequest) { return request.protocol === "oh.memory.mem0-call.v2" ? MEM0_MAX_BATCH_RESPONSE_BYTES : MAX_RAW; }
 type State = "reserved" | "captured" | "settled";
-type Entry = Readonly<{ request: Mem0Request; state: State; raw: Uint8Array | null; transport: Transport | null; result: Mem0Result | null }>;
-type Event = Readonly<{ kind: "reserved"; request: Mem0Request }> | Readonly<{ kind: "captured"; requestSha256: string; rawBase64: string; transport: Transport }>
-  | Readonly<{ kind: "settled"; requestSha256: string; result: Mem0Result }>;
+type Entry = Readonly<{ request: Mem0AnyRequest; state: State; raw: Uint8Array | null; transport: Transport | null; result: Mem0AnyResult | null }>;
+type Event = Readonly<{ kind: "reserved"; request: Mem0AnyRequest }> | Readonly<{ kind: "captured"; requestSha256: string; rawBase64: string; transport: Transport }>
+  | Readonly<{ kind: "settled"; requestSha256: string; result: Mem0AnyResult }>;
 function fail(reason: string): never { throw new TypeError(`Mem0 ledger: ${reason}.`); }
 const integer = (value: unknown, maximum = Number.MAX_SAFE_INTEGER): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && !Object.is(value, -0) && value <= maximum;
 const sha = (value: unknown) => typeof value === "string" && parseSha256Hex(value) !== null;
@@ -111,6 +122,46 @@ export function makeMem0EmbeddingRequest(policyInput: unknown, ordinal: unknown,
   return request({ protocol: "oh.memory.mem0-call.v1", kind: "embedding", operation, runSha256: policy.runSha256, namespace: policy.namespace, ordinal: ordinal as number,
     profile: selected, profileSha256, endpoint: selected.endpoint, body, inputUpperBound, reservationMicros, timeoutMs: selected.timeoutMs });
 }
+/** Separate opt-in batch wire: legacy requests and result preimages are unchanged. */
+export function makeMem0BatchEmbeddingRequest(policyInput: unknown, ordinal: unknown, operation: unknown, texts: unknown): Mem0BatchEmbeddingRequest {
+  const policy = validateMem0BridgePolicy(policyInput), selected = policy.embeddingProfile;
+  if (!integer(ordinal, 1_000_000) || operation !== "ingest-embed" && operation !== "query-embed" || !Array.isArray(texts)
+    || texts.length < 1 || texts.length > MEM0_MAX_BATCH_INPUTS || texts.length * selected.embeddingDimensions! > MAX_BATCH_VECTOR_VALUES) fail("invalid bounded embedding batch");
+  const copied = Object.freeze(texts.map(value => boundedText(value)));
+  const body = Object.freeze({ ...bodyBase(selected), input: copied, encoding_format: "float" });
+  const bodyBytes = Buffer.byteLength(JSON.stringify(body)), inputUpperBound = bodyBytes + 2_048;
+  if (inputUpperBound > selected.maxInputTokens || bodyBytes > MAX_REQUEST) fail("embedding batch request bound exceeded");
+  const preimage = { protocol: "oh.memory.mem0-call.v2", kind: "embedding-batch", operation, runSha256: policy.runSha256, namespace: policy.namespace,
+    ordinal, profile: selected, profileSha256: canonicalSha256(selected), endpoint: selected.endpoint, body, inputCount: copied.length,
+    inputUpperBound, reservationMicros: cost(selected.maxInputTokens, 0, selected), timeoutMs: selected.timeoutMs } as const;
+  return Object.freeze({ ...preimage, requestSha256: canonicalSha256(preimage) });
+}
+/** Greedy stable subdivision: the SDK's at-most100-text RPC may need smaller
+ * HTTP arrays to stay within the pinned profile's aggregate input byte bound. */
+export function splitMem0EmbeddingBatch(policyInput: unknown, texts: unknown): readonly (readonly string[])[] {
+  const policy = validateMem0BridgePolicy(policyInput);
+  if (!Array.isArray(texts) || texts.length < 1 || texts.length > MEM0_MAX_BATCH_INPUTS || texts.length * policy.embeddingProfile.embeddingDimensions! > MAX_BATCH_VECTOR_VALUES) fail("embedding batch list bound");
+  const input = texts.map(value => boundedText(value)), groups: string[][] = []; let pending: string[] = [];
+  for (const text of input) {
+    // Validate every single text before any dispatcher admission.
+    makeMem0BatchEmbeddingRequest(policy, 0, "ingest-embed", [text]);
+    const next = [...pending, text], body = { ...bodyBase(policy.embeddingProfile), input: next, encoding_format: "float" };
+    if (pending.length > 0 && (Buffer.byteLength(JSON.stringify(body)) + 2_048 > policy.embeddingProfile.maxInputTokens
+      || Buffer.byteLength(JSON.stringify(body)) > MAX_REQUEST || next.length * policy.embeddingProfile.embeddingDimensions! > MAX_BATCH_VECTOR_VALUES)) { groups.push(pending); pending = [text]; }
+    else pending = next;
+  }
+  if (pending.length) groups.push(pending);
+  return Object.freeze(groups.map(group => Object.freeze(group)));
+}
+export function validateMem0BatchEmbeddingRequest(value: unknown): Mem0BatchEmbeddingRequest {
+  const current = exact(value, ["protocol", "kind", "operation", "runSha256", "namespace", "ordinal", "profile", "profileSha256", "endpoint", "body", "inputCount", "inputUpperBound", "reservationMicros", "timeoutMs", "requestSha256"]);
+  if (current.protocol !== "oh.memory.mem0-call.v2" || current.kind !== "embedding-batch" || !isPlainRecord(current.body)) fail("batch request protocol");
+  const selected = profile(current.profile); if (selected.kind !== "embedding") fail("batch embedding profile");
+  const rebuilt = makeMem0BatchEmbeddingRequest({ protocol: "oh.memory.mem0-bridge-policy.v1", runSha256: current.runSha256, namespace: current.namespace,
+    embeddingProfile: selected, llmProfile: { ...selected, kind: "llm", endpoint: `${ENDPOINT}/chat/completions`, maxOutputTokens: 1, embeddingDimensions: null } }, current.ordinal, current.operation, current.body.input);
+  if (canonicalSha256(current) !== canonicalSha256(rebuilt)) fail("batch request reconstruction changed"); return rebuilt;
+}
+function validateAnyRequest(value: unknown): Mem0AnyRequest { return isPlainRecord(value) && value.protocol === "oh.memory.mem0-call.v2" ? validateMem0BatchEmbeddingRequest(value) : validateMem0Request(value); }
 export function validateMem0Request(value: unknown): Mem0Request {
   const current = exact(value, ["protocol", "kind", "operation", "runSha256", "namespace", "ordinal", "profile", "profileSha256", "endpoint", "body", "inputUpperBound", "reservationMicros", "timeoutMs", "requestSha256"]);
   if (current.protocol !== "oh.memory.mem0-call.v1" || (current.kind !== "llm" && current.kind !== "embedding") || (current.operation !== "extract" && current.operation !== "ingest-embed" && current.operation !== "query-embed")
@@ -137,7 +188,7 @@ function usageDetail(value: unknown, allowed: readonly string[], maximum: number
   if (!isPlainRecord(value) || Object.keys(value).some(key => !allowed.includes(key))) fail("ambiguous usage detail");
   for (const item of Object.values(value)) if (!integer(item, maximum)) fail("usage detail bound");
 }
-function parseUsage(value: unknown, request: Mem0Request, gatewayMeta: Record<string, unknown>) {
+function parseUsage(value: unknown, request: Mem0AnyRequest, gatewayMeta: Record<string, unknown>) {
   if (!isPlainRecord(value)) fail("usage object");
   const keys = Object.keys(value).sort();
   const llm = request.kind === "llm";
@@ -164,8 +215,63 @@ export function parseMem0Response(raw: Uint8Array, requestInput: unknown): Mem0R
   else { if (envelope.object !== "list" || !Array.isArray(envelope.data) || envelope.data.length !== 1 || !isPlainRecord(envelope.data[0]) || envelope.data[0].index !== 0 || !Array.isArray(envelope.data[0].embedding) || envelope.data[0].embedding.length !== request.profile.embeddingDimensions || envelope.data[0].embedding.some(n => typeof n !== "number" || !Number.isFinite(n))) fail("embedding shape"); value = Object.freeze({ embedding: Object.freeze([...envelope.data[0].embedding] as number[]) }); }
   return Object.freeze({ requestSha256: request.requestSha256, profileSha256: request.profileSha256, rawSha256: sha256Hex(raw), rawBytes: raw.length, kind: request.kind, value, usage });
 }
+export function parseMem0BatchEmbeddingResponse(raw: Uint8Array, requestInput: unknown): Mem0BatchEmbeddingResult {
+  const request = validateMem0BatchEmbeddingRequest(requestInput);
+  if (!(raw instanceof Uint8Array) || raw.length === 0 || raw.length > MEM0_MAX_BATCH_RESPONSE_BYTES) fail("batch response bytes");
+  let envelope: unknown; try { envelope = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw)); } catch { fail("malformed batch response"); }
+  if (!isPlainRecord(envelope)) fail("batch response object");
+  const meta = gateway(envelope, request.profile), usage = parseUsage(envelope.usage, request, meta);
+  if (envelope.object !== "list" || !Array.isArray(envelope.data) || envelope.data.length !== request.inputCount) fail("batch vector count");
+  const vectors: (readonly number[])[] = new Array(request.inputCount), seen = new Set<number>();
+  for (const item of envelope.data) {
+    const row = exact(item, isPlainRecord(item) && Object.hasOwn(item, "object") ? ["index", "embedding", "object"] : ["index", "embedding"]);
+    if (Object.hasOwn(row, "object") && row.object !== "embedding" || !integer(row.index, request.inputCount - 1) || seen.has(row.index)
+      || !Array.isArray(row.embedding) || row.embedding.length !== request.profile.embeddingDimensions || row.embedding.some(n => typeof n !== "number" || !Number.isFinite(n))) fail("batch vector index or dimensions");
+    seen.add(row.index); vectors[row.index] = Object.freeze([...row.embedding] as number[]);
+  }
+  return Object.freeze({ protocol: "oh.memory.mem0-result.v2", requestSha256: request.requestSha256, profileSha256: request.profileSha256, rawSha256: sha256Hex(raw), rawBytes: raw.length,
+    kind: "embedding-batch", value: Object.freeze({ embeddings: Object.freeze(vectors) }), usage });
+}
+function parseAnyResponse(raw: Uint8Array, request: Mem0AnyRequest): Mem0AnyResult { return request.protocol === "oh.memory.mem0-call.v2" ? parseMem0BatchEmbeddingResponse(raw, request) : parseMem0Response(raw, request); }
+/** Derived storage obligations; no ledger event or legacy digest changes.
+ * A finite ECMAScript Number serializes in fewer than32 ASCII characters. */
+const MAX_JSON_NUMBER_BYTES = 32;
+export function mem0ResponseStorageUpperBounds(requestInput: unknown) {
+  const request = validateAnyRequest(requestInput), rawBound = responseBound(request);
+  const captureEnvelope = { kind: "captured", requestSha256: request.requestSha256, rawBase64: "", transport: {
+    httpStatus: null, complete: false, receivedBytes: Number.MAX_SAFE_INTEGER, error: "response-bound", serviceMs: 0,
+  } };
+  const captureBytes = Buffer.byteLength(JSON.stringify(captureEnvelope)) + 1 + 4 * Math.ceil(rawBound / 3) + MAX_JSON_NUMBER_BYTES - 1;
+  const usage = { inputTokens: Number.MAX_SAFE_INTEGER, outputTokens: Number.MAX_SAFE_INTEGER, tokenRateMicros: Number.MAX_SAFE_INTEGER,
+    gatewayReportedMicros: Number.MAX_SAFE_INTEGER, micros: Number.MAX_SAFE_INTEGER };
+  const resultBase = { requestSha256: request.requestSha256, profileSha256: request.profileSha256, rawSha256: "f".repeat(64), rawBytes: rawBound, usage };
+  const vectorBytes = (dimensions: number) => 2 + dimensions * MAX_JSON_NUMBER_BYTES + Math.max(0, dimensions - 1);
+  let skeleton: unknown, variableBytes: number;
+  if (request.protocol === "oh.memory.mem0-call.v2") {
+    skeleton = { ...resultBase, protocol: "oh.memory.mem0-result.v2", kind: "embedding-batch", value: { embeddings: [] } };
+    variableBytes = 2 + request.inputCount * vectorBytes(request.profile.embeddingDimensions!) + request.inputCount - 1 - 2;
+  } else if (request.kind === "embedding") {
+    skeleton = { ...resultBase, kind: "embedding", value: { embedding: [] } }; variableBytes = vectorBytes(request.profile.embeddingDimensions!) - 2;
+  } else {
+    skeleton = { ...resultBase, kind: "llm", value: { content: "" } }; variableBytes = 6 * MAX_TEXT;
+  }
+  const settlementBytes = Buffer.byteLength(JSON.stringify({ kind: "settled", requestSha256: request.requestSha256, result: skeleton })) + 1 + variableBytes;
+  return Object.freeze({ captureBytes, settlementBytes });
+}
+/** Pure admission gate permits small boundary tests without a multi-GB fixture.
+ * Once a batch is involved, every outstanding format's future rows are covered. */
+export function validateMem0BatchStorageAdmission(input: Readonly<{ ledgerBytes: number; pending: readonly Readonly<{ request: unknown; state: "reserved" | "captured" }>[]; request: unknown }>): number {
+  if (!integer(input.ledgerBytes, MAX_LEDGER_BYTES) || !Array.isArray(input.pending) || input.pending.length > MAX_CALLS) fail("invalid storage obligations");
+  const request = validateAnyRequest(input.request), next = mem0ResponseStorageUpperBounds(request);
+  let requiredBytes = input.ledgerBytes + Buffer.byteLength(JSON.stringify({ kind: "reserved", request })) + 1 + next.captureBytes + next.settlementBytes;
+  for (const row of input.pending) {
+    if (row.state !== "reserved" && row.state !== "captured") fail("invalid outstanding storage state");
+    const bound = mem0ResponseStorageUpperBounds(row.request); requiredBytes += bound.settlementBytes + (row.state === "reserved" ? bound.captureBytes : 0);
+  }
+  if (requiredBytes > MAX_LEDGER_BYTES) fail("batch admission lacks capture and settlement storage headroom"); return requiredBytes;
+}
 function transport(value: Transport, rawBytes: number): Transport { if (!isPlainRecord(value) || !hasExactKeys(value, ["httpStatus", "complete", "receivedBytes", "error", "serviceMs"]) || value.httpStatus !== null && (!integer(value.httpStatus, 599) || value.httpStatus < 100) || typeof value.complete !== "boolean" || !integer(value.receivedBytes) || value.receivedBytes < rawBytes || value.error !== null && value.error !== "network" && value.error !== "body-read" && value.error !== "response-bound" || typeof value.serviceMs !== "number" || !Number.isFinite(value.serviceMs) || value.serviceMs < 0 || value.serviceMs > 86_400_000 || value.complete && (value.error !== null || value.receivedBytes !== rawBytes)) fail("transport metadata"); return Object.freeze(structuredClone(value)); }
-function event(value: unknown): Event { const current = exact(value, ["kind", ...(isPlainRecord(value) && value.kind === "reserved" ? ["request"] : isPlainRecord(value) && value.kind === "captured" ? ["requestSha256", "rawBase64", "transport"] : isPlainRecord(value) && value.kind === "settled" ? ["requestSha256", "result"] : [])]); if (current.kind === "reserved") return Object.freeze({ kind: "reserved", request: validateMem0Request(current.request) }); if (current.kind === "captured") { if (!sha(current.requestSha256) || typeof current.rawBase64 !== "string") fail("capture event"); const raw = Buffer.from(current.rawBase64, "base64"); if (raw.length > MAX_RAW || raw.toString("base64") !== current.rawBase64) fail("raw encoding"); return Object.freeze({ kind: "captured", requestSha256: current.requestSha256 as string, rawBase64: current.rawBase64, transport: transport(current.transport as Transport, raw.length) }); } if (current.kind === "settled") { if (!sha(current.requestSha256) || !isPlainRecord(current.result)) fail("settlement event"); return Object.freeze({ kind: "settled", requestSha256: current.requestSha256 as string, result: current.result as Mem0Result }); } fail("event kind"); }
+function event(value: unknown): Event { const current = exact(value, ["kind", ...(isPlainRecord(value) && value.kind === "reserved" ? ["request"] : isPlainRecord(value) && value.kind === "captured" ? ["requestSha256", "rawBase64", "transport"] : isPlainRecord(value) && value.kind === "settled" ? ["requestSha256", "result"] : [])]); if (current.kind === "reserved") return Object.freeze({ kind: "reserved", request: validateAnyRequest(current.request) }); if (current.kind === "captured") { if (!sha(current.requestSha256) || typeof current.rawBase64 !== "string") fail("capture event"); const raw = Buffer.from(current.rawBase64, "base64"); if (raw.length > MEM0_MAX_BATCH_RESPONSE_BYTES || raw.toString("base64") !== current.rawBase64) fail("raw encoding"); return Object.freeze({ kind: "captured", requestSha256: current.requestSha256 as string, rawBase64: current.rawBase64, transport: transport(current.transport as Transport, raw.length) }); } if (current.kind === "settled") { if (!sha(current.requestSha256) || !isPlainRecord(current.result)) fail("settlement event"); return Object.freeze({ kind: "settled", requestSha256: current.requestSha256 as string, result: current.result as Mem0AnyResult }); } fail("event kind"); }
 export async function openMem0Ledger(authorityInput: unknown) {
   const authority = validateMem0LedgerAuthority(authorityInput);
   const [policyBytes, accountingBytes] = await Promise.all([
@@ -176,7 +282,7 @@ export async function openMem0Ledger(authorityInput: unknown) {
   catch { fail("pinned policy or accounting JSON"); }
   const policies = policyInputs.map(validateMem0BridgePolicy), accounting = validateMem0AntecedentAccounting(accountingInput);
   if (new Set(policies.map(policy => `${policy.runSha256}:${policy.namespace}`)).size !== policies.length) fail("duplicate policy identity");
-  const policyFor = (request: Mem0Request) => { const policy = policies.find(candidate => candidate.runSha256 === request.runSha256 && candidate.namespace === request.namespace); if (!policy || request.profileSha256 !== (request.kind === "llm" ? canonicalSha256(policy.llmProfile) : canonicalSha256(policy.embeddingProfile))) fail("request does not match pinned policy"); };
+  const policyFor = (request: Mem0AnyRequest) => { const policy = policies.find(candidate => candidate.runSha256 === request.runSha256 && candidate.namespace === request.namespace); if (!policy || request.profileSha256 !== (request.kind === "llm" ? canonicalSha256(policy.llmProfile) : canonicalSha256(policy.embeddingProfile))) fail("request does not match pinned policy"); };
   const campaign = await verifyEvolutionCampaign(accounting.campaignPin);
   if (canonicalSha256(campaign.campaign) !== accounting.campaignSha256 || campaign.historicalExposureMicros !== accounting.historicalExposureMicros) fail("antecedent campaign accounting differs");
   const directory = authority.directory; await mkdir(directory, { mode: 0o700, recursive: true }); const stat = lstatSync(directory); if (!stat.isDirectory() || (stat.mode & 0o777) !== 0o700 || realpathSync(directory) !== directory) fail("private canonical ledger directory");
@@ -190,16 +296,21 @@ export async function openMem0Ledger(authorityInput: unknown) {
   const append = async (value: Event) => { const encoded = new TextEncoder().encode(`${JSON.stringify(value)}\n`); if (ledgerBytes + encoded.length > MAX_LEDGER_BYTES) fail("ledger storage bound"); const handle = await open(ledgerPath, "a", 0o600); try { await handle.writeFile(encoded); await handle.sync(); ledgerBytes += encoded.length; } finally { await handle.close(); } };
   const mutate = <T>(action: () => Promise<T>): Promise<T> => { const next = mutation.then(action, action); mutation = next.then(() => undefined, () => undefined); return next; };
     try { const ledgerStat = await lstat(ledgerPath); if (!ledgerStat.isFile() || ledgerStat.isSymbolicLink() || ledgerStat.size > MAX_LEDGER_BYTES || realpathSync(ledgerPath) !== ledgerPath) fail("ledger file custody or bound"); ledgerBytes = ledgerStat.size;
-      const text = new TextDecoder("utf-8", { fatal: true }).decode(await readFile(ledgerPath)); if (!text.endsWith("\n")) fail("partial ledger"); for (const line of text.slice(0, -1).split("\n")) { if (!line) continue; const next = event(JSON.parse(line)); if (next.kind === "reserved") { policyFor(next.request); if (entries.has(next.request.requestSha256)) fail("duplicate reservation"); entries.set(next.request.requestSha256, { request: next.request, state: "reserved", raw: null, transport: null, result: null }); exposure += next.request.reservationMicros; } else { const found = entries.get(next.requestSha256); if (found === undefined || found.state === "settled") fail("orphan or duplicate event"); if (next.kind === "captured") { if (found.state !== "reserved") fail("capture order"); entries.set(next.requestSha256, { ...found, state: "captured", raw: Buffer.from(next.rawBase64, "base64"), transport: next.transport }); } else { if (found.state !== "captured" || found.raw === null || found.transport === null || found.transport.httpStatus !== 200 || !found.transport.complete || found.transport.error !== null) fail("settlement transport"); const result = parseMem0Response(found.raw, found.request); if (canonicalSha256(result) !== canonicalSha256(next.result)) fail("settlement replay"); entries.set(next.requestSha256, { ...found, state: "settled", result }); exposure += result.usage.micros - found.request.reservationMicros; } } } } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(await readFile(ledgerPath)); if (!text.endsWith("\n")) fail("partial ledger"); for (const line of text.slice(0, -1).split("\n")) { if (!line) continue; const next = event(JSON.parse(line)); if (next.kind === "reserved") { policyFor(next.request); if (entries.has(next.request.requestSha256)) fail("duplicate reservation"); entries.set(next.request.requestSha256, { request: next.request, state: "reserved", raw: null, transport: null, result: null }); exposure += next.request.reservationMicros; } else { const found = entries.get(next.requestSha256); if (found === undefined || found.state === "settled") fail("orphan or duplicate event"); if (next.kind === "captured") { if (found.state !== "reserved" || Buffer.from(next.rawBase64, "base64").length > responseBound(found.request)) fail("capture order or response bound"); entries.set(next.requestSha256, { ...found, state: "captured", raw: Buffer.from(next.rawBase64, "base64"), transport: next.transport }); } else { if (found.state !== "captured" || found.raw === null || found.transport === null || found.transport.httpStatus !== 200 || !found.transport.complete || found.transport.error !== null) fail("settlement transport"); const result = parseAnyResponse(found.raw, found.request); if (canonicalSha256(result) !== canonicalSha256(next.result)) fail("settlement replay"); entries.set(next.requestSha256, { ...found, state: "settled", result }); exposure += result.usage.micros - found.request.reservationMicros; } } } } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     if (entries.size > authority.maximumCalls || exposure > authority.additionalBudgetMicros) fail("replayed budget");
     const custody = () => { if (closed || lstatSync(lockPath).ino !== lockStat.ino) fail("ledger closed or custody changed"); };
     return {
       summary: () => { custody(); return Object.freeze({ calls: entries.size, exposureMicros: exposure, antecedentExposureMicros: accounting.cumulativeExposureMicros, combinedExposureMicros: exposure + accounting.cumulativeExposureMicros, additionalBudgetMicros: authority.additionalBudgetMicros, maximumCalls: authority.maximumCalls, policySha256es: Object.freeze(policyBytes.map(sha256Hex)), antecedentAccountingSha256: sha256Hex(accountingBytes) }); },
       auth: campaign.auth,
-      lookup: (requestInput: unknown) => { custody(); const request = validateMem0Request(requestInput), found = entries.get(request.requestSha256); if (!found) return { kind: "miss" as const }; if (found.state === "settled") return { kind: "hit" as const, result: found.result! }; return { kind: "occupied" as const, state: found.state }; },
-      admit: (requestInput: unknown) => mutate(async () => { custody(); const request = validateMem0Request(requestInput); policyFor(request); if (entries.has(request.requestSha256) || entries.size >= authority.maximumCalls || exposure + request.reservationMicros > authority.additionalBudgetMicros) fail("duplicate or exhausted admission"); await append({ kind: "reserved", request }); entries.set(request.requestSha256, { request, state: "reserved", raw: null, transport: null, result: null }); exposure += request.reservationMicros; }),
-      capture: (requestInput: unknown, raw: Uint8Array, meta: Transport) => { const snapshot = raw.slice(), checked = transport(meta, snapshot.length); return mutate(async () => { custody(); const request = validateMem0Request(requestInput), found = entries.get(request.requestSha256); if (!found || found.state !== "reserved" || snapshot.length > MAX_RAW) fail("capture requires reservation"); await append({ kind: "captured", requestSha256: request.requestSha256, rawBase64: Buffer.from(snapshot).toString("base64"), transport: checked }); entries.set(request.requestSha256, { ...found, state: "captured", raw: snapshot, transport: checked }); }); },
-      finalize: (requestInput: unknown) => mutate(async () => { custody(); const request = validateMem0Request(requestInput), found = entries.get(request.requestSha256); if (!found || found.state !== "captured" || !found.raw || !found.transport || found.transport.httpStatus !== 200 || !found.transport.complete || found.transport.error !== null) fail("unverifiable first response remains charged"); const result = parseMem0Response(found.raw, request); await append({ kind: "settled", requestSha256: request.requestSha256, result }); entries.set(request.requestSha256, { ...found, state: "settled", result }); exposure += result.usage.micros - request.reservationMicros; return result; }),
+      lookup: (requestInput: unknown) => { custody(); const request = validateAnyRequest(requestInput), found = entries.get(request.requestSha256); if (!found) return { kind: "miss" as const }; if (found.state === "settled") return { kind: "hit" as const, result: found.result! }; return { kind: "occupied" as const, state: found.state }; },
+      admit: (requestInput: unknown) => mutate(async () => { custody(); const request = validateAnyRequest(requestInput); policyFor(request); if (entries.has(request.requestSha256) || entries.size >= authority.maximumCalls || exposure + request.reservationMicros > authority.additionalBudgetMicros) fail("duplicate or exhausted admission");
+        if (request.protocol === "oh.memory.mem0-call.v2" || [...entries.values()].some(entry => entry.request.protocol === "oh.memory.mem0-call.v2")) {
+          const pending = [...entries.values()].filter(entry => entry.state !== "settled").map(entry => ({ request: entry.request, state: entry.state as "reserved" | "captured" }));
+          validateMem0BatchStorageAdmission({ ledgerBytes, pending, request });
+        }
+        await append({ kind: "reserved", request }); entries.set(request.requestSha256, { request, state: "reserved", raw: null, transport: null, result: null }); exposure += request.reservationMicros; }),
+      capture: (requestInput: unknown, raw: Uint8Array, meta: Transport) => { const snapshot = raw.slice(), checked = transport(meta, snapshot.length); return mutate(async () => { custody(); const request = validateAnyRequest(requestInput), found = entries.get(request.requestSha256); if (!found || found.state !== "reserved" || snapshot.length > responseBound(request)) fail("capture requires reservation"); await append({ kind: "captured", requestSha256: request.requestSha256, rawBase64: Buffer.from(snapshot).toString("base64"), transport: checked }); entries.set(request.requestSha256, { ...found, state: "captured", raw: snapshot, transport: checked }); }); },
+      finalize: (requestInput: unknown) => mutate(async () => { custody(); const request = validateAnyRequest(requestInput), found = entries.get(request.requestSha256); if (!found || found.state !== "captured" || !found.raw || !found.transport || found.transport.httpStatus !== 200 || !found.transport.complete || found.transport.error !== null) fail("unverifiable first response remains charged"); const result = parseAnyResponse(found.raw, request); await append({ kind: "settled", requestSha256: request.requestSha256, result }); entries.set(request.requestSha256, { ...found, state: "settled", result }); exposure += result.usage.micros - request.reservationMicros; return result; }),
       close: async () => { await mutation; if (closed) return; closed = true; await lock.close(); try { if (lstatSync(lockPath).ino === lockStat.ino) await unlink(lockPath); } catch { /* custody marker was replaced or removed */ } },
     };
   } catch (error) { await lock.close(); try { await unlink(lockPath); } catch {} throw error; }
@@ -214,13 +325,17 @@ function mem0WithAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T
   });
 }
 export type Mem0Fetcher = (input: Parameters<typeof fetch>[0], init?: RequestInit) => Promise<Response>;
-export async function invokeMem0Request(input: Readonly<{ request: Mem0Request; ledger: Awaited<ReturnType<typeof openMem0Ledger>>; credential: Mem0Credential; fetcher?: Mem0Fetcher; signal?: AbortSignal }>) {
+type Mem0Invocation<T extends Mem0AnyRequest> = Readonly<{ request: T; ledger: Awaited<ReturnType<typeof openMem0Ledger>>; credential: Mem0Credential; fetcher?: Mem0Fetcher; signal?: AbortSignal }>;
+export function invokeMem0Request(input: Mem0Invocation<Mem0Request>): Promise<Mem0Result>;
+export function invokeMem0Request(input: Mem0Invocation<Mem0BatchEmbeddingRequest>): Promise<Mem0BatchEmbeddingResult>;
+export function invokeMem0Request(input: Mem0Invocation<Mem0AnyRequest>): Promise<Mem0AnyResult>;
+export async function invokeMem0Request(input: Mem0Invocation<Mem0AnyRequest>): Promise<Mem0AnyResult> {
   if (input.signal?.aborted) fail("call aborted before admission");
-  const request = validateMem0Request(input.request), cached = input.ledger.lookup(request); if (cached.kind === "hit") return cached.result; if (cached.kind === "occupied") fail("occupied request cannot be retried");
+  const request = validateAnyRequest(input.request), cached = input.ledger.lookup(request); if (cached.kind === "hit") return cached.result; if (cached.kind === "occupied") fail("occupied request cannot be retried");
   if (typeof input.credential.token !== "string" || input.credential.token.length < 1 || input.credential.token.length > 32768 || canonicalSha256(input.credential.auth) !== canonicalSha256(input.ledger.auth)) fail("missing or mismatched bounded OIDC credential"); qualifyGatewayOIDC(input.credential.token, input.ledger.auth); await input.ledger.admit(request);
   const signal = input.signal === undefined ? AbortSignal.timeout(request.timeoutMs) : AbortSignal.any([input.signal, AbortSignal.timeout(request.timeoutMs)]);
   const started = performance.now(); let response: Response | null = null, error: Transport["error"] = null, complete = false, receivedBytes = 0; const chunks: Uint8Array[] = [];
   try { response = await mem0WithAbort((input.fetcher ?? fetch)(request.endpoint, { method: "POST", redirect: "error", signal, headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.credential.token}` }, body: JSON.stringify(request.body) }), signal); } catch { error = "network"; }
-  if (response?.body) { const reader = response.body.getReader(); try { while (true) { const next = await mem0WithAbort(reader.read(), signal); if (next.done) { complete = true; break; } receivedBytes += next.value.length; if (receivedBytes > MAX_RAW) { error = "response-bound"; break; } chunks.push(next.value); } } catch { error = "body-read"; } finally { try { await mem0WithAbort(reader.cancel(), signal); } catch {} } } else if (response !== null) error = "body-read";
+  if (response?.body) { const reader = response.body.getReader(); try { while (true) { const next = await mem0WithAbort(reader.read(), signal); if (next.done) { complete = true; break; } receivedBytes += next.value.length; if (receivedBytes > responseBound(request)) { error = "response-bound"; break; } chunks.push(next.value); } } catch { error = "body-read"; } finally { try { await mem0WithAbort(reader.cancel(), signal); } catch {} } } else if (response !== null) error = "body-read";
   const raw = Buffer.concat(chunks); await input.ledger.capture(request, raw, { httpStatus: response?.status ?? null, complete, receivedBytes, error, serviceMs: performance.now() - started }); return await input.ledger.finalize(request);
 }
