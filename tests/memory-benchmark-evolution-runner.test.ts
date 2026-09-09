@@ -3,7 +3,7 @@ import { sha256Hex } from "../src/canonical";
 import { DATASETS } from "../scripts/benchmarks/datasets";
 import { parseEvolutionArgs, parseEvolutionRunConfig } from "../scripts/benchmarks/evolution";
 
-const root = "/private/tmp/evolution-runner-test";
+const root = "/example/evolution-runner-test";
 const hash = (label: string) => sha256Hex(`evolution-runner-test:${label}`);
 const pin = (name: string, sha256 = hash(name)) => ({ path: `${root}/${name}.json`, sha256 });
 const variant = (id = "baseline") => ({ id, system: "bm25-window" as const, budget: { topK: 1, contextBytes: 1_024 } });

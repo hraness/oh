@@ -18,8 +18,8 @@ const request = (suffix = "one") => makeEvolutionRequest("gpt4o-official-snapsho
 function campaign(storeDirectory: string, overrides: Partial<EvolutionCampaign> = {}): EvolutionCampaign {
   return { protocol: "oh.memory.evolution-campaign.v1", campaignId: "test-campaign", storeDirectory, approval: "Fixture: no network or paid calls",
     additionalBudgetMicros: 1_000_000, maximumCalls: 100, historicalExposureMicros: 42,
-    historicalLedgers: [{ path: "/private/tmp/unused-historical-ledger", sha256: "a".repeat(64), bytes: 0 }],
-    authAuthority: { path: "/private/tmp/unused-auth-authority", sha256: "b".repeat(64) }, ...overrides };
+    historicalLedgers: [{ path: "/example/unused-historical-ledger", sha256: "a".repeat(64), bytes: 0 }],
+    authAuthority: { path: "/example/unused-auth-authority", sha256: "b".repeat(64) }, ...overrides };
 }
 function capture(r: EvolutionRequest): EvolutionRaw {
   const body = new TextEncoder().encode(JSON.stringify({ model: r.model,

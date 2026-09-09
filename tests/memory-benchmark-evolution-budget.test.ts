@@ -29,13 +29,13 @@ test("evolution campaign recomputes full historical reservations and preserves u
 });
 
 test("evolution campaign rejects ambiguous caps, paths and unknown configuration fields", () => {
-  const good = { protocol: "oh.memory.evolution-campaign.v1", campaignId: "test", storeDirectory: "/private/tmp/campaign-store", approval: "Test only", additionalBudgetMicros: 1000, maximumCalls: 1,
+  const good = { protocol: "oh.memory.evolution-campaign.v1", campaignId: "test", storeDirectory: "/example/campaign-store", approval: "Test only", additionalBudgetMicros: 1000, maximumCalls: 1,
     historicalExposureMicros: 0, historicalLedgers: [{ path: "/tmp/ledger", sha256: "a".repeat(64), bytes: 0 }], authAuthority: { path: "/tmp/authority", sha256: "b".repeat(64) } };
   for (const value of [0, -1, 0.5, NaN, Infinity, 1_000_000_001]) expect(() => parseEvolutionCampaign({ ...good, additionalBudgetMicros: value })).toThrow();
   expect(() => parseEvolutionCampaign({ ...good, arbitraryEndpoint: "https://example.com" })).toThrow();
   expect(() => parseEvolutionCampaign({ ...good, authAuthority: good.historicalLedgers[0] })).toThrow();
   expect(() => parseEvolutionCampaign({ ...good, historicalLedgers: [{ ...good.historicalLedgers[0], path: "relative" }] })).toThrow();
-  for (const storeDirectory of [undefined, "relative", "/private/tmp/../tmp/store", "/private/tmp/store/", "/private/tmp/\0store"]) {
+  for (const storeDirectory of [undefined, "relative", "/example/../tmp/store", "/example/store/", "/example/\0store"]) {
     expect(() => parseEvolutionCampaign({ ...good, storeDirectory })).toThrow();
   }
   const { storeDirectory: _path, ...missing } = good;
