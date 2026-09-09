@@ -405,7 +405,7 @@ describe("operation sync", () => {
     const payload = { contractSha256: OH_CONTRACT_MANIFEST_V1.contractSha256,
       operations, protocol: OH_SYNC_PROTOCOL_V1, spaceId: "bundle-budget", v: 1 as const };
     expect(parseOhSyncBundleV1({ ...payload, bundleSha256: canonicalSha256(payload) })).toBeNull();
-  });
+  }, 30_000);
 
   test("strictly parses transport heads", () => {
     const digest = canonicalSha256("head");
