@@ -196,6 +196,53 @@ show that excerpts at 24 KB tie whole-turn Oh's totals while changing individual
 outcomes and costing more. At 48 KB, excerpts have eight wins and eleven losses
 with nano, and two wins and eight losses with mini, against whole-turn Oh.
 
+## Measured first generation
+
+The first genetic evaluation runs every one of the five nano children proposed
+from the packing experiment alongside its three selected parents. Candidate IDs,
+parent IDs, policy, seeds and genomes remain unchanged. All eight configurations
+answer the same 100 development questions before the next selection.
+
+| Role | Configuration | Nano correct | Attributed reader usage |
+| --- | --- | ---: | ---: |
+| Parent | BM25 top100, 96 KB | 75/100 | $0.106606 |
+| Parent | Oh keyword top100, 48 KB | 69/100 | $0.053988 |
+| Parent | BM25 top20, 24 KB | 66/100 | $0.038634 |
+| Child | BM25 top100, 48 KB | 69/100 | $0.064205 |
+| Child | BM25 top100, 24 KB | 65/100 | $0.035160 |
+| Child | BM25 top20, 96 KB | 65/100 | $0.045129 |
+| Child | Oh keyword top20, 48 KB | 64/100 | $0.038108 |
+| Child | Oh keyword top20, 24 KB | 59/100 | $0.030489 + $0.004644 unresolved |
+
+No child improves on the strongest parent's accuracy. The declared selection
+retains Oh keyword top100/48 KB and BM25 top100/96 KB, and promotes the measured
+BM25 top100/48 KB child under the accuracy/cost/service-time policy with category
+specialists. This selection is not a proof of a general latency improvement.
+It then proposes one previously unseen generation-two child: BM25 top20/48 KB.
+That child has lineage but no measured fitness. The archive prevents rediscovered
+genomes from being presented as new experiments.
+
+The 800 logical cases use 679 distinct reader attempts: 678 verified responses
+and one captured response whose reported reasoning-token count exceeds its
+completion-token count. The unchanged parser rejects its usage; it scores zero
+and retains the full $0.004644 reservation. The first dispatch admitted 64 new
+requests in 19.93 seconds and stopped admission on this failure. A second
+dispatch admitted only the remaining 298 previously unattempted requests in
+92.92 seconds. The failed request was never retried. All 256 required judge
+requests are verified; 46 were new, completed in 14.52 seconds.
+
+The whole campaign now contains 3,221 occupied calls and $6.007862 conservative
+exposure: $5.965562 known usage plus $0.042300 unresolved. Historical exposure
+before this campaign is separate. The
+[compact result](results/memory-evolution-offspring-nano-100-v1.json) preserves
+both reader dispatches, and the
+[generation record](results/memory-evolution-offspring-nano-100-generation-v1.json)
+pins observed fitness, exact genomes, selected parents, archive and the untested
+next child. This demonstrates a measured generation/selection cycle, not
+benchmark saturation or a successful accuracy improvement from breeding.
+[Paired comparisons](results/memory-evolution-offspring-nano-100-paired-v1.json)
+retain the exact full-width BM25 control identity and every failed case.
+
 ## Selection and confirmation
 
 Population proposals use observed paired development scores, conservative

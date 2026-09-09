@@ -13,3 +13,52 @@ Finalists, comparator settings, the primary metric, aggregation, practical margi
 For LongMemEval development, the existing short GPT-4o proxy judge and exact-request caching are sufficient until a cheaper judge demonstrates useful agreement; adding another unqualified judge would introduce another source of error. Reportable native LongMemEval results require its pinned official judge protocol. BEAM instead needs its category rubric: its released scorer calls per nugget, and event ordering adds equivalence calls. We will resolve or separately label the released scorer's integer truncation of half credit before unsealing; the paper describes 0/0.5/1 scoring. [BEAM paper](https://arxiv.org/html/2510.27246v2), [released scorer](https://raw.githubusercontent.com/mohammadtavakoli78/BEAM/3e12035532eb85768f1a7cd779832b650c4b2ef9/src/evaluation/compute_metrics.py).
 
 An exposed benchmark can remain useful for reproducible descriptive scores. High development performance alone will not be called benchmark saturation, fresh generalization or framework superiority.
+
+## Full-history control and next memory experiments
+
+A source-only sizing audit matched all 100 exposed source projections and the
+legacy full-history renderer. The histories contain 409–616 turns, with median
+rendered length 514,950 bytes. All are rejected by the current nano/mini
+constructor's conservative JSON-byte input bound. These are byte measurements;
+no tokenizer count or full-history answer was measured. The
+[sizing receipt](results/memory-evolution-full-history-sizing-v1.json) records
+source pins, completeness, distributions and zero provider calls.
+
+The next full-history control must include every source turn in source order,
+with an explicit all-source contract and exact membership validation. It must
+not be represented as a top100 retrieval result. Keep the answer prompt and
+reader settings matched. A pinned local tokenizer can estimate token fit, while
+financial admission conservatively reserves the full model window until that
+estimate is qualified. Preserve existing V1 request identities. Two readers'
+full-history message arrays already total about 101 MiB before plan metadata,
+so begin with full history plus one locked retrieval control and validate the
+128 MiB plan bound before dispatch.
+
+The first source-excerpt policy failed to improve accuracy. The next fixed
+mechanism candidates are a focused native source pool, contiguous continuation
+within a source turn, and source-diverse packing. Compare focusing against the
+existing pool, then continuation and diversity against the focused control at
+48 KB with nano fixed. Preserve V1 policies and reports; these new hypotheses
+have no measured answer fitness. Source completeness and provenance checks must
+pass before they enter a separately pinned reader experiment.
+
+## Additional BEAM scorer qualification
+
+Source-only characterization identified two further compatibility details: the
+released reporter uses normalized Kendall tau for event ordering, and nugget
+prompt construction leaves the question placeholder literal. Keep released
+compatibility scores separate from a corrected half-credit reduction; inserting
+the question changes prompt bytes and requires a separately named judge profile.
+The reporter weights histories equally after within-history aggregation.
+[Pinned reporter](https://raw.githubusercontent.com/mohammadtavakoli78/BEAM/3e12035532eb85768f1a7cd779832b650c4b2ef9/src/evaluation/report_results.py),
+[pinned scorer](https://raw.githubusercontent.com/mohammadtavakoli78/BEAM/3e12035532eb85768f1a7cd779832b650c4b2ef9/src/evaluation/compute_metrics.py).
+
+Private synthetic qualification covered 28 exact prompt cases, 243 nugget
+reductions, 256 greedy event traces/rank reductions and 24 reporter matrices.
+These are bounded source-characterization checks, not full numerical or parser
+parity. The pinned SciPy 1.16.1 and json-repair 0.44.1 differential gates remain
+unrun. Before live BEAM scoring, qualify those gates, exact category/history
+joins, failed-score handling and a bound on event-equivalence calls. Reuse one
+captured judgment set for deterministic reductions; do not buy duplicate calls
+merely to report both reductions. No BEAM dataset questions or answers were
+opened during this source work.

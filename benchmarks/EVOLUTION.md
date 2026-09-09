@@ -224,6 +224,12 @@ reader, policy bound, previous input/lineage pin, or incomplete paired coverage
 rejects the handoff. The previous proposal flags are optional, so the seed-mode
 command remains valid for a first generation.
 
+In V1 proposal records, `inputs.readerPlan.sha256` and
+`lineage.readerPlanSha256` identify the canonical plan payload, not the serialized
+plan file. The authenticated reader receipt's `planPin.sha256` separately binds
+exact file bytes. Report, configuration and reader-output pins name file-byte
+hashes. Preserve this distinction when checking or projecting historical records.
+
 For final comparisons, reproduce strong baselines under declared readers,
 context/tool budgets, source order and visibility cutoffs. Publish ingestion
 cost, amortization, storage and complete latency alongside accuracy. Treat

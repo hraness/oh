@@ -1,0 +1,954 @@
+{
+  "protocol": "oh.memory.evolution-generation-projection.v1",
+  "qualification": "Completed paired development evaluation and deterministic next-generation proposal. New children remain untested; all observed fitness comes from this same report matrix. No independent confirmation or superiority claim.",
+  "privateProposalSha256": "da39ed8c3e01c1bb02e70303639cccea6345740e068129fd53fa636eaec61225",
+  "previousPrivateProposalSha256": "320d631ed3e0bf6a7afd86ed36dc931d6e5aa98695de4ba6edb35f56f2201d26",
+  "lineage": {
+    "configSha256": "b395e98c55d98744c06a751012ad39cecdda8799f9ece899f6323b2044dea507",
+    "previousProposalSha256": "320d631ed3e0bf6a7afd86ed36dc931d6e5aa98695de4ba6edb35f56f2201d26",
+    "readerOutputSha256": "5fd9205a7c350f117b0b04c949b60e6d9cff41fe383844d1f7ef11a7483f508b",
+    "readerPlanSha256": "e6b989a6dc6693e19fecd6705e3922ca0dbb9173549c8bf79c52d19746f13939",
+    "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+    "selectionSha256": "bef217682f410f2a0acd80a216cf79c4e50b5a3397db329ca6f5b9dd9b372aba"
+  },
+  "policy": {
+    "allowed": {
+      "contextBytes": [
+        24000,
+        96000,
+        48000
+      ],
+      "reader": [
+        "gpt5-nano-reader"
+      ],
+      "system": [
+        "bm25-window",
+        "oh-keyword"
+      ],
+      "topK": [
+        20,
+        100
+      ]
+    },
+    "fixedReader": "gpt5-nano-reader",
+    "maximumPopulation": 16,
+    "mode": "fixed-reader-memory",
+    "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+    "protocol": "oh.evolution-population-policy.v1"
+  },
+  "identity": {
+    "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+    "design": "paired",
+    "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+    "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+    "protocol": "oh.evolution-paired-development.v1",
+    "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+    "split": "development",
+    "totalQuestions": 100
+  },
+  "observedCandidates": [
+    {
+      "generation": 0,
+      "genome": {
+        "contextBytes": 96000,
+        "reader": "gpt5-nano-reader",
+        "system": "bm25-window",
+        "topK": 100
+      },
+      "genomeSha256": "f68dd7336b2854bc0fcbd243646c0ae4fc75ec02d68d447fe9dd16b628895427",
+      "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+      "id": "5f68bf47634690c2500361db50282807c6573284cfa9da03ec32776fce6a4c16",
+      "mutationAxis": null,
+      "origin": "seed",
+      "parentIds": [],
+      "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+      "protocol": "oh.evolution-candidate.v1",
+      "seed": 2151720264
+    },
+    {
+      "generation": 1,
+      "genome": {
+        "contextBytes": 48000,
+        "reader": "gpt5-nano-reader",
+        "system": "bm25-window",
+        "topK": 100
+      },
+      "genomeSha256": "99f71ca7c09b20e626c19d7be8fbbc84fbb987bf35a9aa81186e83a4e4bc4cc5",
+      "hypothesis": "Deterministic one-axis system mutation from pinned development parent.",
+      "id": "08907eaccc3c3b193423e0c06ff42f3639c801962e74d4c74b63a12e47fff6e3",
+      "mutationAxis": "system",
+      "origin": "mutation",
+      "parentIds": [
+        "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403"
+      ],
+      "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+      "protocol": "oh.evolution-candidate.v1",
+      "seed": 1471953639
+    },
+    {
+      "generation": 0,
+      "genome": {
+        "contextBytes": 24000,
+        "reader": "gpt5-nano-reader",
+        "system": "bm25-window",
+        "topK": 20
+      },
+      "genomeSha256": "03e99ee720f1473863cfa0091cc6284bbf5ee1fa86e3dbade217f37bd61f65b7",
+      "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+      "id": "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a",
+      "mutationAxis": null,
+      "origin": "seed",
+      "parentIds": [],
+      "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+      "protocol": "oh.evolution-candidate.v1",
+      "seed": 3208152052
+    },
+    {
+      "generation": 0,
+      "genome": {
+        "contextBytes": 48000,
+        "reader": "gpt5-nano-reader",
+        "system": "oh-keyword",
+        "topK": 100
+      },
+      "genomeSha256": "e6ba2c0a7c125e3ba33ba8a8efc46cb30990216e6d1f8f8f0886c8820ca12c9c",
+      "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+      "id": "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403",
+      "mutationAxis": null,
+      "origin": "seed",
+      "parentIds": [],
+      "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+      "protocol": "oh.evolution-candidate.v1",
+      "seed": 1081293382
+    },
+    {
+      "generation": 1,
+      "genome": {
+        "contextBytes": 24000,
+        "reader": "gpt5-nano-reader",
+        "system": "bm25-window",
+        "topK": 100
+      },
+      "genomeSha256": "13d2cd230a422e80b441c5c7a9bb87576f2dfeedf11dba7abfc44220692f7a64",
+      "hypothesis": "Deterministic one-axis topK mutation from pinned development parent.",
+      "id": "5a347f72926d8d70a3b2ef77db4632bed1077c38fa8d0a1e8082a8f55ceed03d",
+      "mutationAxis": "topK",
+      "origin": "mutation",
+      "parentIds": [
+        "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a"
+      ],
+      "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+      "protocol": "oh.evolution-candidate.v1",
+      "seed": 1938467998
+    },
+    {
+      "generation": 1,
+      "genome": {
+        "contextBytes": 48000,
+        "reader": "gpt5-nano-reader",
+        "system": "oh-keyword",
+        "topK": 20
+      },
+      "genomeSha256": "0bd2204dd1061b4c7b43e1bc6629617cc7279fdd7db5ced19dce30a5b4b65ee2",
+      "hypothesis": "Deterministic one-axis topK mutation from pinned development parent.",
+      "id": "b9b9ea8e06bfdd1353da419fd4a1c95e7322e85f34ee59f5747c3444df2b0e73",
+      "mutationAxis": "topK",
+      "origin": "mutation",
+      "parentIds": [
+        "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403"
+      ],
+      "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+      "protocol": "oh.evolution-candidate.v1",
+      "seed": 2482379203
+    },
+    {
+      "generation": 1,
+      "genome": {
+        "contextBytes": 24000,
+        "reader": "gpt5-nano-reader",
+        "system": "oh-keyword",
+        "topK": 20
+      },
+      "genomeSha256": "92a53929f6865c95cf9d1abf22e32363409238534aef9a04a2108ea1dd6d7d7b",
+      "hypothesis": "Deterministic one-axis system mutation from pinned development parent.",
+      "id": "debf02d4dcc370fd1f56d51951db2fa2c4050f1c0f7b02d0ad35fe6fe9da2f4d",
+      "mutationAxis": "system",
+      "origin": "mutation",
+      "parentIds": [
+        "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a"
+      ],
+      "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+      "protocol": "oh.evolution-candidate.v1",
+      "seed": 4136742679
+    },
+    {
+      "generation": 1,
+      "genome": {
+        "contextBytes": 96000,
+        "reader": "gpt5-nano-reader",
+        "system": "bm25-window",
+        "topK": 20
+      },
+      "genomeSha256": "e54b4115d06db11d043cc05119e9b74cdea9fe628d6f492bf4db16c5bdebdef0",
+      "hypothesis": "Deterministic one-axis contextBytes mutation from pinned development parent.",
+      "id": "ead9d1fcd761ce3f858da04efd57582b12a2bdb701f55e1017847f9638c24ce5",
+      "mutationAxis": "contextBytes",
+      "origin": "mutation",
+      "parentIds": [
+        "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a"
+      ],
+      "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+      "protocol": "oh.evolution-candidate.v1",
+      "seed": 3717901450
+    }
+  ],
+  "observedFitness": [
+    {
+      "candidateId": "5f68bf47634690c2500361db50282807c6573284cfa9da03ec32776fce6a4c16",
+      "categories": [
+        {
+          "correct": 9,
+          "id": "knowledge-update",
+          "total": 17
+        },
+        {
+          "correct": 20,
+          "id": "multi-session",
+          "total": 28
+        },
+        {
+          "correct": 17,
+          "id": "single-session-assistant",
+          "total": 17
+        },
+        {
+          "correct": 2,
+          "id": "single-session-preference",
+          "total": 5
+        },
+        {
+          "correct": 10,
+          "id": "single-session-user",
+          "total": 11
+        },
+        {
+          "correct": 17,
+          "id": "temporal-reasoning",
+          "total": 22
+        }
+      ],
+      "correct": 75,
+      "costMicros": 106606,
+      "identity": {
+        "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+        "design": "paired",
+        "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+        "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+        "protocol": "oh.evolution-paired-development.v1",
+        "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+        "split": "development",
+        "totalQuestions": 100
+      },
+      "latencyMs": 441244.5249980002,
+      "protocol": "oh.evolution-development-fitness.v1",
+      "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+      "total": 100
+    },
+    {
+      "candidateId": "08907eaccc3c3b193423e0c06ff42f3639c801962e74d4c74b63a12e47fff6e3",
+      "categories": [
+        {
+          "correct": 10,
+          "id": "knowledge-update",
+          "total": 17
+        },
+        {
+          "correct": 16,
+          "id": "multi-session",
+          "total": 28
+        },
+        {
+          "correct": 17,
+          "id": "single-session-assistant",
+          "total": 17
+        },
+        {
+          "correct": 2,
+          "id": "single-session-preference",
+          "total": 5
+        },
+        {
+          "correct": 10,
+          "id": "single-session-user",
+          "total": 11
+        },
+        {
+          "correct": 14,
+          "id": "temporal-reasoning",
+          "total": 22
+        }
+      ],
+      "correct": 69,
+      "costMicros": 64205,
+      "identity": {
+        "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+        "design": "paired",
+        "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+        "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+        "protocol": "oh.evolution-paired-development.v1",
+        "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+        "split": "development",
+        "totalQuestions": 100
+      },
+      "latencyMs": 380916.611581,
+      "protocol": "oh.evolution-development-fitness.v1",
+      "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+      "total": 100
+    },
+    {
+      "candidateId": "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a",
+      "categories": [
+        {
+          "correct": 10,
+          "id": "knowledge-update",
+          "total": 17
+        },
+        {
+          "correct": 12,
+          "id": "multi-session",
+          "total": 28
+        },
+        {
+          "correct": 16,
+          "id": "single-session-assistant",
+          "total": 17
+        },
+        {
+          "correct": 3,
+          "id": "single-session-preference",
+          "total": 5
+        },
+        {
+          "correct": 11,
+          "id": "single-session-user",
+          "total": 11
+        },
+        {
+          "correct": 14,
+          "id": "temporal-reasoning",
+          "total": 22
+        }
+      ],
+      "correct": 66,
+      "costMicros": 38634,
+      "identity": {
+        "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+        "design": "paired",
+        "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+        "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+        "protocol": "oh.evolution-paired-development.v1",
+        "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+        "split": "development",
+        "totalQuestions": 100
+      },
+      "latencyMs": 362864.8476199999,
+      "protocol": "oh.evolution-development-fitness.v1",
+      "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+      "total": 100
+    },
+    {
+      "candidateId": "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403",
+      "categories": [
+        {
+          "correct": 13,
+          "id": "knowledge-update",
+          "total": 17
+        },
+        {
+          "correct": 17,
+          "id": "multi-session",
+          "total": 28
+        },
+        {
+          "correct": 14,
+          "id": "single-session-assistant",
+          "total": 17
+        },
+        {
+          "correct": 3,
+          "id": "single-session-preference",
+          "total": 5
+        },
+        {
+          "correct": 10,
+          "id": "single-session-user",
+          "total": 11
+        },
+        {
+          "correct": 12,
+          "id": "temporal-reasoning",
+          "total": 22
+        }
+      ],
+      "correct": 69,
+      "costMicros": 53988,
+      "identity": {
+        "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+        "design": "paired",
+        "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+        "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+        "protocol": "oh.evolution-paired-development.v1",
+        "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+        "split": "development",
+        "totalQuestions": 100
+      },
+      "latencyMs": 434105.44483000046,
+      "protocol": "oh.evolution-development-fitness.v1",
+      "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+      "total": 100
+    },
+    {
+      "candidateId": "5a347f72926d8d70a3b2ef77db4632bed1077c38fa8d0a1e8082a8f55ceed03d",
+      "categories": [
+        {
+          "correct": 10,
+          "id": "knowledge-update",
+          "total": 17
+        },
+        {
+          "correct": 12,
+          "id": "multi-session",
+          "total": 28
+        },
+        {
+          "correct": 15,
+          "id": "single-session-assistant",
+          "total": 17
+        },
+        {
+          "correct": 3,
+          "id": "single-session-preference",
+          "total": 5
+        },
+        {
+          "correct": 11,
+          "id": "single-session-user",
+          "total": 11
+        },
+        {
+          "correct": 14,
+          "id": "temporal-reasoning",
+          "total": 22
+        }
+      ],
+      "correct": 65,
+      "costMicros": 35160,
+      "identity": {
+        "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+        "design": "paired",
+        "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+        "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+        "protocol": "oh.evolution-paired-development.v1",
+        "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+        "split": "development",
+        "totalQuestions": 100
+      },
+      "latencyMs": 358818.795995,
+      "protocol": "oh.evolution-development-fitness.v1",
+      "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+      "total": 100
+    },
+    {
+      "candidateId": "b9b9ea8e06bfdd1353da419fd4a1c95e7322e85f34ee59f5747c3444df2b0e73",
+      "categories": [
+        {
+          "correct": 13,
+          "id": "knowledge-update",
+          "total": 17
+        },
+        {
+          "correct": 14,
+          "id": "multi-session",
+          "total": 28
+        },
+        {
+          "correct": 13,
+          "id": "single-session-assistant",
+          "total": 17
+        },
+        {
+          "correct": 1,
+          "id": "single-session-preference",
+          "total": 5
+        },
+        {
+          "correct": 10,
+          "id": "single-session-user",
+          "total": 11
+        },
+        {
+          "correct": 13,
+          "id": "temporal-reasoning",
+          "total": 22
+        }
+      ],
+      "correct": 64,
+      "costMicros": 38108,
+      "identity": {
+        "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+        "design": "paired",
+        "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+        "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+        "protocol": "oh.evolution-paired-development.v1",
+        "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+        "split": "development",
+        "totalQuestions": 100
+      },
+      "latencyMs": 326370.1497989999,
+      "protocol": "oh.evolution-development-fitness.v1",
+      "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+      "total": 100
+    },
+    {
+      "candidateId": "debf02d4dcc370fd1f56d51951db2fa2c4050f1c0f7b02d0ad35fe6fe9da2f4d",
+      "categories": [
+        {
+          "correct": 12,
+          "id": "knowledge-update",
+          "total": 17
+        },
+        {
+          "correct": 12,
+          "id": "multi-session",
+          "total": 28
+        },
+        {
+          "correct": 12,
+          "id": "single-session-assistant",
+          "total": 17
+        },
+        {
+          "correct": 1,
+          "id": "single-session-preference",
+          "total": 5
+        },
+        {
+          "correct": 9,
+          "id": "single-session-user",
+          "total": 11
+        },
+        {
+          "correct": 13,
+          "id": "temporal-reasoning",
+          "total": 22
+        }
+      ],
+      "correct": 59,
+      "costMicros": 35133,
+      "identity": {
+        "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+        "design": "paired",
+        "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+        "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+        "protocol": "oh.evolution-paired-development.v1",
+        "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+        "split": "development",
+        "totalQuestions": 100
+      },
+      "latencyMs": 338384.43720799993,
+      "protocol": "oh.evolution-development-fitness.v1",
+      "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+      "total": 100
+    },
+    {
+      "candidateId": "ead9d1fcd761ce3f858da04efd57582b12a2bdb701f55e1017847f9638c24ce5",
+      "categories": [
+        {
+          "correct": 8,
+          "id": "knowledge-update",
+          "total": 17
+        },
+        {
+          "correct": 15,
+          "id": "multi-session",
+          "total": 28
+        },
+        {
+          "correct": 17,
+          "id": "single-session-assistant",
+          "total": 17
+        },
+        {
+          "correct": 1,
+          "id": "single-session-preference",
+          "total": 5
+        },
+        {
+          "correct": 10,
+          "id": "single-session-user",
+          "total": 11
+        },
+        {
+          "correct": 14,
+          "id": "temporal-reasoning",
+          "total": 22
+        }
+      ],
+      "correct": 65,
+      "costMicros": 45129,
+      "identity": {
+        "datasetSha256": "45f1c0db1d0752fe7679406df79e4312c39a9df0ffc626375e955562180e64e2",
+        "design": "paired",
+        "evaluationProtocolSha256": "7b1bd6e2ee33c53f1e1737cf5ba90d9f8e179c8c18fc068e9b632f731965337c",
+        "judgeProfileSha256": "3943f27632e8909bb855d86b43e260a4e0a65bc038b8c25b70fab7fe2dd73c42",
+        "protocol": "oh.evolution-paired-development.v1",
+        "selectionSha256": "8b57b7c9805614c980b999553db440675c8212863acdc87e74ca4c69a6c46072",
+        "split": "development",
+        "totalQuestions": 100
+      },
+      "latencyMs": 357321.466331,
+      "protocol": "oh.evolution-development-fitness.v1",
+      "reportSha256": "47cb5175c52708ff2ed8c604be09904229c689eb5fefb0ef011a83864371204c",
+      "total": 100
+    }
+  ],
+  "selection": {
+    "fitnessSha256": "f8ee3c8423bdbb216638cdff2d0624746b6c3ae8929cff0700431c08386ac7fc",
+    "identitySha256": "74fab626378f650042601fd03f12311b79a034b5377da964edde106df110bfce",
+    "parentIds": [
+      "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403",
+      "5f68bf47634690c2500361db50282807c6573284cfa9da03ec32776fce6a4c16",
+      "08907eaccc3c3b193423e0c06ff42f3639c801962e74d4c74b63a12e47fff6e3"
+    ],
+    "parents": [
+      {
+        "generation": 0,
+        "genome": {
+          "contextBytes": 48000,
+          "reader": "gpt5-nano-reader",
+          "system": "oh-keyword",
+          "topK": 100
+        },
+        "genomeSha256": "e6ba2c0a7c125e3ba33ba8a8efc46cb30990216e6d1f8f8f0886c8820ca12c9c",
+        "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+        "id": "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403",
+        "mutationAxis": null,
+        "origin": "seed",
+        "parentIds": [],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 1081293382
+      },
+      {
+        "generation": 0,
+        "genome": {
+          "contextBytes": 96000,
+          "reader": "gpt5-nano-reader",
+          "system": "bm25-window",
+          "topK": 100
+        },
+        "genomeSha256": "f68dd7336b2854bc0fcbd243646c0ae4fc75ec02d68d447fe9dd16b628895427",
+        "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+        "id": "5f68bf47634690c2500361db50282807c6573284cfa9da03ec32776fce6a4c16",
+        "mutationAxis": null,
+        "origin": "seed",
+        "parentIds": [],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 2151720264
+      },
+      {
+        "generation": 1,
+        "genome": {
+          "contextBytes": 48000,
+          "reader": "gpt5-nano-reader",
+          "system": "bm25-window",
+          "topK": 100
+        },
+        "genomeSha256": "99f71ca7c09b20e626c19d7be8fbbc84fbb987bf35a9aa81186e83a4e4bc4cc5",
+        "hypothesis": "Deterministic one-axis system mutation from pinned development parent.",
+        "id": "08907eaccc3c3b193423e0c06ff42f3639c801962e74d4c74b63a12e47fff6e3",
+        "mutationAxis": "system",
+        "origin": "mutation",
+        "parentIds": [
+          "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403"
+        ],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 1471953639
+      }
+    ],
+    "paretoIds": [
+      "5f68bf47634690c2500361db50282807c6573284cfa9da03ec32776fce6a4c16",
+      "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403",
+      "08907eaccc3c3b193423e0c06ff42f3639c801962e74d4c74b63a12e47fff6e3",
+      "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a",
+      "5a347f72926d8d70a3b2ef77db4632bed1077c38fa8d0a1e8082a8f55ceed03d",
+      "ead9d1fcd761ce3f858da04efd57582b12a2bdb701f55e1017847f9638c24ce5",
+      "b9b9ea8e06bfdd1353da419fd4a1c95e7322e85f34ee59f5747c3444df2b0e73",
+      "debf02d4dcc370fd1f56d51951db2fa2c4050f1c0f7b02d0ad35fe6fe9da2f4d"
+    ],
+    "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+    "protocol": "oh.evolution-parent-selection.v1",
+    "requestedLimit": 3,
+    "selectionSha256": "bef217682f410f2a0acd80a216cf79c4e50b5a3397db329ca6f5b9dd9b372aba",
+    "specialistCategories": [
+      "knowledge-update",
+      "multi-session"
+    ],
+    "specialistIds": [
+      "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403",
+      "5f68bf47634690c2500361db50282807c6573284cfa9da03ec32776fce6a4c16"
+    ]
+  },
+  "incomingArchive": [
+    {
+      "candidate": {
+        "generation": 0,
+        "genome": {
+          "contextBytes": 24000,
+          "reader": "gpt5-nano-reader",
+          "system": "bm25-window",
+          "topK": 20
+        },
+        "genomeSha256": "03e99ee720f1473863cfa0091cc6284bbf5ee1fa86e3dbade217f37bd61f65b7",
+        "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+        "id": "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a",
+        "mutationAxis": null,
+        "origin": "seed",
+        "parentIds": [],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 3208152052
+      },
+      "status": "observed"
+    },
+    {
+      "candidate": {
+        "generation": 0,
+        "genome": {
+          "contextBytes": 96000,
+          "reader": "gpt5-nano-reader",
+          "system": "bm25-window",
+          "topK": 100
+        },
+        "genomeSha256": "f68dd7336b2854bc0fcbd243646c0ae4fc75ec02d68d447fe9dd16b628895427",
+        "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+        "id": "5f68bf47634690c2500361db50282807c6573284cfa9da03ec32776fce6a4c16",
+        "mutationAxis": null,
+        "origin": "seed",
+        "parentIds": [],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 2151720264
+      },
+      "status": "observed"
+    },
+    {
+      "candidate": {
+        "generation": 0,
+        "genome": {
+          "contextBytes": 24000,
+          "reader": "gpt5-nano-reader",
+          "system": "oh-keyword",
+          "topK": 100
+        },
+        "genomeSha256": "f7f01ab9c86d58f406e49b140ad42ea01c08b00b049cc3e0f5e7f355ae92fb58",
+        "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+        "id": "edb056af887434193b8948ff89b6960025301cd7a858a2dc993264dc3c2a00fd",
+        "mutationAxis": null,
+        "origin": "seed",
+        "parentIds": [],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 3628720575
+      },
+      "status": "observed"
+    },
+    {
+      "candidate": {
+        "generation": 0,
+        "genome": {
+          "contextBytes": 48000,
+          "reader": "gpt5-nano-reader",
+          "system": "oh-keyword",
+          "topK": 100
+        },
+        "genomeSha256": "e6ba2c0a7c125e3ba33ba8a8efc46cb30990216e6d1f8f8f0886c8820ca12c9c",
+        "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+        "id": "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403",
+        "mutationAxis": null,
+        "origin": "seed",
+        "parentIds": [],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 1081293382
+      },
+      "status": "observed"
+    },
+    {
+      "candidate": {
+        "generation": 0,
+        "genome": {
+          "contextBytes": 96000,
+          "reader": "gpt5-nano-reader",
+          "system": "oh-keyword",
+          "topK": 100
+        },
+        "genomeSha256": "2f9c371b3eaba558758cfc06e96d895848cb4a979ea482d79313c32171d2d85e",
+        "hypothesis": "Observed declared development configuration; no answer-tuned mutation.",
+        "id": "01f6b178dc9d071dbd016bb9e889bc0903545a330ca808966cb1520047604bba",
+        "mutationAxis": null,
+        "origin": "seed",
+        "parentIds": [],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 1951459599
+      },
+      "status": "observed"
+    },
+    {
+      "candidate": {
+        "generation": 1,
+        "genome": {
+          "contextBytes": 24000,
+          "reader": "gpt5-nano-reader",
+          "system": "oh-keyword",
+          "topK": 20
+        },
+        "genomeSha256": "92a53929f6865c95cf9d1abf22e32363409238534aef9a04a2108ea1dd6d7d7b",
+        "hypothesis": "Deterministic one-axis system mutation from pinned development parent.",
+        "id": "debf02d4dcc370fd1f56d51951db2fa2c4050f1c0f7b02d0ad35fe6fe9da2f4d",
+        "mutationAxis": "system",
+        "origin": "mutation",
+        "parentIds": [
+          "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a"
+        ],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 4136742679
+      },
+      "status": "proposed"
+    },
+    {
+      "candidate": {
+        "generation": 1,
+        "genome": {
+          "contextBytes": 24000,
+          "reader": "gpt5-nano-reader",
+          "system": "bm25-window",
+          "topK": 100
+        },
+        "genomeSha256": "13d2cd230a422e80b441c5c7a9bb87576f2dfeedf11dba7abfc44220692f7a64",
+        "hypothesis": "Deterministic one-axis topK mutation from pinned development parent.",
+        "id": "5a347f72926d8d70a3b2ef77db4632bed1077c38fa8d0a1e8082a8f55ceed03d",
+        "mutationAxis": "topK",
+        "origin": "mutation",
+        "parentIds": [
+          "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a"
+        ],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 1938467998
+      },
+      "status": "proposed"
+    },
+    {
+      "candidate": {
+        "generation": 1,
+        "genome": {
+          "contextBytes": 96000,
+          "reader": "gpt5-nano-reader",
+          "system": "bm25-window",
+          "topK": 20
+        },
+        "genomeSha256": "e54b4115d06db11d043cc05119e9b74cdea9fe628d6f492bf4db16c5bdebdef0",
+        "hypothesis": "Deterministic one-axis contextBytes mutation from pinned development parent.",
+        "id": "ead9d1fcd761ce3f858da04efd57582b12a2bdb701f55e1017847f9638c24ce5",
+        "mutationAxis": "contextBytes",
+        "origin": "mutation",
+        "parentIds": [
+          "49bf58750940864e6d5971a90b162f8057cb0592665b0e0633d3e90b34102b6a"
+        ],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 3717901450
+      },
+      "status": "proposed"
+    },
+    {
+      "candidate": {
+        "generation": 1,
+        "genome": {
+          "contextBytes": 48000,
+          "reader": "gpt5-nano-reader",
+          "system": "bm25-window",
+          "topK": 100
+        },
+        "genomeSha256": "99f71ca7c09b20e626c19d7be8fbbc84fbb987bf35a9aa81186e83a4e4bc4cc5",
+        "hypothesis": "Deterministic one-axis system mutation from pinned development parent.",
+        "id": "08907eaccc3c3b193423e0c06ff42f3639c801962e74d4c74b63a12e47fff6e3",
+        "mutationAxis": "system",
+        "origin": "mutation",
+        "parentIds": [
+          "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403"
+        ],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 1471953639
+      },
+      "status": "proposed"
+    },
+    {
+      "candidate": {
+        "generation": 1,
+        "genome": {
+          "contextBytes": 48000,
+          "reader": "gpt5-nano-reader",
+          "system": "oh-keyword",
+          "topK": 20
+        },
+        "genomeSha256": "0bd2204dd1061b4c7b43e1bc6629617cc7279fdd7db5ced19dce30a5b4b65ee2",
+        "hypothesis": "Deterministic one-axis topK mutation from pinned development parent.",
+        "id": "b9b9ea8e06bfdd1353da419fd4a1c95e7322e85f34ee59f5747c3444df2b0e73",
+        "mutationAxis": "topK",
+        "origin": "mutation",
+        "parentIds": [
+          "5996ee666d5bd19c1b3861193a0f651e58631c4834dddc31ef997555eb3e3403"
+        ],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 2482379203
+      },
+      "status": "proposed"
+    }
+  ],
+  "nextGeneration": {
+    "candidates": [
+      {
+        "generation": 2,
+        "genome": {
+          "contextBytes": 48000,
+          "reader": "gpt5-nano-reader",
+          "system": "bm25-window",
+          "topK": 20
+        },
+        "genomeSha256": "5bf366ef3a807e46d8533f8d25ca8b7aa2d982003f86129fa76fb3fae03ddc89",
+        "hypothesis": "Deterministic one-axis topK mutation from pinned development parent.",
+        "id": "b88653dac4f66039512402e882b8a4cfff73a4d88c4099dc4979047be7a4586c",
+        "mutationAxis": "topK",
+        "origin": "mutation",
+        "parentIds": [
+          "08907eaccc3c3b193423e0c06ff42f3639c801962e74d4c74b63a12e47fff6e3"
+        ],
+        "policySha256": "7665bfe7326793dbea7cb5306fe43f1c445844a20822ba9602c5108789d6ba83",
+        "protocol": "oh.evolution-candidate.v1",
+        "seed": 3880217297
+      }
+    ],
+    "createdChildren": 1,
+    "omittedChildren": 7,
+    "qualification": "Mutations change one declared retrieval axis; crossovers combine only selected parents and declared system/top-K/context domains. Proposed children are untested and have no observed fitness.",
+    "requestedChildren": 8
+  }
+}
