@@ -1,0 +1,4161 @@
+{
+  "protocol": "oh.memory.answer-contracts-paired-public.v1",
+  "status": "complete",
+  "compactArtifactSha256": "a800bca8c206fe34e18b648ac65f9c205c434b97c8acf5b3b6bb45bdc0ac528b",
+  "questionsPerArm": 100,
+  "matchedRetrievalComparisons": [
+    {
+      "reader": "gpt5-nano-reader",
+      "contract": "legacy-v1",
+      "candidateVariant": "oh-focused-window-96k",
+      "referenceVariant": "window-96k",
+      "overall": {
+        "questions": 100,
+        "wins": 8,
+        "losses": 3,
+        "ties": 89,
+        "candidate": {
+          "questions": 100,
+          "correct": 73,
+          "mean": 0.73,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 68,
+          "mean": 0.68,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.05
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 3,
+          "losses": 2,
+          "ties": 12,
+          "candidate": {
+            "questions": 17,
+            "correct": 11,
+            "mean": 0.6470588235294118,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 10,
+            "mean": 0.5882352941176471,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 3,
+          "losses": 0,
+          "ties": 25,
+          "candidate": {
+            "questions": 28,
+            "correct": 18,
+            "mean": 0.6428571428571429,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 15,
+            "mean": 0.5357142857142857,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.10714285714285714
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 16,
+            "mean": 0.9411764705882353,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 1,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 1,
+            "mean": 0.2,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidate": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 1,
+          "losses": 0,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 1,
+          "ties": 6,
+          "candidate": {
+            "questions": 7,
+            "correct": 3,
+            "mean": 0.42857142857142855,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.14285714285714285
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 8,
+          "losses": 2,
+          "ties": 83,
+          "candidate": {
+            "questions": 93,
+            "correct": 70,
+            "mean": 0.7526881720430108,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 64,
+            "mean": 0.6881720430107527,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.06451612903225806
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-v1-reader",
+      "contract": "explicit-abstention-v1",
+      "candidateVariant": "oh-focused-window-96k",
+      "referenceVariant": "window-96k",
+      "overall": {
+        "questions": 100,
+        "wins": 3,
+        "losses": 7,
+        "ties": 90,
+        "candidate": {
+          "questions": 100,
+          "correct": 76,
+          "mean": 0.76,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 80,
+          "mean": 0.8,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": -0.04
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 2,
+          "losses": 1,
+          "ties": 14,
+          "candidate": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 13,
+            "mean": 0.7647058823529411,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 1,
+          "losses": 3,
+          "ties": 24,
+          "candidate": {
+            "questions": 28,
+            "correct": 17,
+            "mean": 0.6071428571428571,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.07142857142857142
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 1,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 1,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 1,
+          "losses": 0,
+          "ties": 6,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 6,
+            "mean": 0.8571428571428571,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.14285714285714285
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 2,
+          "losses": 7,
+          "ties": 84,
+          "candidate": {
+            "questions": 93,
+            "correct": 69,
+            "mean": 0.7419354838709677,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 74,
+            "mean": 0.7956989247311828,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.053763440860215055
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-nano-composition-v1-reader",
+      "contract": "composition-v1",
+      "candidateVariant": "oh-focused-window-96k",
+      "referenceVariant": "window-96k",
+      "overall": {
+        "questions": 100,
+        "wins": 4,
+        "losses": 9,
+        "ties": 87,
+        "candidate": {
+          "questions": 100,
+          "correct": 71,
+          "mean": 0.71,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 76,
+          "mean": 0.76,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": -0.05
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 2,
+          "losses": 2,
+          "ties": 13,
+          "candidate": {
+            "questions": 17,
+            "correct": 12,
+            "mean": 0.7058823529411765,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 12,
+            "mean": 0.7058823529411765,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 2,
+          "losses": 3,
+          "ties": 23,
+          "candidate": {
+            "questions": 28,
+            "correct": 16,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 17,
+            "mean": 0.6071428571428571,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.03571428571428571
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 2,
+          "ties": 3,
+          "candidate": {
+            "questions": 5,
+            "correct": 1,
+            "mean": 0.2,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.4
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 1,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 1,
+          "ties": 6,
+          "candidate": {
+            "questions": 7,
+            "correct": 3,
+            "mean": 0.42857142857142855,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.14285714285714285
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 4,
+          "losses": 8,
+          "ties": 81,
+          "candidate": {
+            "questions": 93,
+            "correct": 68,
+            "mean": 0.7311827956989247,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 72,
+            "mean": 0.7741935483870968,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.043010752688172046
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "contract": "explicit-abstention-composition-v1",
+      "candidateVariant": "oh-focused-window-96k",
+      "referenceVariant": "window-96k",
+      "overall": {
+        "questions": 100,
+        "wins": 7,
+        "losses": 4,
+        "ties": 89,
+        "candidate": {
+          "questions": 100,
+          "correct": 81,
+          "mean": 0.81,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 78,
+          "mean": 0.78,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.03
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 0,
+          "losses": 2,
+          "ties": 15,
+          "candidate": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 16,
+            "mean": 0.9411764705882353,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.11764705882352941
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 6,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 28,
+            "correct": 20,
+            "mean": 0.7142857142857143,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 15,
+            "mean": 0.5357142857142857,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.17857142857142858
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 0,
+          "ties": 7,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 7,
+          "losses": 4,
+          "ties": 82,
+          "candidate": {
+            "questions": 93,
+            "correct": 74,
+            "mean": 0.7956989247311828,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 71,
+            "mean": 0.7634408602150538,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.03225806451612903
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-mini-reader",
+      "contract": "legacy-v1",
+      "candidateVariant": "oh-focused-window-96k",
+      "referenceVariant": "window-96k",
+      "overall": {
+        "questions": 100,
+        "wins": 1,
+        "losses": 3,
+        "ties": 96,
+        "candidate": {
+          "questions": 100,
+          "correct": 79,
+          "mean": 0.79,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 81,
+          "mean": 0.81,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": -0.02
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 1,
+          "losses": 1,
+          "ties": 26,
+          "candidate": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 1,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidate": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 0,
+          "ties": 7,
+          "candidate": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 1,
+          "losses": 3,
+          "ties": 89,
+          "candidate": {
+            "questions": 93,
+            "correct": 75,
+            "mean": 0.8064516129032258,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 77,
+            "mean": 0.8279569892473119,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.021505376344086023
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-mini-explicit-abstention-v1-reader",
+      "contract": "explicit-abstention-v1",
+      "candidateVariant": "oh-focused-window-96k",
+      "referenceVariant": "window-96k",
+      "overall": {
+        "questions": 100,
+        "wins": 0,
+        "losses": 1,
+        "ties": 99,
+        "candidate": {
+          "questions": 100,
+          "correct": 85,
+          "mean": 0.85,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 86,
+          "mean": 0.86,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": -0.01
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 15,
+            "mean": 0.8823529411764706,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 15,
+            "mean": 0.8823529411764706,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 0,
+          "losses": 0,
+          "ties": 28,
+          "candidate": {
+            "questions": 28,
+            "correct": 23,
+            "mean": 0.8214285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 23,
+            "mean": 0.8214285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 1,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 16,
+            "mean": 0.9411764705882353,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.058823529411764705
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 0,
+          "ties": 5,
+          "candidate": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 0,
+          "ties": 22,
+          "candidate": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 0,
+          "ties": 7,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 0,
+          "losses": 1,
+          "ties": 92,
+          "candidate": {
+            "questions": 93,
+            "correct": 78,
+            "mean": 0.8387096774193549,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 79,
+            "mean": 0.8494623655913979,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.010752688172043012
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-mini-composition-v1-reader",
+      "contract": "composition-v1",
+      "candidateVariant": "oh-focused-window-96k",
+      "referenceVariant": "window-96k",
+      "overall": {
+        "questions": 100,
+        "wins": 4,
+        "losses": 3,
+        "ties": 93,
+        "candidate": {
+          "questions": 100,
+          "correct": 82,
+          "mean": 0.82,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 81,
+          "mean": 0.81,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.01
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 0,
+          "losses": 2,
+          "ties": 15,
+          "candidate": {
+            "questions": 17,
+            "correct": 13,
+            "mean": 0.7647058823529411,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 15,
+            "mean": 0.8823529411764706,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.11764705882352941
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 2,
+          "losses": 0,
+          "ties": 26,
+          "candidate": {
+            "questions": 28,
+            "correct": 21,
+            "mean": 0.75,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.07142857142857142
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 1,
+          "ties": 3,
+          "candidate": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 1,
+          "losses": 0,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 0,
+          "ties": 22,
+          "candidate": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 0,
+          "ties": 7,
+          "candidate": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 4,
+          "losses": 3,
+          "ties": 86,
+          "candidate": {
+            "questions": 93,
+            "correct": 78,
+            "mean": 0.8387096774193549,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 77,
+            "mean": 0.8279569892473119,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.010752688172043012
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+      "contract": "explicit-abstention-composition-v1",
+      "candidateVariant": "oh-focused-window-96k",
+      "referenceVariant": "window-96k",
+      "overall": {
+        "questions": 100,
+        "wins": 1,
+        "losses": 3,
+        "ties": 96,
+        "candidate": {
+          "questions": 100,
+          "correct": 83,
+          "mean": 0.83,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 85,
+          "mean": 0.85,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": -0.02
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 0,
+          "losses": 1,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 15,
+            "mean": 0.8823529411764706,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 1,
+          "losses": 0,
+          "ties": 27,
+          "candidate": {
+            "questions": 28,
+            "correct": 21,
+            "mean": 0.75,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 20,
+            "mean": 0.7142857142857143,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.03571428571428571
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 0,
+          "ties": 5,
+          "candidate": {
+            "questions": 5,
+            "correct": 4,
+            "mean": 0.8,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 4,
+            "mean": 0.8,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 2,
+          "ties": 20,
+          "candidate": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.09090909090909091
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 1,
+          "ties": 6,
+          "candidate": {
+            "questions": 7,
+            "correct": 6,
+            "mean": 0.8571428571428571,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.14285714285714285
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 1,
+          "losses": 2,
+          "ties": 90,
+          "candidate": {
+            "questions": 93,
+            "correct": 77,
+            "mean": 0.8279569892473119,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 78,
+            "mean": 0.8387096774193549,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.010752688172043012
+        }
+      ]
+    }
+  ],
+  "answerContractVersusLegacyComparisons": [
+    {
+      "variant": "window-96k",
+      "candidateReader": "gpt5-nano-explicit-abstention-v1-reader",
+      "referenceReader": "gpt5-nano-reader",
+      "contract": "explicit-abstention-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 13,
+        "losses": 1,
+        "ties": 86,
+        "candidate": {
+          "questions": 100,
+          "correct": 80,
+          "mean": 0.8,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 68,
+          "mean": 0.68,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.12
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 4,
+          "losses": 1,
+          "ties": 12,
+          "candidate": {
+            "questions": 17,
+            "correct": 13,
+            "mean": 0.7647058823529411,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 10,
+            "mean": 0.5882352941176471,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.17647058823529413
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 4,
+          "losses": 0,
+          "ties": 24,
+          "candidate": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 15,
+            "mean": 0.5357142857142857,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.14285714285714285
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 16,
+            "mean": 0.9411764705882353,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 2,
+          "losses": 0,
+          "ties": 9,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.18181818181818182
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 1,
+          "losses": 0,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 3,
+          "losses": 1,
+          "ties": 3,
+          "candidate": {
+            "questions": 7,
+            "correct": 6,
+            "mean": 0.8571428571428571,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.2857142857142857
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 10,
+          "losses": 0,
+          "ties": 83,
+          "candidate": {
+            "questions": 93,
+            "correct": 74,
+            "mean": 0.7956989247311828,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 64,
+            "mean": 0.6881720430107527,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.10752688172043011
+        }
+      ]
+    },
+    {
+      "variant": "window-96k",
+      "candidateReader": "gpt5-nano-composition-v1-reader",
+      "referenceReader": "gpt5-nano-reader",
+      "contract": "composition-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 11,
+        "losses": 3,
+        "ties": 86,
+        "candidate": {
+          "questions": 100,
+          "correct": 76,
+          "mean": 0.76,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 68,
+          "mean": 0.68,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.08
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 3,
+          "losses": 1,
+          "ties": 13,
+          "candidate": {
+            "questions": 17,
+            "correct": 12,
+            "mean": 0.7058823529411765,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 10,
+            "mean": 0.5882352941176471,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.11764705882352941
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 3,
+          "losses": 1,
+          "ties": 24,
+          "candidate": {
+            "questions": 28,
+            "correct": 17,
+            "mean": 0.6071428571428571,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 15,
+            "mean": 0.5357142857142857,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.07142857142857142
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 16,
+            "mean": 0.9411764705882353,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 1,
+          "losses": 0,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 2,
+          "losses": 1,
+          "ties": 19,
+          "candidate": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 0,
+          "ties": 7,
+          "candidate": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 11,
+          "losses": 3,
+          "ties": 79,
+          "candidate": {
+            "questions": 93,
+            "correct": 72,
+            "mean": 0.7741935483870968,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 64,
+            "mean": 0.6881720430107527,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.08602150537634409
+        }
+      ]
+    },
+    {
+      "variant": "window-96k",
+      "candidateReader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "referenceReader": "gpt5-nano-reader",
+      "contract": "explicit-abstention-composition-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 15,
+        "losses": 5,
+        "ties": 80,
+        "candidate": {
+          "questions": 100,
+          "correct": 78,
+          "mean": 0.78,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 68,
+          "mean": 0.68,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.1
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 6,
+          "losses": 0,
+          "ties": 11,
+          "candidate": {
+            "questions": 17,
+            "correct": 16,
+            "mean": 0.9411764705882353,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 10,
+            "mean": 0.5882352941176471,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.35294117647058826
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 4,
+          "losses": 4,
+          "ties": 20,
+          "candidate": {
+            "questions": 28,
+            "correct": 15,
+            "mean": 0.5357142857142857,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 15,
+            "mean": 0.5357142857142857,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 16,
+            "mean": 0.9411764705882353,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 1,
+          "ties": 3,
+          "candidate": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 2,
+          "losses": 0,
+          "ties": 9,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.18181818181818182
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 1,
+          "losses": 0,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 3,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.42857142857142855
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 12,
+          "losses": 5,
+          "ties": 76,
+          "candidate": {
+            "questions": 93,
+            "correct": 71,
+            "mean": 0.7634408602150538,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 64,
+            "mean": 0.6881720430107527,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.07526881720430108
+        }
+      ]
+    },
+    {
+      "variant": "oh-focused-window-96k",
+      "candidateReader": "gpt5-nano-explicit-abstention-v1-reader",
+      "referenceReader": "gpt5-nano-reader",
+      "contract": "explicit-abstention-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 8,
+        "losses": 5,
+        "ties": 87,
+        "candidate": {
+          "questions": 100,
+          "correct": 76,
+          "mean": 0.76,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 73,
+          "mean": 0.73,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.03
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 4,
+          "losses": 1,
+          "ties": 12,
+          "candidate": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 11,
+            "mean": 0.6470588235294118,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.17647058823529413
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 2,
+          "losses": 3,
+          "ties": 23,
+          "candidate": {
+            "questions": 28,
+            "correct": 17,
+            "mean": 0.6071428571428571,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 18,
+            "mean": 0.6428571428571429,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.03571428571428571
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 1,
+            "mean": 0.2,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 1,
+          "losses": 0,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 4,
+          "losses": 0,
+          "ties": 3,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 3,
+            "mean": 0.42857142857142855,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.5714285714285714
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 4,
+          "losses": 5,
+          "ties": 84,
+          "candidate": {
+            "questions": 93,
+            "correct": 69,
+            "mean": 0.7419354838709677,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 70,
+            "mean": 0.7526881720430108,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.010752688172043012
+        }
+      ]
+    },
+    {
+      "variant": "oh-focused-window-96k",
+      "candidateReader": "gpt5-nano-composition-v1-reader",
+      "referenceReader": "gpt5-nano-reader",
+      "contract": "composition-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 5,
+        "losses": 7,
+        "ties": 88,
+        "candidate": {
+          "questions": 100,
+          "correct": 71,
+          "mean": 0.71,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 73,
+          "mean": 0.73,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": -0.02
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 3,
+          "losses": 2,
+          "ties": 12,
+          "candidate": {
+            "questions": 17,
+            "correct": 12,
+            "mean": 0.7058823529411765,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 11,
+            "mean": 0.6470588235294118,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 2,
+          "losses": 4,
+          "ties": 22,
+          "candidate": {
+            "questions": 28,
+            "correct": 16,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 18,
+            "mean": 0.6428571428571429,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.07142857142857142
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 0,
+          "ties": 5,
+          "candidate": {
+            "questions": 5,
+            "correct": 1,
+            "mean": 0.2,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 1,
+            "mean": 0.2,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidate": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 0,
+          "ties": 7,
+          "candidate": {
+            "questions": 7,
+            "correct": 3,
+            "mean": 0.42857142857142855,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 3,
+            "mean": 0.42857142857142855,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 5,
+          "losses": 7,
+          "ties": 81,
+          "candidate": {
+            "questions": 93,
+            "correct": 68,
+            "mean": 0.7311827956989247,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 70,
+            "mean": 0.7526881720430108,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.021505376344086023
+        }
+      ]
+    },
+    {
+      "variant": "oh-focused-window-96k",
+      "candidateReader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "referenceReader": "gpt5-nano-reader",
+      "contract": "explicit-abstention-composition-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 13,
+        "losses": 5,
+        "ties": 82,
+        "candidate": {
+          "questions": 100,
+          "correct": 81,
+          "mean": 0.81,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 73,
+          "mean": 0.73,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.08
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 5,
+          "losses": 2,
+          "ties": 10,
+          "candidate": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 11,
+            "mean": 0.6470588235294118,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.17647058823529413
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 4,
+          "losses": 2,
+          "ties": 22,
+          "candidate": {
+            "questions": 28,
+            "correct": 20,
+            "mean": 0.7142857142857143,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 18,
+            "mean": 0.6428571428571429,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.07142857142857142
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 2,
+          "losses": 0,
+          "ties": 3,
+          "candidate": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 1,
+            "mean": 0.2,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.4
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 2,
+          "losses": 0,
+          "ties": 9,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.18181818181818182
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 4,
+          "losses": 0,
+          "ties": 3,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 3,
+            "mean": 0.42857142857142855,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.5714285714285714
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 9,
+          "losses": 5,
+          "ties": 79,
+          "candidate": {
+            "questions": 93,
+            "correct": 74,
+            "mean": 0.7956989247311828,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 70,
+            "mean": 0.7526881720430108,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.043010752688172046
+        }
+      ]
+    },
+    {
+      "variant": "window-96k",
+      "candidateReader": "gpt5-mini-explicit-abstention-v1-reader",
+      "referenceReader": "gpt5-mini-reader",
+      "contract": "explicit-abstention-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 6,
+        "losses": 1,
+        "ties": 93,
+        "candidate": {
+          "questions": 100,
+          "correct": 86,
+          "mean": 0.86,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 81,
+          "mean": 0.81,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.05
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 15,
+            "mean": 0.8823529411764706,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 4,
+          "losses": 0,
+          "ties": 24,
+          "candidate": {
+            "questions": 28,
+            "correct": 23,
+            "mean": 0.8214285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.14285714285714285
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 1,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 1,
+          "losses": 0,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 0,
+          "ties": 22,
+          "candidate": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 3,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.42857142857142855
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 3,
+          "losses": 1,
+          "ties": 89,
+          "candidate": {
+            "questions": 93,
+            "correct": 79,
+            "mean": 0.8494623655913979,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 77,
+            "mean": 0.8279569892473119,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.021505376344086023
+        }
+      ]
+    },
+    {
+      "variant": "window-96k",
+      "candidateReader": "gpt5-mini-composition-v1-reader",
+      "referenceReader": "gpt5-mini-reader",
+      "contract": "composition-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 3,
+        "losses": 3,
+        "ties": 94,
+        "candidate": {
+          "questions": 100,
+          "correct": 81,
+          "mean": 0.81,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 81,
+          "mean": 0.81,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 15,
+            "mean": 0.8823529411764706,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 1,
+          "losses": 1,
+          "ties": 26,
+          "candidate": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 1,
+          "ties": 3,
+          "candidate": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 1,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 9,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 0,
+          "ties": 22,
+          "candidate": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 0,
+          "ties": 7,
+          "candidate": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 3,
+          "losses": 3,
+          "ties": 87,
+          "candidate": {
+            "questions": 93,
+            "correct": 77,
+            "mean": 0.8279569892473119,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 77,
+            "mean": 0.8279569892473119,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        }
+      ]
+    },
+    {
+      "variant": "window-96k",
+      "candidateReader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+      "referenceReader": "gpt5-mini-reader",
+      "contract": "explicit-abstention-composition-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 6,
+        "losses": 2,
+        "ties": 92,
+        "candidate": {
+          "questions": 100,
+          "correct": 85,
+          "mean": 0.85,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 81,
+          "mean": 0.81,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.04
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 15,
+            "mean": 0.8823529411764706,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 3,
+          "losses": 2,
+          "ties": 23,
+          "candidate": {
+            "questions": 28,
+            "correct": 20,
+            "mean": 0.7142857142857143,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.03571428571428571
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 4,
+            "mean": 0.8,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 1,
+          "losses": 0,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 0,
+          "ties": 22,
+          "candidate": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 3,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.42857142857142855
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 3,
+          "losses": 2,
+          "ties": 88,
+          "candidate": {
+            "questions": 93,
+            "correct": 78,
+            "mean": 0.8387096774193549,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 77,
+            "mean": 0.8279569892473119,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.010752688172043012
+        }
+      ]
+    },
+    {
+      "variant": "oh-focused-window-96k",
+      "candidateReader": "gpt5-mini-explicit-abstention-v1-reader",
+      "referenceReader": "gpt5-mini-reader",
+      "contract": "explicit-abstention-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 8,
+        "losses": 2,
+        "ties": 90,
+        "candidate": {
+          "questions": 100,
+          "correct": 85,
+          "mean": 0.85,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 79,
+          "mean": 0.79,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.06
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 0,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 15,
+            "mean": 0.8823529411764706,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 4,
+          "losses": 0,
+          "ties": 24,
+          "candidate": {
+            "questions": 28,
+            "correct": 23,
+            "mean": 0.8214285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.14285714285714285
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 1,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 16,
+            "mean": 0.9411764705882353,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.058823529411764705
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 1,
+          "ties": 3,
+          "candidate": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 1,
+          "losses": 0,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 1,
+          "losses": 0,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 3,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 7,
+            "correct": 7,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.42857142857142855
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 5,
+          "losses": 2,
+          "ties": 86,
+          "candidate": {
+            "questions": 93,
+            "correct": 78,
+            "mean": 0.8387096774193549,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 75,
+            "mean": 0.8064516129032258,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.03225806451612903
+        }
+      ]
+    },
+    {
+      "variant": "oh-focused-window-96k",
+      "candidateReader": "gpt5-mini-composition-v1-reader",
+      "referenceReader": "gpt5-mini-reader",
+      "contract": "composition-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 4,
+        "losses": 1,
+        "ties": 95,
+        "candidate": {
+          "questions": 100,
+          "correct": 82,
+          "mean": 0.82,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 79,
+          "mean": 0.79,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.03
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 0,
+          "losses": 1,
+          "ties": 16,
+          "candidate": {
+            "questions": 17,
+            "correct": 13,
+            "mean": 0.7647058823529411,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.058823529411764705
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 2,
+          "losses": 0,
+          "ties": 26,
+          "candidate": {
+            "questions": 28,
+            "correct": 21,
+            "mean": 0.75,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.07142857142857142
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidate": {
+            "questions": 5,
+            "correct": 3,
+            "mean": 0.6,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.2
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidate": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 1,
+          "losses": 0,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 18,
+            "mean": 0.8181818181818182,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 0,
+          "losses": 0,
+          "ties": 7,
+          "candidate": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 4,
+          "losses": 1,
+          "ties": 88,
+          "candidate": {
+            "questions": 93,
+            "correct": 78,
+            "mean": 0.8387096774193549,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 75,
+            "mean": 0.8064516129032258,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.03225806451612903
+        }
+      ]
+    },
+    {
+      "variant": "oh-focused-window-96k",
+      "candidateReader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+      "referenceReader": "gpt5-mini-reader",
+      "contract": "explicit-abstention-composition-v1",
+      "overall": {
+        "questions": 100,
+        "wins": 7,
+        "losses": 3,
+        "ties": 90,
+        "candidate": {
+          "questions": 100,
+          "correct": 83,
+          "mean": 0.83,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "reference": {
+          "questions": 100,
+          "correct": 79,
+          "mean": 0.79,
+          "readerFailures": 0,
+          "judgeFailures": 0
+        },
+        "meanDelta": 0.04
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 1,
+          "ties": 15,
+          "candidate": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 14,
+            "mean": 0.8235294117647058,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 3,
+          "losses": 1,
+          "ties": 24,
+          "candidate": {
+            "questions": 28,
+            "correct": 21,
+            "mean": 0.75,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 28,
+            "correct": 19,
+            "mean": 0.6785714285714286,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.07142857142857142
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidate": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 17,
+            "correct": 17,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 2,
+          "losses": 0,
+          "ties": 3,
+          "candidate": {
+            "questions": 5,
+            "correct": 4,
+            "mean": 0.8,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 5,
+            "correct": 2,
+            "mean": 0.4,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.4
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 1,
+          "losses": 0,
+          "ties": 10,
+          "candidate": {
+            "questions": 11,
+            "correct": 11,
+            "mean": 1,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 11,
+            "correct": 10,
+            "mean": 0.9090909090909091,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.09090909090909091
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 1,
+          "ties": 21,
+          "candidate": {
+            "questions": 22,
+            "correct": 16,
+            "mean": 0.7272727272727273,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 22,
+            "correct": 17,
+            "mean": 0.7727272727272727,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": -0.045454545454545456
+        }
+      ],
+      "byAnswerability": [
+        {
+          "answerability": "abstention",
+          "questions": 7,
+          "wins": 3,
+          "losses": 1,
+          "ties": 3,
+          "candidate": {
+            "questions": 7,
+            "correct": 6,
+            "mean": 0.8571428571428571,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 7,
+            "correct": 4,
+            "mean": 0.5714285714285714,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.2857142857142857
+        },
+        {
+          "answerability": "non-abstention",
+          "questions": 93,
+          "wins": 4,
+          "losses": 2,
+          "ties": 87,
+          "candidate": {
+            "questions": 93,
+            "correct": 77,
+            "mean": 0.8279569892473119,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "reference": {
+            "questions": 93,
+            "correct": 75,
+            "mean": 0.8064516129032258,
+            "readerFailures": 0,
+            "judgeFailures": 0
+          },
+          "meanDelta": 0.021505376344086023
+        }
+      ]
+    }
+  ],
+  "qualification": {
+    "development": "Same exposed100 development questions, 100 corpus identities and94 declared families. All1600 cells were preregistered new-store repeats. The same development set informed earlier experiments; no independent confirmation, confidence interval or superiority claim.",
+    "scoring": "Native LongMemEval rubric and contains-yes decision with Gateway GPT-4o alias and16 output tokens. No pinned model snapshot, native10-token protocol reproduction or full-set score.",
+    "comparisons": "Matched retrieval pairs use the identical reader profile and96000-byte/top100 caps. Contract pairs keep retrieval, exact question/context message bytes and model settings fixed, changing only the system answer instruction/profile identity. Outcomes are descriptive paired observations from one execution per distinct request.",
+    "answerability": "Seven abstention and93 non-abstention questions, classified by selected native manifest IDs ending in _abs, matching the importer. No question text, gold labels or per-question outcomes are published.",
+    "cost": "Incremental totals follow the six actual receipts across model stages and count unique physical requests once. Per-stage and arm attributed costs overlap shared judge requests and cannot be summed as new spend. All known usage; no unresolved reservations added. Provider invoice reconciliation is outside this receipt audit.",
+    "latency": "Receipt wall time includes each qualification/main phase; physical and arm service-time statistics are inherited from the pinned authenticated reports, not remeasured or reauthenticated against raw captures."
+  },
+  "readerFailures": 0,
+  "judgeFailures": 0,
+  "modelCalls": 0
+}

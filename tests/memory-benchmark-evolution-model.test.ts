@@ -29,7 +29,7 @@ describe("memory evolution model contracts", () => {
     const ids = Object.keys(EVOLUTION_PROFILES) as EvolutionProfileId[];
     const hashes = new Set<string>();
     for (const id of ids) {
-      const prompt = id === "gpt4o-official-snapshot-judge" ? directJudgeMessages : messages;
+      const prompt = id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1" ? directJudgeMessages : messages;
       const request = makeEvolutionRequest(id, prompt), bytes = raw(response(request));
       const result = parseEvolutionResponse(bytes, request);
       expect(validateEvolutionRequest(structuredClone(request))).toEqual(request);
@@ -66,6 +66,25 @@ describe("memory evolution model contracts", () => {
       const altered = structuredClone(mini); change(altered);
       expect(() => parseEvolutionResponse(raw(response(mini)), altered)).toThrow("request changed");
     }
+  });
+
+  test("nano reasoning treatments keep matched inputs and costs while rejecting cache transplants", () => {
+    const low = makeEvolutionRequest("gpt5-nano-reader", messages);
+    const profiles = [["gpt5-nano-medium-reader", "medium"], ["gpt5-nano-high-reader", "high"]] as const;
+    const hashes = new Set([low.requestSha256]);
+    for (const [id, effort] of profiles) {
+      const request = makeEvolutionRequest(id, messages);
+      expect(request.body).toEqual({ ...low.body, reasoning: { effort } });
+      expect(request.reservationMicros).toBe(low.reservationMicros);
+      expect(request.inputUpperBound).toBe(low.inputUpperBound);
+      expect(request.profileSha256).not.toBe(low.profileSha256);
+      const capture = raw(response(request));
+      expect(parseEvolutionResponse(capture, request).usage).toEqual(parseEvolutionResponse(capture, low).usage);
+      const transplant = { ...request, profileId: low.profileId };
+      expect(() => validateEvolutionRequest(transplant)).toThrow("request changed");
+      hashes.add(request.requestSha256);
+    }
+    expect(hashes.size).toBe(3);
   });
 
   test("does not truncate contexts or accept malformed prompt data", () => {

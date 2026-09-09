@@ -1,0 +1,50 @@
+{
+  "protocol": "oh.memory.mem0-public-fake-provider-qualification.v1",
+  "status": "passed",
+  "qualification": "Actual pinned Mem0 SDK and local Qdrant through TypeScript custody with deterministic fake providers. This proves source/transport/replay compatibility, not live routing or answer quality.",
+  "sourcePatchSha256": "046955fc76b521fb3d4e7682b83245bd65baa005a89ebeca4e6736b77c272b8b",
+  "privateSdkReceiptSha256": "7d02e9b14e537eb570b7ab64589e05f6cb430d977c85f3fa418654f00e455f6f",
+  "sourceContextFileSha256": "8b6bc492db7cb2ea27cb5d90a9f53fbe3da3ed6e433288ae3c8d9e1d244e454d",
+  "versions": {
+    "mem0": "2.0.20",
+    "qdrant": "1.19.0",
+    "python": "3.14.6",
+    "bun": "1.3.14",
+    "mem0Commit": "9a7924befd7026e41e445ba809370009e5e985a6",
+    "memoryMainSha256": "5b1b75e2f00aca7bd368a6e9cd5905145d60fd05a0e36d6b1ef3e2f1b4f28ca1"
+  },
+  "source": {
+    "originalTurns": 616,
+    "sourceParts": 619,
+    "sourceBytes": 487820,
+    "chunks": 149,
+    "maximumDatedChunkBytes": 4096
+  },
+  "fakeCalls": {
+    "total": 448,
+    "llm": 149,
+    "ingestEmbedding": 298,
+    "queryEmbedding": 1
+  },
+  "searchResults": 50,
+  "replayedSettledCalls": 448,
+  "simulatedExposureMicros": 896,
+  "physicalProviderCalls": 0,
+  "actualCostMicros": 0,
+  "ledgerSha256": "194ab2f422c66b77b7c5b2bed2476aa5573f183a5b9859186216dfe7c2ef70e4",
+  "callsSha256": "1e2f893e8b67cd652500e9eaa509ebd0ede5f5ebb60f5f88b0c71461856275d3",
+  "socketGuard": true,
+  "custody": {
+    "code": 0,
+    "signal": null,
+    "stderrBytes": 299,
+    "graceful": true
+  },
+  "temporaryStateRemoved": true,
+  "elapsedMs": 3030.781,
+  "focusedValidation": {
+    "tests": 13,
+    "assertions": 50,
+    "strictTypecheck": "passed"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "corpus": {
+    "protocol": "oh.memory.mem0-selected-corpus.v1",
+    "dataset": "longmemeval-s",
+    "partition": "development",
+    "corpusId": "664224b57cf72996f61e8528967bb92c271a7999c08db8b63b5e81219b6a9f2f",
+    "corpusSha256": "1c36301b7a6339a7a347d08b2dc7309c189ae9ec21686f8a0f42e421fd29582a",
+    "chunks": [
+      {
+        "chunkId": "e959292f4d7038346c793f4ce1707ca016eb742225ef4129a6bb0e9c44c2d787",
+        "sourceSha256": "cfa93e2f398b41a1d7f24215c021a85a7d2ebc92d07c3c8d0d5324f5324a3b04",
+        "turns": [
+          {
+            "turnId": "c8b26c38e1d1036091b4dcd7d6969ae04d17f42b1d30038313679005c8c299c9",
+            "sourceTurnId": "27bcaa73f5aa8285698ae78a9f7fc3137ee9ceef20f76f8f3bbfa805c2caa912",
+            "sourceTurnSha256": "e6b4efad88256c930a24e1fc6fd11bc46e636a4e8f6ab4e39797762567b056e0",
+            "sessionId": "d6440983c454c2e5999fdb66bbe9cf5f89a8f5847d6c9578ef14afd26eee122c",
+            "date": "2024-01-01",
+            "role": "user",
+            "text": "Remember alpha preference",
+            "utf8Start": 0,
+            "utf8End": 25,
+            "sourceUtf8Bytes": 25
+          }
+        ]
+      }
+    ],
+    "sourceReceiptSha256": "7b9d79e39d8a17ca7d8e9d295be646a34cee48bf18d8e356614fd319aae6d492"
+  },
+  "policy": {
+    "protocol": "oh.memory.mem0-bridge-policy.v1",
+    "runSha256": "233cafcc1ce16b8afa849712e69a132b012b6d53b5dfe037f84c7b9034eec0d7",
+    "namespace": "58925565419844ccd67b87ce9d46171785e64d1d177f6e7893223cb9484281c5",
+    "llmProfile": {
+      "id": "mem0-fake-extract",
+      "kind": "llm",
+      "model": "openai/fake-extract",
+      "provider": "openai",
+      "endpoint": "https://ai-gateway.vercel.sh/v1/chat/completions",
+      "maxInputTokens": 100000,
+      "maxOutputTokens": 2048,
+      "embeddingDimensions": null,
+      "timeoutMs": 5000,
+      "inputNanodollarsPerToken": 50,
+      "outputNanodollarsPerToken": 400
+    },
+    "embeddingProfile": {
+      "id": "mem0-fake-embed",
+      "kind": "embedding",
+      "model": "openai/fake-embed",
+      "provider": "openai",
+      "endpoint": "https://ai-gateway.vercel.sh/v1/embeddings",
+      "maxInputTokens": 8192,
+      "maxOutputTokens": 0,
+      "embeddingDimensions": 3,
+      "timeoutMs": 5000,
+      "inputNanodollarsPerToken": 20,
+      "outputNanodollarsPerToken": 0
+    }
+  },
+  "derivation": {
+    "protocol": "oh.memory.mem0-derivation.v1",
+    "policySha256": "9507a672b3912ddea344ec8e34482b5d0683727d6e805e95aacd2647a6203cd7",
+    "corpusSha256": "1c36301b7a6339a7a347d08b2dc7309c189ae9ec21686f8a0f42e421fd29582a",
+    "sourceReceiptSha256": "7b9d79e39d8a17ca7d8e9d295be646a34cee48bf18d8e356614fd319aae6d492",
+    "runSha256": "233cafcc1ce16b8afa849712e69a132b012b6d53b5dfe037f84c7b9034eec0d7",
+    "namespace": "58925565419844ccd67b87ce9d46171785e64d1d177f6e7893223cb9484281c5",
+    "chunkCount": 1,
+    "receiptSha256": "e1b11a8de04a652273ca65146b382e891895868b2475318f87081ae102c3342e"
+  },
+  "query": "alpha",
+  "querySha256": "8ed3f6ad685b959ead7022518e1af76cd816f8e8ec7ccdda1ed4018e8f2223f8"
+}

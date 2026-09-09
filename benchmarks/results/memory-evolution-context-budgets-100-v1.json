@@ -1,0 +1,864 @@
+{
+  "protocol": "oh.memory.context-budget-screen-summary.v1",
+  "status": "offline-retrieval-only",
+  "dataset": "longmemeval-s",
+  "datasetSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+  "sourceSummarySha256": "a78787af06eae52ed71b272a0812c0b1fdc21ed831caf63c2c56d92a7d34f8c8",
+  "inputSha256": "88b6a0039f6bad371ef6a3b5ba967eaa0361b13320e8d1036e7bb6658c5715cf",
+  "policySha256": "0d1239f27c7620c9844bfc3f110b91aaf5319f7ea3c78634884f03cc1c063ac9",
+  "questions": 100,
+  "arms": [
+    {
+      "variantId": "native-hits-96k",
+      "mode": "native-hits",
+      "budget": 96000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 96,
+      "meanEvidenceRecall": 0.9796666666666667,
+      "expectedEvidence": 192,
+      "foundEvidence": 186,
+      "bytes": {
+        "count": 100,
+        "min": 24410,
+        "p50": 95615,
+        "p95": 95985,
+        "max": 95997,
+        "mean": 91661.11,
+        "sum": 9166111
+      },
+      "turns": {
+        "count": 100,
+        "min": 18,
+        "p50": 66,
+        "p95": 88,
+        "max": 99,
+        "mean": 65.38,
+        "sum": 6538
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 27,
+        "p95": 33,
+        "max": 38,
+        "mean": 26.13,
+        "sum": 2613
+      },
+      "completePoolContexts": 11,
+      "meanFullHistoryByteFraction": 0.17780543887692862
+    },
+    {
+      "variantId": "native-hits-120k",
+      "mode": "native-hits",
+      "budget": 120000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 99,
+      "meanEvidenceRecall": 0.99,
+      "expectedEvidence": 192,
+      "foundEvidence": 189,
+      "bytes": {
+        "count": 100,
+        "min": 24410,
+        "p50": 119391,
+        "p95": 119963,
+        "max": 119985,
+        "mean": 111768.59,
+        "sum": 11176859
+      },
+      "turns": {
+        "count": 100,
+        "min": 18,
+        "p50": 80,
+        "p95": 100,
+        "max": 100,
+        "mean": 77.16,
+        "sum": 7716
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 30,
+        "p95": 36,
+        "max": 39,
+        "mean": 28.98,
+        "sum": 2898
+      },
+      "completePoolContexts": 22,
+      "meanFullHistoryByteFraction": 0.21681288547167946
+    },
+    {
+      "variantId": "native-hits-192k",
+      "mode": "native-hits",
+      "budget": 192000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 99,
+      "meanEvidenceRecall": 0.99,
+      "expectedEvidence": 192,
+      "foundEvidence": 189,
+      "bytes": {
+        "count": 100,
+        "min": 24410,
+        "p50": 142007,
+        "p95": 173874,
+        "max": 191895,
+        "mean": 134668.67,
+        "sum": 13466867
+      },
+      "turns": {
+        "count": 100,
+        "min": 18,
+        "p50": 100,
+        "p95": 100,
+        "max": 100,
+        "mean": 87.92,
+        "sum": 8792
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 33,
+        "p95": 38,
+        "max": 42,
+        "mean": 31.28,
+        "sum": 3128
+      },
+      "completePoolContexts": 100,
+      "meanFullHistoryByteFraction": 0.2612878692504575
+    },
+    {
+      "variantId": "native-hits-256k",
+      "mode": "native-hits",
+      "budget": 256000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 99,
+      "meanEvidenceRecall": 0.99,
+      "expectedEvidence": 192,
+      "foundEvidence": 189,
+      "bytes": {
+        "count": 100,
+        "min": 24410,
+        "p50": 142007,
+        "p95": 173874,
+        "max": 191895,
+        "mean": 134668.67,
+        "sum": 13466867
+      },
+      "turns": {
+        "count": 100,
+        "min": 18,
+        "p50": 100,
+        "p95": 100,
+        "max": 100,
+        "mean": 87.92,
+        "sum": 8792
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 33,
+        "p95": 38,
+        "max": 42,
+        "mean": 31.28,
+        "sum": 3128
+      },
+      "completePoolContexts": 100,
+      "meanFullHistoryByteFraction": 0.2612878692504575
+    },
+    {
+      "variantId": "native-window-96k",
+      "mode": "native-window",
+      "budget": 96000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 91,
+      "meanEvidenceRecall": 0.9484999999999999,
+      "expectedEvidence": 192,
+      "foundEvidence": 179,
+      "bytes": {
+        "count": 100,
+        "min": 35221,
+        "p50": 95968,
+        "p95": 95996,
+        "max": 96000,
+        "mean": 94227.96,
+        "sum": 9422796
+      },
+      "turns": {
+        "count": 100,
+        "min": 36,
+        "p50": 93,
+        "p95": 110,
+        "max": 124,
+        "mean": 92.19,
+        "sum": 9219
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 21,
+        "p95": 26,
+        "max": 28,
+        "mean": 20.07,
+        "sum": 2007
+      },
+      "completePoolContexts": 5,
+      "meanFullHistoryByteFraction": 0.1828149496070904
+    },
+    {
+      "variantId": "native-window-120k",
+      "mode": "native-window",
+      "budget": 120000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 93,
+      "meanEvidenceRecall": 0.9563333333333333,
+      "expectedEvidence": 192,
+      "foundEvidence": 182,
+      "bytes": {
+        "count": 100,
+        "min": 35221,
+        "p50": 119964,
+        "p95": 119998,
+        "max": 120000,
+        "mean": 116709.23,
+        "sum": 11670923
+      },
+      "turns": {
+        "count": 100,
+        "min": 36,
+        "p50": 116,
+        "p95": 134,
+        "max": 149,
+        "mean": 113.21,
+        "sum": 11321
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 24,
+        "p95": 29,
+        "max": 32,
+        "mean": 23.41,
+        "sum": 2341
+      },
+      "completePoolContexts": 8,
+      "meanFullHistoryByteFraction": 0.22643145897329153
+    },
+    {
+      "variantId": "native-window-192k",
+      "mode": "native-window",
+      "budget": 192000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 99,
+      "meanEvidenceRecall": 0.99,
+      "expectedEvidence": 192,
+      "foundEvidence": 189,
+      "bytes": {
+        "count": 100,
+        "min": 35221,
+        "p50": 191821,
+        "p95": 191995,
+        "max": 192000,
+        "mean": 176730.97,
+        "sum": 17673097
+      },
+      "turns": {
+        "count": 100,
+        "min": 36,
+        "p50": 181,
+        "p95": 201,
+        "max": 213,
+        "mean": 169.29,
+        "sum": 16929
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 32,
+        "p95": 38,
+        "max": 42,
+        "mean": 30.47,
+        "sum": 3047
+      },
+      "completePoolContexts": 35,
+      "meanFullHistoryByteFraction": 0.3428856530703217
+    },
+    {
+      "variantId": "native-window-256k",
+      "mode": "native-window",
+      "budget": 256000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 99,
+      "meanEvidenceRecall": 0.99,
+      "expectedEvidence": 192,
+      "foundEvidence": 189,
+      "bytes": {
+        "count": 100,
+        "min": 35221,
+        "p50": 202206,
+        "p95": 232177,
+        "max": 255934,
+        "mean": 190796.99,
+        "sum": 19079699
+      },
+      "turns": {
+        "count": 100,
+        "min": 36,
+        "p50": 192,
+        "p95": 218,
+        "max": 225,
+        "mean": 179.95,
+        "sum": 17995
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 33,
+        "p95": 38,
+        "max": 42,
+        "mean": 31.28,
+        "sum": 3128
+      },
+      "completePoolContexts": 99,
+      "meanFullHistoryByteFraction": 0.37014866320445994
+    },
+    {
+      "variantId": "bm25-window-96k",
+      "mode": "bm25-window",
+      "budget": 96000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 91,
+      "meanEvidenceRecall": 0.9484999999999999,
+      "expectedEvidence": 192,
+      "foundEvidence": 179,
+      "bytes": {
+        "count": 100,
+        "min": 35221,
+        "p50": 95964,
+        "p95": 95996,
+        "max": 96000,
+        "mean": 94225.96,
+        "sum": 9422596
+      },
+      "turns": {
+        "count": 100,
+        "min": 36,
+        "p50": 93,
+        "p95": 108,
+        "max": 124,
+        "mean": 91.91,
+        "sum": 9191
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 20,
+        "p95": 26,
+        "max": 28,
+        "mean": 20.1,
+        "sum": 2010
+      },
+      "completePoolContexts": 5,
+      "meanFullHistoryByteFraction": 0.18281102106811267
+    },
+    {
+      "variantId": "bm25-window-120k",
+      "mode": "bm25-window",
+      "budget": 120000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 93,
+      "meanEvidenceRecall": 0.9563333333333333,
+      "expectedEvidence": 192,
+      "foundEvidence": 182,
+      "bytes": {
+        "count": 100,
+        "min": 35221,
+        "p50": 119958,
+        "p95": 120000,
+        "max": 120000,
+        "mean": 116705.53,
+        "sum": 11670553
+      },
+      "turns": {
+        "count": 100,
+        "min": 36,
+        "p50": 115,
+        "p95": 136,
+        "max": 148,
+        "mean": 113.41,
+        "sum": 11341
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 24,
+        "p95": 30,
+        "max": 32,
+        "mean": 23.52,
+        "sum": 2352
+      },
+      "completePoolContexts": 8,
+      "meanFullHistoryByteFraction": 0.2264244313753938
+    },
+    {
+      "variantId": "bm25-window-192k",
+      "mode": "bm25-window",
+      "budget": 192000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 99,
+      "meanEvidenceRecall": 0.99,
+      "expectedEvidence": 192,
+      "foundEvidence": 189,
+      "bytes": {
+        "count": 100,
+        "min": 35221,
+        "p50": 191772,
+        "p95": 191997,
+        "max": 192000,
+        "mean": 176563.17,
+        "sum": 17656317
+      },
+      "turns": {
+        "count": 100,
+        "min": 36,
+        "p50": 180,
+        "p95": 202,
+        "max": 213,
+        "mean": 169.58,
+        "sum": 16958
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 32,
+        "p95": 38,
+        "max": 42,
+        "mean": 30.46,
+        "sum": 3046
+      },
+      "completePoolContexts": 35,
+      "meanFullHistoryByteFraction": 0.3425517265164722
+    },
+    {
+      "variantId": "bm25-window-256k",
+      "mode": "bm25-window",
+      "budget": 256000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 99,
+      "meanEvidenceRecall": 0.99,
+      "expectedEvidence": 192,
+      "foundEvidence": 189,
+      "bytes": {
+        "count": 100,
+        "min": 35221,
+        "p50": 201896,
+        "p95": 232177,
+        "max": 255934,
+        "mean": 190295.92,
+        "sum": 19029592
+      },
+      "turns": {
+        "count": 100,
+        "min": 36,
+        "p50": 192,
+        "p95": 218,
+        "max": 232,
+        "mean": 179.78,
+        "sum": 17978
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 32,
+        "p95": 38,
+        "max": 42,
+        "mean": 31.21,
+        "sum": 3121
+      },
+      "completePoolContexts": 99,
+      "meanFullHistoryByteFraction": 0.3691699126129826
+    },
+    {
+      "variantId": "native-complete-sessions-96k",
+      "mode": "native-complete-sessions",
+      "budget": 96000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 83,
+      "meanEvidenceRecall": 0.8976666666666668,
+      "expectedEvidence": 192,
+      "foundEvidence": 168,
+      "bytes": {
+        "count": 100,
+        "min": 84462,
+        "p50": 95071,
+        "p95": 95872,
+        "max": 95944,
+        "mean": 94421.37,
+        "sum": 9442137
+      },
+      "turns": {
+        "count": 100,
+        "min": 68,
+        "p50": 87,
+        "p95": 105,
+        "max": 126,
+        "mean": 88,
+        "sum": 8800
+      },
+      "sessions": {
+        "count": 100,
+        "min": 6,
+        "p50": 8,
+        "p95": 10,
+        "max": 11,
+        "mean": 8.01,
+        "sum": 801
+      },
+      "completePoolContexts": 1,
+      "meanFullHistoryByteFraction": 0.1831690414547133
+    },
+    {
+      "variantId": "native-complete-sessions-120k",
+      "mode": "native-complete-sessions",
+      "budget": 120000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 86,
+      "meanEvidenceRecall": 0.9126666666666666,
+      "expectedEvidence": 192,
+      "foundEvidence": 171,
+      "bytes": {
+        "count": 100,
+        "min": 84462,
+        "p50": 118799,
+        "p95": 119846,
+        "max": 119953,
+        "mean": 117829.08,
+        "sum": 11782908
+      },
+      "turns": {
+        "count": 100,
+        "min": 81,
+        "p50": 111,
+        "p95": 137,
+        "max": 166,
+        "mean": 111.21,
+        "sum": 11121
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 10,
+        "p95": 12,
+        "max": 15,
+        "mean": 10.02,
+        "sum": 1002
+      },
+      "completePoolContexts": 2,
+      "meanFullHistoryByteFraction": 0.22858633738364237
+    },
+    {
+      "variantId": "native-complete-sessions-192k",
+      "mode": "native-complete-sessions",
+      "budget": 192000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 89,
+      "meanEvidenceRecall": 0.9401666666666667,
+      "expectedEvidence": 192,
+      "foundEvidence": 177,
+      "bytes": {
+        "count": 100,
+        "min": 84462,
+        "p50": 190615,
+        "p95": 191732,
+        "max": 191956,
+        "mean": 187893.58,
+        "sum": 18789358
+      },
+      "turns": {
+        "count": 100,
+        "min": 81,
+        "p50": 177,
+        "p95": 211,
+        "max": 240,
+        "mean": 177.16,
+        "sum": 17716
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 16,
+        "p95": 19,
+        "max": 21,
+        "mean": 15.72,
+        "sum": 1572
+      },
+      "completePoolContexts": 3,
+      "meanFullHistoryByteFraction": 0.3645276091449881
+    },
+    {
+      "variantId": "native-complete-sessions-256k",
+      "mode": "native-complete-sessions",
+      "budget": 256000,
+      "questions": 100,
+      "scored": 100,
+      "allEvidence": 91,
+      "meanEvidenceRecall": 0.9468333333333334,
+      "expectedEvidence": 192,
+      "foundEvidence": 179,
+      "bytes": {
+        "count": 100,
+        "min": 84462,
+        "p50": 253921,
+        "p95": 255880,
+        "max": 256000,
+        "mean": 248959.31,
+        "sum": 24895931
+      },
+      "turns": {
+        "count": 100,
+        "min": 81,
+        "p50": 234,
+        "p95": 270,
+        "max": 307,
+        "mean": 232.76,
+        "sum": 23276
+      },
+      "sessions": {
+        "count": 100,
+        "min": 8,
+        "p50": 21,
+        "p95": 24,
+        "max": 26,
+        "mean": 20.65,
+        "sum": 2065
+      },
+      "completePoolContexts": 6,
+      "meanFullHistoryByteFraction": 0.48301550779596736
+    }
+  ],
+  "comparisons": [
+    {
+      "left": "native-hits-96k",
+      "right": "bm25-window-96k",
+      "recallWins": 7,
+      "recallLosses": 0,
+      "allWins": 5,
+      "allLosses": 0,
+      "identicalContexts": 0
+    },
+    {
+      "left": "native-hits-120k",
+      "right": "bm25-window-96k",
+      "recallWins": 8,
+      "recallLosses": 0,
+      "allWins": 8,
+      "allLosses": 0,
+      "identicalContexts": 0
+    },
+    {
+      "left": "native-hits-192k",
+      "right": "bm25-window-96k",
+      "recallWins": 8,
+      "recallLosses": 0,
+      "allWins": 8,
+      "allLosses": 0,
+      "identicalContexts": 0
+    },
+    {
+      "left": "native-hits-256k",
+      "right": "bm25-window-96k",
+      "recallWins": 8,
+      "recallLosses": 0,
+      "allWins": 8,
+      "allLosses": 0,
+      "identicalContexts": 0
+    },
+    {
+      "left": "native-window-96k",
+      "right": "bm25-window-96k",
+      "recallWins": 0,
+      "recallLosses": 0,
+      "allWins": 0,
+      "allLosses": 0,
+      "identicalContexts": 1
+    },
+    {
+      "left": "native-window-120k",
+      "right": "bm25-window-96k",
+      "recallWins": 3,
+      "recallLosses": 0,
+      "allWins": 2,
+      "allLosses": 0,
+      "identicalContexts": 1
+    },
+    {
+      "left": "native-window-192k",
+      "right": "bm25-window-96k",
+      "recallWins": 8,
+      "recallLosses": 0,
+      "allWins": 8,
+      "allLosses": 0,
+      "identicalContexts": 1
+    },
+    {
+      "left": "native-window-256k",
+      "right": "bm25-window-96k",
+      "recallWins": 8,
+      "recallLosses": 0,
+      "allWins": 8,
+      "allLosses": 0,
+      "identicalContexts": 1
+    },
+    {
+      "left": "bm25-window-120k",
+      "right": "bm25-window-96k",
+      "recallWins": 3,
+      "recallLosses": 0,
+      "allWins": 2,
+      "allLosses": 0,
+      "identicalContexts": 5
+    },
+    {
+      "left": "bm25-window-192k",
+      "right": "bm25-window-96k",
+      "recallWins": 8,
+      "recallLosses": 0,
+      "allWins": 8,
+      "allLosses": 0,
+      "identicalContexts": 5
+    },
+    {
+      "left": "bm25-window-256k",
+      "right": "bm25-window-96k",
+      "recallWins": 8,
+      "recallLosses": 0,
+      "allWins": 8,
+      "allLosses": 0,
+      "identicalContexts": 5
+    },
+    {
+      "left": "native-complete-sessions-96k",
+      "right": "bm25-window-96k",
+      "recallWins": 0,
+      "recallLosses": 10,
+      "allWins": 0,
+      "allLosses": 8,
+      "identicalContexts": 0
+    },
+    {
+      "left": "native-complete-sessions-120k",
+      "right": "bm25-window-96k",
+      "recallWins": 0,
+      "recallLosses": 7,
+      "allWins": 0,
+      "allLosses": 5,
+      "identicalContexts": 0
+    },
+    {
+      "left": "native-complete-sessions-192k",
+      "right": "bm25-window-96k",
+      "recallWins": 0,
+      "recallLosses": 2,
+      "allWins": 0,
+      "allLosses": 2,
+      "identicalContexts": 0
+    },
+    {
+      "left": "native-complete-sessions-256k",
+      "right": "bm25-window-96k",
+      "recallWins": 1,
+      "recallLosses": 1,
+      "allWins": 1,
+      "allLosses": 1,
+      "identicalContexts": 0
+    }
+  ],
+  "fullHistoryBytes": {
+    "count": 100,
+    "min": 481870,
+    "p50": 514950,
+    "p95": 529736,
+    "max": 536206,
+    "mean": 515668.67,
+    "sum": 51566867
+  },
+  "focusedNativePoolBytes": {
+    "count": 100,
+    "min": 24410,
+    "p50": 142007,
+    "p95": 173874,
+    "max": 191895,
+    "mean": 134668.67,
+    "sum": 13466867
+  },
+  "bm25PoolBytes": {
+    "count": 100,
+    "min": 35221,
+    "p50": 201896,
+    "p95": 232177,
+    "max": 261830,
+    "mean": 190354.88,
+    "sum": 19035488
+  },
+  "timing": {
+    "wallMs": 24593.471917,
+    "prepareMs": {
+      "count": 100,
+      "min": 52.764250000000175,
+      "p50": 64.32091600000058,
+      "p95": 73.35766700000022,
+      "max": 86.52041699999995,
+      "mean": 64.35023539999992,
+      "sum": 6435.023539999991
+    },
+    "bm25QueryAndCloseMs": {
+      "count": 100,
+      "min": 0.5389590000004318,
+      "p50": 1.8407079999997222,
+      "p95": 2.3682079999998678,
+      "max": 3.4712500000000546,
+      "mean": 1.8076925400000983,
+      "sum": 180.76925400000982
+    },
+    "packAndValidateMs": {
+      "count": 100,
+      "min": 39.31695800000034,
+      "p50": 167.77479099999982,
+      "p95": 198.49120799999946,
+      "max": 216.5243330000012,
+      "mean": 159.69080910999998,
+      "sum": 15969.080910999997
+    },
+    "scoringAndOutputMs": 675.3196669999998
+  },
+  "work": {
+    "corpusPreparations": 100,
+    "nativeQueries": 0,
+    "bm25Queries": 100,
+    "derivedContexts": 1600,
+    "modelCalls": 0,
+    "providerCostUsd": 0,
+    "fetchAttempts": 0
+  },
+  "qualification": [
+    "Same exposed100 development questions; this is source-session evidence recall, not answer accuracy or closed-set performance.",
+    "Fixed native focused top100 ranking reused exactly. Existing BM25-window top100 query executed once per corpus and reused across budgets.",
+    "Sources are current exact canonical records. Complete sessions remain occurrence-aware atomic units; every other mode uses existing whole-turn packing.",
+    "Scorer-only evidence IDs were loaded after all1600 contexts were finalized. No answers, per-turn has_answer labels, raw dataset, paid store or provider was accessed.",
+    "Source manifests were unchanged before and after. Context plans here are explicit private experiment contracts; no active protocol or production source was edited."
+  ]
+}

@@ -5,41 +5,48 @@ import { DATASETS, parseLocomo, parseLongMemEval, selectQuestions } from "./data
 import { codeIdentity, writeJson } from "./io";
 import { evolutionPin, readEvolutionPin, verifyEvolutionCampaign, type EvolutionPin } from "./evolution-budget";
 import { projectEvolutionRunnerInput, selectEvolutionPartition, validateEvolutionDatasetManifest } from "./evolution-dataset";
-import { EVOLUTION_PROFILES, type EvolutionProfileId, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
-import { isEvolutionSpanVariant, parseEvolutionExperimentVariant, type EvolutionExperimentVariant } from "./evolution-variants";
+import { EVOLUTION_PROFILES, supportsEvolutionProfileWindow, type EvolutionProfileId, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
+import { isEvolutionSpanVariant } from "./evolution-variants";
+import { isEvolutionV3Treatment, parseEvolutionTreatment, type EvolutionTreatment } from "./evolution-treatments-v3";
 import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan, validateEvolutionAnyContextPlan,
   validateEvolutionContextPlanSources, type EvolutionAnyContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
 import { openEvolutionStore, validateEvolutionAttemptFailure, type EvolutionAttemptFailure, type EvolutionStore } from "./evolution-store";
 import { invokeEvolutionRequest, type EvolutionCredential } from "./evolution-transport";
-import { runLabPaidQueue } from "./lab-paid-queue";
+import { EVOLUTION_PAID_QUEUE_V2_PROTOCOL, runLabPaidQueue, runLabPaidQueueV2 } from "./lab-paid-queue";
 import { loadJudgeProfile } from "./judge";
-import { makeEvolutionJudgePlan, validateEvolutionJudgePlan, type EvolutionJudgePlan } from "./evolution-judge";
+import { makeEvolutionJudgePlan, validateEvolutionJudgePlan, type EvolutionJudgePlan, type EvolutionJudgeProfileId } from "./evolution-judge";
 import { buildEvolutionReport } from "./evolution-report";
 
-export type EvolutionRunConfig = Readonly<{ protocol: "oh.memory.evolution-run.v1" | "oh.memory.evolution-run.v2"; dataset: "longmemeval-s" | "locomo";
+export type EvolutionRunConfig = Readonly<{ protocol: "oh.memory.evolution-run.v1" | "oh.memory.evolution-run.v2" | "oh.memory.evolution-run.v3" | "oh.memory.evolution-run.v4"; dataset: "longmemeval-s" | "locomo";
   datasetPin: EvolutionPin; manifestPin: EvolutionPin; campaignPin: EvolutionPin; limit: number; seed: number;
-  variants: readonly EvolutionExperimentVariant[]; readers: readonly EvolutionProfileId[];
-  judge: "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"; directory: string; storeDirectory: string;
+  variants: readonly EvolutionTreatment[]; readers: readonly EvolutionProfileId[];
+  judge: EvolutionJudgeProfileId; directory: string; storeDirectory: string;
   concurrency: number }>;
 function fail(reason: string): never { throw new TypeError(`Evolution runner: ${reason}.`); }
 function positive(value: unknown, max: number): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value > 0 && value <= max; }
+function validConcurrency(value: unknown, protocol: unknown): value is number {
+  return protocol === "oh.memory.evolution-run.v4" ? value === 24 || value === 32 : positive(value, 12);
+}
 function path(value: unknown): string {
   if (typeof value !== "string" || value.length > 4096 || value.includes("\0") || resolve(value) !== value) fail("absolute output path required");
   return value;
 }
 export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "dataset", "datasetPin", "manifestPin", "campaignPin", "limit", "seed",
-    "variants", "readers", "judge", "directory", "storeDirectory", "concurrency"]) || !["oh.memory.evolution-run.v1", "oh.memory.evolution-run.v2"].includes(String(value.protocol))
+    "variants", "readers", "judge", "directory", "storeDirectory", "concurrency"]) || !["oh.memory.evolution-run.v1", "oh.memory.evolution-run.v2", "oh.memory.evolution-run.v3", "oh.memory.evolution-run.v4"].includes(String(value.protocol))
     || !["longmemeval-s", "locomo"].includes(String(value.dataset)) || !positive(value.limit, 2000) || !positive(value.seed, 1_000_000)
-    || !positive(value.concurrency, 12) || !Array.isArray(value.variants) || value.variants.length < 1 || value.variants.length > 32
+    || !validConcurrency(value.concurrency, value.protocol) || !Array.isArray(value.variants) || value.variants.length < 1 || value.variants.length > 32
     || !Array.isArray(value.readers) || value.readers.length < 1 || value.readers.length > 8
-    || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge"].includes(String(value.judge))) fail("invalid explicit configuration");
-  const variants = value.variants.map(parseEvolutionExperimentVariant);
-  if (variants.some(isEvolutionSpanVariant) !== (value.protocol === "oh.memory.evolution-run.v2")) fail("span treatments require explicit run V2; native-only configurations remain V1");
+    || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1", "gpt4o-gateway-native-rubric-16-judge-v1"].includes(String(value.judge))) fail("invalid explicit configuration");
+  const variants = value.variants.map(parseEvolutionTreatment);
+  const v3 = variants.some(isEvolutionV3Treatment);
+  if (value.protocol !== "oh.memory.evolution-run.v4" && v3 !== (value.protocol === "oh.memory.evolution-run.v3")) fail("new fixed mechanisms and full history require explicit run V3");
+  if (value.protocol !== "oh.memory.evolution-run.v4" && !v3 && variants.some(v => !isEvolutionV3Treatment(v) && isEvolutionSpanVariant(v)) !== (value.protocol === "oh.memory.evolution-run.v2")) fail("span treatments require explicit run V2; native-only configurations remain V1");
   const readers = value.readers.map((r: unknown) => {
     if (typeof r !== "string" || !r.endsWith("-reader") || !Object.hasOwn(EVOLUTION_PROFILES, r)) fail("invalid reader profile");
     return r as EvolutionProfileId;
   });
+  if (variants.some(v => v.system === "full-history") && readers.some(r => !supportsEvolutionProfileWindow(r))) fail("full-history V2 requests support nano and mini only");
   if (new Set(variants.map(v => v.id)).size !== variants.length || new Set(readers).size !== readers.length) fail("duplicate variant or reader");
   if (value.limit * variants.length * readers.length > 100_000) fail("reader matrix exceeds the complete-coverage bound");
   const datasetPin = evolutionPin(value.datasetPin), manifestPin = evolutionPin(value.manifestPin), campaignPin = evolutionPin(value.campaignPin);
@@ -65,11 +72,16 @@ async function selected(config: EvolutionRunConfig) {
 }
 export const EVOLUTION_CONTEXT_SOURCE_FILES = ["scripts/benchmarks/evolution-retrieval.ts", "scripts/benchmarks/retrieval.ts",
   "scripts/benchmarks/evolution-dataset.ts", "scripts/benchmarks/evolution-plan.ts", "scripts/benchmarks/evolution-spans.ts",
-  "scripts/benchmarks/evolution-variants.ts", "package.json", "bun.lock"] as const;
+  "scripts/benchmarks/evolution-variants.ts", "scripts/benchmarks/evolution-plan-v3.ts", "scripts/benchmarks/evolution-treatments-v3.ts",
+  "scripts/benchmarks/evolution-spans-prototype.ts", "scripts/benchmarks/evolution-full-history.ts", "package.json", "bun.lock"] as const;
 async function retrievalIdentity() {
   const source = await codeIdentity();
   const files = source.files.filter(f => f.path.startsWith("src/") || (EVOLUTION_CONTEXT_SOURCE_FILES as readonly string[]).includes(f.path));
   return canonicalSha256({ files, bun: Bun.version });
+}
+/** V4 versions queue capacity; its context wire version still follows the treatment. */
+export function validateEvolutionContextRunVersion(context: Pick<EvolutionAnyContextPlan, "protocol">, config: Pick<EvolutionRunConfig, "protocol">): void {
+  if (config.protocol !== "oh.memory.evolution-run.v4" && context.protocol.slice(-2) !== config.protocol.slice(-2)) fail("context plan version differs from run configuration");
 }
 async function contextFor(config: EvolutionRunConfig, selection?: Awaited<ReturnType<typeof selected>>) {
   const file = join(config.directory, "contexts.json"), stat = Bun.file(file);
@@ -80,7 +92,7 @@ async function contextFor(config: EvolutionRunConfig, selection?: Awaited<Return
     || canonicalSha256(context.variants) !== canonicalSha256(config.variants)
     || context.inputSha256 !== canonicalSha256(projected)
     || canonicalSha256(context.questions) !== canonicalSha256(projected.questions)) fail("prepared context source/configuration/selection mismatch");
-  if ((context.protocol === "oh.memory.evolution-context-plan.v2") !== (config.protocol === "oh.memory.evolution-run.v2")) fail("context plan version differs from run configuration");
+  validateEvolutionContextRunVersion(context, config);
   validateEvolutionContextPlanSources(context, projected);
   return context;
 }
@@ -99,6 +111,7 @@ export async function prepareEvolutionReaders(configPin: EvolutionPin, contextPi
   const config = await configInput(configPin), context = await contextFor(config), pinned = await json(contextPin);
   if (canonicalSha256(context) !== canonicalSha256(pinned)) fail("context pin differs from config-bound context");
   const plan = makeEvolutionReaderPlan(context, config.readers), planPath = join(config.directory, "readers.json");
+  if (Buffer.byteLength(JSON.stringify(plan, null, 2) + "\n") > 128 * 1024 * 1024) fail("reader plan exceeds 128 MiB; reduce the explicit selection or treatments");
   await writeJson(planPath, plan);
   return { status: "readers-prepared", planPath, planFileSha256: sha256Hex(await readFile(planPath)), cases: plan.cases.length,
     physicalRequests: plan.requests.length, maximumReservationMicros: plan.requests.reduce((s, r) => s + r.reservationMicros, 0), modelCalls: 0 };
@@ -158,12 +171,16 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
         } catch { /* The drained phase will project the occupied attempt separately from a verified response. */ }
       } else pending.push({ key: request.requestSha256, request });
     }
-    const execution = await runLabPaidQueue(pending.slice(0, input.maxNewCalls), { concurrency: config.concurrency, stopped: () => stopped,
-      execute: async job => {
+    const queueOptions = { concurrency: config.concurrency, stopped: () => stopped,
+      execute: async (job: { key: string; request: EvolutionRequest }) => {
         admissionAttempts++;
         const invoked = await invokeEvolutionRequest({ request: job.request, store, credential: input.credential, stopped: () => stopped });
         responses.set(job.key, invoked.result); return { requestSha256: job.key, status: invoked.result.status };
-      } });
+      } };
+    const jobs = pending.slice(0, input.maxNewCalls);
+    const execution = config.protocol === "oh.memory.evolution-run.v4"
+      ? await runLabPaidQueueV2(jobs, { ...queueOptions, protocol: EVOLUTION_PAID_QUEUE_V2_PROTOCOL })
+      : await runLabPaidQueue(jobs, queueOptions);
     // Only inspect unresolved attempts after every admitted job has drained; misses remain incomplete.
     for (const request of requests) if (!responses.has(request.requestSha256) && store.lookup(request).kind === "occupied") {
       failures.set(request.requestSha256, store.readAttemptFailure(request));
@@ -179,7 +196,9 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
     responses: requests.flatMap(r => { const response = responses.get(r.requestSha256); return response ? [{ requestSha256: r.requestSha256, response }] : []; }),
     failures: requests.flatMap(r => { const failure = failures.get(r.requestSha256); return failure ? [failure] : []; }),
     complete: verified && responses.size + failures.size === requests.length && errors.length === 0 };
-  const receipt = { ...result, source, configPin: input.configPin, planPin: input.planPin, campaignSha256: authority.campaignSha256,
+  const receipt = { ...result, source,
+    ...(config.protocol === "oh.memory.evolution-run.v4" ? { executionPolicy: { protocol: EVOLUTION_PAID_QUEUE_V2_PROTOCOL, concurrency: config.concurrency } } : {}),
+    configPin: input.configPin, planPin: input.planPin, campaignSha256: authority.campaignSha256,
     admissionAttempts, errors, initialBudget: initial, budget, wallMs: performance.now() - started, interrupted: stopped, verified };
   try { await output.truncate(0); await output.write(JSON.stringify(receipt, null, 2) + "\n", 0, "utf8"); await output.sync(); }
   finally { process.off("SIGINT", stop); process.off("SIGTERM", stop); await output.close(); await store.close(); }

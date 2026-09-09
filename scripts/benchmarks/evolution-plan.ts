@@ -3,9 +3,11 @@ import { assertExactEvolutionCoverage, type EvolutionRunnerInput, type Evolution
 import { createEvolutionContextSourceValidator, prepareEvolutionCorpus, type EvolutionRetrievalResult, type EvolutionRetrievalVariant } from "./evolution-retrieval";
 import { createOhSourceSpanPacker, OH_SPAN_POLICY, OH_SPAN_POOL_VARIANT, type OhSourceSpanResult } from "./evolution-spans";
 import { isEvolutionSpanVariant, parseEvolutionExperimentVariant, type EvolutionExperimentVariant } from "./evolution-variants";
-import { makeEvolutionRequest, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "./evolution-model";
-import { answerMessages } from "./model";
+import { makeEvolutionRequest, makeEvolutionProfileWindowRequest, evolutionReaderContract, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "./evolution-model";
+import { evolutionAnswerMessages } from "./evolution-reader-contracts";
 import type { Turn } from "./datasets";
+import { makeEvolutionContextPlanV3, validateEvolutionContextPlanV3, validateEvolutionContextPlanV3Sources, type EvolutionContextPlanV3 } from "./evolution-plan-v3";
+import { isEvolutionV3Treatment, parseEvolutionTreatment, type EvolutionTreatment } from "./evolution-treatments-v3";
 
 export type EvolutionContextCase = Readonly<{ questionId: string; variantId: string; result: EvolutionRetrievalResult }>;
 export type EvolutionContextPlan = Readonly<{ protocol: "oh.memory.evolution-context-plan.v1"; manifestSha256: string;
@@ -17,7 +19,7 @@ export type EvolutionContextPlanV2 = Readonly<{ protocol: "oh.memory.evolution-c
   retrievalSourceSha256: string; inputSha256: string; variants: readonly EvolutionExperimentVariant[];
   questions: readonly EvolutionRunnerQuestion[]; cases: readonly EvolutionContextCaseV2[];
   pools: readonly Readonly<{ questionId: string; result: EvolutionRetrievalResult }>[]; planSha256: string }>;
-export type EvolutionAnyContextPlan = EvolutionContextPlan | EvolutionContextPlanV2;
+export type EvolutionAnyContextPlan = EvolutionContextPlan | EvolutionContextPlanV2 | EvolutionContextPlanV3;
 export type EvolutionReaderCase = Readonly<{ questionId: string; variantId: string; reader: EvolutionProfileId;
   contextSha256: string; requestSha256: string }>;
 export type EvolutionReaderPlan = Readonly<{ protocol: "oh.memory.evolution-reader-plan.v1"; contextPlanSha256: string;
@@ -84,7 +86,7 @@ export function makeEvolutionReaderPlan(context: EvolutionAnyContextPlan, reader
   for (const c of context.cases) {
     const question = context.questions.find(q => q.id === c.questionId)!;
     for (const reader of readerProfiles) {
-      const request = makeEvolutionRequest(reader, answerMessages(question, c.result.context));
+      const request = ("kind" in c && c.kind === "full-history" ? makeEvolutionProfileWindowRequest : makeEvolutionRequest)(reader, evolutionAnswerMessages(question, c.result.context, evolutionReaderContract(reader)));
       requests.set(request.requestSha256, request);
       cases.push({ questionId: c.questionId, variantId: c.variantId, reader, contextSha256: c.result.contextSha256, requestSha256: request.requestSha256 });
     }
@@ -111,8 +113,10 @@ export function validateEvolutionReaderPlan(plan: EvolutionReaderPlan, context: 
 
 /** Native-only calls keep the V1 wire representation. Mixed span plans use a separate V2 union. */
 export async function makeEvolutionExperimentContextPlan(input: Readonly<{ dataset: EvolutionRunnerInput;
-  variants: readonly EvolutionExperimentVariant[]; manifestSha256: string; retrievalSourceSha256: string }>) {
-  const variants = input.variants.map(parseEvolutionExperimentVariant);
+  variants: readonly EvolutionTreatment[]; manifestSha256: string; retrievalSourceSha256: string }>) {
+  const parsed = input.variants.map(parseEvolutionTreatment);
+  if (parsed.some(isEvolutionV3Treatment)) return makeEvolutionContextPlanV3({ ...input, variants: parsed });
+  const variants = parsed as EvolutionExperimentVariant[];
   if (!variants.some(isEvolutionSpanVariant)) return makeEvolutionContextPlan({ ...input, variants: variants as EvolutionRetrievalVariant[] });
   if (!Array.isArray(input.dataset.corpora) || input.dataset.corpora.length < 1 || input.dataset.corpora.length > 2000
     || !Array.isArray(input.dataset.questions) || input.dataset.questions.length < 1 || input.dataset.questions.length > 2000) fail("invalid projected input bounds");
@@ -156,7 +160,7 @@ export async function makeEvolutionExperimentContextPlan(input: Readonly<{ datas
   return { plan, timing };
 }
 
-function validateResultEnvelope(value: unknown, question: EvolutionRunnerQuestion, byteLimit: number): asserts value is EvolutionRetrievalResult | OhSourceSpanResult {
+export function validateEvolutionLegacyResultEnvelope(value: unknown, question: EvolutionRunnerQuestion, byteLimit: number): asserts value is EvolutionRetrievalResult | OhSourceSpanResult {
   const boundedText = (v: unknown, max = 512) => typeof v === "string" && Buffer.byteLength(v) <= max;
   const integer = (v: unknown, max: number) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= max;
   const common = ["protocol", "preparedSha256", "querySha256", "context", "contextSha256", "contextBytes", "turnIds", "sessionIds", "resultSha256"];
@@ -194,6 +198,7 @@ function validateResultEnvelope(value: unknown, question: EvolutionRunnerQuestio
 }
 
 export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): EvolutionAnyContextPlan {
+  if (isPlainRecord(plan) && plan.protocol === "oh.memory.evolution-context-plan.v3") return validateEvolutionContextPlanV3(plan);
   if (isPlainRecord(plan) && plan.protocol === "oh.memory.evolution-context-plan.v1") return validateEvolutionContextPlan(plan);
   if (!isPlainRecord(plan) || !hasExactKeys(plan, ["protocol", "manifestSha256", "retrievalSourceSha256", "inputSha256", "variants", "questions", "cases", "pools", "planSha256"])
     || plan.protocol !== "oh.memory.evolution-context-plan.v2" || !Array.isArray(plan.variants) || plan.variants.length < 1 || plan.variants.length > 32
@@ -213,7 +218,7 @@ export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): 
   const questions = new Map(plan.questions.map(q => [q.id, q])), pools = new Map(plan.pools.map(p => [p.questionId, p.result]));
   for (const p of plan.pools) {
     if (!isPlainRecord(p) || !hasExactKeys(p, ["questionId", "result"])) fail("V2 pool mapping changed");
-    validateResultEnvelope(p.result, questions.get(p.questionId)!, OH_SPAN_POOL_VARIANT.budget.contextBytes);
+    validateEvolutionLegacyResultEnvelope(p.result, questions.get(p.questionId)!, OH_SPAN_POOL_VARIANT.budget.contextBytes);
     if (p.result.protocol !== "oh.evolution-retrieval.v1" || p.result.variantSha256 !== canonicalSha256(OH_SPAN_POOL_VARIANT)
       || p.result.omittedForBudget !== 0 || p.result.turnIds.length > 100 || p.result.coverageKind !== null) fail("V2 requires complete native pool");
   }
@@ -221,7 +226,7 @@ export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): 
   for (const c of plan.cases) {
     if (!isPlainRecord(c) || !hasExactKeys(c, ["questionId", "variantId", "kind", "result"])) fail("V2 case mapping changed");
     const q = questions.get(c.questionId)!, variant = variants.find(v => v.id === c.variantId)!;
-    validateResultEnvelope(c.result, q, variant.budget.contextBytes);
+    validateEvolutionLegacyResultEnvelope(c.result, q, variant.budget.contextBytes);
     if (isEvolutionSpanVariant(variant)) {
       const pool = pools.get(q.id)!;
       if (c.kind !== "source-spans" || c.result.protocol !== "oh.evolution-source-spans.v1"
@@ -238,6 +243,7 @@ export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): 
 
 /** Source authentication is required before admission or reporting, including resealed cache rows. */
 export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPlan, input: EvolutionRunnerInput): void {
+  if (plan.protocol === "oh.memory.evolution-context-plan.v3") return validateEvolutionContextPlanV3Sources(plan, input);
   validateEvolutionAnyContextPlan(plan);
   if (plan.inputSha256 !== canonicalSha256(input) || canonicalSha256(plan.questions) !== canonicalSha256(input.questions)) fail("context source selection changed");
   assertExactEvolutionCoverage([...new Set(input.questions.map(q => q.corpusId))], input.corpora.map(c => c.id));

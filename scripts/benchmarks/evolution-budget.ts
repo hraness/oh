@@ -6,7 +6,7 @@ import { readGatewayStudyAuth } from "./gateway-study-v3";
 
 export type EvolutionPin = Readonly<{ path: string; sha256: string }>;
 export type EvolutionCampaign = Readonly<{
-  protocol: "oh.memory.evolution-campaign.v1";
+  protocol: "oh.memory.evolution-campaign.v1" | "oh.memory.evolution-campaign.v2";
   campaignId: string;
   storeDirectory: string;
   approval: string;
@@ -15,6 +15,7 @@ export type EvolutionCampaign = Readonly<{
   historicalExposureMicros: number;
   historicalLedgers: readonly (EvolutionPin & Readonly<{ bytes: number }>)[];
   authAuthority: EvolutionPin;
+  predecessor?: Readonly<{ campaignPin: EvolutionPin; terminalPhasePin: EvolutionPin; databasePin: EvolutionPin }>;
 }>;
 function fail(reason: string): never { throw new TypeError(`Evolution campaign: ${reason}.`); }
 const integer = (v: unknown, max: number): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && !Object.is(v, -0) && v <= max;
@@ -32,8 +33,10 @@ export async function readEvolutionPin(value: EvolutionPin, maximum = 2 * 1024 *
   return raw;
 }
 export function parseEvolutionCampaign(value: unknown): EvolutionCampaign {
+  const successor = isPlainRecord(value) && value.protocol === "oh.memory.evolution-campaign.v2";
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "campaignId", "storeDirectory", "approval", "additionalBudgetMicros", "maximumCalls",
-    "historicalExposureMicros", "historicalLedgers", "authAuthority"]) || value.protocol !== "oh.memory.evolution-campaign.v1"
+    "historicalExposureMicros", "historicalLedgers", "authAuthority", ...(successor ? ["predecessor"] : [])])
+    || !["oh.memory.evolution-campaign.v1", "oh.memory.evolution-campaign.v2"].includes(String(value.protocol))
     || typeof value.campaignId !== "string" || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(value.campaignId)
     || typeof value.storeDirectory !== "string" || !isAbsolute(value.storeDirectory) || resolve(value.storeDirectory) !== value.storeDirectory
     || value.storeDirectory.includes("\0") || value.storeDirectory.length > 4096
@@ -47,11 +50,19 @@ export function parseEvolutionCampaign(value: unknown): EvolutionCampaign {
     return Object.freeze({ ...evolutionPin({ path: v.path, sha256: v.sha256 }), bytes: v.bytes });
   });
   const authAuthority = evolutionPin(value.authAuthority);
+  let predecessor: EvolutionCampaign["predecessor"];
+  if (successor) {
+    if (!isPlainRecord(value.predecessor) || !hasExactKeys(value.predecessor, ["campaignPin", "terminalPhasePin", "databasePin"])) fail("invalid predecessor pins");
+    predecessor = Object.freeze({ campaignPin: evolutionPin(value.predecessor.campaignPin),
+      terminalPhasePin: evolutionPin(value.predecessor.terminalPhasePin), databasePin: evolutionPin(value.predecessor.databasePin) });
+  }
+  const rolePaths = [...ledgers.map(l => l.path), authAuthority.path, ...Object.values(predecessor ?? {}).map(p => p.path)];
   if (new Set([...ledgers.map(l => l.path), authAuthority.path]).size !== ledgers.length + 1
-    || ledgers.reduce((sum, l) => sum + l.bytes, 0) > 64 * 1024 * 1024) fail("duplicate roles or aggregate historical bound");
-  return Object.freeze({ protocol: value.protocol, campaignId: value.campaignId, storeDirectory: value.storeDirectory, approval: value.approval,
+    || new Set(rolePaths).size !== rolePaths.length || ledgers.reduce((sum, l) => sum + l.bytes, 0) > 64 * 1024 * 1024) fail("duplicate roles or aggregate historical bound");
+  return Object.freeze({ protocol: value.protocol as EvolutionCampaign["protocol"], campaignId: value.campaignId, storeDirectory: value.storeDirectory, approval: value.approval,
     additionalBudgetMicros: value.additionalBudgetMicros, maximumCalls: value.maximumCalls,
-    historicalExposureMicros: value.historicalExposureMicros, historicalLedgers: Object.freeze(ledgers), authAuthority });
+    historicalExposureMicros: value.historicalExposureMicros, historicalLedgers: Object.freeze(ledgers), authAuthority,
+    ...(predecessor === undefined ? {} : { predecessor }) });
 }
 
 /** Verify the closed ledgers once per phase, without rebuilding any historical study.
@@ -74,6 +85,10 @@ export async function verifyEvolutionCampaign(pin: EvolutionPin) {
         seen.add(event.id);
       }
     }
+  }
+  if (campaign.protocol === "oh.memory.evolution-campaign.v2") {
+    const { verifyEvolutionPredecessor } = await import("./evolution-predecessor");
+    exposure += await verifyEvolutionPredecessor(campaign, exposure);
   }
   if (exposure !== campaign.historicalExposureMicros) fail("historical exposure does not reconcile");
   await readEvolutionPin(campaign.authAuthority);

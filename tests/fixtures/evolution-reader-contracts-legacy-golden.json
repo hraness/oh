@@ -1,0 +1,88 @@
+{
+  "sourceCommit": "4861a45951cf2eddbbd04970706804418b63abe9",
+  "messagesSha256": "41ad2947d46622fe005dc8d7ff6911af19612413d466587d06b33d26709c1a04",
+  "rows": [
+    {
+      "profileId": "qwen37-flash-reader",
+      "profileSha256": "a0956117db5d7a60e6979d25c55d91f9885fd89c76ecf1c4c2c875d9d74c049c",
+      "requestSha256": "fa9d353bd1ce3a213db2736079c5dd1c3650f50d475ea5fa302d1cff9e7fbfb3",
+      "serializedRequestSha256": "d1e16c5d28f8a234e6effa0e75b2c54eaaefa8c393e44895b65ffc7c598d3289",
+      "parsedSha256": "2f81f733d4a54c52a49d1634175d76c2a67d99b9eeed8e4eb599f862b7915eee"
+    },
+    {
+      "profileId": "gpt5-nano-reader",
+      "profileSha256": "84f6173929020c34331062d734983dca33bcba1bb8cd20daf51aeffad2a6f4a6",
+      "requestSha256": "42eb275c271eb0662714e082f669dcfc005a80a281056cc45840b800d223da23",
+      "serializedRequestSha256": "f4bc66ca8199a3499cfd6cf5926948c1eaae3a519037861984bcfdbfbc1f3ea7",
+      "parsedSha256": "f3df2c90083d94b5b079b6e90b1c672ea0ed92dd9abd312ce09b10371e23d5e0",
+      "windowRequestSha256": "5e47f45740fccca161cb7dd6ce5fa9fad2041218465ecc1d425178f334f3cb57",
+      "windowSerializedSha256": "734fd238f611c9e10cb7ed8041784493589a5a7cba0b06144d175cddad22ca19",
+      "windowParsedSha256": "51a7fa4ec6958ec2b5d9b525adf634fcfdddf8c9a9ba22b2e63327e413eceab4"
+    },
+    {
+      "profileId": "gpt5-nano-medium-reader",
+      "profileSha256": "d21e1a256d6ec862c719ba53fd13a9c4e7a2073474bc43745d1f92f00dde3dbd",
+      "requestSha256": "2701f64f6a4ebf884626b497e3990686c4a228997b3910cdb9d77adbdca0c33c",
+      "serializedRequestSha256": "82d410613ac663d84fceb994c75ffa82104852e37b68eda5820913bdb56703f3",
+      "parsedSha256": "de554c55cbc4b6b9eb36389a4e536b7f2f50d81261034aef4bb332e045632c61",
+      "windowRequestSha256": "a6ffa5052a9c1c736e45afc1646a50e6046ae13e3128cd35bc32b4ef6302c6de",
+      "windowSerializedSha256": "74e10a1bee66fe21380775342fb0e601e568494dc2a74689085f2f8f78043e47",
+      "windowParsedSha256": "5d6b020c7554ffaa502d16513fe07a863ae099c46df99e79d382ca040ee56b20"
+    },
+    {
+      "profileId": "gpt5-nano-high-reader",
+      "profileSha256": "1ea118296bc093bca21a36387d8c800a0cb95d607c59cd9965decc661e86d2d5",
+      "requestSha256": "a7fa16c0448d09807665855b110c496454b8da58edf910f9693ae6ba392eee0c",
+      "serializedRequestSha256": "580f6015d5181ab53c00600919aaf9a9bc326ff7563208393ee5ffe2e32ae838",
+      "parsedSha256": "9ececd94203e474ec05cdfbcccd4c355ea01c501b091293f69957f80459c8f75",
+      "windowRequestSha256": "fb8161132d61240376421f3cdc13f6aaedabf209497df4a3195065387be7d894",
+      "windowSerializedSha256": "718565666367cbdcaa38b3c768bb8d7e59bfc07d602e7a36cfa002ccb6b83677",
+      "windowParsedSha256": "5f9aa43c3a0766809ecb6220b05a375ae4852ffa54204480b0180cdc0628f65f"
+    },
+    {
+      "profileId": "gemini25-flash-lite-reader",
+      "profileSha256": "5d3bd22435515b31dbd70e01f5629a97806e604cd3ff46f6cfb84dab2ab73f62",
+      "requestSha256": "62e3b9e50122aee00bb4b358e67d677bc40516be7b93d41bccfd3db5393e9554",
+      "serializedRequestSha256": "23be60b5a89fdd786ec39de1a96e1236911512d684877d8fafa2f4371aac7779",
+      "parsedSha256": "9b008bb3125257fa2fd27646a49104105c2528b763266e1aa6ec7cb40b994f93"
+    },
+    {
+      "profileId": "gpt5-mini-reader",
+      "profileSha256": "d14d723b4c3d4e5871fcbb5e45f22c82bc76fe233467d3bdbbe526c2b13832b9",
+      "requestSha256": "483a066d93bfd4c478d2eb7838ae2b360bf7dddbd5bdfb33bdde6eb314c2550a",
+      "serializedRequestSha256": "77a60c1271af5b81ffbc3036e5e3667f4e7d8d34bdd6cb7e033052d58b6ad4ec",
+      "parsedSha256": "4cbeaf33a6a8d35cfdb82ecf41e996cdd23cee1f59868e8c2e3300bbba4f0f28",
+      "windowRequestSha256": "2c61af37285d1dd90a243a89958d754c23e6fcd752a52e0a7b1de7a561f7fdad",
+      "windowSerializedSha256": "2c4f36f3969785b33a32ec42b1ba2b4441531f8bc8dff0b9f1cf9079e6e94eb8",
+      "windowParsedSha256": "8de8dd947b328a4577eae8bab3c95b1fa265d50db191c5400980cb892868f025"
+    },
+    {
+      "profileId": "gpt4o-gateway-judge",
+      "profileSha256": "9039b11f05b27bbe8ae493c6ca8f89b846061ccb6499661cf2774d2ee232ec74",
+      "requestSha256": "612d839d0e4cd703df00ccada33719a39f5feae55d675b91ae8525c708f4ead4",
+      "serializedRequestSha256": "589db51eab035870136c1ea2200a4e6ac73b35ef7a28c17f31b0e33afb75e742",
+      "parsedSha256": "b083917920c2710b7568e6011f2cae74d1766e7e27081d0b75e6fd3178c972ee"
+    },
+    {
+      "profileId": "gpt4o-gateway-native-rubric-16-judge-v1",
+      "profileSha256": "b7ca5dbb946b3555ae590b91c3c53d5567f7e7f6dc067fb11bb3f0848d3e2dfd",
+      "requestSha256": "a8c18c61a044ddf67dae9bd4c62856e93d51e4dc2d0f558291b704429b5694e0",
+      "serializedRequestSha256": "d9c43977ead8061dcf859cfd8381693fa684296738b9f370877c977f18426653",
+      "parsedSha256": "c9c66535a14204f3f232e47326d5ed9cc8e2db6da21f660ac2931649b1117813"
+    },
+    {
+      "profileId": "gpt4o-gateway-native-rubric-judge-v1",
+      "profileSha256": "bf22f9b7d19534fcaddd55a9b4f8e158e2e27d24ab20ad57108fedc51925d8c4",
+      "requestSha256": "75e740c040d139817c5b018061ac480ac871a5b8599720479d05f91ab55cdbf9",
+      "serializedRequestSha256": "9ac07d5690cfcc05e7101cfed35b09ba78816c3dc651c807aba2c1371918fe44",
+      "parsedSha256": "d612a500afab6ba42d4fb2bdf384e5484d7c82717dbbfaec8acf4cef488368c1"
+    },
+    {
+      "profileId": "gpt4o-official-snapshot-judge",
+      "profileSha256": "b731858105c5ce80bf3600c6c6c7c766626157259925ce746bcaeae9a26d54c5",
+      "requestSha256": "0f5e92dd7ee0c7fb37158c4bf2fdd9c1fcfba9b920fbde703096e1f50f06d098",
+      "serializedRequestSha256": "99e46b464ea306d8299dede06e3fe8a5ee90e3dedf371b479bcbb5ea4168aa5d",
+      "parsedSha256": "8a008e183520abdc0f6dbdf2c4beddcec1d1e67b7d456a80abe161b09bc889b5"
+    }
+  ]
+}

@@ -25,6 +25,8 @@ manifest. A high development score is not a confirmatory superiority result.
 The adapter includes BM25 window/session controls, Oh keyword search with
 separate query-focusing and neighborhood controls, lexical question-facet
 packing, and an optional actual Oh semantic/hybrid path.
+The [V3 fixed experiments](EVOLUTION_PACKING_V3.md) add focused source spans,
+contiguous continuation, source diversity and an untruncated full-history control.
 Semantic experiments require the pinned optional QMD backend. An unavailable,
 failed or stale backend is an explicit failure. The initial CLI configuration
 does not activate that optional backend; qualify it through the adapter before
@@ -34,6 +36,18 @@ Explicit event/state timelines, entity joins, episodic summaries, bounded second
 retrieval, external framework adapters and a reflective GEPA integration remain
 separate experiments. The population primitives provide typed lineage and
 selection; they do not autonomously dispatch model calls or implement GEPA.
+
+The original `gpt5-nano-reader` uses low reasoning. The separate
+`gpt5-nano-medium-reader` and `gpt5-nano-high-reader` profiles change only requested
+reasoning effort. They preserve the answer prompt, model/provider routing,
+8,192-token output cap and price schedule. They work with retrieval and full
+history. Each has a distinct profile and request digest; earlier low-effort
+answers remain separate. Reasoning tokens count toward the output limit and
+actual measured cost. Availability is documented by
+[Vercel](https://vercel.com/ai-gateway/models/gpt-5-nano); this does not establish
+live acceptance or an accuracy improvement for either new treatment. Compare
+memory variants with the reader fixed and report reader-effort comparisons
+separately.
 
 ## Data and source boundaries
 
@@ -154,12 +168,47 @@ from binary judge accuracy and retrieval evidence precision/recall/F1. The
 default reader does not emit citations, so answer citation quality is reported
 as unmeasured.
 
-The direct LongMemEval judge uses the pinned `gpt-4o-2024-08-06` snapshot, a single
-user message, ten output tokens, the source-attributed category prompts and the
-native `contains yes` decision rule. Gateway grading uses an unpinned GPT-4o
-alias, sixteen output tokens and strict yes/no parsing; reports label that
-adapted stack separately. Source prompt parity does not establish live provider
-qualification.
+LongMemEval judge profiles are explicit and keep separate request identities:
+
+| Judge profile | Route and requested model | Messages and output limit | Decision rule |
+| --- | --- | --- | --- |
+| `gpt4o-official-snapshot-judge` | Direct OpenAI `gpt-4o-2024-08-06` | One user message, 10 tokens | Native `contains yes` |
+| `gpt4o-gateway-native-rubric-16-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 16 tokens | Native `contains yes` |
+| `gpt4o-gateway-native-rubric-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 10 tokens | Native `contains yes` |
+| `gpt4o-gateway-judge` | Gateway `openai/gpt-4o`, OpenAI provider only | System and user messages, 16 tokens | Strict yes/no |
+
+All native-rubric profiles require the parity-qualified, source-attributed
+category prompt file and temperature zero. The native rule deliberately grades
+any completed response containing `yes` case-insensitively as correct; other
+completed responses score zero. This preserves the released evaluator's rule,
+including strings such as `not yes`. Transport, refusal and truncation failures
+remain separate failed attempts under the campaign's fixed-denominator policy.
+
+The versioned Gateway native-rubric profile is still an alias. Even a response
+reporting the official snapshot does not pin the requested model. Reports state
+that limitation explicitly; source prompt parity does not establish live
+provider qualification or an official full-set score. LoCoMo semantic judging
+remains a separate diagnostic from its official F1.
+
+The `gpt4o-gateway-native-rubric-16-judge-v1` profile adapts only the output limit
+from 10 to 16 tokens for Gateway compatibility. It keeps the native prompt and
+contains-yes rule, but its cap and alias route prevent an official protocol
+reproduction claim. The earlier 10-token profile remains a distinct identity;
+its rejected first attempts and full unresolved reservations are preserved.
+Changing the limit requires new requests, not a retry or relabeling of those
+captures. Qualify any new provider/profile combination with one bounded request
+before expanding; stop on a deterministic provider configuration rejection.
+
+Run configuration V1, V2 and V3 may explicitly select either Gateway native-rubric ID; those
+versions still describe treatment/context shapes. The model request remains V1
+with a new profile digest and request digest. Existing profile IDs, V1/V2 reader
+requests, proxy judgments and stored replay identities retain their original
+meaning. Never relabel earlier captures or reparse proxy decisions under the new
+rule. To regrade completed predictions, use a new configuration/output directory
+with an exact copy of the pinned context plan and the original reader plan and
+completed receipt. Keep the same canonical campaign store, build a fresh
+`judge-plan`, and budget only its missing native-rubric judge requests. The runner
+authenticates the original reader evidence before planning and dispatch.
 
 Reports authenticate captured raw bytes and occupied-attempt failure receipts,
 account for each request once and retain failed answers in denominators. Known
@@ -236,6 +285,70 @@ cost, amortization, storage and complete latency alongside accuracy. Treat
 LongMemEval variants as related families and LoCoMo questions as clustered within
 conversations. Use fresh histories or an untouched benchmark for confirmation.
 
+## Reader answer-contract experiments
+
+Answer contracts can be varied independently of the reader model, reasoning effort
+and retrieved context. The closed contract catalog provides a small factorial:
+
+| Contract | Unsupported questions | Answer composition |
+| --- | --- | --- |
+| `legacy-v1` | Existing literal `None` instruction | Existing instructions |
+| `explicit-abstention-v1` | Explicit statement that information is missing | Existing instructions |
+| `composition-v1` | Existing literal `None` instruction | Event deduplication, date/state resolution, arithmetic and remembered preferences |
+| `explicit-abstention-composition-v1` | Explicit statement that information is missing | Both changes together |
+
+`evolutionReaderProfileId(baseReader, contract)` returns an immutable ID accepted
+in the existing configuration's `readers` list. For example,
+`evolutionReaderProfileId("gpt5-nano-reader", "explicit-abstention-v1")` returns
+`gpt5-nano-explicit-abstention-v1-reader`. The same contracts are available for
+each of the six existing reader model/effort choices. Calling the helper with
+`legacy-v1` returns the original reader ID.
+
+New profiles record the base reader, contract ID and instruction digest. They
+inherit that reader's provider, model, prices, settings and output cap. Full-history
+eligibility and financial reservation follow the base reader; tokenizer fit remains
+unknown until the provider accepts the input. Existing profile objects, prompts,
+request bytes and replay identities remain unchanged. A new contract creates
+separate requests and cannot relabel or reuse a different contract's response.
+
+Preparation keeps question, question date and memory bytes fixed and changes only
+the system instruction according to the declared contract. Exact reader-plan
+validation rebuilds that prompt before paid dispatch and reporting. Gold labels,
+benchmark examples and scorer prompts are not inputs to the contract renderer.
+The catalog is a generic experimental instruction set with offline validation;
+its presence does not establish live provider qualification or improved accuracy.
+Compare complete paired questions under the same context and judge, report failures
+in the full denominator, and keep development optimization separate from confirmation.
+
+The [completed 1,600-case comparison](EVOLUTION_RESULTS.md#answer-contract-comparison)
+records the four contracts with nano and mini under matched BM25 and Oh retrieval,
+including fresh legacy controls and native-rubric 16-token grading.
+
+## Explicit concurrency experiments
+
+Run configurations V1–V3 and the original paid queue remain limited to one through
+12 concurrent requests. Run V4 (`oh.memory.evolution-run.v4`) explicitly selects
+24 or 32 concurrent requests. It accepts the existing retrieval treatment types;
+the prepared context plan still uses the version required by those treatments.
+No existing model profile, request body, request digest or reservation changes.
+
+V4 uses the separate `oh.memory.evolution-paid-queue.v2` entrypoint. The phase
+receipt records its protocol and actual configured capacity alongside the exact
+configuration pin. Each request still reserves against the same canonical campaign
+before dispatch, captures its first response durably, authenticates usage and
+retains uncertain charges. An observed thrown execution failure or external stop
+halts new starts, and every admitted sibling drains before the receipt is written.
+The explicit phase call bound, credential/provider checks, occupied-request guard
+and complete failure denominator remain in effect.
+
+The higher capacities are experiments, not evidence of provider rate-limit
+headroom or linear speedup. Qualify a fixed small workload at 24 before selecting
+32; declare the call and shared financial caps in advance, stop on systematic
+provider rejection, and compare measured new-request service time and phase wall
+time separately from reused cached work. Do not repeat occupied requests to
+manufacture a matched timing sample. Archive the qualification receipt and retain
+the capacity in every run configuration.
+
 ## Validation and takeover
 
 Focused tests are under `tests/memory-benchmark-evolution-*.test.ts` and run in
@@ -272,3 +385,6 @@ describes the remaining external baseline and fresh-history qualification.
 References: [LoCoMo evaluator](https://github.com/snap-research/locomo/blob/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/task_eval/evaluation.py),
 [LongMemEval evaluator](https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f4ef0e2ab8f2e582289761153549043fc/src/evaluation/evaluate_qa.py),
 [GEPA](https://arxiv.org/abs/2507.19457), [development evidence](DEVELOPMENT.md).
+
+Successor allowances use the [campaign V2 lineage contract](EVOLUTION_CAMPAIGNS_V2.md).
+The [ID selector prototype](EVOLUTION_SELECTOR.md) retains exact source turns in a separate experiment protocol.

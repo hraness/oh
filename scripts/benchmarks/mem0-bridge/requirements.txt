@@ -1,0 +1,4 @@
+# Optional, isolated qualification environment for Mem0 bridge v1.
+# Resolve this exact lock only in a disposable environment; it is not a required
+# Oh runtime dependency and it must never be installed by ordinary Bun commands.
+-r requirements-py314.lock

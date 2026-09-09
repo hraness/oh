@@ -1,26 +1,45 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import type { Message } from "./model";
+import { EVOLUTION_READER_CONTRACTS, parseEvolutionReaderContractId, type EvolutionReaderContractId, type EvolutionReaderAblationContractId } from "./evolution-reader-contracts";
 
 export const EVOLUTION_GATEWAY_ENDPOINT = "https://ai-gateway.vercel.sh/v1/chat/completions";
 export const EVOLUTION_OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 export const EVOLUTION_RESPONSE_MAX_BYTES = 1_048_576;
 export const EVOLUTION_MODEL_PROTOCOL = "oh.memory.evolution-model.v1";
+export const EVOLUTION_MODEL_V2_PROTOCOL = "oh.memory.evolution-model.v2";
+export const EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS = 400_000;
+export const EVOLUTION_PROFILE_WINDOW_MAX_BODY_BYTES = 2 * 1024 * 1024;
 
-export type EvolutionProfileId = "qwen37-flash-reader" | "gpt5-nano-reader" | "gemini25-flash-lite-reader"
-  | "gpt5-mini-reader" | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge";
+export const EVOLUTION_BASE_READER_IDS = ["qwen37-flash-reader", "gpt5-nano-reader", "gemini25-flash-lite-reader",
+  "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader"] as const;
+export type EvolutionBaseReaderId = typeof EVOLUTION_BASE_READER_IDS[number];
+type ReaderStem<T> = T extends `${infer Stem}-reader` ? Stem : never;
+export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${EvolutionReaderAblationContractId}-reader`;
+export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"
+  | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1";
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
   endpoint: string; contextWindow: number; maxOutputTokens: number; timeoutMs: number;
   qualification: "gateway-alias" | "official-snapshot-request"; expectedSnapshot: string | null;
   settings: Readonly<{ temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }> }>;
-  pricingCheckedAt: "2026-09-09"; prices: readonly PriceTier[] }>;
+  pricingCheckedAt: "2026-09-09"; prices: readonly PriceTier[];
+  readerContract?: Readonly<{ baseReader: EvolutionBaseReaderId; id: EvolutionReaderAblationContractId; instructionSha256: string }> }>;
 type Body = Readonly<{ model: string; messages: readonly Message[]; stream: false; store: false; max_tokens: number;
   temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }>;
   providerOptions?: Readonly<{ gateway: Readonly<{ only: readonly string[]; order: readonly string[] }> }> }>;
-export type EvolutionRequest = Readonly<{ protocol: typeof EVOLUTION_MODEL_PROTOCOL; profileId: EvolutionProfileId;
+type EvolutionRequestCommon = Readonly<{ profileId: EvolutionProfileId;
   endpoint: string; body: Body; model: string; provider: string; requestSha256: string; profileSha256: string;
   inputUpperBound: number; maxOutputTokens: number; reservationMicros: number; timeoutMs: number }>;
+export type EvolutionRequestV1 = EvolutionRequestCommon & Readonly<{ protocol: typeof EVOLUTION_MODEL_PROTOCOL }>;
+/** Full-history route: the profile window is reserved financially while tokenizer fit remains explicitly unknown. */
+export type EvolutionInputAccountingV2 = Readonly<{ protocol: "profile-window-v1"; tokenizerFit: "unknown";
+  providerWindowAcceptance: "required"; profileWindowInputTokens: typeof EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS;
+  bodyBytes: number; bodySha256: string }>;
+export type EvolutionRequestV2 = EvolutionRequestCommon & Readonly<{ protocol: typeof EVOLUTION_MODEL_V2_PROTOCOL;
+  inputAccounting: EvolutionInputAccountingV2 }>;
+export type EvolutionRequest = EvolutionRequestV1 | EvolutionRequestV2;
 export type EvolutionUsage = Readonly<{ inputTokens: number; cachedInputTokens: number; outputTokens: number;
   reasoningTokens: number; tokenRateMicros: number; gatewayReportedMicros: number | null; micros: number }>;
 export type EvolutionIdentity = Readonly<{ requestedModel: string; reportedModel: string; finalProvider: string;
@@ -48,28 +67,59 @@ function profile(id: EvolutionProfileId, model: string, provider: string, contex
 }
 
 /** Closed research profiles. Listing and request construction do not imply live provider qualification. */
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({
+const LEGACY_PROFILES: Readonly<Record<EvolutionLegacyProfileId, EvolutionModelProfile>> = frozen({
   "qwen37-flash-reader": profile("qwen37-flash-reader", "alibaba/qwen3.7-flash", "alibaba", 991_000, 2_048,
     { temperature: 0, reasoning: { effort: "none" } }, [tier(30, 6, 130, 40), tier(100, 20, 400, 125, 32_000), tier(200, 40, 800, 250, 256_000)]),
   "gpt5-nano-reader": profile("gpt5-nano-reader", "openai/gpt-5-nano", "openai", 400_000, 8_192,
     { reasoning: { effort: "low" } }, [tier(50, 5, 400)]),
+  "gpt5-nano-medium-reader": profile("gpt5-nano-medium-reader", "openai/gpt-5-nano", "openai", 400_000, 8_192,
+    { reasoning: { effort: "medium" } }, [tier(50, 5, 400)]),
+  "gpt5-nano-high-reader": profile("gpt5-nano-high-reader", "openai/gpt-5-nano", "openai", 400_000, 8_192,
+    { reasoning: { effort: "high" } }, [tier(50, 5, 400)]),
   "gemini25-flash-lite-reader": profile("gemini25-flash-lite-reader", "google/gemini-2.5-flash-lite", "google", 1_048_576, 2_048,
     { temperature: 0, reasoning: { effort: "none" } }, [tier(100, 10, 400)]),
   "gpt5-mini-reader": profile("gpt5-mini-reader", "openai/gpt-5-mini", "openai", 400_000, 8_192,
     { reasoning: { effort: "medium" } }, [tier(250, 25, 2_000)]),
   "gpt4o-gateway-judge": profile("gpt4o-gateway-judge", "openai/gpt-4o", "openai", 128_000, 16,
     { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+  "gpt4o-gateway-native-rubric-16-judge-v1": profile("gpt4o-gateway-native-rubric-16-judge-v1", "openai/gpt-4o", "openai", 128_000, 16,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+  "gpt4o-gateway-native-rubric-judge-v1": profile("gpt4o-gateway-native-rubric-judge-v1", "openai/gpt-4o", "openai", 128_000, 10,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
   "gpt4o-official-snapshot-judge": profile("gpt4o-official-snapshot-judge", "gpt-4o-2024-08-06", "openai", 128_000, 10,
     { temperature: 0 }, [tier(2_500, 1_250, 10_000)], "gpt-4o-2024-08-06"),
 });
+
+/** Resolve a closed model/effort × answer-contract choice without changing legacy identities. */
+export function evolutionReaderProfileId(baseReader: EvolutionBaseReaderId, contract: EvolutionReaderContractId = "legacy-v1"): EvolutionBaseReaderId | EvolutionAblationReaderId {
+  if (!EVOLUTION_BASE_READER_IDS.includes(baseReader)) fail("unknown base reader");
+  const id = parseEvolutionReaderContractId(contract);
+  return id === "legacy-v1" ? baseReader : `${baseReader.slice(0, -7)}-${id}-reader` as EvolutionAblationReaderId;
+}
+const ablationProfiles = Object.fromEntries(EVOLUTION_BASE_READER_IDS.flatMap(baseReader =>
+  (["explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1"] as const).map(contract => {
+    const id = evolutionReaderProfileId(baseReader, contract), base = LEGACY_PROFILES[baseReader];
+    return [id, { ...base, id, readerContract: { baseReader, id: contract, instructionSha256: EVOLUTION_READER_CONTRACTS[contract].instructionSha256 } }];
+  }))) as unknown as Record<EvolutionAblationReaderId, EvolutionModelProfile>;
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles });
+export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
+  const selected = getProfile(profileId);
+  if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
+  return selected.readerContract?.id ?? "legacy-v1";
+}
+export function supportsEvolutionProfileWindow(profileId: EvolutionProfileId): boolean {
+  const selected = getProfile(profileId), base = selected.readerContract?.baseReader ?? selected.id;
+  return ["gpt5-nano-reader", "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader"].includes(base)
+    && selected.contextWindow === EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS && selected.maxOutputTokens === 8_192;
+}
 
 function getProfile(value: unknown): EvolutionModelProfile {
   if (typeof value !== "string" || !Object.hasOwn(EVOLUTION_PROFILES, value)) fail("unknown profile");
   return EVOLUTION_PROFILES[value as EvolutionProfileId];
 }
 function validMessages(value: unknown, selected: EvolutionModelProfile): value is readonly Message[] {
-  const directSnapshot = selected.qualification === "official-snapshot-request";
-  return Array.isArray(value) && (directSnapshot
+  const nativeJudge = selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1";
+  return Array.isArray(value) && (nativeJudge
     ? value.length === 1 && value[0]?.role === "user"
     : value.length === 2 && value[0]?.role === "system" && value[1]?.role === "user")
     && value.every(message => isPlainRecord(message) && hasExactKeys(message, ["role", "content"])
@@ -103,15 +153,38 @@ export function makeEvolutionRequest(profileId: EvolutionProfileId, messages: re
   const profileSha256 = canonicalSha256(selected);
   const reservationMicros = rateCost(inputUpperBound, 0, selected.maxOutputTokens,
     applicablePrice(selected.prices, inputUpperBound), true);
-  const preimage: Omit<EvolutionRequest, "requestSha256"> = { protocol: EVOLUTION_MODEL_PROTOCOL, profileId, endpoint: selected.endpoint, body, model: selected.model,
+  const preimage: Omit<EvolutionRequestV1, "requestSha256"> = { protocol: EVOLUTION_MODEL_PROTOCOL, profileId, endpoint: selected.endpoint, body, model: selected.model,
     provider: selected.provider, profileSha256, inputUpperBound, maxOutputTokens: selected.maxOutputTokens,
     reservationMicros, timeoutMs: selected.timeoutMs };
   return frozen({ ...preimage, requestSha256: canonicalSha256(preimage) });
 }
 
+/** Explicit unqualified full-history admission. This reserves the whole supported input window and never estimates bytes as tokens. */
+export function makeEvolutionProfileWindowRequest(profileId: EvolutionProfileId, messages: readonly Message[]): EvolutionRequestV2 {
+  const selected = getProfile(profileId);
+  if (!supportsEvolutionProfileWindow(profileId) || !validMessages(messages, selected)) fail("invalid profile-window prompt");
+  const copied = structuredClone(messages);
+  const body: Body = { model: selected.model, messages: copied, stream: false, store: false, max_tokens: selected.maxOutputTokens,
+    ...structuredClone(selected.settings), ...(selected.endpoint === EVOLUTION_GATEWAY_ENDPOINT
+      ? { providerOptions: { gateway: { only: [selected.provider], order: [selected.provider] } } } : {}) };
+  const encodedBody = JSON.stringify(body), bodyBytes = Buffer.byteLength(encodedBody);
+  if (bodyBytes > EVOLUTION_PROFILE_WINDOW_MAX_BODY_BYTES) fail("profile-window body bound exceeded");
+  const inputAccounting: EvolutionInputAccountingV2 = { protocol: "profile-window-v1", tokenizerFit: "unknown",
+    providerWindowAcceptance: "required", profileWindowInputTokens: EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS,
+    bodyBytes, bodySha256: sha256Hex(encodedBody) };
+  const profileSha256 = canonicalSha256(selected), inputUpperBound = EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS;
+  const reservationMicros = rateCost(inputUpperBound, 0, selected.maxOutputTokens,
+    applicablePrice(selected.prices, inputUpperBound), true);
+  const preimage: Omit<EvolutionRequestV2, "requestSha256"> = { protocol: EVOLUTION_MODEL_V2_PROTOCOL, profileId, endpoint: selected.endpoint,
+    body, model: selected.model, provider: selected.provider, profileSha256, inputUpperBound, maxOutputTokens: selected.maxOutputTokens,
+    reservationMicros, timeoutMs: selected.timeoutMs, inputAccounting };
+  return frozen({ ...preimage, requestSha256: canonicalSha256(preimage) });
+}
+
 export function validateEvolutionRequest(value: EvolutionRequest): EvolutionRequest {
   if (!isPlainRecord(value) || !isPlainRecord(value.body)) fail("invalid request");
-  const expected = makeEvolutionRequest(value.profileId, value.body.messages);
+  const expected = value.protocol === EVOLUTION_MODEL_PROTOCOL ? makeEvolutionRequest(value.profileId, value.body.messages)
+    : value.protocol === EVOLUTION_MODEL_V2_PROTOCOL ? makeEvolutionProfileWindowRequest(value.profileId, value.body.messages) : fail("unknown request protocol");
   if (canonicalSha256(value) !== canonicalSha256(expected)) fail("request changed after preparation");
   return expected;
 }

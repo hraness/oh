@@ -183,6 +183,30 @@ describe("authenticated memory evolution reports", () => {
     expect(f.input.judgePlan.requests.every(r => r.body.messages.length === 1 && r.body.messages[0]!.role === "user" && r.body.max_tokens === 10)).toBeTrue();
   });
 
+  test("Gateway native-rubric scoring remains an alias and preserves reader failure denominators", async () => {
+    const f = await fixture(false, "gpt4o-gateway-native-rubric-judge-v1"), report = await buildEvolutionReport(f.input);
+    expect(report.scoring.judgeQualification).toContain("Gateway GPT-4o alias with native LongMemEval prompts");
+    expect(report.scoring.judgeQualification).toContain("not a pinned snapshot");
+    expect(report.scoring.judgeRule).toBe("native-contains-yes");
+    expect(report.arms.every(arm => arm.judgeFailures === 0)).toBeTrue();
+    expect(report.arms.filter(arm => arm.reader === "qwen37-flash-reader").every(arm => arm.readerFailures === 1)).toBeTrue();
+    expect(report.arms.every(arm => metric(arm, "judge-accuracy").overall.cases === 3)).toBeTrue();
+    expect(f.input.judgePlan.requests.every(r => r.body.messages.length === 1 && r.body.messages[0]!.role === "user" && r.body.max_tokens === 10)).toBeTrue();
+    expect(report.cost.judge.physicalRequests).toBe(f.input.judgePlan.requests.length);
+    expect(report.cost.accountedMicros).toBe([...f.readerResponses.values(), ...f.judgeResponses.values()].reduce((sum, r) => sum + r.usage.micros, 0));
+  });
+
+  test("Gateway16 report names both the alias and output-cap deviations from the official evaluator", async () => {
+    const f = await fixture(false, "gpt4o-gateway-native-rubric-16-judge-v1"), report = await buildEvolutionReport(f.input);
+    expect(report.scoring.judgeQualification).toContain("adapted to 16 output tokens");
+    expect(report.scoring.judgeQualification).toContain("not an official protocol reproduction");
+    expect(report.scoring.judgeQualification).toContain("not a pinned snapshot");
+    expect(report.scoring.judgeRule).toBe("native-contains-yes");
+    expect(report.arms.every(arm => arm.judgeFailures === 0)).toBeTrue();
+    expect(report.arms.every(arm => metric(arm, "judge-accuracy").overall.cases === 3)).toBeTrue();
+    expect(f.input.judgePlan.requests.every(request => request.body.messages.length === 1 && request.body.max_tokens === 16)).toBeTrue();
+  });
+
   test("scores total reader failure at zero with a valid empty physical judge phase", async () => {
     const f = await fixture(true), captures = new Map(f.captures), responses = new Map<string, EvolutionResponse>();
     for (const request of f.input.readerPlan.requests) {
