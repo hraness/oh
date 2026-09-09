@@ -1,0 +1,75 @@
+{
+  "protocol": "oh.memory-development-trifusion-screen.v1",
+  "status": "completed-rejected",
+  "budget": {
+    "topK": 20,
+    "contextBytes": 24000
+  },
+  "execution": {
+    "scheduler": "hra-host-run --mode=heavy --lane=compute",
+    "schedulerQueueSeconds": 0,
+    "runElapsedMs": 42642.733833,
+    "providerCalls": 0,
+    "repositoryEdits": 0
+  },
+  "longmemevalDev100": {
+    "eligible": 93,
+    "allEvidence": {
+      "bm25-window": 69,
+      "bm25-fusion": 68,
+      "bm25-session": 71,
+      "bm25-diverse-window": 59,
+      "bm25-trifusion": 60
+    },
+    "meanRecall": {
+      "bm25-window": 0.8236559139784946,
+      "bm25-fusion": 0.8048387096774193,
+      "bm25-session": 0.8349462365591398,
+      "bm25-diverse-window": 0.735483870967742,
+      "bm25-trifusion": 0.753763440860215
+    },
+    "meanContextBytes": {
+      "bm25-window": 23894.57,
+      "bm25-fusion": 22323.69,
+      "bm25-session": 23972.3,
+      "bm25-diverse-window": 23858.77,
+      "bm25-trifusion": 22662.89
+    }
+  },
+  "locomoDev400": {
+    "eligible": 312,
+    "allEvidence": {
+      "bm25-window": 216,
+      "bm25-fusion": 184,
+      "bm25-session": 243,
+      "bm25-diverse-window": 216,
+      "bm25-trifusion": 183
+    },
+    "meanRecall": {
+      "bm25-window": 0.759414130331313,
+      "bm25-fusion": 0.6537916074293783,
+      "bm25-session": 0.844361769980965,
+      "bm25-diverse-window": 0.759414130331313,
+      "bm25-trifusion": 0.6505101666479375
+    },
+    "meanContextBytes": {
+      "bm25-window": 9777.21,
+      "bm25-fusion": 4143.5025,
+      "bm25-session": 23979.92,
+      "bm25-diverse-window": 9777.21,
+      "bm25-trifusion": 4139.33
+    }
+  },
+  "rowsSha256": "e1b2dfaa937ace9e9d0730b3aa3e53f6101321696566ef3593a6560b41c0f364",
+  "decision": "Reject: the soft session representative did not improve annotation-ID coverage over the existing window, fusion, or session baselines.",
+  "qualification": "Development-only diagnostic using fixed cached development data. Annotation coverage is not answer accuracy or a promotion claim.",
+  "sourceEvidence": {
+    "privateReceiptSha256": "84e9ed794ad03e0d4c30ffdcdd0514a8e338923051fceb267eaf6e89feb66dfc",
+    "candidateSha256": "8d17476de400dde30ef94fcd7d2b421937dfe91912943c4fa11860862f14aaff",
+    "testSha256": "898695d1a139334da637ed44c27d9606d55114277fdc83f501d51bac5b3ea020",
+    "screenSha256": "01cb1dd41d669362271a70529fe98563b64e882b29fa245ff188bf7138e6f957",
+    "focusedTestsPassed": 3,
+    "runtimeIntegration": false
+  },
+  "method": "Three-source reciprocal-rank fusion of raw-focused, six-turn/1.5KB block, and whole-session BM25 rankings; session hits contribute a raw representative. Ordinary raw byte packing with no half-budget session reservation. Query and raw metadata only."
+}

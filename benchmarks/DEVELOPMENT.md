@@ -389,8 +389,59 @@ for 14 questions, improving eight. Their mean used context rises from 23,936 to
 answer evidence or a correct answer. Annotations were inspected after scoring
 and never supplied to retrieval or the reader.
 
-The next experiment compares the existing 24 KB and 96 KB parent windows using
-the same medium reader, full fixed sample and native judge. It uses the optional
-closed `variantPair` selector; it does not relabel contexts or select only the
-misses. The increased top-k and context allowance change together and must both
-be reported. At this checkpoint that new pair has mocked validation only.
+The following experiment compared the existing 24 KB and 96 KB parent windows using
+the same medium reader, full fixed sample and native judge. It used the optional
+closed `variantPair` selector without relabeling contexts or selecting only the
+misses. Both reader arms generated fresh responses. Top-k and the context
+allowance changed together.
+
+
+## Wider context with medium reasoning
+
+The full pair completed at **72/100 for 24 KB/topK20 and 79/100 for
+96 KB/topK100**. The wider arm won eight questions, lost one and tied 91;
+the grouped development difference was +7 points, with an interval of +1.98
+to +13.00 points. This is a promising development candidate with a larger
+retrieval allowance. It has not passed reserved-family validation, and the
+exploratory interval is not adjusted for the preceding trials.
+
+The run took 177.50 seconds at concurrency eight, with 167.48 seconds for readers
+and 8.20 seconds for judging. It made 200 fresh reader calls and 64 new judge
+calls; 64 historical judge hits supplied the other half of 128 distinct judge
+requests. All 264 reservations settled, every one of the 200 cases was scored,
+and there were no reader failures. Accounted usage was $0.770547, bringing
+cumulative amendment exposure to $24.850596 under this run’s $27 ceiling and the
+unchanged $40 cap. Independent replay verified 1,593 files, raw responses,
+complete score/phase matrices, paired bootstrap and the full spending ancestry.
+
+The same 96 KB contexts previously scored 68/100 with GPT-4.1 mini; the new
+reader/profile scored 79/100, with 14 wins and three losses. That historical
+comparison changes the reader/profile and is separate from the fresh
+same-reader 24 KB/96 KB comparison. The repeat 24 KB arm again scored 72/100;
+it is still the same set of questions, not 100 new independent observations.
+[The compact report](results/memory-development-reader-profile-wide-v1.json)
+contains usage, context sizes, comparisons, audit digests and timing limits.
+
+All original minimal, medium and wide first responses and ledgers remain
+immutable. Before another paid run, carry the 264-call wider-context ledger
+exactly once alongside every earlier ledger. No production default was changed
+from these development results.
+
+
+## Rejected three-source rank-fusion screen
+
+A separate candidate fused raw-focused, block and whole-session BM25 ranks,
+then packed raw turns without the failed allocation policy’s half-budget session
+reservation. Its full fixed development screen used topK20 and a 24 KB ceiling.
+It recovered every annotated ID for **60/93 LongMemEval questions**, below
+windows’ 69/93 and sessions’ 71/93. On LoCoMo it reached **183/312**, below
+windows’ 216/312 and sessions’ 243/312. It also underfilled LoCoMo contexts:
+4,139 mean bytes versus windows’ 9,777. The candidate is rejected; no paid
+comparison or runtime integration followed.
+
+Three focused tests passed. The five-adapter, 500-question offline screen took
+42.64 seconds under the host compute scheduler, with no observed queue delay
+and zero provider calls. [The compact negative result](results/memory-development-trifusion-v1.json)
+retains measurements and private experiment hashes. Annotation-ID coverage is
+an offline diagnostic, not answer accuracy. This adds 2,500 query/variant rows
+to the development screens without using reserved-family questions.

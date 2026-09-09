@@ -1,0 +1,246 @@
+{
+  "protocol": "oh.memory-development-reader-profile-wide.v1",
+  "recordedAt": "2026-09-09T04:59:55.611Z",
+  "dataset": "longmemeval-s",
+  "split": "dev",
+  "seed": 17,
+  "questions": 100,
+  "independentGroups": 94,
+  "cases": 200,
+  "reader": {
+    "requestedModel": "openai/gpt-5-mini",
+    "provider": "openai",
+    "reasoningEffort": "medium",
+    "maximumOutput": 8192,
+    "snapshotPinned": false
+  },
+  "judge": {
+    "requestedModel": "openai/gpt-4o",
+    "provider": "openai",
+    "snapshotPinned": false
+  },
+  "byVariant": {
+    "bm25-window:k20:b24000": {
+      "questions": 100,
+      "correct": 72,
+      "readerFailures": 0
+    },
+    "bm25-window:k100:b96000": {
+      "questions": 100,
+      "correct": 79,
+      "readerFailures": 0
+    }
+  },
+  "pairedDevelopmentBootstrap": {
+    "clusters": 94,
+    "delta": 0.07,
+    "lower": 0.019801980198019802,
+    "upper": 0.13,
+    "samples": 2000
+  },
+  "comparisons": [
+    {
+      "control": "gpt-4.1-mini-legacy",
+      "variant": "bm25-window:k20:b24000",
+      "oldCorrect": 68,
+      "newCorrect": 72,
+      "wins": 9,
+      "losses": 5,
+      "ties": 86,
+      "groupedInterval": {
+        "clusters": 94,
+        "delta": 0.04,
+        "lower": -0.030927835051546393,
+        "upper": 0.11224489795918367,
+        "samples": 2000
+      },
+      "categories": {
+        "single-session-user": {
+          "questions": 11,
+          "oldCorrect": 10,
+          "newCorrect": 10
+        },
+        "multi-session": {
+          "questions": 28,
+          "oldCorrect": 16,
+          "newCorrect": 14
+        },
+        "single-session-preference": {
+          "questions": 5,
+          "oldCorrect": 2,
+          "newCorrect": 2
+        },
+        "temporal-reasoning": {
+          "questions": 22,
+          "oldCorrect": 11,
+          "newCorrect": 16
+        },
+        "knowledge-update": {
+          "questions": 17,
+          "oldCorrect": 12,
+          "newCorrect": 13
+        },
+        "single-session-assistant": {
+          "questions": 17,
+          "oldCorrect": 17,
+          "newCorrect": 17
+        }
+      }
+    },
+    {
+      "control": "gpt-4.1-mini-legacy",
+      "variant": "bm25-window:k100:b96000",
+      "oldCorrect": 68,
+      "newCorrect": 79,
+      "wins": 14,
+      "losses": 3,
+      "ties": 83,
+      "groupedInterval": {
+        "clusters": 94,
+        "delta": 0.11,
+        "lower": 0.030612244897959183,
+        "upper": 0.19,
+        "samples": 2000
+      },
+      "categories": {
+        "single-session-user": {
+          "questions": 11,
+          "oldCorrect": 10,
+          "newCorrect": 10
+        },
+        "multi-session": {
+          "questions": 28,
+          "oldCorrect": 16,
+          "newCorrect": 19
+        },
+        "single-session-preference": {
+          "questions": 5,
+          "oldCorrect": 2,
+          "newCorrect": 3
+        },
+        "temporal-reasoning": {
+          "questions": 22,
+          "oldCorrect": 11,
+          "newCorrect": 17
+        },
+        "knowledge-update": {
+          "questions": 17,
+          "oldCorrect": 12,
+          "newCorrect": 13
+        },
+        "single-session-assistant": {
+          "questions": 17,
+          "oldCorrect": 17,
+          "newCorrect": 17
+        }
+      }
+    },
+    {
+      "control": "gpt-5-mini-minimal",
+      "variant": "bm25-window:k20:b24000",
+      "oldCorrect": 63,
+      "newCorrect": 72,
+      "wins": 12,
+      "losses": 3,
+      "ties": 85,
+      "groupedInterval": {
+        "clusters": 94,
+        "delta": 0.09,
+        "lower": 0.020202020202020204,
+        "upper": 0.16326530612244897,
+        "samples": 2000
+      },
+      "categories": {
+        "single-session-user": {
+          "questions": 11,
+          "oldCorrect": 10,
+          "newCorrect": 10
+        },
+        "multi-session": {
+          "questions": 28,
+          "oldCorrect": 13,
+          "newCorrect": 14
+        },
+        "single-session-preference": {
+          "questions": 5,
+          "oldCorrect": 0,
+          "newCorrect": 2
+        },
+        "temporal-reasoning": {
+          "questions": 22,
+          "oldCorrect": 11,
+          "newCorrect": 16
+        },
+        "knowledge-update": {
+          "questions": 17,
+          "oldCorrect": 12,
+          "newCorrect": 13
+        },
+        "single-session-assistant": {
+          "questions": 17,
+          "oldCorrect": 17,
+          "newCorrect": 17
+        }
+      }
+    }
+  ],
+  "execution": {
+    "elapsedMs": 177503.864958,
+    "readerMs": 167477.391958,
+    "judgeMs": 8200.776624999999,
+    "newCalls": 264,
+    "readerCalls": 200,
+    "newJudgeCalls": 64,
+    "legacyJudgeHits": 64,
+    "settledCalls": 264,
+    "unresolvedReservations": 0,
+    "accountedMicros": 770547,
+    "cumulativeAmendmentExposureMicros": 24850596,
+    "runTotalCapMicros": 27000000,
+    "authorizationTotalCapMicros": 40000000,
+    "concurrency": 8
+  },
+  "readerUsage": {
+    "inputTokens": 2818461,
+    "outputTokens": 104031,
+    "reasoningTokens": 95808,
+    "reasoningUsageReportedFor": 200
+  },
+  "evidence": {
+    "sourceHead": "e848092895f793a597a710ec2557bfd91a03e85d",
+    "sourceSha256": "78fd57380c3e648bd005e381821e57e6e9b3d4fdf45f851690c749b6b1ed54a9",
+    "planSha256": "b235273e557158b31854de3b45a945400e411448fc69eff5b83b74b3ff74a8d2",
+    "reportSha256": "356f5abea36f3aa3075c3446009fc0a654ba5447181dcf136abbe16a68f65125",
+    "ledgerSha256": "a109913c67549509cd950dcf05fd05a7157d5d38caa395e06b8b9f6cffb38d6f",
+    "auditSha256": "ede072eb342335eb57af13978c662bdd77724ce9fa7f5021444a266cd2bd1777",
+    "filesIndependentlyRechecked": 1593,
+    "allLocalRawResponsesReparsed": true,
+    "allScoresRegenerated": true,
+    "publicPayloadProofSha256": "9f5952add7b78ce0c366359201ee149aa38d8f7107d6ba9c9d1c82b657f85646"
+  },
+  "decision": "Retain 96KB/topK100 with medium reasoning as a development candidate; no production promotion or superiority claim from this repeatedly used sample.",
+  "limitations": [
+    "Fixed development sample used for repeated tuning; intervals are exploratory and not multiplicity-adjusted.",
+    "Within this fresh pair, reasoning/output profile and judge were fixed; topK20/24KB changed to topK100/96KB, using parent contexts prepared before diagnosis. Both reader arms are fresh draws. Cross-reader historical comparisons also change the reader model/profile.",
+    "Cached judgments preserve original first responses rather than independent repeats.",
+    "Timing excludes preparation, authentication, initial preflight and host queues.",
+    "Accounted token/Gateway usage is not a billing invoice; aliases are not verified snapshots."
+  ],
+  "withinRunPairedOutcomes": {
+    "wins": 8,
+    "losses": 1,
+    "ties": 91
+  },
+  "contextUsage": {
+    "bm25-window:k20:b24000": {
+      "questions": 100,
+      "totalBytes": 2389457,
+      "meanBytes": 23894.57
+    },
+    "bm25-window:k100:b96000": {
+      "questions": 100,
+      "totalBytes": 9422596,
+      "meanBytes": 94225.96
+    }
+  }
+}
