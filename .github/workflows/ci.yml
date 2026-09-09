@@ -42,20 +42,32 @@ jobs:
           OH_EXPECTED_SHA: ${{ github.sha }}
           OH_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           OH_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          OH_PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           node --input-type=module <<'NODE'
           import { execFileSync } from "node:child_process";
           const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
           const checked = git("rev-parse", "HEAD");
           const head = process.env.OH_PR_HEAD_SHA || null;
-          const base = process.env.OH_PR_BASE_SHA || null;
+          const eventBase = process.env.OH_PR_BASE_SHA || null;
+          let base = null;
+          if (head !== null) {
+            const ref = `refs/heads/${process.env.OH_PR_BASE_REF || ""}`;
+            git("check-ref-format", ref);
+            const lines = git("ls-remote", "--exit-code", "origin", ref).split("\n");
+            const [sha, actualRef] = lines[0].split("\t");
+            if (lines.length !== 1 || actualRef !== ref || !/^[a-f0-9]{40}$/.test(sha)) {
+              throw new Error("Cannot resolve the current governed base ref");
+            }
+            base = sha;
+          }
           if (checked !== process.env.OH_EXPECTED_SHA) throw new Error("Unexpected CI checkout");
           const parents = git("cat-file", "-p", "HEAD").split("\n\n")[0].split("\n")
             .filter(line => line.startsWith("parent ")).map(line => line.slice(7));
           if (head !== null && (parents.length !== 2 || parents[0] !== base || parents[1] !== head)) {
             throw new Error("PR merge checkout does not bind the governed head and base");
           }
-          console.log(JSON.stringify({ checked, head, base, node: process.version }));
+          console.log(JSON.stringify({ checked, head, base, eventBase, node: process.version }));
           NODE
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
@@ -102,20 +114,32 @@ jobs:
           OH_EXPECTED_SHA: ${{ github.sha }}
           OH_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           OH_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          OH_PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           node --input-type=module <<'NODE'
           import { execFileSync } from "node:child_process";
           const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
           const checked = git("rev-parse", "HEAD");
           const head = process.env.OH_PR_HEAD_SHA || null;
-          const base = process.env.OH_PR_BASE_SHA || null;
+          const eventBase = process.env.OH_PR_BASE_SHA || null;
+          let base = null;
+          if (head !== null) {
+            const ref = `refs/heads/${process.env.OH_PR_BASE_REF || ""}`;
+            git("check-ref-format", ref);
+            const lines = git("ls-remote", "--exit-code", "origin", ref).split("\n");
+            const [sha, actualRef] = lines[0].split("\t");
+            if (lines.length !== 1 || actualRef !== ref || !/^[a-f0-9]{40}$/.test(sha)) {
+              throw new Error("Cannot resolve the current governed base ref");
+            }
+            base = sha;
+          }
           if (checked !== process.env.OH_EXPECTED_SHA) throw new Error("Unexpected CI checkout");
           const parents = git("cat-file", "-p", "HEAD").split("\n\n")[0].split("\n")
             .filter(line => line.startsWith("parent ")).map(line => line.slice(7));
           if (head !== null && (parents.length !== 2 || parents[0] !== base || parents[1] !== head)) {
             throw new Error("PR merge checkout does not bind the governed head and base");
           }
-          console.log(JSON.stringify({ checked, head, base, node: process.version }));
+          console.log(JSON.stringify({ checked, head, base, eventBase, node: process.version }));
           NODE
       - name: Require an exact public specification mirror
         run: diff -qr spec site/public/spec
