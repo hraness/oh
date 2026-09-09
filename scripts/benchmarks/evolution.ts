@@ -43,7 +43,7 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
     if (typeof r !== "string" || !r.endsWith("-reader") || !Object.hasOwn(EVOLUTION_PROFILES, r)) fail("invalid reader profile");
     return r as EvolutionProfileId;
   });
-  if (variants.some(v => v.system === "full-history") && readers.some(r => r !== "gpt5-nano-reader" && r !== "gpt5-mini-reader")) fail("full-history V2 requests support nano and mini only");
+  if (variants.some(v => v.system === "full-history") && readers.some(r => !["gpt5-nano-reader", "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader"].includes(r))) fail("full-history V2 requests support nano and mini only");
   if (new Set(variants.map(v => v.id)).size !== variants.length || new Set(readers).size !== readers.length) fail("duplicate variant or reader");
   if (value.limit * variants.length * readers.length > 100_000) fail("reader matrix exceeds the complete-coverage bound");
   const datasetPin = evolutionPin(value.datasetPin), manifestPin = evolutionPin(value.manifestPin), campaignPin = evolutionPin(value.campaignPin);

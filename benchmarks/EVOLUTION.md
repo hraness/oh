@@ -37,6 +37,18 @@ retrieval, external framework adapters and a reflective GEPA integration remain
 separate experiments. The population primitives provide typed lineage and
 selection; they do not autonomously dispatch model calls or implement GEPA.
 
+The original `gpt5-nano-reader` uses low reasoning. The separate
+`gpt5-nano-medium-reader` and `gpt5-nano-high-reader` profiles change only requested
+reasoning effort. They preserve the answer prompt, model/provider routing,
+8,192-token output cap and price schedule. They work with retrieval and full
+history. Each has a distinct profile and request digest; earlier low-effort
+answers remain separate. Reasoning tokens count toward the output limit and
+actual measured cost. Availability is documented by
+[Vercel](https://vercel.com/ai-gateway/models/gpt-5-nano); this does not establish
+live acceptance or an accuracy improvement for either new treatment. Compare
+memory variants with the reader fixed and report reader-effort comparisons
+separately.
+
 ## Data and source boundaries
 
 `evolution-dataset.ts` requires an explicit disposition for every family and

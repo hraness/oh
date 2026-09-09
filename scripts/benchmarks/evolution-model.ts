@@ -10,6 +10,7 @@ export const EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS = 400_000;
 export const EVOLUTION_PROFILE_WINDOW_MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 export type EvolutionProfileId = "qwen37-flash-reader" | "gpt5-nano-reader" | "gemini25-flash-lite-reader"
+  | "gpt5-nano-medium-reader" | "gpt5-nano-high-reader"
   | "gpt5-mini-reader" | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge" | "gpt4o-gateway-native-rubric-judge-v1";
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
@@ -64,6 +65,10 @@ export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionMo
     { temperature: 0, reasoning: { effort: "none" } }, [tier(30, 6, 130, 40), tier(100, 20, 400, 125, 32_000), tier(200, 40, 800, 250, 256_000)]),
   "gpt5-nano-reader": profile("gpt5-nano-reader", "openai/gpt-5-nano", "openai", 400_000, 8_192,
     { reasoning: { effort: "low" } }, [tier(50, 5, 400)]),
+  "gpt5-nano-medium-reader": profile("gpt5-nano-medium-reader", "openai/gpt-5-nano", "openai", 400_000, 8_192,
+    { reasoning: { effort: "medium" } }, [tier(50, 5, 400)]),
+  "gpt5-nano-high-reader": profile("gpt5-nano-high-reader", "openai/gpt-5-nano", "openai", 400_000, 8_192,
+    { reasoning: { effort: "high" } }, [tier(50, 5, 400)]),
   "gemini25-flash-lite-reader": profile("gemini25-flash-lite-reader", "google/gemini-2.5-flash-lite", "google", 1_048_576, 2_048,
     { temperature: 0, reasoning: { effort: "none" } }, [tier(100, 10, 400)]),
   "gpt5-mini-reader": profile("gpt5-mini-reader", "openai/gpt-5-mini", "openai", 400_000, 8_192,
@@ -125,7 +130,7 @@ export function makeEvolutionRequest(profileId: EvolutionProfileId, messages: re
 /** Explicit unqualified full-history admission. This reserves the whole supported input window and never estimates bytes as tokens. */
 export function makeEvolutionProfileWindowRequest(profileId: EvolutionProfileId, messages: readonly Message[]): EvolutionRequestV2 {
   const selected = getProfile(profileId);
-  if ((profileId !== "gpt5-nano-reader" && profileId !== "gpt5-mini-reader") || selected.contextWindow !== EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS
+  if (!["gpt5-nano-reader", "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader"].includes(profileId) || selected.contextWindow !== EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS
     || selected.maxOutputTokens !== 8_192 || !validMessages(messages, selected)) fail("invalid profile-window prompt");
   const copied = structuredClone(messages);
   const body: Body = { model: selected.model, messages: copied, stream: false, store: false, max_tokens: selected.maxOutputTokens,

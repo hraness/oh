@@ -63,6 +63,31 @@ describe("full-history profile-window V2 accounting", () => {
     finally { await reopened.close(); }
   });
 
+  test("reasoning treatments occupy separate jobs and replay at their own measured cost", async () => {
+    const path = await directory(), authority = campaign(path);
+    const ids = ["gpt5-nano-reader", "gpt5-nano-medium-reader", "gpt5-nano-high-reader"] as const;
+    const requests = ids.map(id => makeEvolutionProfileWindowRequest(id, messages("source ".repeat(90_000))));
+    const store = await openEvolutionStore({ directory: path, campaign: authority });
+    let cost = 0;
+    try {
+      for (const [i, request] of requests.entries()) {
+        expect(store.lookup(request).kind).toBe("miss");
+        expect(request.reservationMicros).toBe(23_277);
+        expect(validateEvolutionRequest(structuredClone(request))).toEqual(request);
+        store.admit(request);
+        const body = response(request, 120_000, 100 * (i + 1));
+        store.capture(request, { httpStatus: 200, body, complete: true, receivedBytes: body.length, error: null });
+        cost += store.finalize(request).usage.micros;
+      }
+      expect(store.summary()).toMatchObject({ calls: 3, confirmedMicros: cost, unresolvedMicros: 0 });
+    } finally { await store.close(); }
+    const reopened = await openEvolutionStore({ directory: path, campaign: authority });
+    try {
+      for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit");
+      expect(reopened.summary()).toMatchObject({ calls: 3, confirmedMicros: cost, unresolvedMicros: 0 });
+    } finally { await reopened.close(); }
+  });
+
   test("transport sends the V2 body unchanged and settles only authenticated usage below the full reservation", async () => {
     const path = await directory(), store = await openEvolutionStore({ directory: path, campaign: campaign(path) });
     const request = makeEvolutionProfileWindowRequest("gpt5-nano-reader", messages("source ".repeat(90_000)));
