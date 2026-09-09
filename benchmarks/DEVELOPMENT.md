@@ -280,7 +280,63 @@ The isolated `lab-reader-profile*.ts` modules preserve canonical request
 identities, atomic shared spending admission, bounded response capture,
 immutable first responses, and separate gold-bearing judge construction. A new
 GPT-5-mini length-failure policy retains the case at zero without accepting a
-partial answer. The old 512-token reader policy is unchanged. The reusable
-config-driven command is a follow-up; the recorded run used the separately
-pinned private coordinator. These are development tools, not production memory
+partial answer. The old 512-token reader policy is unchanged. The recorded run used the separately pinned private coordinator. The reusable
+command below preserves its execution rules. These are development tools, not production memory
 changes or evidence of benchmark saturation.
+
+
+## Reproduce a reader-profile comparison
+
+`bun run bench:lab:profile --help` describes the public command. It uses the
+fixed 100-question LongMemEval development selection and the two 24 KB variants
+above. It accepts a SHA-256-pinned private JSON config with exactly these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `budgetPin` | Absolute `path` and `sha256` of the verified cumulative budget descriptor. |
+| `parentPin` | Absolute `path` and `sha256` of the previous paid reader plan. |
+| `legacyDirectory` | Canonical private directory of the existing `bench:lab:paid` cache. |
+| `legacyLedger` | Absolute `path`, `sha256`, and exact `bytes` of that closed cache's ledger. |
+| `directory` | New private cache directory for this finite run. |
+| `output` | New result JSON path; adjacent started, reader and judge files must also be absent. |
+| `planPath` | New prepared-plan JSON path. |
+| `maxUsd` | Cumulative amendment ceiling, at most 40; includes all prior exposure. |
+| `maxCalls` | Maximum new physical requests for this run, at most 400. |
+| `concurrency` | Simultaneous requests, from 1 through 12. |
+
+Use canonical absolute paths. Output parent directories and the legacy cache
+must be owned by the current user with mode `0700`; pinned files use private
+custody. Preparation requires closed legacy custody and immutable ledger bytes.
+The legacy replay adapter is specific to the recorded development-cache
+namespace; it cannot import an arbitrary cache under a different identity.
+
+Before another run, include the completed reader-profile ledger exactly once
+in a new verified budget descriptor, along with its prior ancestry. Keep all
+older producers paused. The result's accounted cost is part of the cumulative
+ceiling, not a fresh allowance. Preserve failed or unresolved reservations.
+Do not point a new config at occupied output or cache paths.
+
+```sh
+bun run bench:lab:profile prepare \
+  --config /absolute/private/config.json --config-sha256 CONFIG_SHA256
+
+vercel env run --project SELECTED_PROJECT --scope SELECTED_SCOPE \
+  --environment development -- \
+  bun run bench:lab:profile run \
+  --config /absolute/private/config.json --config-sha256 CONFIG_SHA256 \
+  --paid --plan-sha256 PREPARED_PLAN_SHA256 --max-usd 25
+```
+
+The final amount must equal the pinned config's `maxUsd` and remain within the
+authorized cumulative budget. Project and scope must match the verified
+authority; no API-key fallback exists. Preparation makes no model calls. The
+plan pins the config, parent, budget ancestry, code, reader modules and native
+judge JSON. The run rechecks those inputs, reserves before dispatch, drains
+started requests after a failure, and reports scores only for a complete matrix.
+A failure never converts an occupied request into a cache miss.
+
+The four public-command integration tests use synthetic benchmark data and
+a mocked transport. They exercise a complete 200-case matrix through real
+request capture and scoring, call-limit admission, immutable outputs and
+changed-config rejection. Live model qualification comes from the separately
+audited comparison above; the mocked tests do not measure answer quality.

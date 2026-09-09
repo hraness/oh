@@ -127,7 +127,8 @@
     "test:node-projection": "node --test ./scripts/projection-node.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
-    "check:effect": "bun run ./scripts/check-effect-architecture.ts && bun test ./scripts/effect-architecture.test.ts"
+    "check:effect": "bun run ./scripts/check-effect-architecture.ts && bun test ./scripts/effect-architecture.test.ts",
+    "bench:lab:profile": "bun scripts/benchmarks/lab-reader-profile-run.ts"
   },
   "devDependencies": {
     "@suss/datalog": "0.20.0",
