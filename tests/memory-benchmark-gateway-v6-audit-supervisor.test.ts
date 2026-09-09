@@ -82,3 +82,54 @@ describe("Gateway v6 pinned supervisor custody validation", () => {
     })).rejects.toThrow("pin bytes");
   });
 });
+
+import { preNativePacket } from "./helpers/gateway-v6-pre-native";
+import { verifyGatewayV6PreNativeFailure } from "../scripts/benchmark-audit/gateway-v6-audit-supervisor";
+
+describe("Gateway v6 initial pre-native failure evidence", () => {
+  test("authenticates the separate zero-native acceptance and preserved foundations", async () => {
+    const p = preNativePacket(), result = await verifyGatewayV6PreNativeFailure(p.input, p.read);
+    expect(result.acceptedAt).toBe(Date.parse(p.iso(30)));
+    expect(result.finishedAt).toBe(Date.parse(p.iso(20)));
+    expect(result.pins.length).toBeGreaterThan(10);
+    expect(result).not.toHaveProperty("allProducersClosed");
+  });
+  test("rehashing does not authorize native artifacts, stale proof, a second failure or source drift", async () => {
+    for (const mutate of [
+      (p: ReturnType<typeof preNativePacket>) => { p.acceptance.launchNumber = 2; },
+      (p: ReturnType<typeof preNativePacket>) => { p.acceptance.newTransportInvocations = 1; },
+      (p: ReturnType<typeof preNativePacket>) => { p.acceptance.nativeLedgerExposureMicros = 1; },
+      (p: ReturnType<typeof preNativePacket>) => { p.acceptance.processInventory.matchedProducers = 1; },
+      (p: ReturnType<typeof preNativePacket>) => { p.acceptance.processInventory.checkedAt = p.iso(0); },
+      (p: ReturnType<typeof preNativePacket>) => { p.acceptance.recordedAt = p.iso(95); },
+      (p: ReturnType<typeof preNativePacket>) => { p.acceptance.sourceGitHead = "b".repeat(40); },
+      (p: ReturnType<typeof preNativePacket>) => { p.acceptance.inventory = p.acceptance.zeroNativeInventory; },
+      (p: ReturnType<typeof preNativePacket>) => { p.inventory.files.push({ path: "ledger.jsonl", bytes: 0, sha256: sha256Hex("") }); p.acceptance.zeroNativeInventory = p.put(p.acceptance.zeroNativeInventory.path, p.inventory); },
+    ]) {
+      const p = preNativePacket(); mutate(p); p.reseal();
+      await expect(verifyGatewayV6PreNativeFailure(p.input, p.read)).rejects.toThrow();
+    }
+  });
+  test("diagnostic grammar and microsecond chronology agree with the Python admission tool", async () => {
+    for (const mutate of [
+      (p: ReturnType<typeof preNativePacket>) => { p.diagnosisValue.diagnostic = "unrecognized failure"; },
+      (p: ReturnType<typeof preNativePacket>) => { p.diagnosisValue.qualification = "automatic retry"; },
+      (p: ReturnType<typeof preNativePacket>) => { p.diagnosisValue.recordedAt = "2026-02-30T00:00:25.000000+00:00"; },
+      (p: ReturnType<typeof preNativePacket>) => { p.diagnosisValue.recordedAt = "2026-01-01T00:00:30.000001+00:00"; },
+    ]) {
+      const p = preNativePacket(); mutate(p); p.acceptance.diagnosis = p.put(p.acceptance.diagnosis.path, p.diagnosisValue); p.reseal();
+      await expect(verifyGatewayV6PreNativeFailure(p.input, p.read)).rejects.toThrow();
+    }
+    const p = preNativePacket();
+    p.acceptance.log = p.put(p.acceptance.log.path, "Vercel CLI 58.5.0 (Node.js 24.20.0)\nError: You do not have access to the specified account\nLearn More: https://err.sh/vercel/scope-not-accessible\n", true); p.reseal();
+    await expect(verifyGatewayV6PreNativeFailure(p.input, p.read)).rejects.toThrow("diagnostic log");
+  });
+  test("changed foundations, producer exit disposition or imported ledger bytes fail", async () => {
+    const foundation = preNativePacket(); foundation.study.set("preparation.json", Buffer.from("changed"));
+    await expect(verifyGatewayV6PreNativeFailure(foundation.input, foundation.read)).rejects.toThrow("foundation");
+    const producer = preNativePacket(); producer.status.exitCode = 0; producer.acceptance.supervisorStatus = producer.put(producer.acceptance.supervisorStatus.path, producer.status); producer.reseal();
+    await expect(verifyGatewayV6PreNativeFailure(producer.input, producer.read)).rejects.toThrow("closed status");
+    const ledger = preNativePacket(); ledger.external.set(ledger.acceptance.oldLedgers[0].path, Buffer.from("changed"));
+    await expect(verifyGatewayV6PreNativeFailure(ledger.input, ledger.read)).rejects.toThrow("pin bytes");
+  });
+});

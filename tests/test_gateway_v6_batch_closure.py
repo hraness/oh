@@ -92,7 +92,7 @@ class Fixture:
         self.put(folder / 'result.json', {'protocol': m.STORE, 'freezeSha256': self.fs, 'jobKey': key, 'result': result})
         return reserved, settled
 
-    def batch(self, number, count, final=False, start=None):
+    def batch(self, number, count, final=False, start=None, native_number=None):
         start = start if start is not None else number * 100
         run = f'00000000-0000-4000-8000-{number:012}'
         before, before_exposure = self.frontier, self.exposure; selected = self.jobs[before:before + count]
@@ -108,7 +108,7 @@ class Fixture:
         q = {'method': 'project-oidc', 'project': self.context.project, 'scope': self.context.scope, 'environment': 'development',
              'issuer': f'https://oidc.vercel.com/{self.context.scope}', 'subject': f'owner:{self.context.scope}:project:{self.context.project}:environment:development',
              'audience': f'https://vercel.com/{self.context.scope}', 'expiresAt': T.timestamp() + start + 1000, 'signatureVerifiedLocally': False}
-        maximum = 32 if number == 1 else 256
+        maximum = 32 if (native_number or number) == 1 else 256
         identity = {'runId': run, 'freezeSha256': self.fs, 'sourceSha256': self.ss, 'sourceGitHead': self.freeze['sourceGitHead'],
             'importedStudySha256': self.freeze['importedStudy']['sha256'], 'policySha256': m.POLICY, 'priorAmendmentExposureMicros': m.CARRY,
             'importedJobKeysSha256': self.freeze['study']['importedJobKeysSha256']}
@@ -149,17 +149,73 @@ class Fixture:
             'physicalJudgeResults': [{'jobKey': j['key'], 'requestSha256': j['requestSha256'], 'correct': {'opaque': True}, 'response': {'opaque': True}} for j in self.jobs[28:]],
             'assessment': {'opaque': True}}
 
-    def invoke(self, number, previous=None, now=None):
+    def invoke(self, number, previous=None, now=None, failure=None, diagnosis=None, snapshot=None):
         with ExitStack() as s:
             s.enter_context(patch.object(m, 'foundations', return_value=self.data))
             s.enter_context(patch.object(m.gc, 'verify_context'))
             s.enter_context(patch.object(m.gc, 'validate_study_binding'))
             s.enter_context(patch.object(m, 'source_identity', return_value=[]))
             s.enter_context(patch.object(m, 'now_iso', return_value=now or iso(number * 100 + 12)))
-            ps = s.enter_context(patch.object(m.subprocess, 'run', return_value=type('Snapshot', (), {'stdout': '1 0 1 /sbin/launchd\n'})()))
-            result = m.close_batch(self.context, number, self.fs, self.ss, self.ips, previous)
+            ps = s.enter_context(patch.object(m.subprocess, 'run', return_value=type('Snapshot', (), {'stdout': snapshot or '1 0 1 /sbin/launchd\n'})()))
+            result = m.accept_pre_native_failure(self.context, number, self.fs, self.ss, self.ips, diagnosis, self.global_reservation['sha256']) if diagnosis else m.close_batch(self.context, number, self.fs, self.ss, self.ips, previous, failure)
             self.assert_ps(ps)
             return result
+
+    def failed_initial_launcher(self):
+        (self.study / 'jobs').rmdir(); (self.study / 'store.json').unlink()
+        self.fs = m.digest((self.study / 'freeze.json').read_bytes()); self.data['freezePin']['sha256'] = self.fs
+        folder = self.work / 'gateway-study-v6-batch-001'; folder.mkdir(mode=0o700)
+        argv = [str(self.context.vercel), 'env', 'run', '--project', self.context.project, '--scope', self.context.scope, '--environment', 'development', '--', str(self.context.bun),
+            str(self.runtime / 'scripts/benchmarks/gateway-study-v6.ts'), 'run', '--directory', str(self.study), '--freeze-sha256', self.fs, '--max-new-calls', '32']
+        config = {'argv': argv, 'cwd': str(self.runtime), 'jobDir': str(folder), 'requireAbsent': list(map(str, [*self.context.locks, self.study / 'active.lock']))}
+        cp = self.put(folder / 'config.json', m.canonical(config)); self.put(self.work / 'gateway-study-v6-batch-001-launch-config.json', m.canonical(config))
+        status = {'state': 'exited', 'supervisorPid': 101, 'supervisorStart': 'failed-super-1', 'bootIdentity': 'fixture-boot', 'commandSha256': m.digest(m.canonical(argv)),
+            'configSha256': cp['sha256'], 'startedAt': seconds(99), 'childPid': 102, 'childPgid': 102,
+            'childStart': 'failed-child-1', 'exitCode': 1, 'groupGone': True, 'finishedAt': seconds(110)}
+        sp = self.put(folder / 'status.json', status)
+        lp = self.put(folder / 'log', b'Vercel CLI 58.4.0 (Node.js 24.20.0)\nError: You do not have access to the specified account\nLearn More: https://err.sh/vercel/scope-not-accessible\n')
+        extended = lambda pin: {**pin, 'bytes': Path(pin['path']).stat().st_size}
+        diagnosis = {'schema': 'oh.gateway-v6-pre-native-launch-failure.v1', 'recordedAt': (T + dt.timedelta(seconds=111)).isoformat(timespec='microseconds'),
+            'status': 'vercel-scope-inaccessible-before-native-runner', 'supervisorStatus': extended(sp), 'log': extended(lp), 'configuration': extended(cp),
+            'diagnostic': 'Vercel CLI 58.4.0: You do not have access to the specified account; scope-not-accessible',
+            'nativeStudyFiles': ['freeze.json', 'preparation.json'], 'nativeAdmissions': 0, 'v6JobRequests': 0, 'v6LedgerExists': False, 'modelCalls': 0,
+            'totalAmendmentExposureMicros': m.CARRY, 'automaticRetryPermitted': False,
+            'qualification': 'Supervisor metadata and absence of all native run artifacts; fresh OS closure proof remains required before any recovery dispatch.'}
+        pin = self.put(self.work / 'gateway-v6-pre-native-launch-failure.json', diagnosis)
+        self.make_global_budget()
+        return pin
+
+    def make_global_budget(self):
+        self.global_ledgers = []
+        amounts = [1_000_000, 2_000_000, m.CARRY - 3_000_000, m.GLOBAL_PRIOR - m.CARRY]
+        folders = ['gateway-study-v3', 'gateway-study-v4', 'gateway-study-v5', 'synthetic-lab']
+        for i, (folder, amount) in enumerate(zip(folders, amounts)):
+            parent = self.work / folder; parent.mkdir(mode=0o700)
+            reserved = {'v': 1, 'id': H(f'prior-global-{i}'), 'kind': 'reserved', 'micros': amount if i == 2 else amount + 1000}
+            events = [reserved] if i == 2 else [reserved, {**reserved, 'kind': 'settled', 'micros': amount}]
+            path = parent / 'ledger.jsonl'; pin = self.put(path, b''.join(m.canonical(e) + b'\n' for e in events))
+            self.global_ledgers.append({**pin, 'bytes': path.stat().st_size})
+        original_path = self.work / 'original-pilot.jsonl'; original_pin = self.put(original_path, b'original opaque pilot ledger\n')
+        original = {**original_pin, 'bytes': original_path.stat().st_size, 'exposureMicros': 21_655_385}
+        self.data['oldLedgers'] = [*self.global_ledgers[:2], {k: original[k] for k in ['path', 'sha256', 'bytes']}, self.global_ledgers[2]]
+        authority = {'schema': 'oh.gateway-v3-authority.v1', 'maximumNewExposureMicros': m.CAP, 'originalLedger': original}
+        self.freeze['authority'] = self.put(self.work / 'frozen-authority.json', authority)
+        self.freeze['originalLedger'] = original
+        authority_pin = self.put(self.work / 'copied-authority.json', authority)
+        self.global_descriptor = {'authority': authority_pin, 'ledgers': self.global_ledgers,
+            'expectedExposureMicros': m.GLOBAL_PRIOR, 'absentLedgerPaths': [str(self.study / 'ledger.jsonl')]}
+        descriptor_pin = self.put(self.work / 'synthetic-global-budget-input.json', self.global_descriptor)
+        self.global_value = {'protocol': 'oh.gateway-v6-global-budget-reservation.v1', 'recordedAt': iso(111), 'freeze': self.data['freezePin'],
+            'sourceSha256': self.ss, 'sourceGitHead': self.freeze['sourceGitHead'], 'budgetInput': descriptor_pin,
+            'priorExposureMicros': m.GLOBAL_PRIOR, 'maximumNewExposureMicros': m.GLOBAL_MAXIMUM, 'capMicros': m.CAP, 'bound': dict(m.GLOBAL_BOUND)}
+        self.global_reservation = self.put(self.work / 'gateway-v6-global-budget-reservation.json', self.global_value)
+
+    def reseal_global_budget(self):
+        self.global_value['budgetInput'] = self.put(self.work / 'synthetic-global-budget-input.json', self.global_descriptor)
+        self.global_reservation = self.put(self.work / 'gateway-v6-global-budget-reservation.json', self.global_value)
+
+    def start_native(self):
+        (self.study / 'jobs').mkdir(mode=0o700); self.put(self.study / 'store.json', {'protocol': m.STORE, 'freezeSha256': self.fs})
 
     @staticmethod
     def assert_ps(ps):
@@ -170,6 +226,245 @@ class ClosureTests(unittest.TestCase):
     def fixture(self):
         temporary = tempfile.TemporaryDirectory(); self.addCleanup(temporary.cleanup)
         return Fixture(Path(temporary.name).resolve())
+
+    def test_zero_native_failure_then_physical_two_and_three_complete(self):
+        f = self.fixture(); diagnosis = f.failed_initial_launcher()
+        original = {str(p): p.read_bytes() for p in [*f.study.iterdir(), *[p for p in (f.work / 'gateway-study-v6-batch-001').iterdir()], Path(diagnosis['path'])]}
+        failure = f.invoke(1, diagnosis=diagnosis['sha256'])
+        self.assertEqual(failure['nativeAdmissions'], 0); self.assertEqual(failure['totalAmendmentExposureMicros'], m.CARRY)
+        accepted_failure = m.decode(Path(failure['acceptance']['path']).read_bytes())
+        self.assertEqual(accepted_failure['producer']['supervisorPid'], 101)
+        self.assertEqual(accepted_failure['sourceGitHead'], f.freeze['sourceGitHead'])
+        self.assertFalse(m.output_paths(f.work, 1)['acceptance'].exists())
+        self.assertEqual([r['path'] for r in m.decode(Path(failure['inventory']['path']).read_bytes())['files']], ['freeze.json', 'preparation.json'])
+        f.start_native(); first_batch, _ = f.batch(2, 32, native_number=1)
+        first = f.invoke(2, failure=failure['acceptance']['sha256'])
+        self.assertEqual(first_batch['maximumNewCalls'], 32)
+        first_accepted = m.decode(Path(first['acceptance']['path']).read_bytes())
+        self.assertEqual(first_accepted['schema'], m.RECOVERY_ACCEPTANCE)
+        self.assertEqual(first_accepted['nativeBatchNumber'], 1); self.assertIsNone(first_accepted['previousAcceptance'])
+        self.assertEqual(first_accepted['preNativeFailureAcceptance'], failure['acceptance'])
+        self.assertEqual(first_accepted['globalTaskAccounting'], {'reservation': f.global_reservation, 'priorExposureMicros': m.GLOBAL_PRIOR,
+            'nativeExposureMicros': f.exposure, 'totalExposureMicros': m.GLOBAL_PRIOR + f.exposure})
+        second_batch, _ = f.batch(3, 4, final=True, native_number=2)
+        second = f.invoke(3, first['acceptance']['sha256'], failure=failure['acceptance']['sha256'])
+        self.assertEqual(second_batch['maximumNewCalls'], 256); self.assertEqual(second['nativeBatchNumber'], 2)
+        self.assertTrue(second['finalAuditInputsPrepared'])
+        closure = m.decode(Path(second['supervisorClosure']['path']).read_bytes())
+        self.assertEqual(closure['schema'], 'oh.gateway-final-supervisor-closure.v6.1')
+        self.assertEqual(closure['preNativeFailures'], [failure['acceptance']]); self.assertEqual(len(closure['runs']), 2)
+        self.assertEqual([Path(r['configuration']['path']).parent.name for r in closure['runs']], ['gateway-study-v6-batch-002', 'gateway-study-v6-batch-003'])
+        self.assertTrue(all(r['runnerExitCode'] == 0 for r in closure['runs']))
+        receipt = m.decode(Path(second['finalPreparation']['path']).read_bytes())
+        self.assertEqual(receipt['launcherAttempts'], 3); self.assertEqual(receipt['nativeBatchCount'], 2)
+        self.assertEqual(receipt['globalTaskAccounting']['totalExposureMicros'], m.GLOBAL_PRIOR + f.exposure)
+        self.assertEqual(set(m.decode(Path(second['configuration']['path']).read_bytes())), {'runtimeRoot', 'expectedSourceSha256', 'studyDirectory', 'freeze', 'finalBatch', 'comparison', 'inventory', 'supervisorClosure'})
+        for path, raw in original.items(): self.assertEqual(Path(path).read_bytes(), raw)
+        for p in m.pre_native_paths(f.work).values(): self.assertEqual(p.stat().st_mode & 0o777, 0o600)
+
+    def test_pre_native_rejects_any_native_artifact_before_process(self):
+        for artifact in ['ledger.jsonl', 'store.json', 'jobs', 'active.lock', 'batch-00000000-0000-4000-8000-000000000001-started.json']:
+            with self.subTest(artifact=artifact):
+                f = self.fixture(); diagnosis = f.failed_initial_launcher(); path = f.study / artifact
+                if artifact == 'jobs': path.mkdir(mode=0o700)
+                else: f.put(path, b'')
+                with patch.object(m, 'fresh_process_proof') as ps, self.assertRaises(m.Rejected): f.invoke(1, diagnosis=diagnosis['sha256'])
+                ps.assert_not_called(); self.assertFalse(m.pre_native_paths(f.work)['acceptance'].exists())
+
+    def test_pre_native_pins_route_exit_and_log_are_strict(self):
+        for changed in ['configuration', 'supervisorStatus', 'log', 'diagnosis', 'route', 'cap', 'locks', 'retained', 'exit', 'group', 'diagnosis-carry', 'diagnosis-bytes']:
+            with self.subTest(changed=changed):
+                f = self.fixture(); dp = f.failed_initial_launcher(); diagnosis = m.decode(Path(dp['path']).read_bytes()); folder = f.work / 'gateway-study-v6-batch-001'
+                if changed in ['configuration', 'supervisorStatus', 'log']: f.put(Path(diagnosis[changed]['path']), b'changed')
+                elif changed == 'diagnosis': f.put(Path(dp['path']), {**diagnosis, 'extra': True})
+                elif changed == 'retained': f.put(f.work / 'gateway-study-v6-batch-001-launch-config.json', b'changed')
+                else:
+                    if changed in ['route', 'cap', 'locks']:
+                        p = folder / 'config.json'; value = m.decode(p.read_bytes())
+                        if changed == 'route': value['argv'][value['argv'].index('--scope') + 1] = 'other-scope'
+                        elif changed == 'cap': value['argv'][-1] = '256'
+                        else: value['requireAbsent'].pop()
+                        pin = f.put(p, m.canonical(value)); f.put(f.work / 'gateway-study-v6-batch-001-launch-config.json', m.canonical(value)); diagnosis['configuration'] = {**pin, 'bytes': p.stat().st_size}
+                        status_path = folder / 'status.json'; status = m.decode(status_path.read_bytes()); status.update({'commandSha256': m.digest(m.canonical(value['argv'])), 'configSha256': pin['sha256']})
+                        pin = f.put(status_path, status); diagnosis['supervisorStatus'] = {**pin, 'bytes': status_path.stat().st_size}
+                    elif changed in ['exit', 'group']:
+                        p = folder / 'status.json'; value = m.decode(p.read_bytes()); value['exitCode' if changed == 'exit' else 'groupGone'] = 0 if changed == 'exit' else False
+                        pin = f.put(p, value); diagnosis['supervisorStatus'] = {**pin, 'bytes': p.stat().st_size}
+                    elif changed == 'diagnosis-carry': diagnosis['totalAmendmentExposureMicros'] -= 1
+                    elif changed == 'diagnosis-bytes': diagnosis['log']['bytes'] -= 1
+                    dp = f.put(Path(dp['path']), diagnosis)
+                with patch.object(m, 'fresh_process_proof') as ps, self.assertRaises(m.Rejected): f.invoke(1, diagnosis=dp['sha256'])
+                ps.assert_not_called()
+
+    def test_pre_native_initial_only_and_complete_registry(self):
+        for changed in ['number', 'extra-launch', 'extra-config', 'ordinary-receipt', 'other-failure', 'extra-producer-file']:
+            with self.subTest(changed=changed):
+                f = self.fixture(); dp = f.failed_initial_launcher()
+                if changed == 'extra-launch': (f.work / 'gateway-study-v6-batch-002').mkdir(mode=0o700)
+                if changed == 'extra-config': f.put(f.work / 'gateway-study-v6-batch-002-launch-config.json', {})
+                if changed == 'ordinary-receipt': f.put(m.output_paths(f.work, 1)['acceptance'], {})
+                if changed == 'other-failure': f.put(f.work / 'gateway-v6-launch-002-pre-native-acceptance.json', {})
+                if changed == 'extra-producer-file': f.put(f.work / 'gateway-study-v6-batch-001/extra', b'')
+                with self.assertRaises(m.Rejected): f.invoke(2 if changed == 'number' else 1, diagnosis=dp['sha256'])
+
+    def test_pre_native_live_producers_and_freshness_rejected(self):
+        for snapshot in ['101 1 101 synthetic\n', '102 1 102 synthetic\n', '777 1 102 synthetic\n', '777 1 777 bun gateway-study-v6.ts run\n']:
+            f = self.fixture(); dp = f.failed_initial_launcher()
+            with self.subTest(snapshot=snapshot), self.assertRaises(m.Rejected): f.invoke(1, diagnosis=dp['sha256'], snapshot=snapshot)
+        f = self.fixture(); dp = f.failed_initial_launcher()
+        stale = {'argv': ['/bin/ps', '-axo', 'pid=,ppid=,pgid=,command='], 'checkedAt': iso(111), 'sha256': H('snapshot'), 'rows': 1, 'matchedProducers': 0}
+        with patch.object(m, 'fresh_process_proof', return_value=stale), self.assertRaisesRegex(m.Rejected, 'process-proof-stale'):
+            f.invoke(1, diagnosis=dp['sha256'], now=iso(200))
+        self.assertFalse(m.pre_native_paths(f.work)['acceptance'].exists())
+
+    def test_pre_native_symlink_and_occupied_output_preserve_evidence(self):
+        for changed in ['foundation-link', 'status-link', 'output']:
+            f = self.fixture(); dp = f.failed_initial_launcher()
+            if changed == 'foundation-link':
+                path = f.study / 'preparation.json'; path.unlink(); path.symlink_to(f.study / 'freeze.json')
+            elif changed == 'status-link':
+                path = f.work / 'gateway-study-v6-batch-001/status.json'; raw = path.read_bytes(); f.put(f.work / 'status-copy.json', raw); path.unlink(); path.symlink_to(f.work / 'status-copy.json')
+            else: f.put(m.pre_native_paths(f.work)['acceptance'], b'occupied')
+            with self.subTest(changed=changed), self.assertRaises((m.Rejected, OSError)): f.invoke(1, diagnosis=dp['sha256'])
+            if changed == 'output': self.assertEqual(m.pre_native_paths(f.work)['acceptance'].read_bytes(), b'occupied')
+
+    def test_recovery_rejects_missing_changed_or_resealed_failure_and_caps(self):
+        for changed in ['missing-root', 'changed-root', 'native-number', 'wrong-cap', 'missing-prefix', 'reseeded-first-success', 'before-acceptance', 'foundation']:
+            with self.subTest(changed=changed):
+                f = self.fixture(); dp = f.failed_initial_launcher(); failure = f.invoke(1, diagnosis=dp['sha256'])
+                f.start_native(); f.batch(2, 32, native_number=None if changed == 'wrong-cap' else 1, start=111 if changed == 'before-acceptance' else None)
+                failure_sha = failure['acceptance']['sha256']; previous = None
+                if changed == 'missing-root': failure_sha = None; previous = H('invented')
+                if changed == 'changed-root': f.put(Path(failure['acceptance']['path']), {})
+                if changed == 'native-number':
+                    p = Path(failure['acceptance']['path']); value = m.decode(p.read_bytes()); value['launchNumber'] = 2; failure_sha = f.put(p, value)['sha256']
+                if changed == 'missing-prefix': (f.work / 'gateway-study-v6-batch-001-launch-config.json').unlink()
+                if changed == 'reseeded-first-success': previous = H('extra')
+                if changed == 'foundation': f.put(f.study / 'preparation.json', {'changed': True})
+                with self.assertRaises((m.Rejected, FileNotFoundError)): f.invoke(2, previous, failure=failure_sha)
+
+    def test_recovery_recursive_success_chain_binds_same_failure_root(self):
+        f = self.fixture(); dp = f.failed_initial_launcher(); failure = f.invoke(1, diagnosis=dp['sha256']); f.start_native()
+        f.batch(2, 32, native_number=1); first = f.invoke(2, failure=failure['acceptance']['sha256'])
+        f.batch(3, 4, final=True, native_number=2)
+        path = Path(first['acceptance']['path']); value = m.decode(path.read_bytes()); value['preNativeFailureAcceptance']['sha256'] = H('other-failure')
+        resealed = f.put(path, value)
+        with self.assertRaisesRegex(m.Rejected, 'acceptance-failure-root'): f.invoke(3, resealed['sha256'], failure=failure['acceptance']['sha256'])
+
+    def test_recovery_retains_native_failure_admission_and_later_cap_rejection(self):
+        for changed in ['failed', 'interrupted', 'missing-admission', 'later-cap', 'skipped-chain']:
+            with self.subTest(changed=changed):
+                f = self.fixture(); dp = f.failed_initial_launcher(); failure = f.invoke(1, diagnosis=dp['sha256']); f.start_native()
+                f.batch(2, 32, native_number=1); first = f.invoke(2, failure=failure['acceptance']['sha256'])
+                b, pin = f.batch(3, 4, final=True, native_number=1 if changed == 'later-cap' else 2)
+                if changed in ['failed', 'interrupted']: b[changed] = True; f.put(Path(pin['path']), b)
+                if changed == 'missing-admission': Path(b['admission']['path']).unlink()
+                previous = first['acceptance']['sha256']
+                if changed == 'skipped-chain':
+                    p = Path(first['acceptance']['path']); accepted = m.decode(p.read_bytes()); accepted['previousAcceptance'] = failure['acceptance']; previous = f.put(p, accepted)['sha256']
+                with self.assertRaises((m.Rejected, FileNotFoundError)): f.invoke(3, previous, failure=failure['acceptance']['sha256'])
+
+    def test_failure_prefix_authentication_precedes_native_result_reads(self):
+        f = self.fixture(); dp = f.failed_initial_launcher(); failure = f.invoke(1, diagnosis=dp['sha256']); f.start_native(); f.batch(2, 32, native_number=1)
+        f.put(f.work / 'gateway-study-v6-batch-001/log', b'changed')
+        with patch.object(m, 'job_metadata') as jobs, patch.object(m, 'fresh_process_proof') as ps, self.assertRaisesRegex(m.Rejected, 'pinned-file-changed'):
+            f.invoke(2, failure=failure['acceptance']['sha256'])
+        jobs.assert_not_called(); ps.assert_not_called()
+
+    def test_pre_native_rechecks_directory_after_mocked_snapshot(self):
+        f = self.fixture(); dp = f.failed_initial_launcher()
+        proof = {'argv': ['/bin/ps', '-axo', 'pid=,ppid=,pgid=,command='], 'checkedAt': iso(112), 'sha256': H('snapshot'), 'rows': 1, 'matchedProducers': 0}
+        def mutate(*_):
+            (f.study / 'jobs').mkdir(mode=0o700)
+            return proof
+        with patch.object(m, 'fresh_process_proof', side_effect=mutate), self.assertRaisesRegex(m.Rejected, 'custody-directory-changed'):
+            f.invoke(1, diagnosis=dp['sha256'])
+        self.assertFalse(m.pre_native_paths(f.work)['acceptance'].exists())
+
+    def test_global_reservation_ancestry_replays_unresolved_and_distinct_authority_copy(self):
+        f = self.fixture(); dp = f.failed_initial_launcher()
+        self.assertNotEqual(f.freeze['authority']['path'], f.global_descriptor['authority']['path'])
+        self.assertEqual(f.freeze['authority']['sha256'], f.global_descriptor['authority']['sha256'])
+        failure = f.invoke(1, diagnosis=dp['sha256'])
+        value = m.decode(Path(failure['acceptance']['path']).read_bytes())
+        self.assertEqual(value['globalBudgetReservation'], f.global_reservation)
+        self.assertEqual(len(m.global_ledger_events(Path(f.global_ledgers[2]['path']).read_bytes())), 1)
+        checked = m.verify_global_budget(m.Reads(), f.context, f.data, f.global_reservation)
+        self.assertEqual(len(checked['priorIds']), 4)
+
+    def test_global_reservation_changed_bounds_authority_and_missing_anchor_rejected(self):
+        for changed in ['prior', 'maximum', 'bound', 'source', 'freeze', 'extra-field', 'missing-anchor', 'authority', 'original-pilot', 'missing-native-absence', 'duplicate-path', 'future']:
+            with self.subTest(changed=changed):
+                f = self.fixture(); dp = f.failed_initial_launcher()
+                if changed == 'prior': f.global_value['priorExposureMicros'] -= 1
+                if changed == 'maximum': f.global_value['maximumNewExposureMicros'] += 1
+                if changed == 'bound': f.global_value['bound']['knownPhysicalJudgeRequests'] -= 1
+                if changed == 'source': f.global_value['sourceSha256'] = H('changed')
+                if changed == 'freeze': f.global_value['freeze'] = {**f.global_value['freeze'], 'sha256': H('changed')}
+                if changed == 'extra-field': f.global_value['extra'] = True
+                if changed == 'missing-anchor': f.global_descriptor['ledgers'].pop(0)
+                if changed == 'authority': f.global_descriptor['authority'] = f.put(f.work / 'different-authority.json', {'different': True})
+                if changed == 'original-pilot': f.global_descriptor['ledgers'].append(f.data['oldLedgers'][2])
+                if changed == 'missing-native-absence': f.global_descriptor['absentLedgerPaths'] = [str(f.work / 'different-absent.jsonl')]
+                if changed == 'duplicate-path': f.global_descriptor['absentLedgerPaths'].append(f.global_descriptor['ledgers'][0]['path'])
+                if changed == 'future': f.global_value['recordedAt'] = iso(200)
+                f.reseal_global_budget()
+                with self.assertRaises(m.Rejected): f.invoke(1, diagnosis=dp['sha256'])
+                self.assertFalse(m.pre_native_paths(f.work)['acceptance'].exists())
+
+    def test_global_historical_prefix_duplicate_ids_and_partial_lines_rejected(self):
+        for changed in ['prefix', 'duplicate-id', 'partial-line', 'negative', 'duplicate-json', 'settlement-over-reservation', 'exposure']:
+            with self.subTest(changed=changed):
+                f = self.fixture(); dp = f.failed_initial_launcher(); path = Path(f.global_ledgers[-1]['path'])
+                events = m.global_ledger_events(path.read_bytes())
+                if changed == 'prefix': events[0]['micros'] = m.CAP - m.CARRY + 1
+                if changed == 'duplicate-id':
+                    for e in events: e['id'] = H('prior-global-0')
+                if changed == 'negative': events[0]['micros'] = -1
+                if changed == 'settlement-over-reservation': events[1]['micros'] = events[0]['micros'] + 1
+                if changed == 'exposure': events[1]['micros'] -= 1
+                raw = b''.join(m.canonical(e) + b'\n' for e in events)
+                if changed == 'partial-line': raw = raw[:-1]
+                if changed == 'duplicate-json': raw = raw.replace(b'"v":1', b'"v":1,"v":1')
+                pin = f.put(path, raw); f.global_descriptor['ledgers'][-1] = {**pin, 'bytes': len(raw)}; f.reseal_global_budget()
+                with patch.object(m, 'fresh_process_proof') as ps, self.assertRaises(m.Rejected): f.invoke(1, diagnosis=dp['sha256'])
+                ps.assert_not_called()
+
+    def test_global_native_prefix_bound_and_prior_id_collision_rejected(self):
+        budget = {'priorIds': {H('prior')}}
+        for changed in ['prior-id', 'bound', 'global-cap']:
+            amount = m.GLOBAL_MAXIMUM + 1 if changed == 'bound' else m.CAP - m.GLOBAL_PRIOR + 1 if changed == 'global-cap' else 1
+            event = {'v': 1, 'id': H('prior' if changed == 'prior-id' else 'new'), 'kind': 'reserved', 'micros': amount}
+            with self.subTest(changed=changed), self.assertRaises(m.Rejected): m.verify_global_native([event, {**event, 'kind': 'settled', 'micros': 0}], budget)
+        event = {'v': 1, 'id': H('new'), 'kind': 'reserved', 'micros': m.GLOBAL_MAXIMUM}
+        self.assertEqual(m.verify_global_native([event, {**event, 'kind': 'settled', 'micros': 17}], budget), 17)
+
+    def test_global_recovery_checks_unchanged_ancestry_and_other_absences(self):
+        for changed in ['prior-ledger', 'reservation', 'other-absence', 'missing-budget-pin']:
+            with self.subTest(changed=changed):
+                f = self.fixture(); dp = f.failed_initial_launcher(); other = f.work / 'other-absent-ledger.jsonl'
+                f.global_descriptor['absentLedgerPaths'].append(str(other)); f.reseal_global_budget()
+                failure = f.invoke(1, diagnosis=dp['sha256']); f.start_native(); f.batch(2, 32, native_number=1)
+                if changed == 'prior-ledger': f.put(Path(f.global_ledgers[-1]['path']), b'changed\n')
+                if changed == 'reservation': f.put(Path(f.global_reservation['path']), {})
+                if changed == 'other-absence': f.put(other, b'')
+                if changed == 'missing-budget-pin':
+                    path = Path(failure['acceptance']['path']); value = m.decode(path.read_bytes()); del value['globalBudgetReservation']; failure['acceptance'] = f.put(path, value)
+                with patch.object(m, 'job_metadata') as jobs, self.assertRaises((m.Rejected, KeyError)):
+                    f.invoke(2, failure=failure['acceptance']['sha256'])
+                jobs.assert_not_called()
+
+    def test_global_ancestry_and_absences_rechecked_after_process_snapshot(self):
+        for changed in ['ledger', 'absent']:
+            with self.subTest(changed=changed):
+                f = self.fixture(); dp = f.failed_initial_launcher(); other = f.work / 'other-absent-ledger.jsonl'
+                f.global_descriptor['absentLedgerPaths'].append(str(other)); f.reseal_global_budget()
+                proof = {'argv': ['/bin/ps', '-axo', 'pid=,ppid=,pgid=,command='], 'checkedAt': iso(112), 'sha256': H('snapshot'), 'rows': 1, 'matchedProducers': 0}
+                def mutate(*_):
+                    f.put(Path(f.global_ledgers[-1]['path']) if changed == 'ledger' else other, b'changed\n')
+                    return proof
+                with patch.object(m, 'fresh_process_proof', side_effect=mutate), self.assertRaises(m.Rejected): f.invoke(1, diagnosis=dp['sha256'])
+                self.assertFalse(m.pre_native_paths(f.work)['acceptance'].exists())
 
     def test_paused_then_complete_history_and_exact_final_config(self):
         f = self.fixture(); f.batch(1, 32)
@@ -446,6 +741,10 @@ class ClosureTests(unittest.TestCase):
             source = stack.enter_context(patch.object(m, 'source_identity', return_value=[]))
             ps = stack.enter_context(patch.object(m.subprocess, 'run'))
             checked = m.foundations(VirtualReads(), c, freeze_pin['sha256'], f.ss, import_pin['sha256'])
+            saved_store = blobs.pop(str(f.study / 'store.json'))
+            self.assertEqual(m.foundations(VirtualReads(), c, freeze_pin['sha256'], f.ss, import_pin['sha256'], require_store=False), checked)
+            with self.assertRaises(KeyError): m.foundations(VirtualReads(), c, freeze_pin['sha256'], f.ss, import_pin['sha256'])
+            blobs[str(f.study / 'store.json')] = saved_store
             self.assertEqual(len(checked['importedKeys']), 5064); self.assertEqual(len(checked['oldProducers']), 21)
             self.assertEqual(checked['importPreparation'], import_pin)
             self.assertEqual(source.call_args_list[-1].args[-1], m.OLD_HEAD); ps.assert_not_called()

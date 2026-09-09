@@ -5,7 +5,8 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import { gatewayAuditorSourceIdentity, gatewayClosedFileSet } from "./audit-gateway-study-v5-final";
-import { verifyGatewayV6Supervisor, type GatewayAuditPin as Pin } from "./gateway-v6-audit-supervisor";
+import { verifyGatewayV6Supervisor, verifyGatewayV6PreNativeFailure, type GatewayAuditPin as Pin } from "./gateway-v6-audit-supervisor";
+import { verifyGatewayV6GlobalBudgetReplay } from "./gateway-v6-global-budget";
 import type { GatewayJob, GatewayReaderJob } from "../benchmarks/gateway-study-plan-v3";
 import type { GatewayStudyLedgerEvent, GatewayStudyRaw } from "../benchmarks/gateway-study-transport-v3";
 import type { GatewayStudyV6Result } from "../benchmarks/gateway-study-transport-v6";
@@ -189,12 +190,23 @@ export async function createGatewayV6Auditor(runtimeRoot: string, expectedSource
   type CustodyInput = Readonly<{ closure: unknown; files: readonly string[]; read: GatewayV6ArtifactRead; readPin: typeof pinned;
     studyDirectory: string; freezeSha256: string; freeze: GatewayStudyV6Freeze; finalBatch: Pin; comparison: Pin; auth: GatewayStudyAuth }>;
   async function verifyCustody(input: CustodyInput) {
-    const c = record(input.closure); exact(c, ["schema", "createdAt", "freezeSha256", "inventorySha256", "finalBatchSha256", "verification", "allProducersClosed", "runs"]);
-    need(c.schema === "oh.gateway-final-supervisor-closure.v6" && c.freezeSha256 === input.freezeSha256 && c.finalBatchSha256 === input.finalBatch.sha256
+    const c = record(input.closure), recovery = c.schema === "oh.gateway-final-supervisor-closure.v6.1";
+    exact(c, ["schema", "createdAt", "freezeSha256", "inventorySha256", "finalBatchSha256", "verification", "allProducersClosed", "runs", ...(recovery ? ["preNativeFailures"] : [])]);
+    need((c.schema === "oh.gateway-final-supervisor-closure.v6" || recovery) && c.freezeSha256 === input.freezeSha256 && c.finalBatchSha256 === input.finalBatch.sha256
       && c.verification === "owner-verified-complete-producer-inventory" && c.allProducersClosed === true, "external-owner-closure");
     const manifestAt = time(c.createdAt), runs = array(c.runs, 1024), seen = new Set<string>(), proofs = new Set<string>(), identities = new Set<string>(), names: string[] = [];
     need(runs.length > 0, "empty-producer-history"); hash(c.inventorySha256);
-    const history = [], pins: Pin[] = []; let previousEnd = time(input.freeze.createdAt);
+    const history = [], pins: Pin[] = [], preNativeFailures: Pin[] = []; let globalBudgetReservation: Pin | null = null; let requiredAncestryLedgers: readonly [Pin, Pin, Pin] | null = null; let previousEnd = time(input.freeze.createdAt);
+    if (recovery) {
+      const failures = array(c.preNativeFailures, 1); need(failures.length === 1, "one-initial-pre-native-failure");
+      const failurePin = pin(failures[0]);
+      const failure = await verifyGatewayV6PreNativeFailure({ acceptance: failurePin, freezePin: { path: join(input.studyDirectory, "freeze.json"), sha256: input.freezeSha256 },
+        freeze: input.freeze, runtimeRoot: root, studyDirectory: input.studyDirectory, manifestAt, auth: input.auth, readStudy: input.read }, input.readPin);
+      previousEnd = failure.acceptedAt; globalBudgetReservation = failure.globalBudgetReservation; requiredAncestryLedgers = failure.requiredAncestryLedgers; identities.add(failure.producerIdentitySha256);
+      const folder = join(dirname(input.studyDirectory), "gateway-study-v6-batch-001");
+      for (const key of [join(folder, "config.json"), join(folder, "status.json"), failure.configurationSha256, failure.supervisorStatusSha256]) proofs.add(key);
+      pins.push(...failure.pins); preNativeFailures.push(failurePin);
+    }
     for (const [i, value] of runs.entries()) {
       const r = record(value); exact(r, ["runId", "admissionSha256", "closureSha256", "configuration", "supervisorStatus", "groupGone", "runnerExitCode", "newTransportInvocations"]);
       const runId = string(r.runId); need(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(runId) && !seen.has(runId), "run-id"); seen.add(runId);
@@ -220,6 +232,11 @@ export async function createGatewayV6Auditor(runtimeRoot: string, expectedSource
         importedJobKeysSha256: input.freeze.study.importedJobKeysSha256, start: b.start, maximumNewCalls: maximum, concurrency: 4,
         openingLedgerExposureMicros: integer(a.openingLedgerExposureMicros, 40_000_000 - CARRY), initialJobKeysSha256: canonicalSha256(b.initialJobKeys), qualified: q }, "native-admission");
       const configuration = pin(r.configuration), supervisorStatus = pin(r.supervisorStatus);
+      if (recovery) {
+        const folder = join(dirname(input.studyDirectory), `gateway-study-v6-batch-${String(i + 2).padStart(3, "0")}`);
+        need(configuration.path === join(folder, "config.json") && supervisorStatus.path === join(folder, "status.json")
+          && maximum === (i === 0 ? 32 : 256), "recovery-physical-native-numbering");
+      }
       for (const p of [configuration, supervisorStatus]) for (const key of [p.path, p.sha256]) { need(!proofs.has(key), "reused-producer-proof"); proofs.add(key); }
       const producer = await verifyGatewayV6Supervisor({ configuration, supervisorStatus, maximumNewCalls: maximum, startAt: start, endAt: end,
         studyDirectory: input.studyDirectory, runtimeRoot: root, freezeSha256: input.freezeSha256, manifestAt, auth: input.auth }, input.readPin);
@@ -235,7 +252,7 @@ export async function createGatewayV6Auditor(runtimeRoot: string, expectedSource
       history.push({ runId, batch: b, admission: a, configuration, supervisorStatus, calls, maximum });
     }
     same(input.files.filter(p => p.startsWith("batch-")).sort(), names.sort(), "complete-batch-file-set");
-    return { history, pins };
+    return { history, pins, preNativeFailures, globalBudgetReservation, requiredAncestryLedgers };
   }
   function verifyHistory(custody: Awaited<ReturnType<typeof verifyCustody>>, replay: Awaited<ReturnType<typeof reconstruct>>, ledgerRaw: Uint8Array, directory: string) {
     let frontier = 0, bytesBefore = 0, eventsBefore = 0, exposureBefore = 0;
@@ -289,6 +306,21 @@ export async function createGatewayV6Auditor(runtimeRoot: string, expectedSource
     const auth = await authority.readGatewayStudyAuth(freeze.authority);
     const custody = await verifyCustody({ closure, files: files.map(f => f.path), read, readPin: pinned, studyDirectory: directory, freezeSha256: pins.freeze.sha256, freeze, finalBatch: pins.finalBatch, comparison: pins.comparison, auth });
     same(await authority.verifyGatewayStudyAuthority(freeze.authority), freeze.originalLedger, "authority");
+    const ledgerRaw = await read("ledger.jsonl", 8 * M);
+    let globalAbsentPaths: readonly string[] = [];
+    async function assertGlobalAbsent(paths: readonly string[]) {
+      for (const path of paths) {
+        need(await realpath(dirname(path)) === dirname(path), "global-absence-parent-alias");
+        try { await lstat(path); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
+        need(false, "global-declared-absent-ledger-exists");
+      }
+    }
+    const globalBudget = custody.globalBudgetReservation === null ? null : await verifyGatewayV6GlobalBudgetReplay(custody.globalBudgetReservation,
+      { freeze: pins.freeze, authority: freeze.authority, sourceSha256, sourceGitHead: freeze.sourceGitHead, v6LedgerPath: join(directory, "ledger.jsonl"), requiredAncestryLedgers: custody.requiredAncestryLedgers! },
+      { path: join(directory, "ledger.jsonl"), sha256: sha256Hex(ledgerRaw) }, pinned, async paths => {
+        globalAbsentPaths = [...paths]; await assertGlobalAbsent(globalAbsentPaths);
+      });
     const imported = await runner.loadGatewayStudyV6Context(freeze.importedStudy, freeze.authority), c = imported.context;
     need(c.loaded.selection.document.poolSize === 308 && c.loaded.selection.document.sampleSize === 120
       && canonicalSha256(c.loaded.selection.document.selected) === "65d538eeeda7b4f59069f3cf28253c626b7e2327cffcb6028cadbe993264ae73"
@@ -310,7 +342,7 @@ export async function createGatewayV6Auditor(runtimeRoot: string, expectedSource
     const importedJobKeys = [...c.extractionJobs.map(j => j.key), ...imported.readerResults.map(r => r.job.key)].sort();
     need(importedJobKeys.length === 5064 && new Set(importedJobKeys).size === 5064, "full-imported-key-set");
     const jobKeys = [...new Set(files.filter(f => f.path.startsWith("jobs/")).map(f => hash(f.path.split("/")[1])))].sort();
-    const ledgerRaw = await read("ledger.jsonl", 8 * M), replay = await reconstruct({ readerJobs: imported.readerJobs, importedReaderResults: imported.readerResults,
+    const replay = await reconstruct({ readerJobs: imported.readerJobs, importedReaderResults: imported.readerResults,
       importedJobKeys, questions: c.loaded.selection.dataset.questions, selected: c.loaded.selection.document.selected, poolSize: 308, profile: c.judge,
       freezeSha256: pins.freeze.sha256, jobKeys, ledgerRaw, read });
     need(replay.readers.length === 360 && replay.scoredCases.length === 360 && replay.remainingReaderCount === 28
@@ -322,6 +354,7 @@ export async function createGatewayV6Auditor(runtimeRoot: string, expectedSource
       extraction: { imported: c.imported.summary, priorGateway: c.priorGateway.summary, priorContinuation: c.priorContinuation.summary, rows: imported.extractionRows },
       readers: replay.readers, scoredCases: replay.scoredCases, physicalJudgeResults: replay.physicalJudgeResults, assessment: replay.assessment }, "semantic-comparison");
     verifyHistory(custody, replay, ledgerRaw, directory);
+    need(globalBudget === null || globalBudget.nativeExposureMicros === replay.newLedgerExposureMicros, "global-native-accounting");
     const expectedFiles = ["freeze.json", "preparation.json", "store.json", "ledger.jsonl", relative(directory, pins.comparison.path),
       ...custody.history.flatMap(h => ["batch-" + h.runId + ".json", "batch-" + h.runId + "-started.json"]),
       ...replay.orderedKeys.flatMap(key => FILES.map(file => "jobs/" + key + "/" + file))].sort();
@@ -330,7 +363,8 @@ export async function createGatewayV6Auditor(runtimeRoot: string, expectedSource
     same(runner.gatewayStudyV6Identity(after), freeze.study, "import-after"); same(after.extractionRows, imported.extractionRows, "extractions-after");
     await authority.verifyGatewayHistoricalLedger(freeze.originalLedger); same(await authority.verifyGatewayStudyAuthority(freeze.authority), freeze.originalLedger, "authority-after");
     for (const f of files) await read(f.path, 128 * M);
-    for (const p of [...Object.values(pins), ...custody.pins, ...imported.evidencePins, freeze.authority, freeze.importedStudy]) await pinned(p, 128 * M);
+    for (const p of [...Object.values(pins), ...custody.pins, ...(globalBudget?.pins ?? []), ...imported.evidencePins, freeze.authority, freeze.importedStudy]) await pinned(p, 128 * M);
+    await assertGlobalAbsent(globalAbsentPaths);
     same(await gatewayClosedFileSet(directory), expectedFiles, "inventory-after");
     same(await gatewayAuditorSourceIdentity(root), source, "source-after"); need(await sourceHead(root) === freeze.sourceGitHead && (await judges.loadJudgeProfile()).sha256 === c.judge.sha256, "runtime-after");
     return { schema: "oh.gateway-final-audit.v6", status: "accepted", sourceSha256, sourceGitHead: freeze.sourceGitHead, policySha256: POLICY,
@@ -338,6 +372,9 @@ export async function createGatewayV6Auditor(runtimeRoot: string, expectedSource
       assessment: replay.assessment, judgePlanSha256: replay.judgePlanSha256, importedV5: imported.summary,
       historicalLedger: freeze.originalLedger, priorStudyLedger: imported.ledgerPin, priorAmendmentExposureMicros: CARRY,
       newLedgerExposureMicros: replay.newLedgerExposureMicros, totalAmendmentExposureMicros: CARRY + replay.newLedgerExposureMicros,
+      ...(custody.preNativeFailures.length === 0 ? {} : { preNativeFailureAcceptances: custody.preNativeFailures, launcherAttempts: custody.history.length + 1,
+        globalTaskAccounting: { reservation: custody.globalBudgetReservation, priorExposureMicros: globalBudget!.priorExposureMicros,
+          nativeExposureMicros: globalBudget!.nativeExposureMicros, totalExposureMicros: globalBudget!.globalExposureMicros } }),
       batchCount: custody.history.length, batchHistorySha256: canonicalSha256(custody.history), inventoryFiles: files.length,
       pins: Object.fromEntries(Object.entries(pins).map(([name, p]) => [name, p.sha256])),
       qualifications: ["External owner custody must establish complete producer absence; hashes and absent locks alone do not establish it.",

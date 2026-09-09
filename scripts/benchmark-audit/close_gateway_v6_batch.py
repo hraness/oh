@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Close one successful v6 batch; prepare final audit inputs only at all 360 cases.
+"""Close successful v6 batches or separately accept the initial zero-native failure.
+
+Prepare final audit inputs only at all 360 cases; generation evidence stays frozen.
 
 This existing-study custody tool never invokes models, auditors, or the store.
 Its sole subprocess is one bounded /bin/ps snapshot, after pinned input validation.
@@ -29,7 +31,14 @@ TERMINAL = '80927985272587b8f59baa170613cb429887a0e41d8d2360cbbd3da3ec68a259'
 TRANSPORT = 'oh.memory-gateway-transport.v3'
 STORE = 'oh.memory-gateway-store.v6'
 ACCEPTANCE = 'oh.gateway-v6-batch-acceptance.v1'
+RECOVERY_ACCEPTANCE = 'oh.gateway-v6-batch-acceptance.v2'
+PRE_NATIVE_ACCEPTANCE = 'oh.gateway-v6-pre-native-failure-acceptance.v1'
 INVENTORY = 'oh.gateway-final-inventory.v6'
+GLOBAL_PRIOR, GLOBAL_MAXIMUM = 25_744_095, 11_804_182
+GLOBAL_BOUND = {'remainingReaders': 28, 'readerMicros': 170570, 'knownCompletedReaders': 331, 'knownTerminalReaders': 1,
+    'knownPhysicalJudgeRequests': 205, 'knownJudgeMicros': 2566092, 'unknownJudgeMaximumRequests': 28,
+    'unknownJudgeMaximumEachMicros': 323840, 'unknownJudgeMicros': 9067520, 'totalMicros': GLOBAL_MAXIMUM,
+    'totalSha256': 'bb3bec2510cb6eb532e1812a66fde32e90afe9b342b09fe07f368fa631a71968'}
 
 
 def js_hash(value):
@@ -52,6 +61,11 @@ def serialize(value):
 def output_paths(work, number):
     return {'acceptance': work / f'gateway-v6-batch-{number:03}-acceptance.json',
             'inventory': work / f'gateway-v6-batch-{number:03}-closed-inventory.json'}
+
+
+def pre_native_paths(work):
+    return {'acceptance': work / 'gateway-v6-launch-001-pre-native-acceptance.json',
+            'inventory': work / 'gateway-v6-launch-001-zero-native-inventory.json'}
 
 
 def final_paths(work):
@@ -118,7 +132,7 @@ def study_inventory(reads, study, freeze_sha):
     return files, dirs
 
 
-def registry(context, number):
+def registry(context, number, pre_native_failure=False):
     expected = {f'gateway-study-v6-batch-{i:03}': 'directory' for i in range(1, number + 1)}
     expected.update({f'gateway-study-v6-batch-{i:03}-launch-config.json': 'file' for i in range(1, number + 1)})
     actual = {}; dirs = {}
@@ -130,9 +144,11 @@ def registry(context, number):
             if kind == 'directory': dirs[str(path)] = directory(path, private=True)
     equal(actual, expected, 'complete-numbered-producer-set')
     # Every previous acceptance and inventory must be accounted for by the pinned chain.
-    expected_receipts = {p.name for i in range(1, number) for p in output_paths(context.work, i).values()}
+    expected_receipts = {p.name for i in range(2 if pre_native_failure else 1, number) for p in output_paths(context.work, i).values()}
     observed = {p.name for p in context.work.iterdir() if re.match(r'gateway-v6-batch-.*-(?:acceptance|closed-inventory)\.json$', p.name)}
     equal(sorted(observed), sorted(expected_receipts), 'complete-numbered-receipt-set')
+    recovery_receipts = {p.name for p in context.work.iterdir() if re.match(r'gateway-v6-launch-.*-(?:pre-native-acceptance|zero-native-inventory)\.json$', p.name)}
+    equal(sorted(recovery_receipts), sorted(p.name for p in pre_native_paths(context.work).values()) if pre_native_failure else [], 'complete-pre-native-receipt-set')
     return dirs
 
 
@@ -355,15 +371,19 @@ def validate_comparison(value, freeze, freeze_sha, jobs, result):
     # Assessment, predictions, correctness, token F1, and extraction payloads are opaque.
 
 
-def prior_acceptances(reads, work, number, previous_sha, import_pin, freeze_pin, source_sha):
-    need((number == 1 and previous_sha is None) or (number > 1 and previous_sha is not None), 'previous-acceptance-required-only-after-first')
+def prior_acceptances(reads, work, number, previous_sha, import_pin, freeze_pin, source_sha, failure_pin=None):
+    first = 2 if failure_pin else 1
+    need((number == first and previous_sha is None) or (number > first and previous_sha is not None), 'previous-acceptance-required-only-after-first')
     result, current = [], None if previous_sha is None else {'path': str(output_paths(work, number - 1)['acceptance']), 'sha256': sha(previous_sha)}
-    for i in range(number - 1, 0, -1):
+    for i in range(number - 1, first - 1, -1):
         need(current is not None and current['path'] == str(output_paths(work, i)['acceptance']), 'acceptance-chain-path')
         value = decode(reads.pinned(current, 2 * M))
-        need(value.get('schema') == ACCEPTANCE and type(value.get('number')) is int and value['number'] == i, 'acceptance-chain-identity')
+        need(value.get('schema') == (RECOVERY_ACCEPTANCE if failure_pin else ACCEPTANCE) and type(value.get('number')) is int and value['number'] == i, 'acceptance-chain-identity')
         equal(value['importPreparation'], import_pin, 'acceptance-import-preparation'); equal(value['freeze'], freeze_pin, 'acceptance-freeze')
         need(value['sourceSha256'] == source_sha and value['policySha256'] == POLICY, 'acceptance-source-policy')
+        if failure_pin:
+            equal(value.get('preNativeFailureAcceptance'), failure_pin, 'acceptance-failure-root')
+            need(type(value.get('nativeBatchNumber')) is int and value['nativeBatchNumber'] == i - 1, 'acceptance-native-number')
         result.append((current, value)); current = value['previousAcceptance']
         if current is not None: parse_pin(current)
     need(current is None, 'acceptance-chain-genesis'); return list(reversed(result))
@@ -407,7 +427,7 @@ def projected_evidence_pins(evidence, ledger_anchors):
     return projected
 
 
-def foundations(reads, context, freeze_sha, source_sha, import_preparation_sha):
+def foundations(reads, context, freeze_sha, source_sha, import_preparation_sha, require_store=True):
     gc.verify_context(context)
     old_freeze_pin = {'path': str(context.study / 'freeze.json'), 'sha256': gc.STUDY_FREEZE_SHA256}
     binding = gc.validate_study_binding(context, old_freeze_pin)
@@ -514,13 +534,14 @@ def foundations(reads, context, freeze_sha, source_sha, import_preparation_sha):
         if Path(pin['path']).name == 'status.json':
             status = decode(reads.pinned(pin, 128 * 1024)); p = producer_metadata(status, status['exitCode'])
             if p['identity'] not in known: producers.append(p); known.add(p['identity'])
-    equal(reads.json(study / 'store.json', 2048, private=True), {'protocol': STORE, 'freezeSha256': freeze_sha}, 'store-header')
+    if require_store:
+        equal(reads.json(study / 'store.json', 2048, private=True), {'protocol': STORE, 'freezeSha256': freeze_sha}, 'store-header')
     return {'runtime': runtime, 'study': study, 'freeze': freeze, 'freezePin': freeze_pin, 'importPreparation': import_pin,
             'importedKeys': keys, 'sourceFiles': source_files, 'oldLedgers': old_ledgers, 'oldProducers': producers, 'binding': binding}
 
 
-def accepted_document(number, recorded_at, data, entry, inventory_pin, previous_pin, process_proof):
-    return {'schema': ACCEPTANCE, 'recordedAt': recorded_at, 'number': number, 'runId': entry['runId'],
+def accepted_document(number, recorded_at, data, entry, inventory_pin, previous_pin, process_proof, failure_pin=None):
+    value = {'schema': ACCEPTANCE, 'recordedAt': recorded_at, 'number': number, 'runId': entry['runId'],
         'freeze': data['freezePin'], 'sourceSha256': data['freeze']['sourceSha256'], 'policySha256': POLICY,
         'importPreparation': data['importPreparation'], 'previousAcceptance': previous_pin,
         'admission': entry['admission'], 'closure': entry['closure'], 'configuration': entry['configuration'], 'supervisorStatus': entry['supervisorStatus'],
@@ -530,6 +551,10 @@ def accepted_document(number, recorded_at, data, entry, inventory_pin, previous_
         'inventory': inventory_pin, 'oldLedgers': data['oldLedgers'], 'jobManifestSha256': js_hash(entry['jobs']),
         'allOriginalLedgersUnchanged': True, 'priorInventoryUnchanged': True, 'correctnessInspected': False, 'responseTextInspected': False,
         'modelCallsByVerifier': 0, 'auditorCallsByVerifier': 0, 'studyWrites': 0, 'semanticAuditStatus': 'pending'}
+    if failure_pin:
+        value.update({'schema': RECOVERY_ACCEPTANCE, 'nativeBatchNumber': number - 1, 'preNativeFailureAcceptance': failure_pin,
+                      'globalTaskAccounting': global_accounting(data, entry['exposure'])})
+    return value
 
 
 def verify_previous_inventory(reads, inventory_pin, expected_files, current_files, ledger_prefix, freeze_sha):
@@ -540,17 +565,251 @@ def verify_previous_inventory(reads, inventory_pin, expected_files, current_file
         equal(f, expected, 'previous-inventory-prefix-changed')
 
 
-def close_batch(context, number, freeze_sha256, source_sha256, import_preparation_sha256, previous_acceptance_sha256=None):
+def global_ledger_events(raw):
+    """Native ledger grammar, allowing historical unresolved reservations without releasing them."""
+    need(type(raw) is bytes and len(raw) <= 32 * M and (not raw or raw.endswith(b'\n')), 'global-ledger-lines')
+    events, pending, seen = [], {}, set()
+    for line in raw.splitlines():
+        e = decode(line); exact(e, ['v', 'id', 'kind', 'micros'], 'global-ledger-event')
+        need(type(e['v']) is int and e['v'] == 1, 'global-ledger-version'); sha(e['id']); integer(e['micros'], 0, CAP)
+        if e['kind'] == 'reserved':
+            need(e['id'] not in seen, 'global-duplicate-reservation'); seen.add(e['id']); pending[e['id']] = e['micros']
+        else:
+            need(e['kind'] == 'settled' and e['id'] in pending and e['micros'] <= pending.pop(e['id']), 'global-ledger-settlement')
+        events.append(e)
+    return events
+
+
+def global_absence(paths):
+    for path in paths:
+        need(path.parent.resolve() == path.parent, 'global-absent-parent-alias')
+    ensure_absent(paths)
+
+
+def verify_global_budget(reads, context, data, reservation_pin, native=False):
+    need(reservation_pin['path'] == str(context.work / 'gateway-v6-global-budget-reservation.json'), 'global-reservation-path')
+    r = decode(reads.pinned(reservation_pin, 128 * 1024, private=True))
+    exact(r, ['protocol', 'recordedAt', 'freeze', 'sourceSha256', 'sourceGitHead', 'budgetInput', 'priorExposureMicros', 'maximumNewExposureMicros', 'capMicros', 'bound'], 'global-reservation-shape')
+    need(r['protocol'] == 'oh.gateway-v6-global-budget-reservation.v1' and r['sourceSha256'] == data['freeze']['sourceSha256']
+         and r['sourceGitHead'] == data['freeze']['sourceGitHead'], 'global-reservation-source')
+    equal(r['freeze'], data['freezePin'], 'global-reservation-freeze')
+    equal({k: r[k] for k in ['priorExposureMicros', 'maximumNewExposureMicros', 'capMicros']},
+          {'priorExposureMicros': GLOBAL_PRIOR, 'maximumNewExposureMicros': GLOBAL_MAXIMUM, 'capMicros': CAP}, 'global-reservation-limits')
+    equal(r['bound'], GLOBAL_BOUND, 'global-reservation-bound')
+    recorded = timestamp(r['recordedAt']); need(timestamp(data['freeze']['createdAt']) <= recorded, 'global-reservation-time')
+    budget_pin = parse_pin(r['budgetInput']); descriptor = decode(reads.pinned(budget_pin, M, private=True))
+    exact(descriptor, ['authority', 'ledgers', 'expectedExposureMicros', 'absentLedgerPaths'], 'global-budget-descriptor')
+    need(type(descriptor['expectedExposureMicros']) is int and descriptor['expectedExposureMicros'] == GLOBAL_PRIOR, 'global-descriptor-exposure')
+    authority_pin = parse_pin(descriptor['authority'])
+    authority_raw = reads.pinned(authority_pin, M, private=True)
+    frozen_authority = parse_pin(data['freeze']['authority'])
+    need(authority_pin['sha256'] == frozen_authority['sha256'] and authority_raw == reads.pinned(frozen_authority, M, private=True), 'global-authority-binding')
+    authority = decode(authority_raw)
+    need(authority.get('schema') == 'oh.gateway-v3-authority.v1' and authority.get('maximumNewExposureMicros') == CAP, 'global-authority-cap')
+    equal(authority['originalLedger'], data['freeze']['originalLedger'], 'global-original-authority')
+    original = data['freeze']['originalLedger']
+    ledgers, absent = descriptor['ledgers'], descriptor['absentLedgerPaths']
+    need(type(ledgers) is list and 1 <= len(ledgers) <= 16 and type(absent) is list and 1 <= len(absent) <= 16, 'global-descriptor-count')
+    paths = [authority_pin['path']]; total_bytes = 0
+    for ledger in ledgers:
+        exact(ledger, ['path', 'sha256', 'bytes'], 'global-ledger-pin')
+        parse_pin({k: ledger[k] for k in ['path', 'sha256']}); total_bytes += integer(ledger['bytes'], 0, 32 * M)
+        need(ledger['path'] != original['path'] and ledger['sha256'] != original['sha256'], 'global-original-ledger-separate')
+        paths.append(ledger['path'])
+    for value in absent:
+        parse_pin({'path': value, 'sha256': '0' * 64}); paths.append(value)
+    need(total_bytes <= 32 * M and len(set(paths)) == len(paths), 'global-descriptor-roles')
+    need(original['path'] not in paths and budget_pin['path'] not in paths and reservation_pin['path'] not in paths, 'global-descriptor-role-overlap')
+    target = str(data['study'] / 'ledger.jsonl'); need(target in absent, 'global-native-absence-required')
+    remaining_absent = [Path(p) for p in absent if not (native and p == target)]
+    global_absence(remaining_absent)
+    for expected in [data['oldLedgers'][0], data['oldLedgers'][1], data['oldLedgers'][3]]:
+        need(expected in ledgers, 'global-historical-ledger-anchor')
+    exposure, seen = 0, set()
+    for ledger in ledgers:
+        raw = reads.pinned({k: ledger[k] for k in ['path', 'sha256']}, 32 * M, private=True)
+        need(len(raw) == ledger['bytes'], 'global-ledger-bytes'); pending = {}
+        for event in global_ledger_events(raw):
+            if event['kind'] == 'reserved':
+                need(event['id'] not in seen, 'global-cross-ledger-id'); seen.add(event['id']); pending[event['id']] = event['micros']; exposure += event['micros']
+            else: exposure -= pending.pop(event['id']) - event['micros']
+            need(0 <= exposure <= CAP, 'global-historical-prefix-cap')
+    need(exposure == GLOBAL_PRIOR, 'global-recomputed-exposure')
+    return {'reservation': reservation_pin, 'recordedAt': recorded, 'priorIds': seen, 'absentPaths': remaining_absent}
+
+
+def verify_global_native(events, budget):
+    exposure, pending = 0, {}
+    for event in events:
+        if event['kind'] == 'reserved':
+            need(event['id'] not in budget['priorIds'], 'global-native-historical-id')
+            pending[event['id']] = event['micros']; exposure += event['micros']
+        else: exposure -= pending.pop(event['id']) - event['micros']
+        need(exposure <= GLOBAL_MAXIMUM and GLOBAL_PRIOR + exposure <= CAP, 'global-native-prefix-cap')
+    return exposure
+
+
+def global_accounting(data, native_exposure):
+    return {'reservation': data['globalBudget']['reservation'], 'priorExposureMicros': GLOBAL_PRIOR,
+            'nativeExposureMicros': native_exposure, 'totalExposureMicros': GLOBAL_PRIOR + native_exposure}
+
+
+def zero_native_inventory(reads, study, freeze_sha):
+    signature = directory(study, private=True)
+    paths = sorted(study.iterdir())
+    equal([p.name for p in paths], ['freeze.json', 'preparation.json'], 'exact-zero-native-file-set')
+    files = []
+    for path in paths:
+        observed = reads.read(path, 8 * M, private=True, retain=False)
+        files.append({'path': path.name, 'bytes': observed['bytes'], 'sha256': observed['sha256']})
+    equal(directory(study, private=True), signature, 'zero-native-directory-changed')
+    inventory_shape({'schema': INVENTORY, 'freezeSha256': freeze_sha, 'files': files}, freeze_sha)
+    need(files[0]['sha256'] == freeze_sha, 'zero-native-freeze-pin')
+    return files, {str(study): signature}
+
+
+def diagnosis_timestamp(value):
+    need(type(value) is str and re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}\+00:00', value), 'diagnosis-timestamp-format')
+    try: parsed = dt.datetime.fromisoformat(value)
+    except ValueError as error: raise Rejected('diagnosis-timestamp-date') from error
+    need(parsed.isoformat(timespec='microseconds') == value, 'diagnosis-timestamp-canonical')
+    return parsed
+
+
+def pre_native_evidence(reads, context, data, diagnosis_pin):
+    """Authenticate only the first launcher’s qualified failure; never accept a native exit 1."""
+    need(diagnosis_pin['path'] == str(context.work / 'gateway-v6-pre-native-launch-failure.json'), 'failure-diagnosis-path')
+    diagnosis = decode(reads.pinned(diagnosis_pin, 32768, private=True))
+    exact(diagnosis, ['schema', 'recordedAt', 'status', 'supervisorStatus', 'log', 'configuration', 'diagnostic', 'nativeStudyFiles',
+        'nativeAdmissions', 'v6JobRequests', 'v6LedgerExists', 'modelCalls', 'totalAmendmentExposureMicros', 'automaticRetryPermitted', 'qualification'], 'failure-diagnosis-shape')
+    need(diagnosis['schema'] == 'oh.gateway-v6-pre-native-launch-failure.v1'
+         and diagnosis['status'] == 'vercel-scope-inaccessible-before-native-runner'
+         and diagnosis['diagnostic'] == 'Vercel CLI 58.4.0: You do not have access to the specified account; scope-not-accessible'
+         and diagnosis['qualification'] == 'Supervisor metadata and absence of all native run artifacts; fresh OS closure proof remains required before any recovery dispatch.'
+         and diagnosis['v6LedgerExists'] is False and diagnosis['automaticRetryPermitted'] is False, 'failure-diagnosis-qualification')
+    equal(diagnosis['nativeStudyFiles'], ['freeze.json', 'preparation.json'], 'failure-diagnosis-foundations')
+    for field in ['nativeAdmissions', 'v6JobRequests', 'modelCalls']:
+        need(type(diagnosis[field]) is int and diagnosis[field] == 0, 'failure-diagnosis-zero-native')
+    need(type(diagnosis['totalAmendmentExposureMicros']) is int and diagnosis['totalAmendmentExposureMicros'] == CARRY, 'failure-diagnosis-carry')
+    folder = context.work / 'gateway-study-v6-batch-001'; signature = directory(folder, private=True)
+    equal(sorted(p.name for p in folder.iterdir()), ['config.json', 'log', 'status.json'], 'failure-producer-file-set')
+    pins, raw = {}, {}
+    for name, filename in [('configuration', 'config.json'), ('supervisorStatus', 'status.json'), ('log', 'log')]:
+        extended = diagnosis[name]; exact(extended, ['path', 'bytes', 'sha256'], 'failure-diagnosis-extended-pin')
+        need(extended['path'] == str(folder / filename), 'failure-producer-path'); integer(extended['bytes'], 1, 128 * 1024)
+        pin = parse_pin({k: extended[k] for k in ['path', 'sha256']})
+        raw[name] = reads.pinned(pin, 128 * 1024, private=True)
+        need(len(raw[name]) == extended['bytes'], 'failure-producer-bytes'); pins[name] = pin
+    config, status = decode(raw['configuration']), decode(raw['supervisorStatus'])
+    argv = [str(context.vercel), 'env', 'run', '--project', context.project, '--scope', context.scope, '--environment', 'development', '--', str(context.bun),
+            str(data['runtime'] / 'scripts/benchmarks/gateway-study-v6.ts'), 'run', '--directory', str(data['study']), '--freeze-sha256', data['freezePin']['sha256'], '--max-new-calls', '32']
+    equal(config, {'argv': argv, 'cwd': str(data['runtime']), 'jobDir': str(folder), 'requireAbsent': config.get('requireAbsent')}, 'failure-config-shape')
+    equal(sorted(config['requireAbsent']), sorted(map(str, [*context.locks, data['study'] / 'active.lock'])), 'failure-exact-locks')
+    need(digest(canonical(config)) == pins['configuration']['sha256'], 'failure-canonical-config')
+    retained = reads.pin(context.work / 'gateway-study-v6-batch-001-launch-config.json', 128 * 1024, private=True)
+    need(retained['sha256'] == pins['configuration']['sha256'], 'failure-retained-config')
+    need(re.fullmatch(rb'Vercel CLI 58\.4\.0 \(Node\.js \d+\.\d+\.\d+\)\nError: You do not have access to the specified account\nLearn More: https://err\.sh/vercel/scope-not-accessible\n', raw['log']), 'failure-scope-log')
+    producer = producer_metadata(status, 1)
+    need(status['commandSha256'] == digest(canonical(argv)) and status['configSha256'] == pins['configuration']['sha256'], 'failure-command-binding')
+    diagnosed = diagnosis_timestamp(diagnosis['recordedAt'])
+    need(timestamp(data['freeze']['createdAt']) <= producer['began'] <= producer['ended'] <= diagnosed, 'failure-time-order')
+    equal(directory(folder, private=True), signature, 'failure-directory-changed')
+    identity = {k: status[k] for k in ['supervisorPid', 'supervisorStart', 'bootIdentity', 'childPid', 'childPgid', 'childStart']}
+    return {'diagnosis': diagnosis_pin, **pins, 'retainedLaunchConfiguration': retained, 'producer': identity,
+            'metadata': producer, 'diagnosed': diagnosed, 'directory': {str(folder): signature}}
+
+
+def pre_native_document(recorded, data, evidence, inventory_pin, proof):
+    return {'schema': PRE_NATIVE_ACCEPTANCE, 'recordedAt': recorded, 'launchNumber': 1,
+        'disposition': 'scope-inaccessible-before-native-runner', 'freeze': data['freezePin'],
+        'sourceSha256': data['freeze']['sourceSha256'], 'sourceGitHead': data['freeze']['sourceGitHead'], 'policySha256': POLICY,
+        'importPreparation': data['importPreparation'], 'globalBudgetReservation': data['globalBudget']['reservation'], **{k: evidence[k] for k in ['diagnosis', 'configuration', 'retainedLaunchConfiguration', 'supervisorStatus', 'log', 'producer']},
+        'zeroNativeInventory': inventory_pin, 'groupGone': True, 'freshOsProcessMatches': 0, 'processInventory': proof,
+        'nativeAdmissions': 0, 'newTransportInvocations': 0, 'nativeLedgerExposureMicros': 0,
+        'priorAmendmentExposureMicros': CARRY, 'totalAmendmentExposureMicros': CARRY, 'oldLedgers': data['oldLedgers'],
+        'allOriginalLedgersUnchanged': True, 'correctnessInspected': False, 'responseTextInspected': False,
+        'modelCallsByVerifier': 0, 'auditorCallsByVerifier': 0, 'studyWrites': 0}
+
+
+def verify_pre_native_failure(reads, context, data, expected_sha):
+    targets = pre_native_paths(context.work)
+    pin = {'path': str(targets['acceptance']), 'sha256': sha(expected_sha)}
+    value = decode(reads.pinned(pin, 2 * M, private=True))
+    data['globalBudget'] = verify_global_budget(reads, context, data, parse_pin(value['globalBudgetReservation']), native=True)
+    need(data['globalBudget']['recordedAt'] <= timestamp(value['recordedAt']), 'global-reservation-before-acceptance')
+    evidence = pre_native_evidence(reads, context, data, parse_pin(value['diagnosis']))
+    inventory_pin = parse_pin(value['zeroNativeInventory'])
+    need(inventory_pin['path'] == str(targets['inventory']), 'failure-inventory-path')
+    files = inventory_shape(decode(reads.pinned(inventory_pin, 32768, private=True)), data['freezePin']['sha256'])
+    equal([f['path'] for f in files], ['freeze.json', 'preparation.json'], 'failure-historical-zero-file-set')
+    for f in files:
+        observed = reads.read(data['study'] / f['path'], 8 * M, private=True, retain=False)
+        equal(f, {'path': f['path'], 'bytes': observed['bytes'], 'sha256': observed['sha256']}, 'failure-foundation-changed')
+    need(files[0]['sha256'] == data['freezePin']['sha256'], 'failure-historical-freeze-pin')
+    proof = value['processInventory']; validate_process_proof(proof, context, evidence['metadata']['ended'], value['recordedAt'])
+    need(evidence['diagnosed'] <= timestamp(value['recordedAt']), 'failure-acceptance-before-diagnosis')
+    equal(value, pre_native_document(value['recordedAt'], data, evidence, inventory_pin, proof), 'failure-acceptance-document')
+    return pin, value, evidence
+
+
+def fresh_process_proof(producers, work):
+    argv = ['/bin/ps', '-axo', 'pid=,ppid=,pgid=,command=']
+    snapshot = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, timeout=15)
+    rows = process_absence(snapshot.stdout, producers, work)
+    return {'argv': argv, 'checkedAt': now_iso(), 'sha256': digest(snapshot.stdout.encode()), 'rows': rows, 'matchedProducers': 0}
+
+
+def accept_pre_native_failure(context, number, freeze_sha256, source_sha256, import_preparation_sha256, diagnosis_sha256, global_budget_reservation_sha256):
+    need(type(number) is int and number == 1, 'pre-native-only-first-launch')
+    for value in [freeze_sha256, source_sha256, import_preparation_sha256, diagnosis_sha256, global_budget_reservation_sha256]: sha(value)
+    targets = pre_native_paths(context.work); study = context.work / 'gateway-study-v6'
+    locks = [*context.locks, study / 'active.lock']
+    ensure_absent([*targets.values(), *final_paths(context.work).values(), *locks])
+    reads = Reads(); data = foundations(reads, context, freeze_sha256, source_sha256, import_preparation_sha256, require_store=False)
+    data['globalBudget'] = verify_global_budget(reads, context, data, {'path': str(context.work / 'gateway-v6-global-budget-reservation.json'), 'sha256': global_budget_reservation_sha256})
+    dirs = registry(context, 1); files, study_dirs = zero_native_inventory(reads, study, freeze_sha256); dirs.update(study_dirs)
+    evidence = pre_native_evidence(reads, context, data, {'path': str(context.work / 'gateway-v6-pre-native-launch-failure.json'), 'sha256': diagnosis_sha256})
+    dirs.update(evidence['directory'])
+    gc.verify_context(context); gc.validate_study_binding(context, data['binding']['freeze']); ensure_absent(locks)
+    proof = fresh_process_proof([*data['oldProducers'], evidence['metadata']], context.work)
+    reads.recheck(); gc.verify_context(context); gc.validate_study_binding(context, data['binding']['freeze']); registry(context, 1)
+    for path, sig in dirs.items(): equal(directory(Path(path), private=True), sig, 'custody-directory-changed')
+    equal(source_identity(reads, data['runtime'], source_sha256, data['freeze']['sourceGitHead']), data['sourceFiles'], 'final-source-unchanged')
+    ensure_absent([*targets.values(), *final_paths(context.work).values(), *locks])
+    global_absence(data['globalBudget']['absentPaths'])
+    recorded = now_iso(); validate_process_proof(proof, context, evidence['metadata']['ended'], recorded)
+    need(data['globalBudget']['recordedAt'] <= timestamp(recorded), 'global-reservation-before-acceptance')
+    need(evidence['diagnosed'] <= timestamp(recorded), 'failure-acceptance-before-diagnosis')
+    raw_inventory = serialize({'schema': INVENTORY, 'freezeSha256': freeze_sha256, 'files': files})
+    inventory_pin = {'path': str(targets['inventory']), 'sha256': digest(raw_inventory)}
+    raw_acceptance = serialize(pre_native_document(recorded, data, evidence, inventory_pin, proof))
+    acceptance_pin = {'path': str(targets['acceptance']), 'sha256': digest(raw_acceptance)}
+    exclusive_outputs({targets['inventory']: raw_inventory, targets['acceptance']: raw_acceptance})
+    return {'schema': PRE_NATIVE_ACCEPTANCE, 'status': 'accepted-zero-native-failure', 'launchNumber': 1,
+        'nativeAdmissions': 0, 'newTransportInvocations': 0, 'totalAmendmentExposureMicros': CARRY,
+        'acceptance': acceptance_pin, 'inventory': inventory_pin}
+
+
+def close_batch(context, number, freeze_sha256, source_sha256, import_preparation_sha256, previous_acceptance_sha256=None, pre_native_failure_acceptance_sha256=None):
     integer(number, 1, 64); sha(freeze_sha256); sha(source_sha256); sha(import_preparation_sha256)
-    need((number == 1 and previous_acceptance_sha256 is None) or (number > 1 and previous_acceptance_sha256 is not None), 'previous-acceptance-required-only-after-first')
+    offset = 1 if pre_native_failure_acceptance_sha256 is not None else 0
+    native_number = number - offset
+    need(native_number >= 1, 'recovery-native-number')
+    need((native_number == 1 and previous_acceptance_sha256 is None) or (native_number > 1 and previous_acceptance_sha256 is not None), 'previous-acceptance-required-only-after-first')
     runtime, study = context.work / 'gateway-study-v6-candidate', context.work / 'gateway-study-v6'
     outputs = output_paths(context.work, number); locks = [*context.locks, study / 'active.lock']
     ensure_absent([*outputs.values(), *final_paths(context.work).values(), *locks])
     reads = Reads(); data = foundations(reads, context, freeze_sha256, source_sha256, import_preparation_sha256)
-    dirs = registry(context, number); files, study_dirs = study_inventory(reads, study, freeze_sha256); dirs.update(study_dirs)
+    failure_pin, failure, failure_evidence = None, None, None
+    if offset:
+        failure_pin, failure, failure_evidence = verify_pre_native_failure(reads, context, data, pre_native_failure_acceptance_sha256)
+    dirs = registry(context, number, bool(offset))
+    if failure_evidence: dirs.update(failure_evidence['directory'])
+    files, study_dirs = study_inventory(reads, study, freeze_sha256); dirs.update(study_dirs)
     current_files = {f['path']: f for f in files}; freeze = data['freeze']
-    previous = prior_acceptances(reads, context.work, number, previous_acceptance_sha256, data['importPreparation'], data['freezePin'], source_sha256)
+    previous = prior_acceptances(reads, context.work, number, previous_acceptance_sha256, data['importPreparation'], data['freezePin'], source_sha256, failure_pin)
     raw = reads.read(study / 'ledger.jsonl', 8 * M, private=True); events, exposure = ledger_events(raw)
+    if failure_pin: need(verify_global_native(events, data['globalBudget']) == exposure, 'global-native-exposure')
     ordered_keys = [e['id'] for e in events if e['kind'] == 'reserved']
     reserve = {e['id']: e for e in events if e['kind'] == 'reserved'}; settle = {e['id']: e for e in events if e['kind'] == 'settled'}
     job_keys = sorted({f['path'].split('/')[1] for f in files if f['path'].startswith('jobs/')})
@@ -560,18 +819,23 @@ def close_batch(context, number, freeze_sha256, source_sha256, import_preparatio
     validate_job_order(jobs, data['importedKeys'], freeze['study']['newReaderOrderSha256']); by_key = {j['key']: j for j in jobs}
     closures = [f['path'] for f in files if re.fullmatch(r'batch-[a-f0-9-]+\.json', f['path']) and not f['path'].endswith('-started.json')]
     previous_names = [Path(v['closure']['path']).name for _, v in previous]
-    current = sorted(set(closures) - set(previous_names)); need(len(closures) == number and len(current) == 1, 'complete-native-producer-set')
+    current = sorted(set(closures) - set(previous_names)); need(len(closures) == native_number and len(current) == 1, 'complete-native-producer-set')
     runs, all_producers, proof_ids = [], list(data['oldProducers']), set()
     prior_keys, offset_bytes, offset_events, prior_exposure, frontier = [], 0, 0, 0, 0
-    previous_end = timestamp(freeze['createdAt']); batch_files = []; judge_required = None
+    previous_end = timestamp(failure['recordedAt'] if failure else freeze['createdAt']); batch_files = []; judge_required = None
+    if failure_evidence:
+        all_producers.append(failure_evidence['metadata']); proof_ids.add(failure_evidence['metadata']['identity'])
+        for key in ['configuration', 'supervisorStatus']:
+            proof_ids.update(failure_evidence[key].values())
     for i, name in enumerate(previous_names + current, 1):
+        physical_number = i + offset
         closed_pin = reads.pin(study / name, M, private=True); b = decode(reads.pinned(closed_pin, M))
         admission_pin = parse_pin(b['admission']); a = decode(reads.pinned(admission_pin, 32768, private=True))
         count = integer(b['newTransportInvocations'], 1, 256); frontier += count; need(frontier <= len(jobs), 'extra-batch-invocations')
         admitted = ordered_keys[len(prior_keys):frontier]
         run, maximum, count, start, end = batch_metadata(b, a, freeze, freeze_sha256, i, prior_keys, prior_exposure, admitted, study)
         need(name == f'batch-{run}.json', 'native-closure-path'); qualified(b['qualified'], context, start)
-        p, cp, sp = supervisor(reads, context, runtime, study, freeze_sha256, i, maximum, start, end, previous_end)
+        p, cp, sp = supervisor(reads, context, runtime, study, freeze_sha256, physical_number, maximum, start, end, previous_end)
         for key in [p['identity'], cp['path'], cp['sha256'], sp['path'], sp['sha256']]:
             need(key not in proof_ids, 'reused-producer-proof'); proof_ids.add(key)
         all_producers.append(p); previous_end = p['ended']
@@ -587,7 +851,7 @@ def close_batch(context, number, freeze_sha256, source_sha256, import_preparatio
             'priorAmendmentExposureUsd': (CARRY + prior_exposure) / 1e6, 'accountedUsd': (CARRY + current_exposure) / 1e6,
             'confirmedThisRunUsd': sum(e['micros'] for e in new_events if e['kind'] == 'settled') / 1e6, 'unresolvedThisRunUsd': 0, 'billedUsd': None}, 'native-budget-summary')
         completed = result_frontier(b['result'], b['stopReason'], b['comparisonArtifact'], jobs[:frontier], count, maximum, run, study)
-        need(not completed or i == number, 'completed-study-cannot-continue')
+        need(not completed or i == native_number, 'completed-study-cannot-continue')
         if b['result']['phase'] == 'judge':
             required = b['result']['physicalJudgeRequests'] if completed else b['result']['required']
             need(judge_required is None or judge_required == required, 'judge-owner-total-changed')
@@ -598,12 +862,12 @@ def close_batch(context, number, freeze_sha256, source_sha256, import_preparatio
         if completed: expected_files.append(f'comparison-{run}.json')
         entry = {'runId': run, 'admission': admission_pin, 'closure': closed_pin, 'configuration': cp, 'supervisorStatus': sp,
                  'count': count, 'jobs': jobs[:frontier], 'exposure': current_exposure, 'batch': b, 'completed': completed}
-        if i < number:
+        if i < native_number:
             previous_pin, accepted = previous[i - 1]; timestamp(accepted['recordedAt'])
             need(p['ended'] <= timestamp(accepted['recordedAt']), 'accepted-custody-time')
             proof = accepted['processInventory']; validate_process_proof(proof, context, p['ended'], accepted['recordedAt'])
-            inv_pin = parse_pin(accepted['inventory']); need(inv_pin['path'] == str(output_paths(context.work, i)['inventory']), 'accepted-inventory-path')
-            expected_acceptance = accepted_document(i, accepted['recordedAt'], data, entry, inv_pin, previous[i - 2][0] if i > 1 else None, proof)
+            inv_pin = parse_pin(accepted['inventory']); need(inv_pin['path'] == str(output_paths(context.work, physical_number)['inventory']), 'accepted-inventory-path')
+            expected_acceptance = accepted_document(physical_number, accepted['recordedAt'], data, entry, inv_pin, previous[i - 2][0] if i > 1 else None, proof, failure_pin)
             equal(accepted, expected_acceptance, 'accepted-native-history')
             verify_previous_inventory(reads, inv_pin, expected_files, current_files, prefix, freeze_sha256)
             previous_end = timestamp(accepted['recordedAt'])
@@ -615,18 +879,16 @@ def close_batch(context, number, freeze_sha256, source_sha256, import_preparatio
         value = decode(reads.pinned(final['batch']['comparisonArtifact'], 128 * M, private=True))
         validate_comparison(value, freeze, freeze_sha256, jobs, final['batch']['result']); del value
     # One read-only OS query, only after all byte, authority, inventory and history checks.
-    argv = ['/bin/ps', '-axo', 'pid=,ppid=,pgid=,command=']
     gc.verify_context(context); gc.validate_study_binding(context, data['binding']['freeze']); ensure_absent(locks)
-    snapshot = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, timeout=15)
-    process_count = process_absence(snapshot.stdout, all_producers, context.work)
-    proof = {'argv': argv, 'checkedAt': now_iso(), 'sha256': digest(snapshot.stdout.encode()), 'rows': process_count, 'matchedProducers': 0}; del snapshot
+    proof = fresh_process_proof(all_producers, context.work)
     reads.recheck(); gc.verify_context(context); gc.validate_study_binding(context, data['binding']['freeze'])
-    registry(context, number)
+    registry(context, number, bool(offset))
     for path, sig in dirs.items(): equal(directory(Path(path), private=True), sig, 'custody-directory-changed')
     equal(source_identity(reads, runtime, source_sha256, freeze['sourceGitHead']), data['sourceFiles'], 'final-source-unchanged')
     ensure_absent([*outputs.values(), *final_paths(context.work).values(), *locks])
+    if failure_pin: global_absence(data['globalBudget']['absentPaths'])
     recorded = now_iso(); validate_process_proof(proof, context, previous_end, recorded)
-    return write_documents(context.work, number, recorded, data, files, runs, previous[-1][0] if previous else None, proof)
+    return write_documents(context.work, number, recorded, data, files, runs, previous[-1][0] if previous else None, proof, failure_pin)
 
 
 def validate_process_proof(proof, context, producer_end, recorded):
@@ -637,17 +899,18 @@ def validate_process_proof(proof, context, producer_end, recorded):
     need(producer_end <= checked <= written and written - checked <= dt.timedelta(seconds=60), 'process-proof-stale')
 
 
-def write_documents(work, number, recorded, data, files, runs, previous_pin, process_proof):
+def write_documents(work, number, recorded, data, files, runs, previous_pin, process_proof, failure_pin=None):
     outputs = output_paths(work, number); final = runs[-1]; documents = {}
     def add(path, value):
         raw = serialize(value); documents[path] = raw; return {'path': str(path), 'sha256': digest(raw)}
     inventory_pin = add(outputs['inventory'], {'schema': INVENTORY, 'freezeSha256': data['freezePin']['sha256'], 'files': files})
-    accepted = accepted_document(number, recorded, data, final, inventory_pin, previous_pin, process_proof)
+    accepted = accepted_document(number, recorded, data, final, inventory_pin, previous_pin, process_proof, failure_pin)
     acceptance_pin = add(outputs['acceptance'], accepted)
     pins = {'acceptance': acceptance_pin, 'inventory': inventory_pin}
     if final['completed']:
         targets = final_paths(work)
-        closure_pin = add(targets['supervisorClosure'], {'schema': 'oh.gateway-final-supervisor-closure.v6', 'createdAt': recorded,
+        closure_pin = add(targets['supervisorClosure'], {'schema': 'oh.gateway-final-supervisor-closure.v6.1' if failure_pin else 'oh.gateway-final-supervisor-closure.v6', 'createdAt': recorded,
+            **({'preNativeFailures': [failure_pin]} if failure_pin else {}),
             'freezeSha256': data['freezePin']['sha256'], 'inventorySha256': inventory_pin['sha256'], 'finalBatchSha256': final['closure']['sha256'],
             'verification': 'owner-verified-complete-producer-inventory', 'allProducersClosed': True,
             'runs': [{'runId': r['runId'], 'admissionSha256': r['admission']['sha256'], 'closureSha256': r['closure']['sha256'],
@@ -656,7 +919,9 @@ def write_documents(work, number, recorded, data, files, runs, previous_pin, pro
         config_pin = add(targets['configuration'], {'runtimeRoot': str(data['runtime']), 'expectedSourceSha256': data['freeze']['sourceSha256'],
             'studyDirectory': str(data['study']), 'freeze': data['freezePin'], 'finalBatch': final['closure'], 'comparison': final['batch']['comparisonArtifact'],
             'inventory': inventory_pin, 'supervisorClosure': closure_pin})
-        receipt_pin = add(targets['receipt'], {'schema': 'oh.gateway-v6-final-audit-preparation.v1', 'recordedAt': recorded,
+        receipt_pin = add(targets['receipt'], {'schema': 'oh.gateway-v6-final-audit-preparation.v2' if failure_pin else 'oh.gateway-v6-final-audit-preparation.v1', 'recordedAt': recorded,
+            **({'launcherAttempts': number, 'nativeBatchCount': len(runs), 'preNativeFailures': [failure_pin],
+                'globalTaskAccounting': global_accounting(data, final['exposure'])} if failure_pin else {}),
             'sourceSha256': data['freeze']['sourceSha256'], 'policySha256': POLICY, 'freeze': data['freezePin'], 'importPreparation': data['importPreparation'],
             'finalAcceptance': acceptance_pin, 'producerCount': number, 'newTransportInvocations': len(final['jobs']),
             'scoredCases': 360, 'oldLedgers': data['oldLedgers'], 'priorAmendmentExposureMicros': CARRY,
@@ -666,7 +931,8 @@ def write_documents(work, number, recorded, data, files, runs, previous_pin, pro
             'semanticAuditStatus': 'pending'})
         pins.update({'supervisorClosure': closure_pin, 'configuration': config_pin, 'finalPreparation': receipt_pin})
     exclusive_outputs(documents)
-    return {'schema': ACCEPTANCE, 'status': 'accepted-custody-semantic-audit-pending', 'number': number,
+    return {'schema': RECOVERY_ACCEPTANCE if failure_pin else ACCEPTANCE, 'status': 'accepted-custody-semantic-audit-pending',
+            **({'nativeBatchNumber': number - 1, 'preNativeFailureAcceptance': failure_pin} if failure_pin else {}), 'number': number,
             'newTransportInvocations': final['count'], 'totalNewJobCount': len(final['jobs']),
             'totalAmendmentExposureMicros': CARRY + final['exposure'], 'finalAuditInputsPrepared': final['completed'], **pins}
 
@@ -676,10 +942,18 @@ def main():
     parser.add_argument('--context', required=True); parser.add_argument('--number', required=True, type=int)
     parser.add_argument('--freeze-sha256', required=True); parser.add_argument('--source-sha256', required=True)
     parser.add_argument('--import-preparation-sha256', required=True); parser.add_argument('--previous-acceptance-sha256')
+    parser.add_argument('--accept-pre-native-failure', action='store_true'); parser.add_argument('--diagnosis-sha256')
+    parser.add_argument('--pre-native-failure-acceptance-sha256'); parser.add_argument('--global-budget-reservation-sha256')
     args = parser.parse_args()
     try:
-        value = close_batch(gc.load_context(args.context), args.number, args.freeze_sha256, args.source_sha256,
-                            args.import_preparation_sha256, args.previous_acceptance_sha256)
+        context = gc.load_context(args.context)
+        if args.accept_pre_native_failure:
+            need(args.diagnosis_sha256 is not None and args.global_budget_reservation_sha256 is not None and args.previous_acceptance_sha256 is None and args.pre_native_failure_acceptance_sha256 is None, 'pre-native-mode-arguments')
+            value = accept_pre_native_failure(context, args.number, args.freeze_sha256, args.source_sha256, args.import_preparation_sha256, args.diagnosis_sha256, args.global_budget_reservation_sha256)
+        else:
+            need(args.diagnosis_sha256 is None and args.global_budget_reservation_sha256 is None, 'diagnosis-and-global-reservation-only-in-pre-native-mode')
+            value = close_batch(context, args.number, args.freeze_sha256, args.source_sha256,
+                                args.import_preparation_sha256, args.previous_acceptance_sha256, args.pre_native_failure_acceptance_sha256)
         print(json.dumps(value))
     except Exception as error:
         # Never print exception payloads from raw JSON, file contents, or OS output.

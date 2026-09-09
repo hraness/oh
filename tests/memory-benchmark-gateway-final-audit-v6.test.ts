@@ -1,3 +1,4 @@
+import { preNativePacket } from "./helpers/gateway-v6-pre-native";
 import { beforeAll, describe, expect, test } from "bun:test";
 import { realpath } from "node:fs/promises";
 import { join } from "node:path";
@@ -92,7 +93,7 @@ async function fixture(families = 2, importedCount = 2) {
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 type Replay = Awaited<ReturnType<Awaited<ReturnType<typeof createGatewayV6Auditor>>["reconstruct"]>>;
 
-function historyFixture(f: Fixture, replay: Replay) {
+function historyFixture(f: Fixture, replay: Replay, recovery = false) {
   const artifacts = new Map(f.artifacts), external = new Map<string, Uint8Array>(), runs: Record<string, any>[] = [], batches: Record<string, any>[] = [];
   const counts = [32, 116], syntheticPin = (name: string) => ({ path: `/synthetic/${name}.json`, sha256: hash(name) });
   const freeze: GatewayStudyV6Freeze = { protocol: "oh.memory-gateway-freeze.v6", createdAt: iso(0), sourceSha256, sourceGitHead: "a".repeat(40),
@@ -100,11 +101,12 @@ function historyFixture(f: Fixture, replay: Replay) {
     inputs: { selection: syntheticPin("selection"), legacy: syntheticPin("legacy"), exclusions: [syntheticPin("exclusion")], originalSourceSha256: hash("original-source") },
     policySha256: GATEWAY_READER_FAILURE_V6_POLICY_SHA256, priorAmendmentExposureMicros: CARRY, procedure: { synthetic: true },
     study: { importedJobKeysSha256: canonicalSha256([...f.input.importedJobKeys].sort()) } };
+  const freezeSha256 = recovery ? sha256Hex(JSON.stringify(freeze)) : hash("freeze"), shift = recovery ? 40 : 0;
   const comparison = { path: join(directory, "comparison-00000000-0000-4000-8000-000000000002.json"), sha256: hash("comparison") };
   let frontier = 0, priorExposure = 0;
   for (const [i, calls] of counts.entries()) {
     const before = frontier; frontier += calls;
-    const runId = `00000000-0000-4000-8000-00000000000${i + 1}`, maximum = i === 0 ? 32 : 256, start = iso(10 + i * 20), end = iso(20 + i * 20);
+    const runId = `00000000-0000-4000-8000-00000000000${i + 1}`, maximum = i === 0 ? 32 : 256, start = iso(10 + i * 20 + shift), end = iso(20 + i * 20 + shift);
     const initialJobKeys = f.orderedKeys.slice(0, before).sort(), admittedKeys = f.orderedKeys.slice(before, frontier), finalJobKeys = f.orderedKeys.slice(0, frontier).sort();
     const qualified = { ...auth, issuer: `https://oidc.vercel.com/${auth.scope}`, subject: `owner:${auth.scope}:project:${auth.project}:environment:${auth.environment}`,
       audience: `https://vercel.com/${auth.scope}`, expiresAt: T / 1000 + 10000, signatureVerifiedLocally: false };
@@ -130,22 +132,28 @@ function historyFixture(f: Fixture, replay: Replay) {
         : { status: "completed", phase: "judge", resolved: 360, required: 360, modelJudgedCases: replay.assessment.coverage.modelJudgedCases,
           policyScoredReaderFailures: replay.assessment.coverage.policyScoredReaderFailures, physicalJudgeRequests: replay.judgeOwners } };
     batches.push(b); artifacts.set(`batch-${runId}.json`, encode(b)); priorExposure = exposure;
-    const jobDir = `/synthetic/v6-supervisor-${i}`, argv = ["/synthetic/bin/vercel", "env", "run", "--project", auth.project, "--scope", auth.scope,
+    const jobDir = recovery ? `/synthetic/gateway-study-v6-batch-${String(i + 2).padStart(3, "0")}` : `/synthetic/v6-supervisor-${i}`, argv = ["/synthetic/bin/vercel", "env", "run", "--project", auth.project, "--scope", auth.scope,
       "--environment", "development", "--", "/synthetic/bin/bun", join(runtime, "scripts/benchmarks/gateway-study-v6.ts"), "run",
       "--directory", directory, "--freeze-sha256", freezeSha256, "--max-new-calls", String(maximum)];
     const configRaw = Buffer.from(gatewaySupervisorJson({ argv, cwd: runtime, jobDir, requireAbsent: [join(directory, "active.lock")] }));
     const configuration = { path: join(jobDir, "config.json"), sha256: sha256Hex(configRaw) }; external.set(configuration.path, configRaw);
     const statusRaw = encode({ state: "exited", supervisorPid: 100 + i * 10, supervisorStart: "synthetic-supervisor-start", bootIdentity: "synthetic-boot",
       commandSha256: sha256Hex(gatewaySupervisorJson(argv)), configSha256: configuration.sha256,
-      startedAt: iso(9 + i * 20).replace(".000Z", "Z"), childPid: 101 + i * 10, childPgid: 101 + i * 10, childStart: "synthetic-child-start",
-      exitCode: 0, groupGone: true, finishedAt: iso(21 + i * 20).replace(".000Z", "Z") });
+      startedAt: iso(9 + i * 20 + shift).replace(".000Z", "Z"), childPid: 101 + i * 10, childPgid: 101 + i * 10, childStart: "synthetic-child-start",
+      exitCode: 0, groupGone: true, finishedAt: iso(21 + i * 20 + shift).replace(".000Z", "Z") });
     const supervisorStatus = { path: join(jobDir, "status.json"), sha256: sha256Hex(statusRaw) }; external.set(supervisorStatus.path, statusRaw);
     runs.push({ runId, admissionSha256: admission.sha256, closureSha256: sha256Hex(encode(b)), configuration, supervisorStatus,
       groupGone: true, runnerExitCode: 0, newTransportInvocations: calls });
   }
   const finalBatch = { path: join(directory, `batch-${runs[1]!.runId}.json`), sha256: runs[1]!.closureSha256 as string };
-  const closure = { schema: "oh.gateway-final-supervisor-closure.v6", createdAt: iso(100), freezeSha256, inventorySha256: hash("inventory"), finalBatchSha256: finalBatch.sha256,
+  const closure: Record<string, any> = { schema: recovery ? "oh.gateway-final-supervisor-closure.v6.1" : "oh.gateway-final-supervisor-closure.v6", createdAt: iso(100), freezeSha256, inventorySha256: hash("inventory"), finalBatchSha256: finalBatch.sha256,
     verification: "owner-verified-complete-producer-inventory", allProducersClosed: true, runs };
+  if (recovery) {
+    const failed = preNativePacket(runtime, "/synthetic", freeze, { studyDirectory: directory, auth });
+    closure.preNativeFailures = [failed.input.acceptance];
+    for (const [path, raw] of failed.external) external.set(path, raw);
+    for (const [path, raw] of failed.study) artifacts.set(path, raw);
+  }
   const read = async (path: string, max: number) => { const raw = artifacts.get(path); if (!raw || raw.length > max) throw new Error("Missing synthetic history artifact"); return raw; };
   const readPin = async (p: { path: string; sha256: string }, max: number) => { const raw = external.get(p.path); if (!raw || raw.length > max) throw new Error("Missing synthetic supervisor pin"); return raw; };
   function reseal() {
@@ -317,5 +325,29 @@ describe("Gateway v6 final custody and native history", () => {
     expect(() => auditor.verifyHistory(custody, replay, suffix, directory)).toThrow("unclosed-ledger-suffix");
     h.batches[1]!.result.resolved = 120; h.reseal(); const wrongCount = await auditor.verifyCustody(h.input);
     expect(() => auditor.verifyHistory(wrongCount, replay, full.ledgerRaw, directory)).toThrow("phase-frontier");
+  });
+});
+
+
+describe("Gateway v6 recovered physical/native history", () => {
+  test("one historical failed launcher followed by two successful native batches preserves all360 cases", async () => {
+    const full = await fixture(120, 332), replay = await auditor.reconstruct(full.input), h = historyFixture(full, replay, true);
+    const custody = await auditor.verifyCustody(h.input);
+    expect(custody.preNativeFailures).toHaveLength(1); expect(custody.history).toHaveLength(2);
+    expect(custody.history[0]!.configuration.path).toContain("batch-002/");
+    expect(() => auditor.verifyHistory(custody, replay, full.ledgerRaw, directory)).not.toThrow();
+  });
+  test("missing or duplicate failure, shifted physical names, and native failure remain ineligible", async () => {
+    const full = await fixture(120, 332), replay = await auditor.reconstruct(full.input);
+    for (const mode of ["missing", "duplicate", "physical", "failed", "before-acceptance", "old-schema-extra"]) {
+      const h = historyFixture(full, replay, true);
+      if (mode === "missing") h.closure.preNativeFailures = [];
+      if (mode === "duplicate") h.closure.preNativeFailures.push(h.closure.preNativeFailures[0]);
+      if (mode === "physical") h.runs[0]!.configuration.path = "/synthetic/gateway-study-v6-batch-003/config.json";
+      if (mode === "failed") h.batches[0]!.failed = true;
+      if (mode === "before-acceptance") h.batches[0]!.start = iso(29);
+      if (mode === "old-schema-extra") h.closure.schema = "oh.gateway-final-supervisor-closure.v6";
+      h.reseal(); await expect(auditor.verifyCustody(h.input)).rejects.toThrow();
+    }
   });
 });
