@@ -13,7 +13,7 @@
     "postbuild": "bun test ./tests/runtime.test.ts",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
-    "test": "bun test ./tests/source.test.ts",
+    "test": "bun test ./tests/source.test.ts ./tests/home.test.tsx",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

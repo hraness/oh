@@ -244,7 +244,7 @@ describe("Oh site source contract", () => {
       postbuild: "bun test ./tests/runtime.test.ts",
       prebuild: "bun run test",
       start: "next start",
-      test: "bun test ./tests/source.test.ts",
+      test: "bun test ./tests/source.test.ts ./tests/home.test.tsx",
       typecheck: "tsc --noEmit",
     });
     expect(vercelConfig).toEqual({

@@ -54,7 +54,7 @@ describe("evidence-led product narrative", () => {
       expect(page).toContain(`kind: "${kind}"`);
       expect(readme).toContain(`| ${label} | \`${kind}\``);
     }
-    expect(page).toContain("An attributable assertion sits between a claim and the evidence that bears on it");
+    expect(page).toContain("An assertion records a stance on a claim; citations link that stance to its evidence.");
     expect(readme).toContain("An attributable `assertion`");
     expect(readme).toContain("https://oh.computer/#trace");
   });
