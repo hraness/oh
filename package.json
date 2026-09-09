@@ -1,6 +1,6 @@
 {
   "name": "@hraness/oh",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "open-source tools for agentic research",
   "type": "module",
   "license": "MIT",
@@ -116,7 +116,7 @@
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run build:js && bun run build:portable && bun run build:types",
     "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
-    "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog",
+    "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog",
     "build:types": "tsc -p tsconfig.build.json",
     "check": "bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:package",
     "test:node": "node ./tests/node-portable.mjs",
@@ -134,6 +134,7 @@
     "@suss/datalog": "0.20.0",
     "@types/bun": "1.3.14",
     "effect": "3.22.1",
+    "fast-check": "4.9.0",
     "sigstore": "4.1.1",
     "typescript": "5.9.3"
   },

@@ -68,8 +68,8 @@ not a claim about a real study.
 
 ## Install and first run
 
-The installation instructions below use `0.4.2`, the
-[verified public release](https://github.com/hraness/oh/actions/runs/34059936931).
+The installation instructions below use `0.4.3`, the
+[verified public release](https://github.com/hraness/oh/actions/runs/34162220675).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
 CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
@@ -77,16 +77,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact verified public release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.4.2
+bun add --global @hraness/oh@0.4.3
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.4.2),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.4.3),
 including the mirrored
-[`hraness-oh-0.4.2.tgz`](https://github.com/hraness/oh/releases/download/v0.4.2/hraness-oh-0.4.2.tgz)
+[`hraness-oh-0.4.3.tgz`](https://github.com/hraness/oh/releases/download/v0.4.3/hraness-oh-0.4.3.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.4.2/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.4.3/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -144,7 +144,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.4.2"
+    "@hraness/oh": "0.4.3"
   }
 }
 ```
@@ -644,6 +644,8 @@ resurrected; allocate a new epoch for a new lifetime. Hosted failure is a
 missing convenience lane, never permission to weaken exact graph or Datalog
 operations. Read the
 [isolated hosted semantic-cache V2 specification](spec/v2/semantic-cloud.md).
+The [hosted V2 lifecycle](docs/hosted-semantic-runtime.md) documents native
+operation drain, client ownership and the bundled runtime boundary.
 The released V1 API and digests remain available unchanged for compatibility;
 V1 and V2 cannot open the same semantic database simultaneously.
 
@@ -722,9 +724,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.4.2 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.4.2 Release at
-https://github.com/hraness/oh/releases/tag/v0.4.2. Verify the CLI with
+Install @hraness/oh@0.4.3 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.4.3 Release at
+https://github.com/hraness/oh/releases/tag/v0.4.3. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

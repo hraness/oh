@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { Cause, Effect, Exit, Fiber, Layer } from "effect";
+import * as semanticProgram from "./libsql-semantic-v2-program";
+import { makeSemanticCacheOwner } from "./libsql-semantic-v2-runtime";
+import { SemanticCacheClock, semanticCacheEmbeddingLive, semanticCacheSqlLive } from "./libsql-semantic-v2-platform";
 import { Database, type SQLQueryBindings } from "bun:sqlite";
 
 import { canonicalJson, canonicalSha256, sha256Hex, type Sha256Hex } from "./canonical";
@@ -1109,6 +1113,277 @@ describe("libSQL derived semantic cache", () => {
     expect(await cache.publishedHead({ authorityId }))
       .toMatchObject({ generation: 2, publishedAt: instant2 });
     await cache.close();
+    client.close();
+  });
+});
+
+class OwnedSemanticClient extends SqliteCompatibleLibSqlClient {
+  closeCalls = 0;
+  executeCalls = 0;
+  beforeExecute: ((statement: string | OhLibSqlStatementV1) => Promise<void>) | undefined;
+  afterExecute: ((statement: string | OhLibSqlStatementV1) => Promise<void>) | undefined;
+  beforeBatch: (() => Promise<void>) | undefined;
+  onClose: (() => Promise<void>) | undefined;
+  override async execute(statement: string | OhLibSqlStatementV1): Promise<OhLibSqlResultV1> {
+    this.executeCalls += 1;
+    await this.beforeExecute?.(statement);
+    const result = await super.execute(statement);
+    await this.afterExecute?.(statement);
+    return result;
+  }
+  override async batch(statements: readonly OhLibSqlStatementV1[], mode?: "deferred" | "read" | "write") {
+    await this.beforeBatch?.();
+    return super.batch(statements, mode);
+  }
+  override async close(): Promise<void> {
+    this.closeCalls += 1;
+    await this.onClose?.();
+    super.close();
+  }
+}
+
+function settlement<A>(promise: Promise<A>) {
+  return promise.then(value => ({ status: "fulfilled", value } as const),
+    reason => ({ status: "rejected", reason: reason as unknown } as const));
+}
+
+const statementSql = (statement: string | OhLibSqlStatementV1) =>
+  typeof statement === "string" ? statement : statement.sql;
+
+async function ownedCache() {
+  const client = new OwnedSemanticClient();
+  await bootstrapOhLibSqlSemanticCacheV2(client, { appliedAt: instant1 });
+  return { client, cache: await openOhLibSqlSemanticCacheV2(client, { closeClient: true }) };
+}
+
+function stageInput(provider = embeddingClient([])) {
+  return { authorityId: "owner-lifecycle", authoritySha256: digest("owner-authority"),
+    createdAt: instant1, documents: [document("owner-record", "needle-alpha")],
+    embeddingClient: provider, generation: 1 };
+}
+
+describe("hosted V2 native operation ownership", () => {
+  test("close fences every new workflow and joins an admitted embedding and its later SQL publication", async () => {
+    const { client, cache } = await ownedCache();
+    const entered = Promise.withResolvers<void>();
+    const native = Promise.withResolvers<void>();
+    let providerCalls = 0;
+    const signal = new AbortController();
+    const provider = new OhCloudflareEmbeddingClientV1({
+      accountId: "0123456789abcdef0123456789abcdef",
+      apiToken: "test-token-with-no-provider-authority",
+      fetch: async () => {
+        providerCalls += 1;
+        entered.resolve();
+        await native.promise; // This native fixture deliberately ignores cancellation.
+        return Response.json({ result: { data: [unitVector(0)], shape: [1, 768] }, success: true });
+      },
+    });
+    const input = { ...stageInput(provider), signal: signal.signal };
+    const staged = cache.stage(input);
+    await entered.promise;
+    let closed = false;
+    const closing = cache.close().then(() => { closed = true; });
+    signal.abort();
+    const before = client.executeCalls;
+    for (const operation of [
+      () => cache.stage(input),
+      () => cache.publish({ authorityId: input.authorityId, expectedPublishedGeneration: null, generation: 1 }),
+      () => cache.publishedHead({ authorityId: input.authorityId }),
+      () => cache.search({ authority: authority(input.authorityId, 1, input.authoritySha256, input.documents),
+        embeddingClient: provider, query: "query" }),
+      () => cache.purgeReceipt({ authorityId: input.authorityId }),
+      () => cache.purgeAuthority({ authorityId: input.authorityId }),
+    ]) await expect(operation()).rejects.toMatchObject({ code: "schema-unavailable" });
+    expect(client.executeCalls).toBe(before);
+    expect(client.closeCalls).toBe(0);
+    expect(closed).toBe(false);
+    native.resolve();
+    expect((await staged).status).toBe("staged");
+    await closing;
+    await cache.close();
+    expect(providerCalls).toBe(1);
+    expect(client.closeCalls).toBe(1);
+    expect(closed).toBe(true);
+  });
+
+  test("close joins a committed CAS reply and all rereads without serializing unrelated admitted reads", async () => {
+    const { client, cache } = await ownedCache();
+    await cache.stage(stageInput());
+    const committed = Promise.withResolvers<void>();
+    const reply = Promise.withResolvers<void>();
+    let reconciled = false;
+    client.afterExecute = async statement => {
+      if (statementSql(statement).startsWith("INSERT INTO oh_semantic_heads")) {
+        committed.resolve();
+        await reply.promise;
+      } else if (statementSql(statement).includes("FROM oh_semantic_heads WHERE authority_id")) {
+        reconciled = true;
+      }
+    };
+    const publishing = cache.publish({ authorityId: "owner-lifecycle", expectedPublishedGeneration: null,
+      generation: 1, publishedAt: instant2 });
+    await committed.promise;
+    // SQL remains the concurrency authority: an unrelated read can complete.
+    expect(await cache.purgeReceipt({ authorityId: "unrelated" })).toBeNull();
+    reconciled = false;
+    const closing = cache.close();
+    await expect(cache.publishedHead({ authorityId: "owner-lifecycle" })).rejects.toMatchObject({ code: "schema-unavailable" });
+    expect(client.closeCalls).toBe(0);
+    expect(reconciled).toBe(false);
+    reply.resolve();
+    expect((await publishing).published).toBe(true);
+    await closing;
+    expect(reconciled).toBe(true);
+    expect(client.closeCalls).toBe(1);
+  });
+
+  test("borrowed close drains a held purge and retains the tombstone and physical client", async () => {
+    const client = new OwnedSemanticClient();
+    await bootstrapOhLibSqlSemanticCacheV2(client, { appliedAt: instant1 });
+    const cache = await openOhLibSqlSemanticCacheV2(client);
+    await cache.stage(stageInput());
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    client.beforeBatch = async () => { entered.resolve(); await release.promise; };
+    const purge = cache.purgeAuthority({ authorityId: "owner-lifecycle", purgedAt: instant3 });
+    await entered.promise;
+    let closed = false;
+    const closing = cache.close().then(() => { closed = true; });
+    await expect(cache.purgeReceipt({ authorityId: "owner-lifecycle" })).rejects.toMatchObject({ code: "schema-unavailable" });
+    expect(closed).toBe(false);
+    release.resolve();
+    const receipt = await purge;
+    await closing;
+    expect(client.closeCalls).toBe(0);
+    client.beforeBatch = undefined;
+    const reopened = await openOhLibSqlSemanticCacheV2(client);
+    expect(await reopened.purgeReceipt({ authorityId: "owner-lifecycle" })).toEqual(receipt);
+    await expect(reopened.stage(stageInput())).rejects.toMatchObject({ code: "purged" });
+    await reopened.close();
+    await client.close();
+  });
+
+  test.each([undefined, null, false])("keeps a late native rejection and independent close rejection by presence (%p)", async failure => {
+    const { client, cache } = await ownedCache();
+    const entered = Promise.withResolvers<void>();
+    const native = Promise.withResolvers<void>();
+    const closeFailure = Object.freeze({ kind: "native-close-failure" });
+    client.beforeExecute = async () => {
+      entered.resolve();
+      await native.promise;
+      throw failure;
+    };
+    client.onClose = async () => { throw closeFailure; };
+    const operation = settlement(cache.purgeReceipt({ authorityId: "owner-lifecycle" }));
+    await entered.promise;
+    const closing = settlement(cache.close());
+    await expect(cache.purgeAuthority({ authorityId: "late" })).rejects.toMatchObject({ code: "schema-unavailable" });
+    expect(client.closeCalls).toBe(0);
+    native.resolve();
+    const result = await operation;
+    expect(result.status).toBe("rejected");
+    if (result.status === "rejected") expect(result.reason).toBe(failure);
+    const closed = await closing;
+    expect(closed.status).toBe("rejected");
+    if (closed.status === "rejected") expect(closed.reason).toBe(closeFailure);
+    const replay = await settlement(cache.close());
+    expect(replay.status).toBe("rejected");
+    if (replay.status === "rejected") expect(replay.reason).toBe(closeFailure);
+    expect(client.closeCalls).toBe(1);
+    client.database.close();
+  });
+
+  test("owned open waits for verification and failed acquisition leaves the native client with its caller", async () => {
+    const client = new OwnedSemanticClient();
+    await bootstrapOhLibSqlSemanticCacheV2(client, { appliedAt: instant1 });
+    const entered = Promise.withResolvers<void>();
+    const native = Promise.withResolvers<void>();
+    const failure = Object.freeze({ kind: "verification-transport" });
+    client.beforeExecute = async () => { entered.resolve(); await native.promise; throw failure; };
+    let settled = false;
+    const opening = settlement(openOhLibSqlSemanticCacheV2(client, { closeClient: true })).then(result => {
+      settled = true; return result;
+    });
+    await entered.promise;
+    expect(settled).toBe(false);
+    expect(client.closeCalls).toBe(0);
+    native.resolve();
+    const result = await opening;
+    expect(result.status).toBe("rejected");
+    if (result.status === "rejected") expect(result.reason).toBe(failure);
+    expect(client.closeCalls).toBe(0);
+    client.beforeExecute = undefined;
+    const cache = await openOhLibSqlSemanticCacheV2(client, { closeClient: true });
+    let reentered: Promise<void> | undefined;
+    client.onClose = async () => { reentered = cache.close(); };
+    await cache.close();
+    await reentered;
+    expect(client.closeCalls).toBe(1);
+  });
+
+  test("clock injection preserves supplied instants, lazy purge replay and validation-before-clock order", async () => {
+    const client = new SqliteCompatibleLibSqlClient();
+    let reads = 0;
+    const clock = Layer.succeed(SemanticCacheClock, { currentInstant: Effect.sync(() => { reads += 1; return instant2; }) });
+    const ports = Layer.mergeAll(semanticCacheSqlLive(client), clock, semanticCacheEmbeddingLive);
+    const runtime = <A>(operation: Effect.Effect<A, import("./libsql-semantic-v2-platform").SemanticCacheFailure,
+      import("./libsql-semantic-v2-runtime").SemanticCacheRequirements>) => Effect.runPromise(operation.pipe(Effect.provide(ports)));
+    await runtime(semanticProgram.bootstrapSemanticCache({ appliedAt: instant1 }));
+    expect(reads).toBe(0);
+    await runtime(semanticProgram.stage(stageInput()));
+    expect(reads).toBe(0);
+    const invalid = await Effect.runPromiseExit(semanticProgram.stage({ ...stageInput(), authorityId: "" })
+      .pipe(Effect.provide(ports)));
+    expect(Exit.isFailure(invalid)).toBe(true);
+    if (Exit.isFailure(invalid)) {
+      expect(Array.from(Cause.defects(invalid.cause))).toEqual([]);
+      expect(Array.from(Cause.failures(invalid.cause)).map(error => error._tag)).toEqual(["SemanticCacheDomain"]);
+    }
+    expect(reads).toBe(0);
+    await runtime(semanticProgram.publish({ authorityId: "owner-lifecycle", expectedPublishedGeneration: null, generation: 1 }));
+    expect(reads).toBe(1);
+    expect((await runtime(semanticProgram.publishedHead({ authorityId: "owner-lifecycle" })))?.publishedAt).toBe(instant2);
+    const receipt = await runtime(semanticProgram.purgeAuthority({ authorityId: "owner-lifecycle" }));
+    expect(reads).toBe(2);
+    expect(receipt.purgedAt).toBe(instant2);
+    expect(await runtime(semanticProgram.purgeAuthority({ authorityId: "owner-lifecycle", purgedAt: "invalid-on-replay" })))
+      .toEqual(receipt);
+    expect(reads).toBe(2);
+    client.close();
+  });
+
+  test("interruption cannot discharge an admitted workflow while its foreign operation or reconciliation remains", async () => {
+    const client = new SqliteCompatibleLibSqlClient();
+    await bootstrapOhLibSqlSemanticCacheV2(client, { appliedAt: instant1 });
+    const entered = Promise.withResolvers<void>();
+    const native = Promise.withResolvers<void>();
+    let reconciled = false;
+    const owner = Effect.runSync(makeSemanticCacheOwner);
+    expect(Effect.runSync(owner.admit)).toBe(true);
+    const program = semanticProgram.purgeReceipt({ authorityId: "absent" }).pipe(
+      Effect.tap(() => Effect.sync(() => { reconciled = true; })),
+      Effect.provide(semanticCacheSqlLive({
+        execute: async statement => { entered.resolve(); await native.promise; return client.execute(statement); },
+        batch: (statements, mode) => client.batch(statements, mode),
+      })),
+    );
+    const fiber = Effect.runFork(owner.complete(program));
+    await entered.promise;
+    Effect.runSync(owner.beginClose);
+    expect(Effect.runSync(owner.admit)).toBe(false);
+    let drained = false;
+    const draining = Effect.runPromise(owner.drained).then(() => { drained = true; });
+    const interrupted = Effect.runPromise(Fiber.interrupt(fiber));
+    await Promise.resolve();
+    expect(drained).toBe(false);
+    expect(reconciled).toBe(false);
+    native.resolve();
+    const exit = await interrupted;
+    await draining;
+    expect(reconciled).toBe(true);
+    expect(drained).toBe(true);
+    expect(Exit.isFailure(exit) && Cause.isInterrupted(exit.cause)).toBe(true);
     client.close();
   });
 });
