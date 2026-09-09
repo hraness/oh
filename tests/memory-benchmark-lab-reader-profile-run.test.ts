@@ -7,7 +7,7 @@ import { DATASETS, selectQuestions, selectSplit, type Dataset } from "../scripts
 import { makeLabPaidReaderPlan } from "../scripts/benchmarks/lab-paid-plan";
 import { writeGatewayStudyJson } from "../scripts/benchmarks/gateway-study-store-v3";
 import { LEGACY_LAB_PAID_NAMESPACE } from "../scripts/benchmarks/lab-reader-profile-legacy-judge";
-import { createLabReaderProfileRunner, parseLabReaderProfileRunArgs, parseLabReaderProfileRunConfig } from "../scripts/benchmarks/lab-reader-profile-run";
+import { createLabReaderProfileRunner, parseLabReaderProfileRunArgs, parseLabReaderProfileRunConfig, reservedPairedOutcomes } from "../scripts/benchmarks/lab-reader-profile-run";
 
 const roots: string[] = [];
 afterEach(async () => { for (const path of roots.splice(0)) await rm(path, { recursive: true, force: true }); });
@@ -91,4 +91,32 @@ test("wide context pair selects the named parent arms and completes every scored
   expect(Object.keys(report.byVariant)).toEqual(plan.reader.variants);
   expect(report.byVariant["bm25-window:k100:b96000"].questions).toBe(100);
   expect(report.scores.every((s: {correct: number}) => s.correct === 1)).toBe(true);
+}, 20000);
+
+
+test("reserved config locks profile, pair, full call limit and cumulative budget", () => {
+  const p = (name: string) => ({ path: `/fixture/${name}`, sha256: "a".repeat(64) });
+  const config = { budgetPin: p("budget"), parentPin: p("parent"), legacyDirectory: "/fixture/legacy",
+    legacyLedger: { ...p("legacy/ledger.jsonl"), bytes: 0 }, directory: "/fixture/run", output: "/fixture/out",
+    planPath: "/fixture/plan", maxUsd: 27, maxCalls: 400, concurrency: 8,
+    readerProfile: "medium", variantPair: "window-24kb-96kb", evaluation: "reserved-100-v1" } as const;
+  expect(parseLabReaderProfileRunConfig(config)).toEqual(config);
+  for (const changed of [{ evaluation: "test" }, { evaluation: null }, { readerProfile: "minimal" },
+    { variantPair: "window-hybrid-24kb" }, { maxCalls: 200 }, { maxUsd: 28 }])
+    expect(() => parseLabReaderProfileRunConfig({ ...config, ...changed })).toThrow();
+});
+test("reserved output reports one full paired matrix without exploratory confidence intervals", () => {
+  const scores = Array.from({ length: 100 }, (_, i) => [
+    { questionId: `q${i}`, variant: "bm25-window:k20:b24000", correct: i < 3 ? 0 : 1 },
+    { questionId: `q${i}`, variant: "bm25-window:k100:b96000", correct: i === 4 ? 0 : 1 },
+  ]).flat();
+  expect(reservedPairedOutcomes(scores)).toEqual({ questions: 100, wins: 3, losses: 1, ties: 96, differencePercentagePoints: 2 });
+  expect(() => reservedPairedOutcomes(scores.slice(1))).toThrow("matrix");
+  expect(() => reservedPairedOutcomes(scores.map((r, i) => i === 0 ? { ...r, variant: scores[1]!.variant } : r))).toThrow("aliases");
+});
+test("relabeling a development parent as reserved cannot admit model calls", async () => {
+  const f = await fixture(400, 27, "medium", "window-24kb-96kb");
+  const configPin = await writeGatewayStudyJson(join(f.root, "reserved-config.json"), { ...f.config, evaluation: "reserved-100-v1" });
+  await expect(f.runner.prepare(configPin)).rejects.toThrow("parent dataset");
+  expect(f.calls).toBe(0);
 }, 20000);

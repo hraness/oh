@@ -445,3 +445,41 @@ and zero provider calls. [The compact negative result](results/memory-developmen
 retains measurements and private experiment hashes. Annotation-ID coverage is
 an offline diagnostic, not answer accuracy. This adds 2,500 query/variant rows
 to the development screens without using reserved-family questions.
+
+
+### Locked reserved-family comparison
+
+The development candidate is evaluated once on 100 representatives selected from the
+188 eligible test families outside the prior frozen 120. The public selection file
+pins the original 308-family pool and its prior exclusions. The selector verifies
+the 94 development groups are disjoint, removes the frozen 120, ranks by
+`sha256("oh.reserved-reader-v1:" + groupId)`, and takes the first 100. The locked
+representative digest is
+`7d13988b7c6d76cf665cd26d1858b95f269586df42c69db19b7da6ea5984f993`.
+Selection uses identity metadata only; the actual test representatives and development
+group commitment are recomputed from the checksum-pinned public dataset.
+
+Prepare the gold-free parent with zero model calls:
+
+```sh
+bun scripts/benchmarks/lab-reserved-evaluation.ts --output /absolute/private/new-parent.json
+```
+
+Use its returned file pin as `parentPin` in the normal reader-profile config. Add
+`"evaluation": "reserved-100-v1"`, `"readerProfile": "medium"`, and
+`"variantPair": "window-24kb-96kb"`. This closed evaluation requires `maxCalls: 400`
+and `maxUsd: 27` (cumulative, including every previous ledger). The remaining config
+and `bench:lab:profile prepare` / `run` commands are unchanged. Both reader arms
+are fresh; the reserved path skips all historical judge replay and deduplicates
+only requests within this run. Keep the existing legacy directory and ledger pin
+for ancestry verification even though reserved judgments are not imported.
+
+Keep all 200 planned cases in the denominator. Terminal reader length failures
+score zero. Invalid reader or judge responses and custody/accounting failures make
+the comparison incomplete; never retry an occupied call or replace a sample.
+After the complete fixed matrix, stop and report the reserved outcome without
+further tuning on it. The output has `pairedReservedOutcomes` (wins, losses, ties,
+percentage-point difference) and a null `pairedDevelopmentBootstrap`. Report only
+accuracy and paired outcomes for this deterministic locked set; it does not justify
+a random-sample confidence interval, population superiority or leaderboard claim.
+No production default changes follow automatically from this experiment.
