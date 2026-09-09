@@ -29,10 +29,34 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install Node.js 24.19.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.19.0"
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
+      - name: Verify governed source revision
+        env:
+          OH_EXPECTED_SHA: ${{ github.sha }}
+          OH_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          OH_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+          const checked = git("rev-parse", "HEAD");
+          const head = process.env.OH_PR_HEAD_SHA || null;
+          const base = process.env.OH_PR_BASE_SHA || null;
+          if (checked !== process.env.OH_EXPECTED_SHA) throw new Error("Unexpected CI checkout");
+          const parents = git("cat-file", "-p", "HEAD").split("\n\n")[0].split("\n")
+            .filter(line => line.startsWith("parent ")).map(line => line.slice(7));
+          if (head !== null && (parents.length !== 2 || parents[0] !== base || parents[1] !== head)) {
+            throw new Error("PR merge checkout does not bind the governed head and base");
+          }
+          console.log(JSON.stringify({ checked, head, base, node: process.version }));
+          NODE
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Install Python for benchmark custody tests
@@ -47,7 +71,12 @@ jobs:
       - name: Run complete check
         run: bun run check
       - name: Require a reproducible generated tree
-        run: git diff --exit-code
+        run: |
+          git diff --exit-code
+          if [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            git status --short
+            exit 1
+          fi
       - name: Inspect package contents
         run: bun pm pack --dry-run --ignore-scripts
 
@@ -60,10 +89,34 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install Node.js 24.19.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.19.0"
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
+      - name: Verify governed source revision
+        env:
+          OH_EXPECTED_SHA: ${{ github.sha }}
+          OH_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          OH_PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from "node:child_process";
+          const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+          const checked = git("rev-parse", "HEAD");
+          const head = process.env.OH_PR_HEAD_SHA || null;
+          const base = process.env.OH_PR_BASE_SHA || null;
+          if (checked !== process.env.OH_EXPECTED_SHA) throw new Error("Unexpected CI checkout");
+          const parents = git("cat-file", "-p", "HEAD").split("\n\n")[0].split("\n")
+            .filter(line => line.startsWith("parent ")).map(line => line.slice(7));
+          if (head !== null && (parents.length !== 2 || parents[0] !== base || parents[1] !== head)) {
+            throw new Error("PR merge checkout does not bind the governed head and base");
+          }
+          console.log(JSON.stringify({ checked, head, base, node: process.version }));
+          NODE
       - name: Require an exact public specification mirror
         run: diff -qr spec site/public/spec
       - name: Install site dependencies
