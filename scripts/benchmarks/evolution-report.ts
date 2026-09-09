@@ -177,14 +177,16 @@ export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; m
   if (judges.readerOutputSha256 !== readerOutputSha256 || !digest(input.judgeOutputSha256)
     || sha256Hex(input.judgeOutputBytes) !== input.judgeOutputSha256) fail("phase bytes changed");
   const readerPhase = await authenticatePhase({ bytes: input.readerOutputBytes, phase: "reader", planSha256: readers.planSha256,
-    requests: readers.requests, loadRawResponse: input.loadRawResponse, loadServiceMs: input.loadServiceMs });
+    requests: readers.requests, loadRawResponse: input.loadRawResponse,
+    ...(input.loadServiceMs === undefined ? {} : { loadServiceMs: input.loadServiceMs }) });
   const readerResponses = readerPhase.responses;
   const rubric = await loadJudgeProfile();
   const rebuilt = makeEvolutionJudgePlan({ contextPlan: input.contextPlan, readerPlan: readers, responses: readerResponses,
     dataset: input.dataset, profile: judges.profile, rubric, readerOutputSha256 });
   if (!same(judges, rebuilt)) fail("judge plan differs from the complete authenticated reader and gold matrix");
   const judgePhase = await authenticatePhase({ bytes: input.judgeOutputBytes, phase: "judge", planSha256: judges.planSha256,
-    requests: judges.requests, loadRawResponse: input.loadRawResponse, loadServiceMs: input.loadServiceMs });
+    requests: judges.requests, loadRawResponse: input.loadRawResponse,
+    ...(input.loadServiceMs === undefined ? {} : { loadServiceMs: input.loadServiceMs }) });
   const judgeResponses = judgePhase.responses;
   const groupLabels = new Map([...new Set(manifest.questions.map(q => q.groupId))].sort().map((g, i) => [g, `group-${i + 1}`]));
   const historyLabels = new Map([...new Set(manifest.questions.map(q => q.historyId))].sort().map((h, i) => [h, `history-${i + 1}`]));
