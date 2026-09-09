@@ -483,3 +483,22 @@ percentage-point difference) and a null `pairedDevelopmentBootstrap`. Report onl
 accuracy and paired outcomes for this deterministic locked set; it does not justify
 a random-sample confidence interval, population superiority or leaderboard claim.
 No production default changes follow automatically from this experiment.
+
+
+The locked run completed and passed independent raw-response, ledger, plan and
+score replay. The **96 KB arm scored 84/100 versus 78/100 for 24 KB**, with six
+wins, zero losses and 94 ties. It used 198 distinct reader requests for 200 cases
+(two pairs had identical canonical prompts), plus 122 new native judge requests.
+All 320 new reservations settled; neither arm had a reader failure and no
+historical judgments were reused. Execution took **210.73 seconds** and accounted
+for **$0.893499**. Cumulative amendment exposure reached **$25.744095** under the
+unchanged $40 cap. These timings exclude preparation, authentication, initial
+preflight and host queues; usage accounting is not an invoice.
+
+[The reserved report](results/memory-reserved-reader-profile-v1.json) records the
+fixed paired outcome, context usage, native token accounting and immutable evidence
+digests. The result supports the wider-context improvement on this locked set.
+The reserved experiment is complete: do not use its outcomes for further tuning or
+replacement sampling. No population-superiority, saturation or production-default
+promotion is claimed. The older frozen 120-family comparison remains a separate,
+incomplete study requiring its preserved launcher-custody recovery.
