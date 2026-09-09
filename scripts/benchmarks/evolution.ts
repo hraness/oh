@@ -172,7 +172,7 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
     for (const request of requests) if (!responses.has(request.requestSha256) && store.lookup(request).kind === "occupied") {
       failures.set(request.requestSha256, store.readAttemptFailure(request));
     }
-    await readEvolutionPin(input.planPin); await readEvolutionPin(input.configPin); await verifyEvolutionCampaign(config.campaignPin);
+    await readEvolutionPin(input.planPin, 128 * 1024 * 1024); await readEvolutionPin(input.configPin); await verifyEvolutionCampaign(config.campaignPin);
     if ((await codeIdentity()).sourceSha256 !== source.sourceSha256) fail("source changed during phase");
     errors.push(...execution.errors.filter(e => !failures.has(e.key)).map(e => ({ key: e.key, error: "first-response-or-admission-failure" })));
     verified = true;
