@@ -36,7 +36,7 @@ test("Gateway decimal-string cost rounds upward exactly within the existing rese
   expect(() => parseMem0Response(Buffer.from(JSON.stringify(excessive)), small)).toThrow("usage exceeds reservation");
 });
 test("decimal costs work for extraction and batch usage without changing numeric parsed identities", () => {
-  const llm = makeMem0LlmRequest(policy, 32, [{ role: "user", content: "Synthetic source." }]);
+  const llm = makeMem0LlmRequest(policy, 32, [{ role: "system", content: "Extract facts." }, { role: "user", content: "Synthetic source." }]);
   const llmRaw = JSON.parse(new TextDecoder().decode(raw(llm))); llmRaw.providerMetadata.gateway.cost = "0.000002";
   expect(parseMem0Response(Buffer.from(JSON.stringify(llmRaw)), llm).usage.gatewayReportedMicros).toBe(2);
   const batch = makeMem0BatchEmbeddingRequest(policy, 33, "ingest-embed", ["alpha", "beta"]), body = JSON.parse(new TextDecoder().decode(embedRaw(makeMem0EmbeddingRequest(policy, 33, "ingest-embed", "alpha"))));
