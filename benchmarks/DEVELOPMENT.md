@@ -40,17 +40,42 @@ Keep a full-context reader control and an evidence-session oracle control in the
 
 Promote at most two candidates from a screening round. Reject candidates that win only by using more context without disclosing that cost, silently drop failures, change the sample, or lose source grounding. Record negative results so another worker does not repeat the same idea.
 
-## Paid feedback and promotion
+## Run a bounded paired reader comparison
 
-The next reader lane should use a single long-lived bounded dispatcher, durable request caching and an explicit total budget. Separate pure preparation from model execution: one prepared context can serve several readers without rebuilding extraction or replaying every historical study.
+The paid development CLI prepares retrieval contexts offline, then runs readers and judges through one shared request cache. It supports `locomo` and `longmemeval-s`, fixes the development split and seed 17, and requires two or three explicit variants with at most 100 questions. Start with eight questions. The example compares windows and sessions at topK20 and 24 KB; use the same sample and declared budgets when comparing candidates. Fact arms requiring extracted units are outside this lane.
 
-Use a work-conserving queue rather than a barrier after every four requests: admit a new job when a slot becomes available, reserve its worst-case cost before sending it, record the first response immediately, and drain active jobs on stop. Start at a modest concurrency and measure throughput, errors and provider limits before increasing it. Do not promise a provider concurrency limit that has not been observed. Rate-limit failures should reduce new admission; unknown outcomes must not be silently retried.
+One coordinator owns all provider execution. Before preparing a plan, that owner supplies a private budget descriptor and its SHA-256. The descriptor pins the approved authority and every existing amendment ledger in order, with exact byte counts, the expected total exposure, and paths whose ledgers must remain absent. It must include the complete Gateway ancestry; the verifier cannot discover an omitted ledger. The original frozen runners and generic paid runner remain paused because their budgets cannot see the new cache ledger.
 
-Cache by the exact dataset/corpus, implementation, extraction or retrieval configuration, prompt, model and generation parameters. Separate extraction, retrieval contexts, reader responses and judge results so changing one stage invalidates only its dependents. A model-family alias is not a pinned provider snapshot. Cache reuse is an efficiency measure, not an independent repeat for confidence intervals. Provider prompt caching may reduce repeated-prefix costs, but is distinct from skipping a repeated request with a local result cache.
+With already-fetched datasets, run from the repository root. Set `BUDGET_INPUT` to the absolute descriptor path and `BUDGET_SHA256` to its approved digest:
 
-Every small reader experiment must use a complete paired matrix, report failures in the denominator, keep gold answers exclusive to judging, and record accuracy alongside dollars and latency. Use a fixed 8-question canary, then 24 development questions, then the whole development set. Tune on development results. Choose the implementation before evaluating reserved families; a test result used for further tuning becomes development evidence.
+```sh
+bun run bench:lab:paid prepare \
+  --dataset longmemeval-s --limit 8 \
+  --systems bm25-window,bm25-session --top-k 20 --context-bytes 24000 \
+  --budget-input "$BUDGET_INPUT" --budget-sha256 "$BUDGET_SHA256" \
+  --output .cache/benchmarks/lab/lme-paid8-plan.json
+```
 
-**Budget limitation:** the old generic paid CLI's ledger does not include the Gateway continuation's descendant exposure. Do not reopen it at its default maximum or treat `--max-usd` as an additional per-run allowance. A paid lab must account for the existing $18.268639 amendment exposure and all unresolved reservations under the same $40 total cap before admission. The current offline lab cannot spend money.
+Preparation makes zero model calls. It builds each corpus once, closes its stores, and writes the complete ordered case matrix and distinct reader requests. The private plan binds the dataset, question selection, source digest, budgets and request namespace. Keep it private: it contains questions and retrieved conversation text. Use a new output filename; preparation prints the plan's SHA-256.
+
+Set `PLAN_SHA256` to that printed digest. Only the provider owner runs the next command, inside the approved project's scoped OIDC environment. The runner reads `VERCEL_OIDC_TOKEN`, verifies it against the pinned project authority before admission, and has no API-key fallback:
+
+```sh
+bun run bench:lab:paid run --paid \
+  --plan .cache/benchmarks/lab/lme-paid8-plan.json --plan-sha256 "$PLAN_SHA256" \
+  --max-usd 20 --max-calls 32 --concurrency 4 \
+  --output .cache/benchmarks/lab/lme-paid8-results.json
+```
+
+**`--max-usd` is the total shared amendment cap, not extra spending for this command.** The existing amendment exposure is $18.268639, including unresolved reservations. The runner adds the current shared cache exposure once, leaving at most $21.731361 before any new cache charges under the $40 cap. The example narrows that ceiling to $20 total, leaving at most $1.731361 beyond the historical exposure. The original $21.655385 historical ledger remains a separate authenticated anchor. `--max-calls` counts new reader and judge reservations together; cache hits consume none. Eight questions across two variants need at most 32 new calls. A lower call limit can leave an incomplete report.
+
+Concurrency accepts integers 1–12 and defaults to four. Each free slot admits another request after its worst-case cost is reserved durably. Stop or failure closes admission and drains requests already admitted. These limits describe the implementation; observed provider capacity has not yet been established.
+
+All runs use `.cache/benchmarks/lab-paid` in this checkout. Preserve that directory and its ledger across plans and output filenames. An exact namespace plus provider-request digest owns one physical response, even when several question/variant cases share it. Changing retrieval without changing the actual request can therefore reuse the response. Reuse is not an independent model repeat. Completed entries authenticate their original raw capture before reuse; occupied incomplete entries fail preflight. Never delete, reset, rename around, or resubmit them to obtain another answer. Resuming an incomplete run requires a new report path and reuses completed requests; an occupied failed request requires a separately reviewed resolution.
+
+Readers use the fixed `openai/gpt-4.1-mini` alias and judges use `openai/gpt-4o`, with the existing bounded request profiles. Provider aliases are not pinned model snapshots. Gold answers enter only the separate judge stage. Exact-policy terminal reader truncations receive zero, retain their cases in the denominator, and generate no judge request. Other transport or validation failures leave the experiment incomplete. Scores are published only for the complete paired matrix, with grouped paired bootstrap summaries; small independent-group counts limit interpretation.
+
+The report records cache hits, phase completion, failures, elapsed time and conservative budget exposure. Its `.started.json` and `.judges.json` sidecars preserve admission and separate judge preparation; all output paths must be new. Keep the plan, reports and raw cache private. After the canary, prepare a new fixed 24-question development plan before considering the full development set. Current synthetic implementation tests verify cache, budget, concurrency and scoring behavior; they are not real reader quality scores. Development scores guide candidate selection and do not establish held-out superiority.
 
 ## Deliver work without delaying every experiment
 

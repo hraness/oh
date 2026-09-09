@@ -6,11 +6,15 @@ import { randomUUID } from "node:crypto";
 import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import { GatewayStudyBudget, gatewayStudyLedgerExposure, parseGatewayStudyResponse,
   type GatewayStudyLedgerEvent, type GatewayStudyRaw, type GatewayStudyResult, type GatewayStudyRequest, type GatewayStudyReservation } from "./gateway-study-transport-v3";
-import type { GatewayJob } from "./gateway-study-plan-v3";
+/** Storage depends on physical request identity, not generation-specific native job fields. */
+export type GatewayStoreJob = Readonly<{ key: string; ordinal: number; request: GatewayStudyRequest }> & (
+  Readonly<{ phase: "extract"; original: Readonly<{ key: string; ordinal: number }> }>
+  | Readonly<{ phase: "reader" | "judge" }>
+);
 
 const PROFILE = "oh.memory-gateway-store.v3" as const;
 const M = 1024 * 1024;
-type StoreProfile = typeof PROFILE | "oh.memory-gateway-store.v5" | "oh.memory-gateway-store.v6";
+type StoreProfile = typeof PROFILE | "oh.memory-gateway-store.v5" | "oh.memory-gateway-store.v6" | "oh.memory-gateway-lab-cache.v1";
 type SavedResult = Pick<GatewayStudyResult, "requestSha256" | "rawSha256" | "rawBytes" | "usage" | "identity">;
 type ResponseParser<R extends SavedResult> = (request: GatewayStudyRequest, reservation: GatewayStudyReservation, raw: GatewayStudyRaw) => R;
 function fail(reason: string): never { throw new Error(`Gateway study store: ${reason}.`); }
@@ -48,20 +52,20 @@ export async function writeGatewayStudyJson(p: string, value: unknown) {
   const raw = new TextEncoder().encode(JSON.stringify(value, null, 2) + "\n"); await writeGatewayStudyFile(p, raw);
   return { path: p, sha256: sha256Hex(raw) };
 }
-function gatewayJobPendingForProfile(job: GatewayJob, freezeSha256: string, profile: StoreProfile) {
+function gatewayJobPendingForProfile(job: GatewayStoreJob, freezeSha256: string, profile: StoreProfile) {
   return { protocol: profile, freezeSha256: digest(freezeSha256), jobKey: digest(job.key), phase: job.phase,
     ordinal: job.ordinal, originalParentOrdinal: job.phase === "extract" ? job.original.ordinal : null,
     originalJobKey: job.phase === "extract" ? job.original.key : null, request: job.request };
 }
-export function gatewayJobPending(job: GatewayJob, freezeSha256: string) {
+export function gatewayJobPending(job: GatewayStoreJob, freezeSha256: string) {
   return gatewayJobPendingForProfile(job, freezeSha256, PROFILE);
 }
-export function gatewayReservation(job: GatewayJob) {
+export function gatewayReservation(job: GatewayStoreJob) {
   return new GatewayStudyBudget({ maxUsd: 40, maxCalls: 1 }).reserve(job.request, job.key);
 }
 
 /** Read-only reconstruction authenticates the complete saved response and its ledger association. */
-async function readGatewaySavedJobWithParser<R extends SavedResult>(directoryPath: string, freezeSha256: string, job: GatewayJob,
+async function readGatewaySavedJobWithParser<R extends SavedResult>(directoryPath: string, freezeSha256: string, job: GatewayStoreJob,
   events: readonly GatewayStudyLedgerEvent[], profile: StoreProfile, parseResponse: ResponseParser<R>): Promise<R> {
   const p = join(directoryPath, "jobs", digest(job.key)); await directory(p);
   same((await readdir(p)).sort(), ["pending.json", "reserved.json", "response.body", "response.json", "result.json", "settled.json"], "incomplete or unexpected occupied job");
@@ -81,7 +85,7 @@ async function readGatewaySavedJobWithParser<R extends SavedResult>(directoryPat
   return result;
 }
 
-export async function readGatewaySavedJob(directoryPath: string, freezeSha256: string, job: GatewayJob,
+export async function readGatewaySavedJob(directoryPath: string, freezeSha256: string, job: GatewayStoreJob,
   events: readonly GatewayStudyLedgerEvent[]): Promise<GatewayStudyResult> {
   return readGatewaySavedJobWithParser(directoryPath, freezeSha256, job, events, PROFILE, parseGatewayStudyResponse);
 }
@@ -140,11 +144,11 @@ async function openGatewayStudyStoreWithParser<R extends SavedResult>(directoryP
       exposure,
       get events(): readonly GatewayStudyLedgerEvent[] { return structuredClone(events); },
       keys: () => [...occupied].sort(),
-      async lookup(job: GatewayJob) {
+      async lookup(job: GatewayStoreJob) {
         ensure(); if (!occupied.has(job.key)) return null;
         return readGatewaySavedJobWithParser(directoryPath, freezeSha256, job, events, profile, parseResponse);
       },
-      async begin(job: GatewayJob) {
+      async begin(job: GatewayStoreJob) {
         ensure(); digest(job.key); if (occupied.has(job.key)) fail("occupied first response cannot be retried");
         writes = writes.then(async () => {
           await assertLedgerIdentity();
@@ -153,7 +157,7 @@ async function openGatewayStudyStoreWithParser<R extends SavedResult>(directoryP
         });
         await writes;
       },
-      async record(job: GatewayJob, event: GatewayStudyLedgerEvent) {
+      async record(job: GatewayStoreJob, event: GatewayStudyLedgerEvent) {
         ensure(); if (!occupied.has(job.key) || event.id !== job.key) fail("ledger job identity");
         if (event.kind === "reserved") same(event, { v: 1, id: job.key, kind: "reserved", micros: gatewayReservation(job).micros }, "reservation bound changed");
         writes = writes.then(async () => {
@@ -168,14 +172,14 @@ async function openGatewayStudyStoreWithParser<R extends SavedResult>(directoryP
         });
         await writes;
       },
-      async capture(job: GatewayJob, raw: GatewayStudyRaw) {
+      async capture(job: GatewayStoreJob, raw: GatewayStudyRaw) {
         ensure(); if (!occupied.has(job.key) || raw.requestSha256 !== job.request.requestSha256) fail("raw capture request identity");
         if (events.filter(event => event.id === job.key && event.kind === "reserved").length !== 1) fail("capture without a durable reservation");
         const { body, ...metadata } = raw;
         await writeGatewayStudyFile(join(jobs, job.key, "response.body"), body);
         await writeGatewayStudyJson(join(jobs, job.key, "response.json"), { ...metadata, body: { bytes: body.byteLength, sha256: sha256Hex(body) } });
       },
-      async complete(job: GatewayJob, result: R) {
+      async complete(job: GatewayStoreJob, result: R) {
         ensure(); if (!occupied.has(job.key) || result.requestSha256 !== job.request.requestSha256) fail("completion identity");
         await writeGatewayStudyJson(join(jobs, job.key, "result.json"), { protocol: profile, freezeSha256, jobKey: job.key, result });
         same(await readGatewaySavedJobWithParser(directoryPath, freezeSha256, job, events, profile, parseResponse), result, "new response reconstruction");

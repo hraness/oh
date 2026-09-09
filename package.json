@@ -102,6 +102,7 @@
   "scripts": {
     "bench:memory": "bun run ./scripts/benchmark-memory.ts",
     "bench:lab": "bun run ./scripts/benchmarks/lab.ts",
+    "bench:lab:paid": "bun run ./scripts/benchmarks/lab-paid.ts",
     "bench:claude": "bun run ./scripts/benchmarks/claude-study.ts",
     "bench:claude:v2": "bun run ./scripts/benchmarks/claude-study-v2.ts",
     "bench:gateway:v3": "bun run ./scripts/benchmarks/gateway-study-v3.ts",
