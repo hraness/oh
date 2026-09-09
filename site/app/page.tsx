@@ -34,7 +34,7 @@ const repository = "https://github.com/hraness/oh";
 
 const heading = "A research graph your agents can inspect";
 const lead =
-  "Oh gives your agents a local path from a question to a cited artifact: sources, claims, citations, and a verifiable history of every change, in one SQLite file on your machine.";
+  "Keep the sources behind an agent’s answer. Oh stores your questions, claims, and citations in a local research graph, so you can follow a brief back to the evidence and review what changed.";
 const example =
   "Ask your agent to file the trial report as a source, record its 12-week endpoint as a claim, cite table 2, and verify the graph before it drafts the brief.";
 const footnote =
@@ -74,32 +74,32 @@ const researchObjects = [
   {
     label: "Question",
     kind: "inquiry",
-    summary: "Keep the question and its investigation trail as a durable object instead of leaving it in a prompt transcript.",
+    summary: "Save what you are trying to find out, along with the investigation that follows.",
   },
   {
     label: "Source",
     kind: "entity",
-    summary: "Give a paper, dataset, person, or system a stable identity that survives changing titles, files, and URLs.",
+    summary: "Identify the paper, dataset, person, or system you are researching, even if its title or URL changes.",
   },
   {
     label: "Capture",
     kind: "edition",
-    summary: "Pin one edition or extract of a source to the profile your application registers, with its dependencies intact.",
+    summary: "Keep track of the particular edition or extract you used, not just the source as it looks today.",
   },
   {
     label: "Claim",
     kind: "statement",
-    summary: "Store the proposition separately from who accepts it, where it applies, and what evidence bears on it.",
+    summary: "Write down what is being claimed. Record who accepts it and the evidence for it separately.",
   },
   {
     label: "Citation",
     kind: "evidence",
-    summary: "Record how a located passage, table, or observation supports, contradicts, or otherwise bears on an assertion.",
+    summary: "Point to a passage, table, or observation, and explain how it supports or challenges a claim.",
   },
   {
     label: "Artifact",
     kind: "view",
-    summary: "Produce a review brief, answer, or other derived view whose input records stay addressable.",
+    summary: "Build a brief or answer that keeps links to the records it draws on.",
   },
 ] as const;
 
@@ -194,7 +194,7 @@ export default function Home() {
       "@context": "https://schema.org",
       "@type": "SoftwareSourceCode",
       codeRepository: repository,
-      description: "open-source tools for agentic research",
+      description: lead,
       license: "https://opensource.org/license/mit",
       name: "Oh",
       programmingLanguage: "TypeScript",
@@ -226,7 +226,7 @@ export default function Home() {
         links={navigation}
       />
 
-      <main id="main">
+      <main id="main" tabIndex={-1}>
         <MarketingPage>
           <ProductHero
             actions={[
@@ -238,11 +238,21 @@ export default function Home() {
             eyebrow="Open-source tools for agentic research"
             frame={(
               <MarketingProofFrame
-                caption="A fresh database: init and verify stay local and print canonical JSON."
-                credit={`${currentVersion.contractId} · ${currentVersion.status} · source CLI ${capturedVersion} · captured ${capturedOn}`}
-                title="oh · first run"
+                caption="An illustrative review, not evidence from a real study. The public citation record is checked against its schema and digest."
+                credit={`${currentVersion.contractId} · ${currentVersion.status}`}
+                title="From a claim to its source"
               >
-                <pre className="transcript" tabIndex={0}><code>{firstRunTranscript}</code></pre>
+                <div className="citation-preview">
+                  <h2>What backs the 12-week endpoint?</h2>
+                  <p>A citation connects the claim’s stance to the version of the report you read.</p>
+                  <dl>
+                    <div><dt>Source</dt><dd>Trial report <code>{citationRecord.value.source}</code></dd></div>
+                    <div><dt>Look here</dt><dd>{citationRecord.value.locator}</dd></div>
+                    <div><dt>Relationship</dt><dd>{citationRecord.value.relationship}</dd></div>
+                    <div><dt>Linked records</dt><dd>{citationRecord.dependencies.map(key => <code key={key}>{key}</code>)}</dd></div>
+                  </dl>
+                  <a href="#trace">Follow the full research trail</a>
+                </div>
               </MarketingProofFrame>
             )}
             heading={heading}
@@ -258,7 +268,7 @@ export default function Home() {
           />
 
           <MarketingPrimitives
-            heading="From a question to a research artifact."
+            heading="A place for each part of the research."
             headingId="model-title"
             id="model"
             items={researchObjects.map((object) => ({
@@ -271,7 +281,7 @@ export default function Home() {
               ),
             }))}
             label="The research model"
-            summary="Oh supplies a versioned graph envelope and a small ontology kernel, so a research application can map the work people already recognize onto explicit records. An attributable assertion sits between a claim and the evidence that bears on it, and product vocabularies refine the profile through versioned schemas without changing the v1 envelope."
+            summary="A research graph is a set of connected records. Oh separates the question, the source, and the claim so you can revisit one without losing the others. An assertion records a stance on a claim; citations link that stance to its evidence."
           />
 
           <MarketingSection
@@ -280,7 +290,7 @@ export default function Home() {
             id="trace"
             label="One review, traced"
             layout="split"
-            summary="The keys below trace one possible review profile. At the citation step, the record names its claim stance and captured source edition as dependencies, and the digest binds the complete record. The append-only log behind it gives you a verifiable operation history."
+            summary="Follow this illustrative review from a question to a brief. Each key identifies a record you can open. The citation connects a stance on the claim to the captured report; the log gives you a verifiable operation history. That history shows what changed, not whether the claim is true."
           >
             <MarketingFlow ariaLabel="Example research trace" steps={traceSteps} />
             <MarketingProofFrame
@@ -379,6 +389,16 @@ oh verify`}</code></pre>
               <code>.oh/oh.sqlite</code> and the <code>default</code> space unless you choose another.{" "}
               <a href="https://github.com/hraness/oh#install-and-first-run">Read the full first run on GitHub</a>.
             </p>
+            <details className="first-run-details">
+              <summary>See an example of the first-run output</summary>
+              <MarketingProofFrame
+                caption="A fresh database: init and verify stay local and print canonical JSON. This historical capture predates the current install version above."
+                credit={`${currentVersion.contractId} · ${currentVersion.status} · source CLI ${capturedVersion} · captured ${capturedOn}`}
+                title="oh · first run"
+              >
+                <pre className="transcript" tabIndex={0}><code>{firstRunTranscript}</code></pre>
+              </MarketingProofFrame>
+            </details>
           </MarketingInstallPanel>
 
           <MarketingQuestionList
