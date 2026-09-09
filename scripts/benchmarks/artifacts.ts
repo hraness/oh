@@ -1,5 +1,5 @@
 import { isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
-import { writeJson } from "./io";
+import { MAX_REPORT_BYTES, writeJson } from "./io";
 
 export function summarizeReport(value: unknown, fullReportSha256: string) {
   if (!isPlainRecord(value) || value.protocol !== "oh.memory-benchmark.v1" || !isPlainRecord(value.manifest)
@@ -17,7 +17,7 @@ export function summarizeReport(value: unknown, fullReportSha256: string) {
 
 export async function exportSummary(input: string, output: string) {
   const file = Bun.file(input);
-  if (!await file.exists() || file.size < 1 || file.size > 64 * 1024 * 1024) throw new Error("Report must be an existing file of at most 64 MiB.");
+  if (!await file.exists() || file.size < 1 || file.size > MAX_REPORT_BYTES) throw new Error("Report must be an existing file of at most 128 MiB.");
   const bytes = await file.bytes();
   let value: unknown;
   try { value = JSON.parse(new TextDecoder().decode(bytes)); } catch { throw new Error("Report is not JSON."); }

@@ -60,7 +60,8 @@ export function answerMessages(question: Pick<Question, "question" | "questionDa
     content: JSON.stringify({ question: question.question, questionDate: question.questionDate, memory: context }) }];
 }
 
-export const PILOT_MAX_USD = 13;
+// Existing exposure $12.248769 plus the explicitly authorized $50 follow-up.
+export const PILOT_MAX_USD = 62.248769;
 
 export class PilotBudget {
   readonly #cap: number;

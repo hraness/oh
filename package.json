@@ -101,6 +101,18 @@
   },
   "scripts": {
     "bench:memory": "bun run ./scripts/benchmark-memory.ts",
+    "bench:lab": "bun run ./scripts/benchmarks/lab.ts",
+    "bench:lab:paid": "bun run ./scripts/benchmarks/lab-paid.ts",
+    "bench:claude": "bun run ./scripts/benchmarks/claude-study.ts",
+    "bench:claude:v2": "bun run ./scripts/benchmarks/claude-study-v2.ts",
+    "bench:gateway:v3": "bun run ./scripts/benchmarks/gateway-study-v3.ts",
+    "bench:gateway:v4": "bun run ./scripts/benchmarks/gateway-study-v4.ts",
+    "bench:gateway:v5": "bun run ./scripts/benchmarks/gateway-study-v5.ts",
+    "bench:gateway:v6": "bun run ./scripts/benchmarks/gateway-study-v6.ts",
+    "bench:stress:projection": "bun run ./scripts/benchmarks/stress-projection.ts",
+    "bench:stress:resume": "bun run ./scripts/benchmarks/stress-extraction-resume.ts",
+    "bench:stress:sqlite": "bun run ./scripts/benchmarks/stress-sqlite-crash.ts",
+    "bench:stress:retrieval": "bun run ./scripts/benchmarks/stress-retrieval.ts",
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run build:js && bun run build:portable && bun run build:types",
     "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
@@ -115,7 +127,8 @@
     "test:node-projection": "node --test ./scripts/projection-node.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
-    "check:effect": "bun run ./scripts/check-effect-architecture.ts && bun test ./scripts/effect-architecture.test.ts"
+    "check:effect": "bun run ./scripts/check-effect-architecture.ts && bun test ./scripts/effect-architecture.test.ts",
+    "bench:lab:profile": "bun scripts/benchmarks/lab-reader-profile-run.ts"
   },
   "devDependencies": {
     "@suss/datalog": "0.20.0",

@@ -1,0 +1,671 @@
+{
+  "protocol": "oh.memory-development-paid-summary.v1",
+  "recordedAt": "2026-09-09T01:59:25.649454+00:00",
+  "runs": [
+    {
+      "privateReportSha256": "7117772bac7a8cb8f42a38c779d3ec953f12d15d01d1ec1c4c24e298bf8d05d9",
+      "readerPolicy": "legacy-v1",
+      "dataset": "longmemeval-s",
+      "selectionSha256": "7cc63744f4a3dd364bf086409a6a7598a9f5d8bd14f6cb1adbebb028278d970b",
+      "generationSourceSha256": "22bc92601d27bec4e580cb635acbb89c57d7b6770975b776a0358d806d547305",
+      "generationGitHead": "bc2232530fdf779a6d348219b17f26285bf91985",
+      "status": "completed",
+      "plannedCases": 24,
+      "elapsedMs": 26933.065292000003,
+      "reader": {
+        "complete": true,
+        "requested": 24,
+        "cached": 0,
+        "returned": 24,
+        "processingStarted": 24,
+        "pending": 0,
+        "errors": []
+      },
+      "judge": {
+        "complete": true,
+        "requested": 20,
+        "cached": 0,
+        "returned": 20,
+        "processingStarted": 20,
+        "pending": 0,
+        "errors": []
+      },
+      "budget": {
+        "capUsd": 20,
+        "maxCalls": 48,
+        "reservedCalls": 44,
+        "historicalExposureUsd": 21.655385,
+        "priorAmendmentExposureUsd": 18.268639,
+        "accountedUsd": 18.702135,
+        "confirmedThisRunUsd": 0.433496,
+        "unresolvedThisRunUsd": 0,
+        "billedUsd": null
+      },
+      "summary": {
+        "baseline": "bm25-window:k20:b24000",
+        "byVariant": {
+          "bm25-window:k20:b24000": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          },
+          "bm25-session:k20:b24000": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          },
+          "full-context": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          }
+        },
+        "pairedDevelopmentBootstrap": {
+          "bm25-session:k20:b24000": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          },
+          "full-context": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          }
+        },
+        "independentGroups": 8,
+        "qualification": "Complete paired development scores including failures; tuning evidence, not held-out superiority. Small group counts limit intervals."
+      }
+    },
+    {
+      "privateReportSha256": "a50adc6b31aa9d232703bf98748fec14d0a50d5289f37b44d912f26c1549f5ef",
+      "readerPolicy": "legacy-v1",
+      "dataset": "longmemeval-s",
+      "selectionSha256": "7cc63744f4a3dd364bf086409a6a7598a9f5d8bd14f6cb1adbebb028278d970b",
+      "generationSourceSha256": "22bc92601d27bec4e580cb635acbb89c57d7b6770975b776a0358d806d547305",
+      "generationGitHead": "d6cbefdb880ecc54aeb2844816f75c3989a50137",
+      "status": "completed",
+      "plannedCases": 24,
+      "elapsedMs": 460.36799999999994,
+      "reader": {
+        "complete": true,
+        "requested": 24,
+        "cached": 24,
+        "returned": 24,
+        "processingStarted": 0,
+        "pending": 0,
+        "errors": []
+      },
+      "judge": {
+        "complete": true,
+        "requested": 20,
+        "cached": 20,
+        "returned": 20,
+        "processingStarted": 0,
+        "pending": 0,
+        "errors": []
+      },
+      "budget": {
+        "capUsd": 20,
+        "maxCalls": 1,
+        "reservedCalls": 0,
+        "historicalExposureUsd": 21.655385,
+        "priorAmendmentExposureUsd": 18.702135,
+        "accountedUsd": 18.702135,
+        "confirmedThisRunUsd": 0,
+        "unresolvedThisRunUsd": 0,
+        "billedUsd": null
+      },
+      "summary": {
+        "baseline": "bm25-window:k20:b24000",
+        "byVariant": {
+          "bm25-window:k20:b24000": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          },
+          "bm25-session:k20:b24000": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          },
+          "full-context": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          }
+        },
+        "pairedDevelopmentBootstrap": {
+          "bm25-session:k20:b24000": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          },
+          "full-context": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          }
+        },
+        "independentGroups": 8,
+        "qualification": "Complete paired development scores including failures; tuning evidence, not held-out superiority. Small group counts limit intervals."
+      }
+    },
+    {
+      "privateReportSha256": "279a6ba1aff71a7088f172e1772f9f684946ebb63b6e2b3921cf0b03d6a6d0b7",
+      "readerPolicy": "question-last-v1",
+      "dataset": "longmemeval-s",
+      "selectionSha256": "7cc63744f4a3dd364bf086409a6a7598a9f5d8bd14f6cb1adbebb028278d970b",
+      "generationSourceSha256": "844287833b41a99b532d569ada4786fd013a0b693867b0a654043ed2e7afc031",
+      "generationGitHead": "d6cbefdb880ecc54aeb2844816f75c3989a50137",
+      "status": "completed",
+      "plannedCases": 24,
+      "elapsedMs": 20901.223709,
+      "reader": {
+        "complete": true,
+        "requested": 24,
+        "cached": 0,
+        "returned": 24,
+        "processingStarted": 24,
+        "pending": 0,
+        "errors": []
+      },
+      "judge": {
+        "complete": true,
+        "requested": 17,
+        "cached": 6,
+        "returned": 17,
+        "processingStarted": 11,
+        "pending": 0,
+        "errors": []
+      },
+      "budget": {
+        "capUsd": 20,
+        "maxCalls": 48,
+        "reservedCalls": 35,
+        "historicalExposureUsd": 21.655385,
+        "priorAmendmentExposureUsd": 18.702135,
+        "accountedUsd": 19.13074,
+        "confirmedThisRunUsd": 0.428605,
+        "unresolvedThisRunUsd": 0,
+        "billedUsd": null
+      },
+      "summary": {
+        "baseline": "bm25-window:k20:b24000",
+        "byVariant": {
+          "bm25-window:k20:b24000": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          },
+          "bm25-session:k20:b24000": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          },
+          "full-context": {
+            "questions": 8,
+            "correct": 5,
+            "accuracy": 0.625,
+            "readerFailures": 0
+          }
+        },
+        "pairedDevelopmentBootstrap": {
+          "bm25-session:k20:b24000": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          },
+          "full-context": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          }
+        },
+        "independentGroups": 8,
+        "qualification": "Complete paired development scores including failures; tuning evidence, not held-out superiority. Small group counts limit intervals."
+      }
+    },
+    {
+      "privateReportSha256": "5e5160f780faf860b9318613b38626c919651eb5a45d49fbd79b3b9d4c80d791",
+      "readerPolicy": "legacy-v1",
+      "dataset": "longmemeval-s",
+      "selectionSha256": "f65dbef1edd8a01b1df656a2a6aef65159c0fbd9e0fc50245fc7d67afa10c15c",
+      "generationSourceSha256": "844287833b41a99b532d569ada4786fd013a0b693867b0a654043ed2e7afc031",
+      "generationGitHead": "d6cbefdb880ecc54aeb2844816f75c3989a50137",
+      "status": "completed",
+      "plannedCases": 48,
+      "elapsedMs": 9107.6105,
+      "reader": {
+        "complete": true,
+        "requested": 48,
+        "cached": 16,
+        "returned": 48,
+        "processingStarted": 32,
+        "pending": 0,
+        "errors": []
+      },
+      "judge": {
+        "complete": true,
+        "requested": 38,
+        "cached": 12,
+        "returned": 38,
+        "processingStarted": 26,
+        "pending": 0,
+        "errors": []
+      },
+      "budget": {
+        "capUsd": 20,
+        "maxCalls": 96,
+        "reservedCalls": 58,
+        "historicalExposureUsd": 21.655385,
+        "priorAmendmentExposureUsd": 19.13074,
+        "accountedUsd": 19.221741,
+        "confirmedThisRunUsd": 0.091001,
+        "unresolvedThisRunUsd": 0,
+        "billedUsd": null
+      },
+      "summary": {
+        "baseline": "bm25-window:k20:b24000",
+        "byVariant": {
+          "bm25-window:k20:b24000": {
+            "questions": 24,
+            "correct": 17,
+            "accuracy": 0.7083333333333334,
+            "readerFailures": 0
+          },
+          "bm25-session:k20:b24000": {
+            "questions": 24,
+            "correct": 17,
+            "accuracy": 0.7083333333333334,
+            "readerFailures": 0
+          }
+        },
+        "pairedDevelopmentBootstrap": {
+          "bm25-session:k20:b24000": {
+            "clusters": 24,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          }
+        },
+        "independentGroups": 24,
+        "qualification": "Complete paired development scores including failures; tuning evidence, not held-out superiority. Small group counts limit intervals."
+      }
+    },
+    {
+      "privateReportSha256": "b7c5b0c33b45a09b6f31386a9e147a2264f5dc5c07a830e5ec4b0e425160d39c",
+      "readerPolicy": "question-last-v1",
+      "dataset": "longmemeval-s",
+      "selectionSha256": "f65dbef1edd8a01b1df656a2a6aef65159c0fbd9e0fc50245fc7d67afa10c15c",
+      "generationSourceSha256": "844287833b41a99b532d569ada4786fd013a0b693867b0a654043ed2e7afc031",
+      "generationGitHead": "d6cbefdb880ecc54aeb2844816f75c3989a50137",
+      "status": "completed",
+      "plannedCases": 48,
+      "elapsedMs": 6961.7937919999995,
+      "reader": {
+        "complete": true,
+        "requested": 48,
+        "cached": 16,
+        "returned": 48,
+        "processingStarted": 32,
+        "pending": 0,
+        "errors": []
+      },
+      "judge": {
+        "complete": true,
+        "requested": 34,
+        "cached": 20,
+        "returned": 34,
+        "processingStarted": 14,
+        "pending": 0,
+        "errors": []
+      },
+      "budget": {
+        "capUsd": 20,
+        "maxCalls": 96,
+        "reservedCalls": 46,
+        "historicalExposureUsd": 21.655385,
+        "priorAmendmentExposureUsd": 19.221741,
+        "accountedUsd": 19.307062,
+        "confirmedThisRunUsd": 0.085321,
+        "unresolvedThisRunUsd": 0,
+        "billedUsd": null
+      },
+      "summary": {
+        "baseline": "bm25-window:k20:b24000",
+        "byVariant": {
+          "bm25-window:k20:b24000": {
+            "questions": 24,
+            "correct": 17,
+            "accuracy": 0.7083333333333334,
+            "readerFailures": 0
+          },
+          "bm25-session:k20:b24000": {
+            "questions": 24,
+            "correct": 18,
+            "accuracy": 0.75,
+            "readerFailures": 0
+          }
+        },
+        "pairedDevelopmentBootstrap": {
+          "bm25-session:k20:b24000": {
+            "clusters": 24,
+            "delta": 0.041666666666666664,
+            "lower": 0,
+            "upper": 0.125,
+            "samples": 2000
+          }
+        },
+        "independentGroups": 24,
+        "qualification": "Complete paired development scores including failures; tuning evidence, not held-out superiority. Small group counts limit intervals."
+      }
+    },
+    {
+      "privateReportSha256": "f35b5218be89b6629d2233382d3e6f46d9aaf043f2112a116f5b3499a498b3c1",
+      "readerPolicy": "legacy-v1",
+      "dataset": "longmemeval-s",
+      "selectionSha256": "8663b8281a92e0d440dd1144682f7f0c61e3db51f6335fe59801d674b8a36b39",
+      "generationSourceSha256": "844287833b41a99b532d569ada4786fd013a0b693867b0a654043ed2e7afc031",
+      "generationGitHead": "d6cbefdb880ecc54aeb2844816f75c3989a50137",
+      "status": "completed",
+      "plannedCases": 200,
+      "elapsedMs": 50897.361292,
+      "reader": {
+        "complete": true,
+        "requested": 200,
+        "cached": 48,
+        "returned": 200,
+        "processingStarted": 152,
+        "pending": 0,
+        "errors": []
+      },
+      "judge": {
+        "complete": true,
+        "requested": 157,
+        "cached": 38,
+        "returned": 157,
+        "processingStarted": 119,
+        "pending": 0,
+        "errors": []
+      },
+      "budget": {
+        "capUsd": 22,
+        "maxCalls": 400,
+        "reservedCalls": 271,
+        "historicalExposureUsd": 21.655385,
+        "priorAmendmentExposureUsd": 19.307062,
+        "accountedUsd": 19.726275,
+        "confirmedThisRunUsd": 0.419213,
+        "unresolvedThisRunUsd": 0,
+        "billedUsd": null
+      },
+      "summary": {
+        "baseline": "bm25-window:k20:b24000",
+        "byVariant": {
+          "bm25-window:k20:b24000": {
+            "questions": 100,
+            "correct": 68,
+            "accuracy": 0.68,
+            "readerFailures": 0
+          },
+          "bm25-session:k20:b24000": {
+            "questions": 100,
+            "correct": 65,
+            "accuracy": 0.65,
+            "readerFailures": 0
+          }
+        },
+        "pairedDevelopmentBootstrap": {
+          "bm25-session:k20:b24000": {
+            "clusters": 94,
+            "delta": -0.03,
+            "lower": -0.10526315789473684,
+            "upper": 0.04,
+            "samples": 2000
+          }
+        },
+        "independentGroups": 94,
+        "qualification": "Complete paired development scores including failures; tuning evidence, not held-out superiority. Small group counts limit intervals."
+      }
+    },
+    {
+      "privateReportSha256": "1784d53be9ca6ba987841bbb6667abb4a474a3531624d0bd2a8a360e62daf9d2",
+      "readerPolicy": "question-last-v1",
+      "dataset": "longmemeval-s",
+      "selectionSha256": "8663b8281a92e0d440dd1144682f7f0c61e3db51f6335fe59801d674b8a36b39",
+      "generationSourceSha256": "844287833b41a99b532d569ada4786fd013a0b693867b0a654043ed2e7afc031",
+      "generationGitHead": "d6cbefdb880ecc54aeb2844816f75c3989a50137",
+      "status": "completed",
+      "plannedCases": 200,
+      "elapsedMs": 38731.763208,
+      "reader": {
+        "complete": true,
+        "requested": 200,
+        "cached": 48,
+        "returned": 200,
+        "processingStarted": 152,
+        "pending": 0,
+        "errors": []
+      },
+      "judge": {
+        "complete": true,
+        "requested": 143,
+        "cached": 80,
+        "returned": 143,
+        "processingStarted": 63,
+        "pending": 0,
+        "errors": []
+      },
+      "budget": {
+        "capUsd": 22,
+        "maxCalls": 400,
+        "reservedCalls": 215,
+        "historicalExposureUsd": 21.655385,
+        "priorAmendmentExposureUsd": 19.726275,
+        "accountedUsd": 20.125419,
+        "confirmedThisRunUsd": 0.399144,
+        "unresolvedThisRunUsd": 0,
+        "billedUsd": null
+      },
+      "summary": {
+        "baseline": "bm25-window:k20:b24000",
+        "byVariant": {
+          "bm25-window:k20:b24000": {
+            "questions": 100,
+            "correct": 64,
+            "accuracy": 0.64,
+            "readerFailures": 0
+          },
+          "bm25-session:k20:b24000": {
+            "questions": 100,
+            "correct": 66,
+            "accuracy": 0.66,
+            "readerFailures": 0
+          }
+        },
+        "pairedDevelopmentBootstrap": {
+          "bm25-session:k20:b24000": {
+            "clusters": 94,
+            "delta": 0.02,
+            "lower": -0.049019607843137254,
+            "upper": 0.09,
+            "samples": 2000
+          }
+        },
+        "independentGroups": 94,
+        "qualification": "Complete paired development scores including failures; tuning evidence, not held-out superiority. Small group counts limit intervals."
+      }
+    }
+  ],
+  "qualifications": [
+    "Fixed nested development samples of 8, 24 and 100 questions; the full sample has 94 families. No held-out superiority or saturation claim.",
+    "Same contexts, question selection, reader/judge model aliases and limits across each policy pair. Prompt key order and system policy change together.",
+    "Elapsed time covers the runner execution window, excluding host queue, corpus preparation, Vercel CLI authentication and initial source/dataset preflight. Cached requests reduce new work in later runs.",
+    "Cached replay reuses identical first responses; it is not another independent model sample.",
+    "Accounted usage includes conservative rate/reported-cost reconciliation; billedUsd is unavailable.",
+    "The 24-question session gain did not justify promotion. At 100 questions, question-last scores 64/100 windows and 66/100 sessions versus legacy 68/100 and 65/100. Keep the legacy policy as default."
+  ],
+  "policyComparisons": [
+    {
+      "questions": 8,
+      "reports": [
+        {
+          "name": "lab-paid-lme8-results-v1.json",
+          "sha256": "7117772bac7a8cb8f42a38c779d3ec953f12d15d01d1ec1c4c24e298bf8d05d9"
+        },
+        {
+          "name": "lab-paid-lme8-question-last-results-v1.json",
+          "sha256": "279a6ba1aff71a7088f172e1772f9f684946ebb63b6e2b3921cf0b03d6a6d0b7"
+        }
+      ],
+      "sameContextsAndNonPolicyRequestFields": true,
+      "variants": [
+        {
+          "variant": "bm25-window:k20:b24000",
+          "wins": 0,
+          "losses": 0,
+          "ties": 8,
+          "pairedBootstrap": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          }
+        },
+        {
+          "variant": "bm25-session:k20:b24000",
+          "wins": 0,
+          "losses": 0,
+          "ties": 8,
+          "pairedBootstrap": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          }
+        },
+        {
+          "variant": "full-context",
+          "wins": 0,
+          "losses": 0,
+          "ties": 8,
+          "pairedBootstrap": {
+            "clusters": 8,
+            "delta": 0,
+            "lower": 0,
+            "upper": 0,
+            "samples": 2000
+          }
+        }
+      ]
+    },
+    {
+      "questions": 24,
+      "reports": [
+        {
+          "name": "lab-paid-lme24-legacy-results-v1.json",
+          "sha256": "5e5160f780faf860b9318613b38626c919651eb5a45d49fbd79b3b9d4c80d791"
+        },
+        {
+          "name": "lab-paid-lme24-question-last-results-v1.json",
+          "sha256": "b7c5b0c33b45a09b6f31386a9e147a2264f5dc5c07a830e5ec4b0e425160d39c"
+        }
+      ],
+      "sameContextsAndNonPolicyRequestFields": true,
+      "variants": [
+        {
+          "variant": "bm25-window:k20:b24000",
+          "wins": 1,
+          "losses": 1,
+          "ties": 22,
+          "pairedBootstrap": {
+            "clusters": 24,
+            "delta": 0,
+            "lower": -0.125,
+            "upper": 0.125,
+            "samples": 2000
+          }
+        },
+        {
+          "variant": "bm25-session:k20:b24000",
+          "wins": 1,
+          "losses": 0,
+          "ties": 23,
+          "pairedBootstrap": {
+            "clusters": 24,
+            "delta": 0.041666666666666664,
+            "lower": 0,
+            "upper": 0.125,
+            "samples": 2000
+          }
+        }
+      ]
+    },
+    {
+      "questions": 100,
+      "reports": [
+        {
+          "name": "lab-paid-lme100-legacy-results-v1.json",
+          "sha256": "f35b5218be89b6629d2233382d3e6f46d9aaf043f2112a116f5b3499a498b3c1"
+        },
+        {
+          "name": "lab-paid-lme100-question-last-results-v1.json",
+          "sha256": "1784d53be9ca6ba987841bbb6667abb4a474a3531624d0bd2a8a360e62daf9d2"
+        }
+      ],
+      "sameContextsAndNonPolicyRequestFields": true,
+      "variants": [
+        {
+          "variant": "bm25-window:k20:b24000",
+          "wins": 4,
+          "losses": 8,
+          "ties": 88,
+          "pairedBootstrap": {
+            "clusters": 94,
+            "delta": -0.04,
+            "lower": -0.10891089108910891,
+            "upper": 0.02857142857142857,
+            "samples": 2000
+          }
+        },
+        {
+          "variant": "bm25-session:k20:b24000",
+          "wins": 8,
+          "losses": 7,
+          "ties": 85,
+          "pairedBootstrap": {
+            "clusters": 94,
+            "delta": 0.01,
+            "lower": -0.061855670103092786,
+            "upper": 0.08823529411764706,
+            "samples": 2000
+          }
+        }
+      ]
+    }
+  ],
+  "policyPairVerificationSha256": "aa449982a4a51c2fccb1b6843342a6dab42ecde53c68075a36ee1b0e9aa0bcf7"
+}

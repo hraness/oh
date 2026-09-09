@@ -158,3 +158,27 @@ describe("extraction transport and resume reliability", () => {
     });
   });
 });
+
+test("frozen extraction refuses incompatible resume profiles before dispatch", async () => {
+  await temporary(async directory => {
+    const source=corpus("frozen",1), frozen={sourceSha256:"a".repeat(64),selectionReportSha256:"b".repeat(64)};
+    const bundle:UnitBundle={protocol:"oh.memory-unit-bundle.v1",dataset:"locomo",datasetSha256:DATASETS.locomo.sha256,
+      split:"dev",seed:17,extractor:{profile:EXTRACTION_PROFILE,promptSha256:sha256Hex(EXTRACTION_INSTRUCTION),
+        reader,provider:"vercel-gateway",maximumOutput:8192},corpora:[{corpusId:source.id,corpusSha256:corpusIdentity(source),
+          chunks:[],unitsSha256:canonicalSha256([])}],usage:{inputTokens:0,cachedInputTokens:0,outputTokens:0,micros:0}};
+    const report={protocol:"oh.memory-benchmark.v1",unitBundle:bundle,
+      manifest:{code:{sourceSha256:frozen.sourceSha256},provenance:{reportSha256:frozen.selectionReportSha256}},
+      provider:{responseFormat:"json_schema",responseSchemaSha256:canonicalSha256(EXTRACTION_SCHEMA)}};
+    let calls=0;
+    const fake=runtime((async()=>{calls++;return completion();}) as typeof fetch);
+    const variants=[{...report,unitBundle:{...bundle,extractor:{...bundle.extractor,maximumOutput:4096}}},
+      {...report,manifest:{...report.manifest,code:{sourceSha256:"c".repeat(64)}}},
+      {...report,provider:{...report.provider,responseFormat:"json_object"}}];
+    for(const [i,value] of variants.entries()){
+      const resume=join(directory,"prior-"+i+".json");await Bun.write(resume,JSON.stringify(value));
+      await expect(runExtraction({...base,dataset:{corpora:[source],questions:[]},frozen,resume,
+        output:join(directory,"next-"+i+".json")},fake.dependencies)).rejects.toThrow("frozen extraction profile");
+    }
+    expect(calls).toBe(0);expect(fake.events).toEqual([]);
+  });
+});

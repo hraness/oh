@@ -1,0 +1,107 @@
+{
+  "protocol": "oh.memory-reserved-reader-profile.v1",
+  "recordedAt": "2026-09-09T05:30:42.072367+00:00",
+  "dataset": "longmemeval-s",
+  "split": "test",
+  "evaluation": "reserved-100-v1",
+  "questions": 100,
+  "families": 100,
+  "cases": 200,
+  "selection": {
+    "eligibleBeforeFrozenExclusion": 308,
+    "frozenExcluded": 120,
+    "remainingPool": 188,
+    "developmentGroupsExcluded": 94,
+    "ordering": "sha256(oh.reserved-reader-v1: + groupId), first 100",
+    "recordsSha256": "7d13988b7c6d76cf665cd26d1858b95f269586df42c69db19b7da6ea5984f993",
+    "groupIdsSha256": "bec33143aaef5f57bb20f8631ba6f0ce01f560688724f1cbf5dbf7b53c4f98b3",
+    "sourceSelectionSha256": "83983f9408c90388d19361561f910dfe3a59e4128af5de63c1c63a9bad058fa5"
+  },
+  "reader": {
+    "requestedModel": "openai/gpt-5-mini",
+    "provider": "openai",
+    "reasoningEffort": "medium",
+    "maximumOutput": 8192,
+    "snapshotPinned": false
+  },
+  "judge": {
+    "requestedModel": "openai/gpt-4o",
+    "provider": "openai",
+    "snapshotPinned": false
+  },
+  "byVariant": {
+    "bm25-window:k20:b24000": {
+      "questions": 100,
+      "correct": 78,
+      "readerFailures": 0
+    },
+    "bm25-window:k100:b96000": {
+      "questions": 100,
+      "correct": 84,
+      "readerFailures": 0
+    }
+  },
+  "pairedReservedOutcomes": {
+    "questions": 100,
+    "wins": 6,
+    "losses": 0,
+    "ties": 94,
+    "differencePercentagePoints": 6
+  },
+  "pairedDevelopmentBootstrap": null,
+  "contextUsage": {
+    "bm25-window:k20:b24000": {
+      "questions": 100,
+      "totalBytes": 2384276,
+      "meanBytes": 23842.76
+    },
+    "bm25-window:k100:b96000": {
+      "questions": 100,
+      "totalBytes": 9096016,
+      "meanBytes": 90960.16
+    }
+  },
+  "execution": {
+    "elapsedMs": 210725.28962499998,
+    "readerMs": 194094.17754200002,
+    "judgeMs": 15375.714166999998,
+    "readerCalls": 198,
+    "newJudgeCalls": 122,
+    "newCalls": 320,
+    "settledCalls": 320,
+    "unresolvedReservations": 0,
+    "historicalJudgeHits": 0,
+    "accountedMicros": 893499,
+    "cumulativeAmendmentExposureMicros": 25744095,
+    "runTotalCapMicros": 27000000,
+    "authorizationTotalCapMicros": 40000000,
+    "concurrency": 8
+  },
+  "readerUsage": {
+    "inputTokens": 2734549,
+    "outputTokens": 105812,
+    "reasoningTokens": 97472,
+    "reasoningUsageReportedFor": 198
+  },
+  "evidence": {
+    "sourceHead": "ba0a95bef2e415a3066c15423aa4498a9a232a25",
+    "sourceSha256": "5a6e7783e4b4f8027d70c53ca8a5f4cab4f9e32521d1776f226d3e5573a51f31",
+    "configSha256": "5af502d7f2130f258fea4e69035f760e5f72f4d88919b2545cd3de7032840870",
+    "planSha256": "75c69cf4ca2f4a13fb542d5476e5f86512b2a969dca908d49d9934a626d80009",
+    "reportSha256": "039fcc6ebe51cd7852583c0829641a97228c928cbc1b27176701bb152239240c",
+    "auditSha256": "a0e8bcc61042a118fe366675c002dce8a2bdcf4f2f04bb98d6e4b56077073bef",
+    "ledgerSha256": "da1f930c121db24a5febec55736ae652c83655f335b3e4688bf243cc01de73a0",
+    "filesIndependentlyRechecked": 1929,
+    "allLocalRawResponsesReparsed": true,
+    "allScoresRegenerated": true,
+    "publicPayloadProofSha256": "eb0b1c701b0667342bb28ee98210ace32ff5a47e0c873cd7263207c0a1f83c70"
+  },
+  "decision": "Complete the predeclared reserved evaluation and stop testing or tuning on this set. Report the fixed paired outcome; do not promote production defaults automatically.",
+  "limitations": [
+    "Deterministic reserved sample permits a statement about this locked set, not a random-sample interval, population superiority or leaderboard saturation.",
+    "Larger arm changes both topK and context-byte allowance; reader and native judge are fixed.",
+    "200 planned cases use 198 distinct first reader responses because two pairs have identical canonical requests; no historical response reuse.",
+    "The unchanged model judge was independently replayed for custody and scoring, not manually regraded for semantic correctness.",
+    "Model aliases are not verified snapshots. Timing excludes preparation, authentication, initial preflight and host queues. Accounted usage is not a billing invoice."
+  ]
+}

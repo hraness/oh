@@ -5,6 +5,12 @@ correctness, evidence retrieval from public conversations, and an opt-in
 model reader. A retrieval score is not an answer-accuracy score, and passing
 state tests does not establish that an agent writes useful memories.
 
+For fast development sweeps across shared corpus indexes, use the [development lab](DEVELOPMENT.md). It compares retrieval variants without model calls and records full development results before promoting candidates to paid answer comparisons.
+
+For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below. The separately frozen [Gateway amendment](GATEWAY_STUDY_V3.md) preserves closed subscription responses and uses budgeted Gateway calls for unattempted work.
+
+The [completed 120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) report the latest audited outcomes and their limits.
+
 Start with the network-free checks:
 
 ```sh
@@ -12,6 +18,46 @@ bun run test:benchmarks
 bun run bench:memory state
 bun run bench:memory projection
 ```
+
+### Offline stress helpers
+
+Four helpers stress correctness and recovery paths without a network, a
+provider, or a dataset download. Each takes the source digest you expect the
+checkout to have and an absolute path to a new report file outside the checkout:
+
+```sh
+bun run bench:stress:projection --expected-source-sha256 "$OH_STRESS_SOURCE_SHA256" --output "$OH_STRESS_OUTPUT_ROOT/projection.json"
+bun run bench:stress:resume --expected-source-sha256 "$OH_STRESS_SOURCE_SHA256" --output "$OH_STRESS_OUTPUT_ROOT/resume.json"
+bun run bench:stress:sqlite --expected-source-sha256 "$OH_STRESS_SOURCE_SHA256" --output "$OH_STRESS_OUTPUT_ROOT/sqlite.json"
+bun run bench:stress:retrieval --expected-source-sha256 "$OH_STRESS_SOURCE_SHA256" --output "$OH_STRESS_OUTPUT_ROOT/retrieval.json"
+```
+
+Set `OH_STRESS_OUTPUT_ROOT` to a directory you own outside the checkout. The
+helpers resolve the output parent to its real path and require it to be outside
+the repository. They reject every existing output destination, including a
+symlink, and never create output-parent directories. Review the tree you intend
+to measure first, read its digest from `io.codeIdentity().sourceSha256`, and pass
+that value as `OH_STRESS_SOURCE_SHA256`. Each helper records the identity before
+and after its run and succeeds only when the expected, before, and after digests
+are identical. A successful report names the exact source it exercised.
+
+The matrices are bounded and fixed: 63 projection evaluations (20 graph fixtures
+in 3 input permutations plus 3 proof-budget cases); 9 generic extraction-resume
+scenarios (3 concurrency levels by 3 completion orders, each with 3 planned
+interruptions); 12 SQLite crash cycles of 64 records each; and a retrieval grid
+of 9216 cells and 27648 grid calls plus 24 stale-source cases. These helpers
+need fresh verification against the current tree; the counts describe what the
+helpers run, not a recorded result.
+
+The projection helper's proof-budget cases assert that the existing evaluation
+caps truncate proofs exactly where the public limits say they do; a run that
+exceeds a cap is reported as a failure rather than granted a larger budget. The
+extraction-resume helper drives a synthetic in-process transport with injected
+transport, environment, and ledger dependencies, so no provider is contacted and no
+real budget ledger is opened. Everything these helpers exercise is synthetic:
+they check deterministic correctness, resume accounting, and crash recovery,
+which is separate from reader accuracy, semantic quality, or any comparison with
+other systems. Reported timings are descriptive measurements of one machine.
 
 The state benchmark exercises the real working/canonical authority, compares
 updates and multi-hop results with an independent replay oracle, and checks
@@ -33,7 +79,9 @@ its download uses `gh` and its data is licensed CC BY-NC 4.0. Review that
 noncommercial license for your intended use. The cleaned LongMemEval release
 is MIT-licensed. Neither dataset is included in the npm package.
 
-All stores use SQLite `:memory:`. Downloads and reports live in
+The state, projection, and retrieval paths use SQLite `:memory:`. The SQLite
+crash stress helper is the one exception: it uses a disposable database file in
+a temporary directory that it creates, owns, and removes. Downloads and reports live in
 `.cache/benchmarks/`; no production database, hosted cache, or sync destination
 is read or written. Ingestion receives only raw turns, dates, speakers, and
 provided image captions. Answers, evidence labels, and supplied summaries stay
@@ -113,9 +161,12 @@ one-question corpora, and report an undiscounted `uncachedReaderCostUsd`
 estimate alongside observed cache-adjusted accounting. Provider caches can be
 shared across similar requests, so cache-discount differences alone do not
 establish an algorithmic efficiency gain. Missing cache details are distinguished
-from reported zero cache use. The current cumulative ceiling is $13, raised
-from the initial $10 only after explicit authorization for a modest follow-up
-round. Each command still requires its own `--max-usd` and `--max-calls`.
+from reported zero cache use. The historical original-study ceiling was $62.248769: its then-existing $12.248769
+exposure plus an explicitly authorized $50 follow-up. This does not authorize
+new dispatch. The later [Gateway/development task amendment](GATEWAY_STUDY_V6_TAKEOVER.md#final-budget)
+uses a separate unchanged $40 cap and complete cross-run ledger accounting. The
+[budget amendment](results/memory-superiority-budget-amendment.json) binds that
+opening exposure to the ledger hash and reserves $5 for answering and judging. Each command still requires its own `--max-usd` and `--max-calls`.
 Separate checkouts do not share that ledger. Do not remove it to restart a
 pilot budget.
 
@@ -166,8 +217,10 @@ chunks are reused, including later corpora if an earlier missing chunk fails.
 The original ingestion cost remains in the report and shared spending ledger.
 The provider schema enforces the existing object shape and array limits; local
 validation still checks UTF-8 byte bounds and exact source quotes. Reports retain
-the schema hash, and resumed caches may include earlier prompt-only or JSON-mode
-chunks. A format change is recorded before any held-out answers are generated.
+the schema hash. Non-frozen legacy experiments may reuse earlier prompt-only
+or JSON-mode chunks. With `--selection`, a resume requires the same source and
+selection hashes, strict JSON schema, and 8,192-token extraction profile. A
+format change is recorded before any held-out answers are generated.
 
 ```sh
 vercel env run --project YOUR_PROJECT --scope YOUR_TEAM --environment development -- \
@@ -190,14 +243,30 @@ claims rather than trusting an old index entry.
   is not raw-turn recall and is reported separately; reader quality is the
   meaningful comparison.
 
-The matched BM25 controls use the same units. A gain from extraction is evidence
-for a memory-representation strategy, not proof that a storage label improves
-answers. A valid quote proves attribution, not semantic entailment. Ingest-time
+The visible-text BM25 controls use the same units but index their rendered
+text. Oh indexes record keys, kinds, object keys and values as well, including
+source digests and session metadata. Both rank with SQLite FTS5 BM25. These
+controls therefore compare indexed representations; they do not isolate a
+different ranking algorithm. A gain from extraction is evidence for a memory
+strategy, with its full ingestion cost included. A valid quote proves attribution, not semantic entailment. Ingest-time
 LLM tokens and cost remain visible when cached units are reused.
 Offline retrieval prepares each requested representation before timing queries
 and reports its shared Oh/BM25 index construction under ingestion. Historical
 development reports created before this separation include lazy index construction
 in the first query; their query latency is unsuitable for paired comparisons.
+
+The explicit-only `bm25-record-fact` and `bm25-record-window` controls copy the
+exact committed search-document text into independent FTS5 indexes. Their query
+normalization, BM25 ordering, record-key tie breaking, source validation and
+context packing match `oh-fact` and `oh-window`. They never call Oh's keyword
+search method. Exact context equality is the expected sanity check, not an
+answer-quality win. The original visible-text controls remain unchanged.
+
+The additional control indexes are prepared before offline query timing, only
+when requested. Their build costs appear under `ingestion[].unitIndexes.recordIndexes`.
+These controls depend on Oh's document preparation; a complete standalone cost
+must include that work as well as the independent index build. Their copied
+index cost alone is not a competing system's ingestion cost.
 
 Use repeated `--exclude-report PRIOR.json` arguments to exclude entire previously
 examined question families before selection. The command records exclusion
@@ -311,7 +380,7 @@ Oh-fact's difference from BM25-window was +10 percentage points, with a paired
 conversation-bootstrap interval of -3.45 to +22.58 points. Only two conversation
 clusters support that interval. These development results justified testing
 the representation on untouched families; they do not establish a general
-quality improvement or an advantage of Oh over matched BM25.
+quality improvement or an advantage of Oh over the visible-text BM25 control.
 
 The [development extraction](results/locomo-units-development-v1.json) accepted
 906 units, rejected nine individual candidates, and cost $0.134719 across 63
@@ -361,7 +430,7 @@ Total extraction accounting is $3.233942 for 831 requests, including the five
 failed requests. The final attempt added $1.559727; its smaller incremental cost
 must not replace the full ingestion cost in a cold-start comparison. Earlier
 reports and their linked resume identities retain the failure and spending
-history. The shared ledger remains subject to the $13 cumulative API ceiling.
+history. These runs used the then-current $13 cumulative API ceiling.
 
 ## Fresh memory representation results
 
@@ -382,10 +451,11 @@ source identities, paired outcomes, and costs:
 
 Oh compact facts improved two answers and regressed none relative to the raw
 BM25 window, for an observed +16.67 percentage points. The paired 95%
-family-bootstrap interval is 0 to +41.67 points. Against matched BM25 facts,
+family-bootstrap interval is 0 to +41.67 points. Against visible-text BM25 facts,
 there were three wins and no losses, with an interval of 0 to +50 points.
-These intervals include no improvement and only 12 independent families were
-tested. This is a promising sample result, not established superiority or an
+These intervals include no improvement and only 12 nominal families were
+tested. LongMemEval families can share conversation content, so those
+family-bootstrap intervals do not establish independent-history uncertainty. This is a promising sample result, not established superiority or an
 official leaderboard score. Neither ranking nor prompts were tuned on these
 answers.
 
@@ -413,3 +483,69 @@ These experiments measure memory representations and downstream answers with
 isolated adapters. They do not add an automatic memory-writing policy to Oh.
 Real-agent writing, updating, and successful task resumption remain unmeasured,
 and no competing OSS implementation was run to establish superiority.
+
+## Frozen finite-pool confirmation
+
+The follow-up uses a saved simple random sample of one fixed representative
+per LongMemEval S family. The representative is the smallest question ID in
+code-unit order. This normally selects the base question when an abstention
+variant also exists; results describe that representative pool, not the
+dataset's full mixture of questions.
+
+Create the sample once, before examining outcomes. Repeat the same
+`--exclude-report` arguments when creating and replaying it:
+
+```sh
+bun run bench:memory select --dataset longmemeval-s --split test --seed 17 \
+  --limit 120 --output .cache/benchmarks/selection.json \
+  --exclude-report benchmarks/results/longmemeval-memory-strategy-fresh-v1.json
+bun run bench:memory retrieval --dataset longmemeval-s --split test --seed 17 \
+  --selection .cache/benchmarks/selection.json --systems bm25-window,bm25-record-window \
+  --exclude-report benchmarks/results/longmemeval-memory-strategy-fresh-v1.json
+```
+
+This example shows the mechanism; a confirmatory run must exclude every
+previously inspected family, using all applicable reports. `select` uses
+`crypto.randomInt` with a partial Fisher–Yates shuffle. The saved IDs, pool
+mapping, method, representative policy, source checksum, split seed and
+exclusion hashes are the replay authority. `--selection` works with extraction,
+retrieval and answering, and cannot be combined with `--limit`. Replaying a
+changed pool or mismatched exclusion set fails rather than drawing replacements.
+
+The [finite-pool analysis](finite-population.md) uses conservative one-sided
+bounds with exact arithmetic. The fixed three-arm decision in
+`scripts/benchmarks/superiority.ts` requires a complete judgment matrix,
+positive simultaneous lower bounds against both raw-window controls, and at
+least five percentage points of observed improvement over each. A failure to
+meet that rule is reported as no established improvement on this run.
+
+
+The [saved 120-family selection](results/longmemeval-superiority-selection-v1.json)
+and [public protocol](results/memory-superiority-freeze-v2.json) define this
+follow-up. The original v1 draft is retained; v2 superseded it before paid
+extraction began. Seed 17 fixes the split. Sampling uses cryptographic
+randomness; the saved draw order and rotating system order fix execution
+order. Gateway model sampling remains unseeded.
+
+Verify the full artifacts before interpreting judgments:
+
+```sh
+bun scripts/benchmarks/confirm.ts \
+  FULL_FREEZE.json \
+  benchmarks/results/longmemeval-superiority-selection-v1.json \
+  UNITS.json ANSWERS.json JUDGE.json NEW_RESULT.json
+```
+
+The public protocol omits only the deployment identifier and records the hash
+of the unchanged full protocol. Use that retained full protocol with the
+completed full extraction, answer and judge reports, not their compact
+summaries. The scorer binds their bytes, source identity, selection, prompts,
+models and budgets to the frozen protocol. It rejects mismatched artifacts and
+cannot certify an incomplete matrix. Run it from the frozen source tree.
+
+
+## Completed amended 120-family comparison
+
+The [frozen Gateway continuation](GATEWAY_STUDY_V6_TAKEOVER.md) is complete and independently audited: `oh-fact` **81/120**, `bm25-window` **78/120**, `bm25-record-window` **79/120**. It did not pass the fixed criterion for the fact-retrieval arm. The [final numerical report](results/memory-gateway-final-v6.json) retains all 360 cases and both primary and adverse reader-failure sensitivity, with mixed extraction provenance and the post-start scoring amendment disclosed. This is not an official leaderboard or saturation claim.
+
+The separate [reserved reader pair](results/memory-reserved-reader-profile-v1.json) scored 84/100 with 96 KB versus 78/100 with 24 KB. See [the development guide](DEVELOPMENT.md) for its distinct procedure, faster loop, rejected experiments and evaluation boundaries.

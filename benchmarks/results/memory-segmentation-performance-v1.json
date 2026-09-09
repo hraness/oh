@@ -1,0 +1,166 @@
+{
+  "protocol": "oh.memory-segmentation-performance.v1",
+  "scope": "Deterministic synthetic chunk construction; no model calls or full-import timing claim.",
+  "runtime": {
+    "bun": "1.3.14",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "measuredPrototype": {
+    "resultSha256": "ee4c8e11d1f6c5e67a1bc6eebd66555ae77f70071eeadcaaa64ae5ae27fef671",
+    "originalSourceSha256": "e0a3769965bb6fdc77776d0c8917ed69ef492c94c0f678b4dc72e6465ff3859f",
+    "referenceSha256": "16dac44887edf9579365e4858c7ef0267b28fc1de7039e6ed39e802872ddde37",
+    "candidateSha256": "3d50a5d1f2ce6e2e5e7b967c2bc87b8c4e46135f5d9170a4ba272e4de821862b",
+    "harnessSha256": "83dde16420ea3b05c14735d74fcbca1c10a8faa8e369df9c3c95afeb5e9c1dc9"
+  },
+  "parity": {
+    "directCases": 222487,
+    "directErrors": 12369,
+    "chunkCases": 559,
+    "chunkErrors": 20,
+    "chunksCompared": 26732,
+    "promptsCompared": 26732,
+    "evidenceSha256": "30430cd9be8285757839f0e07c91683952028ead28df5b25102b3fdbbcf10094"
+  },
+  "workloads": [
+    {
+      "name": "ascii-256k-64turns",
+      "utf16Units": 262207,
+      "utf8Bytes": 262207,
+      "samples": 5,
+      "chunkConstruction": {
+        "originalMs": [
+          8.938582999999994,
+          9.09029099999998,
+          9.153999999999996,
+          9.870625000000018,
+          9.295375000000035
+        ],
+        "candidateMs": [
+          0.6347919999999476,
+          0.6095829999999296,
+          0.582749999999919,
+          0.6167500000000246,
+          0.6717919999999822
+        ],
+        "originalMedianMs": 9.153999999999996,
+        "candidateMedianMs": 0.6167500000000246,
+        "speedup": 14.842318605593242
+      },
+      "segmentation": {
+        "originalMs": [
+          8.34212500000001,
+          8.44337500000006,
+          8.938457999999969,
+          9.228958999999918,
+          8.296249999999986
+        ],
+        "candidateMs": [
+          0.31816600000001927,
+          0.31570799999997234,
+          0.31308400000000347,
+          0.32162499999992633,
+          0.31187499999998636
+        ],
+        "originalMedianMs": 8.44337500000006,
+        "candidateMedianMs": 0.31570799999997234,
+        "speedup": 26.744254184248735
+      }
+    },
+    {
+      "name": "unicode-escapes-256k-64turns",
+      "utf16Units": 262207,
+      "utf8Bytes": 321663,
+      "samples": 5,
+      "chunkConstruction": {
+        "originalMs": [
+          12.953665999999885,
+          13.623458000000028,
+          12.545499999999947,
+          13.366874999999936,
+          12.37649999999985
+        ],
+        "candidateMs": [
+          1.500332999999955,
+          1.3389580000000478,
+          1.2181249999998727,
+          1.2984170000001996,
+          1.2402499999998327
+        ],
+        "originalMedianMs": 12.953665999999885,
+        "candidateMedianMs": 1.2984170000001996,
+        "speedup": 9.976506777096953
+      },
+      "segmentation": {
+        "originalMs": [
+          10.971417000000088,
+          10.567209000000048,
+          10.362583000000086,
+          10.060541999999941,
+          10.207165999999916
+        ],
+        "candidateMs": [
+          0.3834999999999127,
+          0.33275000000003274,
+          0.3269169999998667,
+          0.32662500000014916,
+          0.3604579999998805
+        ],
+        "originalMedianMs": 10.362583000000086,
+        "candidateMedianMs": 0.33275000000003274,
+        "speedup": 31.142247933881492
+      }
+    },
+    {
+      "name": "mixed-surrogates-1m-one-turn",
+      "utf16Units": 1048576,
+      "utf8Bytes": 1572865,
+      "samples": 5,
+      "chunkConstruction": {
+        "originalMs": [
+          66.44416699999988,
+          63.619290999999976,
+          61.20687500000008,
+          63.331666999999925,
+          65.28166599999986
+        ],
+        "candidateMs": [
+          6.799750000000131,
+          6.749415999999883,
+          6.197167000000036,
+          6.679709000000003,
+          6.112082999999984
+        ],
+        "originalMedianMs": 63.619290999999976,
+        "candidateMedianMs": 6.679709000000003,
+        "speedup": 9.524260862262107
+      },
+      "segmentation": {
+        "originalMs": [
+          51.33062499999983,
+          51.817833000000064,
+          51.135749999999916,
+          50.41624999999999,
+          49.91599999999994
+        ],
+        "candidateMs": [
+          1.4849169999999958,
+          1.27212499999996,
+          1.3668339999999262,
+          1.2787090000001626,
+          1.3316669999999249
+        ],
+        "originalMedianMs": 51.135749999999916,
+        "candidateMedianMs": 1.3316669999999249,
+        "speedup": 38.39980265336815
+      }
+    }
+  ],
+  "modelCalls": 0,
+  "measurementTotalMs": 2065.931333,
+  "limitations": [
+    "Five samples per workload in a private prototype under concurrent frozen-run CPU load.",
+    "The tracked change uses the same measured algorithm; public focused tests preserve Unicode, chunk and prompt behavior.",
+    "No full-import, provider-latency or memory-footprint improvement has been measured."
+  ]
+}

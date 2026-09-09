@@ -1,0 +1,23 @@
+{
+  "protocol": "oh.memory-superiority-preflight.v1",
+  "selectionReportSha256": "83983f9408c90388d19361561f910dfe3a59e4128af5de63c1c63a9bad058fa5",
+  "poolSha256": "d9d2f29ee7f258e0b067493b36f5f049cc08a3794b9ad094ca38a91a5c493147",
+  "poolSize": 308,
+  "sampleSize": 120,
+  "selectionReplayedExactly": true,
+  "totalChunks": 8413,
+  "minimumChunks": 64,
+  "maximumChunks": 77,
+  "categories": {
+    "knowledge-update": 19,
+    "multi-session": 27,
+    "single-session-assistant": 6,
+    "single-session-preference": 6,
+    "single-session-user": 18,
+    "temporal-reasoning": 44
+  },
+  "unanswerable": 0,
+  "referenceExtractionCostPerChunkUsd": 0.003891626955475331,
+  "estimatedExtractionUsd": 32.74025757641396,
+  "modelCalls": 0
+}

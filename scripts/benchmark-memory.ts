@@ -5,11 +5,12 @@ import { canonicalSha256, isPlainRecord, sha256Hex } from "../src/canonical";
 import { exportSummary, summarizeReport } from "./benchmarks/artifacts";
 import { DATASETS, selectQuestions, selectSplit, type DatasetName, type Split } from "./benchmarks/datasets";
 import { codeIdentity, displayPath, excludeGroups, fetchDataset, loadDataset, loadExclusions, ROOT, writeJson, writeNew } from "./benchmarks/io";
+import { createSelection, loadFrozenSelection, provenanceOf } from "./benchmarks/selection";
 import { DEFAULT_SYSTEMS, SYSTEMS, type System } from "./benchmarks/retrieval";
 import type { LoadedUnits } from "./benchmarks/extract";
 import { runRetrieval } from "./benchmarks/runner";
 
-const HELP = `Usage: bun run bench:memory <fetch|extract|retrieval|state|projection|answer|judge|summarize> [options]
+const HELP = `Usage: bun run bench:memory <fetch|extract|retrieval|state|projection|answer|judge|summarize|select> [options]
 
   --dataset locomo|longmemeval-s|longmemeval-oracle   Default: locomo
   --split dev|test|all                            Default: dev; split by conversation/family
@@ -25,10 +26,12 @@ const HELP = `Usage: bun run bench:memory <fetch|extract|retrieval|state|project
   --resume-units PATH                            Resume verified completed extraction chunks
   --extraction-concurrency N                     Default: 3; maximum: 12
   --exclude-report PATH                          Exclude previously used families; repeatable
+  --selection PATH                               Replay a frozen longmemeval-s family selection
+                                                  (extract, retrieval, answer only; not with --limit)
   --steps N                                      State mutations per seed; default: 32
   --sizes N,N                                    Projection chain sizes; default: 16,32,48
   --repeat N                                     Projection timed repetitions; default: 5
-  --paid --max-usd N --max-calls N                 Required for extract/answer/judge; cap <=13
+  --paid --max-usd N --max-calls N                 Required for extract/answer/judge; cap <=62.248769
   --reader MODEL                                 Direct snapshot or explicit Gateway alias
   --provider openai|vercel-gateway                Default: openai
   --answer-tokens N                              Default: 512; maximum: 4096
@@ -44,6 +47,11 @@ Use vercel env run --project PROJECT -- bun run bench:memory answer --provider v
 No credential is logged or persisted. Both transports share the same spending ledger.
 Use bun --env-file=.env.benchmark run bench:memory answer ... for a dedicated direct-OpenAI key file.
 Offline scores are evidence recall, not LLM answer accuracy. See benchmarks/research.json.
+
+select freezes a uniform-random sample of longmemeval-s families (one fixed representative
+question per family, chosen deterministically) for exact replay. It makes no paid calls.
+Example: bun run bench:memory select --split dev --seed 17 --limit 50 --output selection.json
+Replay it later with: bun run bench:memory retrieval --dataset longmemeval-s --selection selection.json --split dev --seed 17
 `;
 
 function integer(value: string | undefined, fallback: number, minimum: number, maximum: number): number {
@@ -61,22 +69,35 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     "max-usd": { type: "string" }, "max-calls": { type: "string" }, reader: { type: "string" },
     provider: { type: "string" }, "answer-tokens": { type: "string" }, "judge-model": { type: "string" },
     "exclude-report": { type: "string", multiple: true }, "resume-units": { type: "string" },
-    "extraction-concurrency": { type: "string" }, help: { type: "boolean" },
+    "extraction-concurrency": { type: "string" }, selection: { type: "string" }, help: { type: "boolean" },
   } });
   if (values.help || positionals.length === 0) { console.log(HELP); return; }
-  if (positionals.length !== 1 || !["fetch", "extract", "retrieval", "state", "projection", "answer", "judge", "summarize"].includes(positionals[0]!)) {
+  const commands = ["fetch", "extract", "retrieval", "state", "projection", "answer", "judge", "summarize", "select"];
+  if (positionals.length !== 1 || !commands.includes(positionals[0]!)) {
     throw new TypeError("Unknown benchmark command. Use --help.");
   }
   const command = positionals[0]!;
+  if (values.selection !== undefined && !["extract", "retrieval", "answer"].includes(command)) {
+    throw new TypeError("--selection is only supported for extract, retrieval, and answer.");
+  }
+  if (values.selection !== undefined && values.limit !== undefined) {
+    throw new TypeError("--selection cannot be combined with --limit.");
+  }
+  if (command === "select" && (values.limit === undefined || values.output === undefined)) {
+    throw new TypeError("select requires --limit and --output.");
+  }
   if (command === "summarize") {
     if (!values.input || !values.output) throw new TypeError("summarize requires --input and --output.");
     const fullReportSha256 = await exportSummary(values.input, values.output);
     console.log(JSON.stringify({ output: displayPath(values.output), fullReportSha256 }));
     return;
   }
-  const datasetName = values.dataset ?? "locomo";
+  const datasetName = values.dataset ?? (command === "select" ? "longmemeval-s" : "locomo");
   if (!Object.hasOwn(DATASETS, datasetName)) throw new TypeError("Unknown dataset.");
   const name = datasetName as DatasetName;
+  if ((command === "select" || values.selection !== undefined) && name !== "longmemeval-s") {
+    throw new TypeError("Family selection is limited to longmemeval-s.");
+  }
   if (command === "fetch") {
     const path = await fetchDataset(name);
     console.log(JSON.stringify({ dataset: name, path: displayPath(path), source: DATASETS[name] }, null, 2));
@@ -101,6 +122,16 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     validatePaidAccess(paidOptions);
   }
   const exclusions = await loadExclusions(values["exclude-report"] ?? [], name);
+  if (command === "select") {
+    const limit = integer(values.limit, 1, 1, 1000);
+    const dataset = excludeGroups(selectSplit(await loadDataset(name), split as Split, seed), exclusions.groups);
+    const document = await createSelection({ name, split: split as Split, seed, exclusions, dataset, sampleSize: limit, output });
+    console.log(JSON.stringify({ output: displayPath(output), protocol: document.protocol, dataset: name, split, seed,
+      poolSize: document.poolSize, sampleSize: document.sampleSize, poolSha256: document.poolSha256,
+      selectedFamilies: document.selected.map((representative) => representative.groupId),
+      selectedQuestions: document.selected.map((representative) => representative.questionId) }, null, 2));
+    return;
+  }
   const code = await codeIdentity();
   let manifest: object;
   let result: Record<string, unknown>;
@@ -108,10 +139,17 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const { runExtraction } = await import("./benchmarks/extract");
     const concurrency = integer(values["extraction-concurrency"], 3, 1, 12);
     const limit = values.limit === undefined ? undefined : integer(values.limit, 1, 1, 20_000);
-    const selected = selectQuestions(excludeGroups(selectSplit(await loadDataset(name), split as Split, seed), exclusions.groups), limit, seed);
+    const frozen = values.selection === undefined ? undefined
+      : await loadFrozenSelection({ path: values.selection, name, split: split as Split, seed, exclusions });
+    const selected = frozen !== undefined ? frozen.dataset
+      : selectQuestions(excludeGroups(selectSplit(await loadDataset(name), split as Split, seed), exclusions.groups), limit, seed);
     manifest = { command, dataset: name, source: DATASETS[name], split, seed, limit: limit ?? null, concurrency, code, exclusions: exclusions.reports,
-      selectedCorpora: selected.corpora.map((corpus) => corpus.id) };
+      selectedCorpora: selected.corpora.map((corpus) => corpus.id),
+      ...(frozen === undefined ? {} : { selectedQuestions: selected.questions.map((question) => question.id),
+        selectionSha256: canonicalSha256(selected.questions.map((question) => question.id).sort()),
+        provenance: provenanceOf(frozen.reportSha256, frozen.document) }) };
     result = await runExtraction({ dataset: selected, datasetName: name, split: split as Split, seed, output, concurrency,
+      ...(frozen === undefined ? {} : { frozen: { sourceSha256: code.sourceSha256, selectionReportSha256: frozen.reportSha256 } }),
       ...(values["resume-units"] === undefined ? {} : { resume: values["resume-units"] }), ...paidOptions });
   } else if (command === "judge") {
     if (!values.input) throw new TypeError("judge requires --input with an existing answer report.");
@@ -138,7 +176,10 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     }
     const budget = { topK: integer(values["top-k"], 20, 1, 100), contextBytes: integer(values["context-bytes"], 12_000, 1, 4_000_000) };
     const limit = values.limit === undefined ? undefined : integer(values.limit, 1, 1, 20_000);
-    const selected = selectQuestions(excludeGroups(selectSplit(await loadDataset(name), split as Split, seed), exclusions.groups), limit, seed);
+    const frozen = values.selection === undefined ? undefined
+      : await loadFrozenSelection({ path: values.selection, name, split: split as Split, seed, exclusions });
+    const selected = frozen !== undefined ? frozen.dataset
+      : selectQuestions(excludeGroups(selectSplit(await loadDataset(name), split as Split, seed), exclusions.groups), limit, seed);
     let memory: LoadedUnits | undefined;
     if (systems.some((system) => system.includes("fact"))) {
       if (!values.units) throw new TypeError("Fact systems require --units with a completed extraction report.");
@@ -147,7 +188,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     }
     manifest = { command, dataset: name, source: DATASETS[name], split, seed, limit: limit ?? null, systems, budget, code,
       exclusions: exclusions.reports, selectedCorpora: selected.corpora.map((corpus) => corpus.id), selectedQuestions: selected.questions.map((question) => question.id),
-      selectionSha256: canonicalSha256(selected.questions.map((question) => question.id).sort()) };
+      selectionSha256: canonicalSha256(selected.questions.map((question) => question.id).sort()),
+      ...(frozen === undefined ? {} : { provenance: provenanceOf(frozen.reportSha256, frozen.document) }) };
     if (command === "answer") {
       const { runAnswer } = await import("./benchmarks/model");
       result = await runAnswer({ dataset: selected, datasetName: name, systems: systems as System[], budget, seed, output,
