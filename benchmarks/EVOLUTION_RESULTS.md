@@ -326,8 +326,9 @@ retains every pass identity and cumulative campaign accounting.
 
 A separate 16-token profile preserves the native prompt and contains-yes rule,
 with explicit alias and output-cap deviations from the official evaluator.
-It must pass one real request before expansion. New orchestration must stop on a
-new deterministic client rejection or a batch with no new completed responses.
+It passed a real one-request qualification before expansion. New orchestration
+stops on a new deterministic client rejection or a batch with no new verified
+transport responses. Authenticated truncated answers still score zero.
 Earlier proxy scores and rejected 10-token captures keep their original meaning.
 
 ## Selection and confirmation
@@ -348,3 +349,118 @@ they cannot be relabeled fresh by drawing another random split.
 The [proposed confirmation method](EVOLUTION_CONFIRMATION.md) records the
 external comparator, exposure audit, scorer qualifications and proposed decision
 rule that still need to be fixed and qualified before confirmation.
+
+## High-effort nano reader
+
+The same 100 development questions were crossed with BM25 96 KB, focused Oh
+with neighbors at 96 KB, and complete history. A six-question service canary
+qualified all 18 logical reader cases and the adapted native-rubric judge before
+expansion. Its questions and exact captures are included in the 100-question run.
+These results use the distinct Gateway native-rubric 16-token judge. They cannot
+be compared with the earlier proxy table as an isolated reasoning-effort change.
+
+| High-effort nano context | Correct | Reader failures |
+| --- | ---: | ---: |
+| BM25 window, 96 KB | 78/100 | 2 |
+| Oh focused query with neighbors, 96 KB | 75/100 | 1 |
+| Full history | 65/100 | 1 |
+
+Four distinct output truncations count as incorrect. All 299 distinct reader
+responses have authenticated captures and usage; 300 logical cases share one
+exact request. All 169 distinct judge responses completed. Oh has three wins,
+six losses and 91 ties against BM25; full history has six wins, nineteen losses
+and 75 ties. Higher reasoning effort does not establish a memory improvement.
+
+The main answering phase admitted 281 new calls in 491.71 seconds at concurrency
+12, and grading admitted 159 new calls in 32.04 seconds. New campaign exposure
+increased by $1.075881, while attributed stage usage is $1.141368 including reused
+canary captures. The campaign through this stage accounts for $11.481468,
+including $0.376166 retained unresolved from earlier attempts. Summed new-request
+service times occupy about 98% of the available 12 slots; greater concurrency
+requires separate live qualification and does not promise linear speedup.
+
+The [complete compact result](results/memory-evolution-nano-high-100-v1.json),
+[paired outcomes](results/memory-evolution-nano-high-100-paired-v1.json), and
+[overlapping service canary](results/memory-evolution-nano-high-canary-6-v1.json)
+pin the original reports, exact source, stages, costs and failure denominators.
+
+## Wider retrieval
+
+An offline screen found every labeled evidence session in 99 of 100 questions
+for focused native Oh at 120 KB. A 192 KB allowance retains the entire native
+top100 pool; 256 KB produces the same contexts. This session-level coverage is
+not proof that each required answer fact survives. The paid fixed comparison
+uses all 100 development questions with both low- and high-effort nano and the
+same native-rubric 16-token judge.
+
+| Context | Low-effort nano | High-effort nano |
+| --- | ---: | ---: |
+| Oh focused native hits, 120 KB | 74/100 | 70/100 |
+| Oh focused native hits, 192 KB | 70/100 | 67/100 |
+| BM25 window, 192 KB | 71/100 | 75/100 |
+
+At low effort, Oh 120 KB has nine wins and six losses against BM25 192 KB;
+Oh 192 KB has eight wins and nine losses. At high effort the corresponding
+pairs are three/eight and two/ten. The 120 KB comparison changes the context
+allowance. These results do not establish a clear advantage, and increasing the
+Oh allowance from 120 to 192 KB reduces the observed answer score.
+
+The 600 logical reader cases used 556 distinct requests. Nine distinct truncated
+responses affect ten logical cases; two additional requests timed out after
+120 seconds. All twelve logical reader failures remain scored zero. The two
+unresolved reservations total $0.022785 and were not retried. All 240 distinct
+judge responses completed.
+
+Three bounded reader passes admitted 535 new requests in 705.51 seconds; grading
+admitted 117 new requests in 39.45 seconds. The stage reused 144 distinct earlier
+reader/judge captures. New exposure increased by $1.122027; attributed stage cost
+is $1.189560. Cumulative campaign exposure is $12.603495: $12.204544 known usage
+plus $0.398951 unresolved. Including the recorded earlier campaigns, conservative
+exposure is $38.489074. None of these cumulative or overlapping attributed totals
+should be added together.
+
+The [offline screen](results/memory-evolution-context-budgets-100-v1.json) and
+[public preparation parity](results/memory-evolution-context-budget-public-parity-v1.json)
+retain source and packing identities. The [paid result](results/memory-evolution-wide-retrieval-100-v1.json)
+and [paired comparison](results/memory-evolution-wide-retrieval-100-paired-v1.json)
+record all questions, category scores, failure costs and stage lineage. Reader
+composition and targeted source selection are subsequent experiments; these
+negative wider-context results remain part of the record.
+
+## Matched native-rubric regrading
+
+Regrading the existing answers with the same Gateway native-rubric 16-token
+judge aligns the matched Oh and full-history controls with the newer runs.
+Every original reader response is retained; these stages make no new reader
+calls. All arms contain the same 100 development questions and have no reader
+or judge failures.
+
+| Context | Low-effort nano | Medium-effort mini |
+| --- | ---: | ---: |
+| BM25 window, 96 KB | 77/100 | 83/100 |
+| Oh focused query with neighbors, 96 KB | 71/100 | 82/100 |
+| Full history | 69/100 | 85/100 |
+
+Against matched BM25, Oh has zero wins and six losses with nano, and one win
+and two losses with mini. Full history has eight wins and sixteen losses with
+nano, and six wins and four losses with mini. The two-point mini full-history
+gain is small and does not establish superiority. High-effort nano's BM25
+score of 78 is one point above low effort, with two reader failures and much
+longer service time; it is not the leading reader for the next experiments.
+
+The [full-history regrade](results/memory-evolution-full-history-100-native16-v1.json)
+and its [paired results](results/memory-evolution-full-history-100-native16-paired-v1.json)
+preserve the original reader source and configuration separately from the
+regrader. The [matched Oh regrade](results/memory-evolution-matched-oh-finalist-100-native16-v1.json)
+and [paired results](results/memory-evolution-matched-oh-finalist-100-native16-paired-v1.json)
+authenticate exact reuse of the earlier neighboring-turn reader captures.
+
+Together these stages admitted 103 new judge requests for $0.048576 in verified
+usage, including the one-request qualification, with no new unresolved cost.
+The closed campaign accounts for $12.652071: $12.253120 verified usage and
+$0.398951 unresolved reservations. Earlier recorded campaigns add $25.885579,
+giving $38.537650 in cumulative conservative exposure. Attributed report costs
+include earlier reader captures and are not additional spending.
+
+The native-rubric profile still uses a Gateway alias and a 16-token adaptation.
+Repeated scoring and development experiments add no independent questions.

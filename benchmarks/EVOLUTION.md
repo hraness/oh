@@ -285,6 +285,66 @@ cost, amortization, storage and complete latency alongside accuracy. Treat
 LongMemEval variants as related families and LoCoMo questions as clustered within
 conversations. Use fresh histories or an untouched benchmark for confirmation.
 
+## Reader answer-contract experiments
+
+Answer contracts can be varied independently of the reader model, reasoning effort
+and retrieved context. The closed contract catalog provides a small factorial:
+
+| Contract | Unsupported questions | Answer composition |
+| --- | --- | --- |
+| `legacy-v1` | Existing literal `None` instruction | Existing instructions |
+| `explicit-abstention-v1` | Explicit statement that information is missing | Existing instructions |
+| `composition-v1` | Existing literal `None` instruction | Event deduplication, date/state resolution, arithmetic and remembered preferences |
+| `explicit-abstention-composition-v1` | Explicit statement that information is missing | Both changes together |
+
+`evolutionReaderProfileId(baseReader, contract)` returns an immutable ID accepted
+in the existing configuration's `readers` list. For example,
+`evolutionReaderProfileId("gpt5-nano-reader", "explicit-abstention-v1")` returns
+`gpt5-nano-explicit-abstention-v1-reader`. The same contracts are available for
+each of the six existing reader model/effort choices. Calling the helper with
+`legacy-v1` returns the original reader ID.
+
+New profiles record the base reader, contract ID and instruction digest. They
+inherit that reader's provider, model, prices, settings and output cap. Full-history
+eligibility and financial reservation follow the base reader; tokenizer fit remains
+unknown until the provider accepts the input. Existing profile objects, prompts,
+request bytes and replay identities remain unchanged. A new contract creates
+separate requests and cannot relabel or reuse a different contract's response.
+
+Preparation keeps question, question date and memory bytes fixed and changes only
+the system instruction according to the declared contract. Exact reader-plan
+validation rebuilds that prompt before paid dispatch and reporting. Gold labels,
+benchmark examples and scorer prompts are not inputs to the contract renderer.
+The catalog is a generic experimental instruction set with offline validation;
+its presence does not establish live provider qualification or improved accuracy.
+Compare complete paired questions under the same context and judge, report failures
+in the full denominator, and keep development optimization separate from confirmation.
+
+## Explicit concurrency experiments
+
+Run configurations V1–V3 and the original paid queue remain limited to one through
+12 concurrent requests. Run V4 (`oh.memory.evolution-run.v4`) explicitly selects
+24 or 32 concurrent requests. It accepts the existing retrieval treatment types;
+the prepared context plan still uses the version required by those treatments.
+No existing model profile, request body, request digest or reservation changes.
+
+V4 uses the separate `oh.memory.evolution-paid-queue.v2` entrypoint. The phase
+receipt records its protocol and actual configured capacity alongside the exact
+configuration pin. Each request still reserves against the same canonical campaign
+before dispatch, captures its first response durably, authenticates usage and
+retains uncertain charges. An observed thrown execution failure or external stop
+halts new starts, and every admitted sibling drains before the receipt is written.
+The explicit phase call bound, credential/provider checks, occupied-request guard
+and complete failure denominator remain in effect.
+
+The higher capacities are experiments, not evidence of provider rate-limit
+headroom or linear speedup. Qualify a fixed small workload at 24 before selecting
+32; declare the call and shared financial caps in advance, stop on systematic
+provider rejection, and compare measured new-request service time and phase wall
+time separately from reused cached work. Do not repeat occupied requests to
+manufacture a matched timing sample. Archive the qualification receipt and retain
+the capacity in every run configuration.
+
 ## Validation and takeover
 
 Focused tests are under `tests/memory-benchmark-evolution-*.test.ts` and run in
@@ -321,3 +381,6 @@ describes the remaining external baseline and fresh-history qualification.
 References: [LoCoMo evaluator](https://github.com/snap-research/locomo/blob/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/task_eval/evaluation.py),
 [LongMemEval evaluator](https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f4ef0e2ab8f2e582289761153549043fc/src/evaluation/evaluate_qa.py),
 [GEPA](https://arxiv.org/abs/2507.19457), [development evidence](DEVELOPMENT.md).
+
+Successor allowances use the [campaign V2 lineage contract](EVOLUTION_CAMPAIGNS_V2.md).
+The [ID selector prototype](EVOLUTION_SELECTOR.md) retains exact source turns in a separate experiment protocol.

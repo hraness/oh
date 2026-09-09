@@ -10,7 +10,7 @@ We propose **BEAM** as a separate confirmation source. Before viewing evaluation
 
 Finalists, comparator settings, the primary metric, aggregation, practical margin, resource limits, sample size and stopping rule will be fixed before confirmation. Analysis will preserve history clusters and account for the planned multiple comparisons. A proposed clear-win criterion is an absolute gain of at least five percentage points with simultaneous 95% paired confidence intervals above zero against the declared controls; this is our proposed decision rule, not a benchmark standard. Judge failures must not be able to reverse that conclusion under conservative missing-score assignments. Development scores will not support that claim.
 
-LongMemEval development retains the original GPT-4o proxy scores. Separate Gateway native-rubric profiles use the pinned category prompts and contains-yes rule. The 10-token Gateway profile was rejected by the provider; its separately identified 16-token adaptation must qualify before expanded use. Both remain alias routes and cannot be described as reproducing the pinned official evaluator. Exact official reproduction requires the native snapshot, messages and output settings. BEAM instead needs its category rubric: its released scorer calls per nugget, and event ordering adds equivalence calls. We will resolve or separately label the released scorer's integer truncation of half credit before unsealing; the paper describes 0/0.5/1 scoring. [BEAM paper](https://arxiv.org/html/2510.27246v2), [released scorer](https://raw.githubusercontent.com/mohammadtavakoli78/BEAM/3e12035532eb85768f1a7cd779832b650c4b2ef9/src/evaluation/compute_metrics.py).
+LongMemEval development retains the original GPT-4o proxy scores. Separate Gateway native-rubric profiles use the pinned category prompts and contains-yes rule. The 10-token Gateway profile was rejected by the provider. Its separately identified 16-token adaptation has passed a real one-request qualification and completed the high-effort and wider-retrieval comparisons. Both remain alias routes and cannot be described as reproducing the pinned official evaluator. Exact official reproduction requires the native snapshot, messages and output settings. BEAM instead needs its category rubric: its released scorer calls per nugget, and event ordering adds equivalence calls. We will resolve or separately label the released scorer's integer truncation of half credit before unsealing; the paper describes 0/0.5/1 scoring. [BEAM paper](https://arxiv.org/html/2510.27246v2), [released scorer](https://raw.githubusercontent.com/mohammadtavakoli78/BEAM/3e12035532eb85768f1a7cd779832b650c4b2ef9/src/evaluation/compute_metrics.py).
 
 An exposed benchmark can remain useful for reproducible descriptive scores. High development performance alone will not be called benchmark saturation, fresh generalization or framework superiority.
 
@@ -28,9 +28,27 @@ membership and preserve existing V1 request identities. The model window is
 reserved conservatively for financial admission; actual provider acceptance has
 been measured, while tokenizer fit remains explicitly unqualified.
 
-Separate nano medium/high profiles now permit a reader-effort ablation while
-preserving contexts and answer prompts. Offline retrieval screens and these
-reader experiments must report their own measured results before promotion.
+The high-effort nano experiment and wider-retrieval comparison are complete.
+High-effort nano scored 78/100 with BM25 96 KB, 75/100 with focused Oh and
+neighbors at 96 KB, and 65/100 with full history. Focused native Oh at 120/192 KB
+scored 74/70 with low-effort nano and 70/67 with high effort; BM25 192 KB scored
+71/75. These native-rubric results do not establish superiority. They motivate
+separate generic answer-contract and source-selection experiments while
+preserving every earlier outcome. The next fixed answer-contract comparison
+uses low-effort nano and medium-effort mini against matched 96 KB contexts.
+
+Native-rubric regrading of the original answers is also complete: BM25 96 KB
+scores 77/83 with nano/mini, focused Oh with neighbors 71/82, and full history
+69/85. No reader calls were repeated for these regrades. The small full-history
+mini gain and all negative Oh comparisons remain part of the development record.
+The next fixed matrix crosses two retrieval methods, two reader models and
+four generic answer contracts on all 100 exposed questions. It measures explicit
+abstention and instruction for combining facts independently and together.
+All 1,600 logical reader cases are declared before dispatch. A separate successor
+store makes these new physical comparison repeats; they do not replace any
+earlier answer or add independent evaluation data. Two 24-request transport
+qualifications precede expansion to concurrency 32, with answer failures retained
+in the fixed denominator.
 
 ## Additional BEAM scorer qualification
 

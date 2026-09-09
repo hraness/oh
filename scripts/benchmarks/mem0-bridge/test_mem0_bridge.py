@@ -25,7 +25,7 @@ class Parent:
         # a socket. MEM0_TELEMETRY is intentionally absent: worker bootstrap
         # must disable the pinned SDK default before its first import.
         (Path(self.temp.name) / "sitecustomize.py").write_text("import os, socket\ndef blocked(*args, **kwargs): os._exit(81)\nsocket.socket.connect = blocked\n", encoding="utf-8")
-        env = {"PATH": os.environ["PATH"], "PYTHONPATH": f"{self.temp.name}{os.pathsep}{HERE}", "MEM0_DIR": self.temp.name,
+        env = {"PATH": os.environ["PATH"], "PYTHONPATH": f"{self.temp.name}{os.pathsep}{HERE}", "MEM0_DIR": self.temp.name, "MEM0_VECTOR_DIMENSIONS": "3",
                "NO_PROXY": "*", "http_proxy": "", "https_proxy": "",
                "HTTP_PROXY": "", "HTTPS_PROXY": "", "ALL_PROXY": "", "all_proxy": ""}
         # Run as an importable module: Mem0's dynamic factory imports this same
@@ -121,7 +121,7 @@ def test_frame_contract_rejects_cross_namespace_and_oversized_inputs() -> None:
 
 def test_worker_refuses_provider_credentials() -> None:
     with tempfile.TemporaryDirectory() as state:
-        env = {"PATH": os.environ["PATH"], "PYTHONPATH": str(HERE), "MEM0_DIR": state,
+        env = {"PATH": os.environ["PATH"], "PYTHONPATH": str(HERE), "MEM0_DIR": state, "MEM0_VECTOR_DIMENSIONS": "3",
                "MEM0_TELEMETRY": "false", "OPENAI_API_KEY": "synthetic-test-key"}
         process = subprocess.run([sys.executable, "-m", "mem0_bridge_worker"], cwd=HERE, env=env,
                                  text=True, capture_output=True, timeout=5)

@@ -1,0 +1,31 @@
+{
+  "protocol": "oh.memory.wide-context-public-preparation-parity.v1",
+  "exactPublicPackCases": 200,
+  "freshPublicPreparationCorpora": 6,
+  "freshPublicPreparationCases": 18,
+  "freshNativePoolIdentitiesMatched": 6,
+  "freshNativeFinalistFullResultIdentitiesMatched": 12,
+  "freshBm25ControlContextsMatched": 6,
+  "sourceStrataIndices": [
+    0,
+    19,
+    39,
+    59,
+    79,
+    99
+  ],
+  "modelCalls": 0,
+  "providerCostUsd": 0,
+  "fetchAttempts": 0,
+  "wallMs": 3369.788375,
+  "scriptSha256": "aac2a2e726822d1efeb281bdc2bad83213dea8ac95bdb41973a15d5b7dc0f0cd",
+  "qualification": [
+    "Called the exact makeEvolutionExperimentContextPlan V1 path used by prepareEvolution after parsing the actual finalist config.",
+    "The filesystem/raw-dataset wrapper was not re-executed; the already authenticated gold-free source projection was supplied directly.",
+    "Public Oh search ran fresh on six source-size strata. It matched the frozen native ranking and the full final V1 result payload, including filtering/dedup/order/current source digests.",
+    "All200 native120/192 screen cases separately match public pack bytes/order/sources. No raw dataset, evidence labels, answer text, campaign store or provider was accessed."
+  ],
+  "receiptSha256": "270573f97b99b631c67acc0b7fe4218653bf20465484a814523cb370c8f52490",
+  "offlineSummarySha256": "a78787af06eae52ed71b272a0812c0b1fdc21ed831caf63c2c56d92a7d34f8c8",
+  "sourceManifestSha256": "40bd1be92195f9e011b8181761797ff9c79ac0db70ffcb637bbc00c986c08efa"
+}

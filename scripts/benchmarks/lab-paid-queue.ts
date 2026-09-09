@@ -8,12 +8,9 @@ export type LabPaidQueueResult<R> = Readonly<{
 /** Bounded, work-conserving execution. Stop affects admission only: every started job drains.
  * All returned collections use input order, independent of response completion order.
  * The caller owns budgets, durable request identity and any provider operations. */
-export async function runLabPaidQueue<T extends { key: string }, R>(jobs: readonly T[], options: Readonly<{
+async function runPaidQueue<T extends { key: string }, R>(jobs: readonly T[], options: Readonly<{
   concurrency: number; execute(job: T): Promise<R>; stopped?: () => boolean;
 }>): Promise<LabPaidQueueResult<R>> {
-  if (!Number.isSafeInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 12) {
-    throw new RangeError("Paid queue concurrency must be an integer from 1 through 12.");
-  }
   const entries = jobs.map(job => ({ job, key: job.key }));
   if (entries.some(entry => typeof entry.key !== "string") || new Set(entries.map(entry => entry.key)).size !== entries.length) {
     throw new TypeError("Paid queue requires unique string keys.");
@@ -42,4 +39,24 @@ export async function runLabPaidQueue<T extends { key: string }, R>(jobs: readon
     errors: Object.freeze(entries.filter(entry => failures.has(entry.key)).map(entry => Object.freeze({ key: entry.key, error: failures.get(entry.key) }))),
     pendingKeys: Object.freeze(entries.slice(cursor).map(entry => entry.key)),
   };
+}
+
+/** Original queue admission contract remains capped at twelve. */
+export async function runLabPaidQueue<T extends { key: string }, R>(jobs: readonly T[], options: Readonly<{
+  concurrency: number; execute(job: T): Promise<R>; stopped?: () => boolean;
+}>): Promise<LabPaidQueueResult<R>> {
+  if (!Number.isSafeInteger(options.concurrency) || options.concurrency < 1 || options.concurrency > 12) {
+    throw new RangeError("Paid queue concurrency must be an integer from 1 through 12.");
+  }
+  return runPaidQueue(jobs, options);
+}
+export const EVOLUTION_PAID_QUEUE_V2_PROTOCOL = "oh.memory.evolution-paid-queue.v2";
+/** Explicit higher-capacity experiment; selecting this route does not establish provider qualification. */
+export async function runLabPaidQueueV2<T extends { key: string }, R>(jobs: readonly T[], options: Readonly<{
+  protocol: typeof EVOLUTION_PAID_QUEUE_V2_PROTOCOL; concurrency: number; execute(job: T): Promise<R>; stopped?: () => boolean;
+}>): Promise<LabPaidQueueResult<R>> {
+  if (options.protocol !== EVOLUTION_PAID_QUEUE_V2_PROTOCOL || ![24, 32].includes(options.concurrency)) {
+    throw new RangeError("Paid queue V2 requires its explicit protocol and concurrency 24 or 32.");
+  }
+  return runPaidQueue(jobs, options);
 }

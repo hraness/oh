@@ -19,7 +19,12 @@ from typing import Any, Literal, Optional
 MAX_FRAME_BYTES = 1_048_576
 MAX_TEXT_BYTES = 262_144
 MAX_TOP_K = 50
-VECTOR_DIMENSIONS = 3
+def _vector_dimensions() -> int:
+    raw = os.environ.get("MEM0_VECTOR_DIMENSIONS")
+    if raw is None or not raw.isdecimal() or not 1 <= int(raw) <= 16_384:
+        raise BridgeError("MEM0_VECTOR_DIMENSIONS must be 1..16384")
+    return int(raw)
+
 NAMESPACE = re.compile(r"^[a-f0-9]{64}$")
 REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 FORBIDDEN_CREDENTIALS = (
@@ -49,6 +54,7 @@ def _bootstrap_environment() -> None:
 
 
 _bootstrap_environment()
+VECTOR_DIMENSIONS = _vector_dimensions()
 
 # Import the pinned SDK only after the credential and telemetry boundary above.
 from mem0 import Memory
@@ -138,7 +144,7 @@ class RpcEmbedder(EmbeddingBase):
         vector = result["embedding"]
         if (not isinstance(vector, list) or len(vector) != VECTOR_DIMENSIONS or
                 any(isinstance(n, bool) or not isinstance(n, (int, float)) or not math.isfinite(n) for n in vector)):
-            raise BridgeError("embedding must be three finite numbers")
+            raise BridgeError("embedding must match the configured finite dimensions")
         return [float(n) for n in vector]
 
 
@@ -167,16 +173,17 @@ def _read() -> dict[str, Any]:
 
 
 def _messages(value: Any) -> list[dict[str, str]]:
-    if not isinstance(value, list) or len(value) != 2:
-        raise BridgeError("messages must contain exactly user then assistant")
+    # The parent passes a declared contiguous projection of the original source
+    # turns. Do not invent an acknowledgement or discard an assistant turn.
+    if not isinstance(value, list) or not 1 <= len(value) <= 8192:
+        raise BridgeError("source messages must be a bounded nonempty sequence")
     messages: list[dict[str, str]] = []
-    for expected, item in zip(("user", "assistant"), value):
+    for item in value:
         _exact(item, {"role", "content"}, "source message")
-        if item["role"] != expected:
-            raise BridgeError("source messages must be user then assistant")
-        messages.append({"role": expected, "content": _text(item["content"], "source message content")})
+        if item["role"] not in {"user", "assistant"}:
+            raise BridgeError("source roles must be user or assistant")
+        messages.append({"role": item["role"], "content": _text(item["content"], "source message content")})
     return messages
-
 
 def _metadata(value: Any) -> dict[str, str]:
     _exact(value, {"chunkId", "sourceDigest"}, "metadata")

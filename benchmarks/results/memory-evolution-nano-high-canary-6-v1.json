@@ -1,0 +1,368 @@
+{
+  "protocol": "oh.memory.evolution-completed-stage-public.v1",
+  "fullPrivateReportSha256": "a58c272c2c48142876a159336dfc6da01bb7af31d8f16eee7ffcfa87f31f704b",
+  "completionReceiptSha256": "70ab66b6a735adb5052a368811db898619fa7c252f67efe0c035215f90e072f3",
+  "qualification": "Development-only descriptive evidence; no superiority claim, independent-sample count, or confidence interval.",
+  "dataset": {
+    "name": "longmemeval-s",
+    "revision": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+    "partition": "development",
+    "selectedQuestions": 6,
+    "selectedCorpora": 6,
+    "declaredGroups": 6,
+    "declaredHistories": 6,
+    "exposures": [
+      {
+        "exposure": "unseen",
+        "groups": 0
+      },
+      {
+        "exposure": "development",
+        "groups": 6
+      },
+      {
+        "exposure": "evaluated",
+        "groups": 0
+      },
+      {
+        "exposure": "unknown",
+        "groups": 0
+      }
+    ],
+    "groupingQualification": "Declared grouping and exposure; no independence or freshness inferred."
+  },
+  "pins": {
+    "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+    "sourceSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+    "selectedDatasetSha256": "1ff2268798aa23390050509b88c995633734c815b19ce99767871aaef4d871b8",
+    "contextPlanSha256": "0ffa3ac8075d3ed2fd68ad769a0ea695ca4a092aa2f76ee14c322f3c9aab90d5",
+    "readerPlanSha256": "33cc5cb2032ded3751d5f524c3eee4ee5dd90d720917eab06e10c4e9925e0236",
+    "readerOutputSha256": "d9377fa0f5666aa8dfe4a91289adbb33235ccb6449d4a6dc85a1938b4c511fc3",
+    "judgePlanSha256": "be9dc3e0d70f7f9386a91555c0750ca2f73e3881e36779fd417a2c4c4ccbc3e2",
+    "judgeOutputSha256": "f3a04049509579bbb2322203a01377435f651663fd6e2e0b489c6e8dcc739f04",
+    "rubricSha256": "00d319ba0a194a69871576d8c677c1557d7706f69b599c9b7beee32441d58cfc"
+  },
+  "scoring": {
+    "judgeProfile": "gpt4o-gateway-native-rubric-16-judge-v1",
+    "judgeRule": "native-contains-yes",
+    "judgeReference": {
+      "evaluator": "https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f4ef0e2ab8f2e582289761153549043fc/src/evaluation/evaluate_qa.py",
+      "sourceSha256": "ecce9c4c79dc89d99534ac17b383a5cbb5b9f0c69ee98adaf0684742e3d95251",
+      "parityRubricSha256": "00d319ba0a194a69871576d8c677c1557d7706f69b599c9b7beee32441d58cfc"
+    },
+    "judgeQualification": "Gateway GPT-4o alias with native LongMemEval prompts, one user message and contains-yes grading, adapted to 16 output tokens. The requested model is not a pinned snapshot and the output cap differs from the native 10-token evaluator; not an official protocol reproduction or full-set score.",
+    "officialLocomoF1": null,
+    "failurePolicy": "Every eligible question remains in answer-score denominators. Reader failures score zero; judge failures score zero only for judge accuracy and are counted separately. Authenticated occupied attempts without a verifiable answer score zero and retain their full reservations. Never-admitted requests or unauthenticated missing evidence prevent a complete report.",
+    "evidenceUnit": "session",
+    "evidenceQualification": "Retrieval evidence is scored independently of answer success. No evidence labels means unscored, not perfect; unresolved labels remain in the denominator.",
+    "answerCitationF1": null,
+    "citationQualification": "Not measured: the reader prompt asks for an answer without citations."
+  },
+  "coverage": {
+    "logicalReaderCases": 18,
+    "logicalJudgeCases": 18,
+    "expectedQuestionsPerArm": 6,
+    "completePhysicalResponses": true,
+    "completeAttemptCoverage": true,
+    "verifiedPhysicalResponses": 28,
+    "capturedUnverifiableAttempts": 0,
+    "unknownDispatches": 0
+  },
+  "cost": {
+    "reader": {
+      "physicalRequests": 18,
+      "occupiedRequests": 18,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 61747,
+      "unresolvedReservationMicros": 0,
+      "accountedMicros": 61747,
+      "usageCoverage": {
+        "knownRequests": 18,
+        "unknownRequests": 0
+      },
+      "tokenRateMicros": 61747,
+      "gatewayReportedMicros": 61747,
+      "inputTokens": 984798,
+      "outputTokens": 33255,
+      "cachedInputTokens": 17792,
+      "reasoningTokens": 32640,
+      "byRequestedModel": [
+        {
+          "model": "openai/gpt-5-nano",
+          "physicalRequests": 18,
+          "occupiedRequests": 18,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 61747,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 61747,
+          "usageCoverage": {
+            "knownRequests": 18,
+            "unknownRequests": 0
+          },
+          "tokenRateMicros": 61747,
+          "gatewayReportedMicros": 61747,
+          "inputTokens": 984798,
+          "outputTokens": 33255,
+          "cachedInputTokens": 17792,
+          "reasoningTokens": 32640
+        }
+      ],
+      "identities": [
+        {
+          "requestedModel": "openai/gpt-5-nano",
+          "reportedModel": "openai/gpt-5-nano",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        }
+      ]
+    },
+    "judge": {
+      "physicalRequests": 10,
+      "occupiedRequests": 10,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 3740,
+      "unresolvedReservationMicros": 0,
+      "accountedMicros": 3740,
+      "usageCoverage": {
+        "knownRequests": 10,
+        "unknownRequests": 0
+      },
+      "tokenRateMicros": 3740,
+      "gatewayReportedMicros": 3740,
+      "inputTokens": 1415,
+      "outputTokens": 20,
+      "cachedInputTokens": 0,
+      "reasoningTokens": 0,
+      "byRequestedModel": [
+        {
+          "model": "openai/gpt-4o",
+          "physicalRequests": 10,
+          "occupiedRequests": 10,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 3740,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 3740,
+          "usageCoverage": {
+            "knownRequests": 10,
+            "unknownRequests": 0
+          },
+          "tokenRateMicros": 3740,
+          "gatewayReportedMicros": 3740,
+          "inputTokens": 1415,
+          "outputTokens": 20,
+          "cachedInputTokens": 0,
+          "reasoningTokens": 0
+        }
+      ],
+      "identities": [
+        {
+          "requestedModel": "openai/gpt-4o",
+          "reportedModel": "openai/gpt-4o",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        }
+      ]
+    },
+    "accountedMicros": 65487,
+    "knownUsageMicros": 65487,
+    "unresolvedReservationMicros": 0,
+    "qualification": "Known captured usage plus full unresolved reservations, counted once per distinct occupied request in these phases. Accounted cost is conservative exposure, not a provider invoice or incremental spend for a cache-reusing invocation. Token totals and provider identities cover verified responses only; unknown usage is not zero. Reserved requests without captures do not prove dispatch. Reasoning tokens are already included in output tokens."
+  },
+  "phases": [
+    {
+      "phase": "judge",
+      "receiptSha256": "c440bcf2b6f7c5361a9009f2e5f7e715947ef49497aeb904269ada938de6f16e",
+      "sourceCommit": "4861a45951cf2eddbbd04970706804418b63abe9",
+      "sourceSha256": "c8caa4d0e96fb787aef053c2119bbeec2b2740d5fba9de517811dc058e96603e",
+      "wallMs": 4335.177291,
+      "newAdmissions": 1,
+      "complete": false,
+      "verified": true,
+      "incrementalExposureMicros": 295
+    },
+    {
+      "phase": "judge",
+      "receiptSha256": "f3a04049509579bbb2322203a01377435f651663fd6e2e0b489c6e8dcc739f04",
+      "sourceCommit": "4861a45951cf2eddbbd04970706804418b63abe9",
+      "sourceSha256": "c8caa4d0e96fb787aef053c2119bbeec2b2740d5fba9de517811dc058e96603e",
+      "wallMs": 4014.296000000002,
+      "newAdmissions": 9,
+      "complete": true,
+      "verified": true,
+      "incrementalExposureMicros": 3445
+    },
+    {
+      "phase": "reader",
+      "receiptSha256": "628eb32cd372607abc9c2bf3f1677df8202f40dde06aaa7cc04ffce467a42c88",
+      "sourceCommit": "4861a45951cf2eddbbd04970706804418b63abe9",
+      "sourceSha256": "c8caa4d0e96fb787aef053c2119bbeec2b2740d5fba9de517811dc058e96603e",
+      "wallMs": 21499.112709,
+      "newAdmissions": 1,
+      "complete": false,
+      "verified": true,
+      "incrementalExposureMicros": 2183
+    },
+    {
+      "phase": "reader",
+      "receiptSha256": "d9377fa0f5666aa8dfe4a91289adbb33235ccb6449d4a6dc85a1938b4c511fc3",
+      "sourceCommit": "4861a45951cf2eddbbd04970706804418b63abe9",
+      "sourceSha256": "c8caa4d0e96fb787aef053c2119bbeec2b2740d5fba9de517811dc058e96603e",
+      "wallMs": 40931.492042,
+      "newAdmissions": 17,
+      "complete": true,
+      "verified": true,
+      "incrementalExposureMicros": 59564
+    }
+  ],
+  "campaignAfter": {
+    "calls": 3880,
+    "exposureMicros": 10405587,
+    "confirmedMicros": 10029421,
+    "unresolvedMicros": 376166,
+    "additionalBudgetMicros": 14114421,
+    "maximumCalls": 20000,
+    "historicalExposureMicros": 25885579,
+    "combinedExposureMicros": 36291166
+  },
+  "arms": [
+    {
+      "variant": "window-96k",
+      "reader": "gpt5-nano-high-reader",
+      "questions": 6,
+      "correct": 4,
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "attributedReaderKnownUsageMicros": 10143,
+      "attributedReaderUnresolvedMicros": 0,
+      "readerP50Ms": 8876.928500000002,
+      "readerP95Ms": 24969.761209000004,
+      "categories": [
+        {
+          "category": "knowledge-update",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "multi-session",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 1,
+          "correct": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 1,
+          "correct": 0
+        }
+      ]
+    },
+    {
+      "variant": "oh-focused-window-96k",
+      "reader": "gpt5-nano-high-reader",
+      "questions": 6,
+      "correct": 4,
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "attributedReaderKnownUsageMicros": 10953,
+      "attributedReaderUnresolvedMicros": 0,
+      "readerP50Ms": 13970.202916999995,
+      "readerP95Ms": 32774.91645800001,
+      "categories": [
+        {
+          "category": "knowledge-update",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "multi-session",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 1,
+          "correct": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 1,
+          "correct": 0
+        }
+      ]
+    },
+    {
+      "variant": "full-history",
+      "reader": "gpt5-nano-high-reader",
+      "questions": 6,
+      "correct": 3,
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "attributedReaderKnownUsageMicros": 40651,
+      "attributedReaderUnresolvedMicros": 0,
+      "readerP50Ms": 14959.392083000006,
+      "readerP95Ms": 28035.742500000008,
+      "categories": [
+        {
+          "category": "knowledge-update",
+          "questions": 1,
+          "correct": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 1,
+          "correct": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 1,
+          "correct": 1
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 1,
+          "correct": 0
+        }
+      ]
+    }
+  ],
+  "costQualification": "Arm costs attribute occupied requests and can overlap prior stages; only phase increments describe new campaign exposure. Reused development questions do not add independent samples."
+}

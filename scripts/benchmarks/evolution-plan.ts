@@ -3,8 +3,8 @@ import { assertExactEvolutionCoverage, type EvolutionRunnerInput, type Evolution
 import { createEvolutionContextSourceValidator, prepareEvolutionCorpus, type EvolutionRetrievalResult, type EvolutionRetrievalVariant } from "./evolution-retrieval";
 import { createOhSourceSpanPacker, OH_SPAN_POLICY, OH_SPAN_POOL_VARIANT, type OhSourceSpanResult } from "./evolution-spans";
 import { isEvolutionSpanVariant, parseEvolutionExperimentVariant, type EvolutionExperimentVariant } from "./evolution-variants";
-import { makeEvolutionRequest, makeEvolutionProfileWindowRequest, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "./evolution-model";
-import { answerMessages } from "./model";
+import { makeEvolutionRequest, makeEvolutionProfileWindowRequest, evolutionReaderContract, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "./evolution-model";
+import { evolutionAnswerMessages } from "./evolution-reader-contracts";
 import type { Turn } from "./datasets";
 import { makeEvolutionContextPlanV3, validateEvolutionContextPlanV3, validateEvolutionContextPlanV3Sources, type EvolutionContextPlanV3 } from "./evolution-plan-v3";
 import { isEvolutionV3Treatment, parseEvolutionTreatment, type EvolutionTreatment } from "./evolution-treatments-v3";
@@ -86,7 +86,7 @@ export function makeEvolutionReaderPlan(context: EvolutionAnyContextPlan, reader
   for (const c of context.cases) {
     const question = context.questions.find(q => q.id === c.questionId)!;
     for (const reader of readerProfiles) {
-      const request = ("kind" in c && c.kind === "full-history" ? makeEvolutionProfileWindowRequest : makeEvolutionRequest)(reader, answerMessages(question, c.result.context));
+      const request = ("kind" in c && c.kind === "full-history" ? makeEvolutionProfileWindowRequest : makeEvolutionRequest)(reader, evolutionAnswerMessages(question, c.result.context, evolutionReaderContract(reader)));
       requests.set(request.requestSha256, request);
       cases.push({ questionId: c.questionId, variantId: c.variantId, reader, contextSha256: c.result.contextSha256, requestSha256: request.requestSha256 });
     }
