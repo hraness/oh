@@ -6,7 +6,7 @@ import { validateEvolutionReaderPlan, type EvolutionAnyContextPlan, type Evoluti
 import { validateEvolutionAttemptFailure, type EvolutionAttemptFailure } from "./evolution-store";
 import { buildJudgePrompt, loadJudgeProfile, parseJudgeDecision } from "./judge";
 
-export type EvolutionJudgeProfileId = "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge" | "gpt4o-gateway-native-rubric-judge-v1";
+export type EvolutionJudgeProfileId = "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge" | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1";
 // Offline differential evidence: all six official task types, abstention and literal-field interpolation.
 // The upstream MIT attribution/license and exact prompt text are retained in the pinned profile JSON.
 export const EVOLUTION_LME_NATIVE_REFERENCE = {
@@ -22,7 +22,7 @@ export type EvolutionJudgePlan = Readonly<{ protocol: "oh.memory.evolution-judge
   requests: readonly EvolutionRequest[]; planSha256: string }>;
 const fail = (message: string): never => { throw new TypeError(`Evolution judge: ${message}.`); };
 const caseKey = (c: EvolutionJudgeCase) => JSON.stringify([c.questionId, c.variantId, c.reader]);
-const nativeRubric = (profile: EvolutionJudgeProfileId) => profile === "gpt4o-official-snapshot-judge" || profile === "gpt4o-gateway-native-rubric-judge-v1";
+const nativeRubric = (profile: EvolutionJudgeProfileId) => profile === "gpt4o-official-snapshot-judge" || profile === "gpt4o-gateway-native-rubric-judge-v1" || profile === "gpt4o-gateway-native-rubric-16-judge-v1";
 const profileRule = (profile: EvolutionJudgeProfileId) => nativeRubric(profile) ? "native-contains-yes" as const : "strict-yes-no" as const;
 
 export function scoreEvolutionJudgeDecision(profile: EvolutionJudgeProfileId, answer: unknown): 0 | 1 | null {
@@ -33,7 +33,7 @@ export function scoreEvolutionJudgeDecision(profile: EvolutionJudgeProfileId, an
 
 export function validateEvolutionJudgePlan(plan: EvolutionJudgePlan): EvolutionJudgePlan {
   if (!isPlainRecord(plan) || !hasExactKeys(plan, ["protocol", "readerPlanSha256", "readerOutputSha256", "profile", "rubricSha256", "scoringRule", "cases", "requests", "planSha256"])
-    || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1"].includes(plan.profile)
+    || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1", "gpt4o-gateway-native-rubric-16-judge-v1"].includes(plan.profile)
     || !Array.isArray(plan.cases) || plan.cases.length < 1 || plan.cases.length > 512_000
     || !Array.isArray(plan.requests) || plan.requests.length > plan.cases.length) fail("invalid shape or bounds");
   const { planSha256, ...payload } = plan;

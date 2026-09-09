@@ -34,7 +34,7 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
     || !["longmemeval-s", "locomo"].includes(String(value.dataset)) || !positive(value.limit, 2000) || !positive(value.seed, 1_000_000)
     || !positive(value.concurrency, 12) || !Array.isArray(value.variants) || value.variants.length < 1 || value.variants.length > 32
     || !Array.isArray(value.readers) || value.readers.length < 1 || value.readers.length > 8
-    || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1"].includes(String(value.judge))) fail("invalid explicit configuration");
+    || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1", "gpt4o-gateway-native-rubric-16-judge-v1"].includes(String(value.judge))) fail("invalid explicit configuration");
   const variants = value.variants.map(parseEvolutionTreatment);
   const v3 = variants.some(isEvolutionV3Treatment);
   if (v3 !== (value.protocol === "oh.memory.evolution-run.v3")) fail("new fixed mechanisms and full history require explicit run V3");

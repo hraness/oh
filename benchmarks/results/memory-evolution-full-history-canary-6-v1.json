@@ -1,0 +1,79 @@
+{
+  "protocol": "oh.memory.evolution-full-history-canary.v1",
+  "dataset": "longmemeval-s",
+  "datasetSourceSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "selection": "Six previously exposed development questions, seed 17, overlapping the complete 100-question matrix. No fresh or independent confirmation.",
+  "pins": {
+    "configSha256": "17fee9f0d8cc5313a5c2935eb9e015aa0424f3e66e9395112330ae6c3ef8c703",
+    "contextFileSha256": "8ade88795eb5d258b1bcec519a7d9b997ea5a0ace9f7d5806962146dc3956303",
+    "readerPlanFileSha256": "2603e09605a895e495e6be91b5b3cf7b75f74cea7722d5961b741c937c633d24",
+    "readerReceiptSha256": "3b76f75479c0d145605114748444df20a2a2b63883fd1c86d699b762442df120"
+  },
+  "sourceCommit": "275b8b1be37d82a5821508f7de6f5057689a6d5c",
+  "sourceSha256": "13b06035c38022cb639ab57fc1f802a3df8b3abe490032b57bdfbebd4fbf325f",
+  "arms": [
+    {
+      "reader": "gpt5-nano-reader",
+      "questions": 6,
+      "completed": 6,
+      "knownUsageMicros": 36593,
+      "inputTokensMinimum": 118414,
+      "inputTokensMaximum": 120710,
+      "outputTokensMaximum": 648,
+      "identities": [
+        {
+          "requestedModel": "openai/gpt-5-nano",
+          "reportedModel": "openai/gpt-5-nano",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-mini-reader",
+      "questions": 6,
+      "completed": 6,
+      "knownUsageMicros": 186023,
+      "inputTokensMinimum": 118414,
+      "inputTokensMaximum": 120710,
+      "outputTokensMaximum": 967,
+      "identities": [
+        {
+          "requestedModel": "openai/gpt-5-mini",
+          "reportedModel": "openai/gpt-5-mini",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        }
+      ]
+    }
+  ],
+  "fullHistorySource": {
+    "minimumTurns": 437,
+    "maximumTurns": 519,
+    "allSourceMembershipAuthenticated": true,
+    "truncation": false
+  },
+  "phase": {
+    "newAdmissions": 12,
+    "wallMs": 20540.891540999997,
+    "complete": true,
+    "retainedFailures": 0
+  },
+  "campaignAfter": {
+    "calls": 3581,
+    "exposureMicros": 6459021,
+    "confirmedMicros": 6410446,
+    "unresolvedMicros": 48575,
+    "additionalBudgetMicros": 14114421,
+    "maximumCalls": 20000,
+    "historicalExposureMicros": 25885579,
+    "combinedExposureMicros": 32344600
+  },
+  "qualification": "All 12 new full-history first responses completed with verified usage. This demonstrates bounded actual provider acceptance on these six histories, not an accuracy score, exact tokenizer proof for other histories, or superiority. Twelve BM25 control requests were reused from prior captures; no judge phase was needed for acceptance."
+}

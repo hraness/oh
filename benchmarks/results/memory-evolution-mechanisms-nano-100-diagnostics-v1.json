@@ -1,0 +1,815 @@
+{
+  "protocol": "oh.memory.mechanism-diagnostic-public.v1",
+  "stage": "mechanisms-nano-100",
+  "fullPrivateReportSha256": "cbd1c3c4ae12f0d7cc956966a713a0623573e86f3721b98153d567160e714f91",
+  "privateDiagnosticSummarySha256": "c778eaeeb536cb4bba8587aa8df980fba9ae00dce7b897149f8e420eb8af75d3",
+  "contextPlanSha256": "f98783586724233b8ff518e71c5c39ae1dd35b96d1f87836674a65e492184267",
+  "reader": "gpt5-nano-reader",
+  "selectedQuestions": 100,
+  "declaredHistories": 94,
+  "arms": [
+    {
+      "variantId": "window-96k",
+      "cases": 100,
+      "contextBytes": {
+        "count": 100,
+        "sum": 9422596,
+        "min": 35221,
+        "median": 95964,
+        "p95": 95996,
+        "max": 96000,
+        "mean": 94225.96
+      },
+      "sourceTurns": {
+        "count": 100,
+        "sum": 9191,
+        "min": 36,
+        "median": 93,
+        "p95": 108,
+        "max": 124,
+        "mean": 91.91
+      },
+      "sourceSessions": {
+        "count": 100,
+        "sum": 2010,
+        "min": 8,
+        "median": 20,
+        "p95": 26,
+        "max": 28,
+        "mean": 20.1
+      },
+      "spanCount": null,
+      "quotedSourceBytes": null,
+      "answerScore": {
+        "correct": 75,
+        "denominator": 100,
+        "readerFailures": 0,
+        "judgeFailures": 0
+      },
+      "reportEvidenceAggregates": [
+        {
+          "metric": "evidence-precision",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.09692046599335258,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-recall",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.9484999999999999,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-f1",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.17011453877236005,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-all",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.91,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        }
+      ]
+    },
+    {
+      "variantId": "oh-focused-window-48k",
+      "cases": 100,
+      "contextBytes": {
+        "count": 100,
+        "sum": 4774028,
+        "min": 35221,
+        "median": 47971,
+        "p95": 47999,
+        "max": 48000,
+        "mean": 47740.28
+      },
+      "sourceTurns": {
+        "count": 100,
+        "sum": 4745,
+        "min": 35,
+        "median": 46,
+        "p95": 58,
+        "max": 65,
+        "mean": 47.45
+      },
+      "sourceSessions": {
+        "count": 100,
+        "sum": 1145,
+        "min": 6,
+        "median": 11,
+        "p95": 16,
+        "max": 17,
+        "mean": 11.45
+      },
+      "spanCount": null,
+      "quotedSourceBytes": null,
+      "answerScore": {
+        "correct": 71,
+        "denominator": 100,
+        "readerFailures": 0,
+        "judgeFailures": 0
+      },
+      "reportEvidenceAggregates": [
+        {
+          "metric": "evidence-precision",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.16594895219159914,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-recall",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.9293333333333333,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-f1",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.2701270306061326,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-all",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.88,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        }
+      ]
+    },
+    {
+      "variantId": "oh-source-spans-48k",
+      "cases": 100,
+      "contextBytes": {
+        "count": 100,
+        "sum": 4007847,
+        "min": 7854,
+        "median": 43974,
+        "p95": 47515,
+        "max": 47955,
+        "mean": 40078.47
+      },
+      "sourceTurns": {
+        "count": 100,
+        "sum": 6342,
+        "min": 16,
+        "median": 65,
+        "p95": 80,
+        "max": 93,
+        "mean": 63.42
+      },
+      "sourceSessions": {
+        "count": 100,
+        "sum": 2636,
+        "min": 8,
+        "median": 27,
+        "p95": 34,
+        "max": 36,
+        "mean": 26.36
+      },
+      "spanCount": {
+        "count": 100,
+        "sum": 11160,
+        "min": 20,
+        "median": 128,
+        "p95": 128,
+        "max": 128,
+        "mean": 111.6
+      },
+      "quotedSourceBytes": {
+        "count": 100,
+        "sum": 2117137,
+        "min": 4251,
+        "median": 22567,
+        "p95": 26429,
+        "max": 27106,
+        "mean": 21171.37
+      },
+      "answerScore": {
+        "correct": 66,
+        "denominator": 100,
+        "readerFailures": 0,
+        "judgeFailures": 0
+      },
+      "reportEvidenceAggregates": [
+        {
+          "metric": "evidence-precision",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.07700368109365097,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-recall",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.958,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-f1",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.13828628349267555,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-all",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.94,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        }
+      ]
+    },
+    {
+      "variantId": "oh-spans-v2-focused-pool",
+      "cases": 100,
+      "contextBytes": {
+        "count": 100,
+        "sum": 4107794,
+        "min": 7854,
+        "median": 43888,
+        "p95": 47417,
+        "max": 47993,
+        "mean": 41077.94
+      },
+      "sourceTurns": {
+        "count": 100,
+        "sum": 7210,
+        "min": 18,
+        "median": 75,
+        "p95": 90,
+        "max": 97,
+        "mean": 72.1
+      },
+      "sourceSessions": {
+        "count": 100,
+        "sum": 2848,
+        "min": 8,
+        "median": 30,
+        "p95": 36,
+        "max": 37,
+        "mean": 28.48
+      },
+      "spanCount": {
+        "count": 100,
+        "sum": 11612,
+        "min": 20,
+        "median": 128,
+        "p95": 128,
+        "max": 128,
+        "mean": 116.12
+      },
+      "quotedSourceBytes": {
+        "count": 100,
+        "sum": 2140036,
+        "min": 4412,
+        "median": 22391,
+        "p95": 25656,
+        "max": 26935,
+        "mean": 21400.36
+      },
+      "answerScore": {
+        "correct": 65,
+        "denominator": 100,
+        "readerFailures": 1,
+        "judgeFailures": 0
+      },
+      "reportEvidenceAggregates": [
+        {
+          "metric": "evidence-precision",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.0734105278006977,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-recall",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.985,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-f1",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.13230049810095296,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-all",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.98,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        }
+      ]
+    },
+    {
+      "variantId": "oh-spans-v2-continuation",
+      "cases": 100,
+      "contextBytes": {
+        "count": 100,
+        "sum": 4672568,
+        "min": 18265,
+        "median": 47892,
+        "p95": 47992,
+        "max": 48000,
+        "mean": 46725.68
+      },
+      "sourceTurns": {
+        "count": 100,
+        "sum": 4608,
+        "min": 18,
+        "median": 45,
+        "p95": 63,
+        "max": 74,
+        "mean": 46.08
+      },
+      "sourceSessions": {
+        "count": 100,
+        "sum": 2140,
+        "min": 8,
+        "median": 22,
+        "p95": 28,
+        "max": 31,
+        "mean": 21.4
+      },
+      "spanCount": {
+        "count": 100,
+        "sum": 4717,
+        "min": 19,
+        "median": 46,
+        "p95": 63,
+        "max": 75,
+        "mean": 47.17
+      },
+      "quotedSourceBytes": {
+        "count": 100,
+        "sum": 3876201,
+        "min": 15115,
+        "median": 39717,
+        "p95": 41094,
+        "max": 41694,
+        "mean": 38762.01
+      },
+      "answerScore": {
+        "correct": 65,
+        "denominator": 100,
+        "readerFailures": 0,
+        "judgeFailures": 0
+      },
+      "reportEvidenceAggregates": [
+        {
+          "metric": "evidence-precision",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.09246864008444314,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-recall",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.966,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-f1",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.16354648178202294,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-all",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.93,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        }
+      ]
+    },
+    {
+      "variantId": "oh-spans-v2-diverse",
+      "cases": 100,
+      "contextBytes": {
+        "count": 100,
+        "sum": 3066105,
+        "min": 5908,
+        "median": 32337,
+        "p95": 40439,
+        "max": 46664,
+        "mean": 30661.05
+      },
+      "sourceTurns": {
+        "count": 100,
+        "sum": 6736,
+        "min": 14,
+        "median": 73,
+        "p95": 84,
+        "max": 89,
+        "mean": 67.36
+      },
+      "sourceSessions": {
+        "count": 100,
+        "sum": 3106,
+        "min": 8,
+        "median": 32,
+        "p95": 38,
+        "max": 42,
+        "mean": 31.06
+      },
+      "spanCount": {
+        "count": 100,
+        "sum": 8492,
+        "min": 17,
+        "median": 91,
+        "p95": 111,
+        "max": 128,
+        "mean": 84.92
+      },
+      "quotedSourceBytes": {
+        "count": 100,
+        "sum": 1638508,
+        "min": 3068,
+        "median": 17291,
+        "p95": 22199,
+        "max": 24931,
+        "mean": 16385.08
+      },
+      "answerScore": {
+        "correct": 60,
+        "denominator": 100,
+        "readerFailures": 0,
+        "judgeFailures": 0
+      },
+      "reportEvidenceAggregates": [
+        {
+          "metric": "evidence-precision",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.06832854754590875,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-recall",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.99,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-f1",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.1237071019968436,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        },
+        {
+          "metric": "evidence-all",
+          "cases": 100,
+          "scored": 100,
+          "unscored": 0,
+          "failed": 0,
+          "mean": 0.99,
+          "declaredGroups": 94,
+          "declaredHistories": 94
+        }
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "focused-pool-v-v1",
+      "left": "oh-spans-v2-focused-pool",
+      "right": "oh-source-spans-48k",
+      "pairedQuestions": 100,
+      "changedContexts": 100,
+      "changedTurnMembership": 94,
+      "changedSessionMembership": 87,
+      "byteDelta": {
+        "count": 100,
+        "sum": 99947,
+        "min": -2601,
+        "median": 24,
+        "p95": 6291,
+        "max": 10633,
+        "mean": 999.47
+      },
+      "leftExtendedMatchedSpans": 0,
+      "leftExtensionBytesAtMatchedFocus": 0,
+      "outcomes": {
+        "leftOnlyCorrect": 4,
+        "rightOnlyCorrect": 5,
+        "bothCorrect": 61,
+        "bothIncorrect": 30,
+        "anyFailure": 1,
+        "sameAnswerDifferentDecision": 0,
+        "changedContextSameAnswer": 64
+      }
+    },
+    {
+      "id": "continuation-v-focused-pool",
+      "left": "oh-spans-v2-continuation",
+      "right": "oh-spans-v2-focused-pool",
+      "pairedQuestions": 100,
+      "changedContexts": 100,
+      "changedTurnMembership": 92,
+      "changedSessionMembership": 92,
+      "byteDelta": {
+        "count": 100,
+        "sum": 564774,
+        "min": -103,
+        "median": 3928,
+        "p95": 19765,
+        "max": 26342,
+        "mean": 5647.74
+      },
+      "leftExtendedMatchedSpans": 3242,
+      "leftExtensionBytesAtMatchedFocus": 3009579,
+      "outcomes": {
+        "leftOnlyCorrect": 6,
+        "rightOnlyCorrect": 6,
+        "bothCorrect": 59,
+        "bothIncorrect": 29,
+        "anyFailure": 1,
+        "sameAnswerDifferentDecision": 0,
+        "changedContextSameAnswer": 55
+      }
+    },
+    {
+      "id": "diverse-v-focused-pool",
+      "left": "oh-spans-v2-diverse",
+      "right": "oh-spans-v2-focused-pool",
+      "pairedQuestions": 100,
+      "changedContexts": 100,
+      "changedTurnMembership": 99,
+      "changedSessionMembership": 66,
+      "byteDelta": {
+        "count": 100,
+        "sum": -1041689,
+        "min": -27477,
+        "median": -10289,
+        "p95": -2402,
+        "max": 373,
+        "mean": -10416.89
+      },
+      "leftExtendedMatchedSpans": 0,
+      "leftExtensionBytesAtMatchedFocus": 0,
+      "outcomes": {
+        "leftOnlyCorrect": 6,
+        "rightOnlyCorrect": 11,
+        "bothCorrect": 54,
+        "bothIncorrect": 29,
+        "anyFailure": 1,
+        "sameAnswerDifferentDecision": 0,
+        "changedContextSameAnswer": 51
+      }
+    },
+    {
+      "id": "v1-v-wide-window",
+      "left": "oh-source-spans-48k",
+      "right": "window-96k",
+      "pairedQuestions": 100,
+      "changedContexts": 100,
+      "changedTurnMembership": 100,
+      "changedSessionMembership": 94,
+      "byteDelta": {
+        "count": 100,
+        "sum": -5414749,
+        "min": -81408,
+        "median": -51846,
+        "p95": -48147,
+        "max": -27135,
+        "mean": -54147.49
+      },
+      "leftExtendedMatchedSpans": 0,
+      "leftExtensionBytesAtMatchedFocus": 0,
+      "outcomes": {
+        "leftOnlyCorrect": 6,
+        "rightOnlyCorrect": 15,
+        "bothCorrect": 60,
+        "bothIncorrect": 19,
+        "anyFailure": 0,
+        "sameAnswerDifferentDecision": 0,
+        "changedContextSameAnswer": 53
+      }
+    },
+    {
+      "id": "focused-neighbor-v-wide-window",
+      "left": "oh-focused-window-48k",
+      "right": "window-96k",
+      "pairedQuestions": 100,
+      "changedContexts": 99,
+      "changedTurnMembership": 98,
+      "changedSessionMembership": 98,
+      "byteDelta": {
+        "count": 100,
+        "sum": -4648568,
+        "min": -48099,
+        "median": -47993,
+        "p95": -46219,
+        "max": 0,
+        "mean": -46485.68
+      },
+      "leftExtendedMatchedSpans": 0,
+      "leftExtensionBytesAtMatchedFocus": 0,
+      "outcomes": {
+        "leftOnlyCorrect": 3,
+        "rightOnlyCorrect": 7,
+        "bothCorrect": 68,
+        "bothIncorrect": 22,
+        "anyFailure": 0,
+        "sameAnswerDifferentDecision": 0,
+        "changedContextSameAnswer": 56
+      }
+    },
+    {
+      "id": "oh-spans-v2-focused-pool-v-wide-window",
+      "left": "oh-spans-v2-focused-pool",
+      "right": "window-96k",
+      "pairedQuestions": 100,
+      "changedContexts": 100,
+      "changedTurnMembership": 100,
+      "changedSessionMembership": 94,
+      "byteDelta": {
+        "count": 100,
+        "sum": -5314802,
+        "min": -81408,
+        "median": -51920,
+        "p95": -48107,
+        "max": -26253,
+        "mean": -53148.02
+      },
+      "leftExtendedMatchedSpans": 0,
+      "leftExtensionBytesAtMatchedFocus": 0,
+      "outcomes": {
+        "leftOnlyCorrect": 5,
+        "rightOnlyCorrect": 15,
+        "bothCorrect": 60,
+        "bothIncorrect": 20,
+        "anyFailure": 1,
+        "sameAnswerDifferentDecision": 0,
+        "changedContextSameAnswer": 51
+      }
+    },
+    {
+      "id": "oh-spans-v2-continuation-v-wide-window",
+      "left": "oh-spans-v2-continuation",
+      "right": "window-96k",
+      "pairedQuestions": 100,
+      "changedContexts": 100,
+      "changedTurnMembership": 100,
+      "changedSessionMembership": 94,
+      "byteDelta": {
+        "count": 100,
+        "sum": -4750028,
+        "min": -68249,
+        "median": -48058,
+        "p95": -47933,
+        "max": -16956,
+        "mean": -47500.28
+      },
+      "leftExtendedMatchedSpans": 0,
+      "leftExtensionBytesAtMatchedFocus": 0,
+      "outcomes": {
+        "leftOnlyCorrect": 4,
+        "rightOnlyCorrect": 14,
+        "bothCorrect": 61,
+        "bothIncorrect": 21,
+        "anyFailure": 0,
+        "sameAnswerDifferentDecision": 0,
+        "changedContextSameAnswer": 49
+      }
+    },
+    {
+      "id": "oh-spans-v2-diverse-v-wide-window",
+      "left": "oh-spans-v2-diverse",
+      "right": "window-96k",
+      "pairedQuestions": 100,
+      "changedContexts": 100,
+      "changedTurnMembership": 100,
+      "changedSessionMembership": 94,
+      "byteDelta": {
+        "count": 100,
+        "sum": -6356491,
+        "min": -83563,
+        "median": -63113,
+        "p95": -54266,
+        "max": -29313,
+        "mean": -63564.91
+      },
+      "leftExtendedMatchedSpans": 0,
+      "leftExtensionBytesAtMatchedFocus": 0,
+      "outcomes": {
+        "leftOnlyCorrect": 5,
+        "rightOnlyCorrect": 20,
+        "bothCorrect": 55,
+        "bothIncorrect": 20,
+        "anyFailure": 0,
+        "sameAnswerDifferentDecision": 0,
+        "changedContextSameAnswer": 45
+      }
+    }
+  ],
+  "rawVsFocusedPools": {
+    "pairedQuestions": 100,
+    "changedOrderOrMembership": 100,
+    "changedMembership": 100
+  },
+  "qualification": [
+    "Descriptive diagnostics over the complete fixed development matrix; no causal labels or independent-sample claim.",
+    "Structural source overlap and quoted byte counts do not measure answer-bearing span coverage. Gold evidence recall is report aggregate only.",
+    "Joins byte-pinned completed report and phase artifacts; it does not reopen the paid store or independently reconstruct the source corpus.",
+    "Quoted interval intersection inherits the pinned context/report's validated nonoverlapping source-span invariant. Matched-focus extension bytes are not net unique quoted-byte growth.",
+    "Opaque examples are lexical-ID bounded samples, never selected for a causal interpretation. Source/question/gold/answer text is omitted from outputs."
+  ],
+  "failureRetention": {
+    "focusedPoolReaderFailures": 1,
+    "retainedReservationMicros": 6275,
+    "failureScoresZero": true
+  },
+  "diagnosticProviderCalls": 0,
+  "diagnosticProviderCostUsd": 0
+}

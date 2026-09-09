@@ -1,0 +1,92 @@
+{
+  "protocol": "oh.memory.gateway-native-judge-qualification.v1",
+  "status": "rejected-by-provider",
+  "profile": "gpt4o-gateway-native-rubric-judge-v1",
+  "sourceCommit": "cc88c450559755a36c77b6acba2a129794bac44b",
+  "sourceSha256": "a7215ae33775f79293d068006d21c3fc8b4bde407e8f77242bfcfc18a0e8bb56",
+  "judgePlanFileSha256": "b1c1f06da05e8cb007ab3369102b9d890ab57da7e001ed1f64c9c0220b7be18a",
+  "passes": [
+    {
+      "receiptSha256": "d38c4e469c1e35848e4fc0100e0d70246e60ea38b4117c4c465d4589c404a07e",
+      "admissions": 12,
+      "verifiedResponses": 0,
+      "retainedFailures": 12,
+      "complete": false,
+      "verified": true,
+      "wallMs": 27035.422875000004,
+      "campaignAfter": {
+        "calls": 3816,
+        "exposureMicros": 10093547,
+        "confirmedMicros": 9963934,
+        "unresolvedMicros": 129613,
+        "additionalBudgetMicros": 14114421,
+        "maximumCalls": 20000,
+        "historicalExposureMicros": 25885579,
+        "combinedExposureMicros": 35979126
+      }
+    },
+    {
+      "receiptSha256": "abdf1e1b13b4831c1ecd8db16645b253f1463ae313e7cd15fd68bc3d62903555",
+      "admissions": 12,
+      "verifiedResponses": 0,
+      "retainedFailures": 24,
+      "complete": false,
+      "verified": true,
+      "wallMs": 24852.228166000015,
+      "campaignAfter": {
+        "calls": 3828,
+        "exposureMicros": 10174931,
+        "confirmedMicros": 9963934,
+        "unresolvedMicros": 210997,
+        "additionalBudgetMicros": 14114421,
+        "maximumCalls": 20000,
+        "historicalExposureMicros": 25885579,
+        "combinedExposureMicros": 36060510
+      }
+    },
+    {
+      "receiptSha256": "d81a14d7efb70121f30587db4d15e0f3973cddf6daa4239037e0ede86d4dbaeb",
+      "admissions": 12,
+      "verifiedResponses": 0,
+      "retainedFailures": 36,
+      "complete": false,
+      "verified": true,
+      "wallMs": 22892.6495,
+      "campaignAfter": {
+        "calls": 3840,
+        "exposureMicros": 10256581,
+        "confirmedMicros": 9963934,
+        "unresolvedMicros": 292647,
+        "additionalBudgetMicros": 14114421,
+        "maximumCalls": 20000,
+        "historicalExposureMicros": 25885579,
+        "combinedExposureMicros": 36142160
+      }
+    },
+    {
+      "receiptSha256": "3344b9806e39a04ff274fb42a7b7778ba4e1b59b3e173e59675e9dbc11dcf4fc",
+      "admissions": 12,
+      "verifiedResponses": 0,
+      "retainedFailures": 48,
+      "complete": false,
+      "verified": true,
+      "wallMs": 21536.803000000014,
+      "campaignAfter": {
+        "calls": 3852,
+        "exposureMicros": 10340100,
+        "confirmedMicros": 9963934,
+        "unresolvedMicros": 376166,
+        "additionalBudgetMicros": 14114421,
+        "maximumCalls": 20000,
+        "historicalExposureMicros": 25885579,
+        "combinedExposureMicros": 36225679
+      }
+    }
+  ],
+  "newCalls": 48,
+  "newUnresolvedReservationMicros": 327591,
+  "httpStatus": 400,
+  "providerReason": "The routed API requires max_output_tokens >= 16; this profile requests 10.",
+  "readerCalls": 0,
+  "recovery": "Stopped without a complete judge matrix or accuracy report. All original first responses and reservations remain. A separately identified 16-token profile requires one successful request before expansion."
+}

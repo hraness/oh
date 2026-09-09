@@ -173,10 +173,11 @@ LongMemEval judge profiles are explicit and keep separate request identities:
 | Judge profile | Route and requested model | Messages and output limit | Decision rule |
 | --- | --- | --- | --- |
 | `gpt4o-official-snapshot-judge` | Direct OpenAI `gpt-4o-2024-08-06` | One user message, 10 tokens | Native `contains yes` |
+| `gpt4o-gateway-native-rubric-16-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 16 tokens | Native `contains yes` |
 | `gpt4o-gateway-native-rubric-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 10 tokens | Native `contains yes` |
 | `gpt4o-gateway-judge` | Gateway `openai/gpt-4o`, OpenAI provider only | System and user messages, 16 tokens | Strict yes/no |
 
-Both native-rubric profiles require the parity-qualified, source-attributed
+All native-rubric profiles require the parity-qualified, source-attributed
 category prompt file and temperature zero. The native rule deliberately grades
 any completed response containing `yes` case-insensitively as correct; other
 completed responses score zero. This preserves the released evaluator's rule,
@@ -189,7 +190,16 @@ that limitation explicitly; source prompt parity does not establish live
 provider qualification or an official full-set score. LoCoMo semantic judging
 remains a separate diagnostic from its official F1.
 
-Run configuration V1, V2 and V3 may explicitly select the new judge ID; those
+The `gpt4o-gateway-native-rubric-16-judge-v1` profile adapts only the output limit
+from 10 to 16 tokens for Gateway compatibility. It keeps the native prompt and
+contains-yes rule, but its cap and alias route prevent an official protocol
+reproduction claim. The earlier 10-token profile remains a distinct identity;
+its rejected first attempts and full unresolved reservations are preserved.
+Changing the limit requires new requests, not a retry or relabeling of those
+captures. Qualify any new provider/profile combination with one bounded request
+before expanding; stop on a deterministic provider configuration rejection.
+
+Run configuration V1, V2 and V3 may explicitly select either Gateway native-rubric ID; those
 versions still describe treatment/context shapes. The model request remains V1
 with a new profile digest and request digest. Existing profile IDs, V1/V2 reader
 requests, proxy judgments and stored replay identities retain their original

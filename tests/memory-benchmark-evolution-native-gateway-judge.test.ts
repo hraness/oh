@@ -135,6 +135,24 @@ test("native rubric uses a distinct alias profile with one user prompt, ten toke
   }
 });
 
+test("Gateway16 adaptation preserves the rejected10 profile and has distinct immutable request identity", () => {
+  const old = makeEvolutionRequest(native, single);
+  expect(old.profileSha256).toBe("bf22f9b7d19534fcaddd55a9b4f8e158e2e27d24ab20ad57108fedc51925d8c4");
+  expect(old.requestSha256).toBe("47eb1fde491f2aeb4f58801b51098b904af44ba194ce584f17c7c27d75968cb5");
+  expect(String(sha256Hex(JSON.stringify(old)))).toBe("d0bc2d565506a36b50b8541b11490c57695b5dfa1f6073856a572c3a7f3f926c");
+  const adapted = makeEvolutionRequest("gpt4o-gateway-native-rubric-16-judge-v1", single);
+  expect(adapted.body).toEqual({ ...old.body, max_tokens: 16 });
+  expect(adapted.profileSha256).not.toBe(old.profileSha256);
+  expect(adapted.requestSha256).not.toBe(old.requestSha256);
+  expect(adapted.reservationMicros).toBe(old.reservationMicros + 60);
+  expect(parseEvolutionResponse(response(adapted), adapted).identity).toMatchObject({ qualification: "gateway-alias", snapshotPinned: false });
+  expect(validateEvolutionRequest(structuredClone(adapted))).toEqual(adapted);
+  expect(() => makeEvolutionRequest("gpt4o-gateway-native-rubric-16-judge-v1", messages)).toThrow("prompt shape");
+  expect(() => validateEvolutionRequest({ ...adapted, profileId: native })).toThrow("request changed");
+  expect(scoreEvolutionJudgeDecision("gpt4o-gateway-native-rubric-16-judge-v1", "not yes")).toBe(1);
+  expect(scoreEvolutionJudgeDecision("gpt4o-gateway-native-rubric-16-judge-v1", "maybe")).toBe(0);
+});
+
 test("all official task and abstention prompt shapes match direct snapshot messages with separate scoring identity", async () => {
   const rubric = await loadJudgeProfile();
   const categories = ["single-session-user", "single-session-assistant", "multi-session", "temporal-reasoning", "knowledge-update", "single-session-preference"];
@@ -148,6 +166,11 @@ test("all official task and abstention prompt shapes match direct snapshot messa
   const input = { contextPlan, readerPlan, responses, dataset, rubric, readerOutputSha256: hash };
   const plan = makeEvolutionJudgePlan({ ...input, profile: native });
   const direct = makeEvolutionJudgePlan({ ...input, profile: "gpt4o-official-snapshot-judge" });
+  const adapted = makeEvolutionJudgePlan({ ...input, profile: "gpt4o-gateway-native-rubric-16-judge-v1" });
+  expect(adapted.requests.map(request => request.body.messages)).toEqual(direct.requests.map(request => request.body.messages));
+  expect(adapted.requests.every(request => request.body.max_tokens === 16)).toBeTrue();
+  expect(adapted.scoringRule).toBe("native-contains-yes");
+  expect(() => makeEvolutionJudgePlan({ ...input, profile: "gpt4o-gateway-native-rubric-16-judge-v1", rubric: { ...rubric, sha256: hash } })).toThrow("parity-qualified rubric");
   const proxy = makeEvolutionJudgePlan({ ...input, profile: "gpt4o-gateway-judge" });
   expect(plan.rubricSha256).toBe(EVOLUTION_LME_NATIVE_REFERENCE.parityRubricSha256);
   expect(plan.scoringRule).toBe("native-contains-yes");
@@ -181,6 +204,8 @@ test("new judge ID is explicit in compatible config shapes and cannot be selecte
   ] as const) {
     const config = { ...common, protocol, variants };
     expect(parseEvolutionRunConfig(config)).toEqual(config);
+    const adapted = { ...config, judge: "gpt4o-gateway-native-rubric-16-judge-v1" as const };
+    expect(parseEvolutionRunConfig(adapted)).toEqual(adapted);
     expect(() => parseEvolutionRunConfig({ ...config, readers: [native] })).toThrow("reader profile");
   }
 });

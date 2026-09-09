@@ -243,6 +243,93 @@ benchmark saturation or a successful accuracy improvement from breeding.
 [Paired comparisons](results/memory-evolution-offspring-nano-100-paired-v1.json)
 retain the exact full-width BM25 control identity and every failed case.
 
+## Focused source-packing mechanisms
+
+The fixed V3 comparison evaluated three new 48 KB packing policies on all 100
+exposed development questions with the same low-effort nano reader. These are
+component ablations, separate from the genetic generation above.
+
+| Configuration | Correct answers | Attributed reader usage |
+| --- | ---: | ---: |
+| BM25 window, 96 KB | 75/100 | $0.106606 |
+| Oh focused query with neighbors, 48 KB | 71/100 | $0.037686 |
+| Original raw-pool excerpts, 48 KB | 66/100 | $0.052059 |
+| Focused-pool excerpts, 48 KB | 65/100 | $0.072145 + $0.006275 unresolved |
+| Contiguous continuation, 48 KB | 65/100 | $0.069878 |
+| Source diversity, 48 KB | 60/100 | $0.056711 |
+
+None of the new policies qualifies as an accuracy finalist. Against original
+excerpts, focused pooling has four wins and five losses. Continuation has six
+wins and six losses against focused pooling; diversity has six wins and eleven
+losses. All three remain below the fixed BM25 control. The
+[mechanism diagnostics](results/memory-evolution-mechanisms-nano-100-diagnostics-v1.json)
+separate these paired answer results from structural changes in the contexts.
+
+The 600 logical cases required 599 physical reader attempts. One new captured
+response reported more reasoning tokens than completion tokens, so its usage
+was unverifiable. It scores zero, retains its full $0.006275 reservation, and
+was never retried. Two dispatches admitted 70 and 230 new requests in a combined
+93.52 seconds; the second admitted only previously unattempted requests. All
+259 physical judge requests were verified, including 48 new requests in 24.21
+seconds. These times exclude preparation and host queue waits.
+
+The incremental campaign exposure was $0.228543, reaching $6.236405 after this
+stage. Attributed costs include earlier cached requests and must not be added
+to incremental campaign spending. The
+[compact result](results/memory-evolution-mechanisms-nano-100-v1.json) retains
+both reader receipts, complete denominators, model identities and source pins.
+These scores use the original Gateway proxy judge.
+
+## Untruncated full history
+
+The full-history control includes every source turn in its original order. A
+six-question service canary qualified 12 new nano/mini responses before the
+complete 100-question matrix. All 200 full-history reader attempts subsequently
+completed with verified usage. The canary overlaps the full cohort and adds no
+independent evaluation data.
+
+| Configuration | Nano correct | Mini correct | Nano reader usage | Mini reader usage |
+| --- | ---: | ---: | ---: | ---: |
+| BM25 window, 96 KB | 75/100 | 82/100 | $0.106606 | $0.582321 |
+| Full history | 68/100 | 84/100 | $0.616918 | $3.140961 |
+
+Sending all history reduces nano's accuracy. Mini gains two correct answers at
+about 5.4 times the attributed reader cost. Neither result establishes a clear
+advantage for full history. The [paired comparison](results/memory-evolution-full-history-100-paired-v1.json)
+records nine wins and sixteen losses for nano, and six wins and four losses for
+mini, against their matched BM25 controls. The contexts are larger by design; this is a system
+configuration comparison, with each reader's prompt and settings fixed.
+
+The complete matrix contains 400 verified physical reader responses and 214
+verified physical judge responses, with no failures. Exact cache reuse left
+188 new reader requests, completed in 161.19 seconds, and 35 new judge requests.
+The campaign reached $10.012509 conservative exposure: $9.963934 verified usage
+plus $0.048575 retained from earlier unverifiable attempts. These totals exclude
+$25.885579 in authenticated historical exposure before this campaign.
+
+The [canary receipt](results/memory-evolution-full-history-canary-6-v1.json) and
+[complete result](results/memory-evolution-full-history-100-v1.json) record live
+provider acceptance, source completeness, model qualification and measured cost.
+Provider acceptance does not retroactively make the financial reservation a
+verified tokenizer estimate. These accuracy scores use the original Gateway
+proxy judge; native-rubric regrading receives separate records and identities.
+
+## Native-rubric Gateway qualification
+
+The initial one-message, 10-output-token Gateway judge was rejected with HTTP400:
+the routed API requires at least 16 output tokens. Four bounded continuation
+passes admitted 48 distinct requests, all rejected. No request was retried, no
+new reader calls were made, and no complete accuracy report was produced.
+The $0.327591 in full reservations remains unresolved; it is not verified billed
+usage. The [qualification receipt](results/memory-evolution-native-judge-rejection-v1.json)
+retains every pass identity and cumulative campaign accounting.
+
+A separate 16-token profile preserves the native prompt and contains-yes rule,
+with explicit alias and output-cap deviations from the official evaluator.
+It must pass one real request before expansion. New orchestration must stop on a
+new deterministic client rejection or a batch with no new completed responses.
+Earlier proxy scores and rejected 10-token captures keep their original meaning.
+
 ## Selection and confirmation
 
 Population proposals use observed paired development scores, conservative
