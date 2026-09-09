@@ -32,6 +32,12 @@ failed or stale backend is an explicit failure. The initial CLI configuration
 does not activate that optional backend; qualify it through the adapter before
 adding it to the paid CLI protocol.
 
+V1 context plans authenticate semantic and hybrid results against the pinned
+semantic preparation identity. Mixed native/semantic plans retain separate
+prepared corpora, and each result must match its declared retrieval mode.
+Supplying an unused semantic cache leaves native-only plan bytes unchanged.
+This qualification does not enable semantic preparation in the V3 CLI builder.
+
 Explicit event/state timelines, entity joins, episodic summaries, bounded second
 retrieval, external framework adapters and a reflective GEPA integration remain
 separate experiments. The population primitives provide typed lineage and
