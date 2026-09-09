@@ -1,0 +1,146 @@
+{
+  "protocol": "oh.memory-gateway-v6-final-summary.v1",
+  "recordedAt": "2026-09-09T14:14:58.800010+00:00",
+  "auditSha256": "97e32feb83272d19060d5fbe7077d00dfad55cb893327401817a6db509071977",
+  "comparisonSha256": "4d9732c9e7683afa89b454c9fe9180347a1225bb38cc0cb81d91739b1f23e374",
+  "sourceSha256": "458086becf13ea3caeadae28dbd61cc80d5a01a634f9f387507fdcf0e02af88d",
+  "sourceGitHead": "c7ec1194ee9ac7a0e3229c2b7197e9223d3e4435",
+  "freezeSha256": "aeb1366264f7a9f968188a66117a1cbb96ab6592d653ffa529adf761d810999a",
+  "policySha256": "22d10f39368869e0e9b877658d57192c7b00e5abee77494854978851c6ec91f1",
+  "families": 120,
+  "cases": 360,
+  "systems": {
+    "oh-fact": {
+      "correct": 81,
+      "questions": 120,
+      "accuracy": 0.675
+    },
+    "bm25-window": {
+      "correct": 78,
+      "questions": 120,
+      "accuracy": 0.65
+    },
+    "bm25-record-window": {
+      "correct": 79,
+      "questions": 120,
+      "accuracy": 0.6583333333333333
+    }
+  },
+  "primary": {
+    "established": false,
+    "coverage": {
+      "expected": 360,
+      "received": 360,
+      "completed": 360,
+      "missingOrFailed": 0
+    },
+    "comparisons": [
+      {
+        "baseline": "bm25-window",
+        "wins": 16,
+        "losses": 13,
+        "bothCorrect": 65,
+        "bothWrong": 26,
+        "ties": 91,
+        "observedDelta": 0.025,
+        "simultaneousLowerBound": -0.18181818181818182,
+        "oneSidedPValue": 0.34517750175910045,
+        "alpha": 0.025,
+        "passed": false
+      },
+      {
+        "baseline": "bm25-record-window",
+        "wins": 14,
+        "losses": 12,
+        "bothCorrect": 67,
+        "bothWrong": 27,
+        "ties": 94,
+        "observedDelta": 0.016666666666666666,
+        "simultaneousLowerBound": -0.21428571428571427,
+        "oneSidedPValue": 0.41733792399157305,
+        "alpha": 0.025,
+        "passed": false
+      }
+    ]
+  },
+  "adverseReaderFailureSensitivity": {
+    "established": false,
+    "coverage": {
+      "expected": 360,
+      "received": 360,
+      "completed": 360,
+      "missingOrFailed": 0
+    },
+    "comparisons": [
+      {
+        "baseline": "bm25-window",
+        "wins": 16,
+        "losses": 14,
+        "bothCorrect": 65,
+        "bothWrong": 25,
+        "ties": 90,
+        "observedDelta": 0.016666666666666666,
+        "simultaneousLowerBound": -0.2012987012987013,
+        "oneSidedPValue": 0.42223201701263574,
+        "alpha": 0.025,
+        "passed": false
+      },
+      {
+        "baseline": "bm25-record-window",
+        "wins": 14,
+        "losses": 13,
+        "bothCorrect": 67,
+        "bothWrong": 26,
+        "ties": 93,
+        "observedDelta": 0.008333333333333333,
+        "simultaneousLowerBound": -0.23376623376623376,
+        "oneSidedPValue": 0.5,
+        "alpha": 0.025,
+        "passed": false
+      }
+    ]
+  },
+  "readerFailures": 2,
+  "readerFailuresBySystem": {
+    "oh-fact": 0,
+    "bm25-window": 1,
+    "bm25-record-window": 1
+  },
+  "modelJudgedCases": 358,
+  "physicalJudgeRequests": 223,
+  "execution": {
+    "newReaders": 28,
+    "physicalJudgeRequests": 223,
+    "nativeCalls": 251,
+    "batchCount": 2,
+    "launcherAttempts": 3,
+    "elapsedMs": null,
+    "timingQualification": "The accepted final-audit schema does not emit elapsed timing."
+  },
+  "auditScope": {
+    "modelCalls": 0,
+    "credentialCalls": 0,
+    "studyWrites": 0,
+    "networkCalls": 0,
+    "spawnCalls": 0,
+    "suppressedLogs": 0
+  },
+  "budget": {
+    "reservationSha256": "54effed6fddc9307396c04b8cdd8254cdf16ae8afce734daf4feceb07bf59cdf",
+    "priorExposureMicros": 25744095,
+    "nativeExposureMicros": 141484,
+    "totalExposureMicros": 25885579,
+    "maximumNewExposureMicros": 11804182,
+    "capMicros": 40000000,
+    "nativeLedgerCarryMicros": 18268639,
+    "totalAmendmentExposureMicros": 18410123
+  },
+  "qualifications": [
+    "Accepted independent audit replayed the complete fixed 120-family, 360-case matrix.",
+    "This completed continuation uses a post-start reader-failure scoring policy amendment and mixed extraction provenance.",
+    "Original studies remain incomplete; first responses and unresolved old reservations remain preserved without resubmission.",
+    "No unchanged confirmatory error-control or official leaderboard superiority claim is supported.",
+    "Report the primary criterion and adverse reader-failure sensitivity separately.",
+    "Gateway model aliases are not pinned snapshots; conservative accounting is not a billing invoice."
+  ]
+}

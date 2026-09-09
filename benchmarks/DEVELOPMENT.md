@@ -1,12 +1,12 @@
 # Fast memory development
 
-The development loop screens many ideas cheaply, spends reader/judge tokens only on promising paired comparisons, and uses a reserved evaluation after choosing an implementation. The interrupted Gateway comparison remains preserved; its recovery is not a prerequisite for development experiments.
+The development loop screens many ideas cheaply, spends reader/judge tokens only on promising paired comparisons, and uses a reserved evaluation after choosing an implementation. The [frozen Gateway continuation](GATEWAY_STUDY_V6_TAKEOVER.md) is complete and independently audited; keep its evaluation families closed to further tuning.
 
 ## What the existing comparison measures
 
 The current `oh-fact` arm uses the real SQLite authority and `searchOhV1` keyword query over benchmark-created records and extracted facts. It does not exercise the complete memory-agent API or its semantic, memory-page, temporal and conflict behavior. Improvements to that adapter alone are not evidence that all product memory behavior improved.
 
-The frozen comparison uses 120 selected LongMemEval families and three arms. Its fixed prompts, models, budget and cases remain unchanged. It must be reported with its amendments and failures if completed. Do not tune against its answers or use it as an iterative development set.
+The frozen comparison uses 120 selected LongMemEval families and three arms. Its fixed prompts, models, budget and cases remain unchanged. Its completed outcome is reported with its amendments and failures. Do not tune against its answers or use it as an iterative development set.
 
 ## Run an inexpensive screen
 
@@ -44,7 +44,9 @@ Promote at most two candidates from a screening round. Reject candidates that wi
 
 The paid development CLI prepares retrieval contexts offline, then runs readers and judges through one shared request cache. It supports `locomo` and `longmemeval-s`, fixes the development split and seed 17, and requires two or three explicit variants with at most 100 questions. Start with eight questions. The example compares windows and sessions at topK20 and 24 KB; use the same sample and declared budgets when comparing candidates. Fact arms requiring extracted units are outside this lane.
 
-One coordinator owns all provider execution. Before preparing a plan, that owner supplies a private budget descriptor and its SHA-256. The descriptor pins the approved authority and every existing amendment ledger in order, with exact byte counts, the expected total exposure, and paths whose ledgers must remain absent. It must include the complete Gateway ancestry; the verifier cannot discover an omitted ledger. The original frozen runners and generic paid runner remain paused because their budgets cannot see the new cache ledger.
+The generic command sequence below documents the original shared-cache workflow. It is not a continuation command for this completed task: a new budget descriptor changes the cache namespace, and the existing occupied cache cannot reopen under that namespace. A future dispatch requires a compatible new cache namespace/runner or a separately reviewed migration that preserves the old cache and its ledger.
+
+One coordinator owns all provider execution. Before preparing a plan, that owner supplies a private budget descriptor and its SHA-256. The descriptor pins the approved authority and every existing amendment ledger in order, with exact byte counts, the expected total exposure, and paths whose ledgers must remain absent. It must include the complete Gateway ancestry; the verifier cannot discover an omitted ledger. The original frozen runners are closed; old generic paid-runner budgets omit later ledgers and cannot authorize another dispatch.
 
 With already-fetched datasets, run from the repository root. Set `BUDGET_INPUT` to the absolute descriptor path and `BUDGET_SHA256` to its approved digest:
 
@@ -63,11 +65,11 @@ Set `PLAN_SHA256` to that printed digest. Only the provider owner runs the next 
 ```sh
 bun run bench:lab:paid run --paid \
   --plan .cache/benchmarks/lab/lme-paid8-plan.json --plan-sha256 "$PLAN_SHA256" \
-  --max-usd 20 --max-calls 32 --concurrency 4 \
+  --max-usd 40 --max-calls 32 --concurrency 4 \
   --output .cache/benchmarks/lab/lme-paid8-results.json
 ```
 
-**`--max-usd` is the total shared amendment cap, not extra spending for this command.** The fixed ancestral amendment exposure is $18.268639, including unresolved reservations. The runner adds the current shared cache exposure once, leaving at most $21.731361 before any new cache charges under the $40 cap. The example narrows that ceiling to $20 total, leaving at most $1.731361 beyond the historical exposure. The original $21.655385 historical ledger remains a separate authenticated anchor. `--max-calls` counts new reader and judge reservations together; cache hits consume none. Eight questions across two variants need at most 32 new calls. A lower call limit can leave an incomplete report.
+**`--max-usd` is the total shared amendment cap, not extra spending for this command.** The hard cap is $40. The completed task amendment accounts for $25.885579, including every development, reserved and native v6 ledger and old unresolved reservations. A future plan must account for every ledger exactly once across its pinned descriptor and active cache before calculating remaining capacity. The active cache adds its own exposure; do not include that same ledger in the descriptor as well. Older descriptors are ineligible, and a changed descriptor cannot reopen the existing occupied cache namespace. The original $21.655385 historical ledger remains a separate authenticated anchor. `--max-calls` counts new reader and judge reservations together; cache hits consume none. Eight questions across two variants need at most 32 new calls. A lower call limit can leave an incomplete report.
 
 Concurrency accepts integers 1–12 and defaults to four. Each free slot admits another request after its worst-case cost is reserved durably. Stop or failure closes admission and drains requests already admitted. The measured eight-slot development runs below completed without new transport failures; they do not establish a provider-wide capacity limit.
 
@@ -500,8 +502,7 @@ fixed paired outcome, context usage, native token accounting and immutable evide
 digests. The result supports the wider-context improvement on this locked set.
 The reserved experiment is complete: do not use its outcomes for further tuning or
 replacement sampling. No population-superiority, saturation or production-default
-promotion is claimed. The older frozen 120-family comparison remains a separate,
-incomplete study requiring its preserved launcher-custody recovery.
+promotion is claimed. The separate [frozen 120-family continuation](GATEWAY_STUDY_V6_TAKEOVER.md) is also complete and independently audited. Its model, retrieval and scoring procedure differ from this reserved reader pair.
 
 
 ## Faster extraction chunk construction
@@ -510,4 +511,13 @@ The extraction splitter now computes each code point's JSON-escaped UTF-8 width 
 
 A bounded private prototype compared 222,487 segmentation cases and 26,732 chunk/prompt pairs against the original implementation. Matching failures remain failures. Five-sample synthetic chunk-construction medians improved from 9.154 to 0.617 ms for 256 KiB of ASCII, 12.954 to 1.298 ms for mixed Unicode/escapes, and 63.619 to 6.680 ms for a 1 MiB surrogate-heavy turn: **9.52–14.84× faster for this stage**. See the [compact measurement and parity report](results/memory-segmentation-performance-v1.json).
 
-These measurements cover synthetic chunk construction under concurrent benchmark load. They do not measure whole-study startup, model latency or memory use. The active frozen comparison retains its original generation source. Separately, tracing that source found repeated ancestry reconstruction and full-plan cloning before and after each batch; sharing authenticated immutable plans across an import session is the next performance investigation. Fresh byte, source, inventory and ledger checks must remain in place.
+These measurements cover synthetic chunk construction under concurrent benchmark load. They do not measure whole-study startup, model latency or memory use. The completed frozen comparison retained its original generation source. Separately, tracing that source found repeated ancestry reconstruction and full-plan cloning before and after each batch; sharing authenticated immutable plans across an import session is the next performance investigation. Fresh byte, source, inventory and ledger checks must remain in place.
+
+
+## Completed frozen comparison and remaining bottleneck
+
+The independently audited 120-family continuation scored `oh-fact` **81/120**, `bm25-window` **78/120**, `bm25-record-window` **79/120**. The fact-retrieval arm did not pass the fixed superiority criterion; adverse reader-failure sensitivity did not pass. All 360 cases, including 2 terminal reader failures, remain in the denominator. See the [final report](results/memory-gateway-final-v6.json) and [completed-run takeover guide](GATEWAY_STUDY_V6_TAKEOVER.md). This set is closed to further tuning.
+
+The two frozen continuation batches made 251 new requests in 24m32s of launcher time. Observed filesystem timestamps place their combined request-processing windows at about 1m55s, leaving roughly 92.2% outside those windows. This supports measuring local preparation and closing verification before increasing model concurrency. The ledger records no execution timestamps, and filesystem modification times are mutable metadata, so these estimates cannot isolate pure provider latency or import duration. The [timing report](results/memory-gateway-recovery-timing-v1.json) records the per-batch intervals and limitations; it excludes the separate independent final audit and makes no whole-import speedup claim.
+
+The final native continuation added $0.141484, bringing cumulative task exposure to $25.885579 under the $40 cap. Earlier amounts in this guide describe their respective completed checkpoints. Future paid plans must account for all later ledgers, including native v6, exactly once across the descriptor and active cache. A compatible cache namespace or reviewed migration is also required.

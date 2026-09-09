@@ -1,0 +1,83 @@
+{
+  "protocol": "oh.memory-gateway-recovery-timing.v1",
+  "scope": "Two completed native continuation batches. Timing only; no accuracy or speedup claim.",
+  "source": {
+    "gitHead": "c7ec1194ee9ac7a0e3229c2b7197e9223d3e4435",
+    "sha256": "458086becf13ea3caeadae28dbd61cc80d5a01a634f9f387507fdcf0e02af88d",
+    "timingReceiptSha256": "12220200ce604bc0431f3fff212e22e024c4865fd87d2f7ee9346bb98a214aca"
+  },
+  "batchCount": 2,
+  "physicalRequests": 251,
+  "batches": [
+    {
+      "nativeBatchNumber": 1,
+      "physicalRequests": 32,
+      "concurrency": 4,
+      "recordedIntervalsSeconds": {
+        "launchToNativeAdmission": 363.161,
+        "nativeAdmissionToClosure": 363.326,
+        "nativeClosureToSupervisorExit": 0.513,
+        "supervisorTotal": 727.0
+      },
+      "filesystemTimingEstimatesSeconds": {
+        "admissionToFirstPending": 0.214,
+        "firstPendingToLastResult": 16.569,
+        "lastResultToNativeClosure": 346.543
+      },
+      "phasesUsingFilesystemTiming": {
+        "judge": {
+          "requests": 4,
+          "requestWindowSeconds": 1.654,
+          "throughputRequestsPerSecond": 2.418
+        },
+        "reader": {
+          "requests": 28,
+          "requestWindowSeconds": 14.791,
+          "throughputRequestsPerSecond": 1.893
+        }
+      }
+    },
+    {
+      "nativeBatchNumber": 2,
+      "physicalRequests": 219,
+      "concurrency": 4,
+      "recordedIntervalsSeconds": {
+        "launchToNativeAdmission": 316.637,
+        "nativeAdmissionToClosure": 428.029,
+        "nativeClosureToSupervisorExit": 0.334,
+        "supervisorTotal": 745.0
+      },
+      "filesystemTimingEstimatesSeconds": {
+        "admissionToFirstPending": 0.474,
+        "firstPendingToLastResult": 98.633,
+        "lastResultToNativeClosure": 328.923
+      },
+      "phasesUsingFilesystemTiming": {
+        "judge": {
+          "requests": 219,
+          "requestWindowSeconds": 98.633,
+          "throughputRequestsPerSecond": 2.22
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "interBatchGapSeconds": 221.0,
+    "outsideRequestWindowEstimatePercent": 92.174,
+    "outsideRequestWindowEstimateSeconds": 1356.799,
+    "requestWindowEstimateSeconds": 115.201,
+    "requests": 251,
+    "supervisorTotalSeconds": 1472.0,
+    "wallSpanBetweenFirstStartAndFinalExitSeconds": 1693.0
+  },
+  "timingAnalysisModelCalls": 0,
+  "limitations": [
+    "Launcher timestamps have whole-second precision; native timestamps have millisecond precision. Decimal differences do not imply finer measurement precision.",
+    "Request windows and post-result intervals use filesystem modification times observed after completion. These times are mutable metadata, not authenticated historical execution clocks. The ledger contains no timestamps.",
+    "Launch-to-admission includes launcher setup, authentication, source and budget qualification, import replay, prior-batch checks and store opening. Existing timestamps cannot separate these phases or measure scheduler queue time.",
+    "Request windows include local planning, persistence, provider work, parsing, bookkeeping and concurrency gaps. They do not measure pure provider latency.",
+    "Last-result-to-closure includes final bookkeeping, store closure, full import replay, source and ledger checks, and comparison serialization where applicable. It does not measure import time alone.",
+    "The aggregate excludes the separate independent final audit. The inter-batch gap is excluded from summed launcher time.",
+    "These timings do not quantify any individual function, establish a memory leak, or demonstrate a whole-import speedup. The separately measured chunking optimization was not used by this frozen runtime."
+  ]
+}

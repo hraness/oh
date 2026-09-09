@@ -9,6 +9,8 @@ For fast development sweeps across shared corpus indexes, use the [development l
 
 For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below. The separately frozen [Gateway amendment](GATEWAY_STUDY_V3.md) preserves closed subscription responses and uses budgeted Gateway calls for unattempted work.
 
+The [completed 120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) report the latest audited outcomes and their limits.
+
 Start with the network-free checks:
 
 ```sh
@@ -159,8 +161,10 @@ one-question corpora, and report an undiscounted `uncachedReaderCostUsd`
 estimate alongside observed cache-adjusted accounting. Provider caches can be
 shared across similar requests, so cache-discount differences alone do not
 establish an algorithmic efficiency gain. Missing cache details are distinguished
-from reported zero cache use. The current cumulative ceiling is $62.248769: the existing $12.248769
-exposure plus an explicitly authorized $50 follow-up. The
+from reported zero cache use. The historical original-study ceiling was $62.248769: its then-existing $12.248769
+exposure plus an explicitly authorized $50 follow-up. This does not authorize
+new dispatch. The later [Gateway/development task amendment](GATEWAY_STUDY_V6_TAKEOVER.md#final-budget)
+uses a separate unchanged $40 cap and complete cross-run ledger accounting. The
 [budget amendment](results/memory-superiority-budget-amendment.json) binds that
 opening exposure to the ledger hash and reserves $5 for answering and judging. Each command still requires its own `--max-usd` and `--max-calls`.
 Separate checkouts do not share that ledger. Do not remove it to restart a
@@ -538,3 +542,10 @@ completed full extraction, answer and judge reports, not their compact
 summaries. The scorer binds their bytes, source identity, selection, prompts,
 models and budgets to the frozen protocol. It rejects mismatched artifacts and
 cannot certify an incomplete matrix. Run it from the frozen source tree.
+
+
+## Completed amended 120-family comparison
+
+The [frozen Gateway continuation](GATEWAY_STUDY_V6_TAKEOVER.md) is complete and independently audited: `oh-fact` **81/120**, `bm25-window` **78/120**, `bm25-record-window` **79/120**. It did not pass the fixed criterion for the fact-retrieval arm. The [final numerical report](results/memory-gateway-final-v6.json) retains all 360 cases and both primary and adverse reader-failure sensitivity, with mixed extraction provenance and the post-start scoring amendment disclosed. This is not an official leaderboard or saturation claim.
+
+The separate [reserved reader pair](results/memory-reserved-reader-profile-v1.json) scored 84/100 with 96 KB versus 78/100 with 24 KB. See [the development guide](DEVELOPMENT.md) for its distinct procedure, faster loop, rejected experiments and evaluation boundaries.
