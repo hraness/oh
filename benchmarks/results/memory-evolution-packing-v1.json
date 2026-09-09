@@ -1,0 +1,591 @@
+{
+  "protocol": "oh.memory.evolution-packing-screen.v1",
+  "status": "retrieval-artifacts-requalified",
+  "split": "development",
+  "seed": 17,
+  "questions": 100,
+  "declaredGroups": 94,
+  "corpora": 100,
+  "inputSha256": "88b6a0039f6bad371ef6a3b5ba967eaa0361b13320e8d1036e7bb6658c5715cf",
+  "retrievalSourceSha256": "93107b139d6f702502cf5d7da7350ddfc8e7e2e29f834213fdb4eb4dce810828",
+  "rows": [
+    {
+      "id": "oh-keyword-k20-b24k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 24000
+      },
+      "candidateId": "32f0652d55db1722ea9c639e8ff2fea1ef156a3c4026aadaa154fd728bfd3598",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.8818333333333334,
+      "meanContextBytes": 20932.37,
+      "meanTurns": 18.4,
+      "meanSessions": 9.25,
+      "retrievalMs": 1098.7474199999774
+    },
+    {
+      "id": "oh-keyword-k20-b48k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 48000
+      },
+      "candidateId": "664cbce718518715459c3ee81f649e390acc9b27b68508712a1bd73649d0732d",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.8868333333333334,
+      "meanContextBytes": 24420.8,
+      "meanTurns": 20,
+      "meanSessions": 9.98,
+      "retrievalMs": 1253.3566660000024
+    },
+    {
+      "id": "oh-keyword-k20-b64k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 64000
+      },
+      "candidateId": "d1d9b3202cb71040981e9c3cde7b1de50a68dddc6b26b9c77ce8d3bbe1f033d7",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.8868333333333334,
+      "meanContextBytes": 24420.8,
+      "meanTurns": 20,
+      "meanSessions": 9.98,
+      "retrievalMs": 1146.0431649999746
+    },
+    {
+      "id": "oh-keyword-k20-b96k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 96000
+      },
+      "candidateId": "4b5c7b1bf3e93baeded132701e8f539ad53ef40190796a5ead2e4065032cd9c3",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.8868333333333334,
+      "meanContextBytes": 24420.8,
+      "meanTurns": 20,
+      "meanSessions": 9.98,
+      "retrievalMs": 981.5103400000335
+    },
+    {
+      "id": "oh-keyword-k40-b24k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 40,
+        "contextBytes": 24000
+      },
+      "candidateId": "439337a589fca067ffc3d77ba07c53b212e62304be76396aaa0737dba00e0fbb",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 87,
+      "meanEvidenceSessionRecall": 0.9051666666666667,
+      "meanContextBytes": 23869.91,
+      "meanTurns": 23.06,
+      "meanSessions": 11.34,
+      "retrievalMs": 1124.3652900000138
+    },
+    {
+      "id": "oh-keyword-k40-b48k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 40,
+        "contextBytes": 48000
+      },
+      "candidateId": "0bed72b37ff44080226da8ac33611a4e8db8f6fbf043d5c734bb23794ca244b2",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9229999999999999,
+      "meanContextBytes": 43664.47,
+      "meanTurns": 37.04,
+      "meanSessions": 17.28,
+      "retrievalMs": 1139.4412860000007
+    },
+    {
+      "id": "oh-keyword-k40-b64k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 40,
+        "contextBytes": 64000
+      },
+      "candidateId": "f0c3b80fb371f4feb81b627329c2eb46b82e53670e6818373c2dcbcb2cff0ee8",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9229999999999999,
+      "meanContextBytes": 48440.12,
+      "meanTurns": 39.61,
+      "meanSessions": 18.42,
+      "retrievalMs": 1133.2871219999797
+    },
+    {
+      "id": "oh-keyword-k40-b96k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 40,
+        "contextBytes": 96000
+      },
+      "candidateId": "9c0a4a613e8d8fc0944332d1fd3ae960fecd672cb521a702b65e1cf67fde06c6",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9229999999999999,
+      "meanContextBytes": 49330.33,
+      "meanTurns": 40,
+      "meanSessions": 18.55,
+      "retrievalMs": 1128.6374590000019
+    },
+    {
+      "id": "oh-keyword-k60-b24k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 60,
+        "contextBytes": 24000
+      },
+      "candidateId": "d797849bff8de8d353d293dcf91f6053bc39e587cb827f1d4cfb242ff266d49c",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 87,
+      "meanEvidenceSessionRecall": 0.9051666666666667,
+      "meanContextBytes": 23939.94,
+      "meanTurns": 23.36,
+      "meanSessions": 11.55,
+      "retrievalMs": 1240.0096240000416
+    },
+    {
+      "id": "oh-keyword-k60-b48k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 60,
+        "contextBytes": 48000
+      },
+      "candidateId": "b646ef316a28706d674c147d891b9a76798f6dd1355bd828afc9592f57832540",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 90,
+      "meanEvidenceSessionRecall": 0.9329999999999999,
+      "meanContextBytes": 47530.34,
+      "meanTurns": 42.05,
+      "meanSessions": 18.95,
+      "retrievalMs": 1211.3733370000114
+    },
+    {
+      "id": "oh-keyword-k60-b64k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 60,
+        "contextBytes": 64000
+      },
+      "candidateId": "2bc199622bb5da630e3c5307152373ff7718c7d320ebe9ba76e4e42f5ceda2d1",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 92,
+      "meanEvidenceSessionRecall": 0.9446666666666667,
+      "meanContextBytes": 61734.15,
+      "meanTurns": 51.81,
+      "meanSessions": 22.79,
+      "retrievalMs": 1253.1111649999953
+    },
+    {
+      "id": "oh-keyword-k60-b96k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 60,
+        "contextBytes": 96000
+      },
+      "candidateId": "4e218af5d4da6162c689fb5d055bbae2184ed12475efe6193085f6b9318aeb48",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 94,
+      "meanEvidenceSessionRecall": 0.958,
+      "meanContextBytes": 74209.4,
+      "meanTurns": 59.48,
+      "meanSessions": 25.32,
+      "retrievalMs": 1297.4712469999768
+    },
+    {
+      "id": "oh-keyword-k100-b24k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 24000
+      },
+      "candidateId": "7c9498f6fdc66afd17ad9d4217a32a3ce41fba68d70d45bff6335fa697bfaf51",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 87,
+      "meanEvidenceSessionRecall": 0.9051666666666667,
+      "meanContextBytes": 23955.72,
+      "meanTurns": 23.51,
+      "meanSessions": 11.65,
+      "retrievalMs": 1475.7962969999976
+    },
+    {
+      "id": "oh-keyword-k100-b48k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 48000
+      },
+      "candidateId": "66508165853b6ac50b851c07bc43df018be3622eb12049ca3bf77c5a60242e4d",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 91,
+      "meanEvidenceSessionRecall": 0.943,
+      "meanContextBytes": 47947.78,
+      "meanTurns": 42.87,
+      "meanSessions": 19.19,
+      "retrievalMs": 1400.5623400000245
+    },
+    {
+      "id": "oh-keyword-k100-b64k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 64000
+      },
+      "candidateId": "09d72ab869860fe6601387598712a76342db0927d9e21140e2888181a5a2a1ff",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 93,
+      "meanEvidenceSessionRecall": 0.9546666666666667,
+      "meanContextBytes": 63933.02,
+      "meanTurns": 55.23,
+      "meanSessions": 23.7,
+      "retrievalMs": 1459.810960000002
+    },
+    {
+      "id": "oh-keyword-k100-b96k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 96000
+      },
+      "candidateId": "1dfad7e4d3d41d465ff1d31f83d6c45a0932e08ff256afc29b65e083b4520750",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 96,
+      "meanEvidenceSessionRecall": 0.97,
+      "meanContextBytes": 94451.68,
+      "meanTurns": 80.25,
+      "meanSessions": 29.91,
+      "retrievalMs": 1479.3287540000324
+    },
+    {
+      "id": "bm25-window-k20-b24k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 24000
+      },
+      "candidateId": "278530debbe8aefba9d4f4b866c7d9bc7e500ae1682a9ea670c1f75f8e403ef3",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.9035,
+      "meanContextBytes": 23894.57,
+      "meanTurns": 24.93,
+      "meanSessions": 6.45,
+      "retrievalMs": 161.57195700002512
+    },
+    {
+      "id": "bm25-window-k20-b48k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 48000
+      },
+      "candidateId": "0c67dc305a75637704209759e4c1c1b70180bf5ba23605ead05e7dfa58dd332a",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 87,
+      "meanEvidenceSessionRecall": 0.9218333333333334,
+      "meanContextBytes": 42482.6,
+      "meanTurns": 40.18,
+      "meanSessions": 9.19,
+      "retrievalMs": 172.0052929999797
+    },
+    {
+      "id": "bm25-window-k20-b64k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 64000
+      },
+      "candidateId": "a29bc78fc83c603e8fe6da5b9e2aad84826161228971c4b000f7f5f656817acc",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 87,
+      "meanEvidenceSessionRecall": 0.9251666666666665,
+      "meanContextBytes": 44805.04,
+      "meanTurns": 41.67,
+      "meanSessions": 9.4,
+      "retrievalMs": 173.33420999999635
+    },
+    {
+      "id": "bm25-window-k20-b96k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 96000
+      },
+      "candidateId": "b628f4143109efbb17a28a65a1d5610bb5f531589f3314ac82ec650d10adb4b9",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 87,
+      "meanEvidenceSessionRecall": 0.9251666666666665,
+      "meanContextBytes": 44930.45,
+      "meanTurns": 41.72,
+      "meanSessions": 9.4,
+      "retrievalMs": 170.91300200001615
+    },
+    {
+      "id": "bm25-window-k40-b24k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 40,
+        "contextBytes": 24000
+      },
+      "candidateId": "8e96253e0155adc7102a3ecabb41ad83191afac6a588989d58029137d47ae53f",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.9035,
+      "meanContextBytes": 23958.9,
+      "meanTurns": 25.22,
+      "meanSessions": 6.69,
+      "retrievalMs": 282.1302550000196
+    },
+    {
+      "id": "bm25-window-k40-b48k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 40,
+        "contextBytes": 48000
+      },
+      "candidateId": "780bb17946b43d52543ae8f0d8f28ea76a492a47bad8107ae6ee428cb481cdaf",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9318333333333334,
+      "meanContextBytes": 47724.89,
+      "meanTurns": 47.55,
+      "meanSessions": 11.45,
+      "retrievalMs": 295.2444119999709
+    },
+    {
+      "id": "bm25-window-k40-b64k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 40,
+        "contextBytes": 64000
+      },
+      "candidateId": "7438474fb0cee8eb400410561662573b2d8c1deb961bdfbda0af9af8fae9d42f",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9351666666666667,
+      "meanContextBytes": 63248.26,
+      "meanTurns": 62.33,
+      "meanSessions": 14.62,
+      "retrievalMs": 306.40307599998687
+    },
+    {
+      "id": "bm25-window-k40-b96k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 40,
+        "contextBytes": 96000
+      },
+      "candidateId": "8f955d96e788cbbba6373f99f73072179555a2945885d8f04a32212ed7d6b808",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 91,
+      "meanEvidenceSessionRecall": 0.9484999999999999,
+      "meanContextBytes": 85388.17,
+      "meanTurns": 81.06,
+      "meanSessions": 17.52,
+      "retrievalMs": 317.49871000000576
+    },
+    {
+      "id": "bm25-window-k60-b24k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 60,
+        "contextBytes": 24000
+      },
+      "candidateId": "bd331b7e64c7dbc0c2d5f087492619933501b4365ce5d4ff692a2ce6c7a67410",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.9035,
+      "meanContextBytes": 23963.17,
+      "meanTurns": 25.27,
+      "meanSessions": 6.73,
+      "retrievalMs": 392.30166400002054
+    },
+    {
+      "id": "bm25-window-k60-b48k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 60,
+        "contextBytes": 48000
+      },
+      "candidateId": "01492a58e7b8ba9b399aff28c744561af6af4f4318e01a571a9b0f9fc7f456f8",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9318333333333334,
+      "meanContextBytes": 47739.77,
+      "meanTurns": 47.71,
+      "meanSessions": 11.58,
+      "retrievalMs": 404.1167930000174
+    },
+    {
+      "id": "bm25-window-k60-b64k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 60,
+        "contextBytes": 64000
+      },
+      "candidateId": "54600a24cc3f6f11a3ec60c5f50de813f50e8b95b239f2af8328bc15b05779f9",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9351666666666667,
+      "meanContextBytes": 63365.86,
+      "meanTurns": 62.77,
+      "meanSessions": 14.88,
+      "retrievalMs": 419.8964169999995
+    },
+    {
+      "id": "bm25-window-k60-b96k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 60,
+        "contextBytes": 96000
+      },
+      "candidateId": "c8180605a1f6f9f6d6a330dd265ee5eed22104d61ba9a0d9dd56972ebd2d5282",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 91,
+      "meanEvidenceSessionRecall": 0.9484999999999999,
+      "meanContextBytes": 94201.83,
+      "meanTurns": 91.69,
+      "meanSessions": 19.99,
+      "retrievalMs": 438.1737889999845
+    },
+    {
+      "id": "bm25-window-k100-b24k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 24000
+      },
+      "candidateId": "c38b813c89416c0fb06136a2a996a7ebcce116a0e0ce4afd774c5373b251f9bf",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.9035,
+      "meanContextBytes": 23966.76,
+      "meanTurns": 25.31,
+      "meanSessions": 6.76,
+      "retrievalMs": 578.0987160000068
+    },
+    {
+      "id": "bm25-window-k100-b48k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 48000
+      },
+      "candidateId": "14a9c5b5aac41be59c11ea6708e524d505ee4ddad71906248f1f234121b4bc64",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9318333333333334,
+      "meanContextBytes": 47741.07,
+      "meanTurns": 47.73,
+      "meanSessions": 11.59,
+      "retrievalMs": 597.6172489999885
+    },
+    {
+      "id": "bm25-window-k100-b64k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 64000
+      },
+      "candidateId": "ced2cd4a718c076bb05760339aa70c52d513873034efed54a56be2b771ec68e1",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 89,
+      "meanEvidenceSessionRecall": 0.9351666666666667,
+      "meanContextBytes": 63373.53,
+      "meanTurns": 62.86,
+      "meanSessions": 14.94,
+      "retrievalMs": 599.6745760000022
+    },
+    {
+      "id": "bm25-window-k100-b96k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 96000
+      },
+      "candidateId": "30ada0201d1dbd76347d87bb221fe36708b230ad9adb80284aa3a7e9556a410f",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 91,
+      "meanEvidenceSessionRecall": 0.9484999999999999,
+      "meanContextBytes": 94225.96,
+      "meanTurns": 91.91,
+      "meanSessions": 20.1,
+      "retrievalMs": 619.1458780000335
+    }
+  ],
+  "timing": {
+    "originalFinalWallMs": null,
+    "completedRetrievalProgressWallMs": 35476.580292,
+    "preparationMs": 2449.5440820000267,
+    "retrievalMs": 25750.978469000125,
+    "sourceValidationMs": 3075.6872350000062,
+    "rawIndexBuilds": 100,
+    "sessionIndexBuilds": 100,
+    "authorityBuilds": 100,
+    "semanticIndexBuilds": 0,
+    "queryCount": 3200
+  },
+  "cost": {
+    "providerRequests": 0,
+    "providerCostUsd": 0,
+    "providerCostMicros": 0,
+    "modelCalls": 0
+  },
+  "qualification": [
+    "Development evidence-session coverage only; not answer correctness or superiority.",
+    "No answer fitness or score-based genetic parent selection.",
+    "One prepared corpus served all 32 variants. No retrievals rerun during requalification.",
+    "The original heavy invocation exited 1 because an unused reporter changed; saved artifacts have explicit scoped source requalification.",
+    "One timing sample with lazy authority initialization; not a causal timing comparison. Context bytes are not billed model tokens."
+  ],
+  "privateSummarySha256": "47794c201f9f1f9c509d88952cbdc5506b84ccb49de17a07ec7e778226fe6605",
+  "datasetSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+  "sourceQualification": {
+    "originalAttempt": "failed unused-reporter full-source check",
+    "requalified": true,
+    "requalificationSha256": "84e63e043aa83499be3f7f3e304e1a0452596e76a7012a42dff4f4e95b605b19",
+    "retrievalQueriesRerun": 0
+  }
+}

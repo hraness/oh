@@ -1,0 +1,93 @@
+{
+  "protocol": "oh.memory.full-history-source-sizing.v1",
+  "datasetSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+  "historicalContextFileSha256": "65a699791e24b2c41d013f8008dfd0260925e1e0b084275e4698f024877efc66",
+  "historicalInputSha256": "88b6a0039f6bad371ef6a3b5ba967eaa0361b13320e8d1036e7bb6658c5715cf",
+  "historicalPlanSha256": "cd9bf1e7ac2d0b841b5b44417aa2d6b22a7f50fce5dbab9ccfd95ef9bb1fae28",
+  "configSha256": "ff78b31e264daaa678204e0ecfd9ee93542826a826671343e837aa01b30e1924",
+  "selectedCorpora": 100,
+  "scannedItemSelectors": 500,
+  "selectedSourceParity": true,
+  "legacyFullContextParity": true,
+  "stats": {
+    "turns": {
+      "min": 409,
+      "p50": 489,
+      "p90": 531,
+      "p95": 543,
+      "max": 616,
+      "mean": 492.64,
+      "sum": 49264
+    },
+    "sessionOccurrences": {
+      "min": 41,
+      "p50": 47,
+      "p90": 52,
+      "p95": 53,
+      "max": 62,
+      "mean": 47.46,
+      "sum": 4746
+    },
+    "sourceTextBytes": {
+      "min": 455254,
+      "p50": 488441,
+      "p90": 500300,
+      "p95": 501747,
+      "max": 508360,
+      "mean": 489234.38,
+      "sum": 48923438
+    },
+    "contextBytes": {
+      "min": 481870,
+      "p50": 514950,
+      "p90": 527247,
+      "p95": 529736,
+      "max": 536206,
+      "mean": 515668.67,
+      "sum": 51566867
+    },
+    "messagesJsonBytes": {
+      "min": 494773,
+      "p50": 529103,
+      "p90": 540521,
+      "p95": 543436,
+      "max": 549742,
+      "mean": 529604.15,
+      "sum": 52960415
+    },
+    "currentInputUpperBound": {
+      "min": 496821,
+      "p50": 531151,
+      "p90": 542569,
+      "p95": 545484,
+      "max": 551790,
+      "mean": 531652.15,
+      "sum": 53165215
+    },
+    "messageUtf16Maximum": {
+      "min": 487368,
+      "p50": 521231,
+      "p90": 533073,
+      "p95": 535658,
+      "max": 542336,
+      "mean": 521793.72,
+      "sum": 52179372
+    }
+  },
+  "currentModelAdmission": {
+    "contextWindow": 400000,
+    "outputCap": 8192,
+    "framingAllowance": 2048,
+    "accepted": 0,
+    "rejected": 100,
+    "overMessageCharacterCap": 0
+  },
+  "noTokenizerInstalledInRepo": true,
+  "tokenCountsMeasured": false,
+  "fetchAttempts": 0,
+  "modelCalls": 0,
+  "providerCostUsd": 0,
+  "wallMs": 1980.1994169999998,
+  "qualification": "Only selected source histories were parsed; other records were scanned only for selection IDs. No answer/evidence labels were read and no reader or judge was run."
+}

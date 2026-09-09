@@ -1,0 +1,120 @@
+{
+  "protocol": "oh.memory.evolution-offline.v1",
+  "dataset": "longmemeval-s",
+  "datasetSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+  "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+  "contextPlanSha256": "cd9bf1e7ac2d0b841b5b44417aa2d6b22a7f50fce5dbab9ccfd95ef9bb1fae28",
+  "retrievalSourceSha256": "93107b139d6f702502cf5d7da7350ddfc8e7e2e29f834213fdb4eb4dce810828",
+  "split": "development",
+  "seed": 17,
+  "questions": 100,
+  "declaredGroups": 94,
+  "variants": [
+    {
+      "id": "window-24k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 20,
+        "contextBytes": 24000
+      }
+    },
+    {
+      "id": "window-96k",
+      "system": "bm25-window",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 96000
+      }
+    },
+    {
+      "id": "session-96k",
+      "system": "bm25-session",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 96000
+      }
+    },
+    {
+      "id": "oh-keyword-96k",
+      "system": "oh-keyword",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 96000
+      }
+    },
+    {
+      "id": "facets-96k",
+      "system": "bm25-facets",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 96000
+      }
+    },
+    {
+      "id": "oh-facets-96k",
+      "system": "oh-facets",
+      "budget": {
+        "topK": 100,
+        "contextBytes": 96000
+      }
+    }
+  ],
+  "coverage": [
+    {
+      "variant": "window-24k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 84,
+      "meanEvidenceSessionRecall": 0.9035,
+      "meanContextBytes": 23894.57
+    },
+    {
+      "variant": "window-96k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 91,
+      "meanEvidenceSessionRecall": 0.9484999999999999,
+      "meanContextBytes": 94225.96
+    },
+    {
+      "variant": "session-96k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 88,
+      "meanEvidenceSessionRecall": 0.9301666666666667,
+      "meanContextBytes": 95854.13
+    },
+    {
+      "variant": "oh-keyword-96k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 96,
+      "meanEvidenceSessionRecall": 0.97,
+      "meanContextBytes": 94451.68
+    },
+    {
+      "variant": "facets-96k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 91,
+      "meanEvidenceSessionRecall": 0.9484999999999999,
+      "meanContextBytes": 94225.96
+    },
+    {
+      "variant": "oh-facets-96k",
+      "questions": 100,
+      "eligible": 100,
+      "completeEvidenceSessions": 91,
+      "meanEvidenceSessionRecall": 0.9484999999999999,
+      "meanContextBytes": 94227.96
+    }
+  ],
+  "timing": {
+    "wallMs": 24823.549708000002,
+    "preparationMs": 3421.2687109999833,
+    "retrievalMs": 18945.85163400001,
+    "queries": 600
+  },
+  "modelCalls": 0,
+  "qualification": "Development-only evidence-session coverage, not answer accuracy. Declared groups are not asserted independent. One preparation timing sample; no causal before/after speedup claim."
+}

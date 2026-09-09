@@ -1,0 +1,138 @@
+{
+  "protocol": "oh.memory.evolution-spans-source-manifest.v1",
+  "scope": "versioned-benchmark-context-plan-integration",
+  "cliWired": true,
+  "providerDispatchSupported": true,
+  "automaticProviderDispatch": false,
+  "files": [
+    {
+      "path": "scripts/benchmarks/evolution-spans.ts",
+      "sha256": "a0293b6c01bb0a172790cb9cc13a4cab59a1d2790a3365d1f83e3f7140c7dfcb",
+      "bytes": 16960
+    },
+    {
+      "path": "scripts/benchmarks/evolution-variants.ts",
+      "sha256": "8a62025bbb0c5fc6eea4571846c36d365abe75cfae5b2ac897b6ed69fc377d5f",
+      "bytes": 2276
+    },
+    {
+      "path": "scripts/benchmarks/evolution-plan.ts",
+      "sha256": "b2b3d11b92ebea421578245d69049ff5fcf9b007e86db7d878114b49f68736aa",
+      "bytes": 23366
+    },
+    {
+      "path": "scripts/benchmarks/evolution.ts",
+      "sha256": "1f1ab17ca9e1d0066286b8763920671704eadea2177687437a9cd50f1725b1bc",
+      "bytes": 28742
+    },
+    {
+      "path": "scripts/benchmarks/evolution-judge.ts",
+      "sha256": "0f3f86cfc7deeb7feffc934aa5e43368ff6698e30152c55eda32c9e355b061cd",
+      "bytes": 7657
+    },
+    {
+      "path": "scripts/benchmarks/evolution-report.ts",
+      "sha256": "18b15f7e0b970cbc74b1cc4f4bab441d07a48bb2dde6a6e93097ca070c210915",
+      "bytes": 28521
+    },
+    {
+      "path": "scripts/benchmarks/evolution-population.ts",
+      "sha256": "a8d5ce62cc8224ca3983ed992bd28a8fa03fac1865f369514dbb795825fea78b",
+      "bytes": 18773
+    },
+    {
+      "path": "tests/memory-benchmark-evolution-spans.test.ts",
+      "sha256": "09bfa54c0437606d45afa21a6099902400c085d2ae199c318ae38e9369a05dc7",
+      "bytes": 10201
+    },
+    {
+      "path": "tests/memory-benchmark-evolution-span-plan.test.ts",
+      "sha256": "1e77a756c54321bfdbb3453f5f0b7414c6cc5f4c8b04b1247060d9d30e95461a",
+      "bytes": 18820
+    },
+    {
+      "path": "benchmarks/EVOLUTION_SPANS.md",
+      "sha256": "d0daf8fc7218962fd8b10595010c9d3d19a5ecf1dc11c757495e4c3a64b39389",
+      "bytes": 10540
+    },
+    {
+      "path": "benchmarks/results/memory-evolution-spans-offline-v1.json",
+      "sha256": "b0a4451613daa71754e35f70f7c12da2c165bfbb0466259fc2b53e2bde70ba54",
+      "bytes": 3737
+    },
+    {
+      "path": "scripts/benchmarks/evolution-retrieval.ts",
+      "sha256": "0ecbe7d08caef4e156f43f8d3aee869ceb29f20b415961aa1a435bef9ce855a3",
+      "bytes": 23866
+    },
+    {
+      "path": "scripts/benchmarks/evolution-propose.ts",
+      "sha256": "99fea61c12f76dc37363f334ba4aab80571a9b7e1ba4bcde5106e42db5eb9bf3",
+      "bytes": 39499
+    },
+    {
+      "path": "tests/memory-benchmark-evolution-retrieval.test.ts",
+      "sha256": "30c2b435d4f64a4e0ebfb8f2df54728c7b633fbf5322a1919e37f44ce4b7c4ec",
+      "bytes": 18974
+    },
+    {
+      "path": "tests/memory-benchmark-evolution-propose.test.ts",
+      "sha256": "465e507d476258533e5eeefe4e3eba2a850854fc9fc2727ee85b0f9275f9adfa",
+      "bytes": 16681
+    }
+  ],
+  "sourceContract": "oh.evolution-source-spans.v1",
+  "contextPlanContract": "oh.memory.evolution-context-plan.v2",
+  "runConfigContract": "oh.memory.evolution-run.v2",
+  "validation": {
+    "bun": "1.3.14",
+    "focusedTestCommand": "bun test tests/memory-benchmark-evolution-spans.test.ts tests/memory-benchmark-evolution-span-plan.test.ts tests/memory-benchmark-evolution-plan.test.ts tests/memory-benchmark-evolution-runner.test.ts tests/memory-benchmark-evolution-population.test.ts tests/memory-benchmark-evolution-report.test.ts tests/memory-benchmark-evolution-judge.test.ts",
+    "focusedTests": 48,
+    "assertions": 702,
+    "focusedExitCode": 0,
+    "targetedTypeScript": {
+      "files": [
+        "scripts/benchmarks/evolution-spans.ts",
+        "scripts/benchmarks/evolution-variants.ts",
+        "scripts/benchmarks/evolution-plan.ts",
+        "scripts/benchmarks/evolution.ts",
+        "scripts/benchmarks/evolution-report.ts",
+        "scripts/benchmarks/evolution-population.ts",
+        "tests/memory-benchmark-evolution-spans.test.ts",
+        "tests/memory-benchmark-evolution-span-plan.test.ts"
+      ],
+      "strict": true,
+      "exactOptionalPropertyTypes": true,
+      "noUncheckedIndexedAccess": true,
+      "exitCode": 0
+    },
+    "offlineScreenRepeatedForIntegration": false,
+    "providerRequests": 0,
+    "providerCostUsd": 0,
+    "combinedFocused": {
+      "command": "bun test tests/memory-benchmark-evolution-*.test.ts",
+      "tests": 111,
+      "assertions": 1237,
+      "exitCode": 0,
+      "scope": "Current combined source, including pinned prior-proposal continuation and independent lineage review."
+    },
+    "independentReview": "Separate reviewers checked V2 source/pool/reader/report bindings, the native factorial implementation, proposal V2 compatibility, and compact live result projections. Source and budget claims remain distinct from benchmark superiority. Continuation review reproduced rejection of pinned-object drift, forged historical fitness/selection, invented children and archived generation forgery; eight independent tests passed with 46 assertions."
+  },
+  "selfReview": {
+    "bounds": "Current-source corpus, UTF-8 windows, window cache, span count and expected context budget are bounded. Truncated native pools fail; serialized CLI context plans over 128 MiB are rejected before publication.",
+    "overlap": "Selected ranges from one source cannot overlap and must match deterministic source windows.",
+    "provenance": "The current source corpus reconstructs all record and text digests, UTF-8 offsets, dates, speakers and turn/session identities. Each span plan binds one native pool per question. This validates source rendering, not search ranking.",
+    "labelIsolation": "The V2 builder projects only recognized source and question fields before detachment; gold and extra-property getters are not read.",
+    "reuse": "One native index and bounded window cache per corpus, one top100 pool per question, all span caps share the pool, and readers do not duplicate it.",
+    "geneticCompatibility": "Only compatible topK100 span genomes with caps at most 96000 bytes can be seeded, mutated or crossed. Fixed-reader policies cannot breed another reader."
+  },
+  "compatibility": {
+    "wholeTurnV1ContractsUnchanged": true,
+    "nativeOnlyDispatcherV1BytesPreserved": true,
+    "providerRequestHashPreserved": true,
+    "sourceBoundContextsMustBeRegenerated": true,
+    "publishedArtifactPinsMustNotBeMigrated": true,
+    "productionMemoryApiChanged": false
+  },
+  "measurementRelationship": "The companion offline aggregate describes the source-pinned predecessor prototype. Live V2 runs carry separate source-pinned phase receipts and results; this manifest records implementation identity and synthetic validation, not a new accuracy measurement."
+}
