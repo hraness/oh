@@ -204,12 +204,23 @@ export async function openMem0Ledger(authorityInput: unknown) {
     };
   } catch (error) { await lock.close(); try { await unlink(lockPath); } catch {} throw error; }
 }
+/** Abort races also bound an injected transport or stalled response stream.
+ * Any admitted interrupted call is captured once and remains fully reserved. */
+function mem0WithAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new Error("Mem0 call aborted or deadline exceeded"));
+    operation.then(value => { signal.removeEventListener("abort", abort); resolve(value); }, error => { signal.removeEventListener("abort", abort); reject(error); });
+    if (signal.aborted) abort(); else signal.addEventListener("abort", abort, { once: true });
+  });
+}
 export type Mem0Fetcher = (input: Parameters<typeof fetch>[0], init?: RequestInit) => Promise<Response>;
-export async function invokeMem0Request(input: Readonly<{ request: Mem0Request; ledger: Awaited<ReturnType<typeof openMem0Ledger>>; credential: Mem0Credential; fetcher?: Mem0Fetcher }>) {
+export async function invokeMem0Request(input: Readonly<{ request: Mem0Request; ledger: Awaited<ReturnType<typeof openMem0Ledger>>; credential: Mem0Credential; fetcher?: Mem0Fetcher; signal?: AbortSignal }>) {
+  if (input.signal?.aborted) fail("call aborted before admission");
   const request = validateMem0Request(input.request), cached = input.ledger.lookup(request); if (cached.kind === "hit") return cached.result; if (cached.kind === "occupied") fail("occupied request cannot be retried");
   if (typeof input.credential.token !== "string" || input.credential.token.length < 1 || input.credential.token.length > 32768 || canonicalSha256(input.credential.auth) !== canonicalSha256(input.ledger.auth)) fail("missing or mismatched bounded OIDC credential"); qualifyGatewayOIDC(input.credential.token, input.ledger.auth); await input.ledger.admit(request);
+  const signal = input.signal === undefined ? AbortSignal.timeout(request.timeoutMs) : AbortSignal.any([input.signal, AbortSignal.timeout(request.timeoutMs)]);
   const started = performance.now(); let response: Response | null = null, error: Transport["error"] = null, complete = false, receivedBytes = 0; const chunks: Uint8Array[] = [];
-  try { response = await (input.fetcher ?? fetch)(request.endpoint, { method: "POST", redirect: "error", signal: AbortSignal.timeout(request.timeoutMs), headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.credential.token}` }, body: JSON.stringify(request.body) }); } catch { error = "network"; }
-  if (response?.body) { const reader = response.body.getReader(); try { while (true) { const next = await reader.read(); if (next.done) { complete = true; break; } receivedBytes += next.value.length; if (receivedBytes > MAX_RAW) { error = "response-bound"; break; } chunks.push(next.value); } } catch { error = "body-read"; } finally { try { await reader.cancel(); } catch {} } } else if (response !== null) error = "body-read";
+  try { response = await mem0WithAbort((input.fetcher ?? fetch)(request.endpoint, { method: "POST", redirect: "error", signal, headers: { "Content-Type": "application/json", Authorization: `Bearer ${input.credential.token}` }, body: JSON.stringify(request.body) }), signal); } catch { error = "network"; }
+  if (response?.body) { const reader = response.body.getReader(); try { while (true) { const next = await mem0WithAbort(reader.read(), signal); if (next.done) { complete = true; break; } receivedBytes += next.value.length; if (receivedBytes > MAX_RAW) { error = "response-bound"; break; } chunks.push(next.value); } } catch { error = "body-read"; } finally { try { await mem0WithAbort(reader.cancel(), signal); } catch {} } } else if (response !== null) error = "body-read";
   const raw = Buffer.concat(chunks); await input.ledger.capture(request, raw, { httpStatus: response?.status ?? null, complete, receivedBytes, error, serviceMs: performance.now() - started }); return await input.ledger.finalize(request);
 }

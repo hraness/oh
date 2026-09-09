@@ -19,13 +19,14 @@ def digest(label: str) -> str:
 
 
 class Parent:
-    def __init__(self):
+    def __init__(self, state: str | None = None, persistent: bool = False):
         self.temp = tempfile.TemporaryDirectory()
         # sitecustomize terminates the child if an SDK import or operation opens
         # a socket. MEM0_TELEMETRY is intentionally absent: worker bootstrap
         # must disable the pinned SDK default before its first import.
         (Path(self.temp.name) / "sitecustomize.py").write_text("import os, socket\ndef blocked(*args, **kwargs): os._exit(81)\nsocket.socket.connect = blocked\n", encoding="utf-8")
-        env = {"PATH": os.environ["PATH"], "PYTHONPATH": f"{self.temp.name}{os.pathsep}{HERE}", "MEM0_DIR": self.temp.name, "MEM0_VECTOR_DIMENSIONS": "3",
+        env = {"PATH": os.environ["PATH"], "PYTHONPATH": f"{self.temp.name}{os.pathsep}{HERE}", "MEM0_DIR": state or self.temp.name, "MEM0_VECTOR_DIMENSIONS": "3",
+               "MEM0_VECTOR_PERSISTENCE": "local" if persistent else "memory",
                "NO_PROXY": "*", "http_proxy": "", "https_proxy": "",
                "HTTP_PROXY": "", "HTTPS_PROXY": "", "ALL_PROXY": "", "all_proxy": ""}
         # Run as an importable module: Mem0's dynamic factory imports this same
@@ -142,9 +143,41 @@ def test_eof_and_oversized_frames_stop_without_reframing() -> None:
             parent.close()
 
 
+
+def test_persistent_restart_preserves_current_search_projection() -> dict[str, Any]:
+    """A completed local vector write survives process exit, without re-ingest."""
+    with tempfile.TemporaryDirectory() as state:
+        namespace, source = digest("persistent-user"), digest("persistent-source")
+        parent = Parent(state=state, persistent=True)
+        try:
+            command(parent, "prepare", "p", namespace)
+            command(parent, "add", "a", namespace,
+                    messages=[{"role": "user", "content": "Remember alpha preference"}],
+                    metadata={"chunkId": digest("persistent-chunk"), "sourceDigest": source})
+            before = command(parent, "search", "s", namespace, query="alpha", topK=50, threshold=0.1)
+            command(parent, "close", "c", namespace)
+            assert parent.process.wait(timeout=5) == 0
+        finally:
+            parent.close()
+        assert list(Path(state).glob("qdrant-*/collection/*/storage.sqlite"))
+        resumed = Parent(state=state, persistent=True)
+        try:
+            command(resumed, "prepare", "p", namespace)
+            after = command(resumed, "search", "s", namespace, query="alpha", topK=50, threshold=0.1)
+            assert after == before
+            assert after == {"results": [{"memory": "alpha fact", "metadata": {
+                "chunkId": digest("persistent-chunk"), "sourceDigest": source}}]}
+            assert resumed.operations == ["embed"]  # No extraction or re-ingest.
+            command(resumed, "close", "c", namespace)
+            assert resumed.process.wait(timeout=5) == 0
+            return after
+        finally:
+            resumed.close()
+
 if __name__ == "__main__":
     test_real_sdk_add_search_and_isolation()
     test_frame_contract_rejects_cross_namespace_and_oversized_inputs()
     test_worker_refuses_provider_credentials()
     test_eof_and_oversized_frames_stop_without_reframing()
-    print("mem0 bridge qualification: 4 tests passed")
+    test_persistent_restart_preserves_current_search_projection()
+    print("mem0 bridge qualification: 5 tests passed")

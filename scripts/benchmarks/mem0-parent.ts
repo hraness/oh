@@ -4,6 +4,8 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
 import { invokeMem0Request, makeMem0EmbeddingRequest, makeMem0LlmRequest, validateMem0BridgePolicy, type Mem0BridgePolicy, type Mem0Credential, type Mem0Fetcher, type Mem0Request, type Mem0Result, type openMem0Ledger } from "./mem0-ledger";
 
+import { createMem0DurationClock, MEM0_QUALIFICATION_DURATION_POLICY } from "./mem0-duration";
+
 const MAX_CHUNKS = 1_024, MAX_FRAME = 1_048_576, MAX_TEXT = 262_144;
 type Role = "user" | "assistant";
 type Ledger = Awaited<ReturnType<typeof openMem0Ledger>>;
@@ -74,13 +76,14 @@ function rpc(value: unknown, policy: Mem0BridgePolicy): Readonly<{ id: string; o
  * proxy: activity derives each SDK call from a selected source chunk or question. */
 export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpus: unknown; ledger: Ledger; credential: Mem0Credential; fetcher?: Mem0Fetcher }>) {
   const policy = validateMem0BridgePolicy(input.policy), corpus = validateMem0SelectedCorpus(input.corpus), derivation = makeMem0DerivationReceipt(policy, corpus);
+  const cancellation = new AbortController();
   let ordinal = 0, activity: Activity | null = null, closed = false, chain: Promise<void> = Promise.resolve();
   const serial = <T>(action: () => Promise<T>): Promise<T> => { const next = chain.then(action, action); chain = next.then(() => undefined, () => undefined); return next; };
   const choose = (request: Mem0Request) => input.fetcher === undefined
-    ? invokeMem0Request({ request, ledger: input.ledger, credential: input.credential })
-    : invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, fetcher: input.fetcher });
-  return Object.freeze({ derivation, embeddingDimensions: policy.embeddingProfile.embeddingDimensions,
-    beginIngest(chunkIdInput: unknown) { if (closed || activity !== null) fail("invalid ingest activity"); const chunkId = opaque(chunkIdInput), chunk = corpus.chunks.find(candidate => candidate.chunkId === chunkId); if (!chunk) fail("unknown source chunk"); activity = Object.freeze({ kind: "ingest", chunk }); },
+    ? invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, signal: cancellation.signal })
+    : invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, fetcher: input.fetcher, signal: cancellation.signal });
+  return Object.freeze({ derivation, abort: () => cancellation.abort(), maximumCallTimeoutMs: Math.max(policy.llmProfile.timeoutMs, policy.embeddingProfile.timeoutMs), embeddingDimensions: policy.embeddingProfile.embeddingDimensions,
+    beginIngest(chunkIdInput: unknown) { if (closed || cancellation.signal.aborted || activity !== null) fail("invalid ingest activity"); const chunkId = opaque(chunkIdInput), chunk = corpus.chunks.find(candidate => candidate.chunkId === chunkId); if (!chunk) fail("unknown source chunk"); activity = Object.freeze({ kind: "ingest", chunk }); },
     beginQuery(questionSha256: unknown) { if (closed || activity !== null || !sha(questionSha256)) fail("invalid query activity"); activity = Object.freeze({ kind: "query", questionSha256 }); },
     endActivity() { if (activity === null) fail("no active activity"); activity = null; },
     async handle(value: unknown) { return serial(async () => { if (closed || activity === null) fail("RPC without active source-derived activity"); const frame = rpc(value, policy); let result: Mem0Result;
@@ -93,14 +96,19 @@ export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpu
 
 /** Bounded real-SDK process harness. No credential is copied to the Python
  * environment; only dispatcher.handle can turn an SDK RPC into a provider call. */
-export async function startMem0Worker(input: Readonly<{ command: readonly string[]; workerDirectory: string; mem0Directory: string; dispatcher: ReturnType<typeof createMem0RpcDispatcher>; corpus: unknown }>) {
+export async function startMem0Worker(input: Readonly<{ command: readonly string[]; workerDirectory: string; mem0Directory: string; durationPolicy?: unknown; persistentVectorStore?: boolean; dispatcher: ReturnType<typeof createMem0RpcDispatcher>; corpus: unknown }>) {
   const corpus = validateMem0SelectedCorpus(input.corpus), command = [...input.command];
   if (command.length < 2 || command.length > 16 || command.some(part => typeof part !== "string" || part.length < 1 || part.length > 4096 || part.includes("\0")) || input.dispatcher.derivation.corpusSha256 !== corpus.corpusSha256) fail("worker command or corpus binding");
+  if (input.persistentVectorStore !== undefined && typeof input.persistentVectorStore !== "boolean") fail("persistent vector-store flag");
+  const clock = createMem0DurationClock(input.durationPolicy ?? MEM0_QUALIFICATION_DURATION_POLICY);
+  if (input.dispatcher.maximumCallTimeoutMs > clock.policy.drainMs) fail("provider timeout exceeds drain policy");
   const { spawn } = await import("node:child_process");
-  const child = spawn(command[0]!, command.slice(1), { cwd: input.workerDirectory, stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH ?? "", PYTHONPATH: input.workerDirectory, MEM0_DIR: input.mem0Directory, MEM0_VECTOR_DIMENSIONS: String(input.dispatcher.embeddingDimensions), MEM0_TELEMETRY: "false", NO_PROXY: "*", HTTP_PROXY: "", HTTPS_PROXY: "", ALL_PROXY: "", http_proxy: "", https_proxy: "", all_proxy: "" } });
+  const child = spawn(command[0]!, command.slice(1), { cwd: input.workerDirectory, stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH ?? "", PYTHONPATH: input.workerDirectory, MEM0_DIR: input.mem0Directory, MEM0_VECTOR_DIMENSIONS: String(input.dispatcher.embeddingDimensions), MEM0_VECTOR_PERSISTENCE: input.persistentVectorStore === true ? "local" : "memory", MEM0_TELEMETRY: "false", NO_PROXY: "*", HTTP_PROXY: "", HTTPS_PROXY: "", ALL_PROXY: "", http_proxy: "", https_proxy: "", all_proxy: "" } });
   if (!child.stdin || !child.stdout || !child.stderr) { child.kill(); fail("worker pipes unavailable"); }
+  let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
+  const lifecycleTimer = setTimeout(() => { broken = true; input.dispatcher.abort(); child.kill(); forceKillTimer = setTimeout(() => child.kill("SIGKILL"), clock.policy.killGraceMs); }, clock.policy.lifecycleMs);
   const iterator = child.stdout[Symbol.asyncIterator](); let buffered = Buffer.alloc(0), ended = false, sequence = 0, active = false, broken = false, closed = false, stderrBytes = 0, workerError: Error | null = null;
-  const deadline = performance.now() + 120_000, kill = () => { if (!child.killed) child.kill(); };
+  const kill = () => { if (!child.killed) child.kill(); };
   let resolveExit!: (value: readonly [number | null, NodeJS.Signals | null]) => void, exitRecorded = false;
   const exited = new Promise<readonly [number | null, NodeJS.Signals | null]>(resolve => { resolveExit = value => { if (!exitRecorded) { exitRecorded = true; resolve(value); } }; });
   child.once("error", error => { workerError = error; resolveExit([null, null]); });
@@ -108,7 +116,7 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
   child.once("close", (code, signal) => resolveExit([code, signal]));
   child.stdin.on("error", error => { workerError = error; kill(); });
   child.stderr.on("data", chunk => { stderrBytes += Buffer.byteLength(chunk); if (stderrBytes > MAX_FRAME) kill(); });
-  const remaining = () => { const value = deadline - performance.now(); if (value <= 0 || workerError !== null || stderrBytes > MAX_FRAME) { kill(); fail("worker timeout, error or stderr bound"); } return value; };
+  const remaining = () => { const value = clock.remaining(); if (value <= 0 || workerError !== null || stderrBytes > MAX_FRAME) { kill(); fail("worker timeout, error or stderr bound"); } return value; };
   const bounded = async <T>(promise: Promise<T>, label: string): Promise<T> => { let timer: ReturnType<typeof setTimeout> | null = null; try { return await Promise.race([promise, new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error(label)), remaining()); })]); } catch { kill(); fail(label); } finally { if (timer !== null) clearTimeout(timer); } };
   const write = async (value: unknown) => {
     const raw = Buffer.from(JSON.stringify(value) + "\n"); if (raw.length > MAX_FRAME) fail("outbound worker frame bound");
@@ -119,7 +127,7 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
       const next = await bounded(iterator.next(), "worker frame deadline"); if (next.done) { ended = true; fail("worker closed frame stream"); } buffered = Buffer.concat([buffered, Buffer.from(next.value)]); if (buffered.length > MAX_FRAME + 1) { kill(); fail("worker oversized frame"); } }
   };
   const send = async (commandValue: Record<string, unknown>, begin: (() => void) | null) => {
-    if (closed || broken || ended || active) fail("worker activity overlap or closed"); active = true; let began = false;
+    if (closed || broken || ended || active) fail("worker activity overlap or closed"); active = true; clock.beginCommand(); let began = false;
     try {
       if (begin !== null) { begin(); began = true; }
       await write(commandValue);
@@ -130,7 +138,7 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
         if (result.kind !== "result" || result.id !== commandValue.id || result.ok !== true || !isPlainRecord(result.result)) fail("worker command result");
         return result.result;
       }
-    } catch (error) { broken = true; kill(); throw error; }
+    } catch (error) { broken = true; input.dispatcher.abort(); kill(); throw error; }
     finally { if (began) input.dispatcher.endActivity(); active = false; }
   };
   const waitExit = async (milliseconds: number): Promise<readonly [number | null, NodeJS.Signals | null] | null> => {
@@ -140,7 +148,7 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
   };
   const id = () => `mem0-${++sequence}`;
   return Object.freeze({
-    derivation: input.dispatcher.derivation,
+    derivation: input.dispatcher.derivation, durationPolicySha256: clock.policySha256,
     prepare: () => send({ kind: "prepare", id: id(), namespace: input.dispatcher.derivation.namespace }, null),
     add: (chunkIdInput: unknown) => { const chunkId = opaque(chunkIdInput), chunk = corpus.chunks.find(candidate => candidate.chunkId === chunkId); if (!chunk) fail("unknown source chunk"); return send({ kind: "add", id: id(), namespace: input.dispatcher.derivation.namespace, messages: chunk.turns.map(turn => ({ role: turn.role, content: `[${turn.date}] ${turn.text}` })), metadata: { chunkId: chunk.chunkId, sourceDigest: chunk.sourceSha256 } }, () => input.dispatcher.beginIngest(chunkId)); },
     search: (questionSha256: unknown, query: unknown) => { if (!sha(questionSha256) || questionSha256 !== sha256Hex(text(query))) fail("invalid query digest"); return send({ kind: "search", id: id(), namespace: input.dispatcher.derivation.namespace, query: text(query), topK: 50, threshold: 0.1 }, () => input.dispatcher.beginQuery(questionSha256)); },
@@ -149,11 +157,13 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
       let closeError: unknown = null;
       try { if (!broken && !ended && !exitRecorded) await send({ kind: "close", id: id(), namespace: input.dispatcher.derivation.namespace }, null); }
       catch (error) { closeError = error; }
-      finally { closed = true; child.stdin!.end(); }
-      let exit = await waitExit(2_000);
-      if (exit === null) { kill(); exit = await waitExit(2_000); }
-      if (exit === null) { child.kill("SIGKILL"); exit = await waitExit(2_000); }
-      await input.dispatcher.close();
+      finally { closed = true; clearTimeout(lifecycleTimer); if (forceKillTimer !== undefined) clearTimeout(forceKillTimer); child.stdin!.end(); }
+      let exit = await waitExit(clock.policy.shutdownGraceMs);
+      if (exit === null) { kill(); exit = await waitExit(clock.policy.killGraceMs); }
+      if (exit === null) { child.kill("SIGKILL"); exit = await waitExit(clock.policy.killGraceMs); }
+      let drainTimer: ReturnType<typeof setTimeout> | undefined;
+      try { await Promise.race([input.dispatcher.close(), new Promise<never>((_resolve, reject) => { drainTimer = setTimeout(() => reject(new Error("Mem0 dispatcher drain deadline")), clock.policy.drainMs); })]); }
+      finally { if (drainTimer !== undefined) clearTimeout(drainTimer); }
       if (exit === null) fail("worker kill custody");
       const [code, signal] = exit;
       if (closeError !== null) throw closeError;

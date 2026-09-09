@@ -53,3 +53,24 @@ test("HTTP failure remains occupied on reopen and replay rejects a foreign polic
   await writeFile(path, await readFile(path, "utf8") + JSON.stringify({ kind: "reserved", request: foreign }) + "\n", { mode: 0o600 });
   await expect(openMem0Ledger(fixture.authority)).rejects.toThrow("pinned policy");
 });
+
+test("aborted fetch and stalled response body are captured once and remain fully charged", async () => {
+  const fixture = await ledger(), current = await fixture.ledger;
+  const credential = { token: oidc(), auth: { method: "project-oidc", project: "test", scope: "scope", environment: "development" } } as const;
+  let fetchCalls = 0;
+  for (const [index, kind] of ["fetch", "body"].entries()) {
+    const request = makeMem0EmbeddingRequest(policy, 20 + index, "query-embed", kind), controller = new AbortController();
+    let began!: () => void; const started = new Promise<void>(resolve => { began = resolve; });
+    const pending = invokeMem0Request({ request, ledger: current, credential, signal: controller.signal, fetcher: async () => {
+      fetchCalls++; began(); if (kind === "fetch") return new Promise<Response>(() => {});
+      return new Response(new ReadableStream({ start(stream) { stream.enqueue(new Uint8Array([123])); } }));
+    } });
+    await started; const timer = setTimeout(() => controller.abort(), 20);
+    try { await expect(pending).rejects.toThrow("remains charged"); } finally { clearTimeout(timer); }
+    expect(current.lookup(request)).toEqual({ kind: "occupied", state: "captured" });
+    await expect(invokeMem0Request({ request, ledger: current, credential, fetcher: async () => { fetchCalls++; throw new Error("must not retry"); } })).rejects.toThrow("cannot be retried");
+  }
+  expect(fetchCalls).toBe(2); expect(current.summary().calls).toBe(2);
+  expect(current.summary().exposureMicros).toBe(makeMem0EmbeddingRequest(policy, 20, "query-embed", "fetch").reservationMicros * 2);
+  await current.close();
+});

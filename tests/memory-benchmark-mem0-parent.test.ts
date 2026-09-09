@@ -36,7 +36,7 @@ test("source continuation validation rejects resealed gaps, stale bytes, and dat
 
 test("worker spawn failure closes custody without an unhandled pipe error", async () => {
   let closed = false;
-  const dispatcher = { derivation: makeMem0DerivationReceipt(policy, corpus), embeddingDimensions: 1536,
+  const dispatcher = { derivation: makeMem0DerivationReceipt(policy, corpus), embeddingDimensions: 1536, maximumCallTimeoutMs: 1000, abort() {},
     async close() { closed = true; } } as ReturnType<typeof createMem0RpcDispatcher>;
   const worker = await startMem0Worker({ command: ["/nonexistent-mem0-fixture-python", "-m", "mem0_bridge_worker"], workerDirectory: "/private/tmp", mem0Directory: "/private/tmp", dispatcher, corpus });
   await expect(worker.prepare()).rejects.toThrow("worker"); await worker.close(); expect(closed).toBe(true);

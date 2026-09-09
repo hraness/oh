@@ -4,7 +4,7 @@
 The child owns no model credentials and uses no provider URL.  Mem0 invokes the
 two real SDK provider subclasses below; each invocation is a bounded RPC back to
 the parent, which is the only future place a campaign ledger can dispatch a
-captured provider request.  Qdrant is local and in-memory for this prototype.
+captured provider request.  Qdrant is local; persistence is an explicit parent opt-in.
 """
 from __future__ import annotations
 
@@ -55,6 +55,9 @@ def _bootstrap_environment() -> None:
 
 _bootstrap_environment()
 VECTOR_DIMENSIONS = _vector_dimensions()
+VECTOR_PERSISTENCE = os.environ.get("MEM0_VECTOR_PERSISTENCE", "memory")
+if VECTOR_PERSISTENCE not in {"memory", "local"}:
+    raise BridgeError("MEM0_VECTOR_PERSISTENCE must be memory or local")
 
 # Import the pinned SDK only after the credential and telemetry boundary above.
 from mem0 import Memory
@@ -200,7 +203,7 @@ def _memory(namespace: str) -> Memory:
     # no OpenAI client or API key is constructed or used.
     LlmFactory.register_provider("openai", f"{__name__}.RpcLlm", BaseLlmConfig)
     EmbedderFactory.provider_to_class["openai"] = f"{__name__}.RpcEmbedder"
-    # A separate in-memory collection plus Mem0's required user_id filter gives
+    # A separate local collection plus Mem0's required user_id filter gives
     # two independent isolation boundaries. No URL, token, timestamp, or reranker.
     return Memory.from_config({
         "version": "v1.1",
@@ -208,7 +211,7 @@ def _memory(namespace: str) -> Memory:
         "embedder": {"provider": "openai", "config": {"model": "parent-ledger"}},
         "vector_store": {"provider": "qdrant", "config": {
             "collection_name": f"mem0_{namespace}", "embedding_model_dims": VECTOR_DIMENSIONS,
-            "path": ":memory:", "on_disk": False,
+            "path": str(Path(os.environ["MEM0_DIR"]) / f"qdrant-{namespace}") if VECTOR_PERSISTENCE == "local" else ":memory:", "on_disk": False,
         }},
         "history_db_path": str(Path(os.environ["MEM0_DIR"]) / f"history-{namespace}.db"),
     })

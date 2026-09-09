@@ -120,13 +120,31 @@ operations, and replayed all 448 settled calls. This proves transport, source,
 SDK, and custody compatibility. It does not measure extraction or answer
 quality, embedding quality, live routing, or live cost.
 
-The parent currently has a 120-second qualification lifecycle deadline. A live
-all-corpus run needs a separately reviewed operational duration policy and the
-final cumulative spending authority; neither is supplied by this fixture.
-`search` binds its first argument to SHA-256 of the exact query text. Worker state
-is ephemeral, and there is no automatic partial-ingestion restart or retry.
+The default duration policy preserves the 120-second qualification lifecycle.
+For one live corpus, `MEM0_ONE_CORPUS_DURATION_POLICY` explicitly allows a
+1,800-second lifecycle, 180 seconds per command, two seconds for graceful exit,
+two seconds per forced termination wait, and 60 seconds to drain the dispatcher.
+Pass that exact, independently pinned policy as `startMem0Worker`'s
+`durationPolicy`. The worker exposes its policy digest for the execution receipt.
+A new command resets only its command deadline; the lifecycle deadline never
+moves. Lifecycle or command expiry aborts the current provider operation, kills
+the child, and drains admitted work. An interrupted request remains captured and
+fully charged; it cannot be retried. Provider call timeouts must fit the selected
+drain bound. The transport also bounds stalled fetches and response streams.
+The duration policy does not change provider request hashes, model choices, or
+budget authority, and it does not supply the final shared spending authority.
+`search` binds its first argument to SHA-256 of the exact query text. Vector state
+is ephemeral by default, and there is no automatic partial-ingestion restart or retry.
 Derived facts require their own authenticated context contract before evaluation
 with the shared reader/judge matrix. Exact SDK prompts and responses remain in
 private captured-call ledgers; public receipts contain only digests and counts.
+
+A parent may explicitly set `persistentVectorStore: true` to retain Qdrant
+collections under its supplied Mem0 state directory. The default remains
+in-memory. History and vectors are then available for inspection after process
+exit; this does not authorize automatic re-ingestion or paid-request replay.
+The restart fixture writes one synthetic memory, closes the worker, and reads
+that memory through a new worker without extraction. Search still projects only
+`memory` and `metadata`; SDK IDs and scores are unavailable in this projection.
 
 The [full-source qualification receipt](../../../benchmarks/results/memory-evolution-mem0-all-source-qualification-v1.json) records the actual SDK and parent proof with fake provider responses. It contains no source messages or local paths.

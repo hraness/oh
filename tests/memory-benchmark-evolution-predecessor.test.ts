@@ -1,17 +1,18 @@
 import { afterEach, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { parseEvolutionCampaign, verifyEvolutionCampaign, type EvolutionCampaign } from "../scripts/benchmarks/evolution-budget";
 import { makeEvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { openEvolutionStore } from "../scripts/benchmarks/evolution-store";
+import { openImmutableEvolutionPredecessor } from "../scripts/benchmarks/evolution-predecessor";
 
 const roots: string[] = [];
 afterEach(async () => { for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true }); });
 async function fixture() {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "oh-predecessor-#-"))); roots.push(root);
+  const root = await realpath(await mkdtemp(join(tmpdir(), "oh-predecessor-#?% space-é-"))); roots.push(root);
   let ordinal = 0;
   const pin = async (name: string, value: unknown) => { const path = join(root, `${ordinal++}-${name}`), bytes = JSON.stringify(value); await writeFile(path, bytes); return { path, sha256: sha256Hex(bytes) }; };
   const ledgerPath = join(root, "legacy.jsonl"), ledger = JSON.stringify({ v: 1, id: "prior", kind: "reserved", micros: 900 }) + "\n";
@@ -76,4 +77,20 @@ test("successor refuses active, changed, aliased or uncheckpointed predecessor d
   await expect(verifyEvolutionCampaign(descriptor)).rejects.toThrow("bytes changed");
   const newDatabasePin = { path: f.databasePath, sha256: sha256Hex(await readFile(f.databasePath)) };
   await expect(verifyEvolutionCampaign(await f.pin("changed-accounting.json", { ...f.successor, predecessor: { ...f.successor.predecessor, databasePin: newDatabasePin } }))).rejects.toThrow("accounting");
+});
+
+
+test("immutable predecessor URI opens escaped paths read-only without creating journals or files", async () => {
+  const f = await fixture(), before = await readFile(f.databasePath), names = await readdir(f.parent.storeDirectory);
+  const db = openImmutableEvolutionPredecessor(f.databasePath);
+  try {
+    expect(db.query<{ calls: number }, []>("SELECT count(*) AS calls FROM jobs").get()?.calls).toBe(f.budget.calls);
+    expect(() => db.query("UPDATE jobs SET charge=0").run()).toThrow("readonly");
+    expect(() => db.query("CREATE TABLE unexpected(value TEXT)").run()).toThrow("readonly");
+  } finally { db.close(); }
+  expect(await readFile(f.databasePath)).toEqual(before);
+  expect(await readdir(f.parent.storeDirectory)).toEqual(names);
+  const missing = join(f.parent.storeDirectory, "absent #?%.sqlite");
+  expect(() => openImmutableEvolutionPredecessor(missing)).toThrow();
+  expect(await readdir(f.parent.storeDirectory)).toEqual(names);
 });
