@@ -85,7 +85,7 @@ Reader request and receipt identities remain byte-exact: identical provider requ
 
 The population domain includes the new span system separately from native search modes. Span genotypes require topK 100 and caps at most 96 KB. Single-axis mutation skips incompatible choices. Crossover uses only parental gene values and chooses a deterministic compatible combination; when no valid mixed combination exists it may inherit a parent's genome while retaining both lineage IDs. Fixed-reader memory mode keeps the reader fixed, and system-frontier mode must be explicit. Population generation does not dispatch providers or turn retrieval recall into answer fitness.
 
-A fixed-reader paired evaluation is required before claiming an answer-quality improvement. The historical 100-question observation above is not a measured result for this V2 integration; the integration has only synthetic focused validation at publication time.
+The V2 integration has now completed a paired 100-question development answer experiment. Source spans scored nano 65/100 and mini 67/100 at 24 KB, and 66/100 with both readers at 48 KB. Whole-turn Oh at 48 KB scored 69/100 and 72/100. This policy therefore does not establish an answer-quality improvement, despite the predecessor's offline session-recall gain. See the [live results](EVOLUTION_RESULTS.md#source-excerpt-answer-experiment) and [pinned aggregate](results/memory-evolution-spans-100-v1.json); keep their source receipts distinct from the predecessor observation above.
 
 Focused validation:
 

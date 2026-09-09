@@ -156,6 +156,41 @@ show mini's combined treatment gaining eleven questions and losing one versus
 raw direct hits. Nano's equal 71 totals at 48 and 96 KB contain seven wins and
 seven losses; reducing the cap changes which questions are answered correctly.
 
+## Source-excerpt answer experiment
+
+The completed V2 experiment uses the same 100 development questions and fixed
+nano/mini readers. Its source spans come from one complete native raw-query
+keyword top100 pool per question. Each ranked excerpt preserves original text,
+source digests, UTF-8 offsets, speaker and date. This is the frozen first excerpt
+policy, with no query focusing or later policy changes introduced mid-run.
+
+| Configuration | Nano | Mini |
+| --- | ---: | ---: |
+| BM25 96 KB | 75/100 | 82/100 |
+| Oh whole turns, raw query, 48 KB | 69/100 | 72/100 |
+| Oh focused query with neighbors, 96 KB | 71/100 | 82/100 |
+| Oh source excerpts, 24 KB | 65/100 | 67/100 |
+| Oh source excerpts, 48 KB | 66/100 | 66/100 |
+
+The first excerpt policy is not an accuracy improvement. At 48 KB it scores
+below whole-turn Oh with both readers; doubling its own cap gives one additional
+correct nano answer and one fewer mini answer. Better offline session recall did
+not translate into better answers. This result rejects this policy as the next
+accuracy finalist; it does not settle whether other source-preserving packing
+policies can improve the system.
+
+All 976 distinct reader attempts and 300 distinct judge requests have verified
+responses; this matrix contains no failed attempts. Exact cache reuse reduced
+new answering to 378 requests in 182.12 seconds and new grading to 44 requests
+in 24.01 seconds. After this stage, total new-campaign exposure is $5.818345:
+$5.780689 known usage plus the earlier $0.037656 unresolved reservation, which
+is outside this matrix and remains in the campaign. Attributed excerpt reader
+usage per 100 questions is $0.044339/$0.270478 for nano/mini at 24 KB and
+$0.052059/$0.325798 at 48 KB. These include exact cached responses and are not
+incremental stage spending. The
+[compact result](results/memory-evolution-spans-100-v1.json) records the complete
+scores, source/rubric pins, costs and phase timings.
+
 ## Selection and confirmation
 
 Population proposals use observed paired development scores, conservative
