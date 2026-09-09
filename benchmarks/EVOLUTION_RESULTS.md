@@ -464,3 +464,68 @@ include earlier reader captures and are not additional spending.
 
 The native-rubric profile still uses a Gateway alias and a 16-token adaptation.
 Repeated scoring and development experiments add no independent questions.
+
+## Answer-contract comparison
+
+Some answer instructions scored higher in this fixed development comparison.
+The fixed comparison crossed the same 100 development questions with two
+retrieval configurations, two reader models and four answer contracts: 1,600
+logical answers. Within each reader and retrieval configuration, the question,
+date, context bytes and model settings were identical. The changed system
+instruction asked for an explicit statement when information was missing,
+better composition of facts across the context, or both.
+
+Both retrieval configurations used top100 and a 96,000-byte context allowance.
+Oh used focused query terms and neighboring turns. All 16 arms retained every
+question, with no reader or judge failures.
+
+| Reader and context | Legacy | Explicit abstention | Composition | Both |
+| --- | ---: | ---: | ---: | ---: |
+| Low-effort nano, BM25 | 68/100 | 80/100 | 76/100 | 78/100 |
+| Low-effort nano, Oh | 73/100 | 76/100 | 71/100 | 81/100 |
+| Medium-effort mini, BM25 | 81/100 | 86/100 | 81/100 | 85/100 |
+| Medium-effort mini, Oh | 79/100 | 85/100 | 82/100 | 83/100 |
+
+For Oh with nano, the combined instruction gained eight correct answers over
+its fresh legacy control: thirteen wins and five losses. It improved abstention
+questions from 3/7 to 7/7 and other questions from 70/93 to 74/93. For Oh with
+mini, explicit abstention gained six answers: eight wins and two losses,
+improving those groups from 4/7 to 7/7 and 75/93 to 78/93. The gains therefore
+include changes on questions that have supported answers.
+
+The retrieval comparison still depends on the reader contract. With the
+combined nano instruction, Oh scored 81 versus BM25's 78, with seven wins and
+four losses. With explicit abstention and mini, Oh scored 85 versus BM25's 86,
+with zero wins and one loss. Composition alone reduced Oh's nano score from
+73 to 71. These observations support further testing of specific combinations,
+not a general claim that one instruction or retriever is better.
+
+The fresh legacy BM25 nano arm used the exact same complete request objects
+for all 100 questions as the earlier native-rubric regrade's reader captures,
+yet scored 68 here versus 77 earlier. Forty-one answer strings changed. Among
+the 59 identical judge requests, one verdict changed. Both immutable repeats
+remain in the record; this matrix uses its own fresh legacy controls. These
+repeats demonstrate hosted-output variation under unchanged requests, but do
+not provide a reliable estimate of its distribution.
+
+The run admitted 1,592 distinct reader requests and 605 distinct judge requests
+for $6.500682 in verified usage, with no new unresolved reservation. Its first
+24 reader requests per model qualified concurrency 24 and remained in the full
+matrix before expansion to 32. The six execution receipts reconcile in their
+actual order across both models. Summing the two reports' attributed costs
+gives $6.542196, which includes $0.041514 of shared judge usage counted in both
+reports. It is not additional spending. For the two Oh configurations discussed
+above, attributed reader usage per 100 answers was $0.123214 for combined nano
+and $0.613883 for explicit-abstention mini; selector or ingestion costs are not
+part of this instruction-only experiment.
+
+The [complete result](results/memory-evolution-answer-contracts-1600-native16-v1.json)
+and [paired comparisons](results/memory-evolution-answer-contracts-1600-native16-paired-v1.json)
+retain all category scores, the seven abstention and 93 other questions,
+request/source identities, failures and cost accounting. They cover eight
+matched retrieval comparisons and twelve instruction-versus-legacy comparisons.
+The same exposed 100 questions represent 100 corpus identities and 94 declared
+families; repeated arms add no independent questions. Grading uses the native
+LongMemEval rubric and contains-yes rule with a Gateway GPT-4o alias and a
+16-token output cap. It is not a pinned-snapshot, native 10-token or full-set
+evaluation, and these development results do not establish superiority.

@@ -148,3 +148,8 @@ that memory through a new worker without extraction. Search still projects only
 `memory` and `metadata`; SDK IDs and scores are unavailable in this projection.
 
 The [full-source qualification receipt](../../../benchmarks/results/memory-evolution-mem0-all-source-qualification-v1.json) records the actual SDK and parent proof with fake provider responses. It contains no source messages or local paths.
+
+The [reader-context adapter](../../../benchmarks/MEM0_READER_CONTEXT.md) packs the
+current SDK search projection into a separately identified 48/96 KB derived-memory
+context. It preserves SDK order and does not claim that an extraction is supported
+by its attributed source. Actual Mem0 accuracy remains a separate paid evaluation.

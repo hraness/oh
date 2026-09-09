@@ -320,6 +320,10 @@ its presence does not establish live provider qualification or improved accuracy
 Compare complete paired questions under the same context and judge, report failures
 in the full denominator, and keep development optimization separate from confirmation.
 
+The [completed 1,600-case comparison](EVOLUTION_RESULTS.md#answer-contract-comparison)
+records the four contracts with nano and mini under matched BM25 and Oh retrieval,
+including fresh legacy controls and native-rubric 16-token grading.
+
 ## Explicit concurrency experiments
 
 Run configurations V1–V3 and the original paid queue remain limited to one through
