@@ -324,6 +324,28 @@ The [completed 1,600-case comparison](EVOLUTION_RESULTS.md#answer-contract-compa
 records the four contracts with nano and mini under matched BM25 and Oh retrieval,
 including fresh legacy controls and native-rubric 16-token grading.
 
+## Opening-message completion experiment
+
+`oh-focused-window-opening` keeps the existing focused native Oh top-K ranking
+and its preceding/following turns. For each session occurrence represented in the
+retained candidates, it also attempts to include that occurrence's first explicit
+`user` message. Conversations with named speakers use their first source turn.
+Repeated session IDs remain distinct through their occurrence index.
+
+The opening message and its introducing retained candidate must fit together in
+the existing whole-turn UTF-8 context budget. If they do not fit, the candidate
+keeps its original admission opportunity and the opening message is omitted.
+An admitted opening can displace later candidates; the offline screen records
+both recovered and lost annotated turns across the entire development sample.
+No source text is synthesized, truncated or labeled using reference answers.
+The previous retrieval systems and their request identities remain unchanged.
+
+This opt-in treatment tests whether the beginning of a conversation supplies
+facts missed by isolated keyword matches and their immediate neighbors. The
+comparison holds top-K, context allowance, reader contract and judge fixed.
+Source coverage is a diagnostic, and reader accuracy still requires a paid
+comparison. It is not a selected production default or a benchmark victory.
+
 ## Explicit concurrency experiments
 
 Run configurations V1–V3 and the original paid queue remain limited to one through
