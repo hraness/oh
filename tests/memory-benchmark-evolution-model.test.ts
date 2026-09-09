@@ -29,7 +29,7 @@ describe("memory evolution model contracts", () => {
     const ids = Object.keys(EVOLUTION_PROFILES) as EvolutionProfileId[];
     const hashes = new Set<string>();
     for (const id of ids) {
-      const prompt = id === "gpt4o-official-snapshot-judge" ? directJudgeMessages : messages;
+      const prompt = id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" ? directJudgeMessages : messages;
       const request = makeEvolutionRequest(id, prompt), bytes = raw(response(request));
       const result = parseEvolutionResponse(bytes, request);
       expect(validateEvolutionRequest(structuredClone(request))).toEqual(request);

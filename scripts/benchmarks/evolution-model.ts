@@ -10,7 +10,7 @@ export const EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS = 400_000;
 export const EVOLUTION_PROFILE_WINDOW_MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 export type EvolutionProfileId = "qwen37-flash-reader" | "gpt5-nano-reader" | "gemini25-flash-lite-reader"
-  | "gpt5-mini-reader" | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge";
+  | "gpt5-mini-reader" | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge" | "gpt4o-gateway-native-rubric-judge-v1";
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
@@ -70,6 +70,8 @@ export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionMo
     { reasoning: { effort: "medium" } }, [tier(250, 25, 2_000)]),
   "gpt4o-gateway-judge": profile("gpt4o-gateway-judge", "openai/gpt-4o", "openai", 128_000, 16,
     { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+  "gpt4o-gateway-native-rubric-judge-v1": profile("gpt4o-gateway-native-rubric-judge-v1", "openai/gpt-4o", "openai", 128_000, 10,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
   "gpt4o-official-snapshot-judge": profile("gpt4o-official-snapshot-judge", "gpt-4o-2024-08-06", "openai", 128_000, 10,
     { temperature: 0 }, [tier(2_500, 1_250, 10_000)], "gpt-4o-2024-08-06"),
 });
@@ -79,8 +81,8 @@ function getProfile(value: unknown): EvolutionModelProfile {
   return EVOLUTION_PROFILES[value as EvolutionProfileId];
 }
 function validMessages(value: unknown, selected: EvolutionModelProfile): value is readonly Message[] {
-  const directSnapshot = selected.qualification === "official-snapshot-request";
-  return Array.isArray(value) && (directSnapshot
+  const nativeJudge = selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1";
+  return Array.isArray(value) && (nativeJudge
     ? value.length === 1 && value[0]?.role === "user"
     : value.length === 2 && value[0]?.role === "system" && value[1]?.role === "user")
     && value.every(message => isPlainRecord(message) && hasExactKeys(message, ["role", "content"])

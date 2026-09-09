@@ -156,12 +156,37 @@ from binary judge accuracy and retrieval evidence precision/recall/F1. The
 default reader does not emit citations, so answer citation quality is reported
 as unmeasured.
 
-The direct LongMemEval judge uses the pinned `gpt-4o-2024-08-06` snapshot, a single
-user message, ten output tokens, the source-attributed category prompts and the
-native `contains yes` decision rule. Gateway grading uses an unpinned GPT-4o
-alias, sixteen output tokens and strict yes/no parsing; reports label that
-adapted stack separately. Source prompt parity does not establish live provider
-qualification.
+LongMemEval judge profiles are explicit and keep separate request identities:
+
+| Judge profile | Route and requested model | Messages and output limit | Decision rule |
+| --- | --- | --- | --- |
+| `gpt4o-official-snapshot-judge` | Direct OpenAI `gpt-4o-2024-08-06` | One user message, 10 tokens | Native `contains yes` |
+| `gpt4o-gateway-native-rubric-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 10 tokens | Native `contains yes` |
+| `gpt4o-gateway-judge` | Gateway `openai/gpt-4o`, OpenAI provider only | System and user messages, 16 tokens | Strict yes/no |
+
+Both native-rubric profiles require the parity-qualified, source-attributed
+category prompt file and temperature zero. The native rule deliberately grades
+any completed response containing `yes` case-insensitively as correct; other
+completed responses score zero. This preserves the released evaluator's rule,
+including strings such as `not yes`. Transport, refusal and truncation failures
+remain separate failed attempts under the campaign's fixed-denominator policy.
+
+The versioned Gateway native-rubric profile is still an alias. Even a response
+reporting the official snapshot does not pin the requested model. Reports state
+that limitation explicitly; source prompt parity does not establish live
+provider qualification or an official full-set score. LoCoMo semantic judging
+remains a separate diagnostic from its official F1.
+
+Run configuration V1, V2 and V3 may explicitly select the new judge ID; those
+versions still describe treatment/context shapes. The model request remains V1
+with a new profile digest and request digest. Existing profile IDs, V1/V2 reader
+requests, proxy judgments and stored replay identities retain their original
+meaning. Never relabel earlier captures or reparse proxy decisions under the new
+rule. To regrade completed predictions, use a new configuration/output directory
+with an exact copy of the pinned context plan and the original reader plan and
+completed receipt. Keep the same canonical campaign store, build a fresh
+`judge-plan`, and budget only its missing native-rubric judge requests. The runner
+authenticates the original reader evidence before planning and dispatch.
 
 Reports authenticate captured raw bytes and occupied-attempt failure receipts,
 account for each request once and retain failed answers in denominators. Known

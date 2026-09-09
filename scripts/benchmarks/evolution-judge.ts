@@ -6,7 +6,7 @@ import { validateEvolutionReaderPlan, type EvolutionAnyContextPlan, type Evoluti
 import { validateEvolutionAttemptFailure, type EvolutionAttemptFailure } from "./evolution-store";
 import { buildJudgePrompt, loadJudgeProfile, parseJudgeDecision } from "./judge";
 
-export type EvolutionJudgeProfileId = "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge";
+export type EvolutionJudgeProfileId = "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge" | "gpt4o-gateway-native-rubric-judge-v1";
 // Offline differential evidence: all six official task types, abstention and literal-field interpolation.
 // The upstream MIT attribution/license and exact prompt text are retained in the pinned profile JSON.
 export const EVOLUTION_LME_NATIVE_REFERENCE = {
@@ -22,17 +22,18 @@ export type EvolutionJudgePlan = Readonly<{ protocol: "oh.memory.evolution-judge
   requests: readonly EvolutionRequest[]; planSha256: string }>;
 const fail = (message: string): never => { throw new TypeError(`Evolution judge: ${message}.`); };
 const caseKey = (c: EvolutionJudgeCase) => JSON.stringify([c.questionId, c.variantId, c.reader]);
-const profileRule = (profile: EvolutionJudgeProfileId) => profile === "gpt4o-official-snapshot-judge" ? "native-contains-yes" as const : "strict-yes-no" as const;
+const nativeRubric = (profile: EvolutionJudgeProfileId) => profile === "gpt4o-official-snapshot-judge" || profile === "gpt4o-gateway-native-rubric-judge-v1";
+const profileRule = (profile: EvolutionJudgeProfileId) => nativeRubric(profile) ? "native-contains-yes" as const : "strict-yes-no" as const;
 
 export function scoreEvolutionJudgeDecision(profile: EvolutionJudgeProfileId, answer: unknown): 0 | 1 | null {
-  if (profile !== "gpt4o-official-snapshot-judge" && profile !== "gpt4o-gateway-judge") fail("unknown judge profile");
+  if (!nativeRubric(profile) && profile !== "gpt4o-gateway-judge") fail("unknown judge profile");
   if (profile === "gpt4o-gateway-judge") return parseJudgeDecision(answer);
   return typeof answer === "string" ? Number(answer.toLowerCase().includes("yes")) as 0 | 1 : null;
 }
 
 export function validateEvolutionJudgePlan(plan: EvolutionJudgePlan): EvolutionJudgePlan {
   if (!isPlainRecord(plan) || !hasExactKeys(plan, ["protocol", "readerPlanSha256", "readerOutputSha256", "profile", "rubricSha256", "scoringRule", "cases", "requests", "planSha256"])
-    || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge"].includes(plan.profile)
+    || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1"].includes(plan.profile)
     || !Array.isArray(plan.cases) || plan.cases.length < 1 || plan.cases.length > 512_000
     || !Array.isArray(plan.requests) || plan.requests.length > plan.cases.length) fail("invalid shape or bounds");
   const { planSha256, ...payload } = plan;
@@ -62,8 +63,8 @@ export function makeEvolutionJudgePlan(input: Readonly<{ contextPlan: EvolutionA
   responses: ReadonlyMap<string, EvolutionResponse>; failures?: ReadonlyMap<string, EvolutionAttemptFailure>; dataset: Dataset; profile: EvolutionJudgeProfileId;
   rubric: Awaited<ReturnType<typeof loadJudgeProfile>>; readerOutputSha256: string }>): EvolutionJudgePlan {
   const reader = validateEvolutionReaderPlan(input.readerPlan, input.contextPlan);
-  if (input.profile === "gpt4o-official-snapshot-judge" && input.rubric.sha256 !== EVOLUTION_LME_NATIVE_REFERENCE.parityRubricSha256) {
-    fail("direct native judge requires the parity-qualified rubric");
+  if (nativeRubric(input.profile) && input.rubric.sha256 !== EVOLUTION_LME_NATIVE_REFERENCE.parityRubricSha256) {
+    fail("native judge requires the parity-qualified rubric");
   }
   const failures = input.failures ?? new Map<string, EvolutionAttemptFailure>();
   assertExactEvolutionCoverage(reader.requests.map(r => r.requestSha256), [...input.responses.keys(), ...failures.keys()]);
@@ -83,7 +84,7 @@ export function makeEvolutionJudgePlan(input: Readonly<{ contextPlan: EvolutionA
     let requestSha256: string | null = null;
     if (response?.status === "completed" && response.answer !== null) {
       const prompt = buildJudgePrompt(question, response.answer, input.rubric);
-      const messages = input.profile === "gpt4o-official-snapshot-judge"
+      const messages = nativeRubric(input.profile)
         ? [{ role: "user" as const, content: prompt }]
         : [{ role: "system" as const, content: "You are a fair and precise evaluator." }, { role: "user" as const, content: prompt }];
       const request = makeEvolutionRequest(input.profile, messages);

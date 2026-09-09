@@ -275,7 +275,9 @@ export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; m
     scoring: { judgeProfile: judges.profile, judgeRule: judges.scoringRule, judgeReference: EVOLUTION_LME_NATIVE_REFERENCE,
       judgeQualification: locomo ? "Separate semantic diagnostic; the official LoCoMo QA score is F1."
         : direct ? "Pinned direct GPT-4o-2024-08-06, native LongMemEval prompts and contains-yes grading; this development selection is not the official full-set score."
-        : "Gateway GPT-4o alias proxy with a system message, 16 output tokens and strict yes/no parsing; not the official snapshot protocol.",
+        : judges.profile === "gpt4o-gateway-native-rubric-judge-v1"
+          ? "Gateway GPT-4o alias with native LongMemEval prompts, one user message, 10 output tokens and contains-yes grading; provider is restricted to OpenAI, but the requested model is not a pinned snapshot. This development selection is not the official full-set score."
+          : "Gateway GPT-4o alias proxy with a system message, 16 output tokens and strict yes/no parsing; not the official snapshot protocol.",
       officialLocomoF1: locomo ? { protocol: LOCOMO_F1_PROTOCOL, reference: LOCOMO_F1_REFERENCE } : null,
       failurePolicy: "Every eligible question remains in answer-score denominators. Reader failures score zero; judge failures score zero only for judge accuracy and are counted separately. Authenticated occupied attempts without a verifiable answer score zero and retain their full reservations. Never-admitted requests or unauthenticated missing evidence prevent a complete report.",
       evidenceUnit: locomo ? "turn" : "session", evidenceQualification: "Retrieval evidence is scored independently of answer success. No evidence labels means unscored, not perfect; unresolved labels remain in the denominator.",
