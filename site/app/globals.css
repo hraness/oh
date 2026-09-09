@@ -86,8 +86,14 @@ a:focus-visible {
   color: var(--hraness-site-accent);
 }
 
-.hraness-marketing-hero__example {
-  max-inline-size: 36rem;
+.oh-marketing-hero {
+  gap: clamp(1.25rem, 2.5vw, 2rem);
+  padding-block-start: clamp(1.5rem, 3vw, 2.5rem);
+}
+.oh-marketing-hero .hraness-marketing-hero__copy { gap: 1rem; }
+.oh-marketing-hero .hraness-marketing-hero__heading {
+  max-inline-size: 22ch;
+  font-size: clamp(2.3rem, 4.5vw, 3.5rem);
 }
 
 .hraness-marketing-stats {
@@ -107,6 +113,34 @@ a:focus-visible {
 .record-kind {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.citation-preview {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  overflow-wrap: anywhere;
+}
+.citation-preview h2 { margin: 0; font-size: clamp(1.25rem, 2vw, 1.65rem); line-height: 1.3; }
+.citation-preview > p { max-inline-size: 52ch; color: var(--muted); }
+.citation-preview dl { margin-block: 1.5rem; }
+.citation-preview dl > div {
+  display: grid;
+  grid-template-columns: minmax(6rem, 0.3fr) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  padding-block: 0.85rem;
+  border-block-start: 1px solid var(--line);
+}
+.citation-preview dt { font-size: 0.9rem; color: var(--muted); }
+.citation-preview dd { margin: 0; }
+.citation-preview dd code { display: block; margin-block-start: 0.2rem; font-size: 0.85rem; }
+.citation-preview > a { display: inline-flex; align-items: center; min-block-size: 3rem; color: var(--foreground); text-underline-offset: 0.2em; }
+.citation-preview > a:focus-visible,
+.first-run-details > summary:focus-visible { outline: 2px solid var(--hraness-site-accent); outline-offset: 3px; }
+.first-run-details { margin-block-start: 1rem; min-inline-size: 0; }
+.first-run-details > summary { min-block-size: 3rem; padding-block: 0.75rem; cursor: pointer; font-weight: 500; }
+.first-run-details > summary:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+#main:focus { outline: none; }
+@media (max-width: 30rem) {
+  .citation-preview dl > div { grid-template-columns: minmax(0, 1fr); }
 }
 
 .record-link,
@@ -466,8 +500,9 @@ a:focus-visible {
 }
 
 .spec-section p.callout {
-  padding: 0.5rem 0 0.5rem 1.15rem;
-  border-left: 3px solid var(--hraness-site-accent);
+  padding-block: 0.5rem;
+  padding-inline: 1.15rem 0;
+  border-inline-start: 1px solid var(--line);
   color: var(--foreground);
 }
 
