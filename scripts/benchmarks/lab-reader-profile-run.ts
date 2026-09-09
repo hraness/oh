@@ -14,7 +14,7 @@ import { labReaderProfileLedgerExposure, openLabReaderProfileCustody } from "./l
 import { reserveReaderJudge, parseReaderJudge, type LabReaderJudgeRequest, type LabReaderJudgeResult } from "./lab-reader-profile-judge";
 import { invokeLabReaderJudge } from "./lab-reader-profile-transport-union";
 import { replayLegacyLabPaidJudge } from "./lab-reader-profile-legacy-judge";
-import { makeLabReaderProfilePlan, validateLabReaderProfilePlan } from "./lab-reader-profile-plan";
+import { makeLabReaderProfilePlan, validateLabReaderProfilePlan, type LabReaderProfileVariantPair } from "./lab-reader-profile-plan";
 import { makeLabReaderProfileJudgePlan, scoreLabReaderProfileJudgePlan } from "./lab-reader-profile-scoring";
 
 const PROTOCOL = "oh.memory.lab-reader-profile-run.v1" as const;
@@ -24,7 +24,7 @@ const qualification = (profile: LabGpt5MiniReaderProfileSelector | undefined) =>
 export type LabReaderProfilePin = Readonly<{ path: string; sha256: string }>;
 export type LabReaderProfileRunConfig = Readonly<{ budgetPin: LabReaderProfilePin; parentPin: LabReaderProfilePin;
   legacyDirectory: string; legacyLedger: LabReaderProfilePin & Readonly<{ bytes: number }>;
-  readerProfile?: LabGpt5MiniReaderProfileSelector; directory: string; output: string; planPath: string; maxUsd: number; maxCalls: number; concurrency: number }>;
+  readerProfile?: LabGpt5MiniReaderProfileSelector; variantPair?: LabReaderProfileVariantPair; directory: string; output: string; planPath: string; maxUsd: number; maxCalls: number; concurrency: number }>;
 type Command = Readonly<{ mode: "prepare"; configPin: LabReaderProfilePin }>
   | Readonly<{ mode: "run"; configPin: LabReaderProfilePin; paid: true; planSha256: string; maxUsd: number }>;
 type Runtime = Readonly<{ oidcToken: string; fetcher?: NonNullable<Parameters<typeof invokeLabReaderJudge>[0]["fetcher"]>; stopped?: () => boolean }>;
@@ -44,8 +44,9 @@ function same(a: unknown, b: unknown, reason: string) { if (canonicalSha256(a) !
 function inside(child: string, parent: string) { return child === parent || child.startsWith(parent + sep); }
 /** The private config selects data and bounded limits, a closed reader profile, never code, credentials, arbitrary model parameters or an alternate judge. */
 export function parseLabReaderProfileRunConfig(value: unknown): LabReaderProfileRunConfig {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["budgetPin", "parentPin", "legacyDirectory", "legacyLedger", "directory", "output", "planPath", "maxUsd", "maxCalls", "concurrency", ...("readerProfile" in value ? ["readerProfile"] : [])])
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["budgetPin", "parentPin", "legacyDirectory", "legacyLedger", "directory", "output", "planPath", "maxUsd", "maxCalls", "concurrency", ...("readerProfile" in value ? ["readerProfile"] : []), ...("variantPair" in value ? ["variantPair"] : [])])
     || "readerProfile" in value && value.readerProfile !== "minimal" && value.readerProfile !== "medium"
+    || "variantPair" in value && value.variantPair !== "window-hybrid-24kb" && value.variantPair !== "window-24kb-96kb"
     || !usd(value.maxUsd) || !integer(value.maxCalls, 400) || !integer(value.concurrency, 12)
     || !isPlainRecord(value.legacyLedger) || !hasExactKeys(value.legacyLedger, ["path", "sha256", "bytes"])
     || typeof value.legacyLedger.bytes !== "number" || !Number.isSafeInteger(value.legacyLedger.bytes)
@@ -53,7 +54,8 @@ export function parseLabReaderProfileRunConfig(value: unknown): LabReaderProfile
   const config = { budgetPin: pin(value.budgetPin), parentPin: pin(value.parentPin), legacyDirectory: path(value.legacyDirectory),
     legacyLedger: Object.freeze({ ...pin({ path: value.legacyLedger.path, sha256: value.legacyLedger.sha256 }), bytes: value.legacyLedger.bytes }),
     directory: path(value.directory), output: path(value.output), planPath: path(value.planPath), maxUsd: value.maxUsd, maxCalls: value.maxCalls, concurrency: value.concurrency,
-    ...("readerProfile" in value ? { readerProfile: value.readerProfile as LabGpt5MiniReaderProfileSelector } : {}) };
+    ...("readerProfile" in value ? { readerProfile: value.readerProfile as LabGpt5MiniReaderProfileSelector } : {}),
+    ...("variantPair" in value ? { variantPair: value.variantPair as LabReaderProfileVariantPair } : {}) };
   if (config.legacyLedger.path !== join(config.legacyDirectory, "ledger.jsonl")) fail("legacy ledger path binding");
   const outputs = [config.planPath, config.output, ...[".started.json", ".readers.json", ".judges.json"].map(suffix => config.output + suffix)];
   const files = [config.budgetPin.path, config.parentPin.path, config.legacyLedger.path, ...outputs];
@@ -128,7 +130,7 @@ export function createLabReaderProfileRunner(dependencies: Readonly<{ verifyBudg
     const dataset = selectQuestions(selectSplit(await load("longmemeval-s"), "dev", 17), 100, 17);
     if (dataset.questions.length !== 100 || canonicalSha256(dataset.questions.map(q => q.id)) !== parent.selectionSha256) fail("parent question order or count changed");
     const namespaceSha256 = canonicalSha256({ protocol: PROTOCOL, configPin: fixedPin, budgetPin: config.budgetPin, parentPin: config.parentPin });
-    const reader = makeLabReaderProfilePlan(dataset, parent.reader as LabPaidReaderPlan, namespaceSha256, config.readerProfile);
+    const reader = makeLabReaderProfilePlan(dataset, parent.reader as LabPaidReaderPlan, namespaceSha256, config.readerProfile, config.variantPair);
     return { configPin: fixedPin, config, ancestry, dataset, parent: parent.reader as LabPaidReaderPlan, namespaceSha256, reader };
   }
   async function prepare(configPin: LabReaderProfilePin) {
@@ -242,6 +244,7 @@ if (import.meta.main && process.argv.length === 3 && process.argv[2] === "--help
 The hashed private config fixes the parent/budget/legacy-ledger pins, new output paths,
 maxUsd (cumulative, at most 40), maxCalls (at most 400), and concurrency (at most 12).
 Optional readerProfile is minimal (default, 2048) or medium (8192 including reasoning).
+Optional variantPair is window-hybrid-24kb (default) or window-24kb-96kb.
 Preparation makes zero model calls. Run requires selected-project VERCEL_OIDC_TOKEN.
 Fixed 100-question LongMemEval development sample, seed 17, two reader variants.
 Never retry or reset occupied first responses. Carry every previous ledger once.

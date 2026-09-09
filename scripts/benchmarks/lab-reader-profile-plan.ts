@@ -5,7 +5,9 @@ import { LAB_GPT5_MINI_READER_PROFILE, LAB_GPT5_MINI_MEDIUM_READER_PROFILE, make
 import { canonicalReaderJudgeRequest, type FrozenJudgeRequest } from "./lab-reader-profile-judge";
 
 export const LAB_READER_PROFILE_VARIANTS = Object.freeze(["bm25-window:k20:b24000", "bm25-user-hybrid:k100:b24000"] as const);
-export type LabReaderProfileVariant = typeof LAB_READER_PROFILE_VARIANTS[number];
+export const LAB_READER_PROFILE_WIDE_VARIANTS = Object.freeze(["bm25-window:k20:b24000", "bm25-window:k100:b96000"] as const);
+export type LabReaderProfileVariant = typeof LAB_READER_PROFILE_VARIANTS[number] | typeof LAB_READER_PROFILE_WIDE_VARIANTS[number];
+export type LabReaderProfileVariantPair = "window-hybrid-24kb" | "window-24kb-96kb";
 export type LabReaderProfileCase = Readonly<{ ordinal: number; parentOrdinal: number; questionId: string;
   corpusId: string; groupId: string; category: string; variant: LabReaderProfileVariant;
   contextSha256: string; contextBytes: number; requestSha256: string; jobKey: string }>;
@@ -19,11 +21,17 @@ const SELECTED_VARIANTS = [
   { id: LAB_READER_PROFILE_VARIANTS[0], system: "bm25-window", budget: { topK: 20, contextBytes: 24_000 } },
   { id: LAB_READER_PROFILE_VARIANTS[1], system: "bm25-user-hybrid", budget: { topK: 100, contextBytes: 24_000 } },
 ] as const;
+const WIDE_SELECTED_VARIANTS = [
+  { id: LAB_READER_PROFILE_WIDE_VARIANTS[0], system: "bm25-window", budget: { topK: 20, contextBytes: 24_000 } },
+  { id: LAB_READER_PROFILE_WIDE_VARIANTS[1], system: "bm25-window", budget: { topK: 100, contextBytes: 96_000 } },
+] as const;
 const PLAN_KEYS = ["profile", "namespaceSha256", "parentPlanSha256", "variants", "cases", "jobs", "casesSha256", "planSha256"];
 function fail(reason: string): never { throw new TypeError(`Lab reader profile plan: ${reason}.`); }
 function digest(value: unknown): value is string { return typeof value === "string" && /^[a-f0-9]{64}$/.test(value); }
-function selectedVariant(value: string): value is LabReaderProfileVariant {
-  return (LAB_READER_PROFILE_VARIANTS as readonly string[]).includes(value);
+function pairVariants(pair: LabReaderProfileVariantPair) {
+  if (pair === "window-hybrid-24kb") return { variants: LAB_READER_PROFILE_VARIANTS, selected: SELECTED_VARIANTS };
+  if (pair === "window-24kb-96kb") return { variants: LAB_READER_PROFILE_WIDE_VARIANTS, selected: WIDE_SELECTED_VARIANTS };
+  fail("unknown variant pair");
 }
 function frozen<T>(value: T): T {
   if (value !== null && typeof value === "object") {
@@ -34,17 +42,18 @@ function frozen<T>(value: T): T {
 }
 
 /** Validates a gold-free parent reader plan, then preserves its selected messages, contexts and order byte for byte. */
-export function makeLabReaderProfilePlan(dataset: Dataset, parent: LabPaidReaderPlan, namespaceSha256: string, readerProfile: LabGpt5MiniReaderProfileSelector = "minimal"): LabReaderProfilePlan {
+export function makeLabReaderProfilePlan(dataset: Dataset, parent: LabPaidReaderPlan, namespaceSha256: string,
+  readerProfile: LabGpt5MiniReaderProfileSelector = "minimal", variantPair: LabReaderProfileVariantPair = "window-hybrid-24kb"): LabReaderProfilePlan {
   if (!digest(namespaceSha256)) fail("invalid namespace");
   validateLabPaidReaderPlan(dataset, parent);
-  const selected = parent.variants.filter(v => selectedVariant(v.id));
-  if (canonicalSha256(selected) !== canonicalSha256(SELECTED_VARIANTS)) fail("explicit ordered variant systems and budgets required");
+  const pair = pairVariants(variantPair), selected = parent.variants.filter(v => (pair.variants as readonly string[]).includes(v.id));
+  if (canonicalSha256(selected) !== canonicalSha256(pair.selected)) fail("explicit ordered variant systems and budgets required");
 
   const source = new Map(parent.jobs.map(job => [job.key, job]));
   const jobs = new Map<string, LabReaderProfileJob>();
   const cases: LabReaderProfileCase[] = [];
   for (const c of parent.cases) {
-    if (!selectedVariant(c.variant)) continue;
+    if (!(pair.variants as readonly string[]).includes(c.variant)) continue;
     const original = source.get(c.jobKey);
     if (original === undefined || original.phase !== "reader") fail("parent reader alias");
     const request = makeLabGpt5MiniReaderRequest(original.request.body.messages, { profile: readerProfile });
@@ -52,14 +61,24 @@ export function makeLabReaderProfilePlan(dataset: Dataset, parent: LabPaidReader
     // Equal requests may serve several cases. The first case owns the physical job's position.
     if (!jobs.has(jobKey)) jobs.set(jobKey, { key: jobKey, ordinal: 0, request });
     cases.push({ ordinal: cases.length, parentOrdinal: c.ordinal, questionId: c.questionId,
-      corpusId: c.corpusId, groupId: c.groupId, category: c.category, variant: c.variant,
+      corpusId: c.corpusId, groupId: c.groupId, category: c.category, variant: c.variant as LabReaderProfileVariant,
       contextSha256: c.contextSha256, contextBytes: c.contextBytes, requestSha256: request.requestSha256, jobKey });
   }
   if (cases.length !== dataset.questions.length * 2) fail("incomplete selected matrix");
   const payload = { profile: "oh.lab-reader-profile-plan.v1" as const, namespaceSha256,
-    parentPlanSha256: parent.planSha256, variants: [...LAB_READER_PROFILE_VARIANTS], cases,
+    parentPlanSha256: parent.planSha256, variants: [...pair.variants], cases,
     jobs: [...jobs.values()], casesSha256: canonicalSha256(cases) };
   return frozen({ ...payload, planSha256: canonicalSha256(payload) });
+}
+
+/** The variants field is a closed pair identity, never a caller-selected mixture. */
+export function readerVariantsForPlan(plan: LabReaderProfilePlan): readonly LabReaderProfileVariant[] {
+  if (canonicalSha256(plan.variants) === canonicalSha256(LAB_READER_PROFILE_VARIANTS)) return LAB_READER_PROFILE_VARIANTS;
+  if (canonicalSha256(plan.variants) === canonicalSha256(LAB_READER_PROFILE_WIDE_VARIANTS)) return LAB_READER_PROFILE_WIDE_VARIANTS;
+  fail("unknown or mixed reader variants");
+}
+export function readerVariantPairForPlan(plan: LabReaderProfilePlan): LabReaderProfileVariantPair {
+  return readerVariantsForPlan(plan) === LAB_READER_PROFILE_VARIANTS ? "window-hybrid-24kb" : "window-24kb-96kb";
 }
 
 /** A matrix uses one explicit reader profile; mixed requests cannot share its policy or score. */
@@ -79,7 +98,7 @@ export function validateLabReaderProfilePlan(dataset: Dataset, plan: LabReaderPr
     || !Array.isArray(plan.jobs) || plan.jobs.length < 1 || plan.jobs.length > plan.cases.length) fail("plan shape");
   const { planSha256, ...payload } = plan;
   if (canonicalSha256(plan.cases) !== plan.casesSha256 || canonicalSha256(payload) !== planSha256) fail("plan digest");
-  const expected = makeLabReaderProfilePlan(dataset, parent, plan.namespaceSha256, readerProfileForPlan(plan));
+  const expected = makeLabReaderProfilePlan(dataset, parent, plan.namespaceSha256, readerProfileForPlan(plan), readerVariantPairForPlan(plan));
   if (canonicalSha256(plan) !== canonicalSha256(expected)) fail("parent conversion binding");
 }
 

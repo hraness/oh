@@ -288,8 +288,7 @@ changes or evidence of benchmark saturation.
 ## Reproduce a reader-profile comparison
 
 `bun run bench:lab:profile --help` describes the public command. It uses the
-fixed 100-question LongMemEval development selection and the two 24 KB variants
-above. It accepts a SHA-256-pinned private JSON config with these required fields and one optional closed reader selector:
+fixed 100-question LongMemEval development selection and two explicitly selected parent variants. It accepts a SHA-256-pinned private JSON config with these required fields and two optional closed selectors:
 
 | Field | Meaning |
 | --- | --- |
@@ -304,6 +303,7 @@ above. It accepts a SHA-256-pinned private JSON config with these required field
 | `maxCalls` | Maximum new physical requests for this run, at most 400. |
 | `concurrency` | Simultaneous requests, from 1 through 12. |
 | `readerProfile` (optional) | `minimal` (default, 2,048 output tokens) or `medium` (8,192 output tokens including reasoning). |
+| `variantPair` (optional) | `window-hybrid-24kb` (default), or `window-24kb-96kb` to compare the parent’s 24 KB/topK20 and 96 KB/topK100 windows. |
 
 Use canonical absolute paths. Output parent directories and the legacy cache
 must be owned by the current user with mode `0700`; pinned files use private
@@ -336,10 +336,10 @@ judge JSON. The run rechecks those inputs, reserves before dispatch, drains
 started requests after a failure, and reports scores only for a complete matrix.
 A failure never converts an occupied request into a cache miss.
 
-The five public-command integration tests use synthetic benchmark data and
+The six public-command integration tests use synthetic benchmark data and
 a mocked transport. They exercise a complete 200-case matrix through real
 request capture and scoring, call-limit admission, immutable outputs and
-changed-config rejection, plus a separate complete medium-profile matrix. Live model qualification comes from the separately
+changed-config rejection, plus separate complete medium-profile and wide-context matrices. Live model qualification comes from the separately
 audited comparison above; the mocked tests do not measure answer quality.
 
 The medium profile is a separate experiment using the same GPT-5 mini alias,
@@ -348,6 +348,49 @@ for reasoning tokens. It preserves parent messages, contexts and question order.
 Requests, reservations and terminal-failure policy have distinct profile digests;
 a matrix cannot mix profiles. Existing minimal request and failure-policy bytes
 remain unchanged. More reasoning may improve abstention, arithmetic or counting
-errors, but the larger allowance also changes cost and latency. At this source
-checkpoint the medium profile has only mocked validation, with no measured
-accuracy result or promotion.
+errors, but the larger allowance also changes cost and latency. The real medium-profile result is recorded below. Neither profile changes the
+production reader default.
+
+
+## Medium reasoning and remaining retrieval misses
+
+The same 100-question/200-case public command completed with medium reasoning,
+an 8,192-token output allowance, and unchanged messages, 24 KB contexts and
+native judge. [Compact evidence](results/memory-development-reader-profile-medium-v1.json)
+records every paired comparison and its qualifications.
+
+| Retrieved memory | GPT-4.1 mini | GPT-5 mini minimal | GPT-5 mini medium |
+| --- | ---: | ---: | ---: |
+| Window, topK20 / 24 KB | 68/100 | 63/100 | 72/100 |
+| Hybrid, topK100 / 24 KB | 70/100 | 65/100 | 70/100 |
+
+Medium versus minimal gained nine window points (12 wins, three losses;
+grouped development interval +2.02 to +16.33 points). Against the existing
+GPT-4.1 mini window it gained four points (nine wins, five losses; interval
+−3.09 to +11.22). The hybrid tied the existing reader. These intervals come
+from a repeatedly used development sample and are not adjusted for all trials;
+they do not establish held-out superiority.
+
+The run completed in 175.46 seconds: reader phase 166.05 seconds, judge phase
+8.05 seconds, at concurrency eight. All 263 new calls settled: 200 readers and
+63 new judges, with 64 authenticated old judge hits across 127 distinct judge
+requests. No reader failed. Accounted usage was $0.521840; cumulative amendment
+exposure became $24.080049, within the run’s $26 cumulative ceiling and unchanged
+$40 amendment cap. Native usage reported 99,925 output tokens, including 91,392
+reasoning tokens, across the 200 reader calls. The independent audit reparsed
+every local raw response, replayed old judge hits and regenerated all 200 scores,
+phase counts, bootstrap and accounting.
+
+A diagnostic of the window’s 28 misses found six with every annotated turn ID
+in context, ten with some, seven with none, and five without annotations. On
+these same misses, the existing 96 KB parent contexts include every annotated ID
+for 14 questions, improving eight. Their mean used context rises from 23,936 to
+93,715 bytes. ID presence is a diagnostic proxy; it does not guarantee complete
+answer evidence or a correct answer. Annotations were inspected after scoring
+and never supplied to retrieval or the reader.
+
+The next experiment compares the existing 24 KB and 96 KB parent windows using
+the same medium reader, full fixed sample and native judge. It uses the optional
+closed `variantPair` selector; it does not relabel contexts or select only the
+misses. The increased top-k and context allowance change together and must both
+be reported. At this checkpoint that new pair has mocked validation only.

@@ -7,7 +7,7 @@ import { makeGatewayStudyRequest } from "./gateway-study-transport-v3";
 import { MODELS } from "./model";
 import { canonicalReaderJudgeRequest, type FrozenJudgeRequest, type LabReaderJudgeResult } from "./lab-reader-profile-judge";
 import { LAB_GPT5_MINI_MEDIUM_MAX_OUTPUT, LAB_GPT5_MINI_MEDIUM_READER_PROFILE, LAB_GPT5_MINI_READER_PROFILE, LAB_GPT5_MINI_MAX_OUTPUT, labGpt5MiniReaderProfile, type LabGpt5MiniReaderProfileSelector, type LabReaderRequest, type LabReaderResult } from "./lab-reader-profile";
-import { LAB_READER_PROFILE_VARIANTS, readerProfileForPlan, validateLabReaderProfilePlan, type LabReaderProfileCase, type LabReaderProfilePlan } from "./lab-reader-profile-plan";
+import { readerVariantsForPlan, readerProfileForPlan, validateLabReaderProfilePlan, type LabReaderProfileCase, type LabReaderProfilePlan } from "./lab-reader-profile-plan";
 
 function fail(reason: string): never { throw new TypeError(`Lab reader profile scoring: ${reason}.`); }
 function digest(value: unknown): value is string { return typeof value === "string" && /^[a-f0-9]{64}$/.test(value); }
@@ -149,7 +149,7 @@ function validateEmbeddedReader(plan: ProfileJudgePlan): LabGpt5MiniReaderProfil
   const { planSha256, ...payload } = reader;
   same(planSha256, canonicalSha256(payload), "embedded reader digest");
   same(reader.casesSha256, canonicalSha256(reader.cases), "embedded reader cases digest");
-  same(reader.variants, LAB_READER_PROFILE_VARIANTS, "reader variants");
+  const variants = readerVariantsForPlan(reader);
   const selectedReaderProfile = readerProfileForPlan(reader);
   const jobs = new Map<string, LabReaderRequest>();
   for (const job of reader.jobs) {
@@ -163,7 +163,7 @@ function validateEmbeddedReader(plan: ProfileJudgePlan): LabGpt5MiniReaderProfil
     const first = reader.cases[Math.floor(ordinal / 2) * 2]!;
     if (!exact(c, readerKeys) || c.ordinal !== ordinal || !integer(c.parentOrdinal)
       || ordinal > 0 && c.parentOrdinal <= reader.cases[ordinal - 1]!.parentOrdinal
-      || c.variant !== LAB_READER_PROFILE_VARIANTS[ordinal % 2]
+      || c.variant !== variants[ordinal % 2]
       || [c.questionId, c.corpusId, c.groupId, c.category].some(v => typeof v !== "string" || !v.length)
       || !digest(c.contextSha256) || !integer(c.contextBytes) || c.contextBytes > 4_000_000
       || !digest(c.requestSha256) || !digest(c.jobKey)) fail("reader alias matrix identity");

@@ -4,7 +4,7 @@ import type { Dataset } from "../scripts/benchmarks/datasets";
 import type { LabVariant } from "../scripts/benchmarks/lab";
 import { makeLabPaidReaderPlan, validateLabPaidReaderPlan, type LabPaidReaderPlan } from "../scripts/benchmarks/lab-paid-plan";
 import { makeLabGpt5MiniReaderRequest } from "../scripts/benchmarks/lab-reader-profile";
-import { LAB_READER_PROFILE_VARIANTS, makeLabReaderProfilePlan, validateLabReaderProfilePlan,
+import { LAB_READER_PROFILE_VARIANTS, LAB_READER_PROFILE_WIDE_VARIANTS, makeLabReaderProfilePlan, readerVariantPairForPlan, readerVariantsForPlan, validateLabReaderProfilePlan,
   type LabReaderProfilePlan } from "../scripts/benchmarks/lab-reader-profile-plan";
 
 const namespace = sha256Hex("synthetic-profile-plan"), parentNamespace = sha256Hex("synthetic-parent-plan");
@@ -46,6 +46,8 @@ test("real three-arm parent becomes the complete fixed two-arm matrix with byte-
     [3, 4, "q2", variants[1]!.id], [4, 6, "q3", variants[0]!.id], [5, 7, "q3", variants[1]!.id],
   ]);
   expect(plan.variants).toEqual(LAB_READER_PROFILE_VARIANTS);
+  expect(makeLabReaderProfilePlan(dataset, parent, namespace, "minimal", "window-hybrid-24kb")).toEqual(plan);
+  expect(readerVariantPairForPlan(plan)).toBe("window-hybrid-24kb"); expect(readerVariantsForPlan(plan)).toEqual(LAB_READER_PROFILE_VARIANTS);
   expect(plan.parentPlanSha256).toBe(parent.planSha256);
   for (const c of plan.cases) {
     const source = parent.cases[c.parentOrdinal]!, original = parent.jobs.find(j => j.key === source.jobKey)!;
@@ -61,6 +63,27 @@ test("real three-arm parent becomes the complete fixed two-arm matrix with byte-
     expect(job.request.body.model).toBe("openai/gpt-5-mini"); expect(job.ordinal).toBe(0);
   }
   expect(() => validateLabReaderProfilePlan(dataset, JSON.parse(JSON.stringify(plan)), parent)).not.toThrow();
+});
+
+test("the opt-in wide pair selects only the fixed 24KB and 96KB parent arms without changing prompts", () => {
+  const wide = makeLabReaderProfilePlan(dataset, parent, namespace, "medium", "window-24kb-96kb");
+  expect(wide.variants).toEqual(LAB_READER_PROFILE_WIDE_VARIANTS);
+  expect(readerVariantPairForPlan(wide)).toBe("window-24kb-96kb"); expect(readerVariantsForPlan(wide)).toEqual(LAB_READER_PROFILE_WIDE_VARIANTS);
+  expect(wide.cases.map(c => [c.ordinal, c.parentOrdinal, c.questionId, c.variant])).toEqual([
+    [0, 0, "q1", variants[0]!.id], [1, 2, "q1", variants[2]!.id], [2, 3, "q2", variants[0]!.id],
+    [3, 5, "q2", variants[2]!.id], [4, 6, "q3", variants[0]!.id], [5, 8, "q3", variants[2]!.id],
+  ]);
+  for (const c of wide.cases) {
+    const source = parent.cases[c.parentOrdinal]!, original = parent.jobs.find(job => job.key === source.jobKey)!;
+    const job = wide.jobs.find(job => job.key === c.jobKey)!;
+    expect(job.request).toEqual(makeLabGpt5MiniReaderRequest(original.request.body.messages, { profile: "medium" }));
+    expect(JSON.stringify(job.request.body.messages)).toBe(JSON.stringify(original.request.body.messages));
+    expect(c.contextSha256).toBe(source.contextSha256); expect(c.contextBytes).toBe(source.contextBytes);
+  }
+  expect(() => validateLabReaderProfilePlan(dataset, wide, parent)).not.toThrow();
+  const mixed = reseal({ ...wide, variants: [LAB_READER_PROFILE_VARIANTS[1], LAB_READER_PROFILE_WIDE_VARIANTS[1]] });
+  expect(() => readerVariantsForPlan(mixed)).toThrow("unknown or mixed");
+  expect(() => validateLabReaderProfilePlan(dataset, mixed, parent)).toThrow("unknown or mixed");
 });
 
 test("shared physical requests retain first-use job order and every case alias", () => {
@@ -98,8 +121,10 @@ test("planning and validation never read gold or raw evidence getters", async ()
   for (const corpus of guarded.corpora) for (const turn of corpus.turns) for (const key of ["answer", "has_answer"]) Object.defineProperty(turn, key, forbidden);
   const guardedParent = await makeLabPaidReaderPlan(guarded, variants, parentNamespace);
   const converted = makeLabReaderProfilePlan(guarded, guardedParent, namespace);
+  const wide = makeLabReaderProfilePlan(guarded, guardedParent, namespace, "medium", "window-24kb-96kb");
   expect(() => validateLabReaderProfilePlan(guarded, converted, guardedParent)).not.toThrow();
-  expect(reads).toBe(0); expect(converted).toEqual(plan); expect(JSON.stringify(converted)).not.toContain("different gold");
+  expect(() => validateLabReaderProfilePlan(guarded, wide, guardedParent)).not.toThrow();
+  expect(reads).toBe(0); expect(converted).toEqual(plan); expect(JSON.stringify(converted)).not.toContain("different gold"); expect(JSON.stringify(wide)).not.toContain("different gold");
 });
 
 type Drift = readonly [string, (plan: LabReaderProfilePlan) => LabReaderProfilePlan];
