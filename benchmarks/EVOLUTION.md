@@ -25,6 +25,8 @@ manifest. A high development score is not a confirmatory superiority result.
 The adapter includes BM25 window/session controls, Oh keyword search with
 separate query-focusing and neighborhood controls, lexical question-facet
 packing, and an optional actual Oh semantic/hybrid path.
+The [V3 fixed experiments](EVOLUTION_PACKING_V3.md) add focused source spans,
+contiguous continuation, source diversity and an untruncated full-history control.
 Semantic experiments require the pinned optional QMD backend. An unavailable,
 failed or stale backend is an explicit failure. The initial CLI configuration
 does not activate that optional backend; qualify it through the adapter before

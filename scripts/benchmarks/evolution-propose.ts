@@ -249,7 +249,10 @@ if (parsedConfig.datasetPin.sha256 !== pins.sourceSha256 || parsedConfig.manifes
 const receiptConfigPin = record(readerOutput.configPin, "reader receipt config pin");
 if (absolutePath(receiptConfigPin.path, "reader receipt config path") !== absolutePath(input.get("config"), "config")
   || digest(receiptConfigPin.sha256, "reader receipt config sha256") !== configSha256) fail("supplied config does not exactly match the reader receipt pin");
-const variants = parsedConfig.variants.map(variant => ({ id: variant.id, system: variant.system, topK: variant.budget.topK, contextBytes: variant.budget.contextBytes }));
+const variants = parsedConfig.variants.map(variant => {
+  if (variant.system === "full-history" || variant.system === "oh-source-spans-v2") return fail("V3 controls and fixed mechanisms are outside the V1 genetic domain");
+  return { id: variant.id, system: variant.system, topK: variant.budget.topK, contextBytes: variant.budget.contextBytes };
+});
 const prior = priorProposal(source, profile);
 if (prior !== null && digest(input.get("previous-proposal-sha256"), "previous proposal CLI SHA-256") !== prior.proposalSha256) fail("previous proposal CLI pin does not match supplied bytes");
 const policy = prior?.policy ?? parseEvolutionPopulationPolicy({ protocol: "oh.evolution-population-policy.v1", mode: "fixed-reader-memory", fixedReader: profile,
