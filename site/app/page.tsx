@@ -35,8 +35,6 @@ const repository = "https://github.com/hraness/oh";
 const heading = "A research graph your agents can inspect";
 const lead =
   "Keep the sources behind an agent’s answer. Oh stores your questions, claims, and citations in a local research graph, so you can follow a brief back to the evidence and review what changed.";
-const example =
-  "Ask your agent to file the trial report as a source, record its 12-week endpoint as a claim, cite table 2, and verify the graph before it drafts the brief.";
 const footnote =
   `Free and MIT licensed. Bun 1.3.14 or newer, no account, no hosted model. Current release v${releaseVersion}.`;
 
@@ -234,7 +232,7 @@ export default function Home() {
               { href: "#trace", label: "See the trace" },
             ]}
             boundary={footnote}
-            example={example}
+            className="oh-marketing-hero"
             eyebrow="Open-source tools for agentic research"
             frame={(
               <MarketingProofFrame

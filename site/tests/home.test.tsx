@@ -8,6 +8,8 @@ test("makes the illustrative citation readable while keeping historical output a
   const hero = /data-hraness-marketing="hero"[\s\S]*?<\/header>/u.exec(html)?.[0] ?? "";
   expect(html.match(/<h1\b/gu)).toHaveLength(1);
   expect(hero).toContain("What backs the 12-week endpoint?");
+  expect(hero).not.toContain("hraness-marketing-hero__example");
+  expect(hero).not.toContain("Ask your agent to file the trial report");
   expect(hero).toContain(citationRecord.value.locator);
   expect(hero).toContain(citationRecord.value.relationship);
   for (const key of citationRecord.dependencies) expect(hero).toContain(key);

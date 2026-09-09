@@ -86,15 +86,12 @@ a:focus-visible {
   color: var(--hraness-site-accent);
 }
 
-.hraness-marketing-hero__example {
-  max-inline-size: 36rem;
+.oh-marketing-hero {
+  gap: clamp(1.25rem, 2.5vw, 2rem);
+  padding-block-start: clamp(1.5rem, 3vw, 2.5rem);
 }
-
-.hraness-marketing-hero {
-  gap: clamp(1.5rem, 3vw, 2.5rem);
-  padding-block-start: clamp(2rem, 5vw, 4rem);
-}
-.hraness-marketing-hero__heading {
+.oh-marketing-hero .hraness-marketing-hero__copy { gap: 1rem; }
+.oh-marketing-hero .hraness-marketing-hero__heading {
   max-inline-size: 22ch;
   font-size: clamp(2.3rem, 4.5vw, 3.5rem);
 }
