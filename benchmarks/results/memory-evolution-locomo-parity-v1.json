@@ -1,0 +1,14 @@
+{
+  "reference": {
+    "nltk": "3.9.2",
+    "regex": "2026.9.3",
+    "seed": 20260909
+  },
+  "referenceSha256": "f5777720d7e74c0a41224b533e0987f41d2d2154ac556a1c7a90a6593a6c2a42",
+  "stemCases": 64760,
+  "normalizationCases": 1298,
+  "rubricCases": 6000,
+  "mismatches": 0,
+  "modelCalls": 0,
+  "benchmarkDataRows": 0
+}

@@ -2,6 +2,10 @@
 
 The development loop screens many ideas cheaply, spends reader/judge tokens only on promising paired comparisons, and uses a reserved evaluation after choosing an implementation. The [frozen Gateway continuation](GATEWAY_STUDY_V6_TAKEOVER.md) is complete and independently audited; keep its evaluation families closed to further tuning.
 
+The [memory evolution runner](EVOLUTION.md) adds reusable source-verified contexts,
+four reader profiles, shared SQLite request accounting, replayed scoring and
+explicit population lineage for the next development campaign.
+
 ## What the existing comparison measures
 
 The current `oh-fact` arm uses the real SQLite authority and `searchOhV1` keyword query over benchmark-created records and extracted facts. It does not exercise the complete memory-agent API or its semantic, memory-page, temporal and conflict behavior. Improvements to that adapter alone are not evidence that all product memory behavior improved.

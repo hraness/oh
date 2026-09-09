@@ -1,0 +1,15 @@
+{
+  "checkedDate": "2026-09-09",
+  "runtime": "1.3.14",
+  "evaluator": "https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f4ef0e2ab8f2e582289761153549043fc/src/evaluation/evaluate_qa.py",
+  "sourceSha256": "ecce9c4c79dc89d99534ac17b383a5cbb5b9f0c69ee98adaf0684742e3d95251",
+  "parityRubricSha256": "00d319ba0a194a69871576d8c677c1557d7706f69b599c9b7beee32441d58cfc",
+  "referenceSha256": "f835d4a56efcfef82e32cb5fe982ee6cc0fe0ea97e9e9e6c739796d1eba70deb",
+  "prompts": 60,
+  "promptMismatches": 0,
+  "requestConfigurations": 60,
+  "requestMismatches": 0,
+  "verdicts": 11,
+  "verdictMismatches": 0,
+  "qualification": "Deterministic synthetic text only. Python AST extraction executed only get_anscheck_prompt; no provider imports, model calls, or benchmark outcomes. Native n=1 is the API default; transport store/stream safety fields are additional."
+}
