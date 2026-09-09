@@ -1,0 +1,172 @@
+{
+  "protocol": "oh.memory-development-reader-profile.v1",
+  "recordedAt": "2026-09-09T04:13:25.799866+00:00",
+  "dataset": "longmemeval-s",
+  "split": "dev",
+  "seed": 17,
+  "questions": 100,
+  "independentGroups": 94,
+  "cases": 200,
+  "reader": {
+    "requestedModel": "openai/gpt-5-mini",
+    "provider": "openai",
+    "reasoningEffort": "minimal",
+    "maximumOutput": 2048,
+    "snapshotPinned": false
+  },
+  "judge": {
+    "requestedModel": "openai/gpt-4o",
+    "provider": "openai",
+    "snapshotPinned": false
+  },
+  "byVariant": {
+    "bm25-window:k20:b24000": {
+      "questions": 100,
+      "correct": 63,
+      "readerFailures": 0
+    },
+    "bm25-user-hybrid:k100:b24000": {
+      "questions": 100,
+      "correct": 65,
+      "readerFailures": 0
+    }
+  },
+  "pairedDevelopmentBootstrap": {
+    "clusters": 94,
+    "delta": 0.02,
+    "lower": -0.03125,
+    "upper": 0.07142857142857142,
+    "samples": 2000
+  },
+  "crossModelDevelopmentComparison": [
+    {
+      "variant": "bm25-window:k20:b24000",
+      "oldCorrect": 68,
+      "newCorrect": 63,
+      "wins": 3,
+      "losses": 8,
+      "ties": 89,
+      "groupedInterval": {
+        "clusters": 94,
+        "delta": -0.05,
+        "lower": -0.1188118811881188,
+        "upper": 0.010101010101010102,
+        "samples": 2000
+      },
+      "categories": {
+        "single-session-user": {
+          "questions": 11,
+          "oldCorrect": 10,
+          "newCorrect": 10
+        },
+        "multi-session": {
+          "questions": 28,
+          "oldCorrect": 16,
+          "newCorrect": 13
+        },
+        "single-session-preference": {
+          "questions": 5,
+          "oldCorrect": 2,
+          "newCorrect": 0
+        },
+        "temporal-reasoning": {
+          "questions": 22,
+          "oldCorrect": 11,
+          "newCorrect": 11
+        },
+        "knowledge-update": {
+          "questions": 17,
+          "oldCorrect": 12,
+          "newCorrect": 12
+        },
+        "single-session-assistant": {
+          "questions": 17,
+          "oldCorrect": 17,
+          "newCorrect": 17
+        }
+      }
+    },
+    {
+      "variant": "bm25-user-hybrid:k100:b24000",
+      "oldCorrect": 70,
+      "newCorrect": 65,
+      "wins": 5,
+      "losses": 10,
+      "ties": 85,
+      "groupedInterval": {
+        "clusters": 94,
+        "delta": -0.05,
+        "lower": -0.13131313131313133,
+        "upper": 0.020618556701030927,
+        "samples": 2000
+      },
+      "categories": {
+        "single-session-user": {
+          "questions": 11,
+          "oldCorrect": 10,
+          "newCorrect": 10
+        },
+        "multi-session": {
+          "questions": 28,
+          "oldCorrect": 16,
+          "newCorrect": 13
+        },
+        "single-session-preference": {
+          "questions": 5,
+          "oldCorrect": 2,
+          "newCorrect": 1
+        },
+        "temporal-reasoning": {
+          "questions": 22,
+          "oldCorrect": 12,
+          "newCorrect": 13
+        },
+        "knowledge-update": {
+          "questions": 17,
+          "oldCorrect": 13,
+          "newCorrect": 11
+        },
+        "single-session-assistant": {
+          "questions": 17,
+          "oldCorrect": 17,
+          "newCorrect": 17
+        }
+      }
+    }
+  ],
+  "execution": {
+    "elapsedMs": 45282.324833,
+    "readerMs": 34157.329750000004,
+    "judgeMs": 9843.338749999995,
+    "newCalls": 273,
+    "readerCalls": 200,
+    "newJudgeCalls": 73,
+    "legacyJudgeHits": 66,
+    "settledCalls": 273,
+    "unresolvedReservations": 0,
+    "accountedMicros": 335119,
+    "cumulativeAmendmentExposureMicros": 23558209,
+    "runTotalCapMicros": 25000000,
+    "authorizationTotalCapMicros": 40000000,
+    "concurrency": 8
+  },
+  "evidence": {
+    "planSha256": "39f20457169e635b4d22bbb74648bfd25cc163d9fa072637d5cb679c6828119a",
+    "reportSha256": "812b3cf021125784548cf3fc50374e4fd1a13a566c52f3a942f121a47e3c4628",
+    "ledgerSha256": "4a0b2399df193168be285aad6513a49eab009f6e98b164081653a0001e3fc783",
+    "auditSha256": "27c1a75426b9b010b3768dee843542c89b2a93efc6c56fe39067a7a5e77e2af6",
+    "filesIndependentlyRechecked": 1648,
+    "allLocalRawResponsesReparsed": true,
+    "allScoresRegenerated": true,
+    "publicPayloadProofSha256": "7cbf7d921fd581acad6bd28117364aec4e9a5087d144a99b7308c6930ad3d0b2"
+  },
+  "decision": "Do not promote the minimal-reasoning GPT-5 mini profile; retain the existing reader default.",
+  "limitations": [
+    "Fixed development sample used for repeated tuning; not held-out superiority or memory saturation.",
+    "The model and output/reasoning profile changed together; raw retrieval contexts and judging policy stayed fixed.",
+    "Cached judgments reuse their original first response; no independent judge repeat.",
+    "Timing excludes preparation, authentication, initial preflight and host queues.",
+    "Accounted token/Gateway usage is not a billing invoice.",
+    "Aliases do not identify immutable provider snapshots."
+  ]
+}

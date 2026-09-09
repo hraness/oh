@@ -243,3 +243,44 @@ The [setup comparison](results/memory-development-lazy-authority-v1.json) replay
 | LoCoMo, 3,200 rows | 0.47 → 0.01 s | 2.05 → 1.36 s | 2.21 → 1.50 s |
 
 The sweep includes setup and retrieval; total also includes dataset loading and report preparation. These single ordered measurements show a setup reduction for the tested configurations, with total time reduced by factors of 11.74 and 1.48. Filesystem cache state and host load can affect the ratios. The figures exclude host scheduling; the verification itself waited 1,225.4 seconds for admission. This change does not improve model-call latency or answer accuracy. It makes subsequent raw-retrieval experiments cheaper to prepare without changing their outputs.
+
+
+## GPT-5 mini reader experiment
+
+The [reader profile comparison](results/memory-development-reader-profile-v1.json)
+keeps the same 100 development questions, 94 independent families, and retrieved
+messages as the preceding hybrid experiment. It changes the reader to the
+`openai/gpt-5-mini` Gateway alias, minimal reasoning, and a 2,048-token output cap.
+The GPT-4o judge and reference-answer policy remain unchanged.
+
+| Retrieved memory | Previous GPT-4.1 mini | GPT-5 mini, minimal | Paired wins / losses |
+| --- | --- | --- | --- |
+| Windows, topK20 / 24 KB | 68/100 | 63/100 | 3 / 8 |
+| Hybrid, topK100 / 24 KB | 70/100 | 65/100 | 5 / 10 |
+
+All 200 cases completed with no terminal reader failures. Both cross-model
+changes are −5 percentage points; their grouped bootstrap intervals include zero
+(−11.9 to +1.0 for windows; −13.1 to +2.1 for hybrid). The result does not support
+promoting this reader profile. The earlier reader remains the default.
+
+At concurrency eight, generation took 34.16 seconds and judging 9.84 seconds;
+complete execution took 45.28 seconds. The run made 200 reader and 73 judge
+requests, reused 66 byte-identical earlier judgments, and accounted for
+$0.335119. Every new reservation settled. The cumulative amendment exposure is
+$23.558209, below this run's $25 total ceiling and the unchanged $40 amendment.
+These times exclude preparation, authentication and initial preflight; accounted
+usage is not an invoice.
+
+The independent audit reparsed every new raw response, replayed all 66 old judge
+hits, regenerated the complete plans and scores, and checked 1,648 artifact
+files. The outgoing reader messages also regenerated exactly from the
+checksum-pinned public dataset; no private user memory entered the prompts.
+
+The isolated `lab-reader-profile*.ts` modules preserve canonical request
+identities, atomic shared spending admission, bounded response capture,
+immutable first responses, and separate gold-bearing judge construction. A new
+GPT-5-mini length-failure policy retains the case at zero without accepting a
+partial answer. The old 512-token reader policy is unchanged. The reusable
+config-driven command is a follow-up; the recorded run used the separately
+pinned private coordinator. These are development tools, not production memory
+changes or evidence of benchmark saturation.
