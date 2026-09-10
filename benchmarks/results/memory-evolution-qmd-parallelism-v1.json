@@ -1,0 +1,61 @@
+{
+  "protocol": "oh.memory.qmd-parallelism-performance.v1",
+  "status": "complete",
+  "localOnly": true,
+  "paidCalls": 0,
+  "corpora": 3,
+  "freshIndexes": 6,
+  "conditions": {
+    "baselineEmbeddingParallelism": 1,
+    "candidateEmbeddingParallelism": 4,
+    "gpuRequested": "metal",
+    "actualGpuOffloadVerified": false,
+    "modelSha256": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+    "sourceCommit": "b1518addfdb94d80102f4b71f394b021798bd42f"
+  },
+  "pairs": [
+    {
+      "caseIndex": 0,
+      "baselineMs": 17844.503999999997,
+      "candidateMs": 15589.981667,
+      "identicalSemanticAndHybridResultDigests": true,
+      "throughputRatio": 1.1446135333033933,
+      "durationReductionFraction": 0.1263426729596966
+    },
+    {
+      "caseIndex": 1,
+      "baselineMs": 17038.573625,
+      "candidateMs": 15547.719792,
+      "identicalSemanticAndHybridResultDigests": true,
+      "throughputRatio": 1.0958889054436851,
+      "durationReductionFraction": 0.08749874642162137
+    },
+    {
+      "caseIndex": 2,
+      "baselineMs": 16489.628584000002,
+      "candidateMs": 15345.893208,
+      "identicalSemanticAndHybridResultDigests": true,
+      "throughputRatio": 1.0745303880652421,
+      "durationReductionFraction": 0.0693608937383694
+    }
+  ],
+  "pairedTotal": {
+    "baselineMs": 51372.706208999996,
+    "candidateMs": 46483.594667,
+    "throughputRatio": 1.1051792912537144,
+    "durationReductionFraction": 0.09516943729048621
+  },
+  "wallMs": 101466.843375,
+  "failures": 0,
+  "qualification": [
+    "Three fixed exposed-source corpora tested with fresh indexes per condition, mixed condition order; one measurement per condition/corpus.",
+    "All six complete context/result digests matched pairwise; no answer quality measured.",
+    "Small native measurement, no full500 throughput or GPU-offload claim.",
+    "Embedding dominated prior100 workload; literal text reuse was6.07percent and date/speaker/text reuse0.28percent, not sufficient evidence for a large cross-corpus cache gain."
+  ],
+  "pins": {
+    "receiptSha256": "bbc04960b474e03882b4d083a8cd0b3bc6070bb2fa7d6fe89d9bd702bd1171df",
+    "configSha256": "1ca12f7e6126296848050a0cfd6cfddd51e8d00a395f6cb303885c8d69a2dffd",
+    "helperSha256": "ca71fec7eb5ae85159fac9e2f082a7f9b1b4371aa64a67031ff6897316dd6740"
+  }
+}

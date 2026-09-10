@@ -825,3 +825,87 @@ usage and an 8,277-microdollar unresolved reservation. The bounded attempt took
 is separate from the evolution campaign above and is counted once in combined
 research spending. A distinct model configuration needs a fresh declared
 experiment; it cannot replace the timed-out request or erase its exposure.
+
+## Semantic context order with nano
+
+Sorting the retained semantic turns into corpus order scored 76/100, versus
+82/100 in their original retrieval order. It gained three answers and lost nine
+against that control, so it failed the predeclared development gate of at least
+five additional correct answers. The original semantic configuration remains
+the development leader.
+
+| Configuration | Correct | Chronology wins / losses against it |
+| --- | ---: | ---: |
+| Original semantic retrieval | 82/100 | 3 / 9 |
+| Focused native Oh | 81/100 | 5 / 10 |
+| BM25 window | 78/100 | 8 / 10 |
+| Opening-message control | 76/100 | 8 / 8 |
+| Semantic turns in corpus order | 76/100 | — |
+
+This fixed experiment reused the same 100 exposed questions and combined nano
+reader. All 9,502 retained source turns and 8,129,851 rendered context bytes
+were preserved; only their presentation order changed. There was no new
+indexing or generated evidence. The source-order reader used 114,259
+microdollars versus the semantic control's 116,542, a ratio of 0.98041. That
+passed the separate cost gate of at most 1.25, but did not offset the accuracy
+loss. The comparison uses historical first responses, so model variation over
+time remains a limitation.
+
+All 100 readers completed. The 100 judge cases comprise 99 verified responses
+and one exact reused prior failure, which remains zero. The
+[complete source-order artifact](results/memory-evolution-source-order-100-v1.json)
+includes every case in its denominator, all four paired comparisons, category
+breakdowns, source parity, and both decision gates. Its audit reconciles the
+3,269 prior physical requests without replacing responses or failed attempts.
+
+The experiment added 100 reader calls and 43 judge calls; 57 prior judge
+attempts were reused. New known usage was 135,016 microdollars, with no new
+unresolved reservation. Reader execution took 20.442 seconds and judging
+12.973 seconds at concurrency 32, excluding preparation, host waits and
+reporting. The campaign reached 3,412 calls and 9,354,296 microdollars of
+exposure, including 6,863 previously unresolved microdollars, within its
+unchanged 10-dollar ceiling.
+
+Execution used clean commit `2b7c91badd1614fe34d684eaa595cd594c9e9f82`.
+The reporter reauthenticated source contexts and stored provider responses;
+the separate offline audit checked the resulting pinned artifacts. The judge
+remains the Gateway GPT-4o alias with the native rubric and a 16-token cap.
+This is development evidence, not fresh confirmation or benchmark saturation.
+
+## Local embedding parallelism
+
+A paired local measurement on three fixed source corpora compared QMD embedding
+parallelism one and four, with a fresh index for each condition. The total
+measured processing time fell from 51.373 to 46.484 seconds: 9.52% less time,
+or 1.105 times the throughput. All six paired semantic and hybrid result
+digests matched. There were no model API calls or failures.
+
+The [measurement artifact](results/memory-evolution-qmd-parallelism-v1.json)
+records each pair, the pinned model and source, and the invocation duration.
+Condition order was mixed, with one measurement per corpus and condition.
+This small experiment does not establish full-release throughput or GPU
+offload. It offers a modest local improvement; it does not remove indexing
+as the main cost of broad experimentation.
+
+## Mem0 nonreasoning extraction qualification
+
+A distinct GPT-4.1 nano extraction configuration completed 112 of 149 ordered
+chunks before its qualification helper stopped. The attempt took 423.825
+seconds and accounted for 320 physical calls and 118,797 microdollars of
+exposure. The SDK worker was collected and its local state and captured
+responses were preserved. Final ingestion, search and accuracy remain
+unqualified.
+
+The stopping response contained a valid `memory` array plus a top-level
+`description` field. The private qualification helper required exactly one
+top-level key and rejected it before returning the response to Mem0. The
+pinned SDK itself reads the `memory` field and ignores other top-level fields.
+This is a helper compatibility failure, not a measured memory-retrieval error.
+Repair must preserve the original response and usage record, validate the
+bounded memory structure, and prove exact replay or continuation before any
+new call. The occupied launch must not simply be rerun.
+
+Including the retired earlier attempt, Mem0 exposure is 130,465 microdollars.
+Its single 15-dollar allocation remains separate from the evolution campaign;
+13 dollars remain unallocated to the comparison. No Mem0 benchmark score or
+superiority claim follows from this partial ingestion.
