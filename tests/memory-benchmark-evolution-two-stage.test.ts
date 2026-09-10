@@ -27,6 +27,11 @@ const corpus = { id: "synthetic-two-stage", turns: [
   { id: "repeat", sessionId: "three", sessionIndex: 2, date: "2026-01-06", speaker: "user", text: "blue blue" },
   { id: "later", sessionId: "four", sessionIndex: 3, date: "2026-01-07", speaker: "user", text: "Yesterday I ran 5 km along the river trails." },
 ] };
+/** Forty quote-heavy user turns: every pool packs within 96,000 bytes, but the twice JSON-escaped selection request body
+ * exceeds the 262,144-byte cap, so selection preparation must fail closed instead of truncating the pool. */
+const heavy = { id: "synthetic-two-stage-heavy", turns: Array.from({ length: 40 }, (_, i) => ({ id: `h${String(i).padStart(2, "0")}`, sessionId: `h${i}`, sessionIndex: i,
+  date: "2026-01-04", speaker: "user", text: `I ran on the trails. ${'"'.repeat(2_300)}` })) };
+type SyntheticCorpus = typeof corpus | typeof heavy;
 const variants = [
   { id: "semantic-96k", system: "oh-semantic" as const, budget: { topK: 100, contextBytes: 96_000 } },
   { id: "window-96k", system: "bm25-window" as const, budget: { topK: 100, contextBytes: 96_000 } },
@@ -34,20 +39,20 @@ const variants = [
 const PROFILES = evolutionTwoStageProfiles();
 const qid = (i: number) => `q${String(i).padStart(3, "0")}`;
 /** Even questions are routed (aggregate), odd questions are not; every question shares terms with the turns so both pools are non-empty. */
-function question(i: number) {
-  return { id: qid(i), corpusId: corpus.id, questionDate: "2026-01-08",
+function question(i: number, corpusId = corpus.id) {
+  return { id: qid(i), corpusId, questionDate: "2026-01-08",
     question: i % 2 === 0 ? `How many km did I run on the trails altogether? Case ${qid(i)}` : `Where did I say I ran on the trails? Case ${qid(i)}` };
 }
-async function retrieveAll(count: number) {
+async function retrieveAll(count: number, source: SyntheticCorpus = corpus) {
   let records: readonly KnowledgeGraphRecordV1[] = [];
   const backend: OhSemanticSearchBackendV1 = { profile: OH_EMBEDDING_PROFILE_V1,
     async index(value) { records = value; return { indexed: value.length, v: 1 }; },
     async search(_query, _limit, authority) { return records.map((r, i) => {
       if (authority.get(r.key)?.recordSha256 !== r.recordSha256) throw new Error("Synthetic current SQLite join missing");
-      return { key: r.key, recordSha256: r.recordSha256, score: 1 - i * 0.1, v: 1 as const };
+      return { key: r.key, recordSha256: r.recordSha256, score: 1 - i / (records.length + 1), v: 1 as const };
     }); }, async close() {} };
   // The runner stamps the prepared identity per variant family: semantic pools carry the embedding profile, BM25 pools do not.
-  const semantic = await prepareEvolutionCorpus({ ...corpus, groupId: corpus.id }, { semanticBackend: backend }), plain = await prepareEvolutionCorpus({ ...corpus, groupId: corpus.id });
+  const semantic = await prepareEvolutionCorpus({ ...source, groupId: source.id }, { semanticBackend: backend }), plain = await prepareEvolutionCorpus({ ...source, groupId: source.id });
   try {
     const results = new Map<string, EvolutionRetrievalResult>();
     for (let i = 0; i < count; i++) for (const v of variants) results.set(`${qid(i)}:${v.id}`, await (v.system === "oh-semantic" ? semantic : plain).retrieve(question(i).question, v));
@@ -72,13 +77,14 @@ const position = new Map(corpus.turns.map((t, i) => [t.id, i]));
 function expectedContext(pool: EvolutionRetrievalResult, aliases: readonly string[]) {
   return aliases.map(a => pool.turnIds[Number(a.slice(1))]!).sort((a, b) => position.get(a)! - position.get(b)!).map(id => renderTurn(turnById.get(id)!)).join("\n\n");
 }
-async function fixture(options: Readonly<{ arms?: readonly EvolutionTwoStageArmId[]; variantIds?: readonly string[]; repeats?: number; maximumNewCalls?: number }> = {}) {
-  const directory = await realpath(await mkdtemp(join(tmpdir(), "oh-two-stage-")));
+async function fixture(options: Readonly<{ arms?: readonly EvolutionTwoStageArmId[]; variantIds?: readonly string[]; repeats?: number; maximumNewCalls?: number;
+  concurrency?: number; corpus?: SyntheticCorpus }> = {}) {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "oh-two-stage-"))), sourceCorpus = options.corpus ?? corpus;
   async function pin(name: string, value: unknown): Promise<EvolutionPin> { const content = typeof value === "string" ? value : JSON.stringify(value), path = join(directory, name);
     await writeFile(path, content, { mode: 0o600 }); return { path, sha256: sha256Hex(content) }; }
-  const questions = Array.from({ length: 100 }, (_, i) => question(i));
-  const source = { protocol: "oh.memory.source-selector-input.v1", partition: "development", corpora: [corpus], questions }, input = parseSelectorLaneSource(source);
-  const results = await retrieveAll(100);
+  const questions = Array.from({ length: 100 }, (_, i) => question(i, sourceCorpus.id));
+  const source = { protocol: "oh.memory.source-selector-input.v1", partition: "development", corpora: [sourceCorpus], questions }, input = parseSelectorLaneSource(source);
+  const results = await retrieveAll(100, sourceCorpus);
   const contextPayload = { protocol: "oh.memory.evolution-context-plan.v1" as const, manifestSha256: sha256Hex("synthetic-manifest"), retrievalSourceSha256: sha256Hex("synthetic-source"),
     inputSha256: canonicalSha256(input), variants, questions, cases: questions.flatMap(q => variants.map(v => ({ questionId: q.id, variantId: v.id, result: results.get(`${q.id}:${v.id}`)! }))) };
   const context = { ...contextPayload, planSha256: canonicalSha256(contextPayload) }; validateEvolutionContextPlanSources(context, input);
@@ -92,11 +98,11 @@ async function fixture(options: Readonly<{ arms?: readonly EvolutionTwoStageArmI
   const config: EvolutionTwoStageLaneConfig = { protocol: "oh.memory.two-stage-experiment.v1", partition: "development", sourcePin, contextPin, scorerPin,
     campaignPin: await pin("campaign.json", campaign), executionSourceSha256: (await codeIdentity()).sourceSha256, contextPlanSha256: context.planSha256,
     variantIds: options.variantIds ?? variants.map(v => v.id), questionIds: questions.map(q => q.id), arms: options.arms ?? EVOLUTION_TWO_STAGE_ARM_IDS,
-    repeats: options.repeats ?? 1, maximumNewCalls: options.maximumNewCalls ?? 6_000, concurrency: 4 };
+    repeats: options.repeats ?? 1, maximumNewCalls: options.maximumNewCalls ?? 6_000, concurrency: options.concurrency ?? 4 };
   const configPin = await pin("config.json", config), plan = await prepareEvolutionTwoStageLane(configPin), planPin = await pin("plan.json", plan);
   return { directory, pin, source, input, context, results, config, configPin, plan, planPin, campaign };
 }
-type Mode = "normal" | "mixed-failures";
+type Mode = "normal" | "mixed-failures" | "high-fallback" | "selector-network";
 function fakeProvider(mode: Mode = "normal") {
   const counts = { select: 0, answer: 0, judge: 0 }, bodies: any[] = [];
   const fetcher = async (url: string, init: RequestInit) => {
@@ -109,6 +115,8 @@ function fakeProvider(mode: Mode = "normal") {
       const prompt = JSON.parse(body.messages[1].content); expect(Object.keys(prompt).sort()).toEqual(["question", "questionDate", "sources"]);
       expect(prompt.sources).toContain("[s000] ["); expect(prompt.sources).not.toContain("[runs] ");
       const id = prompt.question.slice(-4);
+      // An uncertain dispatch: the store keeps the full reservation and the lane stops admission.
+      if (mode === "selector-network") throw new Error("Synthetic network uncertainty");
       answer = prompt.sources.includes("[s001] [") ? '{"ids":["s001","s000"]}' : '{"ids":["s000"]}';
       if (mode === "mixed-failures") {
         if (id === "q000") answer = "I think the relevant turns are s000 and s001.";
@@ -116,7 +124,10 @@ function fakeProvider(mode: Mode = "normal") {
         if (id === "q004") answer = '{"ids":[]}';
         if (id === "q006") answer = '{"ids":["s999"]}';
         if (id === "q008") { answer = ""; tools = true; }
+        if (id === "q010") { answer = ""; finish = "content_filter"; }
       }
+      // Thirteen empty selections of one hundred: above the 10% fallback gate.
+      if (mode === "high-fallback" && Number(id.slice(1)) % 8 === 0) answer = '{"ids":[]}';
     } else if (body.messages.length === 1) {
       counts.judge++; expect(body.max_tokens).toBe(16); expect(body.messages[0].content).toContain("GOLD_SECRET");
       answer = body.messages[0].content.includes("WRONG") ? "no" : "yes";
@@ -210,31 +221,37 @@ test("selection plans alias the pinned pool, stage two re-renders selected turns
   expect(() => factory.reconstruct(q0, pool(semantic), plan, raw('{"ids":["s001"]}', EVOLUTION_PROFILES[PROFILES.primary]!.model), parsed)).toThrow("not the exact captured response");
 });
 
-test("complete fake-provider matrix: five arms on two pins, shared physical requests, router audit, 2x2 memory delta and zero-call replay", async () => {
+test("complete fake-provider matrix: six arms on two pins, shared physical requests, router audit, 2x2 memory delta and zero-call replay", async () => {
   const f = await fixture(), fake = fakeProvider();
   try {
     expect(f.plan).toMatchObject({ protocol: "oh.memory.two-stage-experiment-plan.v1", contextPlanSha256: f.context.planSha256, policySha256: canonicalSha256(OH_SELECTOR_POLICY_V2),
       routerSha256: canonicalSha256(EVOLUTION_QUESTION_SHAPE_ROUTER_V1) });
     expect(f.plan.routes.filter(r => r.routed).map(r => r.questionId)).toEqual(Array.from({ length: 50 }, (_, i) => qid(2 * i)));
-    expect(f.plan.pools).toHaveLength(200); expect(f.plan.cases).toHaveLength(1000);
-    expect(f.plan.selections).toHaveLength(300); expect(f.plan.selections.every(s => s.plan !== null && s.preparationFailure === null)).toBeTrue();
-    expect(f.plan.selections.filter(s => s.selectorProfile === PROFILES.ablation)).toHaveLength(100);
-    expect(f.plan.maximumPhysicalCalls).toBe(300 + 2000);
+    expect(f.plan.pools).toHaveLength(200); expect(f.plan.cases).toHaveLength(1200);
+    expect(f.plan.selections).toHaveLength(400); expect(f.plan.selections.every(s => s.plan !== null && s.preparationFailure === null)).toBeTrue();
+    expect(f.plan.selections.filter(s => s.selectorProfile === PROFILES.ablation)).toHaveLength(200);
+    expect(f.plan.maximumPhysicalCalls).toBe(400 + 2400);
     expect(f.plan.reservationBounds.selectionMicros).toBe(f.plan.selections.reduce((s, c) => s + c.plan!.request.reservationMicros, 0));
     expect(JSON.stringify(f.plan)).not.toContain("GOLD_SECRET");
     const frozen: string[] = [];
     const report = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher,
-      onPhasePrepared: async phase => { expect(phase.cases).toHaveLength(1000); expect(Object.isFrozen(phase)).toBeTrue(); expect(fake.counts[phase.phase]).toBe(0);
+      onPhasePrepared: async phase => { expect(phase.cases).toHaveLength(1200); expect(Object.isFrozen(phase)).toBeTrue(); expect(fake.counts[phase.phase]).toBe(0);
         await f.pin(`${phase.phase}-prepared.json`, phase); frozen.push(phase.phase); } });
     expect(frozen).toEqual(["answer", "judge"]);
     expect(report.protocol).toBe("oh.memory.two-stage-lane-report.v1"); expect(report.complete).toBeTrue(); expect(report.status).toBe("complete");
-    expect(report.cases).toHaveLength(1000); expect(report.denominator).toBe(100);
-    // Unrouted two-stage cases share the calibration-only control's physical answer requests, the routed arm's selections
-    // coincide with two-stage-all's, and the nano selector's identical selections yield byte-identical stage-2 requests.
-    // Judge prompts dedupe by identical answer strings: 100 correct plus 50 wrong answers.
-    expect(fake.counts).toEqual({ select: 300, answer: 600, judge: 150 });
-    expect(report.total).toMatchObject({ newlyOccupied: 300 + 600 + 150, unresolvedMicros: 0, notRun: 0 });
-    expect(report.phases.select).toMatchObject({ physicalRequests: 300, completed: 300 });
+    expect(report.cases).toHaveLength(1200); expect(report.denominator).toBe(100);
+    expect(report.coverage).toEqual({ completeCaseAccounting: true, completeAttemptCoverage: true, logicalCases: 1200, preparationFailedCases: 0, occupiedRequests: 1150, notRunRequests: 0 });
+    // Unrouted two-stage cases share the calibration-only control's physical answer requests, each routed arm's selections
+    // coincide with its all-questions arm's (200 mini + 200 nano selections), and the nano selector's identical selections
+    // yield byte-identical stage-2 requests. Judge prompts dedupe by identical answer strings: 100 correct plus 50 wrong answers.
+    expect(fake.counts).toEqual({ select: 400, answer: 600, judge: 150 });
+    expect(report.total).toMatchObject({ newlyOccupied: 400 + 600 + 150, unresolvedMicros: 0, notRun: 0 });
+    expect(report.phases.select).toMatchObject({ physicalRequests: 400, completed: 400 });
+    const selectionOf = (arm: EvolutionTwoStageArmId, questionId: string, variantId: string) => report.cases.find(c => c.arm === arm && c.questionId === questionId && c.variantId === variantId)!.selectionRequestSha256;
+    for (const v of f.config.variantIds) for (const q of [qid(0), qid(2)]) {
+      expect(selectionOf("two-stage-routed", q, v)).toBe(selectionOf("two-stage-all", q, v)); expect(selectionOf("two-stage-routed-nano", q, v)).toBe(selectionOf("two-stage-all-nano", q, v));
+      expect(selectionOf("two-stage-all", q, v)).not.toBe(selectionOf("two-stage-all-nano", q, v));
+    }
     for (const c of report.cases) {
       expect(c).toMatchObject({ judgeStatus: "completed", readerStatus: "completed" });
       expect(typeof c.answerRequestSha256).toBe("string"); expect(typeof c.judgeRequestSha256).toBe("string");
@@ -250,11 +267,13 @@ test("complete fake-provider matrix: five arms on two pins, shared physical requ
     }
     const summary = (arm: EvolutionTwoStageArmId, variantId: string) => report.summaries.find(s => s.arm === arm && s.variantId === variantId)!;
     for (const v of f.config.variantIds) {
-      expect(summary("single-call-eac", v)).toMatchObject({ denominator: 100, repeats: 1, logicalCases: 100, majorityCorrect: 50, meanCorrect: 50, perRepeat: [50], failedCases: 0, routedQuestions: 50, selectionsAttempted: 0, fallbackRate: null });
-      expect(summary("calibration-only", v)).toMatchObject({ majorityCorrect: 100, selectionsAttempted: 0 });
-      expect(summary("two-stage-routed", v)).toMatchObject({ majorityCorrect: 100, selectionsAttempted: 50, selected: 50, fallbacks: 0, fallbackRate: 0 });
-      expect(summary("two-stage-all", v)).toMatchObject({ majorityCorrect: 100, selectionsAttempted: 100, selected: 100, fallbackRate: 0 });
-      expect(summary("two-stage-routed-nano", v)).toMatchObject({ majorityCorrect: 100, selectionsAttempted: 50, selected: 50, fallbackRate: 0 });
+      expect(summary("single-call-eac", v)).toMatchObject({ denominator: 100, repeats: 1, logicalCases: 100, majorityCorrect: 50, meanCorrect: 50, perRepeat: [50], failedCases: 0, routedQuestions: 50, selectionsPlanned: 0, selectionsCompleted: 0, fallbackRate: null });
+      expect(summary("calibration-only", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 0 });
+      expect(summary("two-stage-routed", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 50, selectionsCompleted: 50, selected: 50, fallbacks: 0, fallbackRate: 0 });
+      expect(summary("two-stage-all", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 100, selectionsCompleted: 100, selected: 100, fallbackRate: 0 });
+      expect(summary("two-stage-routed-nano", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 50, selectionsCompleted: 50, selected: 50, fallbackRate: 0 });
+      expect(summary("two-stage-all-nano", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 100, selectionsCompleted: 100, selected: 100, fallbacks: 0, fallbackRate: 0 });
+      expect(report.paired.find(p => p.arm === "two-stage-all-nano" && p.variantId === v)!.gate.rule).toMatchObject({ minimumMajorityDelta: 3, maximumRegressions: 2 });
       expect(summary("two-stage-all", v).categories.map(c => c.category)).toEqual(["multi-session", "temporal-reasoning"]);
       const paired = report.paired.find(p => p.arm === "two-stage-all" && p.variantId === v)!;
       expect(paired).toMatchObject({ control: "single-call-eac", denominator: 100, majorityDelta: 50, meanDelta: 50, wins: 50, losses: 0, ties: 50,
@@ -262,7 +281,7 @@ test("complete fake-provider matrix: five arms on two pins, shared physical requ
       expect(paired.gate).toMatchObject({ majorityDeltaOk: true, regressionsOk: true, temporalOk: true, fallbackOk: true, descriptivePass: false, rule: { minimumMajorityDelta: 3, maximumRegressions: 2 } });
       expect(report.paired.find(p => p.arm === "calibration-only" && p.variantId === v)!.gate.rule).toMatchObject({ minimumMajorityDelta: 2, maximumRegressions: 1 });
     }
-    expect(report.paired).toHaveLength(8);
+    expect(report.paired).toHaveLength(10);
     expect(report.memoryDelta).toEqual(f.config.arms.map(arm => ({ arm, minuend: "semantic-96k", subtrahend: "window-96k", majorityDelta: 0, meanDelta: 0 })));
     expect(report.routerAudit).toMatchObject({ denominator: 100, routed: 50, hitRate: 0.5, byShape: { aggregate: 50, other: 50 },
       routedByCategory: { "temporal-reasoning": { denominator: 25, routed: 25 }, "multi-session": { denominator: 75, routed: 25 } } });
@@ -272,22 +291,23 @@ test("complete fake-provider matrix: five arms on two pins, shared physical requ
     expect(report.phasePlans).toHaveLength(2); expect(report.judge).toBe("gpt4o-gateway-native-rubric-16-judge-v1");
     const replay = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: { ...credential(), token: "" },
       fetcher: async () => { throw new Error("Never redispatch cached captures"); } });
-    expect(replay.total).toMatchObject({ newlyOccupied: 0, cacheHits: 1050, confirmedMicros: report.total.confirmedMicros });
+    expect(replay.total).toMatchObject({ newlyOccupied: 0, cacheHits: 1150, confirmedMicros: report.total.confirmedMicros });
     expect(replay.cases).toEqual(report.cases); expect(replay.paired).toEqual(report.paired);
     const scored = (rows: typeof report.summaries) => rows.map(({ accounting, ...rest }) => rest);
     expect(scored(replay.summaries)).toEqual(scored(report.summaries)); expect(replay.summaries.map(s => s.accounting.cacheHits)).toEqual(report.summaries.map(s => s.accounting.physicalRequests));
     const store = await openEvolutionStore({ directory: f.campaign.storeDirectory, campaign: f.campaign });
-    try { expect(store.summary().calls).toBe(1050); for (const a of report.attempts) expect(sha256Hex(store.readRaw(a.request, a.repeat))).toBe(a.response!.rawSha256); } finally { await store.close(); }
+    try { expect(store.summary().calls).toBe(1150); for (const a of report.attempts) expect(sha256Hex(store.readRaw(a.request, a.repeat))).toBe(a.response!.rawSha256); } finally { await store.close(); }
   } finally { await rm(f.directory, { recursive: true, force: true }); }
 }, 120_000);
 
-test("three repeats live in one store by repeat index; invalid, empty, foreign, truncated and failed selections fall back, stay flagged and count", async () => {
+test("three repeats live in one store by repeat index; invalid, empty, foreign, truncated, refused and failed selections fall back, stay flagged and count", async () => {
   const f = await fixture({ arms: ["single-call-eac", "two-stage-all"], variantIds: ["semantic-96k"], repeats: 3 }), fake = fakeProvider("mixed-failures");
   try {
     expect(f.plan.cases).toHaveLength(600); expect(f.plan.selections).toHaveLength(100); expect(f.plan.maximumPhysicalCalls).toBe(300 + 1200);
     const report = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
     expect(report.complete).toBeTrue(); expect(fake.counts.select).toBe(300);
-    expect(report.phases.select).toMatchObject({ physicalRequests: 300, completed: 300 - 3 * 2, failed: 3 * 2, unresolvedMicros: 0 });
+    // Truncated, tool-calling and refused selections are charged failures of the selection phase; invalid and empty ones completed.
+    expect(report.phases.select).toMatchObject({ physicalRequests: 300, completed: 300 - 3 * 3, failed: 3 * 3, unresolvedMicros: 0 });
     const twoStage = report.cases.filter(c => c.arm === "two-stage-all");
     expect(new Set(twoStage.map(c => c.repeat))).toEqual(new Set([0, 1, 2]));
     const reasons = (id: string) => twoStage.filter(c => c.questionId === id).map(c => [c.memory, c.fallbackReason, c.reader, c.readerStatus, c.judgeStatus, c.score]);
@@ -296,10 +316,12 @@ test("three repeats live in one store by repeat index; invalid, empty, foreign, 
     expect(reasons("q004")).toEqual(Array(3).fill(["fallback", "empty-selection", PROFILES.fallback, "completed", "completed", 1]));
     expect(reasons("q006")).toEqual(Array(3).fill(["fallback", "invalid-selection", PROFILES.fallback, "completed", "completed", 1]));
     expect(reasons("q008")).toEqual(Array(3).fill(["fallback", "selector-failed", PROFILES.fallback, "completed", "completed", 1]));
-    expect(reasons("q010")).toEqual(Array(3).fill(["selected", null, PROFILES.answer, "completed", "completed", 1]));
+    expect(reasons("q010")).toEqual(Array(3).fill(["fallback", "selector-failed", PROFILES.fallback, "completed", "completed", 1]));
+    expect(report.attempts.find(a => a.request.requestSha256 === twoStage.find(c => c.questionId === "q010")!.selectionRequestSha256)!.response).toMatchObject({ status: "refused", failureReason: "provider-refusal" });
+    expect(reasons("q012")).toEqual(Array(3).fill(["selected", null, PROFILES.answer, "completed", "completed", 1]));
     const summary = report.summaries.find(s => s.arm === "two-stage-all")!;
-    expect(summary).toMatchObject({ repeats: 3, logicalCases: 300, selectionsAttempted: 300, selected: 285, fallbacks: 15, fallbackRate: 0.05,
-      fallbackReasons: { "empty-selection": 3, "invalid-selection": 6, "selector-failed": 3, "selector-truncated": 3 }, majorityCorrect: 100, meanCorrect: 100, perRepeat: [100, 100, 100] });
+    expect(summary).toMatchObject({ repeats: 3, logicalCases: 300, selectionsPlanned: 300, selectionsCompleted: 300, selected: 282, fallbacks: 18, fallbackRate: 0.06,
+      fallbackReasons: { "empty-selection": 3, "invalid-selection": 6, "selector-failed": 6, "selector-truncated": 3 }, majorityCorrect: 100, meanCorrect: 100, perRepeat: [100, 100, 100] });
     expect(summary.statuses.selectorStatus).toEqual({ completed: 300 });
     const control = report.summaries.find(s => s.arm === "single-call-eac")!;
     expect(control).toMatchObject({ majorityCorrect: 50, meanCorrect: 50, perRepeat: [50, 50, 50] });
@@ -325,6 +347,67 @@ test("three repeats live in one store by repeat index; invalid, empty, foreign, 
   } finally { await rm(f.directory, { recursive: true, force: true }); }
 }, 120_000);
 
+test("a selection request above the fixed byte cap fails preparation without truncating the pool and keeps its cases in the denominator", async () => {
+  const results = await retrieveAll(1, heavy), factory = prepareEvolutionTwoStage({ ...heavy, groupId: heavy.id }), semantic = results.get("q000:semantic-96k")!;
+  expect(semantic.contextBytes).toBeLessThanOrEqual(OH_SELECTOR_POLICY_V2.contextByteLimit); expect(semantic.turnIds.length).toBeGreaterThan(1);
+  expect(() => factory.makeSelectionPlan(question(0, heavy.id), { variant: variants[0]!, result: semantic, expectedResultSha256: semantic.resultSha256 }, PROFILES.primary))
+    .toThrow("Two-stage selector: selection request exceeds the fixed byte cap; never truncate the pool.");
+  const f = await fixture({ corpus: heavy, arms: ["two-stage-all"], variantIds: ["semantic-96k"] });
+  try {
+    expect(f.plan.selections).toHaveLength(100);
+    expect(f.plan.selections.every(s => s.plan === null && s.preparationFailure === "selection-input-rejected")).toBeTrue();
+    expect(f.plan.cases.every(c => c.selectionPlanSha256 === null && c.selectorProfile === PROFILES.primary)).toBeTrue();
+    expect(f.plan.maximumPhysicalCalls).toBe(200); expect(f.plan.reservationBounds.selectionMicros).toBe(0);
+    const report = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: async () => { throw new Error("no dispatch"); } });
+    expect(report.complete).toBeFalse(); expect(report.status).toBe("incomplete"); expect(report.stopped).toBeFalse(); expect(report.cases).toHaveLength(100);
+    expect(report.cases.every(c => c.selectorStatus === "preparation-failed" && c.readerStatus === "skipped-selector" && c.judgeStatus === "skipped-reader"
+      && c.memory === "full-context" && c.selectionRequestSha256 === null && c.answerRequestSha256 === null && c.score === 0)).toBeTrue();
+    expect(report.coverage).toEqual({ completeCaseAccounting: true, completeAttemptCoverage: false, logicalCases: 100, preparationFailedCases: 100, occupiedRequests: 0, notRunRequests: 0 });
+    expect(report.total).toMatchObject({ physicalRequests: 0, newlyOccupied: 0 }); expect(report.campaignAfter.calls).toBe(0);
+    expect(report.summaries[0]).toMatchObject({ arm: "two-stage-all", denominator: 100, majorityCorrect: 0, selectionsPlanned: 100, selectionsCompleted: 0, fallbacks: 0, fallbackRate: null,
+      statuses: { selectorStatus: { "preparation-failed": 100 }, readerStatus: { "skipped-selector": 100 }, judgeStatus: { "skipped-reader": 100 } } });
+    expect(report.paired).toEqual([]);
+  } finally { await rm(f.directory, { recursive: true, force: true }); }
+}, 120_000);
+
+test("a fallback rate above the gate fails fallbackOk and the descriptive pass even when every paired delta passes", async () => {
+  const f = await fixture({ arms: ["single-call-eac", "two-stage-all"], variantIds: ["window-96k"] }), fake = fakeProvider("high-fallback");
+  try {
+    const report = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
+    expect(report.complete).toBeTrue(); expect(fake.counts.select).toBe(100);
+    const summary = report.summaries.find(s => s.arm === "two-stage-all")!;
+    expect(summary).toMatchObject({ selectionsPlanned: 100, selectionsCompleted: 100, selected: 87, fallbacks: 13, fallbackRate: 0.13, fallbackReasons: { "empty-selection": 13 }, majorityCorrect: 100 });
+    expect(summary.statuses.selectorStatus).toEqual({ completed: 100 });
+    const paired = report.paired[0]!;
+    expect(paired).toMatchObject({ arm: "two-stage-all", majorityDelta: 50, wins: 50, losses: 0, ties: 50 });
+    expect(paired.gate).toMatchObject({ majorityDeltaOk: true, regressionsOk: true, temporalOk: true, fallbackOk: false, descriptivePass: false, rule: { fallbackRateAtMost: 0.1 } });
+  } finally { await rm(f.directory, { recursive: true, force: true }); }
+}, 120_000);
+
+test("an uncertain selection dispatch keeps its full reservation, stops admission, stays unresolved and replays without retry", async () => {
+  const f = await fixture({ arms: ["two-stage-all"], variantIds: ["semantic-96k"], concurrency: 1 }), fake = fakeProvider("selector-network");
+  try {
+    const report = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
+    expect(fake.counts.select).toBe(1); expect(report.stopped).toBeTrue(); expect(report.complete).toBeFalse(); expect(report.status).toBe("incomplete");
+    expect(report.cases.map(c => c.selectorStatus).sort()).toEqual([...Array<string>(99).fill("not-run"), "unresolved"]);
+    expect(report.cases.every(c => c.readerStatus === "skipped-selector" && c.judgeStatus === "skipped-reader" && c.memory === "full-context" && c.answerRequestSha256 === null && c.score === 0)).toBeTrue();
+    const unresolved = report.attempts.filter(a => a.failure !== null);
+    expect(unresolved).toHaveLength(1); expect(report.attempts).toHaveLength(100);
+    expect(unresolved[0]!.failure).toMatchObject({ storeStatus: "captured", reason: "unverifiable-first-response", transport: { httpStatus: null, complete: false, error: "network" },
+      reservationMicros: unresolved[0]!.request.reservationMicros });
+    expect(unresolved[0]!.response).toBeNull(); expect(unresolved[0]!).toMatchObject({ phase: "select", notRun: null, newlyOccupied: true });
+    expect(report.attempts.filter(a => a.notRun === "admission-stopped")).toHaveLength(99);
+    expect(report.total).toMatchObject({ physicalRequests: 100, occupiedRequests: 1, newlyOccupied: 1, notRun: 99, confirmedMicros: 0, unresolvedMicros: unresolved[0]!.request.reservationMicros });
+    expect(report.campaignAfter).toMatchObject({ calls: 1, confirmedMicros: 0, unresolvedMicros: unresolved[0]!.request.reservationMicros });
+    expect(report.summaries[0]).toMatchObject({ selectionsPlanned: 100, selectionsCompleted: 0, fallbacks: 0, fallbackRate: null, majorityCorrect: 0 });
+    expect(report.summaries[0]!.statuses.selectorStatus).toEqual({ "not-run": 99, unresolved: 1 });
+    const replay = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
+    expect(fake.counts.select).toBe(1); expect(replay.stopped).toBeTrue(); expect(replay.cases).toEqual(report.cases);
+    expect(replay.total).toMatchObject({ newlyOccupied: 0, occupiedRequests: 1, notRun: 99, unresolvedMicros: report.total.unresolvedMicros });
+    expect(replay.campaignAfter).toEqual(report.campaignAfter);
+  } finally { await rm(f.directory, { recursive: true, force: true }); }
+}, 120_000);
+
 test("zero allowance keeps every case in the denominator without dispatch; config parser pins the fixed development matrix", async () => {
   const f = await fixture({ arms: ["two-stage-routed"], variantIds: ["window-96k"], maximumNewCalls: 0 });
   try {
@@ -333,7 +416,9 @@ test("zero allowance keeps every case in the denominator without dispatch; confi
     expect(report.cases.filter(c => c.routed).every(c => c.selectorStatus === "not-run" && c.readerStatus === "skipped-selector" && c.judgeStatus === "skipped-reader" && c.score === 0)).toBeTrue();
     expect(report.cases.filter(c => !c.routed).every(c => c.readerStatus === "not-run" && c.score === 0)).toBeTrue();
     expect(report.total).toMatchObject({ newlyOccupied: 0, notRun: 100, occupiedRequests: 0 });
-    expect(report.summaries[0]).toMatchObject({ denominator: 100, majorityCorrect: 0, selectionsAttempted: 50, selected: 0, fallbacks: 0, fallbackRate: 0 });
+    expect(report.coverage).toMatchObject({ completeAttemptCoverage: false, preparationFailedCases: 0, occupiedRequests: 0, notRunRequests: 100 });
+    // No selection completed, so the fallback rate is undefined rather than an understated zero.
+    expect(report.summaries[0]).toMatchObject({ denominator: 100, majorityCorrect: 0, selectionsPlanned: 50, selectionsCompleted: 0, selected: 0, fallbacks: 0, fallbackRate: null });
     const base = JSON.parse(JSON.stringify(f.config));
     expect(parseEvolutionTwoStageLaneConfig(base)).toEqual(f.config);
     for (const [label, mutate] of [["protocol", (c: any) => { c.protocol = "oh.memory.fact-card-experiment.v1"; }], ["99 ids", (c: any) => { c.questionIds = c.questionIds.slice(1); }],

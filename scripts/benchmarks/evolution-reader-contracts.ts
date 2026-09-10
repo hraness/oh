@@ -5,6 +5,13 @@ import { ANSWER_INSTRUCTION, answerMessages, type Message } from "./model";
 export const EVOLUTION_READER_CONTRACT_IDS = ["legacy-v1", "explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1",
   "calibrated-composition-v1", "timeline-composition-v1", "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1"] as const;
 export type EvolutionReaderContractId = typeof EVOLUTION_READER_CONTRACT_IDS[number];
+/** Contracts that answer a question over a memory field. evidence-selection-v1 is the two-stage lane's stage-one selection
+ * contract: it shares the profile catalog so its requests carry a closed profile identity, but it is never an answer reader. */
+export const EVOLUTION_ANSWER_CONTRACT_IDS = Object.freeze(EVOLUTION_READER_CONTRACT_IDS.filter((id): id is Exclude<EvolutionReaderContractId, "evidence-selection-v1"> => id !== "evidence-selection-v1"));
+export type EvolutionAnswerContractId = typeof EVOLUTION_ANSWER_CONTRACT_IDS[number];
+export function isEvolutionAnswerContractId(value: unknown): value is EvolutionAnswerContractId {
+  return (EVOLUTION_ANSWER_CONTRACT_IDS as readonly unknown[]).includes(value);
+}
 export type EvolutionReaderAblationContractId = Exclude<EvolutionReaderContractId, "legacy-v1">;
 const OLD_ABSTENTION = "If the evidence does not support an answer, reply exactly None.";
 const EXPLICIT_ABSTENTION = "If the evidence does not support an answer, state that the supplied conversation does not contain enough information to answer the question. Do not use an ambiguous bare placeholder.";
@@ -72,9 +79,12 @@ export function parseEvolutionReaderContractId(value: unknown): EvolutionReaderC
   if (typeof value !== "string" || !Object.hasOwn(EVOLUTION_READER_CONTRACTS, value)) throw new TypeError("Evolution reader contract: unknown contract.");
   return value as EvolutionReaderContractId;
 }
-/** Gold-free input whitelist; the legacy path returns the exact prior message bytes. */
+/** Gold-free input whitelist; the legacy path returns the exact prior message bytes. Selection contracts are refused here:
+ * the two-stage lane builds its stage-one request over aliased sources itself, never over a memory field. */
 export function evolutionAnswerMessages(question: Pick<Question, "question" | "questionDate">, context: string,
   contract: EvolutionReaderContractId = "legacy-v1"): Message[] {
-  const selected = parseEvolutionReaderContractId(contract), messages = answerMessages(question, context);
+  const selected = parseEvolutionReaderContractId(contract);
+  if (!isEvolutionAnswerContractId(selected)) throw new TypeError(`Evolution reader contract: ${selected} is a selection contract, not an answer contract.`);
+  const messages = answerMessages(question, context);
   return selected === "legacy-v1" ? messages : [{ role: "system", content: EVOLUTION_READER_CONTRACTS[selected].instruction }, messages[1]!];
 }

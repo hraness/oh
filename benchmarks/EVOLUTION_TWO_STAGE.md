@@ -67,8 +67,8 @@ outcome-blind hit rates on other corpora's question texts to show transfer.
 
 ## Arms and report
 
-`evolution-two-stage-lane.ts` (`oh.memory.two-stage-experiment.v1`) runs five
-arms on every configured pin:
+`evolution-two-stage-lane.ts` (`oh.memory.two-stage-experiment.v1`) runs any
+subset of six arms on every configured pin:
 
 | Arm | Reader |
 | --- | --- |
@@ -77,6 +77,11 @@ arms on every configured pin:
 | `two-stage-routed` | mini selection on routed questions, fallback reader elsewhere |
 | `two-stage-all` | mini selection on every question |
 | `two-stage-routed-nano` | nano selection on routed questions |
+| `two-stage-all-nano` | nano selection on every question |
+
+The two nano arms are the counterparts of the two mini-selector arms, so a
+configuration can run the whole matrix with the nano selector and mini answerers
+under a smaller campaign cap; the selector profile is part of every case row.
 
 The configuration fixes the ordered 100-question development selection, the
 context plan digest, one or two pin variants, the arms, `repeats` (1–3), a new-call
@@ -85,7 +90,8 @@ row in the same campaign store through the store's repeat index, so all repeats
 share one cap and one ledger. Identical physical requests are shared: an unrouted
 question in a routed arm reuses the calibration-only control's answer request, and
 identical selections from two selector profiles produce byte-identical stage-two
-requests.
+requests. Judge requests are keyed by prompt and repeat index, so byte-identical
+answers across repeats are judged once per repeat, never once overall.
 
 Phases run in order: every selection for every repeat, a frozen answer phase plan,
 answers, then the scorer labels are opened, a frozen judge phase plan, and native16
@@ -98,10 +104,16 @@ and end-to-end service time. Paired rows against the control on the same pin giv
 majority-of-repeats deltas, wins, losses, ties, the temporal slice and the
 descriptive gate arithmetic (two-stage: at least +3 with at most 2 regressions,
 temporal not worse, fallback at most 10%; calibration-only: at least +2 with at
-most 1 regression). When two pins are configured, a memory-delta row per arm
-gives the first pin minus the second under that reader.
+most 1 regression). A tie in majority-of-repeats (one correct of two scored
+repeats) counts as incorrect; the descriptive pass already requires three
+repeats. The fallback rate is fallbacks over completed selections, so not-run or
+unresolved selections in an interrupted run do not understate it; the report
+lists planned and completed selections separately. When two pins are configured,
+a memory-delta row per arm gives the first pin minus the second under that reader.
 
-Gate arithmetic in the report is descriptive. Promotion additionally needs the
+`complete` is true only when every selection plan was prepared, no case failed
+answer or judge preparation, and every physical attempt settled. Gate arithmetic
+in the report is descriptive. Promotion additionally needs the
 complete three-repeat matrix, the separately committed predicted-flip check and
 the paired bootstrap from the analysis plan; a miss is not established, not no
 effect.
@@ -111,7 +123,10 @@ effect.
 `evidence-selection-v1` (stage one), `selected-answer-v1` (stage two) and
 `calibration-only-v1` (explicit-abstention-composition plus calibration, without
 the calibrated-abstention clause) are closed reader contracts with profile IDs for
-every base reader. `calibrated-composition-v1` and `timeline-composition-v1` stay
+every base reader. `evidence-selection-v1` is a selection contract, not an answer
+contract: `evolutionAnswerMessages` refuses it, `EVOLUTION_ANSWER_CONTRACT_IDS`
+excludes it, and the runner and selector-lane configurations reject reader
+profiles that carry it. `calibrated-composition-v1` and `timeline-composition-v1` stay
 byte-identical for replay of their recorded runs; their "only recorded order"
 example is a dataset-specific answer rule and is marked legacy in the contract
 source. New contracts must not name a product, phrase or ordering edge case
@@ -122,7 +137,10 @@ without a corpus-general justification.
 `tests/memory-benchmark-evolution-question-shape.test.ts` covers the router,
 bounds, audit table and card. `tests/memory-benchmark-evolution-two-stage.test.ts`
 covers the policy identities, the alias grammar, plan and pool validation,
-source re-rendering, every fallback reason, the complete five-arm two-pin matrix
-with a fake provider (shared physical requests, router audit, memory delta,
-zero-call replay), three repeats in one store with mixed selector failures, a
+source re-rendering, every fallback reason including a provider refusal, the
+selection request byte cap as a preparation failure that keeps its cases in the
+denominator, the complete six-arm two-pin matrix with a fake provider (shared
+physical requests, router audit, memory delta, zero-call replay), three repeats in
+one store with mixed selector failures, a fallback rate above the gate, an
+uncertain selection dispatch that stops admission and stays unresolved, a
 zero-allowance run and configuration rejection. No test reaches a provider.

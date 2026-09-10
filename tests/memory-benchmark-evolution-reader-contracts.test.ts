@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { answerMessages, ANSWER_INSTRUCTION } from "../scripts/benchmarks/model";
-import { EVOLUTION_READER_CONTRACT_IDS, EVOLUTION_READER_CONTRACTS, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
+import { EVOLUTION_ANSWER_CONTRACT_IDS, EVOLUTION_READER_CONTRACT_IDS, EVOLUTION_READER_CONTRACTS, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 import { EVOLUTION_BASE_READER_IDS, EVOLUTION_PROFILES, evolutionReaderContract, evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest,
   parseEvolutionResponse, supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan } from "../scripts/benchmarks/evolution-plan";
@@ -66,7 +66,10 @@ describe("composable isolated reader answer contracts", () => {
     expect(abstention).toContain("does not contain enough information");
     const guarded = { ...question };
     for (const key of ["answer", "evidenceTurnIds", "evidenceSessionIds", "unanswerable", "category", "gold"]) Object.defineProperty(guarded, key, { enumerable: true, get() { throw Error("gold accessed"); } });
-    for (const id of EVOLUTION_READER_CONTRACT_IDS) {
+    // The selection contract shares the catalog but never answers over a memory field.
+    expect(EVOLUTION_ANSWER_CONTRACT_IDS).toEqual(EVOLUTION_READER_CONTRACT_IDS.filter(id => id !== "evidence-selection-v1"));
+    expect(() => evolutionAnswerMessages(guarded, context, "evidence-selection-v1")).toThrow("Evolution reader contract: evidence-selection-v1 is a selection contract, not an answer contract.");
+    for (const id of EVOLUTION_ANSWER_CONTRACT_IDS) {
       const result = evolutionAnswerMessages(guarded, context, id);
       expect(result[1]).toEqual(messages[1]);
       expect(result[0]!.content).toBe(EVOLUTION_READER_CONTRACTS[id].instruction);
@@ -105,6 +108,12 @@ describe("composable isolated reader answer contracts", () => {
       expect(evolutionReaderContract(id)).toBe(contract);
       const { id: _id, readerContract, ...body } = selected, { id: _baseId, ...original } = EVOLUTION_PROFILES[base];
       expect(body).toEqual(original);
+      if (contract === "evidence-selection-v1") {
+        // Selection profiles keep the base pricing and routing but never build an answer request.
+        expect(readerContract).toEqual({ baseReader: base, id: contract, instructionSha256: EVOLUTION_READER_CONTRACTS[contract].instructionSha256 });
+        expect(() => evolutionAnswerMessages(question, context, contract)).toThrow("selection contract, not an answer contract");
+        continue;
+      }
       const msg = evolutionAnswerMessages(question, context, contract), request = makeEvolutionRequest(id, msg);
       expect(validateEvolutionRequest(request)).toEqual(request);
       expect(parseEvolutionResponse(response(request), request).status).toBe("completed");
@@ -126,7 +135,7 @@ describe("composable isolated reader answer contracts", () => {
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {
     // The answer factorial holds the eight answer contracts; evidence-selection-v1 is the stage-1 selector contract of the two-stage lane.
-    const answerContracts = EVOLUTION_READER_CONTRACT_IDS.filter(c => c !== "evidence-selection-v1");
+    const answerContracts = EVOLUTION_ANSWER_CONTRACT_IDS; expect(answerContracts).toHaveLength(8);
     const ctx = await fixture(), profiles = answerContracts.map(c => evolutionReaderProfileId("gpt5-nano-reader", c));
     const plan = makeEvolutionReaderPlan(ctx, profiles);
     expect(plan.cases).toHaveLength(answerContracts.length * 2); expect(plan.requests).toHaveLength(answerContracts.length * 2);
@@ -148,22 +157,24 @@ describe("composable isolated reader answer contracts", () => {
       limit: 1, seed: 17, variants, readers: profiles, judge: "gpt4o-gateway-native-rubric-16-judge-v1", directory: "/fixture/output", storeDirectory: "/fixture/store", concurrency: 1 };
     expect(parseEvolutionRunConfig(config).readers).toEqual(profiles);
     expect(() => parseEvolutionRunConfig({ ...config, readers: [evolutionReaderProfileId("qwen37-flash-reader", "explicit-abstention-v1")] })).toThrow("nano and mini");
+    expect(() => parseEvolutionRunConfig({ ...config, readers: [evolutionReaderProfileId("gpt5-nano-reader", "evidence-selection-v1")] })).toThrow("selection contracts are not answer readers");
+    expect(() => makeEvolutionReaderPlan(ctx, [evolutionReaderProfileId("gpt5-nano-reader", "evidence-selection-v1")])).toThrow("selection contract, not an answer contract");
   });
   test("store keeps each contract's first response and exact replay independent", async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), "oh-contract-synthetic-")));
     const campaign = { protocol: "oh.memory.evolution-campaign.v1" as const, campaignId: "contract-fixture", storeDirectory: root,
       approval: "Synthetic isolated test", additionalBudgetMicros: 1000000, maximumCalls: 10, historicalExposureMicros: 0,
       historicalLedgers: [{ path: "/fixture/ledger", sha256: "a".repeat(64), bytes: 0 }], authAuthority: { path: "/fixture/auth", sha256: "b".repeat(64) } };
-    const requests = EVOLUTION_READER_CONTRACT_IDS.map(c => makeEvolutionProfileWindowRequest(evolutionReaderProfileId("gpt5-nano-reader", c), evolutionAnswerMessages(question, context, c)));
+    const requests = EVOLUTION_ANSWER_CONTRACT_IDS.map(c => makeEvolutionProfileWindowRequest(evolutionReaderProfileId("gpt5-nano-reader", c), evolutionAnswerMessages(question, context, c)));
     try {
       const store = await openEvolutionStore({ directory: root, campaign });
       try {
         for (const request of requests) { expect(store.lookup(request).kind).toBe("miss"); store.admit(request); const body = response(request);
           store.capture(request, { body, httpStatus: 200, complete: true, receivedBytes: body.length, error: null }); store.finalize(request); }
-        expect(store.summary()).toMatchObject({ calls: EVOLUTION_READER_CONTRACT_IDS.length, unresolvedMicros: 0 });
+        expect(store.summary()).toMatchObject({ calls: requests.length, unresolvedMicros: 0 });
       } finally { await store.close(); }
       const reopened = await openEvolutionStore({ directory: root, campaign });
-      try { for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit"); expect(reopened.summary().calls).toBe(EVOLUTION_READER_CONTRACT_IDS.length); }
+      try { for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit"); expect(reopened.summary().calls).toBe(requests.length); }
       finally { await reopened.close(); }
     } finally { await rm(root, { recursive: true }); }
   });

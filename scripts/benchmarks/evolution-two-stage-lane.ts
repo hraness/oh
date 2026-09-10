@@ -23,7 +23,7 @@ import { EVOLUTION_LME_NATIVE_REFERENCE, scoreEvolutionJudgeDecision } from "./e
 const PROTOCOL = "oh.memory.two-stage-experiment.v1" as const;
 const JUDGE = "gpt4o-gateway-native-rubric-16-judge-v1" as const;
 const PROFILES = evolutionTwoStageProfiles();
-export const EVOLUTION_TWO_STAGE_ARM_IDS = ["single-call-eac", "calibration-only", "two-stage-routed", "two-stage-all", "two-stage-routed-nano"] as const;
+export const EVOLUTION_TWO_STAGE_ARM_IDS = ["single-call-eac", "calibration-only", "two-stage-routed", "two-stage-all", "two-stage-routed-nano", "two-stage-all-nano"] as const;
 export type EvolutionTwoStageArmId = typeof EVOLUTION_TWO_STAGE_ARM_IDS[number];
 type ArmSpec = Readonly<{ kind: "single"; reader: EvolutionProfileId }> | Readonly<{ kind: "two-stage"; selector: EvolutionTwoStageSelectorProfile; routed: boolean }>;
 export const EVOLUTION_TWO_STAGE_ARMS: Readonly<Record<EvolutionTwoStageArmId, ArmSpec>> = freezeEvolutionCompletion({
@@ -32,6 +32,8 @@ export const EVOLUTION_TWO_STAGE_ARMS: Readonly<Record<EvolutionTwoStageArmId, A
   "two-stage-routed": { kind: "two-stage", selector: PROFILES.primary, routed: true },
   "two-stage-all": { kind: "two-stage", selector: PROFILES.primary, routed: false },
   "two-stage-routed-nano": { kind: "two-stage", selector: PROFILES.ablation, routed: true },
+  // The nano counterpart of two-stage-all: the whole matrix can run with the nano selector and mini answerers under a smaller cap.
+  "two-stage-all-nano": { kind: "two-stage", selector: PROFILES.ablation, routed: false },
 });
 export const EVOLUTION_TWO_STAGE_CONTROL_ARM: EvolutionTwoStageArmId = "single-call-eac";
 export const EVOLUTION_TWO_STAGE_TEMPORAL_CATEGORY = "temporal-reasoning";
@@ -329,7 +331,8 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
     const physical = [...attempts.values()].sort((a, b) => attemptKey(a.request.requestSha256, a.repeat) < attemptKey(b.request.requestSha256, b.repeat) ? -1 : 1);
     const total = accounting(physical), after = store.summary();
     if (after.calls - before.calls !== total.newlyOccupied) fail("admission reconciliation");
-    const complete = plan.selections.every(s => s.plan !== null) && physical.every(a => a.response !== null || a.failure !== null);
+    const preparationFailedCases = cases.filter(c => c.selectorStatus === "preparation-failed" || c.readerStatus === "preparation-failed" || c.judgeStatus === "preparation-failed").length;
+    const complete = plan.selections.every(s => s.plan !== null) && preparationFailedCases === 0 && physical.every(a => a.response !== null || a.failure !== null);
     const categories = [...new Set([...questions.values()].map(q => q.category))].sort();
     const perQuestion = (arm: EvolutionTwoStageArmId, variantId: string) => input.questions.map(q => {
       const scores = cases.filter(c => c.arm === arm && c.variantId === variantId && c.questionId === q.id).sort((a, b) => a.repeat - b.repeat).map(c => c.score);
@@ -338,7 +341,8 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
     const summaries = config.arms.flatMap(arm => config.variantIds.map(variantId => {
       const rows = cases.filter(c => c.arm === arm && c.variantId === variantId), byQuestion = perQuestion(arm, variantId);
       const keys = new Set(rows.flatMap(c => [c.selectionRequestSha256, c.answerRequestSha256, c.judgeRequestSha256].filter((id): id is string => id !== null).map(id => attemptKey(id, c.repeat))));
-      const attempted = rows.filter(c => c.selectorProfile !== null), fallbacks = rows.filter(c => c.memory === "fallback");
+      // The fallback rate is over completed selections only, so an interrupted run is not understated by not-run or unresolved selections.
+      const planned = rows.filter(c => c.selectorProfile !== null), completedSelections = rows.filter(c => c.selectorStatus === "completed"), fallbacks = rows.filter(c => c.memory === "fallback");
       const latency = rows.map(c => {
         if (c.judgeStatus !== "completed") return null;
         const times = [...new Set([c.selectionRequestSha256, c.answerRequestSha256!, c.judgeRequestSha256!].filter((id): id is string => id !== null))].map(id => attempts.get(attemptKey(id, c.repeat))!.serviceMs);
@@ -349,8 +353,8 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
         meanCorrect: byQuestion.reduce((s, q) => s + q.mean, 0), majorityCorrect: byQuestion.reduce((s, q) => s + q.majority, 0),
         failedCases: rows.filter(c => c.judgeStatus !== "completed").length,
         routedQuestions: input.questions.filter(q => plan.routes.find(r => r.questionId === q.id)!.routed).length,
-        selectionsAttempted: attempted.length, selected: rows.filter(c => c.memory === "selected").length, fallbacks: fallbacks.length,
-        fallbackRate: attempted.length === 0 ? null : fallbacks.length / attempted.length,
+        selectionsPlanned: planned.length, selectionsCompleted: completedSelections.length, selected: rows.filter(c => c.memory === "selected").length, fallbacks: fallbacks.length,
+        fallbackRate: completedSelections.length === 0 ? null : fallbacks.length / completedSelections.length,
         fallbackReasons: Object.fromEntries([...new Set(fallbacks.map(c => c.fallbackReason!))].sort().map(r => [r, fallbacks.filter(c => c.fallbackReason === r).length])),
         selectedTurnCounts: rows.flatMap(c => c.selectedTurnCount === null ? [] : [c.selectedTurnCount]),
         statuses: Object.fromEntries((["selectorStatus", "readerStatus", "judgeStatus"] as const).map(key => [key,
@@ -390,7 +394,7 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
       repeats: config.repeats, judge: JUDGE, rubricSha256: rubric.sha256, scoringRule: "native-contains-yes",
       qualification: "Fixed exposed100 development comparison on pinned contexts; Gateway native16 rubric alias, not official snapshot or full-release accuracy. Formatting gains are alias-only until re-judged under the official snapshot profile.",
       complete, status: complete ? "complete" : "incomplete", stopped, denominator: 100,
-      coverage: { completeCaseAccounting: true, completeAttemptCoverage: complete, logicalCases: cases.length, occupiedRequests: total.occupiedRequests, notRunRequests: total.notRun },
+      coverage: { completeCaseAccounting: true, completeAttemptCoverage: complete, logicalCases: cases.length, preparationFailedCases, occupiedRequests: total.occupiedRequests, notRunRequests: total.notRun },
       routes: plan.routes, routerAudit, cases, phasePlans, attempts: physical, total,
       phases: Object.fromEntries((["select", "answer", "judge"] as const).map(phase => [phase, accounting(physical.filter(a => a.phase === phase))])),
       summaries, paired, memoryDelta, campaignBefore: before, campaignAfter: after, wallMs: performance.now() - started,

@@ -307,7 +307,7 @@ and retrieved context. The closed contract catalog provides a small factorial:
 | `timeline-composition-v1` | Calibrated abstention (legacy, as above) | Composition, calibration and explicit timeline work |
 | `calibration-only-v1` | Explicit statement that information is missing | Composition plus exact-value calibration |
 | `selected-answer-v1` | Explicit statement that information is missing | As `calibration-only-v1`, plus a note that the memory holds selected source turns |
-| `evidence-selection-v1` | Not an answer contract | Stage-one alias selection for the [two-stage lane](EVOLUTION_TWO_STAGE.md) |
+| `evidence-selection-v1` | Not an answer contract | Stage-one alias selection for the [two-stage lane](EVOLUTION_TWO_STAGE.md); `evolutionAnswerMessages` refuses it and runner and selector-lane configurations reject its reader profiles, so it never answers over a memory field |
 
 `evolutionReaderProfileId(baseReader, contract)` returns an immutable ID accepted
 in the existing configuration's `readers` list. For example,

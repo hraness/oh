@@ -28,12 +28,13 @@ export const EVOLUTION_QUESTION_SHAPE_ROUTER_V1 = Object.freeze({
   precedence: ["aggregate", "order", "recommendation"] as const,
   routed: "any rule matches" as const,
   rules: EVOLUTION_QUESTION_SHAPE_RULES_V1,
+  flags: "iu" as const,
   rulesSha256: canonicalSha256(EVOLUTION_QUESTION_SHAPE_RULES_V1),
 });
 export type EvolutionQuestionShapeDecision = Readonly<{ protocol: "oh.memory.question-shape-decision.v1"; routerSha256: string;
   questionSha256: string; shape: EvolutionQuestionShape; routed: boolean; matchedRules: readonly string[] }>;
 const ROUTER_SHA = canonicalSha256(EVOLUTION_QUESTION_SHAPE_ROUTER_V1);
-const COMPILED = EVOLUTION_QUESTION_SHAPE_RULES_V1.map(rule => ({ rule, regex: new RegExp(rule.pattern, "iu") }));
+const COMPILED = EVOLUTION_QUESTION_SHAPE_RULES_V1.map(rule => ({ rule, regex: new RegExp(rule.pattern, EVOLUTION_QUESTION_SHAPE_ROUTER_V1.flags) }));
 function fail(reason: string): never { throw new TypeError(`Question-shape router: ${reason}.`); }
 export function routeEvolutionQuestionShapeV1(question: unknown): EvolutionQuestionShapeDecision {
   if (typeof question !== "string" || !question.trim().length || Buffer.byteLength(question) > 16_384 || /\p{Surrogate}/u.test(question)) fail("bounded question text required");
@@ -78,5 +79,5 @@ export function auditEvolutionQuestionShapeRouter(rows: readonly EvolutionQuesti
 export function renderEvolutionQuestionShapeRouterCard(): string {
   return [`${EVOLUTION_QUESTION_SHAPE_ROUTER_V1.protocol} (rulesSha256 ${EVOLUTION_QUESTION_SHAPE_ROUTER_V1.rulesSha256})`,
     `input: ${EVOLUTION_QUESTION_SHAPE_ROUTER_V1.input}; precedence: ${EVOLUTION_QUESTION_SHAPE_ROUTER_V1.precedence.join(" > ")}; routed when ${EVOLUTION_QUESTION_SHAPE_ROUTER_V1.routed}`,
-    ...EVOLUTION_QUESTION_SHAPE_RULES_V1.map(rule => `${rule.shape}\t${rule.id}\t/${rule.pattern}/iu`)].join("\n");
+    ...EVOLUTION_QUESTION_SHAPE_RULES_V1.map(rule => `${rule.shape}\t${rule.id}\t/${rule.pattern}/${EVOLUTION_QUESTION_SHAPE_ROUTER_V1.flags}`)].join("\n");
 }
