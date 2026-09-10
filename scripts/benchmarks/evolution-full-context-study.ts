@@ -3,7 +3,7 @@ import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex
 import { evolutionPin, type EvolutionPin } from "./evolution-budget";
 import { boundEvolutionCompletionWire, freezeEvolutionCompletion } from "./evolution-completion";
 import { EVOLUTION_FULL_HISTORY_POLICY } from "./evolution-full-history";
-import { EVOLUTION_RELEASE_JUDGE, EVOLUTION_RELEASE_READER, EVOLUTION_RELEASE_RUBRIC_SHA,
+import { EVOLUTION_RELEASE_JUDGE, EVOLUTION_RELEASE_READERS, EVOLUTION_RELEASE_RUBRIC_SHA, type EvolutionReleaseReader,
   validateEvolutionReleaseArtifacts, evolutionReleaseShard, type EvolutionReleaseAuthorization } from "./evolution-release";
 
 export const EVOLUTION_FULL_CONTEXT_VARIANTS = Object.freeze([Object.freeze({ id: "full-history", system: "full-history" as const })]);
@@ -11,7 +11,7 @@ export type EvolutionFullContextStudy = Readonly<{
   protocol: "oh.memory.evolution-full-context-study.v1"; mode: "full-release-descriptive-companion";
   parentStudyPin: EvolutionPin; parentScopePin: EvolutionPin; datasetPin: EvolutionPin; manifestPin: EvolutionPin; campaignPin: EvolutionPin;
   sourceSha256: string; fullHistoryPolicySha256: string; variants: typeof EVOLUTION_FULL_CONTEXT_VARIANTS;
-  reader: typeof EVOLUTION_RELEASE_READER; judge: typeof EVOLUTION_RELEASE_JUDGE; rubricSha256: typeof EVOLUTION_RELEASE_RUBRIC_SHA;
+  reader: EvolutionReleaseReader; judge: typeof EVOLUTION_RELEASE_JUDGE; rubricSha256: typeof EVOLUTION_RELEASE_RUBRIC_SHA;
   repeatPolicy: "predeclared-full-matrix-first-attempt";
 }>;
 export type EvolutionFullContextAuthorization = Readonly<{ study: EvolutionFullContextStudy; studySha256: string; parent: EvolutionReleaseAuthorization }>;
@@ -27,8 +27,8 @@ export function parseEvolutionFullContextStudy(value: unknown): EvolutionFullCon
     "sourceSha256", "fullHistoryPolicySha256", "variants", "reader", "judge", "rubricSha256", "repeatPolicy"])
     || value.protocol !== "oh.memory.evolution-full-context-study.v1" || value.mode !== "full-release-descriptive-companion"
     || parseSha256Hex(value.sourceSha256) === null || value.fullHistoryPolicySha256 !== canonicalSha256(EVOLUTION_FULL_HISTORY_POLICY)
-    || !same(value.variants, EVOLUTION_FULL_CONTEXT_VARIANTS) || value.reader !== EVOLUTION_RELEASE_READER || value.judge !== EVOLUTION_RELEASE_JUDGE
-    || value.rubricSha256 !== EVOLUTION_RELEASE_RUBRIC_SHA || value.repeatPolicy !== "predeclared-full-matrix-first-attempt") fail("fixed complete-source nano/native16 design required");
+    || !same(value.variants, EVOLUTION_FULL_CONTEXT_VARIANTS) || !(EVOLUTION_RELEASE_READERS as readonly unknown[]).includes(value.reader) || value.judge !== EVOLUTION_RELEASE_JUDGE
+    || value.rubricSha256 !== EVOLUTION_RELEASE_RUBRIC_SHA || value.repeatPolicy !== "predeclared-full-matrix-first-attempt") fail("fixed complete-source release-reader/native16 design required");
   const pins = Object.fromEntries((["parentStudyPin", "parentScopePin", "datasetPin", "manifestPin", "campaignPin"] as const).map(k => [k, evolutionPin(value[k])]));
   return freezeEvolutionCompletion(structuredClone({ ...value, ...pins })) as EvolutionFullContextStudy;
 }

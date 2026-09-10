@@ -16,8 +16,8 @@ import { EVOLUTION_PAID_QUEUE_V2_PROTOCOL, runLabPaidQueue, runLabPaidQueueV2 } 
 import { loadJudgeProfile } from "./judge";
 import { makeEvolutionJudgePlan, validateEvolutionJudgePlan, type EvolutionJudgePlan, type EvolutionJudgeProfileId } from "./evolution-judge";
 import { buildEvolutionReport, buildEvolutionReleaseShardReport, buildEvolutionFullContextShardReport } from "./evolution-report";
-import { assertEvolutionReleaseConfiguration, validateEvolutionReleaseArtifacts, selectEvolutionReleaseShard, EVOLUTION_RELEASE_READER, EVOLUTION_RELEASE_JUDGE, type EvolutionReleaseAuthorization } from "./evolution-release";
-import { makeEvolutionReleaseContextPlan, assertEvolutionReleaseContextBinding, evolutionReleaseContextBinding } from "./evolution-release-plan";
+import { assertEvolutionReleaseConfiguration, validateEvolutionReleaseArtifacts, selectEvolutionReleaseShard, EVOLUTION_RELEASE_READERS, EVOLUTION_RELEASE_JUDGE, type EvolutionReleaseAuthorization } from "./evolution-release";
+import { makeEvolutionReleaseContextPlan, assertEvolutionReleaseContextBinding, evolutionReleaseContextBinding, rebindEvolutionReleaseContextPlan, validateEvolutionReleaseContextPlanEnvelope } from "./evolution-release-plan";
 import { EVOLUTION_COMPLETION_TREATMENTS, makeEvolutionCompletionPlan, parseEvolutionCompletionTreatment, projectEvolutionCompletionParents,
   validateEvolutionCompletionPlan, type EvolutionCompletionTreatment } from "./evolution-completion-plan";
 import type { EvolutionRunnerInput } from "./evolution-dataset";
@@ -86,18 +86,18 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   let release: Pick<EvolutionReleaseRunConfig, "studyPin" | "scopePin" | "shardId" | "semanticCacheDirectory"> | undefined;
   let companion: Pick<EvolutionFullContextRunConfig, "companionStudyPin" | "shardId"> | undefined;
   if (v8) {
-    if (value.dataset !== "longmemeval-s" || value.limit !== 100 || value.seed !== 17 || readers.length !== 1 || readers[0] !== EVOLUTION_RELEASE_READER
+    if (value.dataset !== "longmemeval-s" || value.limit !== 100 || value.seed !== 17 || readers.length !== 1 || !(EVOLUTION_RELEASE_READERS as readonly unknown[]).includes(readers[0])
       || value.judge !== EVOLUTION_RELEASE_JUDGE || canonicalSha256(variants) !== canonicalSha256(EVOLUTION_FULL_CONTEXT_VARIANTS)
-      || typeof value.shardId !== "string" || !/^shard-00[1-5]$/.test(value.shardId)) fail("V8 requires one complete-source full100 companion shard and combined nano/native16");
+      || typeof value.shardId !== "string" || !/^shard-00[1-5]$/.test(value.shardId)) fail("V8 requires one complete-source full100 companion shard and a combined release reader/native16");
     const companionStudyPin = evolutionPin(value.companionStudyPin);
     for (const pin of [companionStudyPin, datasetPin, manifestPin, campaignPin]) if ([directory, storeDirectory].some(root => pin.path === root || pin.path.startsWith(root + "/"))) fail("companion input overlaps mutable output/store");
     companion = { companionStudyPin, shardId: value.shardId };
   }
   if (v7) {
-    if (value.dataset !== "longmemeval-s" || value.limit !== 100 || value.seed !== 17 || readers.length !== 1 || readers[0] !== EVOLUTION_RELEASE_READER
+    if (value.dataset !== "longmemeval-s" || value.limit !== 100 || value.seed !== 17 || readers.length !== 1 || !(EVOLUTION_RELEASE_READERS as readonly unknown[]).includes(readers[0])
       || value.judge !== EVOLUTION_RELEASE_JUDGE || variants.length !== 2 || variants[0]!.system !== "bm25-window" || variants[1]!.system !== "oh-semantic"
       || variants.some(v => !("budget" in v) || v.budget.topK !== 100 || v.budget.contextBytes !== 96000)
-      || typeof value.shardId !== "string" || !/^shard-00[1-5]$/.test(value.shardId)) fail("V7 requires exact full500 shard, same96KB BM25/semantic pair and fixed nano/native16");
+      || typeof value.shardId !== "string" || !/^shard-00[1-5]$/.test(value.shardId)) fail("V7 requires exact full500 shard, same96KB BM25/semantic pair and a fixed release reader/native16");
     const studyPin = evolutionPin(value.studyPin), scopePin = evolutionPin(value.scopePin), semanticCacheDirectory = path(value.semanticCacheDirectory);
     for (const pin of [studyPin, scopePin, datasetPin, manifestPin, campaignPin]) if ([directory, storeDirectory, semanticCacheDirectory].some(root => pin.path === root || pin.path.startsWith(root + "/"))) fail("release input overlaps mutable output/cache");
     if ([directory, storeDirectory].some(root => semanticCacheDirectory === root || semanticCacheDirectory.startsWith(root + "/") || root.startsWith(semanticCacheDirectory + "/"))) fail("semantic cache overlaps run/store");
@@ -250,6 +250,7 @@ export async function prepareEvolution(configPin: EvolutionPin) {
   const dataset = projectEvolutionRunnerInput(input.dataset), retrievalSourceSha256 = await retrievalIdentity();
   if (config.protocol === "oh.memory.evolution-run.v7") {
     if (input.release === undefined || input.release.study.retrievalSourceSha256 !== retrievalSourceSha256) fail("study retrieval source changed before preparation");
+    if (input.release.study.retrievalProvenance !== undefined) fail("a rebound study reuses parent contexts through rebind, not fresh preparation");
     // Load optional QMD before the first SQLite instance; ordinary model/provider calls are absent.
     const optionalQmd: string = "@tobilu/qmd"; await import(optionalQmd);
   }
@@ -279,6 +280,25 @@ export async function prepareEvolution(configPin: EvolutionPin) {
   await writeJson(join(config.directory, "preparation.json"), { protocol: "oh.memory.evolution-preparation.v1", configPin,
     contextPlanSha256: context.plan.planSha256, timing: context.timing, wallMs: performance.now() - started, modelCalls: 0 });
   return { status: "prepared", contextPath, contextFileSha256: sha256Hex(await readFile(contextPath)), contexts: context.plan.cases.length, modelCalls: 0 };
+}
+/** Reuse a parent release study's exact retrieval contexts for a rebound study (different reader/campaign only).
+ * No index, retrieval, embedding or provider call; the parent retrieval outputs are re-validated against current source. */
+export async function rebindEvolutionRelease(configPin: EvolutionPin, contextPin: EvolutionPin) {
+  const config = await configInput(configPin), started = performance.now();
+  if (config.protocol !== "oh.memory.evolution-run.v7") fail("rebind requires a V7 release configuration");
+  const input = await selected(config), dataset = projectEvolutionRunnerInput(input.dataset), retrievalSourceSha256 = await retrievalIdentity();
+  const parent = validateEvolutionReleaseContextPlanEnvelope(await json(contextPin));
+  const plan = rebindEvolutionReleaseContextPlan({ dataset, parent, authorization: input.release!, shardId: config.shardId, retrievalSourceSha256 });
+  await readEvolutionPin(configPin); await readEvolutionPin(contextPin); await readEvolutionPin(config.manifestPin);
+  const reloaded = await loadEvolutionReleaseAuthorization(config);
+  if (await retrievalIdentity() !== retrievalSourceSha256) fail("release source changed during rebind");
+  assertEvolutionReleaseContextBinding(plan, reloaded, config.shardId);
+  if (Buffer.byteLength(JSON.stringify(plan, null, 2) + "\n") > 128 * 1024 * 1024) fail("context plan exceeds 128 MiB");
+  const contextPath = join(config.directory, "contexts.json"); await writeJson(contextPath, plan);
+  await writeJson(join(config.directory, "preparation.json"), { protocol: "oh.memory.evolution-preparation-rebind.v1", configPin, parentContextPin: contextPin,
+    parentStudySha256: parent.studySha256, parentScopeSha256: parent.scopeSha256, parentPlanSha256: parent.planSha256, parentRetrievalSourceSha256: parent.retrievalSourceSha256,
+    contextPlanSha256: plan.planSha256, retrievalSourceSha256, wallMs: performance.now() - started, modelCalls: 0 });
+  return { status: "rebound", contextPath, contextFileSha256: sha256Hex(await readFile(contextPath)), contexts: plan.cases.length, parentPlanSha256: parent.planSha256, modelCalls: 0 };
 }
 export async function prepareEvolutionReaders(configPin: EvolutionPin, contextPin: EvolutionPin) {
   const config = await configInput(configPin), context = await contextFor(config), pinned = await json(contextPin);
@@ -477,7 +497,7 @@ export async function reportEvolution(input: Readonly<{ configPin: EvolutionPin;
 
 export function parseEvolutionArgs(args: readonly string[]) {
   const command = args[0];
-  const extras: Record<string, readonly string[]> = { prepare: [], readers: ["context", "context-sha256"],
+  const extras: Record<string, readonly string[]> = { prepare: [], rebind: ["context", "context-sha256"], readers: ["context", "context-sha256"],
     "judge-plan": ["reader-plan", "reader-plan-sha256", "reader-output", "reader-output-sha256"],
     "run-reader": ["plan", "plan-sha256", "max-usd", "max-new-calls", "output"],
     "run-judge": ["plan", "plan-sha256", "max-usd", "max-new-calls", "output"],
@@ -500,12 +520,13 @@ export function parseEvolutionArgs(args: readonly string[]) {
 }
 async function main(args: readonly string[]) {
   if (!args.length || args[0] === "--help") {
-    console.log("Oh memory evolution runner (V1-V6 development; explicit V7 full-release descriptive; V8 full-context companion)\nprepare | readers | judge-plan | run-reader | run-judge | report\nAll commands require --config ABS --config-sha256 SHA. readers requires --context ABS --context-sha256 SHA. judge-plan requires --reader-plan ABS --reader-plan-sha256 SHA --reader-output ABS --reader-output-sha256 SHA. run phases require --plan ABS --plan-sha256 SHA --max-usd CAP --max-new-calls N --output ABS. report requires reader-plan, judge-plan, reader-output, judge-output pins and --output ABS. Paid phases use selected VERCEL_OIDC_TOKEN or BENCHMARK_OPENAI_API_KEY and one pinned campaign ledger. No automatic retries. V1-V6 keep development-only selection; V7 preserves closed/unknown exposure in a separately pinned full-release descriptive scope; V8 adds only a separately authorized complete-source control over its exact500 IDs."); return;
+    console.log("Oh memory evolution runner (V1-V6 development; explicit V7 full-release descriptive; V8 full-context companion)\nprepare | rebind | readers | judge-plan | run-reader | run-judge | report\nAll commands require --config ABS --config-sha256 SHA. readers requires --context ABS --context-sha256 SHA. rebind (V7 only) takes a parent study's --context ABS --context-sha256 SHA and reuses its exact retrieval under a study that declares retrievalProvenance and differs only in reader/campaign. judge-plan requires --reader-plan ABS --reader-plan-sha256 SHA --reader-output ABS --reader-output-sha256 SHA. run phases require --plan ABS --plan-sha256 SHA --max-usd CAP --max-new-calls N --output ABS. report requires reader-plan, judge-plan, reader-output, judge-output pins and --output ABS. Paid phases use selected VERCEL_OIDC_TOKEN or BENCHMARK_OPENAI_API_KEY and one pinned campaign ledger. No automatic retries. V1-V6 keep development-only selection; V7 preserves closed/unknown exposure in a separately pinned full-release descriptive scope; V8 adds only a separately authorized complete-source control over its exact500 IDs."); return;
   }
   const { command, flags } = parseEvolutionArgs(args);
   const pin = (name: string) => evolutionPin({ path: flags.get(name), sha256: flags.get(name + "-sha256") });
   const configPin = pin("config"); let result: unknown;
   if (command === "prepare") result = await prepareEvolution(configPin);
+  else if (command === "rebind") result = await rebindEvolutionRelease(configPin, pin("context"));
   else if (command === "readers") result = await prepareEvolutionReaders(configPin, pin("context"));
   else if (command === "judge-plan") result = await prepareEvolutionJudges(configPin, pin("reader-plan"), pin("reader-output"));
   else if (command === "report") result = await reportEvolution({ configPin, readerPlanPin: pin("reader-plan"), judgePlanPin: pin("judge-plan"),

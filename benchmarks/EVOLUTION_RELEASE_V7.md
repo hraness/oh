@@ -66,6 +66,47 @@ For each pinned config, use the unchanged public commands documented in [EVOLUTI
 
 Preparation and every context reload authenticate the scope, exact selected source/gold projection, current retrieval source and fixed matrix. The reader projection contains source/question fields only; scorer metadata is joined separately. Preparation does not rerun or authenticate a vendor's published baseline. Each config covers200 logical reader cases. Across the study there are1,000 logical reader cases and at most1,000 judge cases requiring new physical requests before exact request deduplication; reader failures suppress their judge dispatch. Existing occupied requests are preserved, and any reused responses must be disclosed rather than treated as newly sampled answers. Campaign capacity can prevent completion; these counts create no spending authority.
 
+## Rebind the same retrieval to another reader
+
+The frozen candidate and control contexts do not depend on the reader, so a
+second study may reuse them to measure a different admitted reader without
+rebuilding indexes or rerunning retrieval. Admitted readers are the members of
+`EVOLUTION_RELEASE_READERS`: the original combined nano profile, the same
+answer contract on GPT-5 mini, and the same contract on nano at high effort.
+The judge, rubric, variants, presentation and repeat policy stay fixed.
+
+Create a new study that is byte-identical to the parent except for `reader`,
+`campaignPin` (a separate campaign and store), `retrievalSourceSha256` (the
+current source digest) and one added field:
+
+```json
+"retrievalProvenance": {
+  "parentStudySha256": "PARENT_STUDY_FILE_SHA256",
+  "parentRetrievalSourceSha256": "PARENT_STUDY_RETRIEVAL_SOURCE_DIGEST"
+}
+```
+
+Run `scope` for the new study, create its five configs with the new study/scope
+pins and `readers: [<admitted reader>]`, then instead of `prepare` run:
+
+```sh
+bun scripts/benchmarks/evolution.ts rebind \
+  --config /private/mini/shard-001.json --config-sha256 ACTUAL_CONFIG_SHA256 \
+  --context /private/study/shard-001/contexts.json --context-sha256 ACTUAL_PARENT_CONTEXT_SHA256
+```
+
+`rebind` authenticates the parent V6 context, requires that its study and
+retrieval-source digests equal the declared provenance and that its shard,
+questions, variants and manifest equal the new scope, re-validates every
+retrieved context against the current source rendering, and writes a new
+`contexts.json` bound to the new study under the current retrieval digest. It
+performs no retrieval, embedding or provider call; the receipt records the
+parent plan digest. A study with `retrievalProvenance` cannot be prepared
+fresh, and a study without it cannot be rebound. Readers, paid phases, reports
+and `combine` then run unchanged. A rebound result is a reader comparison on
+identical evidence; it does not re-establish that the current source produces
+the parent's retrieval, and the parent study is never resealed.
+
 ## Reconcile all shards
 
 Each reportV2 contains private opaque per-case IDs and authenticated score/failure projections, plus per-request evidence hashes and conservative usage/reservation figures. Keep those detailed reports private. Create a combine input containing the study/scope pins and exactly five report pins:
