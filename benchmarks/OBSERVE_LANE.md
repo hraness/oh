@@ -121,5 +121,75 @@ The two runs used 16 calls and $0.035265 of accounted exposure, with no
 unresolved reservations, under a shared $0.25 cap. The
 [qualification summary](results/observation-fixture-20260910-v1.json)
 records both outcomes, the fixed rubric, source identity, and artifact
-digests. These results measure one small synthetic fixture; the development
-corpus still needs extraction diagnostics and a matched reader comparison.
+digests. These results measure one small synthetic fixture.
+
+The subsequent [development pilot](results/observation-development-pilot-20260910-v1.json)
+failed qualification. Of 47 calls, six truncated and ten of the 41 completed
+responses failed parsing: five exceeded the observation count, four paired an
+unresolved expression with a null date, and one cited the wrong speaker.
+The run stopped with $0.615209 in accounted usage and no unresolved
+reservations. No reader comparison ran. These are diagnostics from an
+adaptively stopped development subset, not a population accuracy estimate.
+
+Each truncated response exhausted its 8,192-token allowance. Reported
+reasoning used 5,184–6,464 tokens, leaving 1,728–3,008 visible tokens.
+That observation motivates the low-reasoning comparison below; it does not
+establish that lower reasoning preserves extraction quality.
+
+## Experimental extractor comparison
+
+Two additional benchmark profiles isolate the next extraction changes:
+`gpt5-mini-low-extractor-v1` uses the unchanged V1 prompt with low reasoning,
+and `gpt5-mini-structured-extractor-v2` uses low reasoning with a fixed strict
+JSON schema. The existing medium-reasoning mini profile remains the control.
+All three retain the same 8,192-token output allowance and token prices.
+The new profiles cannot be selected as answer readers or through the
+full-history reader route.
+
+The V2 inference contract in `scripts/benchmarks/observe-extractor-v2.ts`
+limits output to 48 observations and identifies a source turn for attribution.
+The parser derives the speaker from that turn and requires all citations to
+belong to the same speaker. An explicit time expression carries either a
+resolved full date or a null date. Uncertain expressions remain in the text;
+they produce null `eventAt` and `resolvedFrom` values when normalized for the
+existing observation validator. Assigning a full date to a recognized coarse
+expression, or contradicting an explicit ISO date, is rejected. General
+natural-language date resolution still needs semantic evaluation.
+
+The original model response and the normalized validation input are distinct
+evidence. A V2 response must not be relabeled as a V1 extraction artifact.
+The V1 prompt, parser, record bytes, lane policy, and retrieval artifact
+acceptance remain unchanged; the new contract is an experimental benchmark
+module, not a production observation API.
+
+`makeObserveExtractorFixture` retains the original eight synthetic sessions
+and adds four stress sessions. Its companion scorer measures dense fact
+coverage, date precision, attribution, corrections, and hypothetical leakage,
+alongside the original rubric. The source conversations are separate from
+the evaluation expectations. These lexical checks deliberately accept a
+limited set of equivalent wording; they do not replace a reader comparison.
+
+A live comparison must pin the source, both fixture files, rubric, profiles,
+requests, and budget before dispatch. Qualification requires complete
+responses, no unresolved spending, parser rejection below 5%, and a passing
+semantic report. Tests with supplied responses establish the contract and
+scorer behavior; they do not qualify either new model profile.
+
+The [frozen 36-call comparison](results/observation-extractor-comparison-20260910-v2.json)
+completed every provider response without truncation, for $0.116931 in
+accounted usage and no unresolved reservations. The medium control and
+low-only variant each admitted 11 of 12 sessions; structured V2 admitted
+seven. Neither candidate passed the expanded qualification, so no further
+development or reader calls were admitted. Low-only used $0.027427 against
+the control's $0.061039 and passed the original eight-session rubric in this
+run. One response per session does not establish a stable quality or cost
+advantage.
+
+Post-run inspection distinguished contract and scorer failures from incorrect
+dates. Four structured responses first failed on capitalization differences
+in the required literal, and one omitted that literal from its observation
+text. Three additional stress-date flags rejected correct event dates because
+the text also identified the source session date. The frozen reports retain
+those results. A future contract needs a separately versioned treatment of
+source-expression normalization and reference dates; these diagnostics do
+not retroactively qualify V2.

@@ -1,0 +1,120 @@
+{
+  "protocol": "oh.memory.observe-pilot-summary.v1",
+  "date": "2026-09-10",
+  "sourceCommit": "fcc2d76136f8543d96566429e334ad0e57fb6ff2",
+  "mergeCommit": "ebc46ed201714641d59907bd9cabe933e6dfa70e",
+  "pullRequest": "https://github.com/hraness/oh/pull/83",
+  "executionSourceSha256": "9a242fd837780b376715a488c1791bea0fc0302be58064d499376af920efec42",
+  "instructionSha256": "771ec3c8ec60ebbb4c048d6d2bec703f94543b2ba6e027c0165b44fc8db4d838",
+  "dataset": {
+    "name": "LongMemEval-S cleaned",
+    "partition": "development",
+    "revision": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+    "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+    "publicSource": "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/blob/main/longmemeval_s_cleaned.json"
+  },
+  "selection": {
+    "populationCorpora": 100,
+    "excludedCorpora": 6,
+    "plannedCorpora": 12,
+    "plannedQuestions": 12,
+    "plannedSessions": 551,
+    "method": "Exclude corpora with preparation failures. Sort eligible corpora by ascending SHA256(17:<runner corpus ID>); take a whole-corpus prefix until the next would exceed the $12 conservative reservation. No benchmark scores informed selection."
+  },
+  "extractor": "gpt5-mini-reader",
+  "limits": {
+    "extractionCapMicros": 12000000,
+    "plannedReservationMicros": 11256247,
+    "maximumNewCallsPerBatch": 100,
+    "maximumTotalCalls": 551
+  },
+  "actual": {
+    "physicalCalls": 47,
+    "modelCompleted": 41,
+    "modelTruncated": 6,
+    "acceptedSessions": 31,
+    "rejectedSessions": 10,
+    "notRun": 504,
+    "parserRejectionRate": 0.24390243902439024,
+    "rejections": {
+      "observation-count": 5,
+      "speaker-attribution": 1,
+      "resolved-from": 4
+    },
+    "observations": 947,
+    "observationsPerAcceptedSession": 30.548387096774192,
+    "knownUsageMicros": 615209,
+    "unresolvedReservationMicros": 0,
+    "readerCalls": 0,
+    "judgeCalls": 0
+  },
+  "stop": {
+    "qualified": false,
+    "reasons": [
+      "failed-response",
+      "parser-rejection-at-least5pct",
+      "external-or-admission-stop"
+    ],
+    "action": "After two settled truncated responses already violated the no-failed-response rule, the coordinator signaled the exact owned driver to stop new admissions. The existing handler drained active calls and wrote the final artifact, decision and accounting. No retry or later batch ran."
+  },
+  "continuationAccounting": {
+    "fixtureCalls": 16,
+    "fixtureKnownUsageMicros": 35265,
+    "pilotCalls": 47,
+    "pilotKnownUsageMicros": 615209,
+    "totalCalls": 63,
+    "totalKnownUsageMicros": 650474,
+    "totalUnresolvedReservationMicros": 0
+  },
+  "evidence": {
+    "launchFileSha256": "86bab31de9802a3cae46fbe66aaddcfe694aea79e2c48e10a097fb53f882e536",
+    "artifactFileSha256": "496703a371653fe4b9913a0d818e3fb8eb3b44e90ef32845cef5e0dece48cc76",
+    "artifactSha256": "ee72c261649e211db83b662b06dd15786452b55171d809b504267b70ee37fba6",
+    "decisionFileSha256": "d7bce459bb23f9d13570fbf66085bf56e88d1fa1859c4cb4dec1ee0b900337a3",
+    "sourceFileSha256": "86cf71d41372d53881a93d6eba4ef181b7fdddf574113705142d1b6e495f0051",
+    "ledgerRowsAuthenticated": 47,
+    "rawResponseDigestsVerified": 47,
+    "driverLockCleared": true
+  },
+  "qualification": "Negative extractor qualification result on an adaptively stopped development subset. The 24.4% rejection rate describes the 41 completed responses observed, not a random-sample population estimate. Counts do not measure reader accuracy, memory quality, or superiority over external frameworks. No reader comparison was admitted. The original small synthetic fixture pass did not transfer to this development run. Accounted cost is a ledger figure, not an invoice.",
+  "failureDiagnosis": {
+    "truncatedResponseMetrics": {
+      "turns": {
+        "min": 12,
+        "median": 12.0,
+        "max": 14
+      },
+      "inputBytes": {
+        "min": 10367,
+        "median": 13762.0,
+        "max": 18396
+      },
+      "outputTokens": {
+        "min": 8192,
+        "median": 8192.0,
+        "max": 8192
+      },
+      "reasoningTokens": {
+        "min": 5184,
+        "median": 6080.0,
+        "max": 6464
+      },
+      "visibleTokens": {
+        "min": 1728,
+        "median": 2112.0,
+        "max": 3008
+      }
+    },
+    "countRejections": [
+      58,
+      50,
+      49,
+      53,
+      52
+    ],
+    "unresolvedDateRejections": 4,
+    "dateRejectionsWithBareYear": 3,
+    "sourceSpeakerMismatchRejections": 1,
+    "diagnosticModelCalls": 0
+  }
+}

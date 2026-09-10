@@ -1,6 +1,7 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import type { Message } from "./model";
 import { EVOLUTION_READER_CONTRACTS, parseEvolutionReaderContractId, type EvolutionReaderContractId, type EvolutionReaderAblationContractId } from "./evolution-reader-contracts";
+import { OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT } from "./observe-extractor-v2";
 
 export const EVOLUTION_GATEWAY_ENDPOINT = "https://ai-gateway.vercel.sh/v1/chat/completions";
 export const EVOLUTION_OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
@@ -17,17 +18,20 @@ type ReaderStem<T> = T extends `${infer Stem}-reader` ? Stem : never;
 export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${EvolutionReaderAblationContractId}-reader`;
 export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"
   | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1" | "gpt4o-mini-locomo-j-judge-v1";
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId;
+export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2";
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
   endpoint: string; contextWindow: number; maxOutputTokens: number; timeoutMs: number;
   qualification: "gateway-alias" | "official-snapshot-request"; expectedSnapshot: string | null;
   settings: Readonly<{ temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }> }>;
+  responseFormat?: typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT;
   pricingCheckedAt: "2026-09-09"; prices: readonly PriceTier[];
   readerContract?: Readonly<{ baseReader: EvolutionBaseReaderId; id: EvolutionReaderAblationContractId; instructionSha256: string }> }>;
 type Body = Readonly<{ model: string; messages: readonly Message[]; stream: false; store: false; max_tokens: number;
   temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }>;
+  response_format?: typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT;
   providerOptions?: Readonly<{ gateway: Readonly<{ only: readonly string[]; order: readonly string[] }> }> }>;
 type EvolutionRequestCommon = Readonly<{ profileId: EvolutionProfileId;
   endpoint: string; body: Body; model: string; provider: string; requestSha256: string; profileSha256: string;
@@ -118,7 +122,14 @@ const ablationProfiles = Object.fromEntries(EVOLUTION_BASE_READER_IDS.flatMap(ba
     const id = evolutionReaderProfileId(baseReader, contract), base = LEGACY_PROFILES[baseReader];
     return [id, { ...base, id, readerContract: { baseReader, id: contract, instructionSha256: EVOLUTION_READER_CONTRACTS[contract].instructionSha256 } }];
   }))) as unknown as Record<EvolutionAblationReaderId, EvolutionModelProfile>;
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles });
+/** Extractor-only profiles: the structured contract is fixed here, never supplied by a caller. */
+const EXTRACTOR_PROFILES: Readonly<Record<EvolutionExtractorProfileId, EvolutionModelProfile>> = frozen({
+  "gpt5-mini-low-extractor-v1": { ...LEGACY_PROFILES["gpt5-mini-reader"], id: "gpt5-mini-low-extractor-v1",
+    settings: { reasoning: { effort: "low" } } },
+  "gpt5-mini-structured-extractor-v2": { ...LEGACY_PROFILES["gpt5-mini-reader"], id: "gpt5-mini-structured-extractor-v2",
+    settings: { reasoning: { effort: "low" } }, responseFormat: OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT },
+});
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
@@ -163,9 +174,12 @@ export function makeEvolutionRequest(profileId: EvolutionProfileId, messages: re
   const copied = structuredClone(messages);
   const body: Body = { model: selected.model, messages: copied, stream: false, store: false, max_tokens: selected.maxOutputTokens,
     ...structuredClone(selected.settings), ...(selected.endpoint === EVOLUTION_GATEWAY_ENDPOINT
-      ? { providerOptions: { gateway: { only: [selected.provider], order: [selected.provider] } } } : {}) };
+      ? { providerOptions: { gateway: { only: [selected.provider], order: [selected.provider] } } } : {}),
+    ...(selected.responseFormat === undefined ? {} : { response_format: structuredClone(selected.responseFormat) }) };
   // UTF-8 bytes plus framing is intentionally looser than an estimated token count. No silent truncation.
-  const inputUpperBound = Buffer.byteLength(JSON.stringify(copied)) + 2_048;
+  // The fixed schema is provider input too; reserve its bytes and framing without changing legacy preimages.
+  const schemaBytes = selected.responseFormat === undefined ? 0 : Buffer.byteLength(JSON.stringify({ response_format: selected.responseFormat }));
+  const inputUpperBound = Buffer.byteLength(JSON.stringify(copied)) + 2_048 + schemaBytes;
   if (inputUpperBound + selected.maxOutputTokens > selected.contextWindow) fail("conservative context bound exceeded");
   const profileSha256 = canonicalSha256(selected);
   const reservationMicros = rateCost(inputUpperBound, 0, selected.maxOutputTokens,
