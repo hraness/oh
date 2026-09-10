@@ -559,6 +559,15 @@ Both studies have completed; [the results page](EVOLUTION_RELEASE_RESULTS.md)
 reports BM25 window 378/500, Oh semantic 379/500 and full history 355/500 with
 zero failures, the paired and category breakdowns, cost and the fact-card outcome.
 
+[Run V9](EVOLUTION_RELEASE_V9.md) generalizes the release lane: an explicit
+ordered question selection (development pinned by IDs), declared candidate and
+control systems at any admitted whole-turn budget, indexed reader and judge
+repeats keyed through the campaign store, a declared reader date policy, a
+derived-record pin slot, `rebind` for V1, V7 and V9 parents and for V4
+development contexts, and the LoCoMo leaderboard-parity judge. V9 has its own
+study, scope V2, context, reader-plan V2, judge-plan, phase-receipt V2 and
+report protocols; V1-V8 are unchanged.
+
 [Run V8's full-context companion](FULL_CONTEXT_COMPANION.md) adds a separately
 accounted complete-source control over those same500 IDs with the same reader
 and judge. V7 keeps its original two arms. V8 performs no retrieval or QMD

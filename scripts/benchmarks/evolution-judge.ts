@@ -5,8 +5,12 @@ import { makeEvolutionRequest, validateEvolutionRequest, type EvolutionProfileId
 import { validateEvolutionReaderPlan, type EvolutionAnyContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
 import { validateEvolutionAttemptFailure, type EvolutionAttemptFailure } from "./evolution-store";
 import { buildJudgePrompt, loadJudgeProfile, parseJudgeDecision } from "./judge";
+import { EVOLUTION_LOCOMO_JUDGE_PROFILE_ID, parseLocomoJudgeDecision } from "./evolution-locomo-judge";
 
-export type EvolutionJudgeProfileId = "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge" | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1";
+/** The LoCoMo leaderboard-parity profile is admitted by the V9 judge plan only; V1 plans keep their closed list. */
+export type EvolutionJudgeProfileId = "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge" | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1"
+  | typeof EVOLUTION_LOCOMO_JUDGE_PROFILE_ID;
+export type EvolutionJudgeScoringRule = "native-contains-yes" | "strict-yes-no" | "correct-wrong";
 // Offline differential evidence: all six official task types, abstention and literal-field interpolation.
 // The upstream MIT attribution/license and exact prompt text are retained in the pinned profile JSON.
 export const EVOLUTION_LME_NATIVE_REFERENCE = {
@@ -18,14 +22,21 @@ export type EvolutionJudgeCase = Readonly<{ questionId: string; variantId: strin
   requestSha256: string | null; readerFailed: boolean }>;
 export type EvolutionJudgePlan = Readonly<{ protocol: "oh.memory.evolution-judge-plan.v1";
   readerPlanSha256: string; readerOutputSha256: string; profile: EvolutionJudgeProfileId; rubricSha256: string;
-  scoringRule: "native-contains-yes" | "strict-yes-no"; cases: readonly EvolutionJudgeCase[];
+  scoringRule: Exclude<EvolutionJudgeScoringRule, "correct-wrong">; cases: readonly EvolutionJudgeCase[];
   requests: readonly EvolutionRequest[]; planSha256: string }>;
 const fail = (message: string): never => { throw new TypeError(`Evolution judge: ${message}.`); };
 const caseKey = (c: EvolutionJudgeCase) => JSON.stringify([c.questionId, c.variantId, c.reader]);
 const nativeRubric = (profile: EvolutionJudgeProfileId) => profile === "gpt4o-official-snapshot-judge" || profile === "gpt4o-gateway-native-rubric-judge-v1" || profile === "gpt4o-gateway-native-rubric-16-judge-v1";
-const profileRule = (profile: EvolutionJudgeProfileId) => nativeRubric(profile) ? "native-contains-yes" as const : "strict-yes-no" as const;
+export const evolutionJudgeScoringRule = (profile: EvolutionJudgeProfileId): EvolutionJudgeScoringRule => profile === EVOLUTION_LOCOMO_JUDGE_PROFILE_ID ? "correct-wrong"
+  : nativeRubric(profile) ? "native-contains-yes" : "strict-yes-no";
+const profileRule = (profile: EvolutionJudgeProfileId): Exclude<EvolutionJudgeScoringRule, "correct-wrong"> => {
+  const rule = evolutionJudgeScoringRule(profile);
+  if (rule === "correct-wrong") return fail("V1 judge plans do not admit the LoCoMo parity profile");
+  return rule;
+};
 
 export function scoreEvolutionJudgeDecision(profile: EvolutionJudgeProfileId, answer: unknown): 0 | 1 | null {
+  if (profile === EVOLUTION_LOCOMO_JUDGE_PROFILE_ID) return parseLocomoJudgeDecision(answer);
   if (!nativeRubric(profile) && profile !== "gpt4o-gateway-judge") fail("unknown judge profile");
   if (profile === "gpt4o-gateway-judge") return parseJudgeDecision(answer);
   return typeof answer === "string" ? Number(answer.toLowerCase().includes("yes")) as 0 | 1 : null;
