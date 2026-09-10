@@ -758,3 +758,70 @@ corpus ingestion nor an accuracy result. The earlier embedding remains exactly
 checks passed, with independent review. Reconciliation and SDK replay must reuse
 the original captures before further qualification calls; parser success alone
 does not establish live completion.
+
+## Protected-prefix completion with nano
+
+Appending source evidence reduced accuracy in this experiment. A focused
+96,000-byte prefix plus up to 24,000 bytes of lexical completion scored 74/100;
+semantic completion scored 76/100. The original focused reader scored 81/100
+and semantic retrieval alone scored 82/100. Neither completion variant advances.
+
+The complete matrix was declared before generating its contexts or answers:
+the same 100 exposed development questions, two fixed completion policies, and
+the combined nano reader. Both preserve the focused prefix byte for byte and
+append whole turns from authenticated source occurrences. Preparation reused
+existing source artifacts, with no indexing or model calls. The 120,000-byte
+completion ceiling exceeds the controls' 96,000-byte ceiling, so this is a
+configuration comparison rather than an equal-budget retrieval ablation.
+
+| Configuration | Correct | Wins / losses versus semantic retrieval |
+| --- | ---: | ---: |
+| Semantic retrieval, prior control | 82/100 | — |
+| Focused native Oh, prior control | 81/100 | — |
+| BM25 window, prior control | 78/100 | — |
+| Focused prefix + lexical completion | 74/100 | 4 / 12 |
+| Focused prefix + semantic completion | 76/100 | 4 / 10 |
+
+All 200 reader responses and 179 distinct judge responses were verified, with
+zero reader or judge failures. The [complete completion200
+artifact](results/memory-evolution-completion-200-v1.json) retains both variants,
+all nine paired comparisons, category scores, costs and source identities.
+It reconstructs all 2,996 previously occupied campaign requests and retains the
+prior opening-message judge failure as zero when using that control. No earlier
+answer or score was replaced.
+
+This stage added 200 reader calls and 73 judge calls; 106 prior judges were
+reused by exact request and response identity. Incremental known usage was
+313,357 microdollars, with no new unresolved reservation. Reader execution took
+33.746 seconds and judging 18.256 seconds at concurrency 32, excluding host
+waits, preparation and reporting. The shared campaign reached 3,269 calls and
+9,219,280 microdollars of exposure: 9,212,417 known and 6,863 previously
+unresolved. Its 10-dollar ceiling is unchanged.
+
+Both phases used clean commit `3d2dfe3b6fe432094bf5d2c845da6ef83aff73d5`.
+The reader contract and Gateway native-rubric 16-token judge are unchanged.
+These development results reject the tested append policies; they do not show
+that additional evidence is generally harmful or establish the cause of errors.
+
+## Mem0 clock binding and bounded ingestion
+
+The pinned Mem0 SDK uses the current UTC date when its extraction prompt lacks
+an explicit date. A benchmark may now bind that default to a declared experiment
+date, while preserving explicit current dates and observation timestamps.
+Synthetic tests against the actual pinned SDK verified identical prompts across
+UTC midnight. An offline SDK replay then reproduced both original captured
+request hashes with zero provider calls.
+
+Live recovery reused those captures and completed one of 149 ordered ingestion
+chunks. The SDK extracted 12 memory rows and persisted their batched embeddings.
+The next extraction stopped after approximately 45 seconds with an empty,
+incomplete transport capture. Full ingestion and search did not complete; no
+Mem0 accuracy result is claimed. The stopped state and occupied request remain
+preserved, with no automatic retry.
+
+Five physical calls account for 11,668 microdollars of exposure: 3,391 known
+usage and an 8,277-microdollar unresolved reservation. The bounded attempt took
+53.854 seconds and its worker was collected after SIGTERM. This Mem0 allocation
+is separate from the evolution campaign above and is counted once in combined
+research spending. A distinct model configuration needs a fresh declared
+experiment; it cannot replace the timed-out request or erase its exposure.
