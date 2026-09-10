@@ -92,8 +92,9 @@ const LEGACY_PROFILES: Readonly<Record<EvolutionLegacyProfileId, EvolutionModelP
   // Gateway list price checked 2026-09-10 ($0.15 / $0.075 cached / $0.60 per million). Single call, temperature 0.
   "gpt4o-mini-reader": profile("gpt4o-mini-reader", "openai/gpt-4o-mini", "openai", 128_000, 2_048,
     { temperature: 0 }, [tier(150, 75, 600)]),
-  // LoCoMo leaderboard-parity judge: CORRECT/WRONG prompt with a one-sentence explanation, so the cap exceeds the yes/no judges.
-  "gpt4o-mini-locomo-j-judge-v1": profile("gpt4o-mini-locomo-j-judge-v1", "openai/gpt-4o-mini", "openai", 128_000, 128,
+  // LoCoMo leaderboard-parity judge: the CORRECT/WRONG prompt asks for a one-sentence explanation before the label, and a
+  // truncated completion is a judge failure scored 0, so the cap (512) leaves room for a verbose explanation; cost is negligible.
+  "gpt4o-mini-locomo-j-judge-v1": profile("gpt4o-mini-locomo-j-judge-v1", "openai/gpt-4o-mini", "openai", 128_000, 512,
     { temperature: 0 }, [tier(150, 75, 600)]),
   "gpt4o-gateway-judge": profile("gpt4o-gateway-judge", "openai/gpt-4o", "openai", 128_000, 16,
     { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),

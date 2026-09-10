@@ -4,7 +4,7 @@ V9 is the runner protocol for every score that must be read on the full 500
 LongMemEval-S questions with real repeats, or on a second benchmark. It removes
 four plumbing limits of the [V7 full-release lane](EVOLUTION_RELEASE_V7.md)
 without changing that lane: a study now names its question set by an explicit
-ordered list of runner IDs instead of a seed over a partition, declares a
+list of runner IDs instead of a seed over a partition, declares a
 candidate and a control system with any admitted whole-turn budget, carries an
 indexed repeat count for readers and judges through the campaign store, and
 fixes a reader date policy and a derived-record pin slot before any score is
@@ -18,9 +18,13 @@ evidence; the [results page](EVOLUTION_RELEASE_RESULTS.md) records outcomes.
 ## What V9 adds
 
 - **Explicit selection.** `oh.memory.evolution-study.v9` pins `selection`, an
-  ordered list of runner question IDs. The development stratum is pinned by
-  IDs, never by seed; the closed stratum is admitted with its declared exposure
-  reported beside it. `oh.memory.evaluation-scope.v2` accepts up to 260
+  explicit list of runner question IDs. The list is a declared set: the scope
+  digests it as written in `selectedQuestionIdsSha256`, but shards lay its
+  members out in canonical order (clusters by their first selected runner ID,
+  members by runner ID), so two studies naming the same set in different
+  orders have different scope digests and identical shards. The development
+  stratum is pinned by IDs, never by seed; the closed stratum is admitted with
+  its declared exposure reported beside it. `oh.memory.evaluation-scope.v2` accepts up to 260
   questions per shard and two shard policies: `packed-clusters` reproduces the
   V1 packing (the full 500 yields the same five shards as V7) and
   `one-cluster-per-shard` gives every declared conversation cluster its own
@@ -57,12 +61,20 @@ evidence; the [results page](EVOLUTION_RELEASE_RESULTS.md) records outcomes.
   declares a pin fails closed at preparation until a retrieval lane consumes
   it. The slot exists so the lane can be added without a study-protocol change.
 - **Rebind for every whole-turn parent.** `rebind` now accepts a V9
-  configuration whose study declares `retrievalProvenance`, and reuses a V1
-  development plan, a V7 release wrapper or an earlier V9 wrapper byte for
-  byte: every parent result is re-validated against the current source
-  rendering, the current retrieval identity is restamped, and no retrieval,
-  embedding or provider call occurs. A V4 development configuration can also
-  rebind its own whole-turn V1 contexts after a source identity change.
+  configuration whose study declares `retrievalProvenance`, and reuses the
+  exact retrieval results of a V1 development plan, a V7 release wrapper or an
+  earlier V9 wrapper: the parent must carry the shard's exact question set with
+  identical text and corpus binding, every parent result is re-validated
+  against the current source rendering, the current retrieval identity is
+  restamped, and no retrieval, embedding or provider call occurs. A V7 parent
+  already packs in shard order and rebinds byte for byte; a V1 development
+  parent prepared in seeded selection order is reordered into the shard's
+  canonical order (questions and cases) before resealing, so every result is
+  reused unchanged while the plan digest moves with the order. A V4
+  development configuration can also rebind its own whole-turn V1 contexts
+  after a source identity change. The offline runner test rebinds a
+  seed-ordered development parent through both paths with a synthetic source
+  and transport and zero model calls.
 - **Reports.** `oh.memory.evolution-report.v9` scores the per-question mean
   judge decision over every (reader repeat, judge repeat) cell (`judge-mean`),
   keeps every cell's binary accuracy (`byCell`), counts questions whose cells
@@ -168,7 +180,7 @@ no campaign store was opened, and every command reported `modelCalls: 0`.
 
 | Artifact | Result |
 | --- | --- |
-| Retrieval source of this tree | `f2cc0aceb60abbcfd68ab1a0daf0c16a786177904d3953460eb92b1bd6447f0a` |
+| Retrieval source of the E4a tree (commit `4368afe`) | `f2cc0aceb60abbcfd68ab1a0daf0c16a786177904d3953460eb92b1bd6447f0a` |
 | V2 scope | `scopeSha256` `36df7bbf…5cc6`; five shards of 100 whose ordered question IDs equal the V1 scope's shards |
 | shard-001 | parent plan `ad632ad0…1e94` to rebound plan `037cc61e…dfc5`; 200 contexts byte-identical; 9.8 s |
 | shard-002 | parent plan `e0ad6e2a…4ca0` to rebound plan `68fa9dbb…7544`; 200 contexts byte-identical; 9.7 s |
@@ -190,8 +202,16 @@ The LoCoMo lane reads J the way the leaders do: the Packer/Mem0/Zep
 CORRECT/WRONG prompt in
 [`benchmarks/profiles/locomo-judge-v1.json`](profiles/locomo-judge-v1.json),
 profile `gpt4o-mini-locomo-j-judge-v1` (Gateway `openai/gpt-4o-mini` alias,
-temperature 0, 128 output tokens), scoring rule `correct-wrong` (exactly one
-of the two labels; both or neither is a judge failure), categories 1-4 only
+temperature 0, 512 output tokens so the requested one-sentence explanation
+cannot be truncated into a failure), scoring rule `correct-wrong` (exactly one
+of the two labels; both, neither or a truncated completion is a judge failure
+scored 0 for that cell, never a label). The templates are a normalized
+transcription of Zep's grader (`zep_locomo_eval.py` at commit `4434662`):
+straight quotes, the upstream typo removed, de-indented, without the trailing
+JSON-label instruction, and read from free text rather than Zep's structured
+`Grade` object or Mem0's JSON label. The profile file's digest covers its
+provenance text as well as the templates; the template bytes have not changed
+since the first pin. The lane grades categories 1-4 only
 (multi-hop, temporal, open-domain, single-hop; 1,540 questions), and the
 official F1 reported as a diagnostic that underestimates abstention because the
 native abstention regex does not match the explicit-abstention reader wording.
@@ -214,8 +234,11 @@ and conv-50 158. The reader date policy for LoCoMo is `final-session-date`,
 fixed in the study before any score. Studies shard one conversation per shard;
 the reducer's strata and category breakdowns use the leaders' category names.
 
-The E4b descriptor written in this phase (study `1dedd8de…f7ba`, scope
-`e875f794…b158`, ten shards of 158/150/191/123/199/81/152/156/178/152
+The E4b descriptor written in this phase (study `3304abb4…dbb6`, scope
+`c6b80e4b…bcac`, re-sealed after the judge cap and profile provenance repair
+under this tree's retrieval identity `cef8591b…9528`; the superseded
+`1dedd8de…f7ba` / `e875f794…b158` pair is kept privately beside it; ten shards
+of 158/150/191/123/199/81/152/156/178/152
 questions, strata closed/evaluated 1,226 questions over 8 conversations and
 development 314 over 2) uses the GPT-5 nano explicit-abstention reader with
 three indexed repeats, one judge repeat on the parity judge, a 24 KB

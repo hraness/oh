@@ -96,19 +96,32 @@ export function evolutionRebindParentBase(parent: EvolutionRebindParent): Readon
   if (parent.protocol === "oh.memory.evolution-context-plan.v6") return { base: validateEvolutionContextPlan(parent.basePlan), parentStudySha256: parent.studySha256, protocol: parent.protocol };
   return fail("parent context protocol is not rebind-eligible");
 }
+const caseKey = (c: Readonly<{ questionId: string; variantId: string }>) => JSON.stringify([c.questionId, c.variantId]);
+/** Every (question, variant) case of `right` must carry exactly the result of the same case in `left`; order is immaterial. */
+function assertSameEvolutionRetrieval(left: readonly EvolutionContextPlan["cases"][number][], right: readonly EvolutionContextPlan["cases"][number][]): void {
+  const originals = new Map(left.map(c => [caseKey(c), c.result]));
+  if (right.length !== left.length || right.some(c => !same(c.result, originals.get(caseKey(c))))) fail("rebound retrieval changed");
+}
 /** Restamp a validated base plan under the current retrieval source and the study's projection. Retrieval is not rerun;
- * every parent result is re-validated against the current source rendering by the V9 wrapper. Question text and order
- * must match; only `questionDate` may differ, because the declared reader date policy is applied in projection. */
+ * every parent result is re-validated against the current source rendering by the V9 wrapper. The parent must carry
+ * the shard's exact question set with identical text and corpus binding; only `questionDate` may differ, because the
+ * declared reader date policy is applied in projection. A development parent prepared in seeded selection order is
+ * reordered into the shard's order (questions and cases) before resealing, so its results are reused unchanged
+ * while the plan digest moves with the order. */
 export function rebindEvolutionBasePlan(input: Readonly<{ base: EvolutionContextPlan; dataset: EvolutionRunnerInput; retrievalSourceSha256: string }>): EvolutionContextPlan {
   const base = validateEvolutionContextPlan(input.base), { dataset } = input;
   if (parseSha256Hex(input.retrievalSourceSha256) === null) fail("current retrieval source digest required");
-  if (base.questions.length !== dataset.questions.length || base.questions.some((q, i) => q.id !== dataset.questions[i]!.id
-    || q.corpusId !== dataset.questions[i]!.corpusId || q.question !== dataset.questions[i]!.question)) fail("parent questions differ from the study shard");
-  const { planSha256: _old, ...fields } = base;
-  const payload = { ...fields, retrievalSourceSha256: input.retrievalSourceSha256, inputSha256: canonicalSha256(dataset), questions: dataset.questions };
+  const parents = new Map(base.questions.map(q => [q.id, q]));
+  if (base.questions.length !== dataset.questions.length || parents.size !== base.questions.length || dataset.questions.some(q => {
+    const parent = parents.get(q.id); return parent === undefined || parent.corpusId !== q.corpusId || parent.question !== q.question;
+  })) fail("parent questions differ from the study shard");
+  const questionOrder = new Map(dataset.questions.map((q, i) => [q.id, i])), variantOrder = new Map(base.variants.map((v, i) => [v.id, i]));
+  const cases = [...base.cases].sort((a, b) => questionOrder.get(a.questionId)! - questionOrder.get(b.questionId)! || variantOrder.get(a.variantId)! - variantOrder.get(b.variantId)!);
+  const { planSha256: _old, questions: _questions, cases: _cases, ...fields } = base;
+  const payload = { ...fields, retrievalSourceSha256: input.retrievalSourceSha256, inputSha256: canonicalSha256(dataset), questions: dataset.questions, cases };
   const rebound = freezeEvolutionCompletion(structuredClone({ ...payload, planSha256: canonicalSha256(payload) })) as EvolutionContextPlan;
   validateEvolutionContextPlanSources(rebound, dataset);
-  if (!same(rebound.cases.map(c => c.result), base.cases.map(c => c.result))) fail("rebound retrieval changed");
+  assertSameEvolutionRetrieval(base.cases, rebound.cases);
   return rebound;
 }
 /** Reuse a parent's exact retrieval results under a V9 study that declares the parent's study and retrieval-source
@@ -125,6 +138,6 @@ export function rebindEvolutionContextPlanV9(input: Readonly<{ dataset: Evolutio
   const basePlan = rebindEvolutionBasePlan({ base: parent.base, dataset: input.dataset, retrievalSourceSha256: input.retrievalSourceSha256 });
   const plan = makeEvolutionContextPlanV9({ dataset: input.dataset, basePlan, binding: evolutionContextBindingV9(input.authorization, input.shardId) });
   assertEvolutionContextBindingV9(plan, input.authorization, input.shardId);
-  if (!same(plan.cases.map(c => c.result), parent.base.cases.map(c => c.result))) fail("rebound retrieval changed");
+  assertSameEvolutionRetrieval(parent.base.cases, plan.cases);
   return plan;
 }

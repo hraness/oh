@@ -7,7 +7,8 @@ import { ROOT } from "./io";
 import type { Message } from "./model";
 
 export const EVOLUTION_LOCOMO_JUDGE_PROFILE_ID = "gpt4o-mini-locomo-j-judge-v1" as const;
-export const EVOLUTION_LOCOMO_JUDGE_RUBRIC_SHA = "bf5bbe45953b3a43b4e8ffa6a07c8f7c3ecc8d3d8d4b175fac68fe0d05f43fae";
+/** Digest of the whole profile file (provenance text included); the template bytes have not changed since bf5bbe45…3fae. */
+export const EVOLUTION_LOCOMO_JUDGE_RUBRIC_SHA = "fbdb3c740e50aeb0224b22dd51f2db02d9b942a8e9bd59023e099a94542dd227";
 /** Categories in the J denominator: multi-hop, temporal, open-domain, single-hop. Adversarial (5) has no gold. */
 export const EVOLUTION_LOCOMO_J_CATEGORIES = ["locomo:1", "locomo:2", "locomo:3", "locomo:4"] as const;
 export const EVOLUTION_LOCOMO_CATEGORY_NAMES: Readonly<Record<string, string>> = Object.freeze({

@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalJson, canonicalSha256, sha256Hex } from "../src/canonical";
 import { OH_EMBEDDING_PROFILE_V1 } from "../src/semantic";
-import { DATASETS, type Dataset } from "../scripts/benchmarks/datasets";
-import { createEvolutionDatasetManifest, projectEvolutionRunnerInput } from "../scripts/benchmarks/evolution-dataset";
+import { DATASETS, selectQuestions, type Dataset } from "../scripts/benchmarks/datasets";
+import { createEvolutionDatasetManifest, projectEvolutionRunnerInput, selectEvolutionPartition } from "../scripts/benchmarks/evolution-dataset";
 import { createEvolutionFullHistorySource } from "../scripts/benchmarks/evolution-full-history";
 import { renderTurn } from "../scripts/benchmarks/retrieval";
 import { EVOLUTION_RELEASE_JUDGE, EVOLUTION_RELEASE_READERS, EVOLUTION_RELEASE_RUBRIC_SHA, makeEvolutionReleaseScope, validateEvolutionReleaseArtifacts,
@@ -204,6 +204,40 @@ test("rebind reuses a V6 release parent, a V1 development parent or a V9 parent 
   const changedText = structuredClone(parentProjected); (changedText.questions[0] as { question: string }).question += "?";
   expect(() => rebindEvolutionBasePlan({ base: parentBase, dataset: changedText, retrievalSourceSha256: h("x") })).toThrow("questions differ");
   expect(rebindEvolutionBasePlan({ base: parentBase, dataset: parentProjected, retrievalSourceSha256: h("x") }).retrievalSourceSha256).toBe(h("x"));
+});
+
+test("rebind reorders a seed-ordered V1 development parent into the shard's canonical order and reuses every result unchanged", () => {
+  const s = source(), seeded = selectQuestions(selectEvolutionPartition(s.dataset, s.manifest, "development"), 60, 17);
+  const parentProjected = projectEvolutionRunnerInput(seeded), parent = baseContexts(parentProjected, sha256Hex(s.manifestBytes), h("parent retrieval source"));
+  const study = v9(s, { selection: parentProjected.questions.map(q => q.id), maximumQuestionsPerShard: 100, repeats: 1, judgeRepeats: 1,
+    retrievalProvenance: { parentStudySha256: parent.planSha256, parentRetrievalSourceSha256: parent.retrievalSourceSha256 } });
+  expect(study.scope.shards).toHaveLength(1);
+  const shardProjected = projectEvolutionRunnerInputV9(selectEvolutionStudyV9Shard(s.dataset, s.manifest, study.authorization, "shard-001"), "question-date");
+  // The seeded development order is category-interleaved by seeded hash; the V2 scope lays the same set out by runner ID.
+  expect(shardProjected.questions.map(q => q.id)).not.toEqual(parentProjected.questions.map(q => q.id));
+  expect([...shardProjected.questions.map(q => q.id)].sort()).toEqual([...parentProjected.questions.map(q => q.id)].sort());
+  const rebound = rebindEvolutionContextPlanV9({ dataset: shardProjected, parent, authorization: study.authorization, shardId: "shard-001", retrievalSourceSha256: study.study.retrievalSourceSha256 });
+  expect(rebound.questions.map(q => q.id)).toEqual(shardProjected.questions.map(q => q.id));
+  expect(rebound.basePlan.questions).toEqual(shardProjected.questions); expect(rebound.inputSha256).toBe(h(shardProjected));
+  const key = (c: { questionId: string; variantId: string }) => JSON.stringify([c.questionId, c.variantId]);
+  const originals = new Map(parent.cases.map(c => [key(c), c.result]));
+  expect(rebound.cases).toHaveLength(parent.cases.length);
+  for (const c of rebound.cases) expect(c.result).toEqual(originals.get(key(c))!);
+  expect(rebound.cases.map(key)).toEqual(shardProjected.questions.flatMap(q => variants.map(v => key({ questionId: q.id, variantId: v.id }))));
+  expect(() => assertEvolutionContextBindingV9(rebound, study.authorization, "shard-001")).not.toThrow();
+  validateEvolutionContextPlanV9Sources(rebound, shardProjected);
+  expect(rebound.basePlan.planSha256).not.toBe(parent.planSha256);
+  // Set equality is required: a shard that drops one parent question, adds a foreign one or rebinds a different corpus is refused.
+  const dropped = { corpora: shardProjected.corpora, questions: shardProjected.questions.slice(1) };
+  expect(() => rebindEvolutionBasePlan({ base: parent, dataset: dropped, retrievalSourceSha256: h("x") })).toThrow("questions differ");
+  const other = projectEvolutionRunnerInput(selectEvolutionStudyV9Shard(s.dataset, s.manifest, v9(s).authorization, "shard-002"));
+  const swapped = { corpora: [...shardProjected.corpora, other.corpora[0]!], questions: [...shardProjected.questions.slice(1), other.questions[0]!] };
+  expect(() => rebindEvolutionBasePlan({ base: parent, dataset: swapped, retrievalSourceSha256: h("x") })).toThrow("questions differ");
+  const rebased = structuredClone(shardProjected) as { questions: { corpusId: string }[] }; rebased.questions[0]!.corpusId = shardProjected.questions[1]!.corpusId;
+  expect(() => rebindEvolutionBasePlan({ base: parent, dataset: rebased as typeof shardProjected, retrievalSourceSha256: h("x") })).toThrow("questions differ");
+  // A parent whose case order was permuted still rebinds to the canonical layout with the same results.
+  const permuted = structuredClone(parent) as any; permuted.cases.reverse(); reseal(permuted);
+  expect(rebindEvolutionBasePlan({ base: permuted, dataset: shardProjected, retrievalSourceSha256: h("x") }).cases.map(key)).toEqual(rebound.cases.map(key));
 });
 
 test("reader plan V2 carries an indexed repeat per case, dedupes physical requests and reserves the select stage", () => {

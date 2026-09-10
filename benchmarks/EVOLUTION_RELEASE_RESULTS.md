@@ -174,7 +174,8 @@ read from an environment variable so it can carry the gateway prefix.
 | **Oh semantic, 96 KB** | gpt-4.1-mini | **60.8%** | this run |
 | OpenClaw | gpt-4.1 | 59.8% | MemEval README |
 | Full context | gpt-4.1 | 52.0% | MemEval README |
-| Mem0 OSS 1.0.3 | gpt-4.1-mini | pending | this run |
+| Mem0 OSS 1.0.3, first 30 questions | gpt-4.1-mini | 43.3% (13/30) | this run |
+| **Oh semantic on the same 30** | gpt-4.1-mini / gpt-4.1 | **60.0% (18/30) / 66.7% (20/30)** | this run |
 
 Under this protocol Oh sits between OpenClaw and SimpleMem. Its temporal
 reasoning (41%) and multi-session (41%) scores are where the missing question
@@ -183,8 +184,13 @@ The same retrieval scores 89.8% on the full 500 with the mini reader and the
 question date supplied, so most of the gap between the two tables is protocol,
 not evidence. MemEval's leaderboard does not include Mem0 or Graphiti on
 LongMemEval; the Mem0 row above is a local run of its open-source library
-under MemEval's own adapter, and the Oh gpt-4.1-mini row is its matched
-control.
+under MemEval's own adapter on the first 30 questions of the sample (its
+ingestion takes about twelve minutes per question, so the run was bounded),
+and the Oh rows on the same 30 questions are the matched controls. With the
+same gpt-4.1-mini reader, Oh answered 18 of those 30 and Mem0 13, and Mem0
+spent 9.0 million tokens across 2,982 calls against about 0.55 million for
+Oh. Thirty questions cannot support a precise margin; it is a matched
+observation, not a superiority claim.
 
 ## Where this sits among published results
 
@@ -236,11 +242,15 @@ conv-47 150, conv-48 191, conv-49 156 and conv-50 158 (1,540 of 1,986; the
 446 adversarial questions are outside it).
 
 The parity lane scores J the way Mem0 and Zep report it: the Packer/Mem0/Zep
-CORRECT/WRONG prompt ([profile](profiles/locomo-judge-v1.json), byte-identical
-to Zep's grader prompt after renaming its format slots) on a gpt-4o-mini alias
-at temperature 0 over categories 1-4 (multi-hop 282, temporal 321, open-domain
-96, single-hop 841; 1,540 questions), with the adversarial category outside the
-denominator because it has no gold. The official F1 is reported beside J as a
+CORRECT/WRONG prompt ([profile](profiles/locomo-judge-v1.json), a normalized
+transcription of Zep's grader in `zep_locomo_eval.py`: straight quotes, the
+upstream typo removed, de-indented, without its trailing JSON-label
+instruction, with named placeholders for its format slots) on a gpt-4o-mini
+alias at temperature 0 with a 512-token output cap, over categories 1-4
+(multi-hop 282, temporal 321, open-domain 96, single-hop 841; 1,540
+questions), with the adversarial category outside the denominator because it
+has no gold. Exactly one label must appear; both, neither or a truncated
+completion is a judge failure scored 0, never a label. The official F1 is reported beside J as a
 diagnostic that underestimates abstention. The reader date policy is fixed in
 the study as the final session date, the closest analogue to the leaders'
 harnesses, before any score exists. Like-for-like references are Mem0 66.88 /

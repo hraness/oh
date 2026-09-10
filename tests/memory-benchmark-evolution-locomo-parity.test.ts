@@ -86,7 +86,7 @@ test("the leaderboard-parity judge renders the pinned CORRECT/WRONG prompt on gp
   expect(() => buildLocomoJudgeMessages(question("single-session-user"), "x", profile)).toThrow("denominator");
   expect(() => buildLocomoJudgeMessages(question("locomo:1"), "", profile)).toThrow("bounded prediction");
   const request = makeEvolutionRequest(EVOLUTION_LOCOMO_JUDGE_PROFILE_ID, messages);
-  expect(request.body).toMatchObject({ model: "openai/gpt-4o-mini", max_tokens: 128, temperature: 0, providerOptions: { gateway: { only: ["openai"], order: ["openai"] } } });
+  expect(request.body).toMatchObject({ model: "openai/gpt-4o-mini", max_tokens: 512, temperature: 0, providerOptions: { gateway: { only: ["openai"], order: ["openai"] } } });
   expect(validateEvolutionRequest(request)).toEqual(request);
   expect(EVOLUTION_PROFILES[EVOLUTION_LOCOMO_JUDGE_PROFILE_ID].qualification).toBe("gateway-alias");
   for (const [text, decision] of [["The answer touches on the topic. CORRECT", 1], ["It names a different item.\nWRONG", 0], ["CORRECT", 1], ["WRONG.", 0], ["correct", null],
