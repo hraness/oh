@@ -114,17 +114,57 @@ function dispatcherResume(value: unknown, derivation: Mem0DerivationReceipt, cor
   if (summary.calls !== v.expectedCalls || summary.exposureMicros !== v.expectedExposureMicros) fail("resume ledger checkpoint mismatch");
   return Object.freeze({ ...v, replayRequests: Object.freeze(replayRequests) }) as Mem0DispatcherResumeV1;
 }
+/** One explicit new physical attempt after an empty ingestion-embedding
+ * transport failure. The helper authenticates immutable checkpoint files. */
+export type Mem0IngestEmbeddingRecoveryV1 = Readonly<{
+  protocol: "oh.memory.mem0-ingest-embedding-recovery.v1"; checkpointSha256: string;
+  derivationSha256: string; chunkId: string; expectedCalls: number; expectedExposureMicros: number;
+  failedRequest: ReturnType<typeof makeMem0EmbeddingRequest>; failureEvidenceSha256: string; maximumRecoveryAttempts: 1;
+}>;
+function ingestEmbeddingRecovery(value: unknown, derivation: Mem0DerivationReceipt, corpus: Mem0SelectedCorpus,
+  policy: Mem0BridgePolicy, ledger: Ledger): Mem0IngestEmbeddingRecoveryV1 {
+  const v = exact(value, ["protocol", "checkpointSha256", "derivationSha256", "chunkId", "expectedCalls",
+    "expectedExposureMicros", "failedRequest", "failureEvidenceSha256", "maximumRecoveryAttempts"]);
+  const request = validateMem0Request(v.failedRequest), summary = ledger.summary();
+  if (v.protocol !== "oh.memory.mem0-ingest-embedding-recovery.v1" || !sha(v.checkpointSha256)
+    || !sha(v.failureEvidenceSha256) || v.maximumRecoveryAttempts !== 1
+    || v.derivationSha256 !== canonicalSha256(derivation) || !corpus.chunks.some(c => c.chunkId === v.chunkId)
+    || request.kind !== "embedding" || request.operation !== "ingest-embed"
+    || request.ordinal >= 999_999 || v.expectedCalls !== request.ordinal + 1
+    || summary.calls !== v.expectedCalls || summary.exposureMicros !== v.expectedExposureMicros
+    || ledger.inspectIngestEmbeddingFailure(request).evidenceSha256 !== v.failureEvidenceSha256
+    || makeMem0EmbeddingRequest(policy, request.ordinal, "ingest-embed", request.body.input).requestSha256 !== request.requestSha256) {
+    fail("ingestion embedding recovery source, failure or authority binding");
+  }
+  return Object.freeze({ ...v, failedRequest: request }) as Mem0IngestEmbeddingRecoveryV1;
+}
 /** A serial dispatcher for one worker. It is deliberately not a generic provider
  * proxy: activity derives each SDK call from a selected source chunk or question. */
-export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpus: unknown; ledger: Ledger; credential: Mem0Credential; fetcher?: Mem0Fetcher; batchEmbeddings?: boolean; resume?: unknown }>) {
+export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpus: unknown; ledger: Ledger; credential: Mem0Credential; fetcher?: Mem0Fetcher; batchEmbeddings?: boolean; resume?: unknown; ingestEmbeddingRecovery?: unknown }>) {
   const policy = validateMem0BridgePolicy(input.policy), corpus = validateMem0SelectedCorpus(input.corpus), derivation = makeMem0DerivationReceipt(policy, corpus);
   if (input.batchEmbeddings !== undefined && typeof input.batchEmbeddings !== "boolean") fail("batch embedding opt-in");
   const batchEmbeddings = input.batchEmbeddings === true, cancellation = new AbortController();
+  if (input.resume !== undefined && input.ingestEmbeddingRecovery !== undefined) fail("recovery modes are mutually exclusive");
+  const recovery = input.ingestEmbeddingRecovery === undefined ? undefined : ingestEmbeddingRecovery(input.ingestEmbeddingRecovery, derivation, corpus, policy, input.ledger);
   const resume = input.resume === undefined ? undefined : dispatcherResume(input.resume, derivation, corpus, policy, input.ledger);
-  let replayed = 0, replayFailed = false;
-  let ordinal = resume?.initialOrdinal ?? 0, activity: Activity | null = null, closed = false, chain: Promise<void> = Promise.resolve();
+  let replayed = 0, replayFailed = false, recoveryAttempts = 0, recoverySucceeded = false, recoveryFailed = false;
+  const recoveryRequest = recovery === undefined ? undefined : makeMem0EmbeddingRequest(policy, recovery.expectedCalls, "ingest-embed", recovery.failedRequest.body.input);
+  let ordinal = recovery?.expectedCalls ?? resume?.initialOrdinal ?? 0, activity: Activity | null = null, closed = false, chain: Promise<void> = Promise.resolve();
   const serial = <T>(action: () => Promise<T>): Promise<T> => { const next = chain.then(action, action); chain = next.then(() => undefined, () => undefined); return next; };
   const choose = async (request: Mem0AnyRequest): Promise<Mem0AnyResult> => {
+    const recovering = recovery !== undefined && recoveryAttempts === 0;
+    if (recovery !== undefined) {
+      if (recoveryFailed || cancellation.signal.aborted) fail("ingestion embedding recovery interrupted or failed");
+      if (recovering) {
+        const summary = input.ledger.summary();
+        if (activity?.kind !== "ingest" || activity.chunk.chunkId !== recovery.chunkId
+          || request.requestSha256 !== recoveryRequest!.requestSha256 || summary.calls !== recovery.expectedCalls
+          || summary.exposureMicros !== recovery.expectedExposureMicros
+          || input.ledger.inspectIngestEmbeddingFailure(recovery.failedRequest).evidenceSha256 !== recovery.failureEvidenceSha256
+          || input.ledger.lookup(request).kind !== "miss") fail("ingestion embedding recovery generated request mismatch");
+        recoveryAttempts = 1;
+      }
+    }
     if (resume !== undefined) {
       if (replayFailed || cancellation.signal.aborted) fail("resume interrupted or failed");
       if (replayed < resume.replayRequests.length) {
@@ -137,11 +177,19 @@ export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpu
         replayed++; return cached.result;
       }
     }
-    return input.fetcher === undefined
+    const result = await (input.fetcher === undefined
       ? invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, signal: cancellation.signal })
-      : invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, fetcher: input.fetcher, signal: cancellation.signal });
+      : invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, fetcher: input.fetcher, signal: cancellation.signal }));
+    if (recovering) recoverySucceeded = true;
+    return result;
   };
   return Object.freeze({ derivation, batchEmbeddings,
+    ...(recovery === undefined ? {} : { ingestRecoveryBinding: Object.freeze({ protocol: recovery.protocol,
+      checkpointSha256: recovery.checkpointSha256, failedRequestSha256: recovery.failedRequest.requestSha256,
+      failureEvidenceSha256: recovery.failureEvidenceSha256, requestSha256: recoveryRequest!.requestSha256,
+      ordinal: recovery.expectedCalls, maximumRecoveryAttempts: 1 as const }),
+      ingestRecoveryProgress: () => Object.freeze({ attempts: recoveryAttempts, succeeded: recoverySucceeded,
+        failed: recoveryFailed, nextOrdinal: ordinal }) }),
     ...(resume === undefined ? {} : { resumeBinding: Object.freeze({ protocol: resume.protocol, checkpointSha256: resume.checkpointSha256,
       initialOrdinal: resume.initialOrdinal, replayRequestSha256es: Object.freeze(resume.replayRequests.map(r => r.requestSha256)) }),
       resumeProgress: () => Object.freeze({ replayed, required: resume.replayRequests.length, failed: replayFailed, nextOrdinal: ordinal }) }),
@@ -149,7 +197,12 @@ export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpu
     beginIngest(chunkIdInput: unknown) { if (closed || cancellation.signal.aborted || activity !== null) fail("invalid ingest activity"); const chunkId = opaque(chunkIdInput), chunk = corpus.chunks.find(candidate => candidate.chunkId === chunkId); if (!chunk) fail("unknown source chunk"); activity = Object.freeze({ kind: "ingest", chunk }); },
     beginQuery(questionSha256: unknown) { if (closed || activity !== null || !sha(questionSha256)) fail("invalid query activity"); activity = Object.freeze({ kind: "query", questionSha256 }); },
     endActivity() { if (activity === null) fail("no active activity"); activity = null; },
-    async handle(value: unknown) { return serial(async () => { if (closed || activity === null) fail("RPC without active source-derived activity"); const frame = rpc(value, policy, batchEmbeddings); let result: Mem0AnyResult;
+    async handle(value: unknown) { return serial(async () => { if (closed || activity === null) fail("RPC without active source-derived activity"); const frame = rpc(value, policy, batchEmbeddings);
+      if (recovery !== undefined && (recoveryFailed || cancellation.signal.aborted)) fail("ingestion embedding recovery interrupted or failed");
+      if (recovery !== undefined && recoveryAttempts === 0
+        && (activity.kind !== "ingest" || activity.chunk.chunkId !== recovery.chunkId
+          || frame.operation !== "embed" || frame.payload.action !== "search")) fail("ingestion embedding recovery requires initial search embedding");
+      let result: Mem0AnyResult;
       if (frame.operation === "llm") { if (activity.kind !== "ingest") fail("query cannot extract"); const payload = exact(frame.payload, ["messages", "responseFormat"]), format = payload.responseFormat; if (format !== null && format !== undefined && format !== "json_object" && (!isPlainRecord(format) || !hasExactKeys(format, ["type"]) || format.type !== "json_object")) fail("unexpected extraction response format"); const request = makeMem0LlmRequest(policy, ordinal++, payload.messages); result = await choose(request); if (result.kind !== "llm" || !("content" in result.value)) fail("LLM result identity"); return Object.freeze({ kind: "rpc-result", id: frame.id, ok: true, result: Object.freeze({ content: result.value.content }) }); }
       if (frame.operation === "embed-batch") {
         const payload = exact(frame.payload, ["texts", "action"]);
@@ -161,7 +214,7 @@ export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpu
         return Object.freeze({ kind: "rpc-result", protocol: "oh.memory.mem0-rpc.v2", id: frame.id, ok: true, result: Object.freeze({ embeddings: Object.freeze(embeddings) }) });
       }
       const payload = exact(frame.payload, ["text", "action"]); if (payload.action !== "add" && payload.action !== "update" && payload.action !== "search") fail("embedding action"); if (activity.kind === "query" && payload.action !== "search") fail("embedding activity mismatch"); const request = makeMem0EmbeddingRequest(policy, ordinal++, activity.kind === "query" ? "query-embed" : "ingest-embed", payload.text); result = await choose(request); if (result.kind !== "embedding" || !("embedding" in result.value)) fail("embedding result identity"); return Object.freeze({ kind: "rpc-result", id: frame.id, ok: true, result: Object.freeze({ embedding: result.value.embedding }) });
-    }).catch(error => { if (resume !== undefined) replayFailed = true; throw error; }); },
+    }).catch(error => { if (resume !== undefined) replayFailed = true; if (recovery !== undefined) recoveryFailed = true; throw error; }); },
     async close() { await chain; if (activity !== null) fail("cannot close active activity"); closed = true; },
   });
 }
