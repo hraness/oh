@@ -83,7 +83,10 @@ const DAY_MS = 86_400_000;
  * `weekend` windows name the Saturday and Sunday of a calendar week; `past`
  * windows run from one unit count before the question day up to that day.
  * When one expression contains another ("in the last month" contains "last
- * month"), only the containing expression counts.
+ * month"), only the containing expression counts. An expression whose prefix
+ * ends in an anchor word ("the day before yesterday", "since last week") is a
+ * bound, not a window, and is excluded; the article numbers `a` and `an`
+ * pair only with a singular unit.
  */
 export const OH_RECALL_DATE_GRAMMAR_V1 = Object.freeze({
   id: "oh.recall-date-grammar.v1",
@@ -91,7 +94,11 @@ export const OH_RECALL_DATE_GRAMMAR_V1 = Object.freeze({
   weekStart: "monday",
   numbers: Object.freeze({ a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
     nine: 9, ten: 10, eleven: 11, twelve: 12 }),
+  articles: Object.freeze(["a", "an"] as const),
   weekdays: WEEKDAY_NAMES,
+  exclusions: Object.freeze([
+    { id: "anchored", scope: "prefix", pattern: "\\b(?:before|after|since|until|prior to|following)\\s+$" },
+  ] as const),
   rules: Object.freeze([
     { id: "today", pattern: "\\btoday\\b", kind: "day", offset: 0 },
     { id: "yesterday", pattern: "\\byesterday\\b", kind: "day", offset: -1 },
@@ -187,6 +194,8 @@ export function defaultOhRecallViewV1(record: KnowledgeGraphRecordV1): OhRecallR
 
 type Fused = { evidence: OhRecallEvidenceV1[]; record: KnowledgeGraphRecordV1; score: number };
 
+/** Code-unit order, independent of the host locale and ICU tables. */
+function compareKeys(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
 function compareInstants(left: string | null, right: string | null): number {
   if (left === right) return 0;
   if (left === null) return 1;
@@ -256,14 +265,14 @@ export async function recallOhV1(input: Readonly<{
       const viewed = checkedRecordView(view, record);
       return viewed.instant !== null && viewed.instant >= window.since && viewed.instant <= window.until ? [{ record, viewed }] : [];
     }).sort((left, right) => compareInstants(left.viewed.instant, right.viewed.instant)
-      || compareOrders(left.viewed.order, right.viewed.order) || left.record.key.localeCompare(right.record.key));
+      || compareOrders(left.viewed.order, right.viewed.order) || compareKeys(left.record.key, right.record.key));
     dated.slice(0, limit).forEach((entry, position) => {
       const rank = position + 1;
       add(entry.record, { lane: "window", query: null, rank, score: 1 / (OH_RECALL_LIMITS_V1.rrfConstant + rank), v: 1 });
     });
   }
   const results = [...fused.entries()]
-    .sort((left, right) => right[1].score - left[1].score || left[0].localeCompare(right[0]))
+    .sort((left, right) => right[1].score - left[1].score || compareKeys(left[0], right[0]))
     .map(([, entry]): OhRecallResultV1 => ({ evidence: entry.evidence, record: entry.record, score: entry.score, v: 1 }));
   return { asOf, diagnostics, mode, queries, results, window, v: 1 };
 }
@@ -320,6 +329,7 @@ export function resolveRelativeDateWindowV1(query: string, asOf: string): OhReca
   const asOfInstant = parseCanonicalInstantV1(asOf);
   if (asOfInstant === null) throw new TypeError("Recall asOf must be a canonical UTC instant.");
   const numbers = OH_RECALL_DATE_GRAMMAR_V1.numbers as Readonly<Record<string, number>>;
+  const articles: readonly string[] = OH_RECALL_DATE_GRAMMAR_V1.articles;
   const numberPattern = `(\\d{1,3}|${Object.keys(numbers).join("|")})`;
   const weekdayPattern = `(${WEEKDAY_NAMES.join("|")})`, unitPattern = "(day|week|month|year)";
   type Match = { expression: string; rule: OhRecallDateRuleV1; count: number; weekday: number | null; unit: string | null; start: number; end: number };
@@ -333,6 +343,7 @@ export function resolveRelativeDateWindowV1(query: string, asOf: string): OhReca
       else if (rule.kind === "around" || rule.kind === "past") {
         count = capture.length === 0 && rule.kind === "past" ? 1 : /^\d+$/u.test(capture) ? Number(capture) : numbers[capture] ?? 0;
         if (count < 1) continue;
+        if (articles.includes(capture) && /\b(?:days|weeks|months|years)\b/u.test(match[0])) continue;
         if (rule.kind === "past") unit = match[2] ?? null;
       }
       const start = match.index ?? 0;
@@ -342,7 +353,10 @@ export function resolveRelativeDateWindowV1(query: string, asOf: string): OhReca
   // A shorter expression inside a longer match ("last month" inside "in the last month") is not a second reading.
   const outer = found.filter((item) => !found.some((other) => other !== item && other.start <= item.start && other.end >= item.end
     && other.end - other.start > item.end - item.start));
-  const distinct = new Map(outer.map((item) => [`${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`, item]));
+  // An anchored expression ("the day before yesterday", "since last week") names a bound, not the window itself.
+  const exclusions = OH_RECALL_DATE_GRAMMAR_V1.exclusions.map((exclusion) => new RegExp(exclusion.pattern, "u"));
+  const admitted = outer.filter((item) => !exclusions.some((exclusion) => exclusion.test(text.slice(0, item.start))));
+  const distinct = new Map(admitted.map((item) => [`${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`, item]));
   if (distinct.size !== 1) return null;
   const [{ expression, rule, count, weekday, unit }] = [...distinct.values()] as [Match];
   const [first, last] = windowFor(rule, count, weekday, unit, dayNumber(asOfInstant));
@@ -379,7 +393,7 @@ function compose(selected: readonly Viewed[], asOf: string | null): Layout {
     return { instant: sorted[0]?.view.instant ?? null, members: sorted, session };
   });
   const dated = grouped.filter((group) => group.instant !== null)
-    .sort((left, right) => compareInstants(left.instant, right.instant) || left.session.localeCompare(right.session));
+    .sort((left, right) => compareInstants(left.instant, right.instant) || compareKeys(left.session, right.session));
   const undated = grouped.filter((group) => group.instant === null);
   const asOfDay = dayNumber(asOf);
   const blocks: string[] = [`Question date: ${formatDay(asOfDay)}`], keys: string[] = [];
@@ -402,6 +416,15 @@ function composedBytes(blocks: readonly string[]): number {
   for (const [index, block] of blocks.entries()) bytes += utf8ByteLength(block) + (index === 0 ? 0 : 2);
   return bytes;
 }
+/**
+ * Admitting one result grows the composed text by its own bytes plus bounded
+ * framing: two separators, at most one session header (under 64 bytes for any
+ * canonical instant), and the gap markers that an inserted or moved session
+ * can change (at most four, each under 24 bytes). A candidate that fits under
+ * this bound is admitted without recomposing; only a near-budget candidate
+ * pays for the exact composition.
+ */
+const ADMISSION_FRAMING_BYTES = 256;
 
 /**
  * Chronological rendering with question-relative session headers, gap
@@ -420,17 +443,21 @@ export function renderOhRecallV1(input: Readonly<{ results: readonly Readonly<{ 
     throw new RangeError(`Recall budget must be 1 through ${OH_RECALL_LIMITS_V1.maximumBudgetBytes} bytes.`);
   }
   const seen = new Set<string>(), selected: Viewed[] = [];
-  let omitted = 0, layout: Layout = compose([], asOf);
+  // `bound` never falls below the exact composed bytes of `selected`; it is exact after every full composition.
+  let omitted = 0, bound = composedBytes(compose([], asOf).blocks);
   for (const [index, result] of input.results.entries()) {
     const record = result.record;
     if (typeof record !== "object" || record === null || typeof record.key !== "string") throw new TypeError("Recall rendering needs records.");
     if (seen.has(record.key)) continue;
     seen.add(record.key);
     const candidate: Viewed = { index, key: record.key, view: checkedRecordView(view, record) };
-    const attempt = compose([...selected, candidate], asOf);
-    if (composedBytes(attempt.blocks) > budget) { omitted += 1; continue; }
-    selected.push(candidate); layout = attempt;
+    const growth = utf8ByteLength(candidate.view.text) + ADMISSION_FRAMING_BYTES;
+    if (bound + growth <= budget) { selected.push(candidate); bound += growth; continue; }
+    const exact = composedBytes(compose([...selected, candidate], asOf).blocks);
+    if (exact > budget) { omitted += 1; continue; }
+    selected.push(candidate); bound = exact;
   }
+  const layout = compose(selected, asOf);
   const text = selected.length === 0 ? "" : layout.blocks.join("\n\n");
   return { bytes: utf8ByteLength(text), keys: layout.keys, omitted, renderer: OH_RECALL_RENDERER_V1, text, v: 1 };
 }

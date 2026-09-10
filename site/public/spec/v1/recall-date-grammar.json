@@ -18,6 +18,10 @@
     "eleven": 11,
     "twelve": 12
   },
+  "articles": [
+    "a",
+    "an"
+  ],
   "weekdays": [
     "sunday",
     "monday",
@@ -26,6 +30,13 @@
     "thursday",
     "friday",
     "saturday"
+  ],
+  "exclusions": [
+    {
+      "id": "anchored",
+      "scope": "prefix",
+      "pattern": "\\b(?:before|after|since|until|prior to|following)\\s+$"
+    }
   ],
   "rules": [
     {

@@ -90,6 +90,22 @@ describe("recallOhV1", () => {
     } finally { store.close(); }
   });
 
+  test("breaks fused-score and window-lane ties by record key in code-unit order, not locale order", async () => {
+    // "/" (0x2F) sorts before ":" (0x3A) in code-unit order; ICU collation puts these two keys the other way round.
+    const slash = turn("edition:0-0/b", "2023-05-20T09:00:00.000Z", "s2", "alpha marker");
+    const colon = turn("edition:0-0:0", "2023-05-20T09:00:00.000Z", "s2", "beta marker");
+    expect("edition:0-0/b" < "edition:0-0:0").toBe(true);
+    const store = openStore([colon, slash]);
+    try {
+      const tied = await recallOhV1({ asOf: null, queries: ["alpha", "beta"], store });
+      expect(tied.results.map((item) => item.score)).toEqual([1 / 61, 1 / 61]);
+      expect(tied.results.map((item) => item.record.key)).toEqual(["edition:0-0/b", "edition:0-0:0"]);
+      const window = { since: "2023-05-20T00:00:00.000Z", until: "2023-05-20T23:59:59.999Z", v: 1 as const };
+      const lane = await recallOhV1({ asOf: null, queries: ["nothing-matches"], store, window });
+      expect(lane.results.map((item) => [item.record.key, item.evidence[0]?.rank])).toEqual([["edition:0-0/b", 1], ["edition:0-0:0", 2]]);
+    } finally { store.close(); }
+  });
+
   test("default view reads observedAt, sessionId and text and otherwise renders canonical JSON", () => {
     expect(defaultOhRecallViewV1(KAYAK)).toEqual({ instant: "2023-05-04T10:00:00.000Z", order: null, session: "s1", text: KAYAK.value ? (KAYAK.value as { text: string }).text : "" });
     const plain = record("entity:ada", { name: "Ada", observedAt: "not-an-instant" });
@@ -156,6 +172,21 @@ describe("resolveRelativeDateWindowV1", () => {
     expect(resolveRelativeDateWindowV1("last week and last week again", asOf)?.rule).toBe("last-week");
     expect(resolveRelativeDateWindowV1("last saturday", "2023-05-27T09:00:00.000Z")).toMatchObject(day("2023-05-20"));
     expect(resolveRelativeDateWindowV1("next saturday", "2023-05-27T09:00:00.000Z")).toMatchObject(day("2023-06-03"));
+    expect(resolveRelativeDateWindowV1("a day ago", asOf)).toMatchObject({ rule: "days-ago", ...day("2023-05-24") });
+    expect(resolveRelativeDateWindowV1("in an hour or in a week", asOf)).toMatchObject({ rule: "in-weeks" });
+  });
+
+  test("treats an anchored expression as a bound, not a window, and pairs articles only with singular units", () => {
+    expect(OH_RECALL_DATE_GRAMMAR_V1.exclusions).toEqual([{ id: "anchored", scope: "prefix", pattern: "\\b(?:before|after|since|until|prior to|following)\\s+$" }]);
+    expect(OH_RECALL_DATE_GRAMMAR_V1.articles).toEqual(["a", "an"]);
+    for (const query of ["What did I do the day before yesterday?", "since last week", "What changed before last month?", "after last weekend",
+      "until next week", "prior to last Saturday", "following this weekend", "the week after next Monday", "ever since 3 weeks ago",
+      "a days ago", "in an weeks", "in the last a days"]) {
+      expect({ query, resolved: resolveRelativeDateWindowV1(query, asOf) }).toEqual({ query, resolved: null });
+    }
+    // The exclusion applies after containment, so an unanchored containing expression still counts.
+    expect(resolveRelativeDateWindowV1("in the last week before yesterday", asOf)).toMatchObject({ rule: "past-span", ...span("2023-05-18", "2023-05-25") });
+    expect(resolveRelativeDateWindowV1("beforehand yesterday", asOf)).toMatchObject({ rule: "yesterday" });
   });
 
   test("returns null for unknown, ambiguous, or empty expressions and rejects a malformed question instant", () => {
@@ -203,6 +234,31 @@ describe("renderOhRecallV1", () => {
     const mixed = renderOhRecallV1({ results: [{ record: undated }, { record: KAYAK }] }, { asOf: "2023-05-25T09:00:00.000Z", budgetBytes: 96_000 });
     expect(mixed.text.endsWith("Date: unknown\nno instant")).toBe(true);
     expect(mixed.keys).toEqual(["edition:kayak", "edition:undated"]);
+  });
+
+  test("orders sessions that share a first instant by session name in code-unit order", () => {
+    const slash = turn("edition:slash", "2023-05-20T09:00:00.000Z", "s/b", "slash session");
+    const colon = turn("edition:colon", "2023-05-20T09:00:00.000Z", "s:0", "colon session");
+    const rendering = renderOhRecallV1({ results: [{ record: colon }, { record: slash }] }, { asOf: "2023-05-25T09:00:00.000Z", budgetBytes: 96_000 });
+    expect(rendering.text).toBe(["Question date: 2023/05/25 (Thu)", "Date: 2023/05/20 (Sat), 5 days before the question\nslash session",
+      "Date: 2023/05/20 (Sat), 5 days before the question\ncolon session"].join("\n\n"));
+    expect(rendering.keys).toEqual(["edition:slash", "edition:colon"]);
+  });
+
+  test("admits by the exact composed byte count whether or not the framing bound applies", () => {
+    const at = (index: number) => turn(`edition:n${index}`, `2023-0${1 + (index % 5)}-1${index % 9}T12:00:00.000Z`, `s${index % 4}`, `record ${index} `.repeat(1 + (index % 7)));
+    const results = Array.from({ length: 40 }, (_, index) => ({ record: at(index) }));
+    const full = renderOhRecallV1({ results }, { asOf: "2023-05-25T09:00:00.000Z", budgetBytes: 96_000 });
+    expect(full.omitted).toBe(0);
+    const exact = renderOhRecallV1({ results }, { asOf: "2023-05-25T09:00:00.000Z", budgetBytes: full.bytes });
+    expect(exact).toEqual(full);
+    const short = renderOhRecallV1({ results }, { asOf: "2023-05-25T09:00:00.000Z", budgetBytes: full.bytes - 1 });
+    expect(short.omitted).toBeGreaterThanOrEqual(1);
+    expect(short.bytes).toBeLessThanOrEqual(full.bytes - 1);
+    expect(short.keys.length + short.omitted).toBe(results.length);
+    const plain = renderOhRecallV1({ results }, { asOf: null, budgetBytes: 96_000 });
+    expect(renderOhRecallV1({ results }, { asOf: null, budgetBytes: plain.bytes })).toEqual(plain);
+    expect(renderOhRecallV1({ results }, { asOf: null, budgetBytes: plain.bytes - 1 }).omitted).toBe(1);
   });
 
   test("renders the plain rank order when there is no question instant", () => {

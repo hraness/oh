@@ -101,6 +101,7 @@ describe("evolution recall systems", () => {
     expect(evolutionRecallWindow("What did I do last Saturday?", "oh-recall-mq", asOf)).toBeNull();
     expect(evolutionRecallWindow("What did I do last Saturday?", "oh-recall-mq-dw", null)).toBeNull();
     expect(evolutionRecallWindow("What color is my kayak?", "oh-recall-mq-dw", asOf)).toBeNull();
+    expect(evolutionRecallWindow("What did I do the day before yesterday?", "oh-recall-mq-dw", asOf)).toBeNull();
   });
 
   test("renders dated chronological V2 contexts from raw turns while oh-semantic keeps its V1 bytes", async () => {

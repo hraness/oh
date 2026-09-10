@@ -72,12 +72,18 @@ version.
 | `last-weekday`, `this-weekday`, `next-weekday` | `last Saturday`, `this Monday`, ... | the most recent such day strictly before, the day within the current week, or the first such day strictly after |
 
 `N` is a number of one through three digits or one of the words `a`, `an`,
-`one` through `twelve`; a missing count in `past-span` means one. A calendar shift
-past the end of the target month clamps to that month's last day. When one
-expression contains another, only the containing expression counts. Any
-query with no match, or with two distinct matches, resolves to `null`; recall
-never guesses a window. The grammar assumes UTC; hosts that know the user's
-zone convert the question instant before calling.
+`one` through `twelve`; the articles `a` and `an` pair only with a singular
+unit, and a missing count in `past-span` means one. A calendar shift past the
+end of the target month clamps to that month's last day. When one expression
+contains another, only the containing expression counts. The table's
+`exclusions` then drop every remaining expression whose prefix matches an
+exclusion pattern: the `anchored` exclusion covers a prefix ending in
+`before`, `after`, `since`, `until`, `prior to`, or `following`, so "the day
+before yesterday" and "since last week" name a bound rather than a window and
+resolve to `null`. Any query with no admitted match, or with two distinct
+admitted matches, resolves to `null`; recall never guesses a window. The
+grammar assumes UTC; hosts that know the user's zone convert the question
+instant before calling.
 
 ## Dated rendering
 
@@ -85,12 +91,16 @@ zone convert the question instant before calling.
 under renderer `oh.recall-render.v1` with a UTF-8 budget of 1 through
 4,000,000 bytes. Results are admitted in their given (fused rank) order; a
 result whose admission would exceed the budget is omitted and counted while
-later, smaller results may still fit. Duplicate keys are rendered once.
+later, smaller results may still fit. Duplicate keys are rendered once. The
+admitted set depends only on the exact composed byte count; the renderer may
+skip a recomposition for a result that fits under a fixed framing bound, which
+never changes which results are admitted.
 
 With a question instant the text is:
 
 - the line `Question date: YYYY/MM/DD (Www)`;
-- each session in chronological order under
+- each session in chronological order (sessions sharing a first instant in
+  session name code-unit order) under
   `Date: YYYY/MM/DD (Www), N days before the question` (or `after`, or
   `the day of the question`), its records in instant, then order, then
   admission order, joined by blank lines;

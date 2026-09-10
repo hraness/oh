@@ -79,7 +79,10 @@ export type OhRecallDateWindowV1 = Readonly<{
  * `weekend` windows name the Saturday and Sunday of a calendar week; `past`
  * windows run from one unit count before the question day up to that day.
  * When one expression contains another ("in the last month" contains "last
- * month"), only the containing expression counts.
+ * month"), only the containing expression counts. An expression whose prefix
+ * ends in an anchor word ("the day before yesterday", "since last week") is a
+ * bound, not a window, and is excluded; the article numbers `a` and `an`
+ * pair only with a singular unit.
  */
 export declare const OH_RECALL_DATE_GRAMMAR_V1: Readonly<{
     id: "oh.recall-date-grammar.v1";
@@ -101,7 +104,13 @@ export declare const OH_RECALL_DATE_GRAMMAR_V1: Readonly<{
         eleven: 11;
         twelve: 12;
     }>;
+    articles: readonly ["a", "an"];
     weekdays: readonly ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    exclusions: readonly [{
+        readonly id: "anchored";
+        readonly scope: "prefix";
+        readonly pattern: "\\b(?:before|after|since|until|prior to|following)\\s+$";
+    }];
     rules: readonly [{
         readonly id: "today";
         readonly pattern: "\\btoday\\b";

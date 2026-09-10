@@ -17051,7 +17051,11 @@ var OH_RECALL_DATE_GRAMMAR_V1 = Object.freeze({
     eleven: 11,
     twelve: 12
   }),
+  articles: Object.freeze(["a", "an"]),
   weekdays: WEEKDAY_NAMES,
+  exclusions: Object.freeze([
+    { id: "anchored", scope: "prefix", pattern: "\\b(?:before|after|since|until|prior to|following)\\s+$" }
+  ]),
   rules: Object.freeze([
     { id: "today", pattern: "\\btoday\\b", kind: "day", offset: 0 },
     { id: "yesterday", pattern: "\\byesterday\\b", kind: "day", offset: -1 },
@@ -17145,6 +17149,9 @@ function defaultOhRecallViewV1(record) {
   const text = object !== null && typeof object.text === "string" ? object.text : canonicalJson(value);
   return { instant: observedAt, order: null, session, text };
 }
+function compareKeys(left3, right3) {
+  return left3 < right3 ? -1 : left3 > right3 ? 1 : 0;
+}
 function compareInstants(left3, right3) {
   if (left3 === right3)
     return 0;
@@ -17207,13 +17214,13 @@ async function recallOhV1(input) {
     const dated = scanned.flatMap((record) => {
       const viewed = checkedRecordView(view, record);
       return viewed.instant !== null && viewed.instant >= window.since && viewed.instant <= window.until ? [{ record, viewed }] : [];
-    }).sort((left3, right3) => compareInstants(left3.viewed.instant, right3.viewed.instant) || compareOrders(left3.viewed.order, right3.viewed.order) || left3.record.key.localeCompare(right3.record.key));
+    }).sort((left3, right3) => compareInstants(left3.viewed.instant, right3.viewed.instant) || compareOrders(left3.viewed.order, right3.viewed.order) || compareKeys(left3.record.key, right3.record.key));
     dated.slice(0, limit).forEach((entry, position) => {
       const rank = position + 1;
       add5(entry.record, { lane: "window", query: null, rank, score: 1 / (OH_RECALL_LIMITS_V1.rrfConstant + rank), v: 1 });
     });
   }
-  const results = [...fused.entries()].sort((left3, right3) => right3[1].score - left3[1].score || left3[0].localeCompare(right3[0])).map(([, entry]) => ({ evidence: entry.evidence, record: entry.record, score: entry.score, v: 1 }));
+  const results = [...fused.entries()].sort((left3, right3) => right3[1].score - left3[1].score || compareKeys(left3[0], right3[0])).map(([, entry]) => ({ evidence: entry.evidence, record: entry.record, score: entry.score, v: 1 }));
   return { asOf, diagnostics, mode, queries, results, window, v: 1 };
 }
 function dayNumber(instant) {
@@ -17290,6 +17297,7 @@ function resolveRelativeDateWindowV1(query, asOf) {
   if (asOfInstant === null)
     throw new TypeError("Recall asOf must be a canonical UTC instant.");
   const numbers = OH_RECALL_DATE_GRAMMAR_V1.numbers;
+  const articles = OH_RECALL_DATE_GRAMMAR_V1.articles;
   const numberPattern = `(\\d{1,3}|${Object.keys(numbers).join("|")})`;
   const weekdayPattern = `(${WEEKDAY_NAMES.join("|")})`, unitPattern = "(day|week|month|year)";
   const found = [];
@@ -17304,6 +17312,8 @@ function resolveRelativeDateWindowV1(query, asOf) {
         count2 = capture2.length === 0 && rule2.kind === "past" ? 1 : /^\d+$/u.test(capture2) ? Number(capture2) : numbers[capture2] ?? 0;
         if (count2 < 1)
           continue;
+        if (articles.includes(capture2) && /\b(?:days|weeks|months|years)\b/u.test(match14[0]))
+          continue;
         if (rule2.kind === "past")
           unit2 = match14[2] ?? null;
       }
@@ -17312,7 +17322,9 @@ function resolveRelativeDateWindowV1(query, asOf) {
     }
   }
   const outer = found.filter((item) => !found.some((other) => other !== item && other.start <= item.start && other.end >= item.end && other.end - other.start > item.end - item.start));
-  const distinct = new Map(outer.map((item) => [`${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`, item]));
+  const exclusions = OH_RECALL_DATE_GRAMMAR_V1.exclusions.map((exclusion) => new RegExp(exclusion.pattern, "u"));
+  const admitted = outer.filter((item) => !exclusions.some((exclusion) => exclusion.test(text.slice(0, item.start))));
+  const distinct = new Map(admitted.map((item) => [`${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`, item]));
   if (distinct.size !== 1)
     return null;
   const [{ expression, rule, count, weekday, unit }] = [...distinct.values()];
@@ -17355,7 +17367,7 @@ function compose(selected, asOf) {
     const sorted = [...members].sort(compareMembers);
     return { instant: sorted[0]?.view.instant ?? null, members: sorted, session };
   });
-  const dated = grouped.filter((group) => group.instant !== null).sort((left3, right3) => compareInstants(left3.instant, right3.instant) || left3.session.localeCompare(right3.session));
+  const dated = grouped.filter((group) => group.instant !== null).sort((left3, right3) => compareInstants(left3.instant, right3.instant) || compareKeys(left3.session, right3.session));
   const undated = grouped.filter((group) => group.instant === null);
   const asOfDay = dayNumber(asOf);
   const blocks = [`Question date: ${formatDay(asOfDay)}`], keys3 = [];
@@ -17386,6 +17398,7 @@ function composedBytes(blocks) {
     bytes += utf8ByteLength(block) + (index === 0 ? 0 : 2);
   return bytes;
 }
+var ADMISSION_FRAMING_BYTES = 256;
 function renderOhRecallV1(input, options) {
   if (!Array.isArray(input.results) || input.results.length > OH_RECALL_LIMITS_V1.maximumRenderedResults) {
     throw new RangeError(`Recall rendering accepts at most ${OH_RECALL_LIMITS_V1.maximumRenderedResults} results.`);
@@ -17395,7 +17408,7 @@ function renderOhRecallV1(input, options) {
     throw new RangeError(`Recall budget must be 1 through ${OH_RECALL_LIMITS_V1.maximumBudgetBytes} bytes.`);
   }
   const seen = new Set, selected = [];
-  let omitted = 0, layout = compose([], asOf);
+  let omitted = 0, bound = composedBytes(compose([], asOf).blocks);
   for (const [index, result] of input.results.entries()) {
     const record = result.record;
     if (typeof record !== "object" || record === null || typeof record.key !== "string")
@@ -17404,14 +17417,21 @@ function renderOhRecallV1(input, options) {
       continue;
     seen.add(record.key);
     const candidate = { index, key: record.key, view: checkedRecordView(view, record) };
-    const attempt = compose([...selected, candidate], asOf);
-    if (composedBytes(attempt.blocks) > budget) {
+    const growth = utf8ByteLength(candidate.view.text) + ADMISSION_FRAMING_BYTES;
+    if (bound + growth <= budget) {
+      selected.push(candidate);
+      bound += growth;
+      continue;
+    }
+    const exact = composedBytes(compose([...selected, candidate], asOf).blocks);
+    if (exact > budget) {
       omitted += 1;
       continue;
     }
     selected.push(candidate);
-    layout = attempt;
+    bound = exact;
   }
+  const layout = compose(selected, asOf);
   const text = selected.length === 0 ? "" : layout.blocks.join(`
 
 `);
