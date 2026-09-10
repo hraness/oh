@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { answerMessages, ANSWER_INSTRUCTION } from "../scripts/benchmarks/model";
-import { EVOLUTION_READER_CONTRACT_IDS, EVOLUTION_READER_CONTRACTS, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
+import { EVOLUTION_ANSWER_CONTRACT_IDS, EVOLUTION_READER_CONTRACT_IDS, EVOLUTION_READER_CONTRACTS, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 import { EVOLUTION_BASE_READER_IDS, EVOLUTION_PROFILES, evolutionReaderContract, evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest,
   parseEvolutionResponse, supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan } from "../scripts/benchmarks/evolution-plan";
@@ -66,7 +66,10 @@ describe("composable isolated reader answer contracts", () => {
     expect(abstention).toContain("does not contain enough information");
     const guarded = { ...question };
     for (const key of ["answer", "evidenceTurnIds", "evidenceSessionIds", "unanswerable", "category", "gold"]) Object.defineProperty(guarded, key, { enumerable: true, get() { throw Error("gold accessed"); } });
-    for (const id of EVOLUTION_READER_CONTRACT_IDS) {
+    // The selection contract shares the catalog but never answers over a memory field.
+    expect(EVOLUTION_ANSWER_CONTRACT_IDS).toEqual(EVOLUTION_READER_CONTRACT_IDS.filter(id => id !== "evidence-selection-v1"));
+    expect(() => evolutionAnswerMessages(guarded, context, "evidence-selection-v1")).toThrow("Evolution reader contract: evidence-selection-v1 is a selection contract, not an answer contract.");
+    for (const id of EVOLUTION_ANSWER_CONTRACT_IDS) {
       const result = evolutionAnswerMessages(guarded, context, id);
       expect(result[1]).toEqual(messages[1]);
       expect(result[0]!.content).toBe(EVOLUTION_READER_CONTRACTS[id].instruction);
@@ -78,6 +81,26 @@ describe("composable isolated reader answer contracts", () => {
     expect(() => evolutionReaderProfileId("gpt4o-gateway-judge" as any)).toThrow("unknown base");
     expect(() => evolutionReaderContract("gpt4o-gateway-judge")).toThrow("reader profile");
   });
+  test("calibration-only, selected-answer and evidence-selection compose from the frozen parts without the legacy dataset-specific clause", () => {
+    const eac = EVOLUTION_READER_CONTRACTS["explicit-abstention-composition-v1"].instruction;
+    const calibrated = EVOLUTION_READER_CONTRACTS["calibrated-composition-v1"].instruction;
+    const calibrationOnly = EVOLUTION_READER_CONTRACTS["calibration-only-v1"].instruction;
+    const selected = EVOLUTION_READER_CONTRACTS["selected-answer-v1"].instruction;
+    const selection = EVOLUTION_READER_CONTRACTS["evidence-selection-v1"].instruction;
+    expect(EVOLUTION_READER_CONTRACT_IDS).toHaveLength(9);
+    expect(calibrationOnly.startsWith(eac + " ")).toBeTrue();
+    const calibration = calibrationOnly.slice(eac.length + 1);
+    expect(calibrated.endsWith(" " + calibration)).toBeTrue();
+    expect(calibration).toContain("Give exact values");
+    expect(calibrationOnly).not.toContain("first order"); expect(selected).not.toContain("first order"); expect(calibrated).toContain("first order");
+    expect(calibrationOnly).toContain("does not contain enough information"); expect(calibrationOnly).not.toContain("reply exactly None");
+    expect(selected.startsWith(calibrationOnly + " ")).toBeTrue();
+    expect(selected.slice(calibrationOnly.length + 1)).toContain("selected for this question");
+    expect(selection).toContain('{"ids":[]}'); expect(selection).toContain("at most 32"); expect(selection).not.toContain("memory");
+    expect(new Set(EVOLUTION_READER_CONTRACT_IDS.map(id => EVOLUTION_READER_CONTRACTS[id].instructionSha256)).size).toBe(EVOLUTION_READER_CONTRACT_IDS.length);
+    expect(evolutionReaderProfileId("gpt5-mini-reader", "evidence-selection-v1")).toBe("gpt5-mini-evidence-selection-v1-reader");
+    expect(evolutionReaderContract("gpt5-nano-evidence-selection-v1-reader")).toBe("evidence-selection-v1");
+  });
   test("every closed model/effort choice retains prices, routing, cap and full-history eligibility", () => {
     const ids = new Set<string>();
     for (const base of EVOLUTION_BASE_READER_IDS) for (const contract of EVOLUTION_READER_CONTRACT_IDS) {
@@ -85,6 +108,12 @@ describe("composable isolated reader answer contracts", () => {
       expect(evolutionReaderContract(id)).toBe(contract);
       const { id: _id, readerContract, ...body } = selected, { id: _baseId, ...original } = EVOLUTION_PROFILES[base];
       expect(body).toEqual(original);
+      if (contract === "evidence-selection-v1") {
+        // Selection profiles keep the base pricing and routing but never build an answer request.
+        expect(readerContract).toEqual({ baseReader: base, id: contract, instructionSha256: EVOLUTION_READER_CONTRACTS[contract].instructionSha256 });
+        expect(() => evolutionAnswerMessages(question, context, contract)).toThrow("selection contract, not an answer contract");
+        continue;
+      }
       const msg = evolutionAnswerMessages(question, context, contract), request = makeEvolutionRequest(id, msg);
       expect(validateEvolutionRequest(request)).toEqual(request);
       expect(parseEvolutionResponse(response(request), request).status).toBe("completed");
@@ -106,9 +135,11 @@ describe("composable isolated reader answer contracts", () => {
     expect(Object.keys(EVOLUTION_PROFILES)).toHaveLength(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length + 5);
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {
-    const ctx = await fixture(), profiles = EVOLUTION_READER_CONTRACT_IDS.map(c => evolutionReaderProfileId("gpt5-nano-reader", c));
+    // The answer factorial holds the eight answer contracts; evidence-selection-v1 is the stage-1 selector contract of the two-stage lane.
+    const answerContracts = EVOLUTION_ANSWER_CONTRACT_IDS; expect(answerContracts).toHaveLength(8);
+    const ctx = await fixture(), profiles = answerContracts.map(c => evolutionReaderProfileId("gpt5-nano-reader", c));
     const plan = makeEvolutionReaderPlan(ctx, profiles);
-    expect(plan.cases).toHaveLength(12); expect(plan.requests).toHaveLength(12);
+    expect(plan.cases).toHaveLength(answerContracts.length * 2); expect(plan.requests).toHaveLength(answerContracts.length * 2);
     expect(validateEvolutionReaderPlan(plan, ctx)).toEqual(plan);
     for (const c of plan.cases) {
       const request = plan.requests.find(r => r.requestSha256 === c.requestSha256)!;
@@ -127,22 +158,24 @@ describe("composable isolated reader answer contracts", () => {
       limit: 1, seed: 17, variants, readers: profiles, judge: "gpt4o-gateway-native-rubric-16-judge-v1", directory: "/fixture/output", storeDirectory: "/fixture/store", concurrency: 1 };
     expect(parseEvolutionRunConfig(config).readers).toEqual(profiles);
     expect(() => parseEvolutionRunConfig({ ...config, readers: [evolutionReaderProfileId("qwen37-flash-reader", "explicit-abstention-v1")] })).toThrow("nano and mini");
+    expect(() => parseEvolutionRunConfig({ ...config, readers: [evolutionReaderProfileId("gpt5-nano-reader", "evidence-selection-v1")] })).toThrow("selection contracts are not answer readers");
+    expect(() => makeEvolutionReaderPlan(ctx, [evolutionReaderProfileId("gpt5-nano-reader", "evidence-selection-v1")])).toThrow("selection contract, not an answer contract");
   });
   test("store keeps each contract's first response and exact replay independent", async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), "oh-contract-synthetic-")));
     const campaign = { protocol: "oh.memory.evolution-campaign.v1" as const, campaignId: "contract-fixture", storeDirectory: root,
       approval: "Synthetic isolated test", additionalBudgetMicros: 1000000, maximumCalls: 10, historicalExposureMicros: 0,
       historicalLedgers: [{ path: "/fixture/ledger", sha256: "a".repeat(64), bytes: 0 }], authAuthority: { path: "/fixture/auth", sha256: "b".repeat(64) } };
-    const requests = EVOLUTION_READER_CONTRACT_IDS.map(c => makeEvolutionProfileWindowRequest(evolutionReaderProfileId("gpt5-nano-reader", c), evolutionAnswerMessages(question, context, c)));
+    const requests = EVOLUTION_ANSWER_CONTRACT_IDS.map(c => makeEvolutionProfileWindowRequest(evolutionReaderProfileId("gpt5-nano-reader", c), evolutionAnswerMessages(question, context, c)));
     try {
       const store = await openEvolutionStore({ directory: root, campaign });
       try {
         for (const request of requests) { expect(store.lookup(request).kind).toBe("miss"); store.admit(request); const body = response(request);
           store.capture(request, { body, httpStatus: 200, complete: true, receivedBytes: body.length, error: null }); store.finalize(request); }
-        expect(store.summary()).toMatchObject({ calls: 6, unresolvedMicros: 0 });
+        expect(store.summary()).toMatchObject({ calls: requests.length, unresolvedMicros: 0 });
       } finally { await store.close(); }
       const reopened = await openEvolutionStore({ directory: root, campaign });
-      try { for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit"); expect(reopened.summary().calls).toBe(6); }
+      try { for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit"); expect(reopened.summary().calls).toBe(requests.length); }
       finally { await reopened.close(); }
     } finally { await rm(root, { recursive: true }); }
   });

@@ -5,7 +5,8 @@ import { DATASETS, parseLocomo, parseLongMemEval, selectQuestions } from "./data
 import { codeIdentity, writeJson } from "./io";
 import { evolutionPin, readEvolutionPin, verifyEvolutionCampaign, parseEvolutionCampaign, type EvolutionPin } from "./evolution-budget";
 import { projectEvolutionRunnerInput, selectEvolutionPartition, validateEvolutionDatasetManifest } from "./evolution-dataset";
-import { EVOLUTION_PROFILES, supportsEvolutionProfileWindow, type EvolutionProfileId, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
+import { EVOLUTION_PROFILES, evolutionReaderContract, supportsEvolutionProfileWindow, type EvolutionProfileId, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
+import { isEvolutionAnswerContractId } from "./evolution-reader-contracts";
 import { isEvolutionSpanVariant } from "./evolution-variants";
 import { isEvolutionV3Treatment, parseEvolutionTreatment, type EvolutionTreatment } from "./evolution-treatments-v3";
 import { makeEvolutionContextPlan, makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan, validateEvolutionAnyContextPlan,
@@ -78,6 +79,7 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   }
   const readers = value.readers.map((r: unknown) => {
     if (typeof r !== "string" || !r.endsWith("-reader") || !Object.hasOwn(EVOLUTION_PROFILES, r)) fail("invalid reader profile");
+    if (!isEvolutionAnswerContractId(evolutionReaderContract(r as EvolutionProfileId))) fail("selection contracts are not answer readers");
     return r as EvolutionProfileId;
   });
   if (variants.some(v => v.system === "full-history") && readers.some(r => !supportsEvolutionProfileWindow(r))) fail("full-history V2 requests support nano and mini only");

@@ -8,7 +8,7 @@ import { prepareEvolutionCorpus, createEvolutionContextSourceValidator, type Evo
 import { OH_SPAN_PROTOTYPE_FOCUSED_POOL_VARIANT } from "./evolution-spans-prototype";
 import { OH_SELECTOR_POLICY, prepareOhSourceSelector, type OhSelectedSourceContext, type OhSelectorPlan } from "./evolution-selector";
 import { EVOLUTION_PROFILES, evolutionReaderContract, makeEvolutionRequest, parseEvolutionResponse, type EvolutionProfileId, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
-import { evolutionAnswerMessages } from "./evolution-reader-contracts";
+import { evolutionAnswerMessages, isEvolutionAnswerContractId } from "./evolution-reader-contracts";
 import { openEvolutionStore, type EvolutionStore, type EvolutionAttemptFailure } from "./evolution-store";
 import { invokeEvolutionRequest, type EvolutionCredential } from "./evolution-transport";
 import { buildJudgePrompt, loadJudgeProfile } from "./judge";
@@ -60,6 +60,7 @@ export function parseSelectorLaneConfig(value: unknown): SelectorLaneConfig {
     || !Array.isArray(v.readers) || v.readers.length < 1 || v.readers.length > 8) fail("explicit configuration");
   const readers = v.readers.map((id: unknown) => {
     if (typeof id !== "string" || !id.endsWith("-reader") || !Object.hasOwn(EVOLUTION_PROFILES, id)) fail("reader profile");
+    if (!isEvolutionAnswerContractId(evolutionReaderContract(id as EvolutionProfileId))) fail("selection contracts are not answer readers");
     return id as EvolutionProfileId;
   }); unique(readers);
   const sourcePin = evolutionPin(v.sourcePin), scorerPin = evolutionPin(v.scorerPin), campaignPin = evolutionPin(v.campaignPin);
