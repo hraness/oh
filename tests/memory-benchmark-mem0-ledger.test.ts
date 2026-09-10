@@ -45,6 +45,107 @@ test("decimal costs work for extraction and batch usage without changing numeric
   const numeric = makeMem0EmbeddingRequest(policy, 34, "query-embed", "alpha"), numericRaw = embedRaw(numeric), parsed = parseMem0Response(numericRaw, numeric);
   expect(parsed.usage).toEqual({ inputTokens: 2, outputTokens: 0, tokenRateMicros: 1, gatewayReportedMicros: 2, micros: 2 });
 });
+test("chat metadata accepts each authenticated location and identical complete aliases", () => {
+  const request = makeMem0LlmRequest(policy, 40, [{ role: "system", content: "Extract." }, { role: "user", content: "Synthetic." }]);
+  const initial = JSON.parse(new TextDecoder().decode(raw(request))), metadata = initial.providerMetadata;
+  const expected = parseMem0Response(raw(request), request);
+  for (const location of ["envelope", "message"]) for (const alias of ["providerMetadata", "provider_metadata"]) {
+    const body = structuredClone(initial); delete body.providerMetadata;
+    const holder = location === "envelope" ? body : body.choices[0].message;
+    holder[alias] = structuredClone(metadata);
+    const parsed = parseMem0Response(Buffer.from(JSON.stringify(body)), request);
+    expect(parsed.value).toEqual(expected.value); expect(parsed.usage).toEqual(expected.usage);
+    expect(parsed.requestSha256).toBe(expected.requestSha256);
+  }
+  const duplicate = structuredClone(initial);
+  duplicate.provider_metadata = structuredClone(metadata);
+  duplicate.choices[0].message.providerMetadata = structuredClone(metadata);
+  duplicate.choices[0].message.provider_metadata = structuredClone(metadata);
+  expect(parseMem0Response(Buffer.from(JSON.stringify(duplicate)), request).usage).toEqual(expected.usage);
+});
+test("chat metadata rejects conflicts, malformed copies, invalid routes and unqualified messages", () => {
+  const request = makeMem0LlmRequest(policy, 41, [{ role: "system", content: "Extract." }, { role: "user", content: "Synthetic." }]);
+  const initial = JSON.parse(new TextDecoder().decode(raw(request)));
+  const parse = (body: unknown) => parseMem0Response(Buffer.from(JSON.stringify(body)), request);
+  for (const alias of ["providerMetadata", "provider_metadata"]) for (const value of [null, [], {}, { gateway: {} }]) {
+    const body = structuredClone(initial); body.choices[0].message[alias] = value;
+    expect(() => parse(body)).toThrow("conflicting gateway metadata");
+  }
+  for (const field of ["cost", "routing"]) {
+    const body = structuredClone(initial), conflicting = structuredClone(body.providerMetadata);
+    if (field === "cost") conflicting.gateway.cost = 0.0000021;
+    else conflicting.gateway.routing.finalProvider = "other";
+    body.provider_metadata = conflicting; expect(() => parse(body)).toThrow("conflicting gateway metadata");
+  }
+  for (const field of ["finalProvider", "originalModelId", "canonicalSlug"]) for (const value of [undefined, null, "other"]) {
+    const body = structuredClone(initial); body.providerMetadata.gateway.routing[field] = value;
+    expect(() => parse(body)).toThrow("gateway route mismatch");
+  }
+  const wrongModel = structuredClone(initial); wrongModel.model = "other";
+  expect(() => parse(wrongModel)).toThrow("gateway route mismatch");
+  for (const mutate of [
+    (body: typeof initial) => { body.choices.push(structuredClone(body.choices[0])); },
+    (body: typeof initial) => { body.choices[0].index = 1; },
+    (body: typeof initial) => { body.choices[0].message.role = "user"; },
+    (body: typeof initial) => { body.choices[0].finish_reason = "length"; },
+    (body: typeof initial) => { body.choices[0].message.refusal = "refused"; },
+    (body: typeof initial) => { body.choices[0].message.tool_calls = []; },
+    (body: typeof initial) => { body.choices[0].message.function_call = {}; },
+  ]) {
+    const body = structuredClone(initial); body.choices[0].message.provider_metadata = body.providerMetadata; delete body.providerMetadata;
+    mutate(body); expect(() => parse(body)).toThrow("LLM completion shape");
+  }
+});
+test("single and batch embeddings retain envelope-only metadata and reject conflicting aliases", () => {
+  const request = makeMem0EmbeddingRequest(policy, 42, "ingest-embed", "Synthetic."), batch = makeMem0BatchEmbeddingRequest(policy, 42, "ingest-embed", ["Synthetic."]);
+  for (const parse of [(bytes: Uint8Array) => parseMem0Response(bytes, request), (bytes: Uint8Array) => parseMem0BatchEmbeddingResponse(bytes, batch)]) {
+    const body = JSON.parse(new TextDecoder().decode(embedRaw(request)));
+    body.provider_metadata = body.providerMetadata; delete body.providerMetadata;
+    expect(parse(Buffer.from(JSON.stringify(body))).usage.gatewayReportedMicros).toBe(2);
+    body.providerMetadata = structuredClone(body.provider_metadata); body.providerMetadata.gateway.cost = 0.000003;
+    expect(() => parse(Buffer.from(JSON.stringify(body)))).toThrow("conflicting gateway metadata");
+    delete body.providerMetadata; body.choices = [{ message: { provider_metadata: body.provider_metadata } }]; delete body.provider_metadata;
+    expect(() => parse(Buffer.from(JSON.stringify(body)))).toThrow("missing or conflicting gateway metadata");
+  }
+});
+test("observed chat usage extensions remain typed, unambiguous and fully charged", () => {
+  const request = makeMem0LlmRequest({ ...policy, llmProfile: { ...policy.llmProfile, maxOutputTokens: 8192, inputNanodollarsPerToken: 50, outputNanodollarsPerToken: 400 } }, 43,
+    [{ role: "system", content: "Extract." }, { role: "user", content: "Synthetic source. ".repeat(2500) }]);
+  const body = JSON.parse(new TextDecoder().decode(raw(request)));
+  body.choices[0].message.provider_metadata = body.providerMetadata; delete body.providerMetadata;
+  const gateway = body.choices[0].message.provider_metadata.gateway;
+  Object.assign(gateway, { cost: "0.0033552", marketCost: "0.004", gatewayCost: "0.003" });
+  body.usage = { prompt_tokens: 8368, completion_tokens: 7342, total_tokens: 15710,
+    cost: 0.0033552, market_cost: 0.004, gateway_cost: 0.003, is_byok: false, cache_creation_input_tokens: 0,
+    cost_details: { upstream_inference_cost: null, upstream_inference_prompt_cost: 0, upstream_inference_completions_cost: 0 },
+    prompt_tokens_details: { cached_tokens: 0, audio_tokens: 0, video_tokens: 0 }, completion_tokens_details: { reasoning_tokens: 6784, image_tokens: 0 } };
+  const parse = (value: unknown) => parseMem0Response(Buffer.from(JSON.stringify(value)), request);
+  expect(parse(body).usage).toEqual({ inputTokens: 8368, outputTokens: 7342, tokenRateMicros: 3356, gatewayReportedMicros: 3356, micros: 3356 });
+  for (const [key, gatewayKey] of [["cost", "cost"], ["market_cost", "marketCost"], ["gateway_cost", "gatewayCost"]]) {
+    const conflicting = structuredClone(body); conflicting.usage[key!] += 0.00000001;
+    expect(() => parse(conflicting)).toThrow("conflicting gateway cost alias");
+    const absent = structuredClone(body); delete absent.choices[0].message.provider_metadata.gateway[gatewayKey!];
+    expect(() => parse(absent)).toThrow("missing gateway cost alias");
+  }
+  const tiny = structuredClone(body); tiny.usage.cost = 1e-7; tiny.choices[0].message.provider_metadata.gateway.cost = "0.0000001";
+  expect(parse(tiny).usage.gatewayReportedMicros).toBe(1);
+  for (const mutate of [
+    (value: typeof body) => { value.usage.unknown = 0; },
+    (value: typeof body) => { value.usage.is_byok = true; },
+    (value: typeof body) => { value.usage.is_byok = null; },
+    (value: typeof body) => { value.usage.cache_creation_input_tokens = 1; },
+    (value: typeof body) => { value.usage.prompt_tokens_details.video_tokens = 1; },
+    (value: typeof body) => { value.usage.completion_tokens_details.image_tokens = 1; },
+    (value: typeof body) => { value.usage.completion_tokens_details.reasoning_tokens = 7343; },
+    (value: typeof body) => { value.usage.total_tokens = 15709; },
+    (value: typeof body) => { value.usage.cost_details.extra = 0; },
+    (value: typeof body) => { delete value.usage.cost_details.upstream_inference_cost; },
+    (value: typeof body) => { value.usage.cost_details.upstream_inference_prompt_cost = 0.000001; },
+    (value: typeof body) => { value.usage.cost_details.upstream_inference_cost = "0.000001"; },
+  ]) { const invalid = structuredClone(body); mutate(invalid); expect(() => parse(invalid)).toThrow(); }
+  const excessive = structuredClone(body); excessive.usage.cost = "1"; excessive.choices[0].message.provider_metadata.gateway.cost = "1";
+  expect(() => parse(excessive)).toThrow("usage exceeds reservation");
+});
 describe("Mem0 typed parent ledger", () => {
   test("replays a settled extraction once and carries pinned cumulative antecedent exposure", async () => { const fixture = await ledger(), current = await fixture.ledger; const request = makeMem0LlmRequest(policy, 0, [{ role: "system", content: "extract" }, { role: "user", content: "alpha" }]); await current.admit(request); const body = raw(request); await current.capture(request, body, { httpStatus: 200, complete: true, receivedBytes: body.length, error: null, serviceMs: 9 }); const result = await current.finalize(request); expect(result.value).toEqual({ content: '{"memory":[]}' }); expect(current.summary()).toMatchObject({ calls: 1, antecedentExposureMicros: 17, combinedExposureMicros: result.usage.micros + 17 }); expect(current.lookup(request).kind).toBe("hit"); await expect(current.admit(request)).rejects.toThrow("duplicate"); await current.close(); });
   test("captures malformed first responses as charged occupied requests", async () => { const fixture = await ledger(), current = await fixture.ledger; const request = makeMem0EmbeddingRequest(policy, 1, "ingest-embed", "alpha"); await current.admit(request); const body = new TextEncoder().encode("not json"); await current.capture(request, body, { httpStatus: 200, complete: true, receivedBytes: body.length, error: null, serviceMs: 3 }); await expect(current.finalize(request)).rejects.toThrow(); expect(current.lookup(request)).toEqual({ kind: "occupied", state: "captured" }); expect(current.summary().exposureMicros).toBe(request.reservationMicros); await current.close(); });
