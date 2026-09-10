@@ -152,9 +152,9 @@ The parser derives the speaker from that turn and requires all citations to
 belong to the same speaker. An explicit time expression carries either a
 resolved full date or a null date. Uncertain expressions remain in the text;
 they produce null `eventAt` and `resolvedFrom` values when normalized for the
-existing observation validator. Recognizable coarse dates and contradictory
-ISO dates are rejected. General natural-language date resolution still needs
-semantic evaluation.
+existing observation validator. Assigning a full date to a recognized coarse
+expression, or contradicting an explicit ISO date, is rejected. General
+natural-language date resolution still needs semantic evaluation.
 
 The original model response and the normalized validation input are distinct
 evidence. A V2 response must not be relabeled as a V1 extraction artifact.
@@ -174,3 +174,22 @@ requests, and budget before dispatch. Qualification requires complete
 responses, no unresolved spending, parser rejection below 5%, and a passing
 semantic report. Tests with supplied responses establish the contract and
 scorer behavior; they do not qualify either new model profile.
+
+The [frozen 36-call comparison](results/observation-extractor-comparison-20260910-v2.json)
+completed every provider response without truncation, for $0.116931 in
+accounted usage and no unresolved reservations. The medium control and
+low-only variant each admitted 11 of 12 sessions; structured V2 admitted
+seven. Neither candidate passed the expanded qualification, so no further
+development or reader calls were admitted. Low-only used $0.027427 against
+the control's $0.061039 and passed the original eight-session rubric in this
+run. One response per session does not establish a stable quality or cost
+advantage.
+
+Post-run inspection distinguished contract and scorer failures from incorrect
+dates. Four structured responses first failed on capitalization differences
+in the required literal, and one omitted that literal from its observation
+text. Three additional stress-date flags rejected correct event dates because
+the text also identified the source session date. The frozen reports retain
+those results. A future contract needs a separately versioned treatment of
+source-expression normalization and reference dates; these diagnostics do
+not retroactively qualify V2.

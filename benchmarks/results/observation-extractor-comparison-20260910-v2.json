@@ -1,0 +1,449 @@
+{
+  "protocol": "oh.memory.observe-extractor-comparison-summary.v2",
+  "date": "2026-09-10",
+  "sourceCommit": "c1c20a1df5feafa932fc04af01820608f5d22da2",
+  "executionSourceSha256": "5d192dad60b3293087e8f1d5845a7136cecfec9d02ef2c86ec962d9132b64a74",
+  "fixtureSha256": "f7f1956519af4fa5bae24eb03863a5e6fa7e0aa0873d3784e567ee75011b4bbc",
+  "semanticRubricSha256": "03db92c9e21f1533bf31bba378b4b2faafa6e2699f8a20b61b88c500cbccec65",
+  "schemaSha256": "9b28ada8ff4a6cc8480f69049078707a357a921c121a436b7eca20a8a5edf158",
+  "instructionSha256": "20c28f81db05683ca8aaaba9450198d5dabec5b80bfb8996771d74aa12a6dfc9",
+  "design": {
+    "sessionsPerArm": 12,
+    "originalSessions": 8,
+    "stressSessions": 4,
+    "arms": [
+      {
+        "id": "medium-control",
+        "profileId": "gpt5-mini-reader",
+        "parser": "v1",
+        "candidate": false
+      },
+      {
+        "id": "low-only",
+        "profileId": "gpt5-mini-low-extractor-v1",
+        "parser": "v1",
+        "candidate": true
+      },
+      {
+        "id": "structured",
+        "profileId": "gpt5-mini-structured-extractor-v2",
+        "parser": "v2",
+        "candidate": true
+      }
+    ],
+    "capMicros": 1000000,
+    "maximumCalls": 36,
+    "worstCaseReservationMicros": 639566,
+    "provider": "Vercel AI Gateway, OpenAI only",
+    "policy": {
+      "protocol": "oh.private.observe-extractor-experiment-policy.v2",
+      "arms": [
+        {
+          "id": "medium-control",
+          "profileId": "gpt5-mini-reader",
+          "parser": "v1",
+          "candidate": false
+        },
+        {
+          "id": "low-only",
+          "profileId": "gpt5-mini-low-extractor-v1",
+          "parser": "v1",
+          "candidate": true
+        },
+        {
+          "id": "structured",
+          "profileId": "gpt5-mini-structured-extractor-v2",
+          "parser": "v2",
+          "candidate": true
+        }
+      ],
+      "maximumCalls": 36,
+      "additionalBudgetMicros": 1000000,
+      "sessionsPerArm": 12,
+      "canary": {
+        "corpusId": "fixture-household",
+        "sessionId": "h1",
+        "calls": 3,
+        "concurrency": 3
+      },
+      "matrix": {
+        "calls": 33,
+        "concurrency": 6
+      },
+      "parserRejectionRateExclusiveMaximum": 0.05,
+      "qualification": "All 12 planned sessions completed, zero unresolved calls, parser rejection rate < 5%, and the frozen semantic fixture rubric passes.",
+      "choice": [
+        "structured",
+        "low-only"
+      ],
+      "controlMayQualifyAsCandidate": false,
+      "transportStop": "Any unresolved reservation or transport/routing/response-envelope failure stops new admissions and drains in-flight work. No retries.",
+      "settledOutcomes": "Observation parser rejection, provider refusal and truncation are measured outcomes; continue the matrix after settlement.",
+      "canaryGate": "All three original h1 responses settle as completed and pass their observation parser, with no unresolved reservations.",
+      "interpretation": "Synthetic qualification only. No benchmark corpus, superiority claim, or production activation."
+    },
+    "semanticGate": {
+      "protocol": "oh.observe-extractor-fixture-gate.v2",
+      "requiredSessions": 12,
+      "minimumDenseCoverage": 0.95,
+      "minimumOtherCoverage": 1,
+      "maximumSemanticViolations": 0,
+      "requiredCompletedSessions": 12,
+      "requiresOriginalRubricPass": true
+    }
+  },
+  "arms": [
+    {
+      "arm": "medium-control",
+      "profile": "gpt5-mini-reader",
+      "physicalCalls": 12,
+      "acceptedSessions": 11,
+      "parserEligibleResponses": 12,
+      "parserRejected": 1,
+      "parserRejectionRate": 0.08333333333333333,
+      "responseStatuses": {
+        "completed": 12,
+        "truncated": 0,
+        "refused": 0,
+        "failed": 0
+      },
+      "observations": 91,
+      "rejectionReasons": {
+        "resolved-from": 1
+      },
+      "usage": {
+        "inputTokens": 8878,
+        "cachedInputTokens": 0,
+        "outputTokens": 29407,
+        "reasoningTokens": 23744,
+        "confirmedMicros": 61039,
+        "originalServiceMs": 336174.403458,
+        "visibleOutputTokens": 5663
+      },
+      "originalFixture": {
+        "pass": false,
+        "scores": {
+          "dateResolution": 1,
+          "attribution": 0.9285714285714286,
+          "verbatim": 0.9615384615384616,
+          "coverage": 0.9285714285714286,
+          "kind": 1,
+          "leakage": 0,
+          "parserRejection": 0
+        }
+      },
+      "stressCoverage": [
+        {
+          "sessionId": "stress-dense",
+          "expected": 48,
+          "matched": 48,
+          "ratio": 1,
+          "missing": []
+        },
+        {
+          "sessionId": "stress-dates",
+          "expected": 10,
+          "matched": 0,
+          "ratio": 0,
+          "missing": [
+            "year-joined",
+            "year-certificate",
+            "year-return-plan",
+            "ambiguous-date-order",
+            "month-only",
+            "relative-month-unknown-day",
+            "leap-day",
+            "relative-weeks",
+            "future-relative",
+            "full-date"
+          ]
+        },
+        {
+          "sessionId": "stress-attribution",
+          "expected": 9,
+          "matched": 7,
+          "ratio": 0.7777777777777778,
+          "missing": [
+            "budget-correction",
+            "venue-correction"
+          ]
+        },
+        {
+          "sessionId": "stress-modality",
+          "expected": 6,
+          "matched": 4,
+          "ratio": 0.6666666666666666,
+          "missing": [
+            "unconfirmed-rental",
+            "rehearsal-unavailability"
+          ]
+        }
+      ],
+      "semanticChecks": {
+        "dateChecks": 12,
+        "datePassed": 2,
+        "attributionChecks": 63,
+        "attributionPassed": 63,
+        "correctionChecks": 2,
+        "correctionPassed": 0
+      },
+      "semanticViolationCounts": {
+        "completion": 1,
+        "kind": 2,
+        "leakage": 2,
+        "unmatched-observation": 6
+      },
+      "semanticPass": false,
+      "qualified": false
+    },
+    {
+      "arm": "low-only",
+      "profile": "gpt5-mini-low-extractor-v1",
+      "physicalCalls": 12,
+      "acceptedSessions": 11,
+      "parserEligibleResponses": 12,
+      "parserRejected": 1,
+      "parserRejectionRate": 0.08333333333333333,
+      "responseStatuses": {
+        "completed": 12,
+        "truncated": 0,
+        "refused": 0,
+        "failed": 0
+      },
+      "observations": 93,
+      "rejectionReasons": {
+        "resolved-from": 1
+      },
+      "usage": {
+        "inputTokens": 8878,
+        "cachedInputTokens": 0,
+        "outputTokens": 12601,
+        "reasoningTokens": 7040,
+        "confirmedMicros": 27427,
+        "originalServiceMs": 170514.76421,
+        "visibleOutputTokens": 5561
+      },
+      "originalFixture": {
+        "pass": true,
+        "scores": {
+          "dateResolution": 1,
+          "attribution": 1,
+          "verbatim": 1,
+          "coverage": 1,
+          "kind": 1,
+          "leakage": 0,
+          "parserRejection": 0
+        }
+      },
+      "stressCoverage": [
+        {
+          "sessionId": "stress-dense",
+          "expected": 48,
+          "matched": 48,
+          "ratio": 1,
+          "missing": []
+        },
+        {
+          "sessionId": "stress-dates",
+          "expected": 10,
+          "matched": 0,
+          "ratio": 0,
+          "missing": [
+            "year-joined",
+            "year-certificate",
+            "year-return-plan",
+            "ambiguous-date-order",
+            "month-only",
+            "relative-month-unknown-day",
+            "leap-day",
+            "relative-weeks",
+            "future-relative",
+            "full-date"
+          ]
+        },
+        {
+          "sessionId": "stress-attribution",
+          "expected": 9,
+          "matched": 5,
+          "ratio": 0.5555555555555556,
+          "missing": [
+            "assistant-buy-advice",
+            "assistant-move-advice",
+            "budget-correction",
+            "venue-correction"
+          ]
+        },
+        {
+          "sessionId": "stress-modality",
+          "expected": 6,
+          "matched": 5,
+          "ratio": 0.8333333333333334,
+          "missing": [
+            "unconfirmed-rental"
+          ]
+        }
+      ],
+      "semanticChecks": {
+        "dateChecks": 12,
+        "datePassed": 2,
+        "attributionChecks": 65,
+        "attributionPassed": 63,
+        "correctionChecks": 2,
+        "correctionPassed": 0
+      },
+      "semanticViolationCounts": {
+        "completion": 1,
+        "kind": 1,
+        "leakage": 3,
+        "source-attribution": 2,
+        "unmatched-observation": 8
+      },
+      "semanticPass": false,
+      "qualified": false
+    },
+    {
+      "arm": "structured",
+      "profile": "gpt5-mini-structured-extractor-v2",
+      "physicalCalls": 12,
+      "acceptedSessions": 7,
+      "parserEligibleResponses": 12,
+      "parserRejected": 5,
+      "parserRejectionRate": 0.4166666666666667,
+      "responseStatuses": {
+        "completed": 12,
+        "truncated": 0,
+        "refused": 0,
+        "failed": 0
+      },
+      "observations": 91,
+      "rejectionReasons": {
+        "date-evidence": 5
+      },
+      "usage": {
+        "inputTokens": 8266,
+        "cachedInputTokens": 0,
+        "outputTokens": 13197,
+        "reasoningTokens": 6144,
+        "confirmedMicros": 28465,
+        "originalServiceMs": 175588.436795,
+        "visibleOutputTokens": 7053
+      },
+      "originalFixture": {
+        "pass": false,
+        "scores": {
+          "dateResolution": 0.125,
+          "attribution": 0.42857142857142855,
+          "verbatim": 0.38461538461538464,
+          "coverage": 0.42857142857142855,
+          "kind": 0.5,
+          "leakage": 0,
+          "parserRejection": 0.625
+        }
+      },
+      "stressCoverage": [
+        {
+          "sessionId": "stress-dense",
+          "expected": 48,
+          "matched": 48,
+          "ratio": 1,
+          "missing": []
+        },
+        {
+          "sessionId": "stress-dates",
+          "expected": 10,
+          "matched": 7,
+          "ratio": 0.7,
+          "missing": [
+            "leap-day",
+            "relative-weeks",
+            "future-relative"
+          ]
+        },
+        {
+          "sessionId": "stress-attribution",
+          "expected": 9,
+          "matched": 7,
+          "ratio": 0.7777777777777778,
+          "missing": [
+            "budget-correction",
+            "venue-correction"
+          ]
+        },
+        {
+          "sessionId": "stress-modality",
+          "expected": 6,
+          "matched": 5,
+          "ratio": 0.8333333333333334,
+          "missing": [
+            "unconfirmed-rental"
+          ]
+        }
+      ],
+      "semanticChecks": {
+        "dateChecks": 12,
+        "datePassed": 8,
+        "attributionChecks": 73,
+        "attributionPassed": 71,
+        "correctionChecks": 2,
+        "correctionPassed": 0
+      },
+      "semanticViolationCounts": {
+        "completion": 5,
+        "date": 3,
+        "leakage": 10,
+        "source-attribution": 2,
+        "unmatched-observation": 14
+      },
+      "semanticPass": false,
+      "qualified": false
+    }
+  ],
+  "actual": {
+    "physicalCalls": 36,
+    "knownUsageMicros": 116931,
+    "unresolvedReservationMicros": 0,
+    "developmentPilotCalls": 0,
+    "readerCalls": 0,
+    "judgeCalls": 0
+  },
+  "selectedCandidate": null,
+  "continuationAccounting": {
+    "priorCalls": 63,
+    "priorKnownUsageMicros": 650474,
+    "totalCalls": 99,
+    "totalKnownUsageMicros": 767405,
+    "totalUnresolvedReservationMicros": 0
+  },
+  "evidence": {
+    "launchFileSha256": "281c8b4925a93009f112f3515e7bcc27bc23cbd771211ccda95f0ef28a24b90e",
+    "driverFileSha256": "57e5786097be710015d489849e9112d54e8efbf72a711bdc7c7a669d9bbe1da4",
+    "planFileSha256": "cba5de4c22de5160f253dbde2ef73fbe3f05b6a6228fe04ee88f59c4b0031ff5",
+    "canaryFileSha256": "8bdfcb286d77395b368becc42f4cb0443f301dc5b763f9b3aa886660b5e1c233",
+    "resultFileSha256": "a27253c08da70e55c47609d43da4690c4a52bfd4e82a8cdc200ae9f859d9ce5f",
+    "executionFileSha256": "755d17f66ee66e91a95fde1863e97fd26fb14738b3fd742e5a74419d990a33e9"
+  },
+  "qualification": "Neither candidate passed the frozen qualification gate. The conditional development pilot and reader comparison were not admitted.",
+  "limitations": [
+    "One response per arm/session; no repeated-run variance estimate.",
+    "Frozen lexical semantic checks can reject otherwise valid paraphrases and cannot prove arbitrary factual correctness.",
+    "Accepted-response coverage excludes rejected outputs; response failures remain in the fixed session denominator.",
+    "Original and stress fixture sessions are synthetic, not benchmark questions.",
+    "Accounted usage is a ledger figure, not an invoice.",
+    "No benchmark score, retrieval benefit, or superiority claim follows from this comparison."
+  ],
+  "postRunAudit": {
+    "type": "Read-only inspection after the frozen result; no gate edits, retries, or qualification promotion.",
+    "ledgerRowsAuthenticated": 36,
+    "rawResponseDigestsVerified": 36,
+    "publishedCapturesVerified": 36,
+    "ledgerAuditFileSha256": "d794623f383610370e6e7cabbc74eb2eca34558ccddef5f3b642bfb94a92f548",
+    "structuredFirstRejectionCauses": {
+      "caseSensitiveLiteralMismatch": 4,
+      "requiredLiteralOmittedFromObservationText": 1
+    },
+    "structuredStressDateFalsePositiveFlags": 3,
+    "dateFalsePositiveExplanation": "All three relative event dates were correct. The scorer also found the explicitly identified source session date in the observation text and rejected it as an extra full date.",
+    "scope": "Earliest rejection per response only; other observations in a rejected response may have additional issues. Lexical flags are not a complete factuality assessment.",
+    "nextDesignDirection": "Version a contract that canonicalizes verified source date expressions and distinguishes event dates from explicitly labeled reference dates; preserve raw captures and the existing V2 result. Validate those distinctions before another live qualification."
+  }
+}
