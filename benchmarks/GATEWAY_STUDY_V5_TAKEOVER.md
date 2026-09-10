@@ -59,7 +59,7 @@ python3 -B -m unittest discover -s tests -p 'test_benchmark_supervisor.py'
 python3 -B -m unittest discover -s tests -p 'test_gateway_v5_audit_helpers.py'
 ```
 
-Supervisor integration requires macOS `/bin/ps` and `/usr/sbin/sysctl`; Linux runs the portable tests and skips the macOS integration class. CI runs both OS jobs. On hosts with `hra-host-run`, use its installed absolute path for process tests and required final gates. Use the mac-native lane for macOS supervisor integration and compute for other checks. The repository delivery gate remains `bun run test:benchmarks`, `bun run check`, and `git diff --exit-code -- dist`. Synthetic audit tests do not certify actual comparison results.
+Supervisor integration requires macOS `/bin/ps` and `/usr/sbin/sysctl`; Linux runs the portable tests and skips the macOS integration class. CI runs both OS jobs. On hosts with `oompa-host-run`, use its installed absolute path for process tests and required final gates. Use the mac-native lane for macOS supervisor integration and compute for other checks. The repository delivery gate remains `bun run test:benchmarks`, `bun run check`, and `git diff --exit-code -- dist`. Synthetic audit tests do not certify actual comparison results.
 
 The tracked Python tools require `--context /absolute/context.json`. Its exact shape is:
 
