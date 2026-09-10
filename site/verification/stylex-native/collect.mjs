@@ -11,6 +11,7 @@ import { promisify } from 'node:util';
 import { assertListenerOwner, bounded, observeChild, OwnedProcesses, parseListenerPids, parseProcessRows, preservingCleanup, ResourceTracker } from './support.mjs';
 import { acceptance, assertBaselineRange, assertInstalled, assertScriptMode, baselineObservations, captureScreenshot, captureSnapshot, expectedMedia, inheritedSchedulerEnvironment, legacyBase, originalsCollected, settle, totalDeadlineMs } from './contract.mjs';
 import { proveInteractions, proveRoles } from './surfaces.mjs';
+import { decodeSnapshot, snapshotTransportFunction } from './transport.mjs';
 
 // Build and observe the exact legacy Oh site. This entry point is native-only;
 // importing it is not a pure check. The adjacent modules contain pure contracts.
@@ -129,7 +130,7 @@ assert.equal(packageSource.dependencies['@hraness/ui'], 'github:hraness/ui#v0.4.
 assert.equal(packageSource.dependencies['@hraness/design-kit'], 'github:hraness/design-kit#v0.4.0');
 const playwrightFiles = await inventory(playwrightRoot);
 const executables = await Promise.all([bun, node, executablePath].map((path) => fileRecord(path, path)));
-const collectorPaths = [fileURLToPath(import.meta.url), ...['./support.mjs', './contract.mjs', './surfaces.mjs'].map((path) => fileURLToPath(new URL(path, import.meta.url)))];
+const collectorPaths = [fileURLToPath(import.meta.url), ...['./support.mjs', './contract.mjs', './surfaces.mjs', './transport.mjs'].map((path) => fileURLToPath(new URL(path, import.meta.url)))];
 const collectorFiles = await Promise.all(collectorPaths.map((path) => fileRecord(path, path)));
 const scheduler = inheritedSchedulerEnvironment(process.env);
 const recordedEnvironment = { PATH: `${dirname(node)}:${dirname(bun)}:/usr/bin:/bin`, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', TMPDIR: join(output, 'runtime'), ...scheduler.workerLimits };
@@ -319,7 +320,8 @@ try {
         ownGlobal: Object.hasOwn(globalThis, '__next_f'), arrayGlobal: Array.isArray(globalThis.__next_f),
       }));
       assertScriptMode(settings.javaScriptEnabled, html, pageScriptMode);
-      const capture = () => page.locator('body').evaluate(captureSnapshot, expectedMedia(settings));
+      const captureWire = snapshotTransportFunction(captureSnapshot);
+      const capture = async () => decodeSnapshot(await page.locator('body').evaluate(captureWire, expectedMedia(settings)));
       const paint = () => settle({ capture, wait: delay, track: trackNativeProbe, signal: abort.signal });
       await paint(); await resources.settle({ wait: delay });
       const surface = await proveRoles(page, settings);

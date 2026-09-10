@@ -8,8 +8,22 @@ passed yet. The first native invocation completed the ordinary build and all
 the listener parser rejected lsof's mandatory file-descriptor fields. The failed
 receipt is retained, with original-operation collection, no owned survivors,
 loopback absence and unchanged source/install/build evidence. The parser now
-requires complete PID/descriptor groups and retains strict listener ancestry;
-this repair still needs a fresh complete native invocation.
+requires complete PID/descriptor groups and retains strict listener ancestry.
+The next invocation passed that boundary but failed the five-second native
+snapshot settlement before accepting any observation. A retained-build diagnostic
+then measured the unchanged first home snapshot: 350 nodes, 665,000 declarations,
+18.4 MB, about 0.88 seconds of native capture and 3.07 seconds to transfer the
+structured object, versus 0.87 seconds to transfer the same snapshot as JSON.
+The two decoded values were equal; this was diagnosis, not baseline acceptance.
+
+Snapshots now cross the browser connection as a versioned string with a
+sample-local property-name dictionary. Decoding restores every original object,
+array, property, pseudo-element, string and exceptional numeric value before
+the existing settlement hashes and assertions. The dictionary neither drops
+declarations nor borrows state from another sample. Unsupported values and
+malformed encodings fail closed. Capture, three-sample settlement, screenshot,
+case and total deadlines remain unchanged. A fresh complete native invocation
+is still required.
 
 ## Scope
 
@@ -66,11 +80,12 @@ inspected but never followed; subresources must be loopback HTTP.
 
 No install is needed for the pure tests. From the repository root:
 
-    bun test site/verification/stylex-native/contract.test.mjs site/verification/stylex-native/support.test.mjs
+    bun test site/verification/stylex-native/contract.test.mjs site/verification/stylex-native/support.test.mjs site/verification/stylex-native/transport.test.mjs
 
 The tests exercise finite case membership, snapshot media fences, screenshot
 options and order, no-JavaScript-compatible settlement, terminal acceptance,
-native-focus requirements, and injected process/resource failure controls.
+native-focus requirements, lossless transport and malformed-wire controls, and
+injected process/resource failure controls.
 Injected controls do not constitute native process, browser, or rendering proof.
 
 Syntax-check each authored module with the approved Node runtime's --check
