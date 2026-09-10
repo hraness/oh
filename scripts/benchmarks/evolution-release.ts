@@ -10,7 +10,8 @@ import type { EvolutionRetrievalVariant } from "./evolution-retrieval";
 /** Readers admitted for a full-release study. The first is the original frozen nano candidate; later entries
  * keep the same answer contract on a different model/effort and must be declared in the study before any score. */
 export const EVOLUTION_RELEASE_READERS = ["gpt5-nano-explicit-abstention-composition-v1-reader",
-  "gpt5-mini-explicit-abstention-composition-v1-reader", "gpt5-nano-high-explicit-abstention-composition-v1-reader"] as const;
+  "gpt5-mini-explicit-abstention-composition-v1-reader", "gpt5-nano-high-explicit-abstention-composition-v1-reader",
+  "gpt5-mini-calibration-only-v1-reader", "gpt5-nano-calibration-only-v1-reader"] as const;
 export type EvolutionReleaseReader = typeof EVOLUTION_RELEASE_READERS[number];
 export const EVOLUTION_RELEASE_READER: EvolutionReleaseReader = EVOLUTION_RELEASE_READERS[0];
 /** A rebound study reuses the exact retrieval contexts of an earlier study whose only differences are reader and campaign. */

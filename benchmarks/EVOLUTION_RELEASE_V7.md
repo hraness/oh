@@ -72,7 +72,9 @@ The frozen candidate and control contexts do not depend on the reader, so a
 second study may reuse them to measure a different admitted reader without
 rebuilding indexes or rerunning retrieval. Admitted readers are the members of
 `EVOLUTION_RELEASE_READERS`: the original combined nano profile, the same
-answer contract on GPT-5 mini, and the same contract on nano at high effort.
+answer contract on GPT-5 mini, the same contract on nano at high effort, and
+the calibration-only contract (the combined contract plus exact-value, yes/no
+and concise-preference formatting rules) on mini and nano.
 The judge, rubric, variants, presentation and repeat policy stay fixed.
 
 Create a new study that is byte-identical to the parent except for `reader`,
