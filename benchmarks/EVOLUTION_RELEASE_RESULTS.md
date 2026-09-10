@@ -242,6 +242,52 @@ Mem0's, Chronos's and Mastra's, but a matched comparison needs the same reader,
 judge and sample; the retrieval-only command in this repository exists so
 third-party harnesses can run that comparison.
 
+## LoCoMo: exposure and the parity lane
+
+No LoCoMo score has been read under the [V9 protocol](EVOLUTION_RELEASE_V9.md)
+yet; this section records what is declared before that read. Every one of the
+ten LoCoMo conversations is exposed. The two seed-17 development conversations
+(conv-49 and conv-50) were used for development-only reader, judge and
+memory-representation runs recorded above. The other eight were read by the
+retrieval-only held-out report ([locomo-heldout-v2.json](results/locomo-heldout-v2.json),
+1,586 questions, 1,224 evidence-labelled) and the 48-question reader/judge
+held-out run ([locomo-judge-heldout.json](results/locomo-judge-heldout.json)),
+both summarized in the [benchmark README](README.md#recorded-reader-results).
+The private exposure manifest therefore declares the development pair as
+development/development and the eight test conversations as closed/evaluated.
+Nothing in LoCoMo is unseen, and no LoCoMo result will be called a holdout.
+Counted from the pinned file, the parity denominator per conversation is
+conv-26 152, conv-30 81, conv-41 152, conv-42 199, conv-43 178, conv-44 123,
+conv-47 150, conv-48 191, conv-49 156 and conv-50 158 (1,540 of 1,986; the
+446 adversarial questions are outside it).
+
+The parity lane scores J the way Mem0 and Zep report it: the Packer/Mem0/Zep
+CORRECT/WRONG prompt ([profile](profiles/locomo-judge-v1.json), a normalized
+transcription of Zep's grader in `zep_locomo_eval.py`: straight quotes, the
+upstream typo removed, de-indented, without its trailing JSON-label
+instruction, with named placeholders for its format slots) on a gpt-4o-mini
+alias at temperature 0 with a 512-token output cap, over categories 1-4
+(multi-hop 282, temporal 321, open-domain 96, single-hop 841; 1,540
+questions), with the adversarial category outside the denominator because it
+has no gold. Exactly one label must appear; both, neither or a truncated
+completion is a judge failure scored 0, never a label. The official F1 is reported beside J as a
+diagnostic that underestimates abstention. The reader date policy is fixed in
+the study as the final session date, the closest analogue to the leaders'
+harnesses, before any score exists. Like-for-like references are Mem0 66.88 /
+Mem0g 68.44 and Zep 75.14 with the gpt-4o-mini answerer; a GPT-5 nano or mini
+reader on the same lane is a different reader tier and will be labelled so.
+Ten conversations are ten clusters, so any interval will be wide by
+construction. Under the current budget policy the first descriptor uses the
+GPT-5 nano reader with three indexed repeats at 24 KB under a $20 cap; the
+gpt-4o-mini row is declared but unfunded.
+
+The V9 protocol smoke (E4a) rebound the five mini full-500 context plans under
+a V9 study with zero API calls: the V2 scope (`36df7bbf…5cc6`) reproduced the
+five V1 shards exactly, and every rebound case carried the parent case's exact
+retrieval result under the current retrieval source `f2cc0ace…7f0a`. The
+[V9 page](EVOLUTION_RELEASE_V9.md#rebind-existing-contexts-e4a) lists the
+per-shard digests; the private receipt holds the full values.
+
 ## Fact-card development experiment
 
 The [preregistered quote-card experiment](quote-card-development-v1/QUOTE_CARD_PREREGISTRATION.md)
