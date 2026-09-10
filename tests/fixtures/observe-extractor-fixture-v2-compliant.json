@@ -1,0 +1,1008 @@
+[
+  {
+    "corpusId": "fixture-household",
+    "sessionId": "h1",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user started a pottery class at Kiln House three weeks ago and goes twice a week.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": "2026-02-21",
+        "resolvedFrom": "three weeks ago",
+        "sourceTurnIds": [
+          "h1:0"
+        ]
+      },
+      {
+        "text": "assistant suggested a stoneware clay for hand-building.",
+        "speaker": "assistant",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "h1:1"
+        ]
+      },
+      {
+        "text": "user prefers oolong tea over coffee in the afternoon.",
+        "speaker": "user",
+        "kind": "preference",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "h1:2"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-household",
+    "sessionId": "h2",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user's pottery attendance changed from twice a week to three times a week.",
+        "speaker": "user",
+        "kind": "update",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "h2:0"
+        ]
+      },
+      {
+        "text": "user's pottery instructor is Marisol Vega.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "h2:0"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-household",
+    "sessionId": "h3",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user's rent changed from $1,450 to $1,600 a month Two days ago.",
+        "speaker": "user",
+        "kind": "update",
+        "eventAt": "2026-03-31",
+        "resolvedFrom": "Two days ago",
+        "sourceTurnIds": [
+          "h3:0"
+        ]
+      },
+      {
+        "text": "user's new rent of $1,600 a month starts on April 10.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": "2026-04-10",
+        "resolvedFrom": "April 10",
+        "sourceTurnIds": [
+          "h3:0"
+        ]
+      },
+      {
+        "text": "user wants to move somewhere cheaper eventually.",
+        "speaker": "user",
+        "kind": "preference",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "h3:2"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-work",
+    "sessionId": "w1",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user joined Northwind Robotics as a firmware engineer A week ago.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": "2026-04-28",
+        "resolvedFrom": "A week ago",
+        "sourceTurnIds": [
+          "w1:0"
+        ]
+      },
+      {
+        "text": "user's salary at Northwind Robotics is 98,500 euros.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "w1:0"
+        ]
+      },
+      {
+        "text": "user dislikes long stand-up meetings.",
+        "speaker": "user",
+        "kind": "preference",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "w1:2"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-work",
+    "sessionId": "w2",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user flies Tomorrow to Lisbon for the Northwind offsite; the flight is 2 hours 35 minutes.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": "2026-06-21",
+        "resolvedFrom": "Tomorrow",
+        "sourceTurnIds": [
+          "w2:0"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-work",
+    "sessionId": "w3",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user's title changed from firmware engineer to firmware lead On 3 July.",
+        "speaker": "user",
+        "kind": "update",
+        "eventAt": "2026-07-03",
+        "resolvedFrom": "On 3 July",
+        "sourceTurnIds": [
+          "w3:0"
+        ]
+      },
+      {
+        "text": "user presents the Q3 roadmap In ten days.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": "2026-07-18",
+        "resolvedFrom": "In ten days",
+        "sourceTurnIds": [
+          "w3:0"
+        ]
+      },
+      {
+        "text": "assistant suggested a 12-slide deck for the Q3 roadmap.",
+        "speaker": "assistant",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "w3:1"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-family",
+    "sessionId": "f1",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user's daughter Ines turned 7 Yesterday.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": "2026-03-13",
+        "resolvedFrom": "Yesterday",
+        "sourceTurnIds": [
+          "f1:0"
+        ]
+      },
+      {
+        "text": "user booked a trip to Kyoto for 5 nights.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "f1:0"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-family",
+    "sessionId": "f2",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user's Kyoto trip changed from 5 nights to 8 nights because of a cheaper ryokan, the Hanami Inn.",
+        "speaker": "user",
+        "kind": "update",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "f2:0"
+        ]
+      },
+      {
+        "text": "user would rather not fly with a layover longer than 2 hours.",
+        "speaker": "user",
+        "kind": "preference",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "f2:1"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-extractor-stress",
+    "sessionId": "stress-dense",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "At Indigo Annex, bin R01 contains 18 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:0"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R02 contains 19 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:0"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R03 contains 20 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:1"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R04 contains 21 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:1"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R05 contains 22 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:2"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R06 contains 23 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:2"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R07 contains 24 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:3"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R08 contains 25 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:3"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R09 contains 26 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:4"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R10 contains 27 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:4"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R11 contains 28 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:5"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R12 contains 29 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:5"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R13 contains 30 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:6"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R14 contains 31 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:6"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R15 contains 32 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:7"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R16 contains 33 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:7"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R17 contains 34 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:8"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R18 contains 35 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:8"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R19 contains 36 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:9"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R20 contains 37 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:9"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R21 contains 38 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:10"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R22 contains 39 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:10"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R23 contains 40 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:11"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R24 contains 41 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:11"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R25 contains 42 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:12"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R26 contains 43 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:12"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R27 contains 44 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:13"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R28 contains 45 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:13"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R29 contains 46 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:14"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R30 contains 47 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:14"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R31 contains 48 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:15"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R32 contains 49 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:15"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R33 contains 50 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:16"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R34 contains 51 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:16"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R35 contains 52 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:17"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R36 contains 53 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:17"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R37 contains 54 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:18"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R38 contains 55 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:18"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R39 contains 56 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:19"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R40 contains 57 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:19"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R41 contains 58 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:20"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R42 contains 59 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:20"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R43 contains 60 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:21"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R44 contains 61 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:21"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R45 contains 62 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:22"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R46 contains 63 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:22"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R47 contains 64 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:23"
+        ]
+      },
+      {
+        "text": "At Indigo Annex, bin R48 contains 65 brass clips.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dense:23"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-extractor-stress",
+    "sessionId": "stress-dates",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "Mara joined Rill Guild in 2019.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dates:0"
+        ]
+      },
+      {
+        "text": "Mara completed the Sedge Certificate in 2021.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dates:0"
+        ]
+      },
+      {
+        "text": "Mara plans to return to Rill Guild in 2030, with no month or day decided.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dates:0"
+        ]
+      },
+      {
+        "text": "The Cedar Ferry inspection happened on 03/04/2027, with the date order unknown.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dates:1"
+        ]
+      },
+      {
+        "text": "The Bracken Lecture happened in May 2027.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dates:1"
+        ]
+      },
+      {
+        "text": "The Gull Workshop is planned for next month, with no day selected.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-dates:1"
+        ]
+      },
+      {
+        "text": "The Amber Crate arrived yesterday.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": "2028-02-29",
+        "resolvedFrom": "yesterday",
+        "sourceTurnIds": [
+          "stress-dates:2"
+        ]
+      },
+      {
+        "text": "The Copper Crate arrived three weeks ago.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": "2028-02-09",
+        "resolvedFrom": "three weeks ago",
+        "sourceTurnIds": [
+          "stress-dates:2"
+        ]
+      },
+      {
+        "text": "The Silver Crate will arrive tomorrow.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": "2028-03-02",
+        "resolvedFrom": "tomorrow",
+        "sourceTurnIds": [
+          "stress-dates:2"
+        ]
+      },
+      {
+        "text": "The Jade Crate arrived on 2028-02-03.",
+        "speaker": "user",
+        "kind": "event",
+        "eventAt": "2028-02-03",
+        "resolvedFrom": "2028-02-03",
+        "sourceTurnIds": [
+          "stress-dates:3"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-extractor-stress",
+    "sessionId": "stress-attribution",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user owns a Juniper M2 recorder.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:0"
+        ]
+      },
+      {
+        "text": "assistant suggested buying an Aster X7 recorder.",
+        "speaker": "assistant",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:1"
+        ]
+      },
+      {
+        "text": "assistant suggested moving the workshop to Harborview.",
+        "speaker": "assistant",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:1"
+        ]
+      },
+      {
+        "text": "user will keep the Juniper M2 recorder.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:2"
+        ]
+      },
+      {
+        "text": "user's recorder purchase budget changed from 800 EUR to 750 EUR.",
+        "speaker": "user",
+        "kind": "update",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:0",
+          "stress-attribution:4"
+        ]
+      },
+      {
+        "text": "user's workshop venue changed from Birch Room to Willow Room.",
+        "speaker": "user",
+        "kind": "update",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:0",
+          "stress-attribution:4"
+        ]
+      },
+      {
+        "text": "The booking contact is Chloë Dvořák.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:5"
+        ]
+      },
+      {
+        "text": "The booking code is AB-0073.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:5"
+        ]
+      },
+      {
+        "text": "user's deposit is €1,204.50.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-attribution:5"
+        ]
+      }
+    ]
+  },
+  {
+    "corpusId": "fixture-extractor-stress",
+    "sessionId": "stress-modality",
+    "status": "completed",
+    "observations": [
+      {
+        "text": "user has never owned a boat.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-modality:0"
+        ]
+      },
+      {
+        "text": "user prefers quiet cabins.",
+        "speaker": "user",
+        "kind": "preference",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-modality:0"
+        ]
+      },
+      {
+        "text": "user plans to rent Little Tern on 2031-06-14, but the booking is not confirmed.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": "2031-06-14",
+        "resolvedFrom": "2031-06-14",
+        "sourceTurnIds": [
+          "stress-modality:3"
+        ]
+      },
+      {
+        "text": "user cannot attend a rehearsal on 2031-06-15.",
+        "speaker": "user",
+        "kind": "fact",
+        "eventAt": "2031-06-15",
+        "resolvedFrom": "2031-06-15",
+        "sourceTurnIds": [
+          "stress-modality:3"
+        ]
+      },
+      {
+        "text": "The proposed sailing time is 1 hour 45 minutes.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-modality:4"
+        ]
+      },
+      {
+        "text": "The proposed route is 1.75 km.",
+        "speaker": "user",
+        "kind": "plan",
+        "eventAt": null,
+        "resolvedFrom": null,
+        "sourceTurnIds": [
+          "stress-modality:4"
+        ]
+      }
+    ]
+  }
+]
