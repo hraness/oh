@@ -86,7 +86,11 @@ LongMemEval S downloads about 277 MB. `longmemeval-oracle` is a smaller,
 evidence-only diagnostic, **not** the S benchmark. `locomo` is also supported;
 its download uses `gh` and its data is licensed CC BY-NC 4.0. Review that
 noncommercial license for your intended use. The cleaned LongMemEval release
-is MIT-licensed. Neither dataset is included in the npm package.
+is MIT-licensed. Neither dataset is included in the npm package. `beam` (data
+CC BY-SA 4.0) is an explicit, unfunded confirmation source: its fetch needs
+`python3` with `pyarrow==21.0.0` to re-encode three pinned parquet parts, and
+its offline exposure review and family draw are described in the
+[confirmation method](EVOLUTION_CONFIRMATION.md#beam-offline-preparation).
 
 The state, projection, and retrieval paths use SQLite `:memory:`. The SQLite
 crash stress helper is the one exception: it uses a disposable database file in

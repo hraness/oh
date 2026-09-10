@@ -12,7 +12,8 @@ import { runRetrieval } from "./benchmarks/runner";
 
 const HELP = `Usage: bun run bench:memory <fetch|extract|retrieval|state|projection|answer|judge|summarize|select> [options]
 
-  --dataset locomo|longmemeval-s|longmemeval-oracle   Default: locomo
+  --dataset locomo|longmemeval-s|longmemeval-oracle|beam   Default: locomo
+                                                  (beam fetch needs python3 + pyarrow; see benchmarks/EVOLUTION_CONFIRMATION.md)
   --split dev|test|all                            Default: dev; split by conversation/family
   --seed N                                       Default: 17
   --limit N                                      Deterministic category-balanced pilot

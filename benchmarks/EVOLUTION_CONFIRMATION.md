@@ -14,6 +14,59 @@ LongMemEval development retains the original GPT-4o proxy scores. Separate Gatew
 
 An exposed benchmark can remain useful for reproducible descriptive scores. High development performance alone will not be called benchmark saturation, fresh generalization or framework superiority.
 
+## BEAM offline preparation
+
+Updated 2026-09-10. The data-side sealing code for BEAM now exists offline;
+no BEAM reader or judge call has been made, and none is scheduled. Under the
+current budget policy every experiment is capped at $20 with GPT-5 nano or
+GPT-5 mini readers only, and the sealed confirmation source is the LoCoMo test
+split. BEAM's per-nugget judging alone exceeds that cap for its 400-question
+partition, so BEAM stays a prepared, unfunded confirmation source until a
+separate budget decision reopens it. Nothing below reads a BEAM outcome.
+
+`DATASETS.beam` pins the Hugging Face revision `3205395e` as three parquet
+parts (byte size and SHA-256 each) plus the canonical JSON re-encoding that the
+loaders parse (`oh.beam-source-canonical.v1`, 285,187,170 bytes). Acquisition is
+an explicit operator step that downloads about 106 MB and needs `python3` with
+`pyarrow==21.0.0` (set `OH_BEAM_PYTHON` to that interpreter):
+
+```sh
+bun run bench:memory fetch --dataset beam
+```
+
+`parseBeam` sits next to `parseLocomo`. Memory systems receive only chat turns
+with their session time anchors; author plans, user profiles, generation seeds,
+narratives, planted-turn labels and every probing-question field stay outside
+the corpus. Each history is one corpus, each probing question carries the last
+session's anchor as its question date, abstention questions are unanswerable,
+`source_chat_ids` become evidence turn identifiers, and the scorer-side object
+(rubric nuggets and reference answers) travels only in the judge-side answer
+field for a later BEAM scoring lane. The release repeats turn identifiers
+inside some histories; evidence references map to every matching turn.
+
+The exposure review (`scripts/benchmarks/beam-seal-cli.ts review`) writes
+digests, counts and dispositions only: per history, the content digest, the
+digests of its seed, profile, narratives, plan and planted user questions,
+exact-turn and sampled word-8-gram overlap against the cached LongMemEval S
+and LoCoMo releases, and the family it belongs to (histories sharing a seed,
+profile or content are one family). Exact-turn matches gate eligibility (zero
+allowed by default); sampled shingles are reported per matched reference
+corpus and gate only under a declared bound, because a first offline pass on
+the pinned files found no identical turn in any of the 90 histories but
+template phrases shared with every LongMemEval S haystack. Operator-declared prior exposure, such as
+the search preview that showed part of one history's profile scaffold, closes
+the whole family and must be declared before any draw. The review's SHA-256 is
+the `eligibilityAuditSha256` a sealed-confirmation scope references.
+
+The family draw (`beam-seal-cli.ts draw`) reuses the existing cryptographic
+partial Fisher–Yates method over the sealed families and records the pool,
+its digest, the review digest, the drawn families and every selected question
+identifier. Replay recomputes the pool from the current dataset and review and
+fails on any change instead of drawing replacements. A future funded BEAM run
+still needs the design-side seal (candidate source digest, non-droppable
+controls, readers, judge profile, rubric digest, decision rule and sample size)
+and the BEAM nugget-judge protocol before its first reader call.
+
 ## Full-history control and next memory experiments
 
 The complete 100-question full-history control and all three fixed source-packing
