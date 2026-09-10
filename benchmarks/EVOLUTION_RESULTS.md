@@ -912,6 +912,11 @@ superiority claim follows from this partial ingestion.
 
 ## Follow-up evidence and experiments
 
+The full 500-question comparison and its full-context companion have since
+completed; [EVOLUTION_RELEASE_RESULTS.md](EVOLUTION_RELEASE_RESULTS.md) reports
+them together with the completed fact-card experiment, which regressed to 46/100
+and 45/100 against the 82/100 parent and was rejected.
+
 The [semantic error diagnosis](quote-card-development-v1/SEMANTIC_DIAGNOSIS.md)
 examines the fixed 82/100 nano result without changing any grades. The
 [two-arm preregistration](quote-card-development-v1/QUOTE_CARD_PREREGISTRATION.md)

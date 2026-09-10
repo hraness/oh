@@ -1,5 +1,9 @@
 # Full-release descriptive LongMemEval comparison (V7)
 
+This study has completed. [EVOLUTION_RELEASE_RESULTS.md](EVOLUTION_RELEASE_RESULTS.md)
+reports the outcome and the [public summary](results/memory-evolution-full-release-500-v1.json)
+records it. The procedure below remains the reference for reproduction.
+
 V7 admits one separately frozen, full500 descriptive study. It compares BM25 window retrieval and Oh semantic retrieval, both top100/96,000 UTF-8 context bytes, using `gpt5-nano-explicit-abstention-composition-v1-reader` and `gpt4o-gateway-native-rubric-16-judge-v1`. Semantic contexts retain their retrieval order. The fixed candidate must be selected before study preparation or access to additional scores. This path does not broaden an existing development configuration.
 
 The existing exposure manifest stays unchanged. Every release question is included, and declared family/history components stay in one shard. Admission requires exactly five100-question shards; a different grouping that cannot satisfy this bound fails. Development/evaluated and closed/unknown strata are reported separately. A closed question is not made unseen or held out by this path. Generic sealed-scope metadata helpers are not an implemented BEAM evaluator or freshness attestation.
@@ -61,6 +65,47 @@ The default optional package must resolve as `@tobilu/qmd` from this execution t
 For each pinned config, use the unchanged public commands documented in [EVOLUTION.md](EVOLUTION.md): `prepare`, `readers`, `run-reader`, `judge-plan`, `run-judge`, then `report`. Every paid invocation still needs explicit `--max-usd`, `--max-new-calls`, exact plan/config pins and an exclusive output. V7 uses the same request profiles, durable capture, store admission, first-attempt occupancy, failure projection, queue stop/drain, and global spending guards. It has no additional provider transport or retry mechanism. Contexts use context-planV6; reports use reportV2. Original retrieval/result and request bytes remain unchanged inside that scope wrapper.
 
 Preparation and every context reload authenticate the scope, exact selected source/gold projection, current retrieval source and fixed matrix. The reader projection contains source/question fields only; scorer metadata is joined separately. Preparation does not rerun or authenticate a vendor's published baseline. Each config covers200 logical reader cases. Across the study there are1,000 logical reader cases and at most1,000 judge cases requiring new physical requests before exact request deduplication; reader failures suppress their judge dispatch. Existing occupied requests are preserved, and any reused responses must be disclosed rather than treated as newly sampled answers. Campaign capacity can prevent completion; these counts create no spending authority.
+
+## Rebind the same retrieval to another reader
+
+The frozen candidate and control contexts do not depend on the reader, so a
+second study may reuse them to measure a different admitted reader without
+rebuilding indexes or rerunning retrieval. Admitted readers are the members of
+`EVOLUTION_RELEASE_READERS`: the original combined nano profile, the same
+answer contract on GPT-5 mini, and the same contract on nano at high effort.
+The judge, rubric, variants, presentation and repeat policy stay fixed.
+
+Create a new study that is byte-identical to the parent except for `reader`,
+`campaignPin` (a separate campaign and store), `retrievalSourceSha256` (the
+current source digest) and one added field:
+
+```json
+"retrievalProvenance": {
+  "parentStudySha256": "PARENT_STUDY_FILE_SHA256",
+  "parentRetrievalSourceSha256": "PARENT_STUDY_RETRIEVAL_SOURCE_DIGEST"
+}
+```
+
+Run `scope` for the new study, create its five configs with the new study/scope
+pins and `readers: [<admitted reader>]`, then instead of `prepare` run:
+
+```sh
+bun scripts/benchmarks/evolution.ts rebind \
+  --config /private/mini/shard-001.json --config-sha256 ACTUAL_CONFIG_SHA256 \
+  --context /private/study/shard-001/contexts.json --context-sha256 ACTUAL_PARENT_CONTEXT_SHA256
+```
+
+`rebind` authenticates the parent V6 context, requires that its study and
+retrieval-source digests equal the declared provenance and that its shard,
+questions, variants and manifest equal the new scope, re-validates every
+retrieved context against the current source rendering, and writes a new
+`contexts.json` bound to the new study under the current retrieval digest. It
+performs no retrieval, embedding or provider call; the receipt records the
+parent plan digest. A study with `retrievalProvenance` cannot be prepared
+fresh, and a study without it cannot be rebound. Readers, paid phases, reports
+and `combine` then run unchanged. A rebound result is a reader comparison on
+identical evidence; it does not re-establish that the current source produces
+the parent's retrieval, and the parent study is never resealed.
 
 ## Reconcile all shards
 

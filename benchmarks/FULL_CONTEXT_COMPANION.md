@@ -1,5 +1,9 @@
 # Matched full-context companion
 
+This companion has completed. [EVOLUTION_RELEASE_RESULTS.md](EVOLUTION_RELEASE_RESULTS.md)
+reports full history at 355/500 against both retrieval arms, and the
+[public summary](results/memory-evolution-full-context-500-v1.json) records it.
+
 The optional V8 run adds one full-context control over the exact500 questions
 and five100-question shards already frozen by a V7 LongMemEval study. The V7
 study keeps its two original arms. This companion uses a separately pinned

@@ -8,11 +8,11 @@ import { DATASETS, type Dataset } from "../scripts/benchmarks/datasets";
 import { createEvolutionDatasetManifest, projectEvolutionRunnerInput } from "../scripts/benchmarks/evolution-dataset";
 import { createEvolutionFullHistorySource } from "../scripts/benchmarks/evolution-full-history";
 import { renderTurn } from "../scripts/benchmarks/retrieval";
-import { EVOLUTION_RELEASE_READER, EVOLUTION_RELEASE_JUDGE, EVOLUTION_RELEASE_RUBRIC_SHA, makeEvolutionReleaseScope,
+import { EVOLUTION_RELEASE_READER, EVOLUTION_RELEASE_READERS, EVOLUTION_RELEASE_JUDGE, EVOLUTION_RELEASE_RUBRIC_SHA, makeEvolutionReleaseScope,
   validateEvolutionReleaseArtifacts, selectEvolutionReleaseShard, parseEvolutionReleaseStudy, type EvolutionReleaseStudy } from "../scripts/benchmarks/evolution-release";
-import { makeEvolutionReleaseContextPlan, evolutionReleaseContextBinding, assertEvolutionReleaseContextBinding } from "../scripts/benchmarks/evolution-release-plan";
+import { makeEvolutionReleaseContextPlan, evolutionReleaseContextBinding, assertEvolutionReleaseContextBinding, rebindEvolutionReleaseContextPlan } from "../scripts/benchmarks/evolution-release-plan";
 import { makeEvolutionReaderPlan, validateEvolutionAnyContextPlan, validateEvolutionContextPlanSources, type EvolutionContextPlan } from "../scripts/benchmarks/evolution-plan";
-import { loadEvolutionReleaseAuthorization, parseEvolutionRunConfig, validateEvolutionContextRunVersion, retrievalIdentity, type EvolutionReleaseRunConfig } from "../scripts/benchmarks/evolution";
+import { loadEvolutionReleaseAuthorization, parseEvolutionRunConfig, parseEvolutionArgs, validateEvolutionContextRunVersion, retrievalIdentity, type EvolutionReleaseRunConfig } from "../scripts/benchmarks/evolution";
 import { makeEvolutionJudgePlan } from "../scripts/benchmarks/evolution-judge";
 import { loadJudgeProfile } from "../scripts/benchmarks/judge";
 import { parseEvolutionResponse, type EvolutionRequest, type EvolutionResponse } from "../scripts/benchmarks/evolution-model";
@@ -218,3 +218,41 @@ test("offline combine consumes five actual synthetic native16 shard reports and 
   } finally { await rm(root, { recursive: true, force: true }); }
 // Five authenticated 200-case reports exceed Bun's default 5s on CI runners.
 }, 20_000);
+
+test("a rebound study reuses exact parent retrieval under a declared reader/campaign change and nothing else", () => {
+  const f = fixture(), parent = contexts(f), mini = EVOLUTION_RELEASE_READERS[1], current = h("current retrieval source");
+  const provenance = { parentStudySha256: sha256Hex(f.studyBytes), parentRetrievalSourceSha256: f.study.retrievalSourceSha256 };
+  const child: EvolutionReleaseStudy = { ...f.study, reader: mini, retrievalSourceSha256: current, retrievalProvenance: provenance,
+    campaignPin: { path: "/example/full-release/campaign-mini.json", sha256: h("campaign mini") } };
+  const childBytes = bytes(child), childScope = makeEvolutionReleaseScope(childBytes, f.manifestBytes);
+  const authorization = validateEvolutionReleaseArtifacts({ studyBytes: childBytes, manifestBytes: f.manifestBytes, scopeBytes: bytes(childScope) });
+  expect(parseEvolutionReleaseStudy(child).reader).toBe(mini);
+  expect(() => parseEvolutionReleaseStudy({ ...child, reader: "gpt5-mini-reader" })).toThrow();
+  expect(() => parseEvolutionReleaseStudy({ ...child, retrievalProvenance: { parentStudySha256: "x" } })).toThrow();
+  expect(authorization.scope.shards.map(s => s.questionIds)).toEqual(f.authorization.scope.shards.map(s => s.questionIds));
+  const rebound = rebindEvolutionReleaseContextPlan({ dataset: parent.projected, parent: parent.plan, authorization, shardId: "shard-001", retrievalSourceSha256: current });
+  expect(rebound.studySha256).toBe(sha256Hex(childBytes)); expect(rebound.scopeSha256).toBe(authorization.scope.scopeSha256);
+  expect(rebound.retrievalSourceSha256).toBe(current); expect(rebound.basePlan.retrievalSourceSha256).toBe(current);
+  expect(rebound.cases.map(c => c.result)).toEqual(parent.plan.cases.map(c => c.result));
+  expect(() => assertEvolutionReleaseContextBinding(rebound, authorization, "shard-001")).not.toThrow();
+  expect(() => assertEvolutionReleaseContextBinding(rebound, f.authorization, "shard-001")).toThrow("context differs");
+  validateEvolutionContextPlanSources(rebound.basePlan, parent.projected);
+  expect(makeEvolutionReaderPlan(rebound, [mini]).readerProfiles).toEqual([mini]);
+  expect(makeEvolutionReaderPlan(rebound, [mini]).requests.every(r => r.profileId === mini)).toBe(true);
+  const { retrievalProvenance: _provenance, ...plain } = child;
+  const without = validateEvolutionReleaseArtifacts({ studyBytes: bytes(plain), manifestBytes: f.manifestBytes,
+    scopeBytes: bytes(makeEvolutionReleaseScope(bytes(plain), f.manifestBytes)) });
+  expect(() => rebindEvolutionReleaseContextPlan({ dataset: parent.projected, parent: parent.plan, authorization: without, shardId: "shard-001", retrievalSourceSha256: current })).toThrow("provenance");
+  expect(() => rebindEvolutionReleaseContextPlan({ dataset: parent.projected, parent: parent.plan, authorization, shardId: "shard-002", retrievalSourceSha256: current })).toThrow("shard");
+  expect(() => rebindEvolutionReleaseContextPlan({ dataset: parent.projected, parent: parent.plan, authorization, shardId: "shard-001", retrievalSourceSha256: h("other") })).toThrow("current retrieval source");
+  expect(() => rebindEvolutionReleaseContextPlan({ dataset: parent.projected, parent: parent.plan, authorization: f.authorization, shardId: "shard-001", retrievalSourceSha256: f.study.retrievalSourceSha256 })).toThrow();
+  const wrongParent = validateEvolutionReleaseArtifacts({ studyBytes: bytes({ ...child, retrievalProvenance: { ...provenance, parentStudySha256: h("other parent") } }), manifestBytes: f.manifestBytes,
+    scopeBytes: bytes(makeEvolutionReleaseScope(bytes({ ...child, retrievalProvenance: { ...provenance, parentStudySha256: h("other parent") } }), f.manifestBytes)) });
+  expect(() => rebindEvolutionReleaseContextPlan({ dataset: parent.projected, parent: parent.plan, authorization: wrongParent, shardId: "shard-001", retrievalSourceSha256: current })).toThrow("provenance");
+  const tampered = structuredClone(parent.plan) as any; tampered.basePlan.cases[0].result.context = "changed"; reseal(tampered.basePlan.cases[0].result, "resultSha256"); reseal(tampered.basePlan); reseal(tampered);
+  expect(() => rebindEvolutionReleaseContextPlan({ dataset: parent.projected, parent: tampered, authorization, shardId: "shard-001", retrievalSourceSha256: current })).toThrow();
+  const config = parseEvolutionRunConfig({ ...f.config, readers: [mini], campaignPin: child.campaignPin, studyPin: { ...f.config.studyPin, sha256: sha256Hex(childBytes) } }) as EvolutionReleaseRunConfig;
+  expect(config.readers).toEqual([mini]);
+  expect(parseEvolutionArgs(["rebind", "--config", "/a/c.json", "--config-sha256", h("c"), "--context", "/a/x.json", "--context-sha256", h("x")]).command).toBe("rebind");
+  expect(() => parseEvolutionArgs(["rebind", "--config", "/a/c.json", "--config-sha256", h("c")])).toThrow();
+});

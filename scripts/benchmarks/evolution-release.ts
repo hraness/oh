@@ -7,15 +7,22 @@ import { makeEvolutionEvaluationScope, validateEvolutionEvaluationScope, type Ev
 import { EVOLUTION_PROFILES } from "./evolution-model";
 import type { EvolutionRetrievalVariant } from "./evolution-retrieval";
 
-export const EVOLUTION_RELEASE_READER = "gpt5-nano-explicit-abstention-composition-v1-reader" as const;
+/** Readers admitted for a full-release study. The first is the original frozen nano candidate; later entries
+ * keep the same answer contract on a different model/effort and must be declared in the study before any score. */
+export const EVOLUTION_RELEASE_READERS = ["gpt5-nano-explicit-abstention-composition-v1-reader",
+  "gpt5-mini-explicit-abstention-composition-v1-reader", "gpt5-nano-high-explicit-abstention-composition-v1-reader"] as const;
+export type EvolutionReleaseReader = typeof EVOLUTION_RELEASE_READERS[number];
+export const EVOLUTION_RELEASE_READER: EvolutionReleaseReader = EVOLUTION_RELEASE_READERS[0];
+/** A rebound study reuses the exact retrieval contexts of an earlier study whose only differences are reader and campaign. */
+export type EvolutionReleaseRetrievalProvenance = Readonly<{ parentStudySha256: string; parentRetrievalSourceSha256: string }>;
 export const EVOLUTION_RELEASE_JUDGE = "gpt4o-gateway-native-rubric-16-judge-v1" as const;
 export const EVOLUTION_RELEASE_RUBRIC_SHA = "00d319ba0a194a69871576d8c677c1557d7706f69b599c9b7beee32441d58cfc";
 export type EvolutionReleaseStudy = Readonly<{
   protocol: "oh.memory.evolution-release-study.v1"; mode: "full-release-descriptive"; dataset: "longmemeval-s";
   datasetPin: EvolutionPin; manifestPin: EvolutionPin; campaignPin: EvolutionPin; retrievalSourceSha256: string;
-  variants: readonly EvolutionRetrievalVariant[]; reader: typeof EVOLUTION_RELEASE_READER; judge: typeof EVOLUTION_RELEASE_JUDGE;
+  variants: readonly EvolutionRetrievalVariant[]; reader: EvolutionReleaseReader; judge: typeof EVOLUTION_RELEASE_JUDGE;
   rubricSha256: typeof EVOLUTION_RELEASE_RUBRIC_SHA; candidatePresentation: "retrieval-order";
-  repeatPolicy: "predeclared-full-matrix-first-attempt";
+  repeatPolicy: "predeclared-full-matrix-first-attempt"; retrievalProvenance?: EvolutionReleaseRetrievalProvenance;
 }>;
 export type EvolutionReleaseAuthorization = Readonly<{ study: EvolutionReleaseStudy; studySha256: string;
   scope: EvolutionEvaluationScope; scopeFileSha256: string }>;
@@ -26,9 +33,11 @@ function decode(bytes: Uint8Array, maximum: number): unknown {
   return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
 }
 export function parseEvolutionReleaseStudy(value: unknown): EvolutionReleaseStudy {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "mode", "dataset", "datasetPin", "manifestPin", "campaignPin", "retrievalSourceSha256", "variants", "reader", "judge", "rubricSha256", "candidatePresentation", "repeatPolicy"])
+  const keys = ["protocol", "mode", "dataset", "datasetPin", "manifestPin", "campaignPin", "retrievalSourceSha256", "variants", "reader", "judge", "rubricSha256", "candidatePresentation", "repeatPolicy"];
+  const rebound = isPlainRecord(value) && Object.hasOwn(value, "retrievalProvenance");
+  if (!isPlainRecord(value) || !hasExactKeys(value, rebound ? [...keys, "retrievalProvenance"] : keys)
     || value.protocol !== "oh.memory.evolution-release-study.v1" || value.mode !== "full-release-descriptive" || value.dataset !== "longmemeval-s"
-    || value.reader !== EVOLUTION_RELEASE_READER || value.judge !== EVOLUTION_RELEASE_JUDGE || value.rubricSha256 !== EVOLUTION_RELEASE_RUBRIC_SHA
+    || !(EVOLUTION_RELEASE_READERS as readonly unknown[]).includes(value.reader) || value.judge !== EVOLUTION_RELEASE_JUDGE || value.rubricSha256 !== EVOLUTION_RELEASE_RUBRIC_SHA
     || value.candidatePresentation !== "retrieval-order" || value.repeatPolicy !== "predeclared-full-matrix-first-attempt"
     || parseSha256Hex(value.retrievalSourceSha256) === null || !Array.isArray(value.variants) || value.variants.length !== 2) fail("fixed descriptive study required");
   const variants = value.variants.map((v, i) => {
@@ -40,6 +49,11 @@ export function parseEvolutionReleaseStudy(value: unknown): EvolutionReleaseStud
   assertExactEvolutionCoverage(variants.map(v => v.id), variants.map(v => v.id));
   const datasetPin = evolutionPin(value.datasetPin), manifestPin = evolutionPin(value.manifestPin), campaignPin = evolutionPin(value.campaignPin);
   if (datasetPin.sha256 !== DATASETS["longmemeval-s"].sha256) fail("official dataset pin required");
+  if (rebound) {
+    const provenance = value.retrievalProvenance;
+    if (!isPlainRecord(provenance) || !hasExactKeys(provenance, ["parentStudySha256", "parentRetrievalSourceSha256"])
+      || parseSha256Hex(provenance.parentStudySha256) === null || parseSha256Hex(provenance.parentRetrievalSourceSha256) === null) fail("retrieval provenance requires parent study and retrieval source digests");
+  }
   return { ...value, datasetPin, manifestPin, campaignPin, variants } as unknown as EvolutionReleaseStudy;
 }
 function scopeInput(studyBytes: Uint8Array, manifestBytes: Uint8Array) {
