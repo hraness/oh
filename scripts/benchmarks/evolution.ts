@@ -16,32 +16,42 @@ import { EVOLUTION_PAID_QUEUE_V2_PROTOCOL, runLabPaidQueue, runLabPaidQueueV2 } 
 import { loadJudgeProfile } from "./judge";
 import { makeEvolutionJudgePlan, validateEvolutionJudgePlan, type EvolutionJudgePlan, type EvolutionJudgeProfileId } from "./evolution-judge";
 import { buildEvolutionReport } from "./evolution-report";
+import { EVOLUTION_COMPLETION_TREATMENTS, makeEvolutionCompletionPlan, parseEvolutionCompletionTreatment, projectEvolutionCompletionParents,
+  validateEvolutionCompletionPlan, type EvolutionCompletionTreatment } from "./evolution-completion-plan";
+import type { EvolutionRunnerInput } from "./evolution-dataset";
 
-export type EvolutionRunConfig = Readonly<{ protocol: "oh.memory.evolution-run.v1" | "oh.memory.evolution-run.v2" | "oh.memory.evolution-run.v3" | "oh.memory.evolution-run.v4"; dataset: "longmemeval-s" | "locomo";
+type EvolutionLegacyRunConfig = Readonly<{ protocol: "oh.memory.evolution-run.v1" | "oh.memory.evolution-run.v2" | "oh.memory.evolution-run.v3" | "oh.memory.evolution-run.v4"; dataset: "longmemeval-s" | "locomo";
   datasetPin: EvolutionPin; manifestPin: EvolutionPin; campaignPin: EvolutionPin; limit: number; seed: number;
   variants: readonly EvolutionTreatment[]; readers: readonly EvolutionProfileId[];
   judge: EvolutionJudgeProfileId; directory: string; storeDirectory: string;
   concurrency: number }>;
+export type EvolutionCompletionParentPins = Readonly<Record<"prefix" | "lexical" | "semantic", Readonly<{ pin: EvolutionPin; variantId: string }>>>;
+export type EvolutionCompletionRunConfig = Omit<EvolutionLegacyRunConfig, "protocol" | "variants"> & Readonly<{
+  protocol: "oh.memory.evolution-run.v5"; variants: readonly EvolutionCompletionTreatment[]; completionParents: EvolutionCompletionParentPins }>;
+export type EvolutionRunConfig = EvolutionLegacyRunConfig | EvolutionCompletionRunConfig;
 function fail(reason: string): never { throw new TypeError(`Evolution runner: ${reason}.`); }
 function positive(value: unknown, max: number): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value > 0 && value <= max; }
 function validConcurrency(value: unknown, protocol: unknown): value is number {
-  return protocol === "oh.memory.evolution-run.v4" ? value === 24 || value === 32 : positive(value, 12);
+  return protocol === "oh.memory.evolution-run.v4" || protocol === "oh.memory.evolution-run.v5" ? value === 24 || value === 32 : positive(value, 12);
 }
 function path(value: unknown): string {
   if (typeof value !== "string" || value.length > 4096 || value.includes("\0") || resolve(value) !== value) fail("absolute output path required");
   return value;
 }
 export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
+  const v5 = isPlainRecord(value) && value.protocol === "oh.memory.evolution-run.v5";
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "dataset", "datasetPin", "manifestPin", "campaignPin", "limit", "seed",
-    "variants", "readers", "judge", "directory", "storeDirectory", "concurrency"]) || !["oh.memory.evolution-run.v1", "oh.memory.evolution-run.v2", "oh.memory.evolution-run.v3", "oh.memory.evolution-run.v4"].includes(String(value.protocol))
+    "variants", "readers", "judge", "directory", "storeDirectory", "concurrency", ...(v5 ? ["completionParents"] : [])]) || !["oh.memory.evolution-run.v1", "oh.memory.evolution-run.v2", "oh.memory.evolution-run.v3", "oh.memory.evolution-run.v4", "oh.memory.evolution-run.v5"].includes(String(value.protocol))
     || !["longmemeval-s", "locomo"].includes(String(value.dataset)) || !positive(value.limit, 2000) || !positive(value.seed, 1_000_000)
     || !validConcurrency(value.concurrency, value.protocol) || !Array.isArray(value.variants) || value.variants.length < 1 || value.variants.length > 32
     || !Array.isArray(value.readers) || value.readers.length < 1 || value.readers.length > 8
     || !["gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1", "gpt4o-gateway-native-rubric-16-judge-v1"].includes(String(value.judge))) fail("invalid explicit configuration");
-  const variants = value.variants.map(parseEvolutionTreatment);
-  const v3 = variants.some(isEvolutionV3Treatment);
-  if (value.protocol !== "oh.memory.evolution-run.v4" && v3 !== (value.protocol === "oh.memory.evolution-run.v3")) fail("new fixed mechanisms and full history require explicit run V3");
-  if (value.protocol !== "oh.memory.evolution-run.v4" && !v3 && variants.some(v => !isEvolutionV3Treatment(v) && isEvolutionSpanVariant(v)) !== (value.protocol === "oh.memory.evolution-run.v2")) fail("span treatments require explicit run V2; native-only configurations remain V1");
+  const variants = v5 ? value.variants.map(parseEvolutionCompletionTreatment) : value.variants.map(parseEvolutionTreatment);
+  if (!v5) {
+    const legacy = variants as readonly EvolutionTreatment[], v3 = legacy.some(isEvolutionV3Treatment);
+    if (value.protocol !== "oh.memory.evolution-run.v4" && v3 !== (value.protocol === "oh.memory.evolution-run.v3")) fail("new fixed mechanisms and full history require explicit run V3");
+    if (value.protocol !== "oh.memory.evolution-run.v4" && !v3 && legacy.some(v => !isEvolutionV3Treatment(v) && isEvolutionSpanVariant(v)) !== (value.protocol === "oh.memory.evolution-run.v2")) fail("span treatments require explicit run V2; native-only configurations remain V1");
+  }
   const readers = value.readers.map((r: unknown) => {
     if (typeof r !== "string" || !r.endsWith("-reader") || !Object.hasOwn(EVOLUTION_PROFILES, r)) fail("invalid reader profile");
     return r as EvolutionProfileId;
@@ -53,8 +63,23 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   const directory = path(value.directory), storeDirectory = path(value.storeDirectory);
   if (directory === storeDirectory || directory.startsWith(storeDirectory + "/") || storeDirectory.startsWith(directory + "/")) fail("run and campaign store paths overlap");
   if (datasetPin.sha256 !== DATASETS[value.dataset as "longmemeval-s" | "locomo"].sha256) fail("dataset source does not match pinned official release");
+  let completionParents: EvolutionCompletionParentPins | undefined;
+  if (v5) {
+    if (value.limit > 100 || readers.length > 2 || canonicalSha256(variants) !== canonicalSha256(EVOLUTION_COMPLETION_TREATMENTS)
+      || !isPlainRecord(value.completionParents) || !hasExactKeys(value.completionParents, ["prefix", "lexical", "semantic"])) fail("V5 requires the bounded fixed completion pair and three parent pins");
+    const inputParents = value.completionParents;
+    const entries = (["prefix", "lexical", "semantic"] as const).map(role => {
+      const row = inputParents[role];
+      if (!isPlainRecord(row) || !hasExactKeys(row, ["pin", "variantId"]) || typeof row.variantId !== "string" || !/^[a-z0-9][a-z0-9:-]{0,99}$/.test(row.variantId)) fail("parent pin mapping");
+      const pin = evolutionPin(row.pin);
+      if ([directory, storeDirectory].some(root => pin.path === root || pin.path.startsWith(root + "/"))) fail("parent input overlaps mutable outputs");
+      return [role, { pin, variantId: row.variantId }] as const;
+    });
+    completionParents = Object.fromEntries(entries) as EvolutionCompletionParentPins;
+  }
   return { protocol: value.protocol as EvolutionRunConfig["protocol"], dataset: value.dataset as "longmemeval-s" | "locomo", datasetPin, manifestPin, campaignPin,
-    limit: value.limit, seed: value.seed, variants, readers, judge: value.judge as EvolutionRunConfig["judge"], directory, storeDirectory, concurrency: value.concurrency };
+    limit: value.limit, seed: value.seed, variants, readers, judge: value.judge as EvolutionRunConfig["judge"], directory, storeDirectory, concurrency: value.concurrency,
+    ...(completionParents === undefined ? {} : { completionParents }) } as EvolutionRunConfig;
 }
 async function json(pin: EvolutionPin, maximum = 128 * 1024 * 1024): Promise<unknown> {
   return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await readEvolutionPin(pin, maximum)));
@@ -70,10 +95,11 @@ async function selected(config: EvolutionRunConfig) {
     || manifest.dataset !== config.dataset) fail("manifest/source disagreement");
   return { dataset: selectQuestions(selectEvolutionPartition(dataset, manifest, "development"), config.limit, config.seed), manifest };
 }
-export const EVOLUTION_CONTEXT_SOURCE_FILES = ["scripts/benchmarks/evolution-retrieval.ts", "scripts/benchmarks/retrieval.ts",
+export const EVOLUTION_CONTEXT_SOURCE_FILES = ["scripts/benchmarks/evolution.ts", "scripts/benchmarks/evolution-retrieval.ts", "scripts/benchmarks/retrieval.ts",
   "scripts/benchmarks/evolution-dataset.ts", "scripts/benchmarks/evolution-plan.ts", "scripts/benchmarks/evolution-spans.ts",
   "scripts/benchmarks/evolution-variants.ts", "scripts/benchmarks/evolution-plan-v3.ts", "scripts/benchmarks/evolution-treatments-v3.ts",
-  "scripts/benchmarks/evolution-spans-prototype.ts", "scripts/benchmarks/evolution-full-history.ts", "package.json", "bun.lock"] as const;
+  "scripts/benchmarks/evolution-spans-prototype.ts", "scripts/benchmarks/evolution-full-history.ts", "scripts/benchmarks/evolution-completion.ts",
+  "scripts/benchmarks/evolution-completion-plan.ts", "package.json", "bun.lock"] as const;
 async function retrievalIdentity() {
   const source = await codeIdentity();
   const files = source.files.filter(f => f.path.startsWith("src/") || (EVOLUTION_CONTEXT_SOURCE_FILES as readonly string[]).includes(f.path));
@@ -81,7 +107,23 @@ async function retrievalIdentity() {
 }
 /** V4 versions queue capacity; its context wire version still follows the treatment. */
 export function validateEvolutionContextRunVersion(context: Pick<EvolutionAnyContextPlan, "protocol">, config: Pick<EvolutionRunConfig, "protocol">): void {
+  if (config.protocol === "oh.memory.evolution-run.v5" || context.protocol === "oh.memory.evolution-context-plan.v4") {
+    if (config.protocol !== "oh.memory.evolution-run.v5" || context.protocol !== "oh.memory.evolution-context-plan.v4") fail("completion contexts require explicit run V5");
+    return;
+  }
   if (config.protocol !== "oh.memory.evolution-run.v4" && context.protocol.slice(-2) !== config.protocol.slice(-2)) fail("context plan version differs from run configuration");
+}
+/** Read-only authentication of all original parents on every admission/report reload.
+ * This does not rebuild an index or accept a parent embedded only in the candidate. */
+export async function loadEvolutionCompletionParents(config: EvolutionCompletionRunConfig, dataset: EvolutionRunnerInput) {
+  const originals = new Map<string, unknown>();
+  const read = async (role: "prefix" | "lexical" | "semantic") => {
+    const binding = config.completionParents[role], key = canonicalSha256(binding.pin);
+    if (!originals.has(key)) originals.set(key, await json(binding.pin));
+    return { plan: originals.get(key), variantId: binding.variantId };
+  };
+  const prefix = await read("prefix"), lexical = await read("lexical"), semantic = await read("semantic");
+  return projectEvolutionCompletionParents({ prefix, lexical, semantic }, dataset, config.manifestPin.sha256);
 }
 async function contextFor(config: EvolutionRunConfig, selection?: Awaited<ReturnType<typeof selected>>) {
   const file = join(config.directory, "contexts.json"), stat = Bun.file(file);
@@ -93,13 +135,17 @@ async function contextFor(config: EvolutionRunConfig, selection?: Awaited<Return
     || context.inputSha256 !== canonicalSha256(projected)
     || canonicalSha256(context.questions) !== canonicalSha256(projected.questions)) fail("prepared context source/configuration/selection mismatch");
   validateEvolutionContextRunVersion(context, config);
-  validateEvolutionContextPlanSources(context, projected);
+  if (config.protocol === "oh.memory.evolution-run.v5") validateEvolutionCompletionPlan({ dataset: projected,
+    parents: await loadEvolutionCompletionParents(config, projected), manifestSha256: config.manifestPin.sha256, retrievalSourceSha256: context.retrievalSourceSha256 }, context);
+  else validateEvolutionContextPlanSources(context, projected);
   return context;
 }
 export async function prepareEvolution(configPin: EvolutionPin) {
   const config = await configInput(configPin), input = await selected(config), started = performance.now();
-  const context = await makeEvolutionExperimentContextPlan({ dataset: projectEvolutionRunnerInput(input.dataset), variants: config.variants,
-    manifestSha256: config.manifestPin.sha256, retrievalSourceSha256: await retrievalIdentity() });
+  const dataset = projectEvolutionRunnerInput(input.dataset), retrievalSourceSha256 = await retrievalIdentity();
+  const context = config.protocol === "oh.memory.evolution-run.v5" ? { plan: makeEvolutionCompletionPlan({ dataset,
+    parents: await loadEvolutionCompletionParents(config, dataset), manifestSha256: config.manifestPin.sha256, retrievalSourceSha256 }), timing: [] }
+    : await makeEvolutionExperimentContextPlan({ dataset, variants: config.variants, manifestSha256: config.manifestPin.sha256, retrievalSourceSha256 });
   await readEvolutionPin(configPin); await readEvolutionPin(config.manifestPin);
   if (Buffer.byteLength(JSON.stringify(context.plan, null, 2) + "\n") > 128 * 1024 * 1024) fail("context plan exceeds 128 MiB; reduce the explicit selection or treatments");
   const contextPath = join(config.directory, "contexts.json"); await writeJson(contextPath, context.plan);
@@ -178,7 +224,7 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
         responses.set(job.key, invoked.result); return { requestSha256: job.key, status: invoked.result.status };
       } };
     const jobs = pending.slice(0, input.maxNewCalls);
-    const execution = config.protocol === "oh.memory.evolution-run.v4"
+    const execution = config.protocol === "oh.memory.evolution-run.v4" || config.protocol === "oh.memory.evolution-run.v5"
       ? await runLabPaidQueueV2(jobs, { ...queueOptions, protocol: EVOLUTION_PAID_QUEUE_V2_PROTOCOL })
       : await runLabPaidQueue(jobs, queueOptions);
     // Only inspect unresolved attempts after every admitted job has drained; misses remain incomplete.
@@ -197,7 +243,7 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
     failures: requests.flatMap(r => { const failure = failures.get(r.requestSha256); return failure ? [failure] : []; }),
     complete: verified && responses.size + failures.size === requests.length && errors.length === 0 };
   const receipt = { ...result, source,
-    ...(config.protocol === "oh.memory.evolution-run.v4" ? { executionPolicy: { protocol: EVOLUTION_PAID_QUEUE_V2_PROTOCOL, concurrency: config.concurrency } } : {}),
+    ...(config.protocol === "oh.memory.evolution-run.v4" || config.protocol === "oh.memory.evolution-run.v5" ? { executionPolicy: { protocol: EVOLUTION_PAID_QUEUE_V2_PROTOCOL, concurrency: config.concurrency } } : {}),
     configPin: input.configPin, planPin: input.planPin, campaignSha256: authority.campaignSha256,
     admissionAttempts, errors, initialBudget: initial, budget, wallMs: performance.now() - started, interrupted: stopped, verified };
   try { await output.truncate(0); await output.write(JSON.stringify(receipt, null, 2) + "\n", 0, "utf8"); await output.sync(); }

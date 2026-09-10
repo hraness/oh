@@ -9,11 +9,14 @@ captured provider request.  Qdrant is local; persistence is an explicit parent o
 from __future__ import annotations
 
 import json
+import inspect
 import math
 import os
 import re
 import sys
 from pathlib import Path
+from datetime import date
+from functools import wraps
 from typing import Any, Literal, Optional
 
 BATCH_EMBEDDINGS = os.environ.get("MEM0_EMBEDDING_BATCH", "off")
@@ -44,6 +47,39 @@ class FrameFatal(BridgeError):
     """An EOF or oversized frame has no safe synchronization point to continue."""
 
 
+def _experiment_date(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    if not isinstance(value, str) or re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value) is None:
+        raise BridgeError("experiment date must be a valid YYYY-MM-DD calendar date")
+    try:
+        if date.fromisoformat(value).isoformat() != value:
+            raise ValueError("noncanonical date")
+    except ValueError as error:
+        raise BridgeError("experiment date must be a valid YYYY-MM-DD calendar date") from error
+    return value
+
+
+def _bind_experiment_date(original: Any, experiment_date: Optional[str]) -> Any:
+    """Bind only the SDK prompt's default dates; explicit dates pass through."""
+    selected = _experiment_date(experiment_date)
+    if selected is None:
+        return original
+    parameters = inspect.signature(original).parameters
+    for name in ("current_date", "timestamp"):
+        parameter = parameters.get(name)
+        if parameter is None or parameter.kind != inspect.Parameter.KEYWORD_ONLY or parameter.default is not None:
+            raise BridgeError("unsupported Mem0 extraction date seam")
+
+    @wraps(original)
+    def bound(*args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("current_date") is None:
+            kwargs["current_date"] = selected
+        return original(*args, **kwargs)
+
+    return bound
+
+
 def _bootstrap_environment() -> None:
     # This must run before importing any Mem0 module: pinned Mem0 creates its
     # telemetry object during import and defaults telemetry to enabled.
@@ -57,6 +93,7 @@ def _bootstrap_environment() -> None:
 
 
 _bootstrap_environment()
+EXPERIMENT_DATE = _experiment_date(os.environ.get("MEM0_EXPERIMENT_DATE"))
 VECTOR_DIMENSIONS = _vector_dimensions()
 VECTOR_PERSISTENCE = os.environ.get("MEM0_VECTOR_PERSISTENCE", "memory")
 if VECTOR_PERSISTENCE not in {"memory", "local"}:
@@ -69,6 +106,15 @@ from mem0.configs.llms.base import BaseLlmConfig
 from mem0.embeddings.base import EmbeddingBase
 from mem0.llms.base import LLMBase
 from mem0.utils.factory import EmbedderFactory, LlmFactory
+
+if EXPERIMENT_DATE is not None:
+    # Mem0 2.0.20 imports this callable into memory.main. Its sync and async
+    # extraction paths use the same keyword date seam. Do not patch datetime,
+    # the installed SDK files, supplied timestamps, or captured message bytes.
+    import mem0.memory.main as memory_main
+    memory_main.generate_additive_extraction_prompt = _bind_experiment_date(
+        memory_main.generate_additive_extraction_prompt, EXPERIMENT_DATE
+    )
 
 
 def _exact(value: Any, keys: set[str], label: str) -> dict[str, Any]:
