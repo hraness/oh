@@ -20,7 +20,7 @@ export function parseEvolutionExperimentVariant(value: unknown): EvolutionExperi
     || !EVOLUTION_EXPERIMENT_SYSTEMS.includes(value.system as EvolutionExperimentSystem)
     || !isPlainRecord(value.budget) || !hasExactKeys(value.budget, ["topK", "contextBytes"])) return fail();
   const { topK, contextBytes } = value.budget;
-  if (typeof topK !== "number" || !Number.isSafeInteger(topK) || topK < 1 || topK > 100
+  if (typeof topK !== "number" || !Number.isSafeInteger(topK) || topK < 1 || topK > 400
     || typeof contextBytes !== "number" || !Number.isSafeInteger(contextBytes) || contextBytes < 1 || contextBytes > 1_000_000
     || !evolutionGenomeCompatible({ system: value.system as EvolutionExperimentSystem, topK, contextBytes })) return fail();
   return value.system === "oh-source-spans"
