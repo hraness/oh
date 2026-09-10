@@ -69,7 +69,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/ui": "github:hraness/ui#v0.4.10"',
+      '"@hraness/ui": "github:hraness/ui#v0.5.13"',
     );
     expect(home).toContain('import { AskAiAboutThis } from "@hraness/ui"');
     expect(home).toContain(
@@ -89,7 +89,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.4.0"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.6.3"',
     );
     expect(globals).toContain('@import "@hraness/design-kit/fonts.css"');
     expect(globals).toContain('@import "@hraness/design-kit/product-marketing.css"');
