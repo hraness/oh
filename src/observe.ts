@@ -38,6 +38,7 @@ export const OH_OBSERVATION_LIMITS_V1 = Object.freeze({
   speakerBytes: 64,
   statedAtBytes: 256,
   supersessionCandidates: 100,
+  supersessionChain: 8_192,
   textBytes: 1024,
   turnTextBytes: 512 * 1024,
   valueBytes: 8 * 1024,
@@ -105,6 +106,8 @@ export type OhObservationValueV1 = Readonly<{
 }>;
 
 export type OhObservationActivityValueV1 = Readonly<{
+  /** Observation keys of this session whose supersession candidate set hit the lookup bound. */
+  candidatesTruncated: readonly string[];
   format: typeof OH_OBSERVATION_ACTIVITY_FORMAT_V1;
   instructionSha256: Sha256Hex;
   modelId: string;
@@ -186,6 +189,7 @@ export type OhObservationParseResultV1 =
 
 export type OhObserveResultV1 = Readonly<{
   activityKey: string;
+  candidatesTruncated: readonly string[];
   instructionSha256: Sha256Hex;
   observationKeys: readonly string[];
   operation: OhOperationV1 | null;
@@ -304,8 +308,8 @@ export function parseOhObservationValueV1(value: unknown): OhObservationValueV1 
 }
 
 export function parseOhObservationActivityValueV1(value: unknown): OhObservationActivityValueV1 | null {
-  const record = exactDataRecord(value, ["format", "instructionSha256", "modelId", "observationCount", "observedAt",
-    "promptSha256", "responseSha256", "sessionIndex", "sessionSha256", "sources", "v"]);
+  const record = exactDataRecord(value, ["candidatesTruncated", "format", "instructionSha256", "modelId", "observationCount",
+    "observedAt", "promptSha256", "responseSha256", "sessionIndex", "sessionSha256", "sources", "v"]);
   if (record === null || record.format !== OH_OBSERVATION_ACTIVITY_FORMAT_V1 || record.v !== 1) return null;
   const instructionSha256 = parseSha256Hex(record.instructionSha256);
   const modelId = singleLineText(record.modelId, 256);
@@ -322,8 +326,18 @@ export function parseOhObservationActivityValueV1(value: unknown): OhObservation
     || count > OH_OBSERVATION_LIMITS_V1.observationsPerSession
     || (sessionIndex !== null && (typeof sessionIndex !== "number" || !Number.isSafeInteger(sessionIndex)
       || sessionIndex < 0))) return null;
-  return { format: OH_OBSERVATION_ACTIVITY_FORMAT_V1, instructionSha256, modelId, observationCount: count,
-    observedAt, promptSha256, responseSha256, sessionIndex: sessionIndex as number | null, sessionSha256, sources, v: 1 };
+  // Truncation flags name this session's own observation keys, in ascending index order.
+  const truncated = exactDataArray(record.candidatesTruncated, count);
+  if (truncated === null) return null;
+  let previousIndex = -1;
+  for (const key of truncated) {
+    const index = ohObservationIndexV1(key, sessionSha256);
+    if (index === null || index <= previousIndex || index >= count) return null;
+    previousIndex = index;
+  }
+  return { candidatesTruncated: truncated as readonly string[], format: OH_OBSERVATION_ACTIVITY_FORMAT_V1, instructionSha256,
+    modelId, observationCount: count, observedAt, promptSha256, responseSha256, sessionIndex: sessionIndex as number | null,
+    sessionSha256, sources, v: 1 };
 }
 
 export function parseOhObservationRecordV1(value: unknown): OhObservationRecordV1 | null {
@@ -337,7 +351,13 @@ export function parseOhObservationRecordV1(value: unknown): OhObservationRecordV
   return { ...record, kind: "edition", value: parsed };
 }
 
-/** Register this only where `edition` is reserved for the observation profile. */
+/**
+ * Register this only in a store whose `edition` kind is reserved for the
+ * observation profile. A codec registry keeps one parser per kind, so in any
+ * store that also holds turn records (or other `edition` values) registering
+ * this codec makes `parseRequired("edition", turnValue)` return `null` and
+ * those turns fail to parse. The library never registers it by default.
+ */
 export const OH_OBSERVATION_RECORD_CODEC_V1: OhRecordCodec = Object.freeze({
   kind: "edition" as const,
   parse(value: unknown): JsonValue | null {
@@ -392,6 +412,16 @@ export function ohObservationKeyV1(sessionSha256: Sha256Hex, index: number): str
     throw new RangeError("Observation index out of range.");
   }
   return `${OH_OBSERVATION_KEY_PREFIX_V1}${sessionSha256}-${index.toString().padStart(3, "0")}`;
+}
+
+/** Reads the response index back out of one of the session's observation keys, or `null` for any other value. */
+export function ohObservationIndexV1(key: unknown, sessionSha256: Sha256Hex): number | null {
+  const prefix = `${OH_OBSERVATION_KEY_PREFIX_V1}${sessionSha256}-`;
+  if (typeof key !== "string" || key.length !== prefix.length + 3 || !key.startsWith(prefix)) return null;
+  const digits = key.slice(prefix.length);
+  if (!/^\d{3}$/u.test(digits)) return null;
+  const index = Number(digits);
+  return index < OH_OBSERVATION_LIMITS_V1.observationsPerSession ? index : null;
 }
 
 export function ohObservationActivityKeyV1(sessionSha256: Sha256Hex): string {
@@ -516,20 +546,54 @@ export function parseOhObservationStatedAtInstantV1(statedAt: string): number | 
   return Date.parse(`${date}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00.000Z`);
 }
 
-type SupersessionCandidate = Readonly<{ key: string; order: readonly [number, string, string]; value: OhObservationValueV1 }>;
+/** Session order of an observation: its receipt's session index, then the receipt instant, then the key. */
+export type OhObservationOrderV1 = readonly [sessionIndex: number, instant: string, key: string];
 
-function observationOrder(store: OhObserveStoreV1, key: string): readonly [number, string, string] {
+type SupersessionCandidate = Readonly<{ key: string; order: OhObservationOrderV1; value: OhObservationValueV1 }>;
+
+function observationOrder(store: OhObserveStoreV1, key: string): OhObservationOrderV1 {
   const sessionSha256 = key.slice(OH_OBSERVATION_KEY_PREFIX_V1.length, OH_OBSERVATION_KEY_PREFIX_V1.length + 64);
   const activity = store.get(ohObservationActivityKeyV1(sessionSha256 as Sha256Hex));
   const parsed = activity === null ? null : parseOhObservationActivityValueV1(activity.value);
   return [parsed?.sessionIndex ?? -1, parsed?.observedAt ?? "", key];
 }
 
-function laterOrder(left: readonly [number, string, string], right: readonly [number, string, string]): boolean {
+function laterOrder(left: OhObservationOrderV1, right: OhObservationOrderV1): boolean {
   for (const index of [0, 1, 2] as const) {
     if (left[index] !== right[index]) return left[index] > right[index];
   }
   return false;
+}
+
+/** Strictly later session position (index, then instant); the key tiebreak never makes a conflict. */
+function laterSession(left: OhObservationOrderV1, right: OhObservationOrderV1): boolean {
+  return left[0] !== right[0] ? left[0] > right[0] : left[1] > right[1];
+}
+
+/**
+ * True when following `supersedes` links from `start` reaches an excluded
+ * key. A chain that loops or exceeds the chain bound counts as reaching, so a
+ * damaged chain is never extended. Visited keys are memoised across candidates.
+ */
+function reachesExcluded(store: OhObserveStoreV1, start: string | null, exclude: ReadonlySet<string>,
+  memo: Map<string, boolean>): boolean {
+  const path: string[] = [];
+  const onPath = new Set<string>();
+  let key = start;
+  let reaches = false;
+  while (key !== null) {
+    if (exclude.has(key)) { reaches = true; break; }
+    const known = memo.get(key);
+    if (known !== undefined) { reaches = known; break; }
+    if (onPath.has(key) || path.length >= OH_OBSERVATION_LIMITS_V1.supersessionChain) { reaches = true; break; }
+    path.push(key);
+    onPath.add(key);
+    const record = store.get(key);
+    const value = record === null ? null : parseOhObservationValueV1(record.value);
+    key = value === null ? null : value.supersedes;
+  }
+  for (const visited of path) memo.set(visited, reaches);
+  return reaches;
 }
 
 export type OhSupersessionLinkV1 = Readonly<{
@@ -538,18 +602,36 @@ export type OhSupersessionLinkV1 = Readonly<{
   supersedes: string | null;
 }>;
 
+/** What the resolver knows about the observation being linked; `order` is its own session position when known. */
+export type OhSupersessionDraftV1 = Readonly<{
+  facet: string | null;
+  order?: OhObservationOrderV1;
+  speaker: string;
+  statedAt: string;
+}>;
+
+const NO_SUPERSESSION_LINK: OhSupersessionLinkV1 = Object.freeze({ candidatesTruncated: false, orderingConflict: false, supersedes: null });
+
 /**
  * Finds the latest current observation with the same facet and speaker. The
  * keyword lane is queried with the phrase `facet-<facet>-format`, which only an
  * observation value renders adjacently, then filtered by the parsed profile.
- * Session order is the activity's session index, then its instant; when the
- * predecessor's statement time is later than the new one's, the link carries
- * `orderingConflict` and rendering keeps both dates. Nothing here picks a value.
+ * Candidates in `exclude`, and candidates whose own supersession chain leads
+ * to an excluded key, are skipped so that re-linking a record can never close
+ * a cycle. The head is the latest candidate in session order (the receipt's
+ * session index, then its instant, then the key). The link carries
+ * `orderingConflict` when the head sits strictly later in session order than
+ * the draft's own `order`, or when both statement stamps parse and the head's
+ * is later; rendering then keeps both dates. Nothing here picks a value.
+ * `candidatesTruncated` reports that the keyword lookup hit its bound, in
+ * which case the true head may lie outside the examined set.
  */
-export function resolveOhSupersessionV1(store: OhObserveStoreV1, draft: Readonly<{ facet: string | null; speaker: string;
-  statedAt: string }>, exclude: ReadonlySet<string> = new Set()): OhSupersessionLinkV1 {
-  if (draft.facet === null) return { candidatesTruncated: false, orderingConflict: false, supersedes: null };
+export function resolveOhSupersessionV1(store: OhObserveStoreV1, draft: OhSupersessionDraftV1,
+  exclude: ReadonlySet<string> = new Set()): OhSupersessionLinkV1 {
+  if (draft.facet === null) return NO_SUPERSESSION_LINK;
   const hits = store.searchKeyword(`facet-${draft.facet}-format`, OH_OBSERVATION_LIMITS_V1.supersessionCandidates);
+  const candidatesTruncated = hits.length >= OH_OBSERVATION_LIMITS_V1.supersessionCandidates;
+  const memo = new Map<string, boolean>();
   const candidates: SupersessionCandidate[] = [];
   for (const hit of hits) {
     if (!hit.key.startsWith(OH_OBSERVATION_KEY_PREFIX_V1) || exclude.has(hit.key)) continue;
@@ -557,6 +639,7 @@ export function resolveOhSupersessionV1(store: OhObserveStoreV1, draft: Readonly
     if (record === null || record.recordSha256 !== hit.recordSha256) continue;
     const value = parseOhObservationValueV1(record.value);
     if (value === null || value.facet !== draft.facet || value.speaker !== draft.speaker) continue;
+    if (reachesExcluded(store, value.supersedes, exclude, memo)) continue;
     candidates.push({ key: hit.key, order: observationOrder(store, hit.key), value });
   }
   const superseded = new Set(candidates.flatMap((candidate) => candidate.value.supersedes === null ? [] : [candidate.value.supersedes]));
@@ -565,11 +648,11 @@ export function resolveOhSupersessionV1(store: OhObserveStoreV1, draft: Readonly
     if (superseded.has(candidate.key)) continue;
     if (head === null || laterOrder(candidate.order, head.order)) head = candidate;
   }
-  const candidatesTruncated = hits.length >= OH_OBSERVATION_LIMITS_V1.supersessionCandidates;
   if (head === null) return { candidatesTruncated, orderingConflict: false, supersedes: null };
   const prior = parseOhObservationStatedAtInstantV1(head.value.statedAt);
   const current = parseOhObservationStatedAtInstantV1(draft.statedAt);
-  const orderingConflict = prior !== null && current !== null && prior > current;
+  const sessionConflict = draft.order !== undefined && laterSession(head.order, draft.order);
+  const orderingConflict = sessionConflict || (prior !== null && current !== null && prior > current);
   return { candidatesTruncated, orderingConflict, supersedes: head.key };
 }
 
@@ -621,7 +704,7 @@ export async function observeOhV1(input: OhObserveInputV1): Promise<OhObserveRes
   if (existing !== null) {
     const activity = parseOhObservationActivityValueV1(existing.value);
     if (activity === null) throw new TypeError("An unrelated record occupies the observation receipt key.");
-    return { activityKey, instructionSha256: activity.instructionSha256,
+    return { activityKey, candidatesTruncated: activity.candidatesTruncated, instructionSha256: activity.instructionSha256,
       observationKeys: Array.from({ length: activity.observationCount }, (_, index) => ohObservationKeyV1(session.sessionSha256, index)),
       operation: null, responseSha256: activity.responseSha256, sessionSha256: session.sessionSha256, status: "existing" };
   }
@@ -633,21 +716,17 @@ export async function observeOhV1(input: OhObserveInputV1): Promise<OhObserveRes
     return { index: parsed.index, rejection: parsed.rejection, responseSha256, sessionSha256: session.sessionSha256, status: "rejected" };
   }
   const sessionSources = session.turns.map((turn): OhObservationSourceV1 => ({ key: turn.key, recordSha256: turn.recordSha256, v: 1 }));
-  const activityValue: OhObservationActivityValueV1 = { format: OH_OBSERVATION_ACTIVITY_FORMAT_V1,
-    instructionSha256: prompt.instructionSha256, modelId, observationCount: parsed.observations.length, observedAt: instant,
-    promptSha256: prompt.promptSha256, responseSha256, sessionIndex: session.sessionIndex, sessionSha256: session.sessionSha256,
-    sources: [...sessionSources].sort((left, right) => left.key < right.key ? -1 : 1), v: 1 };
-  if (parseOhObservationActivityValueV1(activityValue) === null) throw new TypeError("Invalid observation receipt.");
-  const activity = createKnowledgeGraphRecordV1({ dependencies: sortedDependencies(sessionSources.map((source) => source.key)),
-    key: activityKey, kind: "activity", v: 1, value: activityValue as unknown as JsonValue });
-  const changes: KnowledgeGraphChangeV1[] = [{ kind: "put", record: activity, v: 1 }];
+  // The draft's own session position: this receipt's index and instant. The key element is unused for the conflict rule.
+  const draftOrder: OhObservationOrderV1 = [session.sessionIndex ?? -1, instant, ""];
+  const observationChanges: KnowledgeGraphChangeV1[] = [];
   const observationKeys: string[] = [];
+  const candidatesTruncated: string[] = [];
   const pending = new Map<string, OhObservationValueV1>();
   for (const [index, draft] of parsed.observations.entries()) {
     const key = ohObservationKeyV1(session.sessionSha256, index);
-    let link: OhSupersessionLinkV1 = { candidatesTruncated: false, orderingConflict: false, supersedes: null };
+    let link: OhSupersessionLinkV1 = NO_SUPERSESSION_LINK;
     if (input.supersession === true) {
-      link = resolveOhSupersessionV1(input.store, { facet: draft.facet, speaker: draft.speaker, statedAt: session.date });
+      link = resolveOhSupersessionV1(input.store, { facet: draft.facet, order: draftOrder, speaker: draft.speaker, statedAt: session.date });
       // Observations of the same session chain in response order ahead of the store's head.
       for (const [priorKey, prior] of pending) {
         if (prior.facet !== null && prior.facet === draft.facet && prior.speaker === draft.speaker) {
@@ -655,19 +734,28 @@ export async function observeOhV1(input: OhObserveInputV1): Promise<OhObserveRes
         }
       }
     }
+    if (link.candidatesTruncated) candidatesTruncated.push(key);
     const value: OhObservationValueV1 = { eventAt: draft.eventAt, facet: draft.facet, format: OH_OBSERVATION_FORMAT_V1,
       kind: draft.kind, orderingConflict: link.orderingConflict, resolvedFrom: draft.resolvedFrom, sources: draft.sources,
       speaker: draft.speaker, statedAt: session.date, supersedes: link.supersedes, text: draft.text, v: 1 };
     if (parseOhObservationValueV1(value) === null) throw new TypeError("Invalid observation value.");
     pending.set(key, value);
-    changes.push({ kind: "put", record: observationRecord(key, activityKey, value), v: 1 });
+    observationChanges.push({ kind: "put", record: observationRecord(key, activityKey, value), v: 1 });
     observationKeys.push(key);
   }
+  const activityValue: OhObservationActivityValueV1 = { candidatesTruncated, format: OH_OBSERVATION_ACTIVITY_FORMAT_V1,
+    instructionSha256: prompt.instructionSha256, modelId, observationCount: parsed.observations.length, observedAt: instant,
+    promptSha256: prompt.promptSha256, responseSha256, sessionIndex: session.sessionIndex, sessionSha256: session.sessionSha256,
+    sources: [...sessionSources].sort((left, right) => left.key < right.key ? -1 : 1), v: 1 };
+  if (parseOhObservationActivityValueV1(activityValue) === null) throw new TypeError("Invalid observation receipt.");
+  const activity = createKnowledgeGraphRecordV1({ dependencies: sortedDependencies(sessionSources.map((source) => source.key)),
+    key: activityKey, kind: "activity", v: 1, value: activityValue as unknown as JsonValue });
+  const changes: KnowledgeGraphChangeV1[] = [{ kind: "put", record: activity, v: 1 }, ...observationChanges];
   assertCurrentSources(input.store, sessionSources);
   const head = input.store.head();
   const operation = input.store.commit({ actorId, changes, expectedHead: { generation: head.generation,
     operationSha256: head.operationSha256 }, instant, operationId: input.operationId ?? `observe-${session.sessionSha256}` });
-  return { activityKey, instructionSha256: prompt.instructionSha256, observationKeys, operation, responseSha256,
+  return { activityKey, candidatesTruncated, instructionSha256: prompt.instructionSha256, observationKeys, operation, responseSha256,
     sessionSha256: session.sessionSha256, status: "committed" };
 }
 
@@ -685,10 +773,12 @@ export type OhSupersessionPolicyResultV1 = Readonly<{
 }>;
 
 /**
- * Links already committed observations (in the given order) to their latest
- * current predecessor with the same facet and speaker, re-putting only records
- * whose link changed. Declared product rule: a conflict between session order
- * and statement timestamps is recorded, never resolved by picking a value.
+ * Links already committed observations (in the given order) to the current
+ * chain head with the same facet and speaker, re-putting only records whose
+ * link changed. Re-running it is safe: a record's own successors are never
+ * candidates for it, so an existing chain is left as it is. Declared product
+ * rule: a conflict between session order and statement timestamps is
+ * recorded, never resolved by picking a value.
  */
 export function applySupersessionPolicyV1(input: OhSupersessionPolicyInputV1): OhSupersessionPolicyResultV1 {
   const actorId = safeCode(input.actorId);
@@ -704,7 +794,8 @@ export function applySupersessionPolicyV1(input: OhSupersessionPolicyInputV1): O
     const parsed = record === null ? null : parseOhObservationRecordV1(record);
     if (parsed === null) throw new TypeError(`Not a current observation record: ${key}`);
     const value = parsed.value;
-    let link = resolveOhSupersessionV1(input.store, value, exclude);
+    let link = resolveOhSupersessionV1(input.store, { facet: value.facet, order: observationOrder(input.store, key),
+      speaker: value.speaker, statedAt: value.statedAt }, exclude);
     for (const [priorKey, prior] of pending) {
       if (prior.facet !== null && prior.facet === value.facet && prior.speaker === value.speaker) {
         link = { ...link, orderingConflict: false, supersedes: priorKey };
@@ -775,7 +866,9 @@ export function renderOhObservationContextV1(input: OhObservationRenderInputV1):
     if (record.value.supersedes !== null && !successors.has(record.value.supersedes)) successors.set(record.value.supersedes, record);
   }
   const blocks: string[] = [];
-  if (isOhRecommendationQueryV1(input.query)) {
+  // The router is evaluated once per render and must be applied identically to every retrieval arm.
+  const recommend = isOhRecommendationQueryV1(input.query);
+  if (recommend) {
     const preferences = observations.filter((record) => record.value.kind === "preference");
     if (preferences.length > 0) {
       const topics = [...new Set(preferences.flatMap((record) => record.value.facet === null ? [] : [record.value.facet]))];
@@ -783,7 +876,7 @@ export function renderOhObservationContextV1(input: OhObservationRenderInputV1):
         ...preferences.map((record) => renderObservationLine(record, successors))].join("\n"));
     }
   }
-  const remaining = observations.filter((record) => !(isOhRecommendationQueryV1(input.query) && record.value.kind === "preference"));
+  const remaining = observations.filter((record) => !(recommend && record.value.kind === "preference"));
   if (remaining.length > 0) blocks.push(remaining.map((record) => renderObservationLine(record, successors)).join("\n"));
   for (const turn of input.turns) {
     if (typeof turn !== "string") throw new TypeError("Rendered turns must be strings.");

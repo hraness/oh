@@ -61,6 +61,21 @@ function openStore(): { keys: Record<"one" | "two" | "three", string[]>; store: 
   return { keys: { one: one.map((r) => r.key), two: two.map((r) => r.key), three: three.map((r) => r.key) }, store };
 }
 
+function openStoreWith<Name extends string>(sessions: Readonly<Record<Name, readonly Turn[]>>):
+  { keys: Record<Name, string[]>; store: OhSqliteStore } {
+  const store = new OhSqliteStore({ path: ":memory:", spaceId: "observe" });
+  const keys = {} as Record<Name, string[]>;
+  const records: KnowledgeGraphRecordV1[] = [];
+  for (const name of Object.keys(sessions) as Name[]) {
+    const batch = turnRecords(sessions[name], records.length);
+    keys[name] = batch.map((record) => record.key);
+    records.push(...batch);
+  }
+  store.commit({ actorId: "agent.test", changes: records.map((record) => ({ kind: "put" as const, record, v: 1 as const })),
+    expectedHead: store.head(), instant: "2026-04-01T00:00:00.000Z", operationId: "op_turns" });
+  return { keys, store };
+}
+
 const responseOne = JSON.stringify({ observations: [
   { text: "user started a pottery class at Kiln House.", speaker: "user", kind: "event", eventAt: "2026-02-21",
     resolvedFrom: "three weeks ago", facet: "pottery-class-start", sources: ["t0"] },
@@ -242,9 +257,21 @@ describe("observeOhV1", () => {
     expect(parseOhObservationRecordV1(store.get(result.observationKeys[0]!))!.value.eventAt).toBe("2026-02-21");
     const again = await observeOhV1({ actorId: "agent.observe", instant: "2026-04-03T00:00:00.000Z", observer: stub,
       sessionRecordKeys: keys.one, store });
-    expect(again).toEqual({ activityKey: result.activityKey, instructionSha256: OH_OBSERVATION_INSTRUCTION_SHA256_V1,
+    expect(result.candidatesTruncated).toEqual([]);
+    expect(receipt.candidatesTruncated).toEqual([]);
+    expect(again).toEqual({ activityKey: result.activityKey, candidatesTruncated: [], instructionSha256: OH_OBSERVATION_INSTRUCTION_SHA256_V1,
       observationKeys: result.observationKeys, operation: null, responseSha256: sha256Hex(responseOne),
       sessionSha256: result.sessionSha256, status: "existing" });
+    // The receipt's truncation flags may only name this session's own keys, ascending, below the count.
+    const own = (index: number) => ohObservationKeyV1(result.sessionSha256, index);
+    expect(parseOhObservationActivityValueV1({ ...receipt, candidatesTruncated: [own(1), own(3)] })).not.toBeNull();
+    expect(parseOhObservationActivityValueV1({ ...receipt, candidatesTruncated: [own(3), own(1)] })).toBeNull();
+    expect(parseOhObservationActivityValueV1({ ...receipt, candidatesTruncated: [own(1), own(1)] })).toBeNull();
+    expect(parseOhObservationActivityValueV1({ ...receipt, candidatesTruncated: [own(4)] })).toBeNull();
+    expect(parseOhObservationActivityValueV1({ ...receipt, candidatesTruncated: [ohObservationKeyV1("b".repeat(64) as never, 0)] })).toBeNull();
+    expect(parseOhObservationActivityValueV1({ ...receipt, candidatesTruncated: "none" })).toBeNull();
+    const { candidatesTruncated: _dropped, ...withoutFlags } = receipt;
+    expect(parseOhObservationActivityValueV1(withoutFlags)).toBeNull();
     expect(stub.calls).toHaveLength(1);
     expect(store.head().sequence).toBe(2);
     store.close();
@@ -312,6 +339,114 @@ describe("observeOhV1", () => {
       observationKeys: second.observationKeys, store }).operation).toBeNull();
     expect(() => applySupersessionPolicyV1({ actorId: "agent.policy", instant: "2026-04-02T00:00:03.000Z",
       observationKeys: [keys.one[0]!], store })).toThrow("Not a current observation record");
+    store.close();
+  });
+
+  test("re-applying the policy to a chain's predecessor never closes a cycle", async () => {
+    const { keys, store } = openStore();
+    const stub = observer({ "2026/03/14 (Sat) 10:15": responseOne, "2026/03/28 (Sat) 09:00": responseTwo,
+      "2026/03/21 (Sat) 18:30": responseThree });
+    const common = { actorId: "agent.observe", observer: stub, store, supersession: true } as const;
+    const first = await observeOhV1({ ...common, instant: "2026-04-02T00:00:00.000Z", sessionRecordKeys: keys.one });
+    const second = await observeOhV1({ ...common, instant: "2026-04-02T00:00:01.000Z", sessionRecordKeys: keys.two });
+    const third = await observeOhV1({ ...common, instant: "2026-04-02T00:00:02.000Z", sessionRecordKeys: keys.three });
+    if (first.status !== "committed" || second.status !== "committed" || third.status !== "committed") throw new Error("commit");
+    const frequencyOne = first.observationKeys[1]!, frequencyTwo = second.observationKeys[0]!, frequencyThree = third.observationKeys[0]!;
+    const sequence = store.head().sequence;
+    // The chain is three <- two <- one. Re-linking its root or its middle sees only records outside its own successors.
+    for (const observationKeys of [[frequencyOne], [frequencyTwo], [frequencyOne, frequencyTwo], first.observationKeys]) {
+      const applied = applySupersessionPolicyV1({ actorId: "agent.policy", instant: "2026-04-02T00:00:03.000Z", observationKeys, store });
+      expect(applied.operation).toBeNull();
+      expect(applied.links.find((link) => link.key === frequencyOne)?.supersedes ?? null).toBeNull();
+    }
+    expect(store.head().sequence).toBe(sequence);
+    expect(parseOhObservationRecordV1(store.get(frequencyOne))!.value.supersedes).toBeNull();
+    expect(parseOhObservationRecordV1(store.get(frequencyTwo))!.value.supersedes).toBe(frequencyOne);
+    expect(parseOhObservationRecordV1(store.get(frequencyThree))!.value).toMatchObject({ orderingConflict: true, supersedes: frequencyTwo });
+    // A fresh draft still finds the chain head, and the head's own re-link is a no-op.
+    expect(resolveOhSupersessionV1(store, { facet: "pottery-frequency", speaker: "user", statedAt: "2026/04/01 (Wed) 08:00" }))
+      .toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: frequencyThree });
+    expect(applySupersessionPolicyV1({ actorId: "agent.policy", instant: "2026-04-02T00:00:04.000Z",
+      observationKeys: [frequencyThree], store }).operation).toBeNull();
+    store.close();
+  });
+
+  test("falls back to session order when statement stamps do not parse", async () => {
+    const later: readonly Turn[] = [{ id: "l:0", sessionId: "l", sessionIndex: 5, date: "March 28 2026", speaker: "user",
+      text: "Pottery update: I now go three times a week instead of twice." }];
+    const earlier: readonly Turn[] = [{ id: "e:0", sessionId: "e", sessionIndex: 2, date: "March 14 2026", speaker: "user",
+      text: "I go to pottery class twice a week." }];
+    const { keys, store } = openStoreWith({ earlier, later });
+    const stub = observer({ "March 28 2026": responseTwo, "March 14 2026": JSON.stringify({ observations: [
+      { text: "user goes to pottery class twice a week.", speaker: "user", kind: "fact", eventAt: null, resolvedFrom: null,
+        facet: "pottery-frequency", sources: ["t0"] }] }) });
+    const common = { actorId: "agent.observe", observer: stub, store, supersession: true } as const;
+    // The later session (index 5) is observed first; the earlier session (index 2) arrives afterwards.
+    const laterResult = await observeOhV1({ ...common, instant: "2026-04-02T00:00:00.000Z", sessionRecordKeys: keys.later });
+    const earlierResult = await observeOhV1({ ...common, instant: "2026-04-02T00:00:01.000Z", sessionRecordKeys: keys.earlier });
+    if (laterResult.status !== "committed" || earlierResult.status !== "committed") throw new Error("commit");
+    expect(parseOhObservationStatedAtInstantV1("March 28 2026")).toBeNull();
+    const earlierValue = parseOhObservationRecordV1(store.get(earlierResult.observationKeys[0]!))!.value;
+    expect(earlierValue).toMatchObject({ orderingConflict: true, supersedes: laterResult.observationKeys[0]! });
+    expect(parseOhObservationRecordV1(store.get(laterResult.observationKeys[0]!))!.value.supersedes).toBeNull();
+    // Without a session position the draft cannot conflict by session order, only by parsed stamps.
+    expect(resolveOhSupersessionV1(store, { facet: "pottery-frequency", speaker: "user", statedAt: "April 1 2026" }))
+      .toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: earlierResult.observationKeys[0]! });
+    expect(resolveOhSupersessionV1(store, { facet: "pottery-frequency", order: [1, "2026-04-02T00:00:02.000Z", ""], speaker: "user",
+      statedAt: "April 1 2026" })).toEqual({ candidatesTruncated: false, orderingConflict: true, supersedes: earlierResult.observationKeys[0]! });
+    expect(resolveOhSupersessionV1(store, { facet: "pottery-frequency", order: [2, "2026-04-02T00:00:01.000Z", ""], speaker: "user",
+      statedAt: "April 1 2026" })).toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: earlierResult.observationKeys[0]! });
+    store.close();
+  });
+
+  test("chains same-facet observations of one response in order ahead of the store head", async () => {
+    const { keys, store } = openStore();
+    const chained = JSON.parse(responseOne) as { observations: Record<string, unknown>[] };
+    chained.observations.push({ text: "user plans to go to pottery class three times a week from April.", speaker: "user", kind: "plan",
+      eventAt: null, resolvedFrom: null, facet: "pottery-frequency", sources: ["t0"] });
+    const stub = observer({ "2026/03/14 (Sat) 10:15": JSON.stringify(chained), "2026/03/28 (Sat) 09:00": responseTwo });
+    const common = { actorId: "agent.observe", observer: stub, store, supersession: true } as const;
+    const first = await observeOhV1({ ...common, instant: "2026-04-02T00:00:00.000Z", sessionRecordKeys: keys.one });
+    const second = await observeOhV1({ ...common, instant: "2026-04-02T00:00:01.000Z", sessionRecordKeys: keys.two });
+    if (first.status !== "committed" || second.status !== "committed") throw new Error("commit");
+    expect(first.observationKeys).toHaveLength(5);
+    const record = (key: string) => parseOhObservationRecordV1(store.get(key))!;
+    expect(record(first.observationKeys[1]!).value.supersedes).toBeNull();
+    expect(record(first.observationKeys[4]!).value).toMatchObject({ orderingConflict: false, supersedes: first.observationKeys[1]! });
+    expect(record(first.observationKeys[4]!).dependencies).toContain(first.observationKeys[1]!);
+    expect(record(second.observationKeys[0]!).value).toMatchObject({ orderingConflict: false, supersedes: first.observationKeys[4]! });
+    store.close();
+  });
+
+  test("surfaces a truncated supersession candidate set in the result and the receipt", async () => {
+    const perSession = 34;
+    const sessions = Object.fromEntries(["a", "b", "c", "d"].map((id, index) => [id, [{ id: `${id}:0`, sessionId: id, sessionIndex: index,
+      date: `2026-05-0${index + 1}`, speaker: "user", text: `Session ${id}: my reading list keeps changing.` }] as readonly Turn[]]));
+    const { keys, store } = openStoreWith(sessions);
+    const response = (id: string, count: number) => JSON.stringify({ observations: Array.from({ length: count }, (_, index) => ({
+      text: `user's reading list in session ${id} lists title ${index}.`, speaker: "user", kind: "fact", eventAt: null, resolvedFrom: null,
+      facet: "reading-list", sources: ["t0"] })) });
+    const stub = observer({ "2026-05-01": response("a", perSession), "2026-05-02": response("b", perSession),
+      "2026-05-03": response("c", perSession), "2026-05-04": response("d", 2) });
+    const common = { actorId: "agent.observe", observer: stub, store, supersession: true } as const;
+    const results = [];
+    for (const [index, id] of ["a", "b", "c", "d"].entries()) {
+      results.push(await observeOhV1({ ...common, instant: `2026-05-10T00:00:0${index}.000Z`, sessionRecordKeys: keys[id]! }));
+    }
+    const [a, b, c, d] = results;
+    if (a?.status !== "committed" || b?.status !== "committed" || c?.status !== "committed" || d?.status !== "committed") throw new Error("commit");
+    expect(3 * perSession).toBeGreaterThan(OH_OBSERVATION_LIMITS_V1.supersessionCandidates);
+    expect(a.candidatesTruncated).toEqual([]);
+    expect(b.candidatesTruncated).toEqual([]);
+    expect(c.candidatesTruncated).toEqual([]);
+    // Session d resolves against 102 same-facet observations: every one of its links reports the truncated lookup.
+    expect(d.candidatesTruncated).toEqual(d.observationKeys);
+    const receipt = parseOhObservationActivityValueV1(store.get(d.activityKey)!.value)!;
+    expect(receipt.candidatesTruncated).toEqual(d.observationKeys);
+    expect(parseOhObservationRecordV1(store.get(d.observationKeys[1]!))!.value.supersedes).toBe(d.observationKeys[0]!);
+    expect(resolveOhSupersessionV1(store, { facet: "reading-list", speaker: "user", statedAt: "2026-05-05" }).candidatesTruncated).toBe(true);
+    const again = await observeOhV1({ ...common, instant: "2026-05-11T00:00:00.000Z", sessionRecordKeys: keys.d! });
+    expect(again).toMatchObject({ candidatesTruncated: d.observationKeys, status: "existing" });
     store.close();
   });
 

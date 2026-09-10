@@ -81,7 +81,7 @@
     { "corpusId": "fixture-work", "sessionId": "w3", "turnId": "w3:1", "speaker": "assistant",
       "dates": [], "verbatim": ["12-slide"], "kinds": [] },
     { "corpusId": "fixture-family", "sessionId": "f1", "turnId": "f1:0", "speaker": "user",
-      "dates": [{ "expression": "yesterday", "eventAt": "2026-03-13" }], "verbatim": ["Ines", "7", "Kyoto", "5 nights"], "kinds": [] },
+      "dates": [{ "expression": "yesterday", "eventAt": "2026-03-13" }], "verbatim": ["Ines", "turned 7", "Kyoto", "5 nights"], "kinds": [] },
     { "corpusId": "fixture-family", "sessionId": "f2", "turnId": "f2:0", "speaker": "user",
       "dates": [], "verbatim": ["5 nights", "8 nights", "Hanami Inn"], "kinds": ["update"] },
     { "corpusId": "fixture-family", "sessionId": "f2", "turnId": "f2:1", "speaker": "user",

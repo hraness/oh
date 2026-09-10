@@ -30,7 +30,11 @@ observations beside raw turns.
 
 ## Descriptor limits
 
-`EVOLUTION_OBSERVE_LANE_POLICY` is frozen with the instruction digest. The
+`EVOLUTION_OBSERVE_LANE_POLICY` is frozen with the instruction digest
+`771ec3c8ec60ebbb4c048d6d2bec703f94543b2ba6e027c0165b44fc8db4d838`
+(`OH_OBSERVATION_INSTRUCTION_SHA256_V1`, pinned by `src/observe.test.ts`), so the
+instruction was committed before any extraction run and is never tuned after a
+benchmark score is read. The
 config protocol `oh.memory.observe-lane-experiment.v1` admits only the GPT-5
 nano and GPT-5 mini extractor profiles and a campaign cap of at most $20
 (`maximumCampaignMicros` at most 20,000,000); a campaign whose budget exceeds
