@@ -38,6 +38,25 @@ export function makeEvolutionReleaseContextPlan(input: Readonly<{ dataset: Evolu
   const payload = { protocol: "oh.memory.evolution-context-plan.v6" as const, ...fields, ...binding, basePlan: base, cases };
   return freezeEvolutionCompletion(structuredClone({ ...payload, planSha256: canonicalSha256(payload) }));
 }
+/** Reuse a parent study's exact retrieval results under a rebound study whose only differences are reader and
+ * campaign. The parent's retrieval outputs are re-validated against the current source rendering; retrieval is not rerun,
+ * and the rebound study must declare the parent study and retrieval-source digests it inherits. */
+export function rebindEvolutionReleaseContextPlan(input: Readonly<{ dataset: EvolutionRunnerInput; parent: EvolutionReleaseContextPlan;
+  authorization: EvolutionReleaseAuthorization; shardId: string; retrievalSourceSha256: string }>): EvolutionReleaseContextPlan {
+  const parent = validateEvolutionReleaseContextPlanEnvelope(input.parent), { study } = input.authorization, provenance = study.retrievalProvenance;
+  if (provenance === undefined) fail("rebound study must declare retrieval provenance");
+  if (parent.studySha256 === input.authorization.studySha256 || parent.studySha256 !== provenance.parentStudySha256
+    || parent.retrievalSourceSha256 !== provenance.parentRetrievalSourceSha256 || parent.shardId !== input.shardId) fail("parent context does not match declared provenance/shard");
+  if (study.retrievalSourceSha256 !== input.retrievalSourceSha256 || parseSha256Hex(input.retrievalSourceSha256) === null) fail("rebound study must pin the current retrieval source");
+  validateEvolutionContextPlanSources(parent.basePlan, input.dataset);
+  const { planSha256: _old, ...fields } = parent.basePlan;
+  const payload = { ...fields, retrievalSourceSha256: input.retrievalSourceSha256 };
+  const basePlan = freezeEvolutionCompletion(structuredClone({ ...payload, planSha256: canonicalSha256(payload) })) as EvolutionContextPlan;
+  const plan = makeEvolutionReleaseContextPlan({ dataset: input.dataset, basePlan, binding: evolutionReleaseContextBinding(input.authorization, input.shardId) });
+  assertEvolutionReleaseContextBinding(plan, input.authorization, input.shardId);
+  if (!same(plan.cases.map(c => c.result), parent.cases.map(c => c.result)) || !same(plan.questions, parent.questions)) fail("rebound retrieval changed");
+  return plan;
+}
 export function validateEvolutionReleaseContextPlanEnvelope(value: unknown): EvolutionReleaseContextPlan {
   boundEvolutionCompletionWire(value, 128 * 1024 * 1024, 4_000_000);
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "manifestSha256", "retrievalSourceSha256", "inputSha256", "variants", "questions", "cases", "planSha256", "studySha256", "scopeSha256", "shardId", "candidatePresentation", "basePlan"])
