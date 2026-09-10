@@ -36,6 +36,10 @@ export const EVOLUTION_TWO_STAGE_ARMS: Readonly<Record<EvolutionTwoStageArmId, A
   "two-stage-all-nano": { kind: "two-stage", selector: PROFILES.ablation, routed: false },
 });
 export const EVOLUTION_TWO_STAGE_CONTROL_ARM: EvolutionTwoStageArmId = "single-call-eac";
+/** Paired rows are emitted against every configured control: the single-call EAC control for every other arm, and the
+ * calibration-only control for the two-stage arms only (it is the exact physical answer request of their unrouted,
+ * fallback and empty-pool cases, so that comparison isolates the selection gain from the calibration instruction). */
+export const EVOLUTION_TWO_STAGE_CONTROL_ARMS = ["single-call-eac", "calibration-only"] as const satisfies readonly EvolutionTwoStageArmId[];
 export const EVOLUTION_TWO_STAGE_TEMPORAL_CATEGORY = "temporal-reasoning";
 type Phase = "select" | "answer" | "judge";
 export type EvolutionTwoStageLaneConfig = Readonly<{ protocol: typeof PROTOCOL; partition: "development"; sourcePin: EvolutionPin; contextPin: EvolutionPin;
@@ -43,8 +47,10 @@ export type EvolutionTwoStageLaneConfig = Readonly<{ protocol: typeof PROTOCOL; 
   questionIds: readonly string[]; arms: readonly EvolutionTwoStageArmId[]; repeats: number; maximumNewCalls: number; concurrency: number }>;
 type PreparedSelection = Readonly<{ questionId: string; variantId: string; selectorProfile: EvolutionTwoStageSelectorProfile;
   plan: EvolutionTwoStageSelectionPlan | null; preparationFailure: "selection-input-rejected" | null }>;
+/** `emptyPool` marks a two-stage case whose pinned pool holds no turn: nothing is selected, the case answers from the
+ * (empty) pool context under the fallback reader with reason `empty-pool`, and it is not a preparation failure. */
 type PlannedCase = Readonly<{ questionId: string; variantId: string; arm: EvolutionTwoStageArmId; repeat: number; routed: boolean;
-  selectorProfile: EvolutionTwoStageSelectorProfile | null; selectionPlanSha256: string | null }>;
+  selectorProfile: EvolutionTwoStageSelectorProfile | null; emptyPool: boolean; selectionPlanSha256: string | null }>;
 export type EvolutionTwoStageLanePlan = Readonly<{ protocol: "oh.memory.two-stage-experiment-plan.v1"; configSha256: string; inputSha256: string;
   contextPlanSha256: string; retrievalSourceSha256: string; executionSourceSha256: string; policySha256: string; routerSha256: string;
   pools: readonly Readonly<{ questionId: string; variantId: string; poolResultSha256: string; contextSha256: string; turnCount: number }>[];
@@ -128,9 +134,11 @@ function compile(data: Awaited<ReturnType<typeof inputs>>): EvolutionTwoStageLan
   const cases: PlannedCase[] = [];
   for (const q of input.questions) for (const v of variants) for (const arm of config.arms) for (let repeat = 0; repeat < config.repeats; repeat++) {
     const spec = EVOLUTION_TWO_STAGE_ARMS[arm], isRouted = routed.get(q.id)!;
-    const selects = spec.kind === "two-stage" && (!spec.routed || isRouted);
+    const wouldSelect = spec.kind === "two-stage" && (!spec.routed || isRouted);
+    // An empty pool is answered as a flagged fallback, never planned as a selection: the selector never receives an empty pool.
+    const emptyPool = wouldSelect && poolFor(q.id, v.id).result.turnIds.length === 0, selects = wouldSelect && !emptyPool;
     if (selects && spec.kind === "two-stage") needed.set(JSON.stringify([q.id, v.id, spec.selector]), { questionId: q.id, variantId: v.id, selectorProfile: spec.selector });
-    cases.push({ questionId: q.id, variantId: v.id, arm, repeat, routed: isRouted, selectorProfile: selects && spec.kind === "two-stage" ? spec.selector : null, selectionPlanSha256: null });
+    cases.push({ questionId: q.id, variantId: v.id, arm, repeat, routed: isRouted, selectorProfile: selects && spec.kind === "two-stage" ? spec.selector : null, emptyPool, selectionPlanSha256: null });
   }
   const selections = [...needed.values()].map((n): PreparedSelection => {
     const q = input.questions.find(q => q.id === n.questionId)!;
@@ -277,8 +285,8 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
         : outcome !== undefined ? "completed" : attempt?.notRun !== null && attempt?.notRun !== undefined ? "not-run" : "unresolved";
       cases.push({ questionId: p.questionId, variantId: p.variantId, arm: p.arm, repeat: p.repeat, routed: p.routed, selectorProfile: p.selectorProfile,
         selectionRequestSha256: selection?.plan?.request.requestSha256 ?? null, selectorStatus,
-        memory: outcome === undefined ? "full-context" : outcome.kind === "selected" ? "selected" : "fallback",
-        fallbackReason: outcome?.kind === "fallback" ? outcome.reason : null,
+        memory: outcome !== undefined ? outcome.kind === "selected" ? "selected" : "fallback" : p.emptyPool ? "fallback" : "full-context",
+        fallbackReason: outcome?.kind === "fallback" ? outcome.reason : p.emptyPool ? "empty-pool" : null,
         selectedTurnCount: outcome?.kind === "selected" ? outcome.context.turnIds.length : null,
         selectedContextSha256: outcome?.kind === "selected" ? outcome.context.contextSha256 : null,
         reader: null, answerRequestSha256: null, readerStatus: selection !== undefined && outcome === undefined ? "skipped-selector" : "not-run",
@@ -332,7 +340,9 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
     const total = accounting(physical), after = store.summary();
     if (after.calls - before.calls !== total.newlyOccupied) fail("admission reconciliation");
     const preparationFailedCases = cases.filter(c => c.selectorStatus === "preparation-failed" || c.readerStatus === "preparation-failed" || c.judgeStatus === "preparation-failed").length;
-    const complete = plan.selections.every(s => s.plan !== null) && preparationFailedCases === 0 && physical.every(a => a.response !== null || a.failure !== null);
+    // Complete means every selection plan prepared, no preparation failure, every physical attempt settled with a response and no unresolved reservation.
+    const complete = plan.selections.every(s => s.plan !== null) && preparationFailedCases === 0 && physical.every(a => a.response !== null || a.failure !== null)
+      && total.unresolvedMicros === 0;
     const categories = [...new Set([...questions.values()].map(q => q.category))].sort();
     const perQuestion = (arm: EvolutionTwoStageArmId, variantId: string) => input.questions.map(q => {
       const scores = cases.filter(c => c.arm === arm && c.variantId === variantId && c.questionId === q.id).sort((a, b) => a.repeat - b.repeat).map(c => c.score);
@@ -341,8 +351,10 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
     const summaries = config.arms.flatMap(arm => config.variantIds.map(variantId => {
       const rows = cases.filter(c => c.arm === arm && c.variantId === variantId), byQuestion = perQuestion(arm, variantId);
       const keys = new Set(rows.flatMap(c => [c.selectionRequestSha256, c.answerRequestSha256, c.judgeRequestSha256].filter((id): id is string => id !== null).map(id => attemptKey(id, c.repeat))));
-      // The fallback rate is over completed selections only, so an interrupted run is not understated by not-run or unresolved selections.
-      const planned = rows.filter(c => c.selectorProfile !== null), completedSelections = rows.filter(c => c.selectorStatus === "completed"), fallbacks = rows.filter(c => c.memory === "fallback");
+      // The fallback rate is selector fallbacks over completed selections only, so an interrupted run is not understated by not-run or
+      // unresolved selections; empty-pool cases never reach the selector and are counted separately.
+      const planned = rows.filter(c => c.selectorProfile !== null), completedSelections = rows.filter(c => c.selectorStatus === "completed");
+      const fallbacks = rows.filter(c => c.memory === "fallback" && c.selectorStatus === "completed"), emptyPoolCases = rows.filter(c => c.fallbackReason === "empty-pool").length;
       const latency = rows.map(c => {
         if (c.judgeStatus !== "completed") return null;
         const times = [...new Set([c.selectionRequestSha256, c.answerRequestSha256!, c.judgeRequestSha256!].filter((id): id is string => id !== null))].map(id => attempts.get(attemptKey(id, c.repeat))!.serviceMs);
@@ -353,7 +365,7 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
         meanCorrect: byQuestion.reduce((s, q) => s + q.mean, 0), majorityCorrect: byQuestion.reduce((s, q) => s + q.majority, 0),
         failedCases: rows.filter(c => c.judgeStatus !== "completed").length,
         routedQuestions: input.questions.filter(q => plan.routes.find(r => r.questionId === q.id)!.routed).length,
-        selectionsPlanned: planned.length, selectionsCompleted: completedSelections.length, selected: rows.filter(c => c.memory === "selected").length, fallbacks: fallbacks.length,
+        selectionsPlanned: planned.length, selectionsCompleted: completedSelections.length, selected: rows.filter(c => c.memory === "selected").length, fallbacks: fallbacks.length, emptyPoolCases,
         fallbackRate: completedSelections.length === 0 ? null : fallbacks.length / completedSelections.length,
         fallbackReasons: Object.fromEntries([...new Set(fallbacks.map(c => c.fallbackReason!))].sort().map(r => [r, fallbacks.filter(c => c.fallbackReason === r).length])),
         selectedTurnCounts: rows.flatMap(c => c.selectedTurnCount === null ? [] : [c.selectedTurnCount]),
@@ -364,8 +376,7 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
           return { category, denominator: subset.length, meanCorrect: subset.reduce((s, q) => s + q.mean, 0), majorityCorrect: subset.reduce((s, q) => s + q.majority, 0) }; }),
         perQuestion: byQuestion.map(q => ({ questionId: q.questionId, scores: q.scores, mean: q.mean, majority: q.majority })) };
     }));
-    const control = config.arms.includes(EVOLUTION_TWO_STAGE_CONTROL_ARM) ? EVOLUTION_TWO_STAGE_CONTROL_ARM : null;
-    const paired = control === null ? [] : config.arms.filter(arm => arm !== control).flatMap(arm => config.variantIds.map(variantId => {
+    const pairedRow = (control: EvolutionTwoStageArmId, arm: EvolutionTwoStageArmId, variantId: string) => {
       const left = perQuestion(control, variantId), right = perQuestion(arm, variantId), summary = summaries.find(s => s.arm === arm && s.variantId === variantId)!;
       const deltas = input.questions.map((q, i) => ({ questionId: q.id, category: left[i]!.category, majorityDelta: right[i]!.majority - left[i]!.majority, meanDelta: right[i]!.mean - left[i]!.mean }));
       const temporal = deltas.filter(d => d.category === EVOLUTION_TWO_STAGE_TEMPORAL_CATEGORY);
@@ -373,7 +384,10 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
       const temporalDelta = temporal.reduce((s, d) => s + d.majorityDelta, 0);
       const rule = arm === "calibration-only" ? { minimumMajorityDelta: 2, maximumRegressions: 1 } : { minimumMajorityDelta: 3, maximumRegressions: 2 };
       const fallbackOk = summary.fallbackRate === null || summary.fallbackRate <= OH_SELECTOR_POLICY_V2.fallbackRateGate;
-      return { arm, control, variantId, denominator: 100, majorityDelta, meanDelta: deltas.reduce((s, d) => s + d.meanDelta, 0),
+      const comparison = control === "calibration-only"
+        ? "selection gain alone: the calibration-only control is the exact physical answer request of this arm's unrouted, fallback and empty-pool cases, so only selected cases can differ"
+        : "reader change against the single-call explicit-abstention control; for two-stage arms this includes the calibration instruction's effect (see the calibration-only-controlled row)";
+      return { arm, control, variantId, comparison, denominator: 100, majorityDelta, meanDelta: deltas.reduce((s, d) => s + d.meanDelta, 0),
         wins: deltas.filter(d => d.majorityDelta > 0).length, losses, ties: deltas.filter(d => d.majorityDelta === 0).length,
         temporal: { category: EVOLUTION_TWO_STAGE_TEMPORAL_CATEGORY, denominator: temporal.length, majorityDelta: temporalDelta },
         gate: { rule: { ...rule, temporalNotWorse: true, fallbackRateAtMost: OH_SELECTOR_POLICY_V2.fallbackRateGate, statistic: "majority-of-repeats paired against the control on the same pin" },
@@ -381,7 +395,11 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
           descriptivePass: complete && config.repeats === 3 && majorityDelta >= rule.minimumMajorityDelta && losses <= rule.maximumRegressions && temporalDelta >= 0 && fallbackOk,
           meaning: "Descriptive gate arithmetic only. Promotion additionally requires complete 3-repeat coverage, the pre-committed predicted-flip check, the analysis plan's paired bootstrap and the noise-floor power caveat; a miss is not established, not no effect." },
         deltas: deltas.map(d => ({ questionId: d.questionId, majorityDelta: d.majorityDelta, meanDelta: d.meanDelta })) };
-    }));
+    };
+    // Rows against the single-call control for every other arm, then rows against the calibration-only control for the two-stage arms only.
+    const paired = EVOLUTION_TWO_STAGE_CONTROL_ARMS.filter(control => config.arms.includes(control)).flatMap(control =>
+      config.arms.filter(arm => arm !== control && (control === EVOLUTION_TWO_STAGE_CONTROL_ARM || EVOLUTION_TWO_STAGE_ARMS[arm].kind === "two-stage"))
+        .flatMap(arm => config.variantIds.map(variantId => pairedRow(control, arm, variantId))));
     const memoryDelta = config.variantIds.length === 2 ? config.arms.map(arm => {
       const [a, b] = config.variantIds.map(v => summaries.find(s => s.arm === arm && s.variantId === v)!);
       return { arm, minuend: a!.variantId, subtrahend: b!.variantId, majorityDelta: a!.majorityCorrect - b!.majorityCorrect, meanDelta: a!.meanCorrect - b!.meanCorrect };
@@ -398,7 +416,7 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
       routes: plan.routes, routerAudit, cases, phasePlans, attempts: physical, total,
       phases: Object.fromEntries((["select", "answer", "judge"] as const).map(phase => [phase, accounting(physical.filter(a => a.phase === phase))])),
       summaries, paired, memoryDelta, campaignBefore: before, campaignAfter: after, wallMs: performance.now() - started,
-      accountingMeaning: "Physical (request, repeat) pairs deduplicate globally in one campaign store. Unrouted and fallback cases of two-stage arms share the calibration-only control's physical answer requests, so arm totals must not be added. Invalid, skipped and missing cases score zero and stay in the denominator. Unresolved attempts retain their full original reservations.",
+      accountingMeaning: "Physical (request, repeat) pairs deduplicate globally in one campaign store. Unrouted, fallback and empty-pool cases of two-stage arms share the calibration-only control's physical answer requests, so arm totals must not be added. Paired rows against single-call-eac therefore include the calibration instruction's effect for two-stage arms; the rows against calibration-only isolate the selection gain. Invalid, skipped and missing cases score zero and stay in the denominator. Unresolved attempts retain their full original reservations and make the run incomplete.",
       latencyMeaning: "Original captured selection + answer + judge service time, including on replay; wall time reported separately." };
     return { ...payload, reportSha256: canonicalSha256(payload) };
   } finally {

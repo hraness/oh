@@ -47,6 +47,15 @@ with its reason (`empty-selection`, `invalid-selection`, `selector-truncated`,
 `selector-failed`), and stays in the denominator with that answer. The report
 carries the fallback rate per arm and pin; the gate requires at most 10%.
 
+A pinned pool with no turn at all (a question whose retrieval returned nothing)
+is not a preparation failure and never reaches the selector: the case is planned
+with no selector, answers from the empty pool context under `calibration-only-v1`
+(the same physical request as the calibration-only control), and is flagged
+`memory: "fallback"` with reason `empty-pool`. Such cases are counted per arm and
+pin as `emptyPoolCases` and are excluded from the selector fallback rate, whose
+numerator and denominator are completed selections only. The single-call
+controls answer the same empty context, so the paired comparison stays matched.
+
 ## Question-shape router
 
 `routeEvolutionQuestionShapeV1` (`scripts/benchmarks/evolution-question-shape.ts`)
@@ -100,23 +109,68 @@ question, variant, arm, repeat, selector status, memory kind and fallback reason
 selected turn count and context digest, reader, both stage request digests, judge
 digest and score. Per arm and pin it gives per-repeat scores, per-question mean and
 majority-of-repeats totals, category slices, fallback rate and reasons, accounting
-and end-to-end service time. Paired rows against the control on the same pin give
-majority-of-repeats deltas, wins, losses, ties, the temporal slice and the
-descriptive gate arithmetic (two-stage: at least +3 with at most 2 regressions,
-temporal not worse, fallback at most 10%; calibration-only: at least +2 with at
-most 1 regression). A tie in majority-of-repeats (one correct of two scored
-repeats) counts as incorrect; the descriptive pass already requires three
-repeats. The fallback rate is fallbacks over completed selections, so not-run or
-unresolved selections in an interrupted run do not understate it; the report
-lists planned and completed selections separately. When two pins are configured,
-a memory-delta row per arm gives the first pin minus the second under that reader.
+and end-to-end service time. Paired rows on the same pin give majority-of-repeats
+deltas, wins, losses, ties, the temporal slice and the descriptive gate
+arithmetic (two-stage: at least +3 with at most 2 regressions, temporal not
+worse, fallback at most 10%; calibration-only: at least +2 with at most 1
+regression). Rows are emitted against two controls when both are configured:
+every other arm against `single-call-eac`, and the four two-stage arms
+additionally against `calibration-only` under the same two-stage rule. The
+unrouted, fallback and empty-pool cases of a two-stage arm are the
+calibration-only control's exact physical answer requests, so a two-stage row
+against `single-call-eac` includes the calibration instruction's effect, and the
+row against `calibration-only` isolates the selection gain (only selected cases
+can differ); each row names its `comparison`. A tie in majority-of-repeats (one
+correct of two scored repeats) counts as incorrect; the descriptive pass already
+requires three repeats. The fallback rate is selector fallbacks over completed
+selections, so not-run or unresolved selections in an interrupted run do not
+understate it; the report lists planned and completed selections separately.
+When two pins are configured, a memory-delta row per arm gives the first pin
+minus the second under that reader.
 
 `complete` is true only when every selection plan was prepared, no case failed
-answer or judge preparation, and every physical attempt settled. Gate arithmetic
-in the report is descriptive. Promotion additionally needs the
+answer or judge preparation, every physical attempt settled with a response or
+a charged failure record, and no reservation is unresolved (an uncertain
+dispatch keeps its full reservation and makes the run incomplete until it is
+reconciled). Gate arithmetic in the report is descriptive. Promotion additionally needs the
 complete three-repeat matrix, the separately committed predicted-flip check and
 the paired bootstrap from the analysis plan; a miss is not established, not no
 effect.
+
+## Running the lane
+
+The lane has no CLI entry (like the fact-card and selector lanes). The callable
+entry points are `prepareEvolutionTwoStageLane(configPin)` and
+`runEvolutionTwoStageLane({configPin, planPin, credential, fetcher?, stopped?,
+onPhasePrepared?})` in `scripts/benchmarks/evolution-two-stage-lane.ts`. A config
+uses the `oh.memory.two-stage-experiment.v1` protocol with exactly these keys:
+
+- `protocol` and `partition: "development"`;
+- separate `sourcePin`, `contextPin`, `scorerPin` and `campaignPin` file pins
+  (four distinct paths, each `{path, sha256}`);
+- `executionSourceSha256` (the current committed source identity, which must
+  include the lane, selector and router files) and `contextPlanSha256` (the
+  digest of the pinned V1 context plan);
+- `variantIds`: one or two distinct IDs of `oh-semantic` or `bm25-window`
+  variants at top-100 / 96,000 bytes present in the context plan;
+- `questionIds`: exactly the ordered 100 distinct development question IDs of the
+  source pin;
+- `arms`: one to six distinct arm IDs from the table above;
+- `repeats` 1 through 3, `maximumNewCalls` 0 through 12,000 and `concurrency`
+  1 through 12.
+
+The source pin uses the source-selector input projection and reads up to 64 MiB;
+the context and plan pins read up to 128 MiB, the scorer 32 MiB and the config
+64 KiB. Preparation reads config, source and context only, routes every question,
+constructs every selection plan and emits the
+`oh.memory.two-stage-experiment-plan.v1` plan with its reservation ceilings; it
+opens no store or scorer and makes no provider request. Write that plan to a new
+private file and pin its bytes as `planPin` before running: the run recompiles
+the plan and refuses when it differs. The run requires the campaign's selected
+project OIDC credential and clean committed source, drains on interrupt, and
+replays from the store with zero new calls when rerun. `onPhasePrepared`
+receives the frozen answer and judge phase plans before each phase dispatches,
+so a caller can pin them.
 
 ## Contracts
 
@@ -140,7 +194,9 @@ covers the policy identities, the alias grammar, plan and pool validation,
 source re-rendering, every fallback reason including a provider refusal, the
 selection request byte cap as a preparation failure that keeps its cases in the
 denominator, the complete six-arm two-pin matrix with a fake provider (shared
-physical requests, router audit, memory delta, zero-call replay), three repeats in
-one store with mixed selector failures, a fallback rate above the gate, an
-uncertain selection dispatch that stops admission and stays unresolved, a
-zero-allowance run and configuration rejection. No test reaches a provider.
+physical requests, router audit, memory delta, paired rows against both
+controls, zero-call replay), three repeats in one store with mixed selector
+failures, an empty pinned pool answered as a flagged empty-pool fallback on the
+calibration-only request, a fallback rate above the gate, an uncertain selection
+dispatch that stops admission and stays unresolved, a zero-allowance run and
+configuration rejection. No test reaches a provider.

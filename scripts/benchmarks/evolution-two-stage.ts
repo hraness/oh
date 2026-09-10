@@ -65,6 +65,8 @@ export function prepareEvolutionTwoStage(input: Corpus) {
   const corpus = projectEvolutionCompletionCorpus(input), corpusSha256 = canonicalSha256(corpus);
   const positions = new Map(corpus.turns.map((turn, index) => [turn.id, index]));
   const validators = new Map<boolean, ReturnType<typeof createEvolutionContextSourceValidator>>();
+  /** A pool must hold at least one turn: the lane never plans a selection over an empty pool (such a case answers from the
+   * empty pool context under the fallback reader, flagged `empty-pool`), so an empty pool here is a caller error, not a fallback. */
   function pool(value: EvolutionTwoStagePool, querySha256: string): EvolutionTwoStagePool {
     boundEvolutionCompletionWire(value, 4_000_000);
     if (!isPlainRecord(value) || !hasExactKeys(value, ["variant", "result", "expectedResultSha256"])) fail("exact pool binding");

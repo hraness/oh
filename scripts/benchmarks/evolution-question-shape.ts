@@ -56,10 +56,11 @@ export function auditEvolutionQuestionShapeRouter(rows: readonly EvolutionQuesti
     return { id: row.id, category: row.category ?? null, decision: routeEvolutionQuestionShapeV1(row.question) };
   });
   if (new Set(decisions.map(d => d.id)).size !== decisions.length) fail("duplicate audit row id");
+  // Prototype-free tallies: a key such as "__proto__" counts like any other string.
   const count = <T,>(items: readonly T[], key: (item: T) => string) => {
-    const table: Record<string, number> = {};
-    for (const item of items) { const k = key(item); table[k] = (table[k] ?? 0) + 1; }
-    return Object.fromEntries(Object.entries(table).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+    const table = new Map<string, number>();
+    for (const item of items) { const k = key(item); table.set(k, (table.get(k) ?? 0) + 1); }
+    return Object.fromEntries([...table.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
   };
   const categories = [...new Set(decisions.flatMap(d => d.category === null ? [] : [d.category]))].sort();
   const crosstab = categories.length === 0 ? null : Object.fromEntries(EVOLUTION_QUESTION_SHAPES.map(shape => [shape,

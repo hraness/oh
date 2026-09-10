@@ -38,12 +38,15 @@ const variants = [
 ];
 const PROFILES = evolutionTwoStageProfiles();
 const qid = (i: number) => `q${String(i).padStart(3, "0")}`;
-/** Even questions are routed (aggregate), odd questions are not; every question shares terms with the turns so both pools are non-empty. */
-function question(i: number, corpusId = corpus.id) {
+/** Even questions are routed (aggregate), odd questions are not; every question shares terms with the turns so both pools are non-empty,
+ * except the `emptyPool` indices, whose text shares no term with any turn so their BM25 window pool holds no turn at all. */
+function question(i: number, corpusId = corpus.id, emptyPool: ReadonlySet<number> = new Set()) {
+  const routed = i % 2 === 0;
   return { id: qid(i), corpusId, questionDate: "2026-01-08",
-    question: i % 2 === 0 ? `How many km did I run on the trails altogether? Case ${qid(i)}` : `Where did I say I ran on the trails? Case ${qid(i)}` };
+    question: emptyPool.has(i) ? (routed ? `How many colours did I mention? Case ${qid(i)}` : `Which colour did I mention? Case ${qid(i)}`)
+      : routed ? `How many km did I run on the trails altogether? Case ${qid(i)}` : `Where did I say I ran on the trails? Case ${qid(i)}` };
 }
-async function retrieveAll(count: number, source: SyntheticCorpus = corpus) {
+async function retrieveAll(count: number, source: SyntheticCorpus = corpus, emptyPool: ReadonlySet<number> = new Set()) {
   let records: readonly KnowledgeGraphRecordV1[] = [];
   const backend: OhSemanticSearchBackendV1 = { profile: OH_EMBEDDING_PROFILE_V1,
     async index(value) { records = value; return { indexed: value.length, v: 1 }; },
@@ -55,7 +58,7 @@ async function retrieveAll(count: number, source: SyntheticCorpus = corpus) {
   const semantic = await prepareEvolutionCorpus({ ...source, groupId: source.id }, { semanticBackend: backend }), plain = await prepareEvolutionCorpus({ ...source, groupId: source.id });
   try {
     const results = new Map<string, EvolutionRetrievalResult>();
-    for (let i = 0; i < count; i++) for (const v of variants) results.set(`${qid(i)}:${v.id}`, await (v.system === "oh-semantic" ? semantic : plain).retrieve(question(i).question, v));
+    for (let i = 0; i < count; i++) for (const v of variants) results.set(`${qid(i)}:${v.id}`, await (v.system === "oh-semantic" ? semantic : plain).retrieve(question(i, source.id, emptyPool).question, v));
     return results;
   } finally { await semantic.close(); await plain.close(); }
 }
@@ -78,13 +81,13 @@ function expectedContext(pool: EvolutionRetrievalResult, aliases: readonly strin
   return aliases.map(a => pool.turnIds[Number(a.slice(1))]!).sort((a, b) => position.get(a)! - position.get(b)!).map(id => renderTurn(turnById.get(id)!)).join("\n\n");
 }
 async function fixture(options: Readonly<{ arms?: readonly EvolutionTwoStageArmId[]; variantIds?: readonly string[]; repeats?: number; maximumNewCalls?: number;
-  concurrency?: number; corpus?: SyntheticCorpus }> = {}) {
-  const directory = await realpath(await mkdtemp(join(tmpdir(), "oh-two-stage-"))), sourceCorpus = options.corpus ?? corpus;
+  concurrency?: number; corpus?: SyntheticCorpus; emptyPoolQuestions?: readonly number[] }> = {}) {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "oh-two-stage-"))), sourceCorpus = options.corpus ?? corpus, emptyPool = new Set(options.emptyPoolQuestions ?? []);
   async function pin(name: string, value: unknown): Promise<EvolutionPin> { const content = typeof value === "string" ? value : JSON.stringify(value), path = join(directory, name);
     await writeFile(path, content, { mode: 0o600 }); return { path, sha256: sha256Hex(content) }; }
-  const questions = Array.from({ length: 100 }, (_, i) => question(i, sourceCorpus.id));
+  const questions = Array.from({ length: 100 }, (_, i) => question(i, sourceCorpus.id, emptyPool));
   const source = { protocol: "oh.memory.source-selector-input.v1", partition: "development", corpora: [sourceCorpus], questions }, input = parseSelectorLaneSource(source);
-  const results = await retrieveAll(100, sourceCorpus);
+  const results = await retrieveAll(100, sourceCorpus, emptyPool);
   const contextPayload = { protocol: "oh.memory.evolution-context-plan.v1" as const, manifestSha256: sha256Hex("synthetic-manifest"), retrievalSourceSha256: sha256Hex("synthetic-source"),
     inputSha256: canonicalSha256(input), variants, questions, cases: questions.flatMap(q => variants.map(v => ({ questionId: q.id, variantId: v.id, result: results.get(`${q.id}:${v.id}`)! }))) };
   const context = { ...contextPayload, planSha256: canonicalSha256(contextPayload) }; validateEvolutionContextPlanSources(context, input);
@@ -102,7 +105,7 @@ async function fixture(options: Readonly<{ arms?: readonly EvolutionTwoStageArmI
   const configPin = await pin("config.json", config), plan = await prepareEvolutionTwoStageLane(configPin), planPin = await pin("plan.json", plan);
   return { directory, pin, source, input, context, results, config, configPin, plan, planPin, campaign };
 }
-type Mode = "normal" | "mixed-failures" | "high-fallback" | "selector-network";
+type Mode = "normal" | "mixed-failures" | "high-fallback" | "selector-network" | "empty-pool";
 function fakeProvider(mode: Mode = "normal") {
   const counts = { select: 0, answer: 0, judge: 0 }, bodies: any[] = [];
   const fetcher = async (url: string, init: RequestInit) => {
@@ -135,7 +138,9 @@ function fakeProvider(mode: Mode = "normal") {
       counts.answer++; expect(body.messages).toHaveLength(2);
       const prompt = JSON.parse(body.messages[1].content), id = prompt.question.slice(-4), routed = routeEvolutionQuestionShapeV1(prompt.question).routed;
       expect(Object.keys(prompt).sort()).toEqual(["memory", "question", "questionDate"]);
-      expect(typeof prompt.memory).toBe("string"); expect(prompt.memory).toMatch(/^\[(?:runs|assistant|repeat|later)\] \[2026-01-0\d\] (?:user|assistant): /);
+      expect(typeof prompt.memory).toBe("string");
+      // An empty pool reaches the answer readers as an empty memory string; every other memory is rendered source turns.
+      if (!(mode === "empty-pool" && prompt.memory === "")) expect(prompt.memory).toMatch(/^\[(?:runs|assistant|repeat|later)\] \[2026-01-0\d\] (?:user|assistant): /);
       // The single-call EAC control answers routed questions wrongly so two-stage arms show paired wins.
       const wrong = body.messages[0].content === EVOLUTION_READER_CONTRACTS["explicit-abstention-composition-v1"].instruction && routed;
       answer = `${wrong ? "WRONG" : "CORRECT"}_${id}`;
@@ -272,16 +277,29 @@ test("complete fake-provider matrix: six arms on two pins, shared physical reque
       expect(summary("two-stage-routed", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 50, selectionsCompleted: 50, selected: 50, fallbacks: 0, fallbackRate: 0 });
       expect(summary("two-stage-all", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 100, selectionsCompleted: 100, selected: 100, fallbackRate: 0 });
       expect(summary("two-stage-routed-nano", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 50, selectionsCompleted: 50, selected: 50, fallbackRate: 0 });
-      expect(summary("two-stage-all-nano", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 100, selectionsCompleted: 100, selected: 100, fallbacks: 0, fallbackRate: 0 });
-      expect(report.paired.find(p => p.arm === "two-stage-all-nano" && p.variantId === v)!.gate.rule).toMatchObject({ minimumMajorityDelta: 3, maximumRegressions: 2 });
+      expect(summary("two-stage-all-nano", v)).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 100, selectionsCompleted: 100, selected: 100, fallbacks: 0, emptyPoolCases: 0, fallbackRate: 0 });
+      const pairedRow = (arm: EvolutionTwoStageArmId, control: EvolutionTwoStageArmId) => report.paired.find(p => p.arm === arm && p.control === control && p.variantId === v)!;
+      expect(pairedRow("two-stage-all-nano", "single-call-eac").gate.rule).toMatchObject({ minimumMajorityDelta: 3, maximumRegressions: 2 });
       expect(summary("two-stage-all", v).categories.map(c => c.category)).toEqual(["multi-session", "temporal-reasoning"]);
-      const paired = report.paired.find(p => p.arm === "two-stage-all" && p.variantId === v)!;
+      const paired = pairedRow("two-stage-all", "single-call-eac");
       expect(paired).toMatchObject({ control: "single-call-eac", denominator: 100, majorityDelta: 50, meanDelta: 50, wins: 50, losses: 0, ties: 50,
         temporal: { category: "temporal-reasoning", denominator: 25, majorityDelta: 25 } });
+      expect(paired.comparison).toContain("includes the calibration instruction");
       expect(paired.gate).toMatchObject({ majorityDeltaOk: true, regressionsOk: true, temporalOk: true, fallbackOk: true, descriptivePass: false, rule: { minimumMajorityDelta: 3, maximumRegressions: 2 } });
-      expect(report.paired.find(p => p.arm === "calibration-only" && p.variantId === v)!.gate.rule).toMatchObject({ minimumMajorityDelta: 2, maximumRegressions: 1 });
+      expect(pairedRow("calibration-only", "single-call-eac").gate.rule).toMatchObject({ minimumMajorityDelta: 2, maximumRegressions: 1 });
+      // The calibration-only control is the exact physical answer of every unrouted and fallback case, so the rows against it
+      // isolate the selection gain: here the fake answers every calibration-only and selected case correctly, so every delta is zero.
+      for (const arm of ["two-stage-routed", "two-stage-all", "two-stage-routed-nano", "two-stage-all-nano"] as const) {
+        const isolated = pairedRow(arm, "calibration-only");
+        expect(isolated).toMatchObject({ arm, control: "calibration-only", variantId: v, majorityDelta: 0, meanDelta: 0, wins: 0, losses: 0, ties: 100,
+          gate: { rule: { minimumMajorityDelta: 3, maximumRegressions: 2 }, majorityDeltaOk: false, regressionsOk: true, temporalOk: true, fallbackOk: true, descriptivePass: false } });
+        expect(isolated.comparison).toContain("selection gain alone");
+      }
+      expect(report.paired.filter(p => p.control === "calibration-only" && p.variantId === v).map(p => p.arm)).toEqual(["two-stage-routed", "two-stage-all", "two-stage-routed-nano", "two-stage-all-nano"]);
     }
-    expect(report.paired).toHaveLength(10);
+    // Five arms against the single-call control plus four two-stage arms against the calibration-only control, on two pins.
+    expect(report.paired).toHaveLength(10 + 8);
+    expect(report.paired.slice(0, 10).every(p => p.control === "single-call-eac")).toBeTrue();
     expect(report.memoryDelta).toEqual(f.config.arms.map(arm => ({ arm, minuend: "semantic-96k", subtrahend: "window-96k", majorityDelta: 0, meanDelta: 0 })));
     expect(report.routerAudit).toMatchObject({ denominator: 100, routed: 50, hitRate: 0.5, byShape: { aggregate: 50, other: 50 },
       routedByCategory: { "temporal-reasoning": { denominator: 25, routed: 25 }, "multi-session": { denominator: 75, routed: 25 } } });
@@ -320,7 +338,7 @@ test("three repeats live in one store by repeat index; invalid, empty, foreign, 
     expect(report.attempts.find(a => a.request.requestSha256 === twoStage.find(c => c.questionId === "q010")!.selectionRequestSha256)!.response).toMatchObject({ status: "refused", failureReason: "provider-refusal" });
     expect(reasons("q012")).toEqual(Array(3).fill(["selected", null, PROFILES.answer, "completed", "completed", 1]));
     const summary = report.summaries.find(s => s.arm === "two-stage-all")!;
-    expect(summary).toMatchObject({ repeats: 3, logicalCases: 300, selectionsPlanned: 300, selectionsCompleted: 300, selected: 282, fallbacks: 18, fallbackRate: 0.06,
+    expect(summary).toMatchObject({ repeats: 3, logicalCases: 300, selectionsPlanned: 300, selectionsCompleted: 300, selected: 282, fallbacks: 18, emptyPoolCases: 0, fallbackRate: 0.06,
       fallbackReasons: { "empty-selection": 3, "invalid-selection": 6, "selector-failed": 6, "selector-truncated": 3 }, majorityCorrect: 100, meanCorrect: 100, perRepeat: [100, 100, 100] });
     expect(summary.statuses.selectorStatus).toEqual({ completed: 300 });
     const control = report.summaries.find(s => s.arm === "single-call-eac")!;
@@ -370,6 +388,56 @@ test("a selection request above the fixed byte cap fails preparation without tru
   } finally { await rm(f.directory, { recursive: true, force: true }); }
 }, 120_000);
 
+test("an empty pinned pool is a flagged empty-pool fallback on the calibration-only request, not a preparation failure, and stays out of the selector fallback rate", async () => {
+  // q004 is routed and q005 is not; both share no term with any turn, so their BM25 window pools hold no turn.
+  const f = await fixture({ arms: ["single-call-eac", "calibration-only", "two-stage-routed", "two-stage-all"], variantIds: ["window-96k"], emptyPoolQuestions: [4, 5] }), fake = fakeProvider("empty-pool");
+  try {
+    expect(f.plan.pools.filter(p => p.turnCount === 0).map(p => p.questionId)).toEqual(["q004", "q005"]);
+    expect(f.results.get("q004:window-96k")!.turnIds).toEqual([]); expect(f.results.get("q005:window-96k")!.context).toBe("");
+    // 98 mini selections for two-stage-all; two-stage-routed's 49 are the routed subset of the same selections. None is a preparation failure.
+    expect(f.plan.selections).toHaveLength(98); expect(f.plan.selections.every(s => s.plan !== null && s.preparationFailure === null)).toBeTrue();
+    expect(f.plan.selections.some(s => s.questionId === "q004" || s.questionId === "q005")).toBeFalse();
+    expect(f.plan.cases).toHaveLength(400);
+    const planned = (arm: EvolutionTwoStageArmId, questionId: string) => f.plan.cases.find(c => c.arm === arm && c.questionId === questionId)!;
+    expect(planned("two-stage-all", "q004")).toMatchObject({ emptyPool: true, selectorProfile: null, selectionPlanSha256: null });
+    expect(planned("two-stage-all", "q005")).toMatchObject({ emptyPool: true, selectorProfile: null });
+    expect(planned("two-stage-routed", "q004")).toMatchObject({ emptyPool: true, selectorProfile: null, routed: true });
+    expect(planned("two-stage-routed", "q005")).toMatchObject({ emptyPool: false, selectorProfile: null, routed: false });
+    expect(planned("two-stage-all", "q006")).toMatchObject({ emptyPool: false, selectorProfile: PROFILES.primary });
+    expect(planned("single-call-eac", "q004")).toMatchObject({ emptyPool: false, selectorProfile: null });
+    expect(f.plan.cases.filter(c => c.emptyPool)).toHaveLength(3);
+    const report = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
+    expect(report.complete).toBeTrue(); expect(report.status).toBe("complete");
+    expect(report.coverage).toMatchObject({ completeAttemptCoverage: true, logicalCases: 400, preparationFailedCases: 0, notRunRequests: 0 });
+    // 98 selections; 100 single-call, 100 calibration-only and 98 selected-answer requests (empty-pool and unrouted cases share the calibration-only requests).
+    expect(fake.counts.select).toBe(98); expect(fake.counts.answer).toBe(298);
+    const row = (arm: EvolutionTwoStageArmId, questionId: string) => report.cases.find(c => c.arm === arm && c.questionId === questionId)!;
+    for (const [arm, questionId] of [["two-stage-all", "q004"], ["two-stage-all", "q005"], ["two-stage-routed", "q004"]] as const) {
+      expect(row(arm, questionId)).toMatchObject({ selectorStatus: "not-applicable", memory: "fallback", fallbackReason: "empty-pool", selectorProfile: null, selectionRequestSha256: null,
+        selectedTurnCount: null, selectedContextSha256: null, reader: PROFILES.fallback, readerStatus: "completed", judgeStatus: "completed", score: 1 });
+      expect(row(arm, questionId).answerRequestSha256).toBe(row("calibration-only", questionId).answerRequestSha256);
+      expect(JSON.parse(report.attempts.find(a => a.request.requestSha256 === row(arm, questionId).answerRequestSha256)!.request.body.messages[1]!.content).memory).toBe("");
+    }
+    expect(row("two-stage-routed", "q005")).toMatchObject({ selectorStatus: "not-applicable", memory: "full-context", fallbackReason: null, reader: PROFILES.fallback, score: 1 });
+    expect(row("two-stage-all", "q006")).toMatchObject({ selectorStatus: "completed", memory: "selected", fallbackReason: null, reader: PROFILES.answer, score: 1 });
+    expect(row("single-call-eac", "q004")).toMatchObject({ memory: "full-context", fallbackReason: null, score: 0 });
+    expect(row("single-call-eac", "q005")).toMatchObject({ memory: "full-context", fallbackReason: null, score: 1 });
+    const summary = (arm: EvolutionTwoStageArmId) => report.summaries.find(s => s.arm === arm)!;
+    expect(summary("two-stage-all")).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 98, selectionsCompleted: 98, selected: 98, fallbacks: 0, emptyPoolCases: 2, fallbackRate: 0, fallbackReasons: {},
+      statuses: { selectorStatus: { completed: 98, "not-applicable": 2 } } });
+    expect(summary("two-stage-routed")).toMatchObject({ majorityCorrect: 100, selectionsPlanned: 49, selectionsCompleted: 49, selected: 49, fallbacks: 0, emptyPoolCases: 1, fallbackRate: 0 });
+    expect(summary("calibration-only")).toMatchObject({ majorityCorrect: 100, emptyPoolCases: 0 }); expect(summary("single-call-eac")).toMatchObject({ majorityCorrect: 50, emptyPoolCases: 0 });
+    // Three rows against the single-call control, then two against the calibration-only control.
+    expect(report.paired.map(p => [p.arm, p.control])).toEqual([["calibration-only", "single-call-eac"], ["two-stage-routed", "single-call-eac"], ["two-stage-all", "single-call-eac"],
+      ["two-stage-routed", "calibration-only"], ["two-stage-all", "calibration-only"]]);
+    expect(report.paired[2]).toMatchObject({ majorityDelta: 50, wins: 50, losses: 0, ties: 50, gate: { fallbackOk: true } });
+    expect(report.paired[4]).toMatchObject({ majorityDelta: 0, wins: 0, losses: 0, ties: 100 });
+    expect(JSON.stringify({ plan: f.plan, cases: report.cases, summaries: report.summaries })).not.toContain("colour");
+    const replay = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: { ...credential(), token: "" }, fetcher: async () => { throw new Error("no redispatch"); } });
+    expect(replay.total).toMatchObject({ newlyOccupied: 0 }); expect(replay.cases).toEqual(report.cases); expect(replay.paired).toEqual(report.paired);
+  } finally { await rm(f.directory, { recursive: true, force: true }); }
+}, 120_000);
+
 test("a fallback rate above the gate fails fallbackOk and the descriptive pass even when every paired delta passes", async () => {
   const f = await fixture({ arms: ["single-call-eac", "two-stage-all"], variantIds: ["window-96k"] }), fake = fakeProvider("high-fallback");
   try {
@@ -398,6 +466,8 @@ test("an uncertain selection dispatch keeps its full reservation, stops admissio
     expect(unresolved[0]!.response).toBeNull(); expect(unresolved[0]!).toMatchObject({ phase: "select", notRun: null, newlyOccupied: true });
     expect(report.attempts.filter(a => a.notRun === "admission-stopped")).toHaveLength(99);
     expect(report.total).toMatchObject({ physicalRequests: 100, occupiedRequests: 1, newlyOccupied: 1, notRun: 99, confirmedMicros: 0, unresolvedMicros: unresolved[0]!.request.reservationMicros });
+    // An unresolved reservation alone keeps the run incomplete, independently of the not-run remainder.
+    expect(report.total.unresolvedMicros).toBeGreaterThan(0); expect(report.coverage.completeAttemptCoverage).toBeFalse();
     expect(report.campaignAfter).toMatchObject({ calls: 1, confirmedMicros: 0, unresolvedMicros: unresolved[0]!.request.reservationMicros });
     expect(report.summaries[0]).toMatchObject({ selectionsPlanned: 100, selectionsCompleted: 0, fallbacks: 0, fallbackRate: null, majorityCorrect: 0 });
     expect(report.summaries[0]!.statuses.selectorStatus).toEqual({ "not-run": 99, unresolved: 1 });
