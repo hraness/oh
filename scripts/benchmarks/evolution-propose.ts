@@ -249,6 +249,7 @@ if (parsedConfig.datasetPin.sha256 !== pins.sourceSha256 || parsedConfig.manifes
 const receiptConfigPin = record(readerOutput.configPin, "reader receipt config pin");
 if (absolutePath(receiptConfigPin.path, "reader receipt config path") !== absolutePath(input.get("config"), "config")
   || digest(receiptConfigPin.sha256, "reader receipt config sha256") !== configSha256) fail("supplied config does not exactly match the reader receipt pin");
+if (parsedConfig.protocol === "oh.memory.evolution-run.v7") fail("Full-release descriptive scopes are outside the V1 development genetic domain");
 const variants = parsedConfig.variants.map(variant => {
   if (variant.system === "full-history" || variant.system === "oh-source-spans-v2" || variant.system === "oh-source-completion" || variant.system === "oh-source-order") return fail("Full-history controls and fixed mechanisms are outside the V1 genetic domain");
   return { id: variant.id, system: variant.system, topK: variant.budget.topK, contextBytes: variant.budget.contextBytes };
