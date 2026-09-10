@@ -11,7 +11,7 @@ export const EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS = 400_000;
 export const EVOLUTION_PROFILE_WINDOW_MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 export const EVOLUTION_BASE_READER_IDS = ["qwen37-flash-reader", "gpt5-nano-reader", "gemini25-flash-lite-reader",
-  "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader"] as const;
+  "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader", "gpt5-mini-high-reader", "gpt5-low-reader", "gpt41-reader"] as const;
 export type EvolutionBaseReaderId = typeof EVOLUTION_BASE_READER_IDS[number];
 type ReaderStem<T> = T extends `${infer Stem}-reader` ? Stem : never;
 export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${EvolutionReaderAblationContractId}-reader`;
@@ -80,6 +80,14 @@ const LEGACY_PROFILES: Readonly<Record<EvolutionLegacyProfileId, EvolutionModelP
     { temperature: 0, reasoning: { effort: "none" } }, [tier(100, 10, 400)]),
   "gpt5-mini-reader": profile("gpt5-mini-reader", "openai/gpt-5-mini", "openai", 400_000, 8_192,
     { reasoning: { effort: "medium" } }, [tier(250, 25, 2_000)]),
+  "gpt5-mini-high-reader": profile("gpt5-mini-high-reader", "openai/gpt-5-mini", "openai", 400_000, 8_192,
+    { reasoning: { effort: "high" } }, [tier(250, 25, 2_000)]),
+  // GPT-5 at low effort; Gateway list price checked 2026-09-10 ($1.25 / $10 per million, cached input assumed at the family's 10%).
+  "gpt5-low-reader": profile("gpt5-low-reader", "openai/gpt-5", "openai", 400_000, 8_192,
+    { reasoning: { effort: "low" } }, [tier(1_250, 125, 10_000)]),
+  // GPT-4.1 has no reasoning setting; Gateway list price checked 2026-09-10 ($2 / $0.50 cached / $8 per million).
+  "gpt41-reader": profile("gpt41-reader", "openai/gpt-4.1", "openai", 1_047_576, 2_048,
+    { temperature: 0, reasoning: { effort: "none" } }, [tier(2_000, 500, 8_000)]),
   "gpt4o-gateway-judge": profile("gpt4o-gateway-judge", "openai/gpt-4o", "openai", 128_000, 16,
     { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
   "gpt4o-gateway-native-rubric-16-judge-v1": profile("gpt4o-gateway-native-rubric-16-judge-v1", "openai/gpt-4o", "openai", 128_000, 16,
@@ -109,7 +117,7 @@ export function evolutionReaderContract(profileId: EvolutionProfileId): Evolutio
 }
 export function supportsEvolutionProfileWindow(profileId: EvolutionProfileId): boolean {
   const selected = getProfile(profileId), base = selected.readerContract?.baseReader ?? selected.id;
-  return ["gpt5-nano-reader", "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader"].includes(base)
+  return ["gpt5-nano-reader", "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader", "gpt5-mini-high-reader", "gpt5-low-reader"].includes(base)
     && selected.contextWindow === EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS && selected.maxOutputTokens === 8_192;
 }
 

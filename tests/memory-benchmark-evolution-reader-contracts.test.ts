@@ -101,8 +101,8 @@ describe("composable isolated reader answer contracts", () => {
         expect(validateEvolutionRequest(window)).toEqual(window);
       } else expect(() => makeEvolutionProfileWindowRequest(id, msg)).toThrow("profile-window");
     }
-    expect(ids.size).toBe(36);
-    expect(Object.keys(EVOLUTION_PROFILES)).toHaveLength(40);
+    expect(ids.size).toBe(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length);
+    expect(Object.keys(EVOLUTION_PROFILES)).toHaveLength(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length + 4);
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {
     const ctx = await fixture(), profiles = EVOLUTION_READER_CONTRACT_IDS.map(c => evolutionReaderProfileId("gpt5-nano-reader", c));
