@@ -9,7 +9,7 @@ export function summarizeReport(value: unknown, fullReportSha256: string) {
     throw new TypeError("Not a recognized benchmark report.");
   }
   const fields = ["protocol", "createdAt", "manifest", "status", "stopped", "summaries", "comparisons", "ingestion",
-    "unresolvedEvidence", "unresolvedReferences", "evidenceProtocol", "evidenceNormalization",
+    "unresolvedEvidence", "ambiguousEvidence", "unresolvedReferences", "evidenceProtocol", "evidenceNormalization",
     "resultSha256", "qualifications", "provider", "spend", "phaseAccounting", "sourceReport", "judgeProtocol", "judgeProfile", "judgeExecution", "queryOrder", "memoryUnits", "extraction"];
   return { ...Object.fromEntries(fields.filter((field) => Object.hasOwn(value, field)).map((field) => [field, value[field]])),
     fullReportSha256 };

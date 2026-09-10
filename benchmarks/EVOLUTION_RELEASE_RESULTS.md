@@ -16,12 +16,30 @@ the complete conversation. With GPT-5 mini on the same contexts, Oh semantic
 reaches 89.8% and beats BM25 by 22 questions; see the stronger-reader section. None of this establishes
 superiority over other frameworks, an official leaderboard score, or benchmark
 saturation. The exposure caveat matters: 100 of the 500 questions were used
-during earlier development, and the remaining 400 are recorded as closed with
-unknown exposure. Unknown does not mean unseen.
+during earlier development, and the remaining 400 were recorded as closed with
+unknown exposure when these studies ran. Unknown does not mean unseen.
+
+## Exposure declaration
+
+From 2026-09-10 all 500 questions are development or evaluated. The closed
+stratum's aggregate scores were read in the three studies on this page and
+then used to choose readers, contracts and retrieval arms, so no question
+on this benchmark is a holdout any more. During the failure analysis that
+followed the mini-reader study, 41 closed questions were inspected per
+question. The full-500 tables on this page are therefore descriptive,
+in-sample scores. Later reports split them into three declared strata,
+development (100 questions in 94 groups), inspected-closed (the 41 inspected
+questions and their group mates, 44 questions in 40 groups) and
+aggregate-only-closed (356 questions in 337 groups), reported side by side.
+Partition labels are unchanged, so the development selection is still the
+same 100 questions. The [protocol card](PROTOCOL_CARD.md) and the
+[pre-registered analysis plan](ANALYSIS_PLAN.md) fix the settings and
+statistics for everything that follows; the re-score of every study on this
+page through the new paired-statistics scorer reproduces each total below.
 
 ## Answer accuracy
 
-| Arm | Correct | Closed/unknown (400) | Development (100) |
+| Arm | Correct | Closed (400, evaluated) | Development (100) |
 | --- | ---: | ---: | ---: |
 | BM25 window, 96 KB | 378/500 (75.6%) | 298/400 (74.5%) | 80/100 |
 | Oh semantic, 96 KB | 379/500 (75.8%) | 301/400 (75.2%) | 78/100 |
@@ -97,13 +115,15 @@ with GPT-5 mini under the same explicit-abstention composition contract and the
 same adapted judge. The contexts were rebound rather than rebuilt, so the two
 studies differ only in the reader and the campaign that paid for it.
 
-| Arm | Nano reader | GPT-5 mini reader | Mini, closed/unknown (400) | Mini, development (100) |
+| Arm | Nano reader | GPT-5 mini reader | Mini, closed (400, evaluated) | Mini, development (100) |
 | --- | ---: | ---: | ---: | ---: |
 | BM25 window, 96 KB | 378/500 (75.6%) | 427/500 (85.4%) | 342/400 | 85/100 |
 | Oh semantic, 96 KB | 379/500 (75.8%) | 449/500 (89.8%) | 359/400 | 90/100 |
 
 With the mini reader, Oh semantic beats BM25 window by 22 questions: 39 paired
-wins against 17 losses with 444 ties. The gain concentrates where retrieval
+wins against 17 losses with 444 ties (exact one-sided sign test p = 0.0023;
+95% cluster-bootstrap interval +1.6 to +7.3 points over the 471 declared
+groups, below the 5-point clear-gain rule of the analysis plan). The gain concentrates where retrieval
 order and coverage matter, temporal reasoning (13 wins, 3 losses; 121 versus
 111 of 133) and multi-session questions (16 wins, 8 losses; 112 versus 104 of
 133). Per shard the mini counts were 92/86, 90/87, 88/84, 90/88 and 89/82. All
