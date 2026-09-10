@@ -113,7 +113,8 @@ export function evolutionReaderProfileId(baseReader: EvolutionBaseReaderId, cont
   return id === "legacy-v1" ? baseReader : `${baseReader.slice(0, -7)}-${id}-reader` as EvolutionAblationReaderId;
 }
 const ablationProfiles = Object.fromEntries(EVOLUTION_BASE_READER_IDS.flatMap(baseReader =>
-  (["explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1", "calibrated-composition-v1", "timeline-composition-v1"] as const).map(contract => {
+  (["explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1", "calibrated-composition-v1", "timeline-composition-v1",
+    "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1"] as const).map(contract => {
     const id = evolutionReaderProfileId(baseReader, contract), base = LEGACY_PROFILES[baseReader];
     return [id, { ...base, id, readerContract: { baseReader, id: contract, instructionSha256: EVOLUTION_READER_CONTRACTS[contract].instructionSha256 } }];
   }))) as unknown as Record<EvolutionAblationReaderId, EvolutionModelProfile>;

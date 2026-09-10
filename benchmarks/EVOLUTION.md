@@ -303,6 +303,11 @@ and retrieved context. The closed contract catalog provides a small factorial:
 | `explicit-abstention-v1` | Explicit statement that information is missing | Existing instructions |
 | `composition-v1` | Existing literal `None` instruction | Event deduplication, date/state resolution, arithmetic and remembered preferences |
 | `explicit-abstention-composition-v1` | Explicit statement that information is missing | Both changes together |
+| `calibrated-composition-v1` | Calibrated abstention (legacy: carries a dataset-specific example) | Composition plus exact-value calibration |
+| `timeline-composition-v1` | Calibrated abstention (legacy, as above) | Composition, calibration and explicit timeline work |
+| `calibration-only-v1` | Explicit statement that information is missing | Composition plus exact-value calibration |
+| `selected-answer-v1` | Explicit statement that information is missing | As `calibration-only-v1`, plus a note that the memory holds selected source turns |
+| `evidence-selection-v1` | Not an answer contract | Stage-one alias selection for the [two-stage lane](EVOLUTION_TWO_STAGE.md); `evolutionAnswerMessages` refuses it and runner and selector-lane configurations reject its reader profiles, so it never answers over a memory field |
 
 `evolutionReaderProfileId(baseReader, contract)` returns an immutable ID accepted
 in the existing configuration's `readers` list. For example,
@@ -576,6 +581,7 @@ References: [LoCoMo evaluator](https://github.com/snap-research/locomo/blob/3eb6
 
 Successor allowances use the [campaign V2 lineage contract](EVOLUTION_CAMPAIGNS_V2.md).
 The [ID selector prototype](EVOLUTION_SELECTOR.md) retains exact source turns in a separate experiment protocol.
+The [two-stage evidence-selection lane](EVOLUTION_TWO_STAGE.md) selects source turns from pinned semantic and BM25 contexts with a question-shape router, answers from the re-rendered selection, and reports reader-matched controls on both pins.
 
 ### Explicit full-release descriptive scope
 
