@@ -148,7 +148,7 @@ describe("evolution prepared raw-source retrieval", () => {
 
   test("rejects invalid bounds, preserves empty-query behavior, and closes idempotently", async () => {
     const prepared = await prepareEvolutionCorpus(corpus);
-    await expect(prepared.retrieve("kayak", variant("bm25-window", 101))).rejects.toThrow("budget");
+    await expect(prepared.retrieve("kayak", variant("bm25-window", 401))).rejects.toThrow("budget");
     await expect(prepared.retrieve("x".repeat(16_385), variant("bm25-window"))).rejects.toThrow("question");
     expect((await prepared.retrieve("???", variant("bm25-facets"))).context).toBe("");
     expect(evolutionQuestionFacets("a and b and c and d and e").length).toBeLessThanOrEqual(4);
