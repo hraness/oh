@@ -550,3 +550,7 @@ References: [LoCoMo evaluator](https://github.com/snap-research/locomo/blob/3eb6
 
 Successor allowances use the [campaign V2 lineage contract](EVOLUTION_CAMPAIGNS_V2.md).
 The [ID selector prototype](EVOLUTION_SELECTOR.md) retains exact source turns in a separate experiment protocol.
+
+### Explicit full-release descriptive scope
+
+[Run V7](EVOLUTION_RELEASE_V7.md) adds a separately pinned full500 LongMemEval study: five exact100-question shards, fixed96KB BM25/Oh semantic pair, combined-contract nano and native16 Gateway judge. It preserves original development and closed/unknown exposure declarations, retains all failures, and combines reportV2 shards into an aggregate-only public projection. Existing runV1–V6 paths remain development-only. This scope does not claim fresh confirmation or official-protocol reproduction.

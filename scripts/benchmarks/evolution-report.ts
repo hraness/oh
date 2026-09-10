@@ -9,6 +9,8 @@ import { parseEvolutionResponse, type EvolutionRequest, type EvolutionResponse }
 import { validateEvolutionContextPlanSources, validateEvolutionReaderPlan, type EvolutionAnyContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
 import { validateEvolutionAttemptFailure, type EvolutionAttemptFailure } from "./evolution-store";
 import { loadJudgeProfile } from "./judge";
+import { validateEvolutionReleaseArtifacts, evolutionReleaseShard, type EvolutionReleaseAuthorization } from "./evolution-release";
+import { assertEvolutionReleaseContextBinding } from "./evolution-release-plan";
 
 function fail(message: string): never { throw new TypeError(`Evolution report: ${message}.`); }
 const pair = (q: string, v: string) => JSON.stringify([q, v]);
@@ -22,7 +24,7 @@ function json(bytes: Uint8Array, maximum: number): unknown {
 }
 
 /** Authenticate selected content against the pinned complete exposure manifest without opening other partitions. */
-function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: string): EvolutionDatasetManifest {
+function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: string, release?: Readonly<{ authorization: EvolutionReleaseAuthorization; shardId: string }>): EvolutionDatasetManifest {
   if (!digest(expectedSha256) || sha256Hex(bytes) !== expectedSha256) fail("manifest bytes changed");
   const value = json(bytes, 128 * 1024 * 1024);
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "dataset", "revision", "sourceSha256", "datasetSha256", "groups", "corpora", "questions", "qualification"])
@@ -68,7 +70,9 @@ function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: s
   const subset = createEvolutionDatasetManifest(dataset, { dataset: manifest.dataset, revision: manifest.revision,
     sourceSha256: manifest.sourceSha256, groups: manifest.groups.filter(g => groups.has(g.groupId)),
     histories: manifest.corpora.filter(c => corpora.has(c.id)).map(c => ({ corpusId: c.id, historyId: c.historyId })) });
-  if (subset.groups.some(g => g.partition !== "development")) fail("only development results are reportable by this campaign");
+  if (release === undefined) {
+    if (subset.groups.some(g => g.partition !== "development")) fail("only development results are reportable by this campaign");
+  } else assertExactEvolutionCoverage(evolutionReleaseShard(release.authorization, release.shardId).questionIds, subset.questions.map(q => q.runnerId));
   const sourceCorpora = new Map(manifest.corpora.map(c => [c.id, c])), sourceQuestions = new Map(manifest.questions.map(q => [q.id, q]));
   if (subset.corpora.some(c => !same(c, sourceCorpora.get(c.id))) || subset.questions.some(q => !same(q, sourceQuestions.get(q.id)))) {
     fail("selected questions, gold or corpus content changed");
@@ -191,11 +195,30 @@ function cost(responses: ReadonlyMap<string, EvolutionResponse>, failures: Reado
 }
 
 /** No requests are sent here. Responses and occupied failures are authenticated separately. */
-export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; manifestBytes: Uint8Array; manifestSha256: string;
+export type EvolutionReportInput = Readonly<{ dataset: Dataset; manifestBytes: Uint8Array; manifestSha256: string;
   contextPlan: EvolutionAnyContextPlan; readerPlan: EvolutionReaderPlan; judgePlan: EvolutionJudgePlan;
   readerOutputBytes: Uint8Array; judgeOutputBytes: Uint8Array; judgeOutputSha256: string; loadRawResponse: EvolutionRawResponseLoader;
-  loadServiceMs?: EvolutionServiceMsLoader; loadAttemptFailure?: EvolutionAttemptFailureLoader }>) {
-  const manifest = selectedManifest(input.dataset, input.manifestBytes, input.manifestSha256);
+  loadServiceMs?: EvolutionServiceMsLoader; loadAttemptFailure?: EvolutionAttemptFailureLoader }>;
+export async function buildEvolutionReport(input: EvolutionReportInput) { return (await buildReport(input)).report; }
+export async function buildEvolutionReleaseShardReport(input: EvolutionReportInput & Readonly<{ release: { studyBytes: Uint8Array; scopeBytes: Uint8Array; shardId: string; campaignSha256: string } }>) {
+  const authorization = validateEvolutionReleaseArtifacts({ studyBytes: input.release.studyBytes, scopeBytes: input.release.scopeBytes, manifestBytes: input.manifestBytes });
+  if (!digest(input.release.campaignSha256) || input.contextPlan.protocol !== "oh.memory.evolution-context-plan.v6"
+    || !same(input.readerPlan.readerProfiles, [authorization.study.reader]) || input.judgePlan.profile !== authorization.study.judge
+    || input.judgePlan.rubricSha256 !== authorization.study.rubricSha256) fail("release reader/judge/context binding");
+  assertEvolutionReleaseContextBinding(input.contextPlan, authorization, input.release.shardId);
+  const built = await buildReport(input, { authorization, shardId: input.release.shardId });
+  const report = built.report;
+  return { ...report, protocol: "oh.memory.evolution-report.v2" as const,
+    qualification: "Full-release descriptive evidence with disclosed adaptive development and unknown prior exposure; no fresh confirmation, independence or superiority claim.",
+    dataset: { ...report.dataset, partition: "full-release-descriptive" as const },
+    scoring: { ...report.scoring, judgeQualification: "Gateway GPT-4o alias with native LongMemEval prompt/contains-yes rule and adapted16-token cap. This is one shard of a full-release descriptive study; not a pinned-snapshot or official protocol reproduction." },
+    release: { studySha256: authorization.studySha256, scopeSha256: authorization.scope.scopeSha256, scopeFileSha256: authorization.scopeFileSha256,
+      shardId: input.release.shardId, questionIds: evolutionReleaseShard(authorization, input.release.shardId).questionIds,
+      campaignSha256: input.release.campaignSha256, retrievalSourceSha256: input.contextPlan.retrievalSourceSha256, candidatePresentation: authorization.study.candidatePresentation,
+      outcomes: built.outcomes, physical: built.physical } };
+}
+async function buildReport(input: EvolutionReportInput, release?: Readonly<{ authorization: EvolutionReleaseAuthorization; shardId: string }>) {
+  const manifest = selectedManifest(input.dataset, input.manifestBytes, input.manifestSha256, release);
   authenticateContexts(input.dataset, input.contextPlan, input.manifestSha256);
   const readers = validateEvolutionReaderPlan(input.readerPlan, input.contextPlan), judges = validateEvolutionJudgePlan(input.judgePlan);
   const readerOutputSha256 = sha256Hex(input.readerOutputBytes);
@@ -263,7 +286,7 @@ export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; m
   });
   const readerCost = cost(readerResponses, readerPhase.failures, readers.requests), judgeCost = cost(judgeResponses, judgePhase.failures, judges.requests);
   const direct = judges.profile === "gpt4o-official-snapshot-judge";
-  return { protocol: "oh.memory.evolution-report.v1" as const, status: "complete" as const,
+  const report = { protocol: "oh.memory.evolution-report.v1" as const, status: "complete" as const,
     qualification: "Development-only descriptive evidence; no superiority claim, independent-sample count, or confidence interval.",
     dataset: { name: manifest.dataset, revision: manifest.revision, partition: "development" as const, selectedQuestions: cases.length,
       selectedCorpora: manifest.corpora.length, declaredGroups: groupLabels.size, declaredHistories: historyLabels.size,
@@ -301,4 +324,20 @@ export async function buildEvolutionReport(input: Readonly<{ dataset: Dataset; m
       metrics: metrics.map(metric => summarize(cases, arm.scores[metric], metric)) })),
     comparisonPolicy: "Left minus right. Each non-first variant is paired against the first variant at a fixed reader; each non-first reader is paired against the first reader at a fixed variant. No mixed-treatment comparisons.",
     comparisons };
+  const outcomes = release === undefined ? [] : rawArms.flatMap(arm => cases.map(c => {
+    const jc = judgeCases.get(triple(c.id, arm.variantId, arm.reader))!;
+    const judged = jc.requestSha256 === null ? undefined : judgeResponses.get(jc.requestSha256);
+    const decision = judged?.status === "completed" ? scoreEvolutionJudgeDecision(judges.profile, judged.answer) : null;
+    return { questionId: c.id, variantId: arm.variantId, reader: arm.reader, readerFailed: jc.readerFailed,
+      judgeFailed: !jc.readerFailed && decision === null,
+      scores: Object.fromEntries(metrics.map(metric => [metric, arm.scores[metric].find(s => s.id === c.id)!.score])) as Record<string, number | null> };
+  }));
+  const physical = release === undefined ? [] : ([ ["reader", readers.requests, readerPhase], ["judge", judges.requests, judgePhase] ] as const).flatMap(([phase, requests, result]) => requests.map(request => {
+    const response = result.responses.get(request.requestSha256), failure = result.failures.get(request.requestSha256);
+    return { requestSha256: request.requestSha256, evidenceSha256: canonicalSha256(response ?? failure), phase,
+      status: response === undefined ? failure!.storeStatus : "verified" as const,
+      knownUsageMicros: response?.usage.micros ?? null, unresolvedReservationMicros: failure?.reservationMicros ?? 0,
+      serviceMs: result.serviceMs.get(request.requestSha256) ?? null };
+  }));
+  return { report, outcomes, physical };
 }

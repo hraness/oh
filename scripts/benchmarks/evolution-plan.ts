@@ -11,6 +11,8 @@ import { isEvolutionV3Treatment, parseEvolutionTreatment, type EvolutionTreatmen
 import { validateEvolutionCompletionPlanEnvelope, validateEvolutionCompletionPlan, type EvolutionCompletionPlan } from "./evolution-completion-plan";
 import { validateEvolutionSourceOrderPlanEnvelope, validateEvolutionSourceOrderPlan, type EvolutionSourceOrderPlan } from "./evolution-source-order-plan";
 
+import { validateEvolutionReleaseContextPlanEnvelope, validateEvolutionReleaseContextPlanSources, type EvolutionReleaseContextPlan } from "./evolution-release-plan";
+
 export type EvolutionContextCase = Readonly<{ questionId: string; variantId: string; result: EvolutionRetrievalResult }>;
 export type EvolutionContextPlan = Readonly<{ protocol: "oh.memory.evolution-context-plan.v1"; manifestSha256: string;
   retrievalSourceSha256: string; inputSha256: string; variants: readonly EvolutionRetrievalVariant[];
@@ -21,7 +23,7 @@ export type EvolutionContextPlanV2 = Readonly<{ protocol: "oh.memory.evolution-c
   retrievalSourceSha256: string; inputSha256: string; variants: readonly EvolutionExperimentVariant[];
   questions: readonly EvolutionRunnerQuestion[]; cases: readonly EvolutionContextCaseV2[];
   pools: readonly Readonly<{ questionId: string; result: EvolutionRetrievalResult }>[]; planSha256: string }>;
-export type EvolutionAnyContextPlan = EvolutionContextPlan | EvolutionContextPlanV2 | EvolutionContextPlanV3 | EvolutionCompletionPlan | EvolutionSourceOrderPlan;
+export type EvolutionAnyContextPlan = EvolutionContextPlan | EvolutionContextPlanV2 | EvolutionContextPlanV3 | EvolutionCompletionPlan | EvolutionSourceOrderPlan | EvolutionReleaseContextPlan;
 export type EvolutionReaderCase = Readonly<{ questionId: string; variantId: string; reader: EvolutionProfileId;
   contextSha256: string; requestSha256: string }>;
 export type EvolutionReaderPlan = Readonly<{ protocol: "oh.memory.evolution-reader-plan.v1"; contextPlanSha256: string;
@@ -211,6 +213,7 @@ export function validateEvolutionLegacyResultEnvelope(value: unknown, question: 
 }
 
 export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): EvolutionAnyContextPlan {
+  if (isPlainRecord(plan) && plan.protocol === "oh.memory.evolution-context-plan.v6") return validateEvolutionReleaseContextPlanEnvelope(plan);
   if (isPlainRecord(plan) && plan.protocol === "oh.memory.evolution-context-plan.v5") return validateEvolutionSourceOrderPlanEnvelope(plan);
   if (isPlainRecord(plan) && plan.protocol === "oh.memory.evolution-context-plan.v4") return validateEvolutionCompletionPlanEnvelope(plan);
   if (isPlainRecord(plan) && plan.protocol === "oh.memory.evolution-context-plan.v3") return validateEvolutionContextPlanV3(plan);
@@ -258,6 +261,7 @@ export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): 
 
 /** Source authentication is required before admission or reporting, including resealed cache rows. */
 export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPlan, input: EvolutionRunnerInput): void {
+  if (plan.protocol === "oh.memory.evolution-context-plan.v6") { validateEvolutionReleaseContextPlanSources(plan, input); return; }
   if (plan.protocol === "oh.memory.evolution-context-plan.v5") {
     validateEvolutionSourceOrderPlan({ dataset: input, parents: plan.parents, manifestSha256: plan.manifestSha256, retrievalSourceSha256: plan.retrievalSourceSha256 }, plan);
     return;
