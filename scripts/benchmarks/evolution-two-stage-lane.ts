@@ -237,7 +237,9 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
         ...(options.fetcher === undefined ? {} : { fetcher: options.fetcher }), stopped: () => stopped || !!options.stopped?.() }); }
       catch { if (store.lookup(request, repeat).kind === "miss") { notRun = "admission-rejected"; stopped = true; } }
       const current = store.lookup(request, repeat), response = current.kind === "hit" ? current.result : null;
-      const failure = current.kind === "occupied" ? store.readAttemptFailure(request, repeat) : null; if (failure !== null) stopped = true;
+      // An unresolved attempt created in this run stops further admission; one already occupied before this run is
+      // known, charged and scored zero, and does not block unrelated requests (EVOLUTION.md), so an interrupted matrix resumes.
+      const failure = current.kind === "occupied" ? store.readAttemptFailure(request, repeat) : null; if (failure !== null && initial.kind === "miss") stopped = true;
       const value: Attempt = { phase, repeat, request, response, failure, notRun, cached: initial.kind !== "miss",
         newlyOccupied: initial.kind === "miss" && current.kind !== "miss",
         serviceMs: current.kind === "miss" || current.kind === "occupied" && current.status === "reserved" ? null : store.readServiceMs(request, repeat) };

@@ -471,10 +471,14 @@ test("an uncertain selection dispatch keeps its full reservation, stops admissio
     expect(report.campaignAfter).toMatchObject({ calls: 1, confirmedMicros: 0, unresolvedMicros: unresolved[0]!.request.reservationMicros });
     expect(report.summaries[0]).toMatchObject({ selectionsPlanned: 100, selectionsCompleted: 0, fallbacks: 0, fallbackRate: null, majorityCorrect: 0 });
     expect(report.summaries[0]!.statuses.selectorStatus).toEqual({ "not-run": 99, unresolved: 1 });
+    // A later invocation never retries the unresolved attempt, but unrelated requests may proceed (EVOLUTION.md);
+    // here the next dispatch is uncertain too, so the replay occupies exactly one more request and stops again.
     const replay = await runEvolutionTwoStageLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
-    expect(fake.counts.select).toBe(1); expect(replay.stopped).toBeTrue(); expect(replay.cases).toEqual(report.cases);
-    expect(replay.total).toMatchObject({ newlyOccupied: 0, occupiedRequests: 1, notRun: 99, unresolvedMicros: report.total.unresolvedMicros });
-    expect(replay.campaignAfter).toEqual(report.campaignAfter);
+    expect(fake.counts.select).toBe(2); expect(replay.stopped).toBeTrue(); expect(replay.complete).toBeFalse();
+    const original = replay.attempts.find(a => a.request.requestSha256 === unresolved[0]!.request.requestSha256 && a.repeat === unresolved[0]!.repeat)!;
+    expect(original).toMatchObject({ cached: true, newlyOccupied: false, notRun: null, response: null }); expect(original.failure).toEqual(unresolved[0]!.failure);
+    expect(replay.total).toMatchObject({ newlyOccupied: 1, occupiedRequests: 2, notRun: 98, failed: 2 }); expect(replay.total.unresolvedMicros).toBeGreaterThan(report.total.unresolvedMicros);
+    expect(replay.campaignAfter).toMatchObject({ calls: 2, confirmedMicros: 0 });
   } finally { await rm(f.directory, { recursive: true, force: true }); }
 }, 120_000);
 
