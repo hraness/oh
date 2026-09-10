@@ -1,0 +1,1228 @@
+{
+  "protocol": "oh.memory.source-order-paid-audit-summary.v1",
+  "status": "complete",
+  "questionsPerArm": 100,
+  "logicalReaderCases": 100,
+  "comparisons": [
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "candidate": "oh-semantic-source-order-96k-v1",
+      "reference": "oh-focused-window-96k",
+      "comparisonScope": "Cross-stage descriptive; same100 and reader/native16 contracts,96KB ceilings; retrieval/packing source sets differ. Prior first answers/scores remain unchanged.",
+      "overall": {
+        "questions": 100,
+        "wins": 5,
+        "losses": 10,
+        "ties": 85,
+        "candidateCorrect": 76,
+        "referenceCorrect": 81,
+        "meanDelta": -0.05,
+        "candidateReaderFailures": 0,
+        "referenceReaderFailures": 0,
+        "candidateJudgeFailures": 1,
+        "referenceJudgeFailures": 0
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 1,
+          "ties": 15,
+          "candidateCorrect": 14,
+          "referenceCorrect": 14,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 1,
+          "losses": 8,
+          "ties": 19,
+          "candidateCorrect": 13,
+          "referenceCorrect": 20,
+          "meanDelta": -0.25,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 1,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidateCorrect": 17,
+          "referenceCorrect": 17,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 0,
+          "ties": 5,
+          "candidateCorrect": 3,
+          "referenceCorrect": 3,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidateCorrect": 11,
+          "referenceCorrect": 11,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 3,
+          "losses": 1,
+          "ties": 18,
+          "candidateCorrect": 18,
+          "referenceCorrect": 16,
+          "meanDelta": 0.09090909090909091,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "candidate": "oh-semantic-source-order-96k-v1",
+      "reference": "oh-focused-window-opening-96k",
+      "comparisonScope": "Cross-stage descriptive; same100 and reader/native16 contracts,96KB ceilings; retrieval/packing source sets differ. Prior first answers/scores remain unchanged.",
+      "overall": {
+        "questions": 100,
+        "wins": 8,
+        "losses": 8,
+        "ties": 84,
+        "candidateCorrect": 76,
+        "referenceCorrect": 76,
+        "meanDelta": 0,
+        "candidateReaderFailures": 0,
+        "referenceReaderFailures": 0,
+        "candidateJudgeFailures": 1,
+        "referenceJudgeFailures": 1
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 2,
+          "losses": 1,
+          "ties": 14,
+          "candidateCorrect": 14,
+          "referenceCorrect": 13,
+          "meanDelta": 0.058823529411764705,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 1,
+          "losses": 6,
+          "ties": 21,
+          "candidateCorrect": 13,
+          "referenceCorrect": 18,
+          "meanDelta": -0.17857142857142858,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 1,
+          "referenceJudgeFailures": 1
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidateCorrect": 17,
+          "referenceCorrect": 17,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 2,
+          "losses": 0,
+          "ties": 3,
+          "candidateCorrect": 3,
+          "referenceCorrect": 1,
+          "meanDelta": 0.4,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidateCorrect": 11,
+          "referenceCorrect": 11,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 3,
+          "losses": 1,
+          "ties": 18,
+          "candidateCorrect": 18,
+          "referenceCorrect": 16,
+          "meanDelta": 0.09090909090909091,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "candidate": "oh-semantic-source-order-96k-v1",
+      "reference": "window-96k",
+      "comparisonScope": "Cross-stage descriptive; same100 and reader/native16 contracts,96KB ceilings; retrieval/packing source sets differ. Prior first answers/scores remain unchanged.",
+      "overall": {
+        "questions": 100,
+        "wins": 8,
+        "losses": 10,
+        "ties": 82,
+        "candidateCorrect": 76,
+        "referenceCorrect": 78,
+        "meanDelta": -0.02,
+        "candidateReaderFailures": 0,
+        "referenceReaderFailures": 0,
+        "candidateJudgeFailures": 1,
+        "referenceJudgeFailures": 0
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 1,
+          "losses": 3,
+          "ties": 13,
+          "candidateCorrect": 14,
+          "referenceCorrect": 16,
+          "meanDelta": -0.11764705882352941,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 4,
+          "losses": 6,
+          "ties": 18,
+          "candidateCorrect": 13,
+          "referenceCorrect": 15,
+          "meanDelta": -0.07142857142857142,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 1,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidateCorrect": 17,
+          "referenceCorrect": 17,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 1,
+          "losses": 0,
+          "ties": 4,
+          "candidateCorrect": 3,
+          "referenceCorrect": 2,
+          "meanDelta": 0.2,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidateCorrect": 11,
+          "referenceCorrect": 11,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 2,
+          "losses": 1,
+          "ties": 19,
+          "candidateCorrect": 18,
+          "referenceCorrect": 17,
+          "meanDelta": 0.045454545454545456,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        }
+      ]
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "candidate": "oh-semantic-source-order-96k-v1",
+      "reference": "oh-semantic-top100-96k-v1",
+      "comparisonScope": "Same100 and exact retained semantic source multiset/bytes, reader/native16 contracts; presentation order only. Historical first responses are reused, so model temporal variance remains.",
+      "overall": {
+        "questions": 100,
+        "wins": 3,
+        "losses": 9,
+        "ties": 88,
+        "candidateCorrect": 76,
+        "referenceCorrect": 82,
+        "meanDelta": -0.06,
+        "candidateReaderFailures": 0,
+        "referenceReaderFailures": 0,
+        "candidateJudgeFailures": 1,
+        "referenceJudgeFailures": 0
+      },
+      "byCategory": [
+        {
+          "category": "knowledge-update",
+          "questions": 17,
+          "wins": 2,
+          "losses": 2,
+          "ties": 13,
+          "candidateCorrect": 14,
+          "referenceCorrect": 14,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "multi-session",
+          "questions": 28,
+          "wins": 1,
+          "losses": 7,
+          "ties": 20,
+          "candidateCorrect": 13,
+          "referenceCorrect": 19,
+          "meanDelta": -0.21428571428571427,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 1,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-assistant",
+          "questions": 17,
+          "wins": 0,
+          "losses": 0,
+          "ties": 17,
+          "candidateCorrect": 17,
+          "referenceCorrect": 17,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-preference",
+          "questions": 5,
+          "wins": 0,
+          "losses": 0,
+          "ties": 5,
+          "candidateCorrect": 3,
+          "referenceCorrect": 3,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "single-session-user",
+          "questions": 11,
+          "wins": 0,
+          "losses": 0,
+          "ties": 11,
+          "candidateCorrect": 11,
+          "referenceCorrect": 11,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        },
+        {
+          "category": "temporal-reasoning",
+          "questions": 22,
+          "wins": 0,
+          "losses": 0,
+          "ties": 22,
+          "candidateCorrect": 18,
+          "referenceCorrect": 18,
+          "meanDelta": 0,
+          "candidateReaderFailures": 0,
+          "referenceReaderFailures": 0,
+          "candidateJudgeFailures": 0,
+          "referenceJudgeFailures": 0
+        }
+      ]
+    }
+  ],
+  "sourceOrderParity": {
+    "questions": 100,
+    "changedOrderCases": 100,
+    "unchangedOrderCases": 0,
+    "sameParentRequestCases": 0,
+    "sourceTurns": 9502,
+    "parentContextBytes": 8129851,
+    "candidateContextBytes": 8129851,
+    "sourceRecordMultisetsEqual": true,
+    "exactParentArtifactsEqual": true,
+    "readerByteReservationsEqual": true,
+    "qualification": "Pinned parent membership, order metadata, total bytes and reader reconstruction checked here; exact current-source text proof inherits the authenticated public report. No dataset or raw-response reauthentication."
+  },
+  "developmentGate": {
+    "comparator": "oh-semantic-top100-96k-v1",
+    "candidate": "oh-semantic-source-order-96k-v1",
+    "accuracy": {
+      "candidateCorrect": 76,
+      "referenceCorrect": 82,
+      "netCorrectGain": -6,
+      "minimumNetCorrectGain": 5,
+      "passed": false
+    },
+    "readerUsage": {
+      "candidate": {
+        "logicalCases": 100,
+        "attributedPhysicalRequests": 100,
+        "knownUsageMicros": 114259,
+        "unresolvedReservationMicros": 0,
+        "knownRequests": 100,
+        "unknownRequests": 0
+      },
+      "reference": {
+        "logicalCases": 100,
+        "attributedPhysicalRequests": 100,
+        "knownUsageMicros": 116542,
+        "unresolvedReservationMicros": 0,
+        "knownRequests": 100,
+        "unknownRequests": 0
+      },
+      "maximumRatio": 1.25,
+      "observedRatio": 0.9804104957869266,
+      "complete": true,
+      "passed": true
+    },
+    "decision": "do-not-advance",
+    "qualification": "Predeclared descriptive development screen on the same repeatedly exposed100, not fresh confirmation or superiority. All failures remain zero; no response replacement. Reader usage attributes first captures to each arm including exact reuse, not incremental spend."
+  },
+  "arms": [
+    {
+      "variantId": "oh-semantic-source-order-96k-v1",
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "readerFailures": 0,
+      "judgeFailures": 1,
+      "latency": {
+        "reader": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 499965.77454099996,
+          "p50Ms": 4435.4935829999995,
+          "p95Ms": 9242.353292000003
+        },
+        "judge": {
+          "logicalCases": 100,
+          "attributedPhysicalRequests": 100,
+          "count": 100,
+          "unknownDispatches": 0,
+          "measuredPhysicalRequests": 100,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 136319.8390420003,
+          "p50Ms": 1138.0589590000454,
+          "p95Ms": 2674.1495829999985
+        }
+      },
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 1,
+            "mean": 0.76,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8235294117647058,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 1,
+              "mean": 0.4642857142857143,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.6,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8181818181818182,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.08650159889472274,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09293395337008206,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.12389007296385847,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.03891606697308747,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04101698301698302,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04111761098796135,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10374585748626669,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 1,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.15471372990698093,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.16962757713749865,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.2157366198583841,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.07486091783494553,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.07877514234335824,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.0789244171570054,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.18238176907672443,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "overall": {
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 1,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 15,
+              "declaredHistories": 15
+            },
+            {
+              "id": "multi-session",
+              "cases": 28,
+              "scored": 28,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 25,
+              "declaredHistories": 25
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 17,
+              "scored": 17,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 17,
+              "declaredHistories": 17
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 5,
+              "scored": 5,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 5,
+              "declaredHistories": 5
+            },
+            {
+              "id": "single-session-user",
+              "cases": 11,
+              "scored": 11,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 10,
+              "declaredHistories": 10
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 22,
+              "scored": 22,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 22,
+              "declaredHistories": 22
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "logicalReaderCases": 100,
+    "logicalJudgeCases": 100,
+    "expectedQuestionsPerArm": 100,
+    "completePhysicalResponses": false,
+    "completeAttemptCoverage": true,
+    "verifiedPhysicalResponses": 199,
+    "capturedUnverifiableAttempts": 1,
+    "unknownDispatches": 0
+  },
+  "scoring": {
+    "judgeProfile": "gpt4o-gateway-native-rubric-16-judge-v1",
+    "judgeRule": "native-contains-yes",
+    "judgeReference": {
+      "evaluator": "https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f4ef0e2ab8f2e582289761153549043fc/src/evaluation/evaluate_qa.py",
+      "sourceSha256": "ecce9c4c79dc89d99534ac17b383a5cbb5b9f0c69ee98adaf0684742e3d95251",
+      "parityRubricSha256": "00d319ba0a194a69871576d8c677c1557d7706f69b599c9b7beee32441d58cfc"
+    },
+    "judgeQualification": "Gateway GPT-4o alias with native LongMemEval prompts, one user message and contains-yes grading, adapted to 16 output tokens. The requested model is not a pinned snapshot and the output cap differs from the native 10-token evaluator; not an official protocol reproduction or full-set score.",
+    "officialLocomoF1": null,
+    "failurePolicy": "Every eligible question remains in answer-score denominators. Reader failures score zero; judge failures score zero only for judge accuracy and are counted separately. Authenticated occupied attempts without a verifiable answer score zero and retain their full reservations. Never-admitted requests or unauthenticated missing evidence prevent a complete report.",
+    "evidenceUnit": "session",
+    "evidenceQualification": "Retrieval evidence is scored independently of answer success. No evidence labels means unscored, not perfect; unresolved labels remain in the denominator.",
+    "answerCitationF1": null,
+    "citationQualification": "Not measured: the reader prompt asks for an answer without citations."
+  },
+  "costAttribution": {
+    "reader": {
+      "physicalRequests": 100,
+      "occupiedRequests": 100,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 114259,
+      "unresolvedReservationMicros": 0,
+      "accountedMicros": 114259,
+      "usageCoverage": {
+        "knownRequests": 100,
+        "unknownRequests": 0
+      },
+      "tokenRateMicros": 114259,
+      "gatewayReportedMicros": 114259,
+      "inputTokens": 1977831,
+      "outputTokens": 38302,
+      "cachedInputTokens": 0,
+      "reasoningTokens": 32960,
+      "byRequestedModel": [
+        {
+          "model": "openai/gpt-5-nano",
+          "physicalRequests": 100,
+          "occupiedRequests": 100,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 114259,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 114259,
+          "usageCoverage": {
+            "knownRequests": 100,
+            "unknownRequests": 0
+          },
+          "tokenRateMicros": 114259,
+          "gatewayReportedMicros": 114259,
+          "inputTokens": 1977831,
+          "outputTokens": 38302,
+          "cachedInputTokens": 0,
+          "reasoningTokens": 32960
+        }
+      ],
+      "identities": [
+        {
+          "requestedModel": "openai/gpt-5-nano",
+          "reportedModel": "openai/gpt-5-nano",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        }
+      ]
+    },
+    "judge": {
+      "physicalRequests": 100,
+      "occupiedRequests": 100,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 42569,
+      "unresolvedReservationMicros": 6863,
+      "accountedMicros": 49432,
+      "usageCoverage": {
+        "knownRequests": 99,
+        "unknownRequests": 1
+      },
+      "tokenRateMicros": 42569,
+      "gatewayReportedMicros": 42569,
+      "inputTokens": 16097,
+      "outputTokens": 230,
+      "cachedInputTokens": 0,
+      "reasoningTokens": 0,
+      "byRequestedModel": [
+        {
+          "model": "openai/gpt-4o",
+          "physicalRequests": 100,
+          "occupiedRequests": 100,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 42569,
+          "unresolvedReservationMicros": 6863,
+          "accountedMicros": 49432,
+          "usageCoverage": {
+            "knownRequests": 99,
+            "unknownRequests": 1
+          },
+          "tokenRateMicros": 42569,
+          "gatewayReportedMicros": 42569,
+          "inputTokens": 16097,
+          "outputTokens": 230,
+          "cachedInputTokens": 0,
+          "reasoningTokens": 0
+        }
+      ],
+      "identities": [
+        {
+          "requestedModel": "openai/gpt-4o",
+          "reportedModel": "openai/gpt-4o",
+          "finalProvider": "openai",
+          "resolvedProviderApiModelId": null,
+          "qualification": "gateway-alias",
+          "snapshotPinned": false,
+          "resolvedSnapshot": null
+        }
+      ]
+    },
+    "accountedMicros": 163691,
+    "knownUsageMicros": 156828,
+    "unresolvedReservationMicros": 6863,
+    "qualification": "Known captured usage plus full unresolved reservations, counted once per distinct occupied request in these phases. Accounted cost is conservative exposure, not a provider invoice or incremental spend for a cache-reusing invocation. Token totals and provider identities cover verified responses only; unknown usage is not zero. Reserved requests without captures do not prove dispatch. Reasoning tokens are already included in output tokens."
+  },
+  "latency": {
+    "reader": {
+      "phaseWallMs": 20441.864541000003,
+      "physical": {
+        "logicalCases": 100,
+        "attributedPhysicalRequests": 100,
+        "count": 100,
+        "unknownDispatches": 0,
+        "measuredPhysicalRequests": 100,
+        "unmeasuredPhysicalRequests": 0,
+        "totalMs": 499965.77454099996,
+        "p50Ms": 4435.4935829999995,
+        "p95Ms": 9242.353292000003
+      }
+    },
+    "judge": {
+      "phaseWallMs": 12972.831750000001,
+      "physical": {
+        "logicalCases": 100,
+        "attributedPhysicalRequests": 100,
+        "count": 100,
+        "unknownDispatches": 0,
+        "measuredPhysicalRequests": 100,
+        "unmeasuredPhysicalRequests": 0,
+        "totalMs": 136319.8390420003,
+        "p50Ms": 1138.0589590000454,
+        "p95Ms": 2674.1495829999985
+      }
+    },
+    "qualification": "Service time is captured once per attempted physical request through first-response body completion or failure. Reserved requests without captures are excluded from physical latency counts because dispatch is unknown. Arm values attribute each captured duration to every arm reusing it; they do not measure a cache-hit invocation. Phase wall time is receipt-reported elapsed time including queueing and concurrency."
+  },
+  "cache": [
+    {
+      "phase": "reader",
+      "occupiedRequests": 100,
+      "priorOccupiedReused": 0,
+      "newlyOccupiedRequests": 100,
+      "attributedCost": {
+        "requests": 100,
+        "verified": 100,
+        "capturedFailures": 0,
+        "unknownDispatches": 0,
+        "knownUsageMicros": 114259,
+        "unresolvedReservationMicros": 0,
+        "accountedMicros": 114259
+      },
+      "newRequestCosts": {
+        "requests": 100,
+        "verified": 100,
+        "capturedFailures": 0,
+        "unknownDispatches": 0,
+        "knownUsageMicros": 114259,
+        "unresolvedReservationMicros": 0,
+        "accountedMicros": 114259
+      }
+    },
+    {
+      "phase": "judge",
+      "occupiedRequests": 100,
+      "priorOccupiedReused": 57,
+      "newlyOccupiedRequests": 43,
+      "attributedCost": {
+        "requests": 100,
+        "verified": 99,
+        "capturedFailures": 1,
+        "unknownDispatches": 0,
+        "knownUsageMicros": 42569,
+        "unresolvedReservationMicros": 6863,
+        "accountedMicros": 49432
+      },
+      "newRequestCosts": {
+        "requests": 43,
+        "verified": 43,
+        "capturedFailures": 0,
+        "unknownDispatches": 0,
+        "knownUsageMicros": 20757,
+        "unresolvedReservationMicros": 0,
+        "accountedMicros": 20757
+      }
+    }
+  ],
+  "incrementalPhaseAccounting": {
+    "requests": 143,
+    "verified": 143,
+    "capturedFailures": 0,
+    "unknownDispatches": 0,
+    "knownUsageMicros": 135016,
+    "unresolvedReservationMicros": 0,
+    "accountedMicros": 135016,
+    "initialBudget": {
+      "calls": 3269,
+      "exposureMicros": 9219280,
+      "confirmedMicros": 9212417,
+      "unresolvedMicros": 6863,
+      "additionalBudgetMicros": 10000000,
+      "maximumCalls": 4000,
+      "historicalExposureMicros": 38537650,
+      "combinedExposureMicros": 47756930
+    },
+    "terminalBudget": {
+      "calls": 3412,
+      "exposureMicros": 9354296,
+      "confirmedMicros": 9347433,
+      "unresolvedMicros": 6863,
+      "additionalBudgetMicros": 10000000,
+      "maximumCalls": 4000,
+      "historicalExposureMicros": 38537650,
+      "combinedExposureMicros": 47891946
+    },
+    "phases": [
+      {
+        "phase": "reader",
+        "receiptSha256": "47035aca7464a8423dd8670cdebd4647ee2120e7fc6c7f091b7599f027c319b0",
+        "complete": true,
+        "interrupted": false,
+        "admissionAttempts": 100,
+        "coveredPriorErrorCount": 0,
+        "verifiedResponses": 100,
+        "failureProjections": 0,
+        "knownUsageDeltaMicros": 114259,
+        "unresolvedReservationDeltaMicros": 0,
+        "exposureDeltaMicros": 114259,
+        "wallMs": 20441.864541000003,
+        "executionPolicy": {
+          "protocol": "oh.memory.evolution-paid-queue.v2",
+          "concurrency": 32
+        }
+      },
+      {
+        "phase": "judge",
+        "receiptSha256": "51ef5d9e539c856dc2d1de86b391f43e2f3647463eec475b7b5dc43c680953db",
+        "complete": true,
+        "interrupted": false,
+        "admissionAttempts": 43,
+        "coveredPriorErrorCount": 0,
+        "verifiedResponses": 99,
+        "failureProjections": 1,
+        "knownUsageDeltaMicros": 20757,
+        "unresolvedReservationDeltaMicros": 0,
+        "exposureDeltaMicros": 20757,
+        "wallMs": 12972.831750000001,
+        "executionPolicy": {
+          "protocol": "oh.memory.evolution-paid-queue.v2",
+          "concurrency": 32
+        }
+      }
+    ]
+  },
+  "sourcePins": {
+    "current": {
+      "reportSha256": "3234f3eb1a38c6819e7520badf3a3715f863abddbde0ef9a59d0de327cbfd288",
+      "readerPlanFileSha256": "9c82bc66bcf3b41c46544b97013cc677251ce913e59e9551a5d7f33f6be2487c",
+      "readerOutputSha256": "47035aca7464a8423dd8670cdebd4647ee2120e7fc6c7f091b7599f027c319b0",
+      "judgePlanFileSha256": "41c8b4465d41570277a6118958a73cf6838edd70558fa924d199780709b60c93",
+      "judgeOutputSha256": "51ef5d9e539c856dc2d1de86b391f43e2f3647463eec475b7b5dc43c680953db",
+      "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+      "configSha256": "668970b7f4481eeff858b3070b426ef36d2112a45f8fb970ee1eb6542edd2489"
+    },
+    "prior": [
+      {
+        "reportSha256": "86da5eda00dfb10cc2614b5c1c6a68c330b4fec476b8bee72a4d292ceb1de46a",
+        "readerPlanFileSha256": "f8734db696f57f7d545ab72b0adf2b7eb28060efcee459fd0a239dd7a7bad579",
+        "readerOutputSha256": "bbb056215c51818063ab31fc3d70fd5d63ba20d2756f4164346e50e7688e7bad",
+        "judgePlanFileSha256": "73920b4535e21dfa712bc64d6be85d859b6f68812f8f78dbe0e9dc1197289dc5",
+        "judgeOutputSha256": "fcc70a9bf572f3cf5bc2784e0ba0e356da9a671f1bd0e37f3c8c08acc9f57260",
+        "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+        "configSha256": "e12e7fc9135991e708eb16df51259f32e96dee48b1dcbc762ab0bd54bd1501f1"
+      },
+      {
+        "reportSha256": "0d61609ec29c9631eb6b83e29ed7cb15d09959188573f316f76566589ab11837",
+        "readerPlanFileSha256": "1a3e59819e2a2fdb3631a5ca35a2ea597505a76ebb72165bf63200d9e9f85029",
+        "readerOutputSha256": "5be5f4acafc1f14a91ef57392bc72d6b7b91c8eb40c28164a88fb5e351b8e72f",
+        "judgePlanFileSha256": "8fa4299ab710c053c04ce34bc64823df3d45902a635d7cf487d9d9c2c9ae7334",
+        "judgeOutputSha256": "507940307d1b34fbda6a107ca3cf7f1953f7df616c414c8ff2fa26a3cd3d5b78",
+        "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+        "configSha256": "80f1c800b2c67fa14ce868b4fc2232f77a62e2dc54a86f3b701d488c64c97406"
+      },
+      {
+        "reportSha256": "835d1f94a0f9df4e5b969e8d4043216b16a9050c0c65ad8283f83ceaea51f193",
+        "readerPlanFileSha256": "5634e7da8e9adf35d8a9bb6552fb1e419f1830a72a15d87789209f84120c985e",
+        "readerOutputSha256": "246ee77ea6956e10c180e8c7ae069cb44f3820cc9853d99c1a09e0f7c74d5d32",
+        "judgePlanFileSha256": "584b6fbc14549d823e01ec869d4dc148dc49b503e5f673a7c3f46059f3ab31ee",
+        "judgeOutputSha256": "2808728160875853bb640d72bd7d2c39ee72be05d0d406986938c44433a04c2d",
+        "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+        "configSha256": "2d7e90def8ea1b7ddbdc8b0ec02b2975bb3c816fc256be06e50d585fa007d1f4"
+      },
+      {
+        "reportSha256": "8738ca66f65597450ae6ed81505de4cfcb0652fb8d00e350b523d983a7ebeb74",
+        "readerPlanFileSha256": "a3f8fff28f12c981415c75a59aca3154b4ee21db913e3fee97ad09a559ea0e1f",
+        "readerOutputSha256": "13fb822e7db8f381fb8872626134c68f861a06d63a7e0bfe17bf7b52a9e167e6",
+        "judgePlanFileSha256": "32db889f95d87a80436a85e9e0343f2f0c1f3a604d93384438eefe2031d901f7",
+        "judgeOutputSha256": "266f0c9598ed139814f09e47a504dabf16ba22795b468c8f3b89df7685b608bf",
+        "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+        "configSha256": "7ffe9b0187cccc5b8f5879063b8ef99a819fca7a267c24780f99183c3a996833"
+      },
+      {
+        "reportSha256": "0df614958829b4ea9c69f27fffb40e146e958d35bc6f982f17351fee5389f5fa",
+        "readerPlanFileSha256": "3896f5d78263f0e39db73aee4f39c759d71968ddc990313d06bef6b0a9bf98d6",
+        "readerOutputSha256": "d8baff3aee68dd0c50b86b029883daf9db5b7ef9819f6a72193f06ab6725d98f",
+        "judgePlanFileSha256": "52e2efbaf1b309fc9b2891dce81d695caaf743f607a2db468d8511d59599a5c9",
+        "judgeOutputSha256": "2a3468ad425b8912264a765548fd3b311beb346a08015db9965b510e0c348a4f",
+        "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+        "configSha256": "acc634d56319e11b9c650bc589d5d486e61bd842ddb04b204b6d55002cd8fe2d"
+      }
+    ],
+    "contextFileSha256": "302e7875479905970d8c391b5e0f149a1d516a0ae578e2ee263adac89b099b19"
+  },
+  "qualification": [
+    "Same repeatedly exposed100 development questions; no fresh confirmation, independence or superiority claim.",
+    "Every planned question remains in each100-case denominator; reader and judge failures score zero and are counted separately.",
+    "Gateway GPT4o alias with native prompt/contains-yes rule and16-token cap; not official pinned-snapshot/10-token reproduction.",
+    "Physical requests and prior captured failures are reused without replacement. Incremental exposure is distinct from attributed cache-inclusive cost and is not a provider invoice.",
+    "The semantic comparator preserves the exact source multiset and byte count with only presentation order changed; other96KB controls select different source sets. Current-source text proof is inherited from the authenticated public report, not repeated from a dataset by this auditor.",
+    "Service latency includes each original physical capture; phase wall times describe these invocations. No GPU-offload or fresh-sample claim.",
+    "Audit uses pinned report/phase/plan artifacts already authenticated by the public reporter; it does not reopen the provider store or raw responses."
+  ]
+}
