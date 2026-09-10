@@ -174,7 +174,8 @@ read from an environment variable so it can carry the gateway prefix.
 | **Oh semantic, 96 KB** | gpt-4.1-mini | **60.8%** | this run |
 | OpenClaw | gpt-4.1 | 59.8% | MemEval README |
 | Full context | gpt-4.1 | 52.0% | MemEval README |
-| Mem0 OSS 1.0.3 | gpt-4.1-mini | pending | this run |
+| Mem0 OSS 1.0.3, first 30 questions | gpt-4.1-mini | 43.3% (13/30) | this run |
+| **Oh semantic on the same 30** | gpt-4.1-mini / gpt-4.1 | **60.0% (18/30) / 66.7% (20/30)** | this run |
 
 Under this protocol Oh sits between OpenClaw and SimpleMem. Its temporal
 reasoning (41%) and multi-session (41%) scores are where the missing question
@@ -183,8 +184,13 @@ The same retrieval scores 89.8% on the full 500 with the mini reader and the
 question date supplied, so most of the gap between the two tables is protocol,
 not evidence. MemEval's leaderboard does not include Mem0 or Graphiti on
 LongMemEval; the Mem0 row above is a local run of its open-source library
-under MemEval's own adapter, and the Oh gpt-4.1-mini row is its matched
-control.
+under MemEval's own adapter on the first 30 questions of the sample (its
+ingestion takes about twelve minutes per question, so the run was bounded),
+and the Oh rows on the same 30 questions are the matched controls. With the
+same gpt-4.1-mini reader, Oh answered 18 of those 30 and Mem0 13, and Mem0
+spent 9.0 million tokens across 2,982 calls against about 0.55 million for
+Oh. Thirty questions cannot support a precise margin; it is a matched
+observation, not a superiority claim.
 
 ## Where this sits among published results
 
