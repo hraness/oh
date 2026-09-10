@@ -197,7 +197,7 @@ test("each answer-contract profile dispatches its exact immutable instruction fo
         expect(attempt.request.body.messages).toEqual(answerMessages(data, data.memory));
       }
     }
-    expect(new Set(report.attempts.filter(a => a.phase === "reader").map(a => a.request.body.messages[0]!.content)).size).toBe(4);
+    expect(new Set(report.attempts.filter(a => a.phase === "reader").map(a => a.request.body.messages[0]!.content)).size).toBe(EVOLUTION_READER_CONTRACT_IDS.length);
   } finally { await rm(f.directory, { recursive: true, force: true }); }
 });
 
