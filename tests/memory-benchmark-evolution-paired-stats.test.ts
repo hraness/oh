@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { DATASETS, type Dataset } from "../scripts/benchmarks/datasets";
 import { createEvolutionDatasetManifest } from "../scripts/benchmarks/evolution-dataset";
@@ -29,14 +32,19 @@ function manifest(d = dataset()) {
   });
   return createEvolutionDatasetManifest(d, { dataset: "longmemeval-s", revision: DATASETS["longmemeval-s"].revision, sourceSha256: DATASETS["longmemeval-s"].sha256, groups });
 }
-type Outcome = Readonly<{ correct: boolean; answer?: string; readerFailed?: boolean; judgeFailed?: boolean }>;
+/** `readerFailed` is a captured response without an answer; `attemptFailed` is a transport-level attempt with no response entry at all. */
+type Outcome = Readonly<{ correct: boolean; answer?: string; readerFailed?: boolean; attemptFailed?: boolean; judgeFailed?: boolean }>;
 /** Build the four artifacts of one run directory from a per-(question, variant, reader) outcome table. */
-function artifacts(m: ReturnType<typeof manifest>, arms: readonly Readonly<{ variantId: string; reader: string }>[], outcome: (runnerId: string, variantId: string, reader: string) => Outcome) {
-  const readerCases: Record<string, unknown>[] = [], readerResponses: Record<string, unknown>[] = [], judgeCases: Record<string, unknown>[] = [], judgeResponses = new Map<string, Record<string, unknown>>();
+function artifacts(m: ReturnType<typeof manifest>, arms: readonly Readonly<{ variantId: string; reader: string }>[], outcome: (runnerId: string, variantId: string, reader: string) => Outcome, manifestSha256 = h(m)) {
+  const readerCases: Record<string, unknown>[] = [], readerResponses: Record<string, unknown>[] = [], readerFailures: Record<string, unknown>[] = [], judgeCases: Record<string, unknown>[] = [], judgeResponses = new Map<string, Record<string, unknown>>();
   for (const q of m.questions) for (const arm of arms) {
     const o = outcome(q.runnerId, arm.variantId, arm.reader);
     const requestSha256 = h(["reader", q.runnerId, arm.variantId, arm.reader]), contextSha256 = h(["context", q.runnerId, arm.variantId]);
     readerCases.push({ questionId: q.runnerId, variantId: arm.variantId, reader: arm.reader, contextSha256, requestSha256 });
+    if (o.attemptFailed) {
+      readerFailures.push({ requestSha256, profileSha256: h(["profile", arm.reader]), repeat: 0, storeStatus: "reserved", reason: "dispatch-outcome-unknown", rawSha256: null, rawBytes: null, transport: null, serviceMs: null, reservationMicros: 1_000 });
+      judgeCases.push({ questionId: q.runnerId, variantId: arm.variantId, reader: arm.reader, requestSha256: null, readerFailed: true }); continue;
+    }
     const answer = o.readerFailed ? null : `${ANSWER_TEXT} ${o.answer ?? (o.correct ? "right" : "wrong")}`;
     readerResponses.push({ requestSha256, response: { requestSha256, status: o.readerFailed ? "failed" : "completed", answer } });
     if (o.readerFailed) { judgeCases.push({ questionId: q.runnerId, variantId: arm.variantId, reader: arm.reader, requestSha256: null, readerFailed: true }); continue; }
@@ -47,8 +55,8 @@ function artifacts(m: ReturnType<typeof manifest>, arms: readonly Readonly<{ var
     if (JSON.stringify(judgeResponses.get(judgeSha256) ?? verdict) !== JSON.stringify(verdict)) throw Error("fixture: one answer text cannot carry two verdicts");
     judgeResponses.set(judgeSha256, verdict);
   }
-  const readers = { protocol: "oh.memory.evolution-reader-plan.v1", manifestSha256: h(m), cases: readerCases, planSha256: h(readerCases) };
-  const readersComplete = { protocol: "oh.memory.evolution-phase.v1", phase: "reader", planSha256: readers.planSha256, complete: true, responses: readerResponses };
+  const readers = { protocol: "oh.memory.evolution-reader-plan.v1", manifestSha256, cases: readerCases, planSha256: h(readerCases) };
+  const readersComplete = { protocol: "oh.memory.evolution-phase.v1", phase: "reader", planSha256: readers.planSha256, complete: true, responses: readerResponses, failures: readerFailures };
   const judges = { protocol: "oh.memory.evolution-judge-plan.v1", readerPlanSha256: readers.planSha256, scoringRule: "native-contains-yes", cases: judgeCases, planSha256: h(judgeCases) };
   const judgesComplete = { protocol: "oh.memory.evolution-phase.v1", phase: "judge", planSha256: judges.planSha256, complete: true, responses: [...judgeResponses.values()] };
   return { readers, readersComplete, judges, judgesComplete };
@@ -196,14 +204,74 @@ describe("evolution paired statistics", () => {
     expect(arm).toMatchObject({ judgeRepeatOnly: true, readerFlip: { questionsWithDisagreement: QUESTIONS, rate: 1, identicalAnswerAllRepeats: QUESTIONS }, judgeFlip: { identicalAnswerPairs: QUESTIONS, flippedPairs: QUESTIONS, rate: 1 } });
   });
 
-  test("attributes cost to arms with shared judge requests split equally", () => {
+  test("attributes cost to arms with shared judge requests split equally, counting a failed attempt's retained reservation", () => {
     const m = manifest(), a = artifacts(m, [CAND, CTRL], (runnerId, variantId) => ({ correct: true, answer: index(runnerId, m) % 2 ? "shared" : variantId }));
-    const physical = [...a.readersComplete.responses.map(r => ({ requestSha256: r.requestSha256, phase: "reader", knownUsageMicros: 1_000 })),
-      ...a.judgesComplete.responses.map(r => ({ requestSha256: r.requestSha256, phase: "judge", knownUsageMicros: 100 }))];
-    const cost = attributeEvolutionArmCost(a.readers, a.judges, physical);
-    expect(cost).toEqual([{ ...CAND, questions: QUESTIONS, readerMicros: 60_000, judgeMicrosShared: 4_500, totalMicros: 64_500 }, { ...CTRL, questions: QUESTIONS, readerMicros: 60_000, judgeMicrosShared: 4_500, totalMicros: 64_500 }]
-      .sort((x, y) => JSON.stringify([x.variantId, x.reader]) < JSON.stringify([y.variantId, y.reader]) ? -1 : 1));
+    const physical = physicalRows(a);
+    const expected = [{ ...CAND, questions: QUESTIONS, readerMicros: 60_000, judgeMicrosShared: 4_500, totalMicros: 64_500 }, { ...CTRL, questions: QUESTIONS, readerMicros: 60_000, judgeMicrosShared: 4_500, totalMicros: 64_500 }]
+      .sort((x, y) => JSON.stringify([x.variantId, x.reader]) < JSON.stringify([y.variantId, y.reader]) ? -1 : 1);
+    expect(attributeEvolutionArmCost(a.readers, a.judges, physical)).toEqual(expected);
+    // A reserved attempt has no known usage; its retained reservation is the accounted exposure of that arm.
+    const reserved = physical.map((r, i) => i === 0 ? { ...r, status: "reserved", knownUsageMicros: null, unresolvedReservationMicros: 1_000 } : r);
+    expect(attributeEvolutionArmCost(a.readers, a.judges, reserved)).toEqual(expected);
     expect(() => attributeEvolutionArmCost(a.readers, a.judges, physical.slice(1))).toThrow("lacks a physical row");
+    expect(() => attributeEvolutionArmCost(a.readers, a.judges, [{ ...physical[0], extra: 1 }, ...physical.slice(1)])).toThrow("exact keys");
+    expect(() => attributeEvolutionArmCost(a.readers, a.judges, [{ ...physical[0], knownUsageMicros: null }, ...physical.slice(1)])).toThrow();
+  });
+
+  test("Holm across two comparisons of one call: a comparison under alpha on its own is not better when the chain stops before it", () => {
+    const m = manifest(), questions = loadEvolutionQuestionMeta(m), A = { variantId: "a-96k", reader: "mini" }, B = { variantId: "b-96k", reader: "mini" };
+    // A wins questions 40 and 42, B wins 44 and 46 (two of thirty declared groups each); CAND keeps its eight wins and one loss.
+    const rows = loadEvolutionRunRows(artifacts(m, [CAND, A, B, CTRL], (runnerId, variantId) => {
+      const i = index(runnerId, m);
+      return { correct: variantId === CAND.variantId ? (i < 40 && i !== 10) || WINS.has(i) : variantId === A.variantId ? i < 40 || i === 40 || i === 42 : variantId === B.variantId ? i < 40 || i === 44 || i === 46 : i < 40 };
+    }), 0);
+    const weak = analyzeEvolutionPairs({ rows, questions, comparisons: [{ candidate: A, control: CTRL }, { candidate: B, control: CTRL }], resamples: 2_000, seed: 5, alpha: 0.2 });
+    // P(no winning group resampled) = (28/30)^30 is about 0.13: under alpha, above the rank-1 level alpha/2, so Holm rejects neither.
+    for (const c of weak.comparisons) {
+      expect(c.wins).toBe(2); expect(c.losses).toBe(0);
+      expect(c.clusterBootstrap.pDeltaAtMostZero).toBeGreaterThan(0.1); expect(c.clusterBootstrap.pDeltaAtMostZero).toBeLessThanOrEqual(0.2);
+      expect(c.clusterBootstrap.lowerBoundPoints).toBeGreaterThan(0);
+      expect(c.holm).toMatchObject({ rejected: false, better: false, clearlyBetter: false });
+    }
+    // The rank-2 comparison carries level alpha and a positive lower bound at that level: the reading the chain must refuse.
+    const second = weak.comparisons.find(c => c.holm.level === 0.2);
+    expect(second?.holm.lowerBoundPoints).toBeGreaterThan(0); expect(second?.holm.adjustedP).toBeGreaterThan(0.2);
+    // When the stronger comparison meets its stricter level the chain continues and the weaker one is decided at alpha.
+    const strong = analyzeEvolutionPairs({ rows, questions, comparisons: [{ candidate: CAND, control: CTRL }, { candidate: B, control: CTRL }], resamples: 2_000, seed: 5, alpha: 0.2 });
+    expect(strong.comparisons[0]?.holm).toMatchObject({ level: 0.1, rejected: true, better: true, clearlyBetter: true });
+    expect(strong.comparisons[1]?.holm).toMatchObject({ level: 0.2, rejected: true, better: true, clearlyBetter: false });
+  });
+
+  test("a transport-level reader attempt failure is accepted from the failures list, scores zero and is counted", () => {
+    const m = manifest(), questions = loadEvolutionQuestionMeta(m);
+    const a = artifacts(m, [CAND, CTRL], (runnerId, variantId) => index(runnerId, m) === 3 && variantId === CAND.variantId ? { correct: false, attemptFailed: true } : { correct: true });
+    expect(a.readersComplete.failures.length).toBe(1); expect(a.readersComplete.responses.length).toBe(2 * QUESTIONS - 1);
+    const rows = loadEvolutionRunRows(a, 0), failed = rows.filter(r => r.readerFailed);
+    expect(rows.length).toBe(2 * QUESTIONS); expect(failed.length).toBe(1);
+    expect(failed[0]).toMatchObject({ variantId: CAND.variantId, answerSha256: null, judgeRequestSha256: null, verdict: null, readerFailed: true, judgeFailed: false });
+    const analysis = analyzeEvolutionPairs({ rows, questions, comparisons: [{ candidate: CAND, control: CTRL }], resamples: 100 });
+    expect(analysis.arms[0]).toMatchObject({ variantId: CAND.variantId, meanCorrect: QUESTIONS - 1, perRepeat: [{ repeat: 0, correct: QUESTIONS - 1, readerFailures: 1, judgeFailures: 0 }] });
+    expect(analysis.comparisons[0]).toMatchObject({ wins: 0, losses: 1, ties: QUESTIONS - 1 });
+    const failure = a.readersComplete.failures[0]!, judgeCase = a.judges.cases.find(c => c.readerFailed)!;
+    for (const mutate of [
+      // the judge plan says the reader did not fail, so a response is required
+      (x: any) => { const c = x.judges.cases.find((c: any) => c.readerFailed); c.readerFailed = false; c.requestSha256 = x.judges.cases.find((c: any) => !c.readerFailed).requestSha256; },
+      (x: any) => x.readersComplete.failures = [],
+      (x: any) => delete x.readersComplete.failures,
+      (x: any) => x.readersComplete.failures[0].requestSha256 = h("other"),
+      (x: any) => x.readersComplete.failures[0].extra = true,
+      (x: any) => x.readersComplete.failures.push({ ...failure }),
+      // one request cannot be both a response and a failure
+      (x: any) => x.readersComplete.responses.push({ requestSha256: failure.requestSha256, response: { requestSha256: failure.requestSha256, status: "failed", answer: null } }),
+    ]) { const bad = structuredClone(a); mutate(bad); expect(() => loadEvolutionRunRows(bad, 0)).toThrow(); }
+    expect(judgeCase.requestSha256).toBeNull();
+  });
+
+  test("the declared strata evidence is bounded by the V1 evidence limit after the prefix and citation are added", () => {
+    const m = manifest();
+    expect(() => declareEvolutionStrata(m, [], { evaluated: "e".repeat(3_000), inspected: "i", aggregateOnly: "a".repeat(3_000) })).toThrow("declared evidence");
+    expect(() => declareEvolutionStrata(m, [], { evaluated: "e".repeat(3_501), inspected: "i", aggregateOnly: "a" })).toThrow("evidence");
+    expect(loadEvolutionQuestionMeta(declareEvolutionStrata(m, [], { evaluated: "e".repeat(2_000), inspected: "i", aggregateOnly: "a".repeat(2_000) })).length).toBe(QUESTIONS);
   });
 
   test("power simulator reproduces from its seed and separates false positives from power", () => {
@@ -233,7 +301,77 @@ describe("evolution paired statistics", () => {
     expect(power).toMatchObject({ protocol: "oh.memory.evolution-power.v1", questions: 50, simulations: 50, seed: 1 });
     await expect(runEvolutionPairedStatsCli(["rescore", "--manifest", "/nonexistent/manifest.json", "--study", "a=/nonexistent/run"])).rejects.toThrow();
   });
+
+  test("CLI end to end offline: declare-strata round trip, rescore over a run directory pinned to the V1 file, cost, and the rejections", async () => {
+    const root = await mkdtemp(join(await realpath(tmpdir()), "oh-paired-cli-"));
+    try {
+      const d = dataset(), m = manifest(d), inspected = ["closed-20", "closed-33"];
+      const pinPath = join(root, "exposure.json"), pinText = JSON.stringify(m, null, 2) + "\n", pinSha256 = sha256Hex(pinText);
+      await writeFile(pinPath, pinText);
+      const inspectedPath = join(root, "inspected.json"), v2Path = join(root, "exposure-v2.json");
+      await writeFile(inspectedPath, JSON.stringify(inspected));
+      const declared = await runEvolutionPairedStatsCli(["declare-strata", "--manifest", pinPath, "--inspected", inspectedPath, "--output", v2Path]) as Record<string, unknown>;
+      const v2Text = await readFile(v2Path, "utf8"), v2Sha256 = sha256Hex(v2Text);
+      expect(declared).toMatchObject({ command: "declare-strata", inputManifestSha256: pinSha256, output: v2Path, sha256: v2Sha256, modelCalls: 0,
+        strata: [{ stratum: "aggregate-only-closed", questions: 36, groups: 18 }, { stratum: "development", questions: 20, groups: 10 }, { stratum: "inspected-closed", questions: 4, groups: 2 }] });
+      expect(JSON.parse(v2Text)).toEqual(declareEvolutionStrata(m, inspected, EVOLUTION_STRATA_EVIDENCE));
+      expect((await stat(v2Path)).mode & 0o777).toBe(0o600);
+      await expect(runEvolutionPairedStatsCli(["declare-strata", "--manifest", pinPath, "--inspected", inspectedPath, "--output", v2Path])).rejects.toThrow();
+      // The run directory pins the V1 file by its byte digest, as the runner does; the strata manifest is analysis-only.
+      const outcome = (runnerId: string, variantId: string) => { const i = index(runnerId, m); return { correct: variantId === CAND.variantId ? (i < 40 && i !== 10) || WINS.has(i) : i < 40 }; };
+      const writeRun = async (name: string, a: ReturnType<typeof artifacts>, report?: unknown) => {
+        const directory = join(root, name); await mkdir(directory);
+        for (const [file, value] of [["readers.json", a.readers], ["readers-complete.json", a.readersComplete], ["judges.json", a.judges], ["judges-complete.json", a.judgesComplete], ...(report === undefined ? [] : [["report.json", report]])] as const)
+          await writeFile(join(directory, file), JSON.stringify(value));
+        return directory;
+      };
+      const a = artifacts(m, [CAND, CTRL], outcome, pinSha256), run = await writeRun("run", a, { protocol: "synthetic", release: { physical: physicalRows(a) } });
+      const compare = `s:${CAND.variantId}/${CAND.reader}=${CTRL.variantId}/${CTRL.reader}`, out = join(root, "rescore.json");
+      const args = ["rescore", "--manifest", v2Path, "--pin", pinPath, "--study", `s=${run}`, "--compare", compare, "--resamples", "200", "--seed", "3"];
+      const result = await runEvolutionPairedStatsCli([...args, "--output", out]) as any;
+      expect(result).toMatchObject({ protocol: "oh.memory.evolution-paired-rescore.v1", manifest: { path: v2Path, sha256: v2Sha256, acceptedPins: [v2Sha256, pinSha256].sort() }, reclustered: false, predictionsSha256: null, resamples: 200, seed: 3, alpha: 0.025, modelCalls: 0 });
+      expect(result.strata).toEqual(declared.strata);
+      const [study] = result.studies;
+      expect(study.runs).toEqual([{ directory: run, repeat: "0", readersSha256: sha256Hex(JSON.stringify(a.readers)), readersCompleteSha256: sha256Hex(JSON.stringify(a.readersComplete)), judgesSha256: sha256Hex(JSON.stringify(a.judges)), judgesCompleteSha256: sha256Hex(JSON.stringify(a.judgesComplete)) }]);
+      expect(study.analysis.arms.map((x: any) => [x.variantId, x.meanCorrect])).toEqual([[CAND.variantId, 47], [CTRL.variantId, 40]]);
+      expect(study.analysis.comparisons[0]).toMatchObject({ wins: 8, losses: 1, ties: 51, holm: { level: 0.025, rejected: true, better: true, clearlyBetter: true } });
+      expect(study.analysis.comparisons[0].byStratum.map((x: any) => [x.label, x.wins, x.losses])).toEqual([["aggregate-only-closed", 8, 0], ["development", 0, 1], ["inspected-closed", 0, 0]]);
+      const written = await readFile(out, "utf8");
+      expect(result.written).toEqual({ output: out, sha256: sha256Hex(written) }); expect((await stat(out)).mode & 0o777).toBe(0o600);
+      const { written: _written, ...unwritten } = result;
+      expect(JSON.parse(written)).toEqual(JSON.parse(JSON.stringify(unwritten)));
+      for (const sentinel of [GOLD, QUESTION_TEXT, ANSWER_TEXT, "closed-", "Synthetic memory"]) expect(written).not.toContain(sentinel);
+      expect(written).toContain("dev-10");
+      await expect(runEvolutionPairedStatsCli([...args, "--output", out])).rejects.toThrow();
+      // Without the pin, a run pinned to the V1 file is refused; with a foreign manifest digest it is refused either way.
+      await expect(runEvolutionPairedStatsCli(["rescore", "--manifest", v2Path, "--study", `s=${run}`])).rejects.toThrow("pins a manifest other than");
+      const foreign = await writeRun("foreign", artifacts(m, [CAND, CTRL], outcome, h("other")));
+      await expect(runEvolutionPairedStatsCli(["rescore", "--manifest", v2Path, "--pin", pinPath, "--study", `s=${foreign}`])).rejects.toThrow("pins a manifest other than");
+      // A pin whose partitions differ from the strata manifest is refused before any run is read.
+      const drifted = structuredClone(m) as any, driftedPath = join(root, "exposure-drifted.json");
+      drifted.questions[0].partition = "development"; // closed-20 sorts first; its group stays closed in the strata manifest
+      await writeFile(driftedPath, JSON.stringify(drifted));
+      await expect(runEvolutionPairedStatsCli(["rescore", "--manifest", v2Path, "--pin", driftedPath, "--study", `s=${run}`])).rejects.toThrow("different questions or partitions");
+      // The dataset gate accepts only the pinned source bytes.
+      const datasetPath = join(root, "dataset.json"); await writeFile(datasetPath, JSON.stringify(d));
+      await expect(runEvolutionPairedStatsCli([...args, "--dataset", datasetPath])).rejects.toThrow("dataset bytes do not match");
+      await expect(runEvolutionPairedStatsCli([...args, "--compare", "t:a/b=c/d"])).rejects.toThrow("unknown study");
+      // Cost attribution over the same directory from its report ledger.
+      const cost = await runEvolutionPairedStatsCli(["cost", "--study", `s=${run}`]) as any;
+      expect(cost).toMatchObject({ protocol: "oh.memory.evolution-paired-cost.v1", modelCalls: 0 });
+      // 51 agreeing questions share one judge request (50 micros each side); the 9 discordant ones pay 100 each: 3,450 per arm.
+      expect(cost.studies[0].arms).toEqual([
+        { ...CAND, questions: QUESTIONS, correct: 47, readerMicros: 60_000, judgeMicrosShared: 3_450, totalMicros: 63_450, usdPerQuestion: round6(0.06345 / 60), usdPerCorrect: round6(0.06345 / 47) },
+        { ...CTRL, questions: QUESTIONS, correct: 40, readerMicros: 60_000, judgeMicrosShared: 3_450, totalMicros: 63_450, usdPerQuestion: round6(0.06345 / 60), usdPerCorrect: round6(0.06345 / 40) }]);
+      await expect(runEvolutionPairedStatsCli(["cost", "--study", `s=${foreign}`])).rejects.toThrow();
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
 });
+/** A release report's physical ledger for the fixture: 1,000 micros per reader request, 100 per judge request, all verified. */
+function physicalRows(a: ReturnType<typeof artifacts>) {
+  return [...a.readersComplete.responses.map(r => ({ requestSha256: r.requestSha256 as string, evidenceSha256: h(r), phase: "reader", status: "verified", knownUsageMicros: 1_000, unresolvedReservationMicros: 0, serviceMs: 1 })),
+    ...a.judgesComplete.responses.map(r => ({ requestSha256: r.requestSha256 as string, evidenceSha256: h(r), phase: "judge", status: "verified", knownUsageMicros: 100, unresolvedReservationMicros: 0, serviceMs: 1 }))];
+}
 function round8(v: number) { return Number(v.toFixed(8)); }
 function round4(v: number) { return Number(v.toFixed(4)); }
 function round6(v: number) { return Number(v.toFixed(6)); }

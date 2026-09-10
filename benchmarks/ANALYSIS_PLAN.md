@@ -41,9 +41,16 @@ The primary statistic is the paired difference in per-question mean
 correctness. Its interval is a cluster bootstrap over the declared manifest
 groups with 10,000 resamples and seed 17, reporting the one-sided 97.5% lower
 bound. Holm's step-down is applied across the primary comparisons of one
-gate and across the at most two full-500 reads. "Better than" means the
-Holm-adjusted lower bound is above zero. "Clearly better" additionally
-requires an observed gain of at least 5 points. The re-score of the
+gate. The Holm family is the set of comparisons declared for one study in one
+`rescore` invocation, which is one call of the scorer; two invocations or two
+study labels are separate families, so the checkpoint and the final full-500
+read are each decided at one-sided 0.025 over their own two primary
+comparisons, and the final read is the promotion decision. "Better than"
+means the chain reaches the comparison (every smaller p met its own level)
+and the lower bound at its Holm level is above zero; a comparison whose own
+p is under 0.025 is not better when a smaller p in the family failed its
+level. "Clearly better" additionally requires an observed gain of at least 5
+points. The re-score of the
 published mini result shows the lower bound moves by at most 0.2 points
 between seeds at 10,000 resamples and equals +1.6 at 100,000.
 

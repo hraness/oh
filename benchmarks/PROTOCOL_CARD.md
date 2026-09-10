@@ -38,6 +38,19 @@ failures of one arm, that stratum's score is a selection artefact and is
 reported only so the other two strata can be read cleanly. Aggregate-only
 questions are scored in aggregate and never read per question again.
 
+The strata manifest keeps the `oh.memory-evolution.dataset.v1` protocol and
+its exact keys. The stratum is carried as a prefix of each group's `evidence`
+text with the grammar `stratum=<name>; ` followed by the citation, where
+`<name>` is `development`, `inspected-closed` or `aggregate-only-closed`; a
+development tag needs the development partition, a closed tag needs the
+closed partition with exposure `evaluated`, and a manifest without the prefix
+is read as a V1 pin whose stratum is its partition. The runner never sees the
+strata manifest: every configuration keeps the original V1 file as its
+`manifestSha256` pin, and the scorer accepts a run pinned to either file only
+after checking that both files carry the same dataset digest, questions and
+partitions (`rescore --manifest <V2> --pin <V1>`). When the manifest is next
+versioned, the stratum moves to an explicit field under a `.v2` literal.
+
 ## Matched settings
 
 | Setting | Value under this card |
@@ -77,16 +90,19 @@ self-reported single runs.
 
 ## Cost per question
 
-Accounted exposure divided across arms with the judge cost split equally.
-Figures are approximate because each campaign ledger reports readers and
-judges per campaign, not per arm.
+Accounted exposure attributed to arms by
+`bun scripts/benchmarks/evolution-paired-stats-cli.ts cost` over each run
+directory's reader plan, judge plan and the physical ledger of its report:
+a reader request belongs to its arm, a judge request shared by arms that gave
+the same answer is split equally, and a failed attempt's retained reservation
+counts. The pinned output is the cost artifact in the table below.
 
 | Arm | Reader tier | Correct | Accounted per question | Accounted per correct answer |
 | --- | --- | ---: | ---: | ---: |
-| Oh semantic, 96 KB | GPT-5 mini | 449/500 | $0.0071 | $0.0079 |
-| BM25 window, 96 KB | GPT-5 mini | 427/500 | $0.0071 | $0.0083 |
+| Oh semantic, 96 KB | GPT-5 mini | 449/500 | $0.0069 | $0.0077 |
+| BM25 window, 96 KB | GPT-5 mini | 427/500 | $0.0073 | $0.0086 |
 | Oh semantic, 96 KB | GPT-5 nano | 379/500 | $0.0016 | $0.0021 |
-| BM25 window, 96 KB | GPT-5 nano | 378/500 | $0.0016 | $0.0022 |
+| BM25 window, 96 KB | GPT-5 nano | 378/500 | $0.0017 | $0.0022 |
 | Full history | GPT-5 nano | 355/500 | $0.0067 | $0.0094 |
 
 ## Noise and power
@@ -138,12 +154,20 @@ gate report can prove it used the pre-committed version.
 | Inspected closed identifiers (41) | `3aa4951cf6066b8d0afa111fb6c19d64b97c743bab1b0285fd49222093c92013` |
 | Original exposure manifest (V1 pin) | `c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9` |
 | Strata manifest (V2, beside the pin) | `83b53e17bf47ee60e7c19093adf8af96d1c614534bd6eceb560f8d351f94ab57` |
-| Re-score of every published run through the paired-statistics module | `80bdded4af7bb983a2db697766aa96534acbac87005b4ec998f09519b1ba4c78` |
+| Re-score of every published run through the paired-statistics module (one `rescore` invocation, seven studies: mini, nano, full-history, dev100, contracts, readers, width) | `95e1ee1ce81d04177cecb75e4714c7a07b4bafccb652c544b14e1785d6b9a996` |
+| Cost attribution over the mini, nano and full-history run directories (`cost`) | `54439882983e91e4d8d8e828f5100fc05396cda3b592822434328e9c16c6873f` |
 
-The re-score reproduces 449, 427, 379, 378 and 355 correct, the paired 39
-wins, 17 losses and 444 ties with an exact one-sided sign-test p of 0.0023,
-and a 95% cluster-bootstrap interval of +1.6 to +7.3 points over the 471
-declared groups (+1.6 to +7.3 over 453 evidence-content clusters). The
-predicted-flip list names 48 of the 51 failures; the three with no proposed
-mechanism are excluded. The scorer is `scripts/benchmarks/evolution-paired-stats.ts`;
-it is not a context-affecting file, so retrieval identity is unchanged.
+The re-score file holds all seven studies from one invocation with the
+strata manifest, the V1 pin, the pinned dataset for reclustering, the
+predicted-flip list, 100,000 resamples and seed 17. It reproduces 449, 427,
+379, 378 and 355 correct on the three 500-question studies and 92/87,
+92/87/87/84, 89/87/76 and 93/93 on the four development studies; the paired
+mini comparison gives 39 wins, 17 losses and 444 ties with an exact one-sided
+sign-test p of 0.0023 and a 95% cluster-bootstrap interval of +1.6 to +7.3
+points over the 471 declared groups (+1.6 to +7.3 over 453 evidence-content
+clusters). The full-history study carries two comparisons in one Holm family
+(BM25 window and Oh semantic against full history, both better at the nano
+tier). The predicted-flip list names 48 of the 51 failures; the three with no
+proposed mechanism are excluded. The scorer is
+`scripts/benchmarks/evolution-paired-stats.ts`; it is not a context-affecting
+file, so retrieval identity is unchanged.

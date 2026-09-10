@@ -9,19 +9,23 @@
  *           [--compare LABEL:VARIANT/READER=VARIANT/READER ...] [--dataset PATH] [--predictions PATH]
  *           [--canaries ID,ID,...] [--resamples N] [--seed N] [--alpha A] [--output PATH]
  *   declare-strata --manifest M1 --inspected PATH --output PATH
+ *   cost --study LABEL=DIR[,DIR...] ... [--output PATH]
+ *        (reads readers.json, judges.json and the physical ledger of report.json; per arm accounted micros,
+ *         judge requests shared by arms split equally, per question and per correct answer)
  *   power --questions N --repeats K --base-accuracy F --gain-points G --flip-rate F
  *         --rule majority-gain:MIN_GAIN:MAX_REGRESSIONS | lower-bound:ALPHA:MIN_POINTS [--simulations N] [--seed N] */
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { canonicalJson, sha256Hex } from "../../src/canonical";
+import { canonicalJson, isPlainRecord, sha256Hex } from "../../src/canonical";
 import { DATASETS, parseLongMemEval } from "./datasets";
-import { analyzeEvolutionPairs, contentClusters, declareEvolutionStrata, loadEvolutionQuestionMeta, loadEvolutionRunRows, parseEvolutionPredictedFlips,
+import { analyzeEvolutionPairs, attributeEvolutionArmCost, contentClusters, declareEvolutionStrata, loadEvolutionQuestionMeta, loadEvolutionRunRows, parseEvolutionPredictedFlips,
   simulateEvolutionPower, summarizeEvolutionStrata, type EvolutionPairedComparisonRequest, type EvolutionPairedRow, type EvolutionPowerRule } from "./evolution-paired-stats";
 
 const MAX_ARTIFACT_BYTES = 256 * 1024 * 1024, MAX_MANIFEST_BYTES = 8 * 1024 * 1024, MAX_SMALL_BYTES = 1024 * 1024, MAX_STUDIES = 16, MAX_DIRECTORIES = 64;
 const COMMANDS = {
   rescore: { required: ["manifest", "study"], optional: ["pin", "compare", "dataset", "predictions", "canaries", "resamples", "seed", "alpha", "output"], repeatable: ["study", "compare"] },
   "declare-strata": { required: ["manifest", "inspected", "output"], optional: [], repeatable: [] },
+  cost: { required: ["study"], optional: ["output"], repeatable: ["study"] },
   power: { required: ["questions", "repeats", "base-accuracy", "gain-points", "flip-rate", "rule"], optional: ["simulations", "seed"], repeatable: [] },
 } as const;
 export type EvolutionPairedStatsCommand = keyof typeof COMMANDS;
@@ -47,7 +51,7 @@ function number(value: string, label: string, minimum: number, maximum: number, 
 
 export function parseEvolutionPairedStatsArgs(args: readonly string[]): EvolutionPairedStatsArgs {
   const command = args[0];
-  if (command === undefined || !Object.hasOwn(COMMANDS, command)) fail("expected rescore, declare-strata or power");
+  if (command === undefined || !Object.hasOwn(COMMANDS, command)) fail("expected rescore, declare-strata, cost or power");
   const spec = COMMANDS[command as EvolutionPairedStatsCommand], allowed = [...spec.required, ...spec.optional] as readonly string[];
   const flags = new Map<string, string[]>();
   for (let i = 1; i < args.length; i += 2) {
@@ -131,6 +135,43 @@ async function loadStudyRows(study: EvolutionStudySpec, accepted: ReadonlySet<st
   return { rows, pins };
 }
 
+/** The physical ledger of a run report: `release.physical` of a V7 release report or `companion.physical` of a V8 report. */
+function physicalRows(report: unknown, directory: string): readonly unknown[] {
+  if (!isPlainRecord(report)) fail(`${directory} report must be an object`);
+  const holder = [report.release, report.companion].find(isPlainRecord);
+  if (holder === undefined || !Array.isArray(holder.physical)) fail(`${directory} report carries no physical ledger`);
+  return holder.physical;
+}
+
+/** Per-arm accounted cost over one or more run directories, with the arm's correct count from the same artifacts. */
+async function runCost(flags: ReadonlyMap<string, readonly string[]>) {
+  const studies = (flags.get("study") ?? []).map(parseStudySpec);
+  if (studies.length > MAX_STUDIES || new Set(studies.map(s => s.label)).size !== studies.length) fail("too many or duplicate study labels");
+  const results = [];
+  for (const study of studies) {
+    const arms = new Map<string, { variantId: string; reader: string; questions: number; correct: number; readerMicros: number; judgeMicrosShared: number; totalMicros: number }>();
+    const runs: Record<string, string>[] = [];
+    for (const { directory, repeat } of study.directories) {
+      const [readers, readersComplete, judges, judgesComplete, report] = await Promise.all(["readers.json", "readers-complete.json", "judges.json", "judges-complete.json", "report.json"]
+        .map(name => readJson(join(directory, name), MAX_ARTIFACT_BYTES)));
+      const rows = loadEvolutionRunRows({ readers: readers?.value, readersComplete: readersComplete?.value, judges: judges?.value, judgesComplete: judgesComplete?.value }, repeat);
+      const cost = attributeEvolutionArmCost(readers?.value, judges?.value, physicalRows(report?.value, directory));
+      for (const arm of cost) {
+        const key = JSON.stringify([arm.variantId, arm.reader]), bucket = arms.get(key) ?? { variantId: arm.variantId, reader: arm.reader, questions: 0, correct: 0, readerMicros: 0, judgeMicrosShared: 0, totalMicros: 0 };
+        bucket.questions += arm.questions; bucket.readerMicros += arm.readerMicros; bucket.judgeMicrosShared += arm.judgeMicrosShared; bucket.totalMicros += arm.totalMicros;
+        bucket.correct += rows.filter(r => r.variantId === arm.variantId && r.reader === arm.reader && r.verdict === 1).length;
+        arms.set(key, bucket);
+      }
+      runs.push({ directory, repeat: String(repeat), readersSha256: readers?.sha256 ?? "", judgesSha256: judges?.sha256 ?? "", reportSha256: report?.sha256 ?? "" });
+    }
+    results.push({ label: study.label, runs, arms: [...arms.entries()].sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0).map(([, a]) => ({ ...a,
+      usdPerQuestion: a.questions ? Number((a.totalMicros / a.questions / 1e6).toFixed(6)) : null, usdPerCorrect: a.correct ? Number((a.totalMicros / a.correct / 1e6).toFixed(6)) : null })) });
+  }
+  const output = { protocol: "oh.memory.evolution-paired-cost.v1", rule: "reader requests belong to one arm; judge requests shared by arms are split equally; accounted micros are known usage plus any retained reservation", studies: results, modelCalls: 0 };
+  const outputPath = one(flags, "output");
+  return outputPath === undefined ? output : { ...output, written: await writeNewJson(absolute(outputPath, "output"), output) };
+}
+
 export async function runEvolutionPairedStatsCli(args: readonly string[]): Promise<unknown> {
   const { command, flags } = parseEvolutionPairedStatsArgs(args);
   if (command === "power") {
@@ -147,6 +188,7 @@ export async function runEvolutionPairedStatsCli(args: readonly string[]): Promi
     const written = await writeNewJson(absolute(one(flags, "output") ?? "", "output"), declared);
     return { command, inputManifestSha256: manifest.sha256, inspectedSha256: inspected.sha256, strata: summarizeEvolutionStrata(loadEvolutionQuestionMeta(declared)), ...written, modelCalls: 0 };
   }
+  if (command === "cost") return runCost(flags);
   const manifests = await loadManifests(flags);
   const studies = (flags.get("study") ?? []).map(parseStudySpec);
   if (studies.length > MAX_STUDIES || new Set(studies.map(s => s.label)).size !== studies.length) fail("too many or duplicate study labels");
@@ -178,9 +220,14 @@ export async function runEvolutionPairedStatsCli(args: readonly string[]): Promi
 
 function summarize(value: unknown): string {
   const lines: string[] = [];
-  const v = value as { studies?: readonly { label: string; analysis: ReturnType<typeof analyzeEvolutionPairs> }[]; strata?: readonly { stratum: string; questions: number; groups: number }[] };
+  const v = value as { studies?: readonly { label: string; analysis?: ReturnType<typeof analyzeEvolutionPairs>; arms?: readonly Record<string, unknown>[] }[]; strata?: readonly { stratum: string; questions: number; groups: number }[] };
   if (v.strata) lines.push(`strata: ${v.strata.map(s => `${s.stratum} ${s.questions} questions / ${s.groups} groups`).join("; ")}`);
   for (const study of v.studies ?? []) {
+    if (study.analysis === undefined) {
+      lines.push(`cost ${study.label}:`);
+      for (const arm of study.arms ?? []) lines.push(`  arm ${arm.variantId} / ${arm.reader}: ${arm.correct}/${arm.questions} correct, reader ${arm.readerMicros} + judge ${arm.judgeMicrosShared} = ${arm.totalMicros} micros, $${arm.usdPerQuestion} per question, $${arm.usdPerCorrect} per correct answer`);
+      continue;
+    }
     lines.push(`study ${study.label}: ${study.analysis.questions} questions`);
     for (const arm of study.analysis.arms) {
       lines.push(`  arm ${arm.variantId} / ${arm.reader}: mean ${arm.meanCorrect}/${arm.questions} (${arm.meanAccuracyPoints} pts), per repeat ${arm.perRepeat.map(r => r.correct).join("/")}, majority ${arm.majorityCorrect}`
@@ -202,6 +249,6 @@ if (import.meta.main) {
   runEvolutionPairedStatsCli(process.argv.slice(2)).then(result => {
     const summary = summarize(result);
     if (summary.length) console.log(summary);
-    console.log(JSON.stringify(result, (key, value: unknown) => key === "studies" || key === "analysis" ? undefined : value, 2));
+    console.log(JSON.stringify(result, (key, value: unknown) => key === "studies" || key === "analysis" || key === "arms" ? undefined : value, 2));
   }, error => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
 }

@@ -28,6 +28,10 @@ const GROUP_KEYS = ["groupId", "partition", "exposure", "evidence"] as const;
 const QUESTION_KEYS = ["id", "runnerId", "corpusId", "groupId", "historyId", "category", "partition", "contentSha256"] as const;
 const READER_CASE_KEYS = ["questionId", "variantId", "reader", "contextSha256", "requestSha256"] as const;
 const JUDGE_CASE_KEYS = ["questionId", "variantId", "reader", "requestSha256", "readerFailed"] as const;
+/** Exact keys of a phase output's attempt-failure row (evolution-store validateEvolutionAttemptFailure). */
+const ATTEMPT_FAILURE_KEYS = ["requestSha256", "profileSha256", "repeat", "storeStatus", "reason", "rawSha256", "rawBytes", "transport", "serviceMs", "reservationMicros"] as const;
+/** Exact keys of a release or companion report's physical ledger row. */
+const PHYSICAL_ROW_KEYS = ["requestSha256", "evidenceSha256", "phase", "status", "knownUsageMicros", "unresolvedReservationMicros", "serviceMs"] as const;
 const MAX_ROWS = 512_000, MAX_QUESTIONS = 100_000, MAX_REPEATS = 100, MAX_RESAMPLES = 100_000, MAX_SIMULATIONS = 1_000_000, MAX_COMPARISONS = 64;
 
 export type EvolutionPairedRow = Readonly<{
@@ -159,8 +163,20 @@ function responseTable(value: unknown, label: string): ReadonlyMap<string, Respo
   }
   return output;
 }
+/** Attempt failures of a phase output: requests the store holds as occupied without a verifiable response. */
+function failureTable(value: unknown, label: string): ReadonlySet<string> {
+  const output = new Set<string>();
+  for (const item of list(value ?? [], label, MAX_ROWS)) {
+    const key = digest(record(item, ATTEMPT_FAILURE_KEYS, `${label} entry`).requestSha256, `${label} request digest`);
+    if (output.has(key)) fail(`${label} duplicate`);
+    output.add(key);
+  }
+  return output;
+}
 
-/** Join one run directory's four artifacts into rows for one repeat index. Verdict rule: judge answer contains "yes". */
+/** Join one run directory's four artifacts into rows for one repeat index. Verdict rule: judge answer contains "yes".
+ * A reader attempt that failed at the transport level has no response entry; it is accepted when the request digest
+ * appears in the reader output's failures and the judge plan marks the case readerFailed, and it scores zero. */
 export function loadEvolutionRunRows(artifacts: EvolutionRunArtifacts, repeat: number): readonly EvolutionPairedRow[] {
   integer(repeat, "repeat", MAX_REPEATS);
   const readers = loose(artifacts.readers, "reader plan"), readersComplete = loose(artifacts.readersComplete, "reader output");
@@ -174,6 +190,8 @@ export function loadEvolutionRunRows(artifacts: EvolutionRunArtifacts, repeat: n
   if (judgesComplete.phase !== "judge" || judgesComplete.planSha256 !== judgePlanSha256) fail("judge output does not pin the judge plan");
   if (readersComplete.complete !== true || judgesComplete.complete !== true) fail("both phases must be complete");
   const readerResponses = responseTable(readersComplete.responses, "reader output"), judgeResponses = responseTable(judgesComplete.responses, "judge output");
+  const readerFailures = failureTable(readersComplete.failures, "reader output failures");
+  for (const key of readerFailures) if (readerResponses.has(key)) fail("reader output lists one request as both a response and a failure");
   const judgeCases = new Map<string, Readonly<{ requestSha256: string | null; readerFailed: boolean }>>();
   for (const item of list(judges.cases, "judge cases", MAX_ROWS)) {
     const c = record(item, JUDGE_CASE_KEYS, "judge case");
@@ -192,12 +210,13 @@ export function loadEvolutionRunRows(artifacts: EvolutionRunArtifacts, repeat: n
     if (seen.has(key)) fail("duplicate reader case");
     seen.add(key);
     const requestSha256 = digest(c.requestSha256, "reader request digest"), response = readerResponses.get(requestSha256), judgeCase = judgeCases.get(key);
-    if (response === undefined || judgeCase === undefined) fail("reader case lacks a response or a judge case");
+    if (judgeCase === undefined) fail("reader case lacks a judge case");
+    if (response === undefined && !(judgeCase.readerFailed && readerFailures.has(requestSha256))) fail("reader case lacks a response and is not a recorded attempt failure");
     const judged = judgeCase.requestSha256 === null ? null : judgeResponses.get(judgeCase.requestSha256);
     if (judged === undefined) fail("judge case lacks a response");
     const verdict = judged !== null && judged.status === "completed" && judged.answerText !== null ? Number(judged.answerText.toLowerCase().includes("yes")) as 0 | 1 : null;
     rows.push({ questionId, variantId, reader, repeat, requestSha256, contextSha256: digest(c.contextSha256, "context digest"),
-      answerSha256: response.status === "completed" ? response.answerSha256 : null, judgeRequestSha256: judgeCase.requestSha256, verdict,
+      answerSha256: response?.status === "completed" ? response.answerSha256 : null, judgeRequestSha256: judgeCase.requestSha256, verdict,
       readerFailed: judgeCase.readerFailed, judgeFailed: !judgeCase.readerFailed && verdict === null });
   }
   if (judgeCases.size !== rows.length) fail("judge cases do not cover the reader cases exactly");
@@ -261,6 +280,8 @@ export function declareEvolutionStrata(manifest: unknown, inspectedQuestionIds: 
     return { groupId: g.groupId, partition: g.partition, exposure: "evaluated",
       evidence: `stratum=${stratum}; ${evidence.evaluated} ${stratum === "inspected-closed" ? evidence.inspected : evidence.aggregateOnly}` };
   });
+  // The V1 evidence limit binds the emitted text, not only each input, so the declared manifest stays loadable.
+  for (const g of groups) text(g.evidence, "declared evidence", 4_096);
   return { protocol: m.protocol, dataset: m.dataset, revision: m.revision, sourceSha256: m.sourceSha256, datasetSha256: m.datasetSha256,
     groups, corpora: m.corpora, questions: m.questions, qualification: m.qualification };
 }
@@ -532,10 +553,12 @@ export function analyzeEvolutionPairs(input: EvolutionPairedAnalysisInput) {
       predictedFlips: predictions, samples };
   });
   const holm = holmAdjust(comparisons.map(c => Math.max(c.clusterBootstrap.pDeltaAtMostZero, 1 / resamples)), alpha);
+  // Holm step-down: a comparison is better only when the chain reaches it (every smaller p met its level) and its own
+  // lower bound at the per-rank level is above zero. The family is the comparisons of this one call.
   const decided = comparisons.map(({ samples, ...c }, i) => {
-    const h = holm[i] ?? fail("Holm output missing"), holmLowerBound = round(quantile(samples, h.level), 4);
-    return { ...c, holm: { level: h.level, adjustedP: h.adjustedP, lowerBoundPoints: holmLowerBound, better: holmLowerBound > 0,
-      clearlyBetter: holmLowerBound > 0 && c.meanDeltaPoints >= EVOLUTION_CLEAR_GAIN_POINTS } };
+    const h = holm[i] ?? fail("Holm output missing"), holmLowerBound = round(quantile(samples, h.level), 4), better = h.rejected && holmLowerBound > 0;
+    return { ...c, holm: { level: h.level, adjustedP: h.adjustedP, rejected: h.rejected, lowerBoundPoints: holmLowerBound, better,
+      clearlyBetter: better && c.meanDeltaPoints >= EVOLUTION_CLEAR_GAIN_POINTS } };
   });
   const allQuestions = [...new Set(arms.flatMap(a => a.questions))].sort(compare);
   const anyMajority = allQuestions.filter(q => arms.some(a => a.majority.get(q) === 1)).length;
@@ -551,13 +574,18 @@ export function analyzeEvolutionPairs(input: EvolutionPairedAnalysisInput) {
 }
 export type EvolutionPairedAnalysis = ReturnType<typeof analyzeEvolutionPairs>;
 
-/** Attribute campaign cost to arms: reader requests belong to one arm; judge requests shared by arms are split equally. */
+/** Attribute campaign cost to arms: reader requests belong to one arm; judge requests shared by arms are split equally.
+ * Physical rows are a release or companion report's ledger; accounted micros are the known usage of a verified request
+ * or the retained reservation of a failed attempt, so a failed reader attempt still costs its arm. */
 export function attributeEvolutionArmCost(readers: unknown, judges: unknown, physical: unknown) {
   const r = loose(readers, "reader plan"), j = loose(judges, "judge plan");
   const cost = new Map<string, number>();
   for (const item of list(physical, "physical rows", MAX_ROWS)) {
-    const row = loose(item, "physical row"), key = digest(row.requestSha256, "physical request digest");
-    const micros = integer(row.knownUsageMicros, "known usage", 1e12); text(row.phase, "phase", 16);
+    const row = record(item, PHYSICAL_ROW_KEYS, "physical row"), key = digest(row.requestSha256, "physical request digest");
+    text(row.phase, "phase", 16);
+    const reservation = integer(row.unresolvedReservationMicros, "unresolved reservation", 1e12);
+    if (row.knownUsageMicros === null && reservation === 0) fail("unknown usage must retain its reservation");
+    const micros = row.knownUsageMicros === null ? reservation : integer(row.knownUsageMicros, "known usage", 1e12) + reservation;
     if (cost.has(key)) fail("duplicate physical row");
     cost.set(key, micros);
   }
