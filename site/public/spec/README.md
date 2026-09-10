@@ -43,6 +43,11 @@ binds these versions:
 - [Memory pages and `.oh.md` interchange](v1/memory-page.md)
 - [Compatibility and migration](v1/migration.md)
 
+Draft narratives, not part of the V1 contract manifest:
+
+- [Recall](v1/recall.md)
+- [Observations](v1/observation.md)
+
 Machine-readable V1 artifacts:
 
 - [`contract.json`](v1/contract.json)
