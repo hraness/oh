@@ -42,13 +42,28 @@ test('OS process row parser retains start identity and rejects malformed rows', 
   assert.throws(() => parseProcessRows('42 5 node'), /Unsupported/);
 });
 
-test('listener proof requires exact observed root or descendant, never another sibling', () => {
-  assert.deepEqual(parseListenerPids('p42\np43\n'), [42, 43]);
+test('native lsof PID groups include mandatory numeric descriptor records', () => {
+  assert.deepEqual(parseListenerPids('p42\nf10\nf11\np43\nf0\nf11\n'), [42, 43]);
+  assert.deepEqual(parseListenerPids('p42\nf10'), [42]);
   assert.deepEqual(parseListenerPids(''), []);
-  for (const value of ['42', 'p1', 'p42\np42', 'p42\ncnode', 'p-9', 'p9007199254740993']) assert.throws(() => parseListenerPids(value));
+  // lsof 4.91 -F? identifies f as always selected, even with exact -Fp.
+  // The previous PID-only parser necessarily rejected a real listener group.
+  assert.ok('p42\nf10\n'.trimEnd().split('\n').some((row) => !/^p[1-9]\d*$/.test(row)));
+});
+
+test('listener parser rejects incomplete, ambiguous and nonselected native records', () => {
+  for (const value of ['42', 'p1\nf3', 'p42', 'p42\np43\nf3', 'f3', 'f3\np42\nf4', 'p42\nf3\np42\nf4',
+    'p42\nf3\nf3', 'p42\ncnode\nf3', 'p42\nf3\nn127.0.0.1:1234', 'p-9\nf3', 'p01\nf3',
+    'p9007199254740993\nf3', 'p42\nf9007199254740993', 'p42\nf-1', 'p42\nf01', 'p42\nfcwd',
+    'p42\nf3u', 'p42\nf3\n\n', 'p42\nf3 ', 'p42\nf3\0', '\n']) assert.throws(() => parseListenerPids(value));
+});
+
+test('listener proof requires exact observed root or descendant, never another sibling', () => {
   const owned = [{ pid: 42, admittedParent: 5 }, { pid: 43, admittedParent: 42 }, { pid: 44, admittedParent: 5 }];
-  assertListenerOwner([42, 43], owned, 42);
-  for (const pids of [[], [44], [77]]) assert.throws(() => assertListenerOwner(pids, owned, 42));
+  assertListenerOwner(parseListenerPids('p42\nf10\np43\nf11\n'), owned, 42);
+  for (const rows of ['', 'p44\nf3', 'p77\nf3', 'p42\nf3\np44\nf4']) {
+    assert.throws(() => assertListenerOwner(parseListenerPids(rows), owned, 42));
+  }
   assert.throws(() => assertListenerOwner([43], [{ pid: 43, admittedParent: 43 }], 42), /cycle/);
   assert.throws(() => assertListenerOwner([43], [{ pid: 43, admittedParent: 42 }], 42), /root identity/);
 });

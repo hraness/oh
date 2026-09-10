@@ -2,8 +2,14 @@
 
 This collector prepares reproducible native evidence for the Oh site's styling
 migration. It does not change the website, install dependencies, publish a
-release, or contact a deployment provider. The first checkpoint contains the
-collector and pure tests only: no browser baseline or migration has passed yet.
+release, or contact a deployment provider. No browser baseline or migration has
+passed yet. The first native invocation completed the ordinary build and all
+12 existing site tests (125 assertions), then stopped before browser launch:
+the listener parser rejected lsof's mandatory file-descriptor fields. The failed
+receipt is retained, with original-operation collection, no owned survivors,
+loopback absence and unchanged source/install/build evidence. The parser now
+requires complete PID/descriptor groups and retains strict listener ancestry;
+this repair still needs a fresh complete native invocation.
 
 ## Scope
 

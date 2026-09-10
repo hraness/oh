@@ -44,13 +44,27 @@ export function sameProcess(expected, actual) {
 
 export function parseListenerPids(text) {
   if (text === '') return [];
-  const lines = text.trimEnd().split('\n');
-  const pids = lines.map((line) => {
-    assert.match(line, /^p[1-9]\d*$/, 'Unsupported listener identity');
-    const pid = Number(line.slice(1)); assert.ok(Number.isSafeInteger(pid) && pid > 1);
-    return pid;
-  });
-  assert.equal(new Set(pids).size, pids.length, 'Duplicate listener owner');
+  // Native lsof -Fp always includes file-descriptor records. A process group
+  // must contain at least one ordinary numeric descriptor; no other fields
+  // are selected by this exact listener query or admitted by this parser.
+  const lines = (text.endsWith('\n') ? text.slice(0, -1) : text).split('\n');
+  const pids = [], owners = new Set();
+  let descriptors = null;
+  for (const line of lines) {
+    if (/^p[1-9]\d*$/.test(line)) {
+      assert.ok(descriptors === null || descriptors.size > 0, 'Listener owner lacks a descriptor');
+      const pid = Number(line.slice(1)); assert.ok(Number.isSafeInteger(pid) && pid > 1);
+      assert.ok(!owners.has(pid), 'Duplicate listener owner');
+      owners.add(pid); pids.push(pid); descriptors = new Set();
+    } else {
+      assert.match(line, /^f(?:0|[1-9]\d*)$/, 'Unsupported listener field');
+      assert.ok(descriptors !== null, 'Listener descriptor lacks an owner');
+      const descriptor = Number(line.slice(1)); assert.ok(Number.isSafeInteger(descriptor));
+      assert.ok(!descriptors.has(descriptor), 'Duplicate listener descriptor');
+      descriptors.add(descriptor);
+    }
+  }
+  assert.ok(descriptors !== null && descriptors.size > 0, 'Listener owner lacks a descriptor');
   return pids;
 }
 
