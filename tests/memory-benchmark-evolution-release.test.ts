@@ -216,4 +216,5 @@ test("offline combine consumes five actual synthetic native16 shard reports and 
     await expect(combineEvolutionRelease(inputPin, output)).rejects.toThrow();
     await writeFile(reportPins[0]!.path, "{}"); await expect(combineEvolutionRelease(inputPin, join(root, "changed.json"))).rejects.toThrow("pinned content changed");
   } finally { await rm(root, { recursive: true, force: true }); }
-});
+// Five authenticated 200-case reports exceed Bun's default 5s on CI runners.
+}, 20_000);
