@@ -130,11 +130,12 @@ export function validateEvolutionReaderPlan(plan: EvolutionReaderPlan, context: 
 
 /** Native-only calls keep the V1 wire representation. Mixed span plans use a separate V2 union. */
 export async function makeEvolutionExperimentContextPlan(input: Readonly<{ dataset: EvolutionRunnerInput;
-  variants: readonly EvolutionTreatment[]; manifestSha256: string; retrievalSourceSha256: string }>) {
-  const parsed = input.variants.map(parseEvolutionTreatment);
-  if (parsed.some(isEvolutionV3Treatment)) return makeEvolutionContextPlanV3({ ...input, variants: parsed });
+  variants: readonly EvolutionTreatment[]; manifestSha256: string; retrievalSourceSha256: string; semanticCacheDirectory?: string }>) {
+  const parsed = input.variants.map(parseEvolutionTreatment), { semanticCacheDirectory, ...rest } = input;
+  if (parsed.some(isEvolutionV3Treatment)) return makeEvolutionContextPlanV3({ ...rest, variants: parsed });
   const variants = parsed as EvolutionExperimentVariant[];
-  if (!variants.some(isEvolutionSpanVariant)) return makeEvolutionContextPlan({ ...input, variants: variants as EvolutionRetrievalVariant[] });
+  if (!variants.some(isEvolutionSpanVariant)) return makeEvolutionContextPlan({ ...rest, variants: variants as EvolutionRetrievalVariant[],
+    ...(semanticCacheDirectory === undefined ? {} : { semanticCacheDirectory }) });
   if (!Array.isArray(input.dataset.corpora) || input.dataset.corpora.length < 1 || input.dataset.corpora.length > 2000
     || !Array.isArray(input.dataset.questions) || input.dataset.questions.length < 1 || input.dataset.questions.length > 2000) fail("invalid projected input bounds");
   for (const c of input.dataset.corpora) if (!Array.isArray(c.turns) || c.turns.length < 1 || c.turns.length > 8192) fail("invalid source corpus bounds");
