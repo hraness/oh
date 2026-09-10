@@ -289,7 +289,7 @@ export async function rebindEvolutionRelease(configPin: EvolutionPin, contextPin
   const input = await selected(config), dataset = projectEvolutionRunnerInput(input.dataset), retrievalSourceSha256 = await retrievalIdentity();
   const parent = validateEvolutionReleaseContextPlanEnvelope(await json(contextPin));
   const plan = rebindEvolutionReleaseContextPlan({ dataset, parent, authorization: input.release!, shardId: config.shardId, retrievalSourceSha256 });
-  await readEvolutionPin(configPin); await readEvolutionPin(contextPin); await readEvolutionPin(config.manifestPin);
+  await readEvolutionPin(configPin); await readEvolutionPin(contextPin, 128 * 1024 * 1024); await readEvolutionPin(config.manifestPin, 8 * 1024 * 1024);
   const reloaded = await loadEvolutionReleaseAuthorization(config);
   if (await retrievalIdentity() !== retrievalSourceSha256) fail("release source changed during rebind");
   assertEvolutionReleaseContextBinding(plan, reloaded, config.shardId);
