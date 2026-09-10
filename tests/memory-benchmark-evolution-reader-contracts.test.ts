@@ -101,13 +101,13 @@ describe("composable isolated reader answer contracts", () => {
         expect(validateEvolutionRequest(window)).toEqual(window);
       } else expect(() => makeEvolutionProfileWindowRequest(id, msg)).toThrow("profile-window");
     }
-    expect(ids.size).toBe(24);
-    expect(Object.keys(EVOLUTION_PROFILES)).toHaveLength(28);
+    expect(ids.size).toBe(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length);
+    expect(Object.keys(EVOLUTION_PROFILES)).toHaveLength(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length + 4);
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {
     const ctx = await fixture(), profiles = EVOLUTION_READER_CONTRACT_IDS.map(c => evolutionReaderProfileId("gpt5-nano-reader", c));
     const plan = makeEvolutionReaderPlan(ctx, profiles);
-    expect(plan.cases).toHaveLength(8); expect(plan.requests).toHaveLength(8);
+    expect(plan.cases).toHaveLength(12); expect(plan.requests).toHaveLength(12);
     expect(validateEvolutionReaderPlan(plan, ctx)).toEqual(plan);
     for (const c of plan.cases) {
       const request = plan.requests.find(r => r.requestSha256 === c.requestSha256)!;
@@ -138,10 +138,10 @@ describe("composable isolated reader answer contracts", () => {
       try {
         for (const request of requests) { expect(store.lookup(request).kind).toBe("miss"); store.admit(request); const body = response(request);
           store.capture(request, { body, httpStatus: 200, complete: true, receivedBytes: body.length, error: null }); store.finalize(request); }
-        expect(store.summary()).toMatchObject({ calls: 4, unresolvedMicros: 0 });
+        expect(store.summary()).toMatchObject({ calls: 6, unresolvedMicros: 0 });
       } finally { await store.close(); }
       const reopened = await openEvolutionStore({ directory: root, campaign });
-      try { for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit"); expect(reopened.summary().calls).toBe(4); }
+      try { for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit"); expect(reopened.summary().calls).toBe(6); }
       finally { await reopened.close(); }
     } finally { await rm(root, { recursive: true }); }
   });

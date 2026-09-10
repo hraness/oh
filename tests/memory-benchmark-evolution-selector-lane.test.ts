@@ -186,7 +186,7 @@ test("each answer-contract profile dispatches its exact immutable instruction fo
   const f = await fixture(readers), fake = provider();
   try {
     const report = await runSelectorLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
-    expect(report.complete).toBeTrue(); expect(report.cases).toHaveLength(16);
+    expect(report.complete).toBeTrue(); expect(report.cases).toHaveLength(EVOLUTION_READER_CONTRACT_IDS.length * 4);
     expect(report.phases.selector!.physicalRequests).toBe(2);
     for (const attempt of report.attempts.filter(a => a.phase === "reader")) {
       const contract = evolutionReaderContract(attempt.request.profileId);
@@ -197,7 +197,7 @@ test("each answer-contract profile dispatches its exact immutable instruction fo
         expect(attempt.request.body.messages).toEqual(answerMessages(data, data.memory));
       }
     }
-    expect(new Set(report.attempts.filter(a => a.phase === "reader").map(a => a.request.body.messages[0]!.content)).size).toBe(4);
+    expect(new Set(report.attempts.filter(a => a.phase === "reader").map(a => a.request.body.messages[0]!.content)).size).toBe(EVOLUTION_READER_CONTRACT_IDS.length);
   } finally { await rm(f.directory, { recursive: true, force: true }); }
 });
 

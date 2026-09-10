@@ -74,7 +74,7 @@ function checkedVariant(input: EvolutionRetrievalVariant): EvolutionRetrievalVar
   const id = bounded(input.id, 512, "variant ID");
   if (!EVOLUTION_RETRIEVAL_SYSTEMS.includes(input.system)) throw new TypeError("Unknown evolution retrieval system.");
   const { topK, contextBytes } = input.budget;
-  if (!Number.isSafeInteger(topK) || topK < 1 || topK > 100 || !Number.isSafeInteger(contextBytes)
+  if (!Number.isSafeInteger(topK) || topK < 1 || topK > 400 || !Number.isSafeInteger(contextBytes)
     || contextBytes < 1 || contextBytes > 4_000_000) throw new RangeError("Invalid evolution retrieval budget.");
   return immutable({ id, system: input.system, budget: { topK, contextBytes } });
 }
