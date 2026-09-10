@@ -48,9 +48,25 @@ several turns stays in `rawEvidenceTurnIds` only and marks the question
 `ambiguousEvidence`, so distractor turns never become gold evidence. On the
 pinned release 41 of the 1,800 questions carry such a reference; the review
 counts them per history (`ambiguousEvidenceQuestions`) so a scope or report
-can stratify or exclude them. `bench:memory extract`, `answer` and `judge`
-refuse `--dataset beam` until a BEAM reader and nugget-judge protocol exist;
-only `fetch`, `state`, `projection`, `retrieval` and the seal commands accept it.
+can stratify or exclude them. Because the resolved gold set of such a question
+is partial, `evidenceMetrics` scores every `ambiguousEvidence` question as
+null (turn and session recall alike) and the retrieval report counts them as
+`ambiguousEvidence` next to `unresolvedEvidence`. `rawEvidenceTurnIds` is
+emitted for BEAM only on ambiguous questions, so the runner's
+`evidenceNormalization` diagnostic (built for LoCoMo reference repairs) counts
+those 41 and no other BEAM question. On the pinned release: 1,620 answerable
+questions; 1,593 with resolved turn evidence, 16 ambiguous-only, 11 without
+any `source_chat_ids` (null retrieval metrics); session-level scorer
+references (`conversation_sessions`) are not used for `evidenceSessionIds`.
+The question-date rule is recorded machine-readably as
+`source.questionDatePolicy` (`BEAM_QUESTION_DATE_POLICY`) in the exposure
+review and re-checked by its parser. `bench:memory --split dev|test` for beam
+splits by history (`groupId` = `corpusId` before a review is applied), not by
+the review's seed/profile/content families; family-aware selection exists only
+through the review + draw path below. `bench:memory extract`, `answer` and
+`judge` refuse `--dataset beam` until a BEAM reader and nugget-judge protocol
+exist; only `fetch`, `state`, `projection`, `retrieval` and the seal commands
+accept it.
 
 The exposure review (`scripts/benchmarks/beam-seal-cli.ts review`) writes
 digests, counts and dispositions only: per history, the content digest (the

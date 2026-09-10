@@ -29,6 +29,7 @@ import hashlib
 import json
 import os
 import sys
+from typing import NoReturn
 
 PROTOCOL = "oh.beam-source-canonical.v1"
 REVISION = "3205395e897e7318c7b094ef4e6047b9b82dbb03"
@@ -45,7 +46,7 @@ ROW_KEYS = ("conversation_id", "conversation_seed", "narratives", "user_profile"
 QUALIFIED_PYARROW = "21.0.0"
 
 
-def fail(message: str) -> "NoReturn":  # type: ignore[name-defined]
+def fail(message: str) -> NoReturn:
     print(f"beam-parquet-to-json: {message}", file=sys.stderr)
     sys.exit(1)
 
@@ -79,7 +80,7 @@ def main() -> None:
         fail("pyarrow is required (qualified: pyarrow==21.0.0); see the module docstring for a private install command")
     if pyarrow.__version__ != QUALIFIED_PYARROW:
         print(f"warning: pyarrow {pyarrow.__version__} differs from the qualified {QUALIFIED_PYARROW}; "
-              "the pinned output digest must still match", file=sys.stderr)
+              "the pinned output digest must still match and load fails closed if the output digest differs", file=sys.stderr)
 
     parts_out = []
     rows_out = []

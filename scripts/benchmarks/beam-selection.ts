@@ -72,6 +72,7 @@ function parseFamily(value: unknown): BeamFamily {
   if (!Array.isArray(value.corpusIds) || value.corpusIds.length < 1 || value.corpusIds.length > BEAM_SELECTION_FAMILY_CAP
     || value.corpusIds.some((id) => typeof id !== "string" || id.length === 0 || id.length > 64)) throw new TypeError("Invalid BEAM family histories.");
   if (!orderedUnique(value.corpusIds as string[], (id) => id)) throw new TypeError("BEAM family histories must be sorted and unique.");
+  if (value.corpusIds[0] !== value.groupId) throw new TypeError("BEAM family groupId must be its smallest history.");
   if (!Number.isSafeInteger(value.questions) || (value.questions as number) < 0 || (value.questions as number) > 100_000) throw new TypeError("Invalid BEAM family question count.");
   return { groupId: value.groupId, corpusIds: value.corpusIds as string[], questions: value.questions as number };
 }

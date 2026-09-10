@@ -4,7 +4,7 @@
  * sealed-confirmation scope references by digest; it declares dispositions and
  * proves neither independence nor freshness. */
 import { canonicalNow, canonicalSha256, hasExactKeys, isPlainRecord, parseCanonicalInstantV1, parseSha256Hex, sha256Hex } from "../../src/canonical";
-import { BEAM_SPLITS, DATASETS, type BeamHistoryProvenance, type BeamSplit, type Dataset } from "./datasets";
+import { BEAM_QUESTION_DATE_POLICY, BEAM_SPLITS, DATASETS, beamCorpusId, type BeamHistoryProvenance, type BeamSplit, type Dataset } from "./datasets";
 import type { EvolutionExposure, EvolutionGroupDisposition } from "./evolution-dataset";
 
 export const BEAM_REVIEW_PROTOCOL = "oh.beam-exposure-review.v1" as const;
@@ -29,7 +29,7 @@ export type BeamReviewHistory = Readonly<{
 }>;
 export type BeamExposureReview = Readonly<{
   protocol: typeof BEAM_REVIEW_PROTOCOL; createdAt: string; dataset: "beam";
-  source: Readonly<{ revision: string; sha256: string }>;
+  source: Readonly<{ revision: string; sha256: string; questionDatePolicy: typeof BEAM_QUESTION_DATE_POLICY }>;
   references: readonly Readonly<{ dataset: string; sha256: string; corpora: number; turns: number }>[];
   shinglePolicy: typeof BEAM_SHINGLE_POLICY; thresholds: BeamOverlapThresholds;
   declarations: readonly BeamExposureDeclaration[];
@@ -238,7 +238,7 @@ export function reviewBeamExposure(input: Readonly<{
   const eligibleGroups = new Set(groups.filter((group) => group.partition === "sealed").map((group) => group.groupId));
   const eligibleHistories = histories.filter((history) => eligibleGroups.has(history.suggestedGroupId));
   return {
-    protocol: BEAM_REVIEW_PROTOCOL, createdAt, dataset: "beam", source: { revision: DATASETS.beam.revision, sha256: DATASETS.beam.sha256 },
+    protocol: BEAM_REVIEW_PROTOCOL, createdAt, dataset: "beam", source: { revision: DATASETS.beam.revision, sha256: DATASETS.beam.sha256, questionDatePolicy: BEAM_QUESTION_DATE_POLICY },
     references: input.references.map((reference) => {
       const sha256 = parseSha256Hex(reference.sha256);
       if (sha256 === null) throw new TypeError("Reference dataset sha256 required.");
@@ -277,7 +277,8 @@ export function parseBeamExposureReview(value: unknown): BeamExposureReview {
   const createdAt = parseCanonicalInstantV1(value.createdAt);
   if (createdAt === null) throw new TypeError("Invalid BEAM review createdAt.");
   const source = value.source;
-  if (!isPlainRecord(source) || !hasExactKeys(source, ["revision", "sha256"]) || source.revision !== DATASETS.beam.revision || source.sha256 !== DATASETS.beam.sha256) {
+  if (!isPlainRecord(source) || !hasExactKeys(source, ["revision", "sha256", "questionDatePolicy"]) || source.revision !== DATASETS.beam.revision
+    || source.sha256 !== DATASETS.beam.sha256 || source.questionDatePolicy !== BEAM_QUESTION_DATE_POLICY) {
     throw new TypeError("BEAM review source does not match the pinned dataset.");
   }
   if (canonicalSha256(value.shinglePolicy) !== canonicalSha256(BEAM_SHINGLE_POLICY)) throw new TypeError("BEAM review shingle policy changed.");
@@ -302,7 +303,9 @@ export function parseBeamExposureReview(value: unknown): BeamExposureReview {
       return { exposure: declaration.exposure, evidence: declaration.evidence };
     })();
     if (typeof raw.eligible !== "boolean") throw new TypeError("Invalid BEAM review eligibility.");
-    return { corpusId: bounded(raw.corpusId, 64), split: raw.split as BeamSplit, rowIndex: scalar(raw.rowIndex, 0, 999), sessions: scalar(raw.sessions, 1, 8_192),
+    const rowIndex = scalar(raw.rowIndex, 0, 999);
+    if (raw.corpusId !== beamCorpusId(raw.split as BeamSplit, rowIndex)) throw new TypeError("BEAM review history coordinates disagree with its corpusId.");
+    return { corpusId: bounded(raw.corpusId, 64), split: raw.split as BeamSplit, rowIndex, sessions: scalar(raw.sessions, 1, 8_192),
       turns: scalar(raw.turns, 1, 8_192), questions: scalar(raw.questions, 0, 10_000), ambiguousEvidenceQuestions: scalar(raw.ambiguousEvidenceQuestions, 0, 10_000),
       contentSha256: digest(raw.contentSha256),
       conversationIdSha256: digest(raw.conversationIdSha256), seedSha256: digest(raw.seedSha256), profileSha256: digest(raw.profileSha256),
@@ -366,7 +369,7 @@ export function parseBeamExposureReview(value: unknown): BeamExposureReview {
   if (canonicalSha256(summary) !== canonicalSha256(expected)) throw new TypeError("BEAM review summary disagrees with its histories.");
   const qualification = "Declared dispositions from digests and sampled overlap only; no independence, freshness or absence of undeclared exposure is inferred." as const;
   if (value.qualification !== qualification) throw new TypeError("BEAM review qualification changed.");
-  return { protocol: BEAM_REVIEW_PROTOCOL, createdAt, dataset: "beam", source: { revision: DATASETS.beam.revision, sha256: DATASETS.beam.sha256 }, references,
+  return { protocol: BEAM_REVIEW_PROTOCOL, createdAt, dataset: "beam", source: { revision: DATASETS.beam.revision, sha256: DATASETS.beam.sha256, questionDatePolicy: BEAM_QUESTION_DATE_POLICY }, references,
     shinglePolicy: BEAM_SHINGLE_POLICY, thresholds, declarations, histories, groups, summary: expected, qualification };
 }
 

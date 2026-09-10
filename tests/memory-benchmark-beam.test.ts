@@ -1,12 +1,17 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { chmod, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { canonicalJson, canonicalSha256, sha256Hex } from "../src/canonical";
-import { BEAM_CANONICAL_PROTOCOL, BEAM_QUESTION_TYPES, DATASETS, beamCorpusId, parseBeam, parseBeamProvenance,
+import { BEAM_CANONICAL_PROTOCOL, BEAM_QUESTION_DATE_POLICY, BEAM_QUESTION_TYPES, DATASETS, beamCorpusId, parseBeam, parseBeamProvenance,
   parseLongMemEval, type Dataset } from "../scripts/benchmarks/datasets";
+import { evidenceMetrics } from "../scripts/benchmarks/metrics";
+import { runRetrieval } from "../scripts/benchmarks/runner";
 import { applyBeamReview, beamManifestInput, parseBeamExposureReview, reviewBeamExposure, turnSignatures,
   type BeamExposureReview } from "../scripts/benchmarks/beam-review";
 import { beamScopeQuestionIds, buildBeamFamilyPool, createBeamSelection, parseBeamSelectionDocument, verifyBeamSelection } from "../scripts/benchmarks/beam-selection";
 import { createEvolutionDatasetManifest, projectEvolutionRunnerInput } from "../scripts/benchmarks/evolution-dataset";
-import { parseDataset } from "../scripts/benchmarks/io";
+import { convertBeamSource, parseDataset } from "../scripts/benchmarks/io";
 import { main as sealMain } from "../scripts/benchmarks/beam-seal-cli";
 import { main as benchMain } from "../scripts/benchmark-memory";
 import { makeEvolutionEvaluationScope } from "../scripts/benchmarks/evolution-evaluation-scope";
@@ -86,14 +91,36 @@ describe("parseBeam", () => {
     expect(JSON.parse(question.answer)).toEqual({ answer: "PRIVATE_ANSWER_SENTINEL", difficulty: "easy", rubric: ["PRIVATE_RUBRIC_SENTINEL one", "PRIVATE_RUBRIC_SENTINEL two"], source_chat_ids: [7, 8] });
     expect(question.answer).toBe(canonicalJson(JSON.parse(question.answer)));
     const abstention = dataset.questions.find((q) => q.id === "beam-100K-0:abstention:0")!;
-    expect(abstention).toMatchObject({ unanswerable: true, evidenceTurnIds: [], rawEvidenceTurnIds: [] });
+    expect(abstention).toMatchObject({ unanswerable: true, evidenceTurnIds: [] });
     expect("ambiguousEvidence" in abstention).toBe(false);
+    expect("rawEvidenceTurnIds" in abstention).toBe(false);
     expect(dataset.questions.find((q) => q.id === "beam-100K-0:event_ordering:0")).toMatchObject({ evidenceTurnIds: ["s1:1"], rawEvidenceTurnIds: ["7", "9"], ambiguousEvidence: true });
     const unambiguous = dataset.questions.find((q) => q.id === "beam-100K-0:temporal_reasoning:0")!;
     expect(unambiguous).toMatchObject({ evidenceTurnIds: ["s0:1", "s1:2"], evidenceSessionIds: ["s0", "s1"] });
     expect("ambiguousEvidence" in unambiguous).toBe(false);
+    // The raw source integers ride only on ambiguous questions, so the runner's evidenceNormalization diagnostic counts exactly those.
+    expect("rawEvidenceTurnIds" in unambiguous).toBe(false);
+    expect(dataset.questions.filter((q) => q.rawEvidenceTurnIds !== undefined)).toHaveLength(4 * 8);
     expect(dataset.questions.find((q) => q.id === "beam-100K-0:temporal_reasoning:1")).toMatchObject({ evidenceTurnIds: [] });
     expect(dataset.questions.filter((q) => q.ambiguousEvidence === true)).toHaveLength(4 * 8);
+  });
+
+  test("ambiguous evidence scores as null while resolved evidence keeps numeric metrics", async () => {
+    const dataset = parseBeam(document());
+    const ambiguous = dataset.questions.find((q) => q.id === "beam-100K-0:knowledge_update:0")!;
+    // Retrieving the only resolved gold turn must not read as full recall: turn 7 (s0:0 or s1:0) was never retrieved.
+    expect(evidenceMetrics(ambiguous, ["s0:1"], ["s0"])).toEqual({ turnRecall: null, turnPrecision: null, allTurns: null, reciprocalRank: null, sessionRecall: null });
+    const resolved = dataset.questions.find((q) => q.id === "beam-100K-0:temporal_reasoning:0")!;
+    expect(evidenceMetrics(resolved, ["s0:1", "s0:0"], ["s0"])).toEqual({ turnRecall: 0.5, turnPrecision: 0.5, allTurns: 0, reciprocalRank: 1, sessionRecall: 0.5 });
+    expect(evidenceMetrics(resolved, ["s1:2", "s0:1"], ["s1", "s0"])).toMatchObject({ turnRecall: 1, allTurns: 1, sessionRecall: 1 });
+    const report = await runRetrieval(dataset, ["no-memory", "bm25-focused"], { topK: 2, contextBytes: 2_000 }, 17);
+    expect(report).toMatchObject({ unresolvedEvidence: 0, ambiguousEvidence: 4 * 8, evidenceNormalization: { questions: 4 * 8 } });
+    expect(report.qualifications).toContain("Questions with an ambiguous evidence reference have null retrieval metrics.");
+    const rows = report.rows.filter((row) => row.system === "bm25-focused");
+    expect(rows.filter((row) => row.questionId.includes(":knowledge_update:")).every((row) => row.metrics.turnRecall === null && row.metrics.sessionRecall === null)).toBe(true);
+    expect(rows.filter((row) => row.questionId.endsWith(":temporal_reasoning:0")).every((row) => typeof row.metrics.turnRecall === "number")).toBe(true);
+    expect(report.summaries["bm25-focused"]!.annotatedQuestions).toBe(4);
+    noSentinel(report.rows.map((row) => row.retrievedTurns));
   });
 
   test("io dispatches beam to parseBeam and keeps the older parsers routed", () => {
@@ -141,6 +168,39 @@ describe("parseBeam", () => {
   });
 });
 
+describe("BEAM conversion verification", () => {
+  let root = "";
+  beforeAll(async () => { root = await mkdtemp(join(await realpath(tmpdir()), "oh-beam-convert-")); });
+  afterAll(async () => { await rm(root, { recursive: true, force: true }); });
+  /** A stand-in interpreter: it ignores the converter script and either writes `body` to --output or exits with `exit`. */
+  async function stub(name: string, body: string | null, exit = 0) {
+    const path = join(root, name);
+    const lines = ["#!/bin/sh", 'out=""', 'while [ $# -gt 0 ]; do if [ "$1" = "--output" ]; then out="$2"; shift; fi; shift; done',
+      ...(body === null ? [] : [`printf '%s' '${body}' > "$out"`]), ...(exit === 0 ? [] : [`echo 'stub converter refused' >&2; exit ${exit}`])];
+    await writeFile(path, `${lines.join("\n")}\n`);
+    await chmod(path, 0o700);
+    return path;
+  }
+
+  test("discards a converted file whose digest differs from the pin", async () => {
+    const output = join(root, "wrong-bytes.json");
+    const python = await stub("python-wrong", '{"protocol":"oh.beam-source-canonical.v1"}');
+    await expect(convertBeamSource({ directory: root, output, python })).rejects.toThrow("does not match its pinned digest");
+    expect(await Bun.file(output).exists()).toBe(false);
+  });
+
+  test("reports a failing converter without keeping any output", async () => {
+    const output = join(root, "never-written.json");
+    const python = await stub("python-fails", null, 3);
+    await expect(convertBeamSource({ directory: root, output, python })).rejects.toThrow("BEAM conversion failed");
+    await expect(convertBeamSource({ directory: root, output, python })).rejects.toThrow("stub converter refused");
+    expect(await Bun.file(output).exists()).toBe(false);
+    // A converter that exits cleanly but writes nothing is a digest mismatch too.
+    const silent = await stub("python-silent", null);
+    await expect(convertBeamSource({ directory: root, output, python: silent })).rejects.toThrow("does not match its pinned digest");
+  });
+});
+
 describe("BEAM exposure review", () => {
   const overlapText = "This exact synthetic sentence appears in both the reference haystack and the beam history word for word";
   const beamDocument = () => document([row("100K", 0, { firstTurn: overlapText }), row("100K", 1), row("500K", 0, { seed: "shared-seed" }), row("1M", 0, { seed: "shared-seed" })]);
@@ -168,6 +228,7 @@ describe("BEAM exposure review", () => {
     expect(flagged.overlap[0]).toMatchObject({ dataset: "longmemeval-s", exactTurnMatches: 1, matchedCorpora: [{ corpusId: "ref-a", exactTurnMatches: 1 }] });
     expect(flagged.overlap[0]!.maximumCorpusSampledShingleMatches).toBe(flagged.overlap[0]!.matchedCorpora[0]!.sampledShingleMatches);
     expect(result.thresholds).toEqual({ maximumExactTurnMatches: 0, maximumSampledShingleMatchesPerCorpus: null });
+    expect(result.source).toEqual({ revision: DATASETS.beam.revision, sha256: DATASETS.beam.sha256, questionDatePolicy: BEAM_QUESTION_DATE_POLICY });
     expect(result.histories.map((history) => history.suggestedGroupId)).toEqual(["beam-100K-0", "beam-100K-1", "beam-1M-0", "beam-1M-0"]);
     expect(result.histories[2]!.relatedHistories).toEqual(["beam-1M-0"]);
     expect(result.histories[3]!.relatedHistories).toEqual(["beam-500K-0"]);
@@ -217,6 +278,15 @@ describe("BEAM exposure review", () => {
     const overcounted = JSON.parse(JSON.stringify(result));
     overcounted.histories[0].ambiguousEvidenceQuestions = 12;
     expect(() => parseBeamExposureReview(overcounted)).toThrow("ambiguous evidence");
+    const moved = JSON.parse(JSON.stringify(result));
+    moved.histories[1].rowIndex = 2;
+    expect(() => parseBeamExposureReview(moved)).toThrow("coordinates disagree");
+    const resplit = JSON.parse(JSON.stringify(result));
+    resplit.histories[2].split = "1M";
+    expect(() => parseBeamExposureReview(resplit)).toThrow("coordinates disagree");
+    const undated = JSON.parse(JSON.stringify(result));
+    undated.source.questionDatePolicy = "beam-first-session-time-anchor.v1";
+    expect(() => parseBeamExposureReview(undated)).toThrow("pinned dataset");
     expect(() => reviewBeamExposure({ beam: review().beam, provenance: parseBeamProvenance(beamDocument()), references: [],
       declarations: [{ corpusId: "beam-100K-9", exposure: "unknown", evidence: "x" }] })).toThrow("unknown history");
     expect(() => reviewBeamExposure({ beam: review().beam, provenance: parseBeamProvenance(beamDocument()).slice(1), references: [] })).toThrow("align");
@@ -276,6 +346,9 @@ describe("BEAM family draw", () => {
     expect(() => parseBeamSelectionDocument({ ...selection, selectedQuestionIds: selection.selectedQuestionIds.slice(1) })).toThrow("sampleQuestions");
     expect(() => parseBeamSelectionDocument({ ...selection, poolSize: 2 })).toThrow("eligible families");
     expect(() => parseBeamSelectionDocument({ ...selection, method: "math-random" })).toThrow("protocol");
+    const renamed = { ...selection, eligibleFamilies: selection.eligibleFamilies.map((family: { groupId: string; corpusIds: string[] }, index: number) =>
+      index === 2 ? { ...family, groupId: family.corpusIds[1] } : family) };
+    expect(() => parseBeamSelectionDocument(renamed)).toThrow("smallest history");
   });
 
   test("a sealed-confirmation scope accepts the drawn families and rejects a closed one", () => {

@@ -291,7 +291,11 @@ function beamRows(value: unknown): readonly BeamRow[] {
  * reference that names one turn becomes that turn's evidence id; a reference
  * that names several turns (the release repeats ids inside some histories) is
  * kept only in `rawEvidenceTurnIds` and the question is marked
- * `ambiguousEvidence`, so distractor turns never become gold evidence.
+ * `ambiguousEvidence`, so distractor turns never become gold evidence and
+ * `evidenceMetrics` scores the question as null. `rawEvidenceTurnIds` is
+ * emitted only for ambiguous questions: for every other question the source
+ * integers carry no information beyond the resolved `s#:#` ids, and emitting
+ * them would count every BEAM question as an evidence normalization.
  */
 export function parseBeam(value: unknown): Dataset {
   const corpora: Corpus[] = [];
@@ -351,9 +355,8 @@ export function parseBeam(value: unknown): Dataset {
         const evidenceTurnIds = [...new Set(resolved.filter((turnIds) => turnIds.length === 1).map((turnIds) => turnIds[0]!))];
         questions.push({ id: `${corpusId}:${category}:${index}`, corpusId, category: `beam:${category}`, question: questionText,
           questionDate: lastSessionDate, answer: scorerJson, unanswerable: category === "abstention",
-          evidenceTurnIds, rawEvidenceTurnIds: sourceIds.map(String),
-          evidenceSessionIds: [...new Set(evidenceTurnIds.map((turnId) => byId.get(turnId)!.sessionId))],
-          ...(ambiguous ? { ambiguousEvidence: true as const } : {}) });
+          evidenceTurnIds, evidenceSessionIds: [...new Set(evidenceTurnIds.map((turnId) => byId.get(turnId)!.sessionId))],
+          ...(ambiguous ? { ambiguousEvidence: true as const, rawEvidenceTurnIds: sourceIds.map(String) } : {}) });
       }
     }
   }

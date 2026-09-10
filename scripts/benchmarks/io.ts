@@ -63,15 +63,20 @@ async function acquireBeam(path: string): Promise<void> {
     if (bytes.length !== part.bytes || sha256Hex(bytes) !== part.sha256) throw new Error(`BEAM part ${part.path} checksum mismatch.`);
     if (!await existing.exists()) await writeNew(partPath, bytes);
   }
-  const python = process.env.OH_BEAM_PYTHON ?? "python3";
-  const conversion = Bun.spawnSync([python, join(ROOT, "scripts/benchmarks/beam-parquet-to-json.py"),
-    "--input-dir", directory, "--output", path], { stdout: "pipe", stderr: "pipe", timeout: 600_000 });
+  await convertBeamSource({ directory, output: path, python: process.env.OH_BEAM_PYTHON ?? "python3" });
+}
+
+/** Run the pinned converter over verified parquet parts and keep the output only when it matches the canonical JSON pin. */
+export async function convertBeamSource(input: Readonly<{ directory: string; output: string; python: string }>): Promise<void> {
+  const source = DATASETS.beam;
+  const conversion = Bun.spawnSync([input.python, join(ROOT, "scripts/benchmarks/beam-parquet-to-json.py"),
+    "--input-dir", input.directory, "--output", input.output], { stdout: "pipe", stderr: "pipe", timeout: 600_000 });
   if (conversion.exitCode !== 0) {
     throw new Error(`BEAM conversion failed (set OH_BEAM_PYTHON to a Python with pyarrow 21.0.0): ${conversion.stderr.toString().trim().slice(0, 512)}`);
   }
-  const produced = Bun.file(path);
-  if (produced.size !== source.bytes || sha256Hex(await produced.bytes()) !== source.sha256) {
-    await rm(path, { force: true });
+  const produced = Bun.file(input.output);
+  if (!await produced.exists() || produced.size !== source.bytes || sha256Hex(await produced.bytes()) !== source.sha256) {
+    await rm(input.output, { force: true });
     throw new Error("BEAM canonical JSON does not match its pinned digest; the converted file was discarded.");
   }
 }

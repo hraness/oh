@@ -217,7 +217,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     seed, sourceSha256: code.sourceSha256, gitHead: code.gitHead,
     status: result.status ?? "completed", summaries, comparisons: result.comparisons,
     provider: result.provider, spend: result.spend, stopped: result.stopped, extraction: result.extraction, memoryUnits: result.memoryUnits,
-    unresolvedEvidence: result.unresolvedEvidence,
+    unresolvedEvidence: result.unresolvedEvidence, ambiguousEvidence: result.ambiguousEvidence,
     evidenceProtocol: result.evidenceProtocol, evidenceNormalization: result.evidenceNormalization,
     unresolvedReferences: result.unresolvedReferences, resultSha256: result.resultSha256 }, null, 2));
   if (result.status === "failed" || result.status === "incomplete") process.exitCode = 1;
