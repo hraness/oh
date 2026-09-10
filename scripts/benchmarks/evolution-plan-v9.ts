@@ -8,7 +8,7 @@ import { EVOLUTION_EVALUATION_SCOPE_V2_MAXIMUM_SHARD } from "./evolution-evaluat
 import { validateEvolutionContextPlan, validateEvolutionContextPlanSources, type EvolutionContextPlan } from "./evolution-plan";
 import { evolutionReaderDatePolicySha256, parseEvolutionReaderDatePolicy, type EvolutionReaderDatePolicy } from "./evolution-reader-date-policy";
 import type { EvolutionReleaseContextPlan } from "./evolution-release-plan";
-import type { EvolutionRetrievalResult } from "./evolution-retrieval";
+import { evolutionLegacyResult, type EvolutionRetrievalResult } from "./evolution-retrieval";
 import { evolutionStudyV9Shard, evolutionStudyV9Variants, type EvolutionStudyV9Authorization } from "./evolution-study-v9";
 
 export const EVOLUTION_CONTEXT_PLAN_V9_PROTOCOL = "oh.memory.evolution-context-plan.v9" as const;
@@ -53,7 +53,7 @@ export function makeEvolutionContextPlanV9(input: Readonly<{ dataset: EvolutionR
     || base.questions.length > EVOLUTION_EVALUATION_SCOPE_V2_MAXIMUM_SHARD || base.variants.length !== 2
     || binding.candidateVariantSha256 !== canonicalSha256(base.variants[1])) fail("fixed binding required");
   if (base.cases.some(c => c.result.protocol !== EVOLUTION_V9_RESULT_PROTOCOL)) fail("whole-turn result protocol required");
-  const cases = base.cases.map(c => ({ ...c, kind: "whole-turn" as const }));
+  const cases = base.cases.map(c => ({ ...c, kind: "whole-turn" as const, result: evolutionLegacyResult(c.result) }));
   const { planSha256: _old, protocol: _protocol, cases: _cases, ...fields } = base;
   const payload = { protocol: EVOLUTION_CONTEXT_PLAN_V9_PROTOCOL, ...fields, ...binding, basePlan: base, cases };
   return freezeEvolutionCompletion(structuredClone({ ...payload, planSha256: canonicalSha256(payload) }));

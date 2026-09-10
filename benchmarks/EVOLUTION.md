@@ -511,6 +511,32 @@ time separately from reused cached work. Do not repeat occupied requests to
 manufacture a matched timing sample. Archive the qualification receipt and retain
 the capacity in every run configuration.
 
+## Recall systems and the V2 result protocol
+
+Three development systems score the product recall surface documented in
+[`spec/v1/recall.md`](../spec/v1/recall.md): `oh-recall` (one semantic query,
+dated chronological rendering), `oh-recall-mq` (the question, its focused
+term form, and up to four lexical clauses fused by reciprocal rank), and
+`oh-recall-mq-dw` (the same plus the frozen relative-date window lane). Every
+query keeps the 1 through 100 search limit; the fused pool is cut to `topK`
+before rendering under the byte budget. Retrieval mode is semantic, matching
+the promoted `oh-semantic` configuration, so `oh-recall` differs from it only
+by presentation.
+
+Recall results use `oh.evolution-retrieval.v2`. `turnIds`, `sessionIds`, and
+`sources` still describe raw turns, so evidence scoring is unchanged; the
+result adds `asOf` (the question instant parsed by
+`scripts/benchmarks/evolution-dates.ts`, strict and fail-closed over the
+LongMemEval and LoCoMo timestamp grammars, `null` when the dataset supplies no
+question date), `renderer`, `queries`, `window`, and an empty `derived` list
+reserved for derived records. The source validator dispatches by protocol:
+V1 results re-render exactly as before, and V2 results re-render through
+`renderOhRecallV1` with the question, its date, and the recall system, so the
+re-derived queries, window, and dated bytes must all match. Protocols defined
+over V1 whole-turn results (completion, source order, release rebind, fact
+cards) refuse a recall result instead of misreading it. `evolution-dates.ts`
+is part of the retrieval identity.
+
 ## Validation and takeover
 
 Focused tests are under `tests/memory-benchmark-evolution-*.test.ts` and run in

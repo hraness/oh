@@ -9,6 +9,7 @@ import { boundEvolutionCompletionWire, createEvolutionSourceCompletion, EVOLUTIO
 import { evolutionAnswerMessages } from "./evolution-reader-contracts";
 import { evolutionReaderContract, makeEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "./evolution-model";
 import { validateEvolutionContextPlan, validateEvolutionLegacyResultEnvelope, type EvolutionContextPlan, type EvolutionReaderCase } from "./evolution-plan";
+import { evolutionLegacyResult } from "./evolution-retrieval";
 
 export const EVOLUTION_COMPLETION_TREATMENTS = freezeEvolutionCompletion(EVOLUTION_COMPLETION_MODES.map(mode => ({
   id: `oh-focused-prefix-${mode}-completion-120k-v1`, system: "oh-source-completion" as const, mode,
@@ -55,7 +56,7 @@ export function projectEvolutionCompletionParents(input: EvolutionCompletionArti
     if (!variant || variant.system !== system || variant.budget.topK !== 100 || variant.budget.contextBytes !== 96_000) fail("fixed parent variant required");
     const rows = plan.cases.filter(c => c.variantId === row.variantId);
     assertExactEvolutionCoverage(selected.questions.map(q => q.id), rows.map(r => r.questionId));
-    return new Map(rows.map(r => [r.questionId, { variant, result: r.result, expectedResultSha256: r.result.resultSha256 }]));
+    return new Map(rows.map(r => [r.questionId, { variant, result: evolutionLegacyResult(r.result), expectedResultSha256: r.result.resultSha256 }]));
   });
   return selected.questions.map(q => ({ questionId: q.id, prefix: projections[0]!.get(q.id)!, lexical: projections[1]!.get(q.id)!, semantic: projections[2]!.get(q.id)! }));
 }

@@ -159,6 +159,7 @@ describe("explicit versioned source-span plans", () => {
     }
     expect(EVOLUTION_CONTEXT_SOURCE_FILES).toContain("scripts/benchmarks/evolution-spans.ts");
     expect(EVOLUTION_CONTEXT_SOURCE_FILES).toContain("scripts/benchmarks/evolution-variants.ts");
+    expect(EVOLUTION_CONTEXT_SOURCE_FILES).toContain("scripts/benchmarks/evolution-dates.ts");
     expect(EVOLUTION_RETRIEVAL_SYSTEMS as readonly string[]).not.toContain("oh-source-spans");
     const prepared = await prepareEvolutionCorpus(corpus);
     try { await expect(prepared.retrieve("Paris", variants.at(-1)! as never)).rejects.toThrow("Unknown"); }

@@ -1,61 +1,123 @@
-# Oh recall V1 (draft)
+# Recall and dated rendering V1
 
-Status: draft narrative. This document describes the recall interface that a
-later release is expected to ship. Nothing here is part of the V1 contract
-manifest, no code implements it yet, and no wire format is frozen by this
-page. The document exists so the evaluation protocol can name the shape it
-will measure and so the implementing change can be checked against a text
-written before any benchmark score was read.
+Recall is a read-only composition over V1 search. It runs several bounded
+searches, fuses their ranks, optionally adds the records dated inside a
+resolved window, and renders the result chronologically under headers that
+are relative to a question date. It never widens the V1 search limit of 1
+through 100 results for any lane, never writes records, and never changes the
+bytes of a record's text. Records stay authoritative in SQLite; every result is
+rejoined to the current record digest by the underlying V1 search.
 
-## Purpose
+## Recall response
 
-Recall answers one question of an agent: "what does this store remember that
-bears on this query, as of this moment?" It composes the existing V1 search
-without changing it. `searchOhV1` keeps its 1 through 100 result bound, its
-keyword and semantic lanes, its reciprocal-rank fusion weights and its rule
-that every hit is rejoined to a current record digest. Recall issues at most
-six bounded queries through that function, fuses their ranked lists, and
-renders the result in chronological order under a supplied reference
-instant.
+`recallOhV1` accepts 1 through 6 distinct queries, each nonempty and at most
+16,384 UTF-8 bytes, a per-query limit of 1 through 100 (default 10), a search
+mode (`keyword`, `semantic`, or `hybrid`; default `keyword`), an `asOf`
+question instant or `null`, an optional window, and an optional view. Every
+query is one ordinary V1 search with that limit and mode.
 
-## Request
+Fusion is reciprocal rank: each lane contributes `1 / (60 + rank)` for a record
+at 1-based `rank` in that lane; a record's score is the sum over lanes. Results
+are ordered by score, then by record key in code-unit order. The response holds
+at most `(queries + 1) × limit` results.
 
 | Field | Contract |
 | --- | --- |
-| `queries` | One through six nonempty NFC strings, each at most 4 KiB. |
-| `limit` | Integer 1 through 100 applied to each query and to the fused list. |
-| `asOf` | A canonical UTC instant with exactly three fractional digits, or `null`. |
-| `window` | Optional `{ since, until }` of canonical instants; `since` is not later than `until`. |
+| `asOf` | The canonical UTC instant supplied by the caller, or `null`. |
+| `diagnostics` | `semantic-unavailable` entries from the underlying searches and `window-unavailable` when the window scan could not run. |
+| `mode` | The search mode applied to every query. |
+| `queries` | The distinct queries in the order they were fused. |
+| `results` | Fused results, each with `evidence` (`lane`, `query` index or `null`, `rank`, lane `score`), the current record, and the fused `score`. |
+| `window` | The window applied, or `null`. |
 
-`asOf` is parsed before the call; recall never interprets natural-language
-dates in the request. A relative expression such as "last week" is resolved
-by a separate pure rule table over a fixed grammar, and an expression outside
-that grammar resolves to `null` rather than a guess. The table is frozen
-before any dataset label is read and is published with the implementation.
+A window has exactly `since`, `until`, and `v: 1`; both bounds are canonical
+UTC instants with `since` no later than `until`. When a window is present,
+recall adds one window lane: the current records whose viewed instant lies
+inside the window, ordered by instant, then view order, then key, cut to
+`limit`. The scan reads at most 65,536 current records; a larger graph yields a
+`window-unavailable` diagnostic instead of a partial lane. The window lane
+never contacts a model or a provider.
 
-## Response
+## Views
 
-The response lists fused hits in rank order. Each hit carries the record
-key, the record's current digest, the lane scores that produced it and the
-rank of each query that returned it. Recall reads records; it writes nothing
-and creates no derived state.
+A view maps one record to `instant` (canonical UTC instant or `null`), `order`
+(integer or `null`), `session` (nonempty text, at most 512 bytes), and `text`
+(the exact text to render). The default view reads a record value's
+`observedAt`, `sessionId`, and `text`; any other value renders as its canonical
+JSON under its record key. A view MUST NOT alter record text.
 
-## Rendering
+## Relative date grammar
 
-The renderer is a pure function of the response, `asOf` and a byte budget.
-It emits the reference date first, then sessions in chronological order
-under a date header that states how many days before the reference instant
-the session took place, with gap markers between sessions that are far
-apart. Record text is rendered unchanged. When `asOf` is `null` the renderer
-falls back to rank order and omits every relative-time phrase. All instants
-are treated as UTC, which the evaluation protocol card states.
+`resolveRelativeDateWindowV1(query, asOf)` is pure and rule-based. Its complete
+vocabulary is the frozen table `oh.recall-date-grammar.v1`, published as
+[`recall-date-grammar.json`](recall-date-grammar.json). Matching is
+case-insensitive over NFC text. Every rule resolves to whole UTC calendar days
+anchored on the question day; weeks start on Monday. The table is frozen:
+changing a pattern, a tolerance, or the vocabulary requires a new grammar
+version.
+
+| Rule | Expression | Window |
+| --- | --- | --- |
+| `today`, `yesterday`, `tomorrow` | the word | that one day |
+| `days-ago` | `N days ago` | exactly N days before |
+| `weeks-ago` | `N weeks ago` | N weeks before, plus or minus 3 days |
+| `months-ago` | `N months ago` | N calendar months before, plus or minus 15 days |
+| `years-ago` | `N years ago` | N years before, plus or minus 45 days |
+| `in-days`, `in-weeks`, `in-months`, `in-years` | `in N days`, ... | the same tolerances after the question day |
+| `last-week`, `this-week`, `next-week` | the phrase | the whole Monday through Sunday week |
+| `last-month`, `this-month`, `next-month` | the phrase | the whole calendar month |
+| `last-year`, `this-year`, `next-year` | the phrase | the whole calendar year |
+| `last-weekend`, `this-weekend`, `next-weekend` | the phrase | the Saturday and Sunday of that week |
+| `past-span` | `in the last N weeks`, `over the past month`, ... | from N units before the question day through the question day |
+| `last-weekday`, `this-weekday`, `next-weekday` | `last Saturday`, `this Monday`, ... | the most recent such day strictly before, the day within the current week, or the first such day strictly after |
+
+`N` is a number of one through three digits or one of the words `a`, `an`,
+`one` through `twelve`; the articles `a` and `an` pair only with a singular
+unit, and a missing count in `past-span` means one. A calendar shift past the
+end of the target month clamps to that month's last day. When one expression
+contains another, only the containing expression counts. The table's
+`exclusions` then drop every remaining expression whose prefix matches an
+exclusion pattern: the `anchored` exclusion covers a prefix ending in
+`before`, `after`, `since`, `until`, `prior to`, or `following`, so "the day
+before yesterday" and "since last week" name a bound rather than a window and
+resolve to `null`. Any query with no admitted match, or with two distinct
+admitted matches, resolves to `null`; recall never guesses a window. The
+grammar assumes UTC; hosts that know the user's zone convert the question
+instant before calling.
+
+## Dated rendering
+
+`renderOhRecallV1(response, { asOf, budgetBytes, view? })` produces one text
+under renderer `oh.recall-render.v1` with a UTF-8 budget of 1 through
+4,000,000 bytes. Results are admitted in their given (fused rank) order; a
+result whose admission would exceed the budget is omitted and counted while
+later, smaller results may still fit. Duplicate keys are rendered once. The
+admitted set depends only on the exact composed byte count; the renderer may
+skip a recomposition for a result that fits under a fixed framing bound, which
+never changes which results are admitted.
+
+With a question instant the text is:
+
+- the line `Question date: YYYY/MM/DD (Www)`;
+- each session in chronological order (sessions sharing a first instant in
+  session name code-unit order) under
+  `Date: YYYY/MM/DD (Www), N days before the question` (or `after`, or
+  `the day of the question`), its records in instant, then order, then
+  admission order, joined by blank lines;
+- a gap marker such as `[3 weeks later]` between consecutive dated sessions on
+  different days (days below 14, weeks below 61 days, months below 365 days,
+  years otherwise);
+- sessions with no instant last, under `Date: unknown`.
+
+Blocks are joined by one blank line. Without a question instant the text is the
+plain rank-ordered list of record texts joined by blank lines, with no headers.
+The rendering reports the admitted keys in rendered order, the omitted count,
+and the exact byte length; a validator that holds the same records and the
+same question instant reproduces the bytes exactly.
 
 ## Boundaries
 
-- Recall does not widen the V1 search bound; a caller who needs more than
-  100 results per query issues more queries.
-- Recall does not add records, ontology assertions, projections or
-  application profiles.
-- Recall makes no model call.
-- Recall is not a benchmark adapter. The benchmark harness that measures it
-  lives in `scripts/benchmarks` and is not part of the package.
+Recall does not add a record kind, a limit, a contract entry, or a migration;
+the V1 contract manifest is unchanged. The `oh recall` command applies the
+grammar to its query when `--as-of` is given and renders under a fixed 96,000
+byte budget; the SDK exposes the same functions with the caller's budget.
