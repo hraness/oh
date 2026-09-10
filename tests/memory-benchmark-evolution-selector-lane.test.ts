@@ -182,11 +182,13 @@ test("explicit zero new-call allowance preserves all missing cases without openi
 
 
 test("each answer-contract profile dispatches its exact immutable instruction for both selector arms", async () => {
-  const readers = EVOLUTION_READER_CONTRACT_IDS.map(contract => evolutionReaderProfileId("gpt5-nano-reader", contract));
+  // evidence-selection-v1 is a stage-1 selector contract, not an answer contract; the answer factorial keeps the eight answer contracts.
+  const contracts = EVOLUTION_READER_CONTRACT_IDS.filter(contract => contract !== "evidence-selection-v1");
+  const readers = contracts.map(contract => evolutionReaderProfileId("gpt5-nano-reader", contract));
   const f = await fixture(readers), fake = provider();
   try {
     const report = await runSelectorLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
-    expect(report.complete).toBeTrue(); expect(report.cases).toHaveLength(EVOLUTION_READER_CONTRACT_IDS.length * 4);
+    expect(report.complete).toBeTrue(); expect(report.cases).toHaveLength(contracts.length * 4);
     expect(report.phases.selector!.physicalRequests).toBe(2);
     for (const attempt of report.attempts.filter(a => a.phase === "reader")) {
       const contract = evolutionReaderContract(attempt.request.profileId);
@@ -197,7 +199,7 @@ test("each answer-contract profile dispatches its exact immutable instruction fo
         expect(attempt.request.body.messages).toEqual(answerMessages(data, data.memory));
       }
     }
-    expect(new Set(report.attempts.filter(a => a.phase === "reader").map(a => a.request.body.messages[0]!.content)).size).toBe(EVOLUTION_READER_CONTRACT_IDS.length);
+    expect(new Set(report.attempts.filter(a => a.phase === "reader").map(a => a.request.body.messages[0]!.content)).size).toBe(contracts.length);
   } finally { await rm(f.directory, { recursive: true, force: true }); }
 });
 

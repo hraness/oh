@@ -78,6 +78,26 @@ describe("composable isolated reader answer contracts", () => {
     expect(() => evolutionReaderProfileId("gpt4o-gateway-judge" as any)).toThrow("unknown base");
     expect(() => evolutionReaderContract("gpt4o-gateway-judge")).toThrow("reader profile");
   });
+  test("calibration-only, selected-answer and evidence-selection compose from the frozen parts without the legacy dataset-specific clause", () => {
+    const eac = EVOLUTION_READER_CONTRACTS["explicit-abstention-composition-v1"].instruction;
+    const calibrated = EVOLUTION_READER_CONTRACTS["calibrated-composition-v1"].instruction;
+    const calibrationOnly = EVOLUTION_READER_CONTRACTS["calibration-only-v1"].instruction;
+    const selected = EVOLUTION_READER_CONTRACTS["selected-answer-v1"].instruction;
+    const selection = EVOLUTION_READER_CONTRACTS["evidence-selection-v1"].instruction;
+    expect(EVOLUTION_READER_CONTRACT_IDS).toHaveLength(9);
+    expect(calibrationOnly.startsWith(eac + " ")).toBeTrue();
+    const calibration = calibrationOnly.slice(eac.length + 1);
+    expect(calibrated.endsWith(" " + calibration)).toBeTrue();
+    expect(calibration).toContain("Give exact values");
+    expect(calibrationOnly).not.toContain("first order"); expect(selected).not.toContain("first order"); expect(calibrated).toContain("first order");
+    expect(calibrationOnly).toContain("does not contain enough information"); expect(calibrationOnly).not.toContain("reply exactly None");
+    expect(selected.startsWith(calibrationOnly + " ")).toBeTrue();
+    expect(selected.slice(calibrationOnly.length + 1)).toContain("selected for this question");
+    expect(selection).toContain('{"ids":[]}'); expect(selection).toContain("at most 32"); expect(selection).not.toContain("memory");
+    expect(new Set(EVOLUTION_READER_CONTRACT_IDS.map(id => EVOLUTION_READER_CONTRACTS[id].instructionSha256)).size).toBe(EVOLUTION_READER_CONTRACT_IDS.length);
+    expect(evolutionReaderProfileId("gpt5-mini-reader", "evidence-selection-v1")).toBe("gpt5-mini-evidence-selection-v1-reader");
+    expect(evolutionReaderContract("gpt5-nano-evidence-selection-v1-reader")).toBe("evidence-selection-v1");
+  });
   test("every closed model/effort choice retains prices, routing, cap and full-history eligibility", () => {
     const ids = new Set<string>();
     for (const base of EVOLUTION_BASE_READER_IDS) for (const contract of EVOLUTION_READER_CONTRACT_IDS) {
@@ -105,9 +125,11 @@ describe("composable isolated reader answer contracts", () => {
     expect(Object.keys(EVOLUTION_PROFILES)).toHaveLength(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length + 4);
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {
-    const ctx = await fixture(), profiles = EVOLUTION_READER_CONTRACT_IDS.map(c => evolutionReaderProfileId("gpt5-nano-reader", c));
+    // The answer factorial holds the eight answer contracts; evidence-selection-v1 is the stage-1 selector contract of the two-stage lane.
+    const answerContracts = EVOLUTION_READER_CONTRACT_IDS.filter(c => c !== "evidence-selection-v1");
+    const ctx = await fixture(), profiles = answerContracts.map(c => evolutionReaderProfileId("gpt5-nano-reader", c));
     const plan = makeEvolutionReaderPlan(ctx, profiles);
-    expect(plan.cases).toHaveLength(12); expect(plan.requests).toHaveLength(12);
+    expect(plan.cases).toHaveLength(answerContracts.length * 2); expect(plan.requests).toHaveLength(answerContracts.length * 2);
     expect(validateEvolutionReaderPlan(plan, ctx)).toEqual(plan);
     for (const c of plan.cases) {
       const request = plan.requests.find(r => r.requestSha256 === c.requestSha256)!;
@@ -138,10 +160,10 @@ describe("composable isolated reader answer contracts", () => {
       try {
         for (const request of requests) { expect(store.lookup(request).kind).toBe("miss"); store.admit(request); const body = response(request);
           store.capture(request, { body, httpStatus: 200, complete: true, receivedBytes: body.length, error: null }); store.finalize(request); }
-        expect(store.summary()).toMatchObject({ calls: 6, unresolvedMicros: 0 });
+        expect(store.summary()).toMatchObject({ calls: EVOLUTION_READER_CONTRACT_IDS.length, unresolvedMicros: 0 });
       } finally { await store.close(); }
       const reopened = await openEvolutionStore({ directory: root, campaign });
-      try { for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit"); expect(reopened.summary().calls).toBe(6); }
+      try { for (const request of requests) expect(reopened.lookup(request).kind).toBe("hit"); expect(reopened.summary().calls).toBe(EVOLUTION_READER_CONTRACT_IDS.length); }
       finally { await reopened.close(); }
     } finally { await rm(root, { recursive: true }); }
   });
