@@ -304,6 +304,74 @@ export async function runEvolutionObserveLane(options: Readonly<{ configPin: Evo
   }
 }
 export type ObserveLaneArtifact = Awaited<ReturnType<typeof runEvolutionObserveLane>>;
+const ARTIFACT_KEYS = ["protocol", "configPin", "planPin", "sourcePin", "campaignPin", "configSha256", "planSha256", "sourceSha256", "policySha256",
+  "executionSourceSha256", "extractor", "instructionSha256", "qualification", "complete", "status", "stopped", "serviceQualification", "corpora", "diagnostics",
+  "attempts", "total", "campaignBefore", "campaignAfter", "wallMs", "accountingMeaning", "artifactSha256"] as const;
+const SESSION_KEYS = ["sessionId", "sessionIndex", "sessionSha256", "turnKeys", "requestSha256", "responseSha256", "status", "rejection", "rejectionIndex",
+  "response", "observationCount", "facetCount", "observationBytes", "turnBytes"] as const;
+const SESSION_STATUSES: readonly ObserveLaneSessionStatus[] = ["preparation-failed", "not-run", "failed", "rejected", "completed"];
+/**
+ * Parses a pinned `oh.memory.observations.v1` artifact from unknown bytes before retrieval consumes it: exact top-level
+ * keys, the frozen instruction and policy digests, the admitted extractor, bounded per-corpus session rows with exact
+ * keys, and the artifact digest over everything else. A completed session must carry the response its records rebuild from.
+ */
+export function parseObserveLaneArtifact(value: unknown): ObserveLaneArtifact {
+  boundEvolutionCompletionWire(value, OBSERVE_LANE_ARTIFACT_MAX_BYTES, 8_000_000);
+  const v = record(value, ARTIFACT_KEYS, "artifact");
+  if (v.protocol !== OBSERVE_LANE_ARTIFACT_PROTOCOL || v.instructionSha256 !== OH_OBSERVATION_INSTRUCTION_SHA256_V1
+    || v.policySha256 !== canonicalSha256(EVOLUTION_OBSERVE_LANE_POLICY) || !OBSERVE_LANE_EXTRACTORS.includes(v.extractor as ObserveLaneExtractor)
+    || typeof v.complete !== "boolean" || (v.status !== "complete" && v.status !== "incomplete") || (v.status === "complete") !== v.complete
+    || !Array.isArray(v.corpora) || !integer(v.corpora.length, 2000, 0)) fail("artifact protocol, frozen digests, extractor or bounds");
+  for (const pin of [v.configPin, v.planPin, v.sourcePin, v.campaignPin]) evolutionPin(pin);
+  for (const digest of [v.configSha256, v.planSha256, v.sourceSha256, v.executionSourceSha256]) if (parseSha256Hex(digest) === null) fail("artifact digest");
+  let totalTurns = 0;
+  const corpora = v.corpora.map((c: unknown) => {
+    const corpus = record(c, ["corpusId", "corpusSha256", "sessions"], "artifact corpus");
+    if (parseSha256Hex(corpus.corpusSha256) === null || !Array.isArray(corpus.sessions) || !integer(corpus.sessions.length, 8192, 0)) fail("artifact corpus bounds");
+    text(corpus.corpusId, 512);
+    const groups = new Set<string>(), turnKeys = new Set<string>();
+    for (const s of corpus.sessions) {
+      const row = parseArtifactSession(s);
+      const group = JSON.stringify([row.sessionId, row.sessionIndex]);
+      if (groups.has(group)) fail("duplicate artifact session occurrence");
+      groups.add(group);
+      for (const key of row.turnKeys) {
+        if (turnKeys.has(key) || turnKeys.size >= 8192 || ++totalTurns > 100_000) fail("artifact turn partition or bounds");
+        turnKeys.add(key);
+      }
+    }
+    return corpus;
+  });
+  unique(corpora.map(c => c.corpusId as string));
+  const { artifactSha256, ...payload } = v;
+  if (canonicalSha256(payload) !== artifactSha256) fail("artifact digest does not cover its content");
+  return freezeEvolutionCompletion(structuredClone(value)) as ObserveLaneArtifact;
+}
+
+/** Validate all fields consumed by record reconstruction before hashing responses or indexing source keys. */
+function parseArtifactSession(value: unknown): ObserveLaneArtifactSession {
+  const row = record(value, SESSION_KEYS, "artifact session");
+  if (!SESSION_STATUSES.includes(row.status as ObserveLaneSessionStatus) || !Array.isArray(row.turnKeys) || !integer(row.turnKeys.length, 8192)
+    || row.turnKeys.some((key: unknown) => typeof key !== "string" || !/^edition:turn-[0-9]{5}$/.test(key))
+    || new Set(row.turnKeys).size !== row.turnKeys.length || (row.sessionSha256 !== null && parseSha256Hex(row.sessionSha256) === null)
+    || (row.requestSha256 !== null && parseSha256Hex(row.requestSha256) === null)
+    || (row.sessionIndex !== null && !integer(row.sessionIndex, 8191, 0))
+    || !integer(row.observationCount, OH_OBSERVATION_LIMITS_V1.observationsPerSession, 0)
+    || !integer(row.facetCount, row.observationCount as number, 0)
+    || !integer(row.observationBytes, OH_OBSERVATION_LIMITS_V1.observationsPerSession * OH_OBSERVATION_LIMITS_V1.textBytes, 0)
+    || !integer(row.turnBytes, 64 * 1024 * 1024, 0)
+    || (row.rejection !== null && !(OH_OBSERVATION_REJECTIONS_V1 as readonly unknown[]).includes(row.rejection))
+    || (row.rejectionIndex !== null && !integer(row.rejectionIndex, OH_OBSERVATION_LIMITS_V1.observationsPerSession, 0))
+    || (row.response !== null && (typeof row.response !== "string" || Buffer.byteLength(row.response) > 4 * 1024 * 1024))
+    || (row.response === null ? row.responseSha256 !== null : row.responseSha256 !== sha256Hex(row.response as string))) fail("artifact session row");
+  text(row.sessionId, 512);
+  const completed = row.status === "completed", rejected = row.status === "rejected", prepared = row.status !== "preparation-failed";
+  if (prepared && (row.sessionSha256 === null || row.requestSha256 === null || row.turnKeys.length > OH_OBSERVATION_LIMITS_V1.sessionTurns)
+    || !prepared && row.requestSha256 !== null || (completed || rejected) !== (row.response !== null)
+    || rejected !== (row.rejection !== null) || !rejected && row.rejectionIndex !== null
+    || !completed && (row.observationCount !== 0 || row.facetCount !== 0 || row.observationBytes !== 0)) fail("artifact session status disagrees with its evidence");
+  return row as unknown as ObserveLaneArtifactSession;
+}
 
 export function observeLaneArtifactName(corpusSha256: string, extractor: ObserveLaneExtractor): string {
   if (parseSha256Hex(corpusSha256) === null || !OBSERVE_LANE_EXTRACTORS.includes(extractor)) fail("artifact name inputs");
@@ -318,6 +386,24 @@ export function observeLaneArtifactName(corpusSha256: string, extractor: Observe
 export async function rebuildObserveLaneRecords(corpus: Readonly<{ id: string; turns: readonly Turn[] }>, artifact: ObserveLaneArtifactCorpus,
   options: Readonly<{ extractor: ObserveLaneExtractor; supersession?: boolean }>) {
   if (artifact.corpusId !== corpus.id || artifact.corpusSha256 !== observeLaneCorpusSha256(corpus)) fail("artifact does not describe this corpus");
+  if (!OBSERVE_LANE_EXTRACTORS.includes(options.extractor)) fail("unsupported artifact extractor");
+  boundEvolutionCompletionWire(artifact, OBSERVE_LANE_ARTIFACT_MAX_BYTES, 8_000_000);
+  const expected = prepareSessions(options.extractor, corpus);
+  if (!Array.isArray(artifact.sessions) || artifact.sessions.length !== expected.length) fail("artifact session partition differs from source occurrences");
+  for (const [index, value] of artifact.sessions.entries()) {
+    const row = parseArtifactSession(value), source = expected[index]!;
+    const fields = (v: typeof row | ObserveLaneCase) => ({ sessionId: v.sessionId, sessionIndex: v.sessionIndex,
+      sessionSha256: v.sessionSha256, turnKeys: v.turnKeys, requestSha256: v.requestSha256 });
+    same(fields(row), fields(source.laneCase), "artifact session partition, source or request digest changed");
+    if ((row.status === "preparation-failed") !== (source.request === null) || row.turnBytes !== source.turnBytes) fail("artifact preparation or turn bytes changed");
+    if (row.response === null) continue;
+    const parsed = parseOhObservationResponseV1(row.response, source.session!);
+    if (!parsed.ok) {
+      if (row.status !== "rejected" || row.rejection !== parsed.rejection || row.rejectionIndex !== parsed.index) fail("artifact rejection differs from its response");
+    } else if (row.status !== "completed" || row.observationCount !== parsed.observations.length
+      || row.facetCount !== parsed.observations.filter(o => o.facet !== null).length
+      || row.observationBytes !== parsed.observations.reduce((sum, o) => sum + Buffer.byteLength(o.text), 0)) fail("artifact observation counts differ from its response");
+  }
   const turns = observeLaneTurnRecords(corpus), store = new OhSqliteStore({ path: ":memory:", spaceId: "observe-lane" });
   try {
     for (let start = 0; start < turns.length; start += 512) {

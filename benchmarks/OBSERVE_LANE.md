@@ -4,8 +4,8 @@
 sessions into `oh.observation.v1` records through the library's
 `observeOhV1`, question-blind, under one campaign cap. It is the write-time
 memory layer described in [`spec/v1/observation.md`](../spec/v1/observation.md),
-applied to a development corpus so that later retrieval arms can add derived
-observations beside raw turns.
+applied to a development corpus. The observation retrieval arms add the
+derived records beside raw turns.
 
 ## What the lane does
 
@@ -50,18 +50,76 @@ scores an extractor on the synthetic fixture under `tests/fixtures/` (date
 resolution, attribution, verbatim quantities and names, coverage, kind,
 hypothetical leakage) and must pass before a benchmark corpus is touched.
 
-## Not yet wired
+## Retrieve observations
 
-Retrieval does not yet read the artifact. Appending derived records to a
-prepared corpus, the semantic cache key extension, the `oh-recall-mq-obs`
-systems and the derived-item result protocol are separate changes on top of
-the recall work.
+A V4 development configuration or V9 study can set `derivedRecordsPin` to a
+completed `oh.memory.observations.v1` artifact. The pin and an observation
+retrieval arm require each other. Preparation verifies the artifact against
+the selected corpus sessions and replays each extraction through
+`rebuildObserveLaneRecords`. A changed corpus, source turn, session, response,
+or provenance dependency prevents preparation. Reader, judge, and report
+steps revalidate the prepared context against these rebuilt records.
 
-`renderOhObservationContextV1` gates its `Remembered preferences` block on
-`isOhRecommendationQueryV1`, a query-side lexical router. It reads no label
-and is corpus-general, but the methodology treats any router as a shared
-mechanism: when the recall work wires it, the same routing decision must be
-applied to every retrieval arm, including the controls' derived-free
-rendering path, and audited for category leakage (the share of routed
-queries per category on the development partition, declared before the
-read), before any Phase B read is taken.
+Two systems consume observations:
+
+- `oh-semantic-obs` searches raw turns and observations together with the
+  existing semantic lane.
+- `oh-recall-mq-obs` uses the recall multi-query lane over that same combined
+  corpus.
+
+Both emit `oh.evolution-retrieval.v2`. Its `derived` list identifies the
+retrieved observations and their source keys. The renderer places dated
+`Memory:` lines ahead of raw turns within the variant's byte budget. The
+artifact digest participates in the semantic cache and prepared context
+identity. A different artifact cannot reuse an earlier derived context.
+Raw-only arms retain their existing result bytes and search only raw turns.
+Observations do not replace source evidence.
+
+## Recommendation routing
+
+`renderOhObservationContextV1` groups preference observations under
+`Remembered preferences` when `isOhRecommendationQueryV1` matches the query.
+Every arm uses the same query-side routing decision. With no observations,
+the decision leaves the control's rendered text unchanged.
+
+Before reader calls, preparation records the router's hit rate overall and
+by category on the selected development questions. The audit contains counts
+and identifiers, without question text or answers. Inspect this distribution
+before the comparison: the router uses no labels, but its lexical rule can
+still favor particular question categories.
+
+## Run an experiment
+
+1. Run the frozen extractor on the synthetic fixture and require a passing
+   `scoreObserveRubric` report. Unit tests with supplied responses establish
+   the parser and rubric behavior; they do not qualify a live extractor.
+2. Project only development corpus turns with `projectObserveLaneSource`,
+   pin the source and campaign, and prepare the extraction plan. Review its
+   call count and reservation ceiling before dispatch.
+3. Execute the plan from clean committed source under the campaign cap.
+   Preserve failed and unresolved attempts in the shared spending ledger.
+4. Require complete extraction and inspect parser rejection rate,
+   observations per session, facet fill rate, and byte share before any
+   reader comparison. The declared parser-rejection gate is below 5%.
+5. Pin the artifact in the comparison configuration, prepare contexts and
+   the router audit, and compare the observation arms with the raw-turn
+   control using the same reader, judge, and byte budget.
+
+Extraction quality and reader accuracy are separate measurements. A passing
+fixture permits the development experiment; it does not establish improved
+retrieval, a higher benchmark score, or superiority to another framework.
+
+## Extractor qualification on September 10, 2026
+
+The frozen eight-session synthetic fixture admitted GPT-5 mini for the
+next development experiment. Mini passed every rubric criterion and
+produced 24 observations without a parser rejection. Nano failed date
+resolution, attribution, verbatim detail, coverage, and parser rejection
+criteria; it is not qualified for that experiment.
+
+The two runs used 16 calls and $0.035265 of accounted exposure, with no
+unresolved reservations, under a shared $0.25 cap. The
+[qualification summary](results/observation-fixture-20260910-v1.json)
+records both outcomes, the fixed rubric, source identity, and artifact
+digests. These results measure one small synthetic fixture; the development
+corpus still needs extraction diagnostics and a matched reader comparison.

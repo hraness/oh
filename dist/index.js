@@ -17630,8 +17630,8 @@ function parseObservationSource(value) {
   const recordSha256 = parseSha256Hex(source.recordSha256);
   return key !== null && recordSha256 !== null ? { key, recordSha256, v: 1 } : null;
 }
-function parseObservationSources(value) {
-  const items = exactDataArray(value, OH_OBSERVATION_LIMITS_V1.sourcesPerObservation);
+function parseObservationSources(value, maximum = OH_OBSERVATION_LIMITS_V1.sourcesPerObservation) {
+  const items = exactDataArray(value, maximum);
   if (items === null || items.length === 0)
     return null;
   const sources = items.map(parseObservationSource);
@@ -17709,7 +17709,7 @@ function parseOhObservationActivityValueV1(value) {
   const promptSha256 = parseSha256Hex(record.promptSha256);
   const responseSha256 = parseSha256Hex(record.responseSha256);
   const sessionSha256 = parseSha256Hex(record.sessionSha256);
-  const sources = parseObservationSources(record.sources);
+  const sources = parseObservationSources(record.sources, OH_OBSERVATION_LIMITS_V1.sessionTurns);
   const count = record.observationCount;
   const sessionIndex = record.sessionIndex;
   if (instructionSha256 === null || modelId === null || observedAt === null || promptSha256 === null || responseSha256 === null || sessionSha256 === null || sources === null || typeof count !== "number" || !Number.isSafeInteger(count) || count < 0 || count > OH_OBSERVATION_LIMITS_V1.observationsPerSession || sessionIndex !== null && (typeof sessionIndex !== "number" || !Number.isSafeInteger(sessionIndex) || sessionIndex < 0))

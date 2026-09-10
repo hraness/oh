@@ -271,8 +271,8 @@ function parseObservationSource(value: unknown): OhObservationSourceV1 | null {
   return key !== null && recordSha256 !== null ? { key, recordSha256, v: 1 } : null;
 }
 
-function parseObservationSources(value: unknown): readonly OhObservationSourceV1[] | null {
-  const items = exactDataArray(value, OH_OBSERVATION_LIMITS_V1.sourcesPerObservation);
+function parseObservationSources(value: unknown, maximum: number = OH_OBSERVATION_LIMITS_V1.sourcesPerObservation): readonly OhObservationSourceV1[] | null {
+  const items = exactDataArray(value, maximum);
   if (items === null || items.length === 0) return null;
   const sources = items.map(parseObservationSource);
   if (sources.some((source) => source === null)) return null;
@@ -317,7 +317,8 @@ export function parseOhObservationActivityValueV1(value: unknown): OhObservation
   const promptSha256 = parseSha256Hex(record.promptSha256);
   const responseSha256 = parseSha256Hex(record.responseSha256);
   const sessionSha256 = parseSha256Hex(record.sessionSha256);
-  const sources = parseObservationSources(record.sources);
+  // A receipt covers the entire admitted session; individual observations keep their smaller citation bound.
+  const sources = parseObservationSources(record.sources, OH_OBSERVATION_LIMITS_V1.sessionTurns);
   const count = record.observationCount;
   const sessionIndex = record.sessionIndex;
   if (instructionSha256 === null || modelId === null || observedAt === null || promptSha256 === null

@@ -1,7 +1,11 @@
+import { boundEvolutionCompletionWire } from "./evolution-completion";
 import { Database } from "bun:sqlite";
 import { isAbsolute, join } from "node:path";
 import { canonicalJson, canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
-import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordV1 } from "../../src/graph";
+import { createKnowledgeGraphRecordV1, parseKnowledgeGraphRecordV1, type KnowledgeGraphRecordV1 } from "../../src/graph";
+import { OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1, OH_OBSERVATION_KEY_PREFIX_V1, OH_OBSERVATION_LIMITS_V1, parseOhObservationActivityValueV1,
+  parseOhObservationRecordV1, parseOhObservationSessionV1, makeOhObservationPromptV1, ohObservationActivityKeyV1, ohObservationKeyV1, ohObservationIndexV1,
+  OH_OBSERVATION_INSTRUCTION_SHA256_V1, renderOhObservationContextV1, type OhObservationRecordV1, type OhObservationActivityValueV1 } from "../../src/observe";
 import { OH_RECALL_RENDERER_V1, recallOhV1, renderOhRecallV1, resolveRelativeDateWindowV1,
   type OhRecallRecordViewV1, type OhRecallViewV1, type OhRecallWindowV1 } from "../../src/recall";
 import { searchOhV1 } from "../../src/search";
@@ -13,20 +17,39 @@ import { pack, queryTerms, renderTurn, type RetrievalBudget } from "./retrieval"
 
 export const EVOLUTION_RETRIEVAL_SYSTEMS = ["bm25-window", "bm25-session", "oh-keyword",
   "oh-keyword-window", "oh-focused", "oh-focused-window", "oh-focused-window-opening",
-  "oh-semantic", "oh-hybrid", "bm25-facets", "oh-facets", "oh-recall", "oh-recall-mq", "oh-recall-mq-dw"] as const;
+  "oh-semantic", "oh-hybrid", "bm25-facets", "oh-facets", "oh-recall", "oh-recall-mq", "oh-recall-mq-dw",
+  "oh-semantic-obs", "oh-recall-mq-obs"] as const;
 /** Recall systems render through the product recall renderer and emit the V2 result protocol. */
 export const EVOLUTION_RECALL_SYSTEMS = ["oh-recall", "oh-recall-mq", "oh-recall-mq-dw"] as const;
+/** Derived systems search raw turns and pinned observation records together and emit V2 results whose derived
+ * list carries the admitted observations; they run only on a corpus prepared with derived records. */
+export const EVOLUTION_DERIVED_SYSTEMS = ["oh-semantic-obs", "oh-recall-mq-obs"] as const;
 export type EvolutionRetrievalSystem = typeof EVOLUTION_RETRIEVAL_SYSTEMS[number];
 export type EvolutionRecallSystem = typeof EVOLUTION_RECALL_SYSTEMS[number];
+export type EvolutionDerivedSystem = typeof EVOLUTION_DERIVED_SYSTEMS[number];
+/** Every system that emits the V2 result protocol: the recall systems and the derived systems. */
+export type EvolutionV2System = EvolutionRecallSystem | EvolutionDerivedSystem;
+export type EvolutionResultProtocol = "oh.evolution-retrieval.v1" | "oh.evolution-retrieval.v2";
 export type EvolutionRetrievalVariant = Readonly<{ id: string; system: EvolutionRetrievalSystem; budget: RetrievalBudget }>;
 export type EvolutionRecallVariant = Readonly<{ id: string; system: EvolutionRecallSystem; budget: RetrievalBudget }>;
-export type EvolutionLegacyVariant = Readonly<{ id: string; system: Exclude<EvolutionRetrievalSystem, EvolutionRecallSystem>; budget: RetrievalBudget }>;
+export type EvolutionV2Variant = Readonly<{ id: string; system: EvolutionV2System; budget: RetrievalBudget }>;
+export type EvolutionLegacyVariant = Readonly<{ id: string; system: Exclude<EvolutionRetrievalSystem, EvolutionV2System>; budget: RetrievalBudget }>;
 export function isEvolutionRecallSystem(system: string): system is EvolutionRecallSystem {
   return (EVOLUTION_RECALL_SYSTEMS as readonly string[]).includes(system);
 }
-/** Protocols defined over V1 whole-turn results refuse a recall variant or result instead of misreading it. */
+export function isEvolutionDerivedSystem(system: string): system is EvolutionDerivedSystem {
+  return (EVOLUTION_DERIVED_SYSTEMS as readonly string[]).includes(system);
+}
+export function isEvolutionV2System(system: string): system is EvolutionV2System {
+  return isEvolutionRecallSystem(system) || isEvolutionDerivedSystem(system);
+}
+/** The result protocol a system emits; plans bind every case to it. */
+export function evolutionSystemResultProtocol(system: string): EvolutionResultProtocol {
+  return isEvolutionV2System(system) ? "oh.evolution-retrieval.v2" : "oh.evolution-retrieval.v1";
+}
+/** Protocols defined over V1 whole-turn results refuse a V2 variant or result instead of misreading it. */
 export function evolutionLegacyVariant(variant: EvolutionRetrievalVariant): EvolutionLegacyVariant {
-  if (isEvolutionRecallSystem(variant.system)) throw new TypeError("Evolution recall systems need a context plan that carries the question date.");
+  if (isEvolutionV2System(variant.system)) throw new TypeError("Evolution recall systems need a context plan that carries the question date.");
   return variant as EvolutionLegacyVariant;
 }
 export function evolutionLegacyResult(result: EvolutionAnyRetrievalResult): EvolutionRetrievalResult {
@@ -35,47 +58,64 @@ export function evolutionLegacyResult(result: EvolutionAnyRetrievalResult): Evol
 }
 /** Systems whose prepared identity and source validation carry the semantic profile. */
 export function evolutionSystemUsesSemantic(system: string): boolean {
-  return system === "oh-semantic" || system === "oh-hybrid" || isEvolutionRecallSystem(system);
+  return system === "oh-semantic" || system === "oh-hybrid" || isEvolutionV2System(system);
 }
 export type EvolutionSourceIdentity = Readonly<{ turnId: string; sessionId: string; key: string; recordSha256: string }>;
-export type EvolutionPreparedIdentity = Readonly<{ protocol: "oh.evolution-prepared.v1"; corpusId: string;
+/** A derived observation admitted to a context: its record identity and the raw turns it cites (provenance keys). */
+export type EvolutionDerivedIdentity = Readonly<{ key: string; recordSha256: string; sourceKeys: readonly string[]; sourceTurnIds: readonly string[] }>;
+export type EvolutionPreparedIdentityV1 = Readonly<{ protocol: "oh.evolution-prepared.v1"; corpusId: string;
   corpusSha256: string; sourceRecordsSha256: string; sourceRecordCount: number;
   semanticProfileSha256: string | null; preparedSha256: string }>;
+/** A corpus prepared with derived records carries the artifact digest and the exact derived record digests; the V1
+ * identity of a turn-only corpus is unchanged byte for byte. */
+export type EvolutionPreparedIdentityV2 = Readonly<{ protocol: "oh.evolution-prepared.v2"; corpusId: string;
+  corpusSha256: string; sourceRecordsSha256: string; sourceRecordCount: number; semanticProfileSha256: string | null;
+  derivedArtifactSha256: string; derivedRecordsSha256: string; derivedRecordCount: number; preparedSha256: string }>;
+export type EvolutionPreparedIdentity = EvolutionPreparedIdentityV1 | EvolutionPreparedIdentityV2;
+/** Derived records appended to a prepared corpus: the pinned artifact digest and the records the lane rebuilt from it. */
+export type EvolutionDerivedRecords = Readonly<{ artifactSha256: string; records: readonly KnowledgeGraphRecordV1[] }>;
 export type EvolutionRetrievalResult = Readonly<{ protocol: "oh.evolution-retrieval.v1"; preparedSha256: string;
   variantSha256: string; querySha256: string; context: string; contextSha256: string; contextBytes: number;
   turnIds: readonly string[]; sessionIds: readonly string[]; sources: readonly EvolutionSourceIdentity[];
   omittedForBudget: number; facets: readonly string[]; coveredFacets: readonly number[];
   coverageKind: "lexical-clause" | null; resultSha256: string }>;
-/** V2 keeps turnIds/sessionIds/sources describing raw turns; `derived` is reserved for derived records (empty here). */
+/** V2 keeps turnIds/sessionIds/sources describing raw turns; `derived` lists the admitted observation records (empty for recall systems). */
 export type EvolutionRetrievalResultV2 = Readonly<{ protocol: "oh.evolution-retrieval.v2"; preparedSha256: string;
   variantSha256: string; querySha256: string; asOf: string | null; renderer: typeof OH_RECALL_RENDERER_V1;
   queries: readonly string[]; window: OhRecallWindowV1 | null; context: string; contextSha256: string; contextBytes: number;
   turnIds: readonly string[]; sessionIds: readonly string[]; sources: readonly EvolutionSourceIdentity[];
-  derived: readonly never[]; omittedForBudget: number; resultSha256: string }>;
+  derived: readonly EvolutionDerivedIdentity[]; omittedForBudget: number; resultSha256: string }>;
 export type EvolutionAnyRetrievalResult = EvolutionRetrievalResult | EvolutionRetrievalResultV2;
-/** The V2 validator re-derives queries, the question instant and the date window from the question and the recall system. */
-export type EvolutionResultQuestion = Readonly<{ question: string; questionDate: string; system: EvolutionRecallSystem }>;
+/** The V2 validator re-derives queries, the question instant and the date window from the question and the V2 system. */
+export type EvolutionResultQuestion = Readonly<{ question: string; questionDate: string; system: EvolutionV2System }>;
 export type EvolutionPreparationStats = Readonly<{ rawIndexBuilds: number; sessionIndexBuilds: number;
   authorityBuilds: number; semanticIndexBuilds: number; queryCount: number }>;
 export type EvolutionPreparedCorpus = Readonly<{ identity: EvolutionPreparedIdentity;
   stats: EvolutionPreparationStats;
-  retrieve(question: string, variant: EvolutionRecallVariant, questionDate: string): Promise<EvolutionRetrievalResultV2>;
+  retrieve(question: string, variant: EvolutionV2Variant, questionDate: string): Promise<EvolutionRetrievalResultV2>;
   retrieve(question: string, variant: EvolutionLegacyVariant, questionDate?: string): Promise<EvolutionRetrievalResult>;
   retrieve(question: string, variant: EvolutionRetrievalVariant, questionDate?: string): Promise<EvolutionAnyRetrievalResult>;
   close(): Promise<void> }>;
 
-/** The whole question first, then the focused term form and bounded lexical clauses; distinct, at most six. */
-export function evolutionRecallQueries(question: string, system: EvolutionRecallSystem): readonly string[] {
+/** The whole question first, then the focused term form and bounded lexical clauses; distinct, at most six.
+ * The single-query systems (`oh-recall`, `oh-semantic-obs`) search the whole question only. */
+export function evolutionRecallQueries(question: string, system: EvolutionV2System): readonly string[] {
   bounded(question, 16_384, "question");
-  if (system === "oh-recall") return Object.freeze([question]);
+  if (!isEvolutionV2System(system)) throw new TypeError("Unknown evolution V2 system.");
+  if (system === "oh-recall" || system === "oh-semantic-obs") return Object.freeze([question]);
   const focused = queryTerms(question, true).join(" ");
   return Object.freeze([...new Set([question, focused, ...evolutionQuestionFacets(question)].filter(Boolean))].slice(0, 6));
 }
 /** The date window is a question-text rule applied only by the `-dw` system and only under a question instant. */
-export function evolutionRecallWindow(question: string, system: EvolutionRecallSystem, asOf: string | null): OhRecallWindowV1 | null {
+export function evolutionRecallWindow(question: string, system: EvolutionV2System, asOf: string | null): OhRecallWindowV1 | null {
   if (system !== "oh-recall-mq-dw" || asOf === null) return null;
   const resolved = resolveRelativeDateWindowV1(question, asOf);
   return resolved === null ? null : { since: resolved.since, until: resolved.until, v: 1 };
+}
+/** The question instant a V2 system renders under: `oh-semantic-obs` is the undated rank-order system and always renders
+ * under `null`; every other V2 system renders under the question date (`null` only for an empty LoCoMo date). */
+export function evolutionV2Instant(questionDate: string, system: EvolutionV2System): string | null {
+  return system === "oh-semantic-obs" ? null : evolutionQuestionInstant(questionDate);
 }
 /** Raw turn view for the recall renderer: source order within a session occurrence, raw rendered line unchanged.
  * Every turn date must parse under the declared benchmark grammars; recall systems fail closed on an unknown date. */
@@ -131,6 +171,7 @@ function checkedVariant(input: EvolutionRetrievalVariant): EvolutionRetrievalVar
   const { topK, contextBytes } = input.budget;
   if (!Number.isSafeInteger(topK) || topK < 1 || topK > 400 || !Number.isSafeInteger(contextBytes)
     || contextBytes < 1 || contextBytes > 4_000_000) throw new RangeError("Invalid evolution retrieval budget.");
+  if (isEvolutionV2System(input.system) && topK > 100) throw new RangeError("Evolution recall systems keep the 1 through 100 search limit for every query.");
   return immutable({ id, system: input.system, budget: { topK, contextBytes } });
 }
 
@@ -142,15 +183,76 @@ export function evolutionQuestionFacets(question: string): readonly string[] {
   return Object.freeze([...new Set(clauses)].slice(0, 4));
 }
 
-function preparedIdentity(corpus: Corpus, records: readonly KnowledgeGraphRecordV1[], semantic: boolean): EvolutionPreparedIdentity {
-  const payload = { protocol: "oh.evolution-prepared.v1" as const, corpusId: corpus.id, corpusSha256: canonicalSha256(corpus),
-    sourceRecordsSha256: canonicalSha256(records.map(record => ({ key: record.key, recordSha256: record.recordSha256 }))),
+const recordDigests = (records: readonly KnowledgeGraphRecordV1[]) => canonicalSha256(records.map(record => ({ key: record.key, recordSha256: record.recordSha256 })));
+/** A turn-only corpus keeps the exact V1 identity preimage; derived records version it to V2 with the artifact and record digests. */
+function preparedIdentity(corpus: Corpus, records: readonly KnowledgeGraphRecordV1[], semantic: boolean, derived?: EvolutionDerivedRecords): EvolutionPreparedIdentity {
+  const base = { corpusId: corpus.id, corpusSha256: canonicalSha256(corpus), sourceRecordsSha256: recordDigests(records),
     sourceRecordCount: records.length, semanticProfileSha256: semantic ? canonicalSha256(OH_EMBEDDING_PROFILE_V1) : null };
+  const payload = derived === undefined ? { protocol: "oh.evolution-prepared.v1" as const, ...base }
+    : { protocol: "oh.evolution-prepared.v2" as const, ...base, derivedArtifactSha256: derived.artifactSha256,
+      derivedRecordsSha256: recordDigests(derived.records), derivedRecordCount: derived.records.length };
   return immutable({ ...payload, preparedSha256: canonicalSha256(payload) });
 }
 function corpusRecords(corpus: Corpus): readonly KnowledgeGraphRecordV1[] {
   return immutable(corpus.turns.map((turn, index) => createKnowledgeGraphRecordV1({ dependencies: [],
     key: `edition:turn-${index.toString().padStart(5, "0")}`, kind: "edition", v: 1, value: { ...turn } })));
+}
+export const EVOLUTION_DERIVED_RECORD_LIMIT = 8192 * (OH_OBSERVATION_LIMITS_V1.observationsPerSession + 1);
+/**
+ * Derived records are admitted only when their provenance resolves against the prepared turns: every record is a
+ * current `oh.observation.v1` record or its receipt, every cited source names a prepared turn by key and by the exact
+ * record digest, and every observation's receipt is present. A digest that does not match fails closed.
+ */
+function checkedDerived(input: EvolutionDerivedRecords | undefined, turns: readonly KnowledgeGraphRecordV1[]): EvolutionDerivedRecords | undefined {
+  if (input === undefined) return undefined;
+  boundEvolutionCompletionWire(input, 128 * 1024 * 1024, 8_000_000);
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["artifactSha256", "records"]) || parseSha256Hex(input.artifactSha256) === null
+    || !Array.isArray(input.records) || input.records.length > EVOLUTION_DERIVED_RECORD_LIMIT) throw new TypeError("Invalid evolution derived records.");
+  const turnByKey = new Map(turns.map(record => [record.key, record]));
+  const keys = new Set<string>(), receipts = new Map<string, Readonly<{ value: OhObservationActivityValueV1; date: string }>>();
+  const records = input.records.map((value): KnowledgeGraphRecordV1 => {
+    const record = parseKnowledgeGraphRecordV1(value);
+    if (record === null || keys.has(record.key) || turnByKey.has(record.key)) throw new TypeError("Evolution derived record is not a distinct current record.");
+    keys.add(record.key);
+    if (record.key.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1)) {
+      const activity = parseOhObservationActivityValueV1(record.value);
+      if (activity === null || record.kind !== "activity" || activity.instructionSha256 !== OH_OBSERVATION_INSTRUCTION_SHA256_V1
+        || activity.sources.some(source => turnByKey.get(source.key)?.recordSha256 !== source.recordSha256)
+        || record.key !== ohObservationActivityKeyV1(activity.sessionSha256)
+        || canonicalSha256(record.dependencies) !== canonicalSha256(activity.sources.map(source => source.key).sort())
+        || activity.candidatesTruncated.length !== 0) throw new TypeError("Evolution derived receipt does not cite the prepared turns.");
+      const session = parseOhObservationSessionV1(activity.sources.map(source => turnByKey.get(source.key)!)), prompt = makeOhObservationPromptV1(session);
+      if (session.sessionSha256 !== activity.sessionSha256 || session.sessionIndex !== activity.sessionIndex || prompt.promptSha256 !== activity.promptSha256)
+        throw new TypeError("Evolution derived receipt differs from its source session or prompt.");
+      receipts.set(record.key, { value: activity, date: session.date });
+      return record;
+    }
+    if (!record.key.startsWith(OH_OBSERVATION_KEY_PREFIX_V1)) throw new TypeError("Evolution derived records must be observations or their receipts.");
+    const observation = parseOhObservationRecordV1(record);
+    if (observation === null || observation.value.sources.some(source => turnByKey.get(source.key)?.recordSha256 !== source.recordSha256)
+      || observation.value.supersedes !== null) throw new TypeError("Evolution derived observation does not cite the prepared turns by current digest.");
+    const receipt = observation.dependencies.find(dependency => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1))!;
+    const activity = receipts.get(receipt);
+    if (activity === undefined) throw new TypeError("Evolution derived observation precedes or lacks its receipt.");
+    if (ohObservationIndexV1(record.key, activity.value.sessionSha256) === null || observation.value.statedAt !== activity.date || observation.value.sources.some(source => !activity.value.sources.some(s => s.key === source.key))
+      || canonicalSha256(record.dependencies) !== canonicalSha256([receipt, ...observation.value.sources.map(source => source.key)].sort()))
+      throw new TypeError("Evolution derived observation differs from its receipt provenance.");
+    return record;
+  });
+  const observations = records.filter(record => record.key.startsWith(OH_OBSERVATION_KEY_PREFIX_V1));
+  const expectedKeys = [...receipts.values()].flatMap(({ value }) => Array.from({ length: value.observationCount }, (_, index) => ohObservationKeyV1(value.sessionSha256, index)));
+  if (canonicalSha256(observations.map(record => record.key)) !== canonicalSha256(expectedKeys)) throw new TypeError("Evolution derived receipt count or observation keys differ.");
+  return immutable({ artifactSha256: input.artifactSha256, records });
+}
+const isObservationRecord = (record: KnowledgeGraphRecordV1) => record.key.startsWith(OH_OBSERVATION_KEY_PREFIX_V1);
+/** Derived items render as dated `Memory:` lines ahead of the recall-rendered raw turns; the router is evaluated on the whole question. */
+function composeDerivedContext(input: Readonly<{ question: string; asOf: string | null; turns: readonly KnowledgeGraphRecordV1[];
+  observations: readonly KnowledgeGraphRecordV1[]; view: OhRecallViewV1 }>): Readonly<{ text: string; keys: readonly string[] }> {
+  const rendering = renderOhRecallV1({ results: input.turns.map(record => ({ record })) }, { asOf: input.asOf, budgetBytes: 4_000_000, view: input.view });
+  if (rendering.omitted !== 0) throw new RangeError("Evolution derived context exceeds the renderer bound.");
+  const text = renderOhObservationContextV1({ observations: input.observations as readonly OhObservationRecordV1[], query: input.question,
+    turns: rendering.text === "" ? [] : [rendering.text] });
+  return { text, keys: rendering.keys };
 }
 function distinctiveFacetTerms(facets: readonly string[]): readonly (readonly string[])[] {
   const facetTerms = facets.map(facet => new Set(queryTerms(facet, true)));
@@ -166,14 +268,13 @@ function lexicalFacetCoverage(facets: readonly string[], turns: readonly Turn[])
 
 /** Cheap source-only cache verification. Build once per corpus and reuse across result rows.
  * This proves current source rendering/provenance, not that search chose the optimal ranked subset. */
-export function createEvolutionContextSourceValidator(input: Corpus, options: Readonly<{ semantic?: boolean; derivedRecords?: readonly never[] }> = {}) {
+export function createEvolutionContextSourceValidator(input: Corpus, options: Readonly<{ semantic?: boolean; derivedRecords?: EvolutionDerivedRecords }> = {}) {
   if (options.semantic !== undefined && typeof options.semantic !== "boolean") throw new TypeError("Invalid semantic source identity.");
-  if (options.derivedRecords !== undefined && (!Array.isArray(options.derivedRecords) || options.derivedRecords.length !== 0)) {
-    throw new TypeError("Evolution derived records are not admitted by this validator version.");
-  }
-  const corpus = detachCorpus(input), records = corpusRecords(corpus), identity = preparedIdentity(corpus, records, options.semantic === true);
+  const corpus = detachCorpus(input), records = corpusRecords(corpus);
+  const derived = checkedDerived(options.derivedRecords, records), identity = preparedIdentity(corpus, records, options.semantic === true, derived);
   const positions = new Map(corpus.turns.map((turn, index) => [turn.id, index]));
   const byKey = new Map(records.map((record, index) => [record.key, index]));
+  const derivedByKey = new Map((derived?.records ?? []).map(record => [record.key, record]));
   const turnView: OhRecallViewV1 = record => {
     const index = byKey.get(record.key);
     if (index === undefined || records[index]!.recordSha256 !== record.recordSha256) throw new TypeError("Evolution recall rendering saw a foreign record.");
@@ -183,9 +284,11 @@ export function createEvolutionContextSourceValidator(input: Corpus, options: Re
   const validateV2 = (value: Record<string, unknown>, question: EvolutionResultQuestion | undefined): void => {
     const fail = (): never => { throw new TypeError("Evolution context source identity or rendering mismatch."); };
     if (question === undefined || typeof question.question !== "string" || typeof question.questionDate !== "string"
-      || !isEvolutionRecallSystem(question.system)) {
+      || !isEvolutionV2System(question.system)) {
       throw new TypeError("Evolution V2 context validation requires the question, its date, and the recall system.");
     }
+    const derivedSystem = isEvolutionDerivedSystem(question.system);
+    if (derivedSystem !== (derived !== undefined)) fail();
     if (!hasExactKeys(value, ["protocol", "preparedSha256", "variantSha256", "querySha256", "asOf", "renderer", "queries", "window", "context",
       "contextSha256", "contextBytes", "turnIds", "sessionIds", "sources", "derived", "omittedForBudget", "resultSha256"])
       || value.protocol !== "oh.evolution-retrieval.v2" || value.preparedSha256 !== identity.preparedSha256
@@ -198,10 +301,10 @@ export function createEvolutionContextSourceValidator(input: Corpus, options: Re
       || value.turnIds.some(id => typeof id !== "string" || !positions.has(id)) || new Set(value.turnIds).size !== value.turnIds.length
       || !Array.isArray(value.sources) || value.sources.length !== value.turnIds.length
       || !Array.isArray(value.sessionIds) || value.sessionIds.length > value.turnIds.length || value.sessionIds.some(id => typeof id !== "string")
-      || !Array.isArray(value.derived) || value.derived.length !== 0
+      || !Array.isArray(value.derived) || value.derived.length > (derivedSystem ? EVOLUTION_DERIVED_RECORD_LIMIT : 0)
       || typeof value.omittedForBudget !== "number" || !Number.isSafeInteger(value.omittedForBudget)
       || value.omittedForBudget < 0 || value.omittedForBudget > 8192) fail();
-    const asOf = evolutionQuestionInstant(question.questionDate);
+    const asOf = evolutionV2Instant(question.questionDate, question.system);
     if (value.asOf !== asOf) fail();
     if (canonicalSha256(value.queries) !== canonicalSha256(evolutionRecallQueries(question.question, question.system))
       || canonicalSha256(value.window) !== canonicalSha256(evolutionRecallWindow(question.question, question.system, asOf))) fail();
@@ -209,11 +312,21 @@ export function createEvolutionContextSourceValidator(input: Corpus, options: Re
     const turns = selected.map(index => corpus.turns[index]!);
     const expectedSources = selected.map(index => ({ turnId: corpus.turns[index]!.id, sessionId: corpus.turns[index]!.sessionId,
       key: records[index]!.key, recordSha256: records[index]!.recordSha256 }));
+    // Derived items must be exactly the pinned observation records with their provenance keys, distinct, in listed order.
+    const observations = (value.derived as readonly unknown[]).map((item): KnowledgeGraphRecordV1 => {
+      if (!isPlainRecord(item) || !hasExactKeys(item, ["key", "recordSha256", "sourceKeys", "sourceTurnIds"]) || typeof item.key !== "string") return fail();
+      const record = derivedByKey.get(item.key), observation = record === undefined ? null : parseOhObservationRecordV1(record);
+      if (record === undefined || observation === null || observation.recordSha256 !== item.recordSha256) return fail();
+      const sourceKeys = observation.value.sources.map(source => source.key);
+      if (canonicalSha256(sourceKeys) !== canonicalSha256(item.sourceKeys)
+        || canonicalSha256(sourceKeys.map(key => corpus.turns[byKey.get(key)!]!.id)) !== canonicalSha256(item.sourceTurnIds)) return fail();
+      return record;
+    });
+    if (new Set(observations.map(record => record.key)).size !== observations.length) fail();
     // The rendering re-derives from source with an unbounded budget: the selected set is already within its variant budget.
-    const rendering = renderOhRecallV1({ results: selected.map(index => ({ record: records[index]! })) },
-      { asOf, budgetBytes: 4_000_000, view: turnView });
+    const rendering = composeDerivedContext({ question: question.question, asOf, turns: selected.map(index => records[index]!), observations, view: turnView });
     const { resultSha256, ...payload } = value;
-    if (rendering.omitted !== 0 || rendering.text !== value.context || sha256Hex(rendering.text) !== value.contextSha256
+    if (rendering.text !== value.context || sha256Hex(rendering.text) !== value.contextSha256
       || canonicalSha256(rendering.keys) !== canonicalSha256(selected.map(index => records[index]!.key))
       || canonicalSha256(expectedSources) !== canonicalSha256(value.sources)
       || canonicalSha256([...new Set(turns.map(turn => turn.sessionId))]) !== canonicalSha256(value.sessionIds)
@@ -254,14 +367,14 @@ export function createEvolutionContextSourceValidator(input: Corpus, options: Re
 }
 
 export function validateEvolutionContextSources(corpus: Corpus, result: EvolutionAnyRetrievalResult,
-  options: Readonly<{ semantic?: boolean; question?: EvolutionResultQuestion }> = {}): void {
+  options: Readonly<{ semantic?: boolean; derivedRecords?: EvolutionDerivedRecords; question?: EvolutionResultQuestion }> = {}): void {
   const { question, ...rest } = options;
   createEvolutionContextSourceValidator(corpus, rest)(result, question);
 }
 
 /** The prepared object owns the optional backend; do not share a mutable QMD collection across corpora. */
 export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
-  semanticBackend?: OhSemanticSearchBackendV1; semanticCacheDirectory?: string;
+  semanticBackend?: OhSemanticSearchBackendV1; semanticCacheDirectory?: string; derivedRecords?: EvolutionDerivedRecords;
 }> = {}): Promise<EvolutionPreparedCorpus> {
   if (options.semanticBackend !== undefined && options.semanticCacheDirectory !== undefined) {
     throw new TypeError("Select either an evolution semantic backend or a cache directory.");
@@ -270,17 +383,23 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
     throw new TypeError("Evolution semantic cache directory must be absolute.");
   }
   const corpus = detachCorpus(input), turns = corpus.turns;
-  const records = corpusRecords(corpus);
+  const turnRecords = corpusRecords(corpus), derived = checkedDerived(options.derivedRecords, turnRecords);
+  /** Turns first, then the derived records (receipts and observations) in their rebuilt order; an index below
+   * `turns.length` is a raw turn. Only turns and observations enter the vector index; receipts stay in the authority. */
+  const records: readonly KnowledgeGraphRecordV1[] = immutable([...turnRecords, ...(derived?.records ?? [])]);
+  const indexed = records.filter((record, index) => index < turns.length || isObservationRecord(record));
   const corpusSha256 = canonicalSha256(corpus), profileSha256 = canonicalSha256(OH_EMBEDDING_PROFILE_V1);
   let backend = options.semanticBackend;
   if (backend !== undefined && canonicalSha256(backend.profile) !== profileSha256) {
     throw new TypeError("Evolution requires the pinned Oh semantic profile.");
   }
   if (options.semanticCacheDirectory !== undefined) {
-    backend = new OhQmdSemanticBackendV1({ cacheDirectory: join(options.semanticCacheDirectory, corpusSha256) });
+    // A derived-record corpus never shares a vector cache with the turn-only corpus or with another artifact.
+    const cacheKey = derived === undefined ? corpusSha256 : `${corpusSha256}-${derived.artifactSha256}`;
+    backend = new OhQmdSemanticBackendV1({ cacheDirectory: join(options.semanticCacheDirectory, cacheKey) });
   }
-  const identity = preparedIdentity(corpus, records, backend !== undefined);
-  const sources = records.map((record, index) => immutable({ turnId: turns[index]!.id,
+  const identity = preparedIdentity(corpus, turnRecords, backend !== undefined, derived);
+  const sources = turnRecords.map((record, index) => immutable({ turnId: turns[index]!.id,
     sessionId: turns[index]!.sessionId, key: record.key, recordSha256: record.recordSha256 }));
   const byKey = new Map(records.map((record, index) => [record.key, index]));
   const byTurn = new Map(turns.map((turn, index) => [turn.id, index]));
@@ -314,6 +433,7 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
     if (authority !== undefined) return authority;
     const store = new OhSqliteStore({ path: ":memory:", spaceId: "evolution" });
     try {
+      // Turns are committed before the derived records so every observation's dependencies already exist.
       for (let start = 0; start < records.length;) {
         const changes: Array<{ kind: "put"; record: KnowledgeGraphRecordV1; v: 1 }> = [];
         let bytes = 2;
@@ -386,8 +506,8 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
     if (mode !== "keyword") {
       semanticReady ??= (async () => {
         try {
-          const indexed = await backend!.index(records);
-          if (indexed.indexed !== records.length || indexed.v !== 1) throw new Error("Incomplete semantic index.");
+          const built = await backend!.index(indexed);
+          if (built.indexed !== indexed.length || built.v !== 1) throw new Error("Incomplete semantic index.");
           stats.semanticIndexBuilds += 1;
         } catch (error) { throw new EvolutionSemanticUnavailableError(`Oh semantic indexing failed: ${error instanceof Error ? error.message : "unknown error"}`); }
       })();
@@ -395,7 +515,7 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
     }
     // searchOhV1 rejoins by key; validate the optional backend's digest before that join too.
     const checkedBackend: OhSemanticSearchBackendV1 | undefined = backend === undefined ? undefined : {
-      profile: backend.profile, index: records => backend!.index(records), close: () => backend!.close(),
+      profile: backend.profile, index: value => backend!.index(value), close: () => backend!.close(),
       async search(query, limit, current) {
         const hits = await backend!.search(query, limit, current);
         if (!Array.isArray(hits) || hits.length > 100) throw new Error("Unbounded semantic results.");
@@ -403,7 +523,8 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
           const index = byKey.get(hit.key);
           if (index === undefined || hit.v !== 1 || !Number.isFinite(hit.score)
             || hit.recordSha256 !== records[index]!.recordSha256
-            || current.get(hit.key)?.recordSha256 !== hit.recordSha256) {
+            || current.get(hit.key)?.recordSha256 !== hit.recordSha256
+            || (index >= turns.length && !isObservationRecord(records[index]!))) {
             throw new Error("Semantic result is not the current prepared source.");
           }
         }
@@ -427,34 +548,78 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
     if (response.diagnostics.length) throw new EvolutionSemanticUnavailableError("Oh semantic search failed; a keyword fallback is not an evaluated semantic result.");
     return response.results.map(result => sourceIndex(result.record));
   }
-  const turnView: OhRecallViewV1 = record => evolutionTurnView(turns[sourceIndex(record)]!, sourceIndex(record));
-  /** Recall systems: semantic-mode V1 searches per query, fused by reciprocal rank, cut to topK, rendered chronologically. */
-  async function recall(question: string, variant: EvolutionRecallVariant, questionDate: string): Promise<EvolutionRetrievalResultV2> {
+  const turnView: OhRecallViewV1 = record => {
+    const index = sourceIndex(record);
+    if (index >= turns.length) throw new TypeError("Evolution recall rendering saw a derived record.");
+    return evolutionTurnView(turns[index]!, index);
+  };
+  /** The fused, digest-checked candidate list of a V2 system in rank order, cut to topK; receipts are never candidates. */
+  async function v2Candidates(question: string, variant: EvolutionV2Variant, asOf: string | null): Promise<Readonly<{ indices: number[]; queries: readonly string[]; window: OhRecallWindowV1 | null }>> {
     const topK = variant.budget.topK;
     if (topK > 100) throw new RangeError("Evolution recall systems keep the 1 through 100 search limit for every query.");
-    const asOf = evolutionQuestionInstant(questionDate);
     const queries = evolutionRecallQueries(question, variant.system), window = evolutionRecallWindow(question, variant.system, asOf);
     const { store, checkedBackend } = await searchSurface("semantic");
     const response = await recallOhV1({ store, backend: checkedBackend!, limit: topK, mode: "semantic", queries, asOf, window, view: turnView });
     currentSources([]);
     if (response.diagnostics.length) throw new EvolutionSemanticUnavailableError("Oh recall failed; a partial lane is not an evaluated recall result.");
-    const indices = response.results.map(result => sourceIndex(result.record)).slice(0, topK);
+    const indices = response.results.map(result => sourceIndex(result.record)).filter(index => index < turns.length || isObservationRecord(records[index]!)).slice(0, topK);
     currentSources(indices);
+    return { indices, queries, window };
+  }
+  /** Recall systems: semantic-mode V1 searches per query, fused by reciprocal rank, cut to topK, rendered chronologically. */
+  async function recall(question: string, variant: EvolutionRecallVariant, questionDate: string): Promise<EvolutionRetrievalResultV2> {
+    const asOf = evolutionQuestionInstant(questionDate);
+    const { indices, queries, window } = await v2Candidates(question, variant, asOf);
     const rendering = renderOhRecallV1({ results: indices.map(index => ({ record: records[index]! })) },
       { asOf, budgetBytes: variant.budget.contextBytes, view: turnView });
     const selected = rendering.keys.map(key => byKey.get(key)!);
+    const context = renderOhObservationContextV1({ observations: [], query: question, turns: rendering.text === "" ? [] : [rendering.text] });
     const payload = { protocol: "oh.evolution-retrieval.v2" as const, preparedSha256: identity.preparedSha256,
       variantSha256: canonicalSha256(variant), querySha256: sha256Hex(question), asOf, renderer: OH_RECALL_RENDERER_V1,
-      queries, window, context: rendering.text, contextSha256: sha256Hex(rendering.text), contextBytes: rendering.bytes,
+      queries, window, context, contextSha256: sha256Hex(context), contextBytes: rendering.bytes,
       turnIds: selected.map(index => turns[index]!.id), sessionIds: [...new Set(selected.map(index => turns[index]!.sessionId))],
-      sources: selected.map(index => sources[index]!), derived: [] as never[], omittedForBudget: rendering.omitted };
+      sources: selected.map(index => sources[index]!), derived: [] as EvolutionDerivedIdentity[], omittedForBudget: rendering.omitted };
+    return immutable({ ...payload, resultSha256: canonicalSha256(payload) });
+  }
+  /** Derived systems: turns and observations compete in one fused semantic ranking; candidates are admitted in rank order
+   * by exact composition (observations as dated `Memory:` lines ahead of the recall-rendered raw turns) under the byte
+   * budget, a candidate that does not fit is omitted while later, smaller candidates may still fit. With no admitted
+   * observation the context bytes are exactly the corresponding raw-turn system's. */
+  async function derivedRetrieve(question: string, variant: EvolutionV2Variant & Readonly<{ system: EvolutionDerivedSystem }>, questionDate: string): Promise<EvolutionRetrievalResultV2> {
+    const asOf = evolutionV2Instant(questionDate, variant.system);
+    const { indices, queries, window } = await v2Candidates(question, variant, asOf);
+    const selectedTurns: number[] = [], selectedObservations: number[] = [];
+    let composed: Readonly<{ text: string; keys: readonly string[] }> = { text: "", keys: [] }, omitted = 0;
+    for (const index of indices) {
+      const observation = index >= turns.length;
+      const trial = composeDerivedContext({ question, asOf, view: turnView,
+        turns: (observation ? selectedTurns : [...selectedTurns, index]).map(i => records[i]!),
+        observations: (observation ? [...selectedObservations, index] : selectedObservations).map(i => records[i]!) });
+      if (Buffer.byteLength(trial.text) > variant.budget.contextBytes) { omitted += 1; continue; }
+      (observation ? selectedObservations : selectedTurns).push(index); composed = trial;
+    }
+    const selected = composed.keys.map(key => byKey.get(key)!);
+    const derivedItems = selectedObservations.map((index): EvolutionDerivedIdentity => {
+      const record = records[index]!, sourceKeys = parseOhObservationRecordV1(record)!.value.sources.map(source => source.key);
+      return { key: record.key, recordSha256: record.recordSha256, sourceKeys, sourceTurnIds: sourceKeys.map(key => turns[byKey.get(key)!]!.id) };
+    });
+    const payload = { protocol: "oh.evolution-retrieval.v2" as const, preparedSha256: identity.preparedSha256,
+      variantSha256: canonicalSha256(variant), querySha256: sha256Hex(question), asOf, renderer: OH_RECALL_RENDERER_V1,
+      queries, window, context: composed.text, contextSha256: sha256Hex(composed.text), contextBytes: Buffer.byteLength(composed.text),
+      turnIds: selected.map(index => turns[index]!.id), sessionIds: [...new Set(selected.map(index => turns[index]!.sessionId))],
+      sources: selected.map(index => sources[index]!), derived: derivedItems, omittedForBudget: omitted };
     return immutable({ ...payload, resultSha256: canonicalSha256(payload) });
   }
   async function retrieve(questionInput: string, variantInput: EvolutionRetrievalVariant, questionDate?: string): Promise<EvolutionAnyRetrievalResult> {
     const question = bounded(questionInput, 16_384, "question"), variant = checkedVariant(variantInput);
     stats.queryCount += 1;
-    if (isEvolutionRecallSystem(variant.system)) {
+    if (isEvolutionDerivedSystem(variant.system) !== (derived !== undefined)) {
+      throw new TypeError(derived === undefined ? "Evolution derived systems require a corpus prepared with derived records."
+        : "Evolution corpora prepared with derived records admit only derived systems.");
+    }
+    if (isEvolutionV2System(variant.system)) {
       if (typeof questionDate !== "string") throw new TypeError("Evolution recall systems require the question date.");
+      if (isEvolutionDerivedSystem(variant.system)) return derivedRetrieve(question, { ...variant, system: variant.system }, questionDate);
       return recall(question, { ...variant, system: variant.system }, questionDate);
     }
     const isFacets = variant.system.endsWith("facets"), facets = isFacets ? evolutionQuestionFacets(question) : [];
@@ -503,9 +668,10 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
     else indices = await ohRank(question, topK, variant.system === "oh-keyword" ? "keyword" : variant.system === "oh-semantic" ? "semantic" : "hybrid");
     currentSources(indices);
     const packed = pack(indices.map(index => ({ turn: turns[index]!, digest: records[index]!.recordSha256 })), variant.budget.contextBytes);
+    const context = renderOhObservationContextV1({ observations: [], query: question, turns: packed.context === "" ? [] : [packed.context] });
     const payload = { protocol: "oh.evolution-retrieval.v1" as const, preparedSha256: identity.preparedSha256,
-      variantSha256: canonicalSha256(variant), querySha256: sha256Hex(question), context: packed.context,
-      contextSha256: sha256Hex(packed.context), contextBytes: Buffer.byteLength(packed.context),
+      variantSha256: canonicalSha256(variant), querySha256: sha256Hex(question), context,
+      contextSha256: sha256Hex(context), contextBytes: Buffer.byteLength(context),
       turnIds: packed.turnIds, sessionIds: packed.sessionIds, sources: packed.turnIds.map(id => sources[byTurn.get(id)!]!),
       omittedForBudget: openingOmissions ?? packed.omittedForBudget, facets, coveredFacets, coverageKind: isFacets ? "lexical-clause" as const : null };
     return immutable({ ...payload, resultSha256: canonicalSha256(payload) });

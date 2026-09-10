@@ -9,8 +9,9 @@ import { OH_OBSERVATION_INSTRUCTION_SHA256_V1, OH_OBSERVATION_INSTRUCTION_V1, oh
 import type { EvolutionCampaign, EvolutionPin } from "../scripts/benchmarks/evolution-budget";
 import { EVOLUTION_PROFILES } from "../scripts/benchmarks/evolution-model";
 import { EVOLUTION_OBSERVE_LANE_POLICY, OBSERVE_LANE_MAXIMUM_CAMPAIGN_MICROS, observeLaneArtifactName, observeLaneCorpusSha256,
-  observeLaneSessions, parseObserveLaneConfig, parseObserveLaneSource, prepareEvolutionObserveLane, projectObserveLaneSource,
+  observeLaneSessions, parseObserveLaneArtifact, parseObserveLaneConfig, parseObserveLaneSource, prepareEvolutionObserveLane, projectObserveLaneSource,
   rebuildObserveLaneRecords, runEvolutionObserveLane, type ObserveLaneConfig } from "../scripts/benchmarks/evolution-observe-lane";
+import { loadEvolutionDerivedCorpora } from "../scripts/benchmarks/evolution-runner-v9";
 import { codeIdentity } from "../scripts/benchmarks/io";
 import { parseObserveFixtureCorpus } from "../scripts/benchmarks/observe-rubric";
 
@@ -124,6 +125,31 @@ test("run captures one response per session into a rebuildable artifact with the
     const plan = await prepareEvolutionObserveLane(f.configPin), planPin = await f.pin("plan.json", plan);
     const artifact = await runEvolutionObserveLane({ configPin: f.configPin, planPin, credential: credential(), fetcher: fake.fetcher });
     expect(fake.counts.extractor).toBe(8);
+    expect(parseObserveLaneArtifact(artifact)).toEqual(artifact);
+    const unfinished = { ...artifact, complete: false, status: "incomplete" as const };
+    const { artifactSha256: _unfinished, ...unfinishedPayload } = unfinished;
+    const unfinishedPin = await f.pin("unfinished-observations.json", { ...unfinished, artifactSha256: canonicalSha256(unfinishedPayload) });
+    await expect(loadEvolutionDerivedCorpora(unfinishedPin, f.sourceCorpora)).rejects.toThrow();
+    const artifactPin = await f.pin("observations.json", artifact);
+    const loaded = await loadEvolutionDerivedCorpora(artifactPin, f.sourceCorpora);
+    expect(loaded!.artifactSha256).toBe(artifactPin.sha256); expect(loaded!.byCorpus.size).toBe(f.sourceCorpora.length);
+    expect(await loadEvolutionDerivedCorpora(null, f.sourceCorpora)).toBeUndefined();
+    for (const mutate of [
+      (x: any) => x.unexpected = true, (x: any) => x.instructionSha256 = canonicalSha256("foreign instructions"),
+      (x: any) => x.corpora[0].sessions[0].responseSha256 = null, (x: any) => x.corpora[0].sessions[0].requestSha256 = "malformed",
+      (x: any) => x.corpora[0].sessions[0].facetCount = -1, (x: any) => x.corpora[0].sessions[0].observationBytes = -1,
+      (x: any) => x.corpora[0].sessions[0].turnKeys.push(x.corpora[0].sessions[0].turnKeys[0]),
+      (x: any) => x.corpora[0].sessions.push(x.corpora[0].sessions[0]),
+    ]) {
+      const changed = structuredClone(artifact) as any; mutate(changed); const { artifactSha256: _old, ...payload } = changed;
+      changed.artifactSha256 = canonicalSha256(payload); expect(() => parseObserveLaneArtifact(changed)).toThrow();
+    }
+    const foreign = structuredClone(artifact) as any; foreign.corpora[0].sessions[0].requestSha256 = canonicalSha256("foreign bounded request");
+    const { artifactSha256: _old, ...foreignPayload } = foreign; foreign.artifactSha256 = canonicalSha256(foreignPayload);
+    const foreignPin = await f.pin("foreign-observations.json", foreign);
+    await expect(loadEvolutionDerivedCorpora(foreignPin, f.sourceCorpora)).rejects.toThrow();
+    await writeFile(artifactPin.path, JSON.stringify({ ...artifact, stopped: !artifact.stopped }));
+    await expect(loadEvolutionDerivedCorpora(artifactPin, f.sourceCorpora)).rejects.toThrow("pinned content changed");
     for (const prompt of fake.prompts) expect(prompt).not.toMatch(/PRIVATE_QUESTION|question|answer|gold/iu);
     expect(artifact).toMatchObject({ protocol: "oh.memory.observations.v1", complete: true, status: "complete", stopped: false, extractor: "gpt5-nano-reader",
       planSha256: plan.planSha256, instructionSha256: OH_OBSERVATION_INSTRUCTION_SHA256_V1, serviceQualification: { sessions: 3, completedExtractorResponses: 3 } });
@@ -166,6 +192,8 @@ test("rejected and truncated sessions are recorded with their reason and never r
     const artifact = await runEvolutionObserveLane({ configPin: f.configPin, planPin, credential: credential(), fetcher: fake.fetcher });
     expect(fake.counts.extractor).toBe(8); expect(artifact.complete).toBeTrue();
     expect(artifact.diagnostics).toMatchObject({ sessions: 8, completed: 6, rejected: 1, failed: 1, notRun: 0, parserRejectionRate: 1 / 7 });
+    expect(parseObserveLaneArtifact(artifact)).toEqual(artifact);
+    await expect(loadEvolutionDerivedCorpora(await f.pin("unqualified-observations.json", artifact), f.sourceCorpora)).rejects.toThrow();
     expect(artifact.diagnostics.rejections["response-not-json"]).toBe(1);
     const rejected = artifact.corpora[0]!.sessions.find(s => s.sessionId === "h2")!, failed = artifact.corpora[1]!.sessions.find(s => s.sessionId === "w2")!;
     expect(rejected).toMatchObject({ status: "rejected", rejection: "response-not-json", rejectionIndex: null, observationCount: 0, response: "{\"observations\": [" });

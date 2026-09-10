@@ -242,6 +242,40 @@ describe("observation profile codec", () => {
 });
 
 describe("observeOhV1", () => {
+  test("receipts cover every turn of admitted 1, 17 and 512-turn sessions while observations cite at most 16", async () => {
+    for (const count of [1, 17, OH_OBSERVATION_LIMITS_V1.sessionTurns]) {
+      const turns = Array.from({ length: count }, (_, index): Turn => ({ ...sessionOne[0]!, id: `many:${index}`, text: `user recorded fact ${index}.` }));
+      const { keys, store } = openStoreWith({ many: turns });
+      let calls = 0;
+      try {
+        const input = { actorId: "agent.observe", instant: "2026-04-02T00:00:00.000Z", sessionRecordKeys: keys.many, store,
+          observer: { modelId: "stub/observer-v1", observe() { calls++; return responseTwo; } } };
+        const result = await observeOhV1(input);
+        expect(result.status).toBe("committed");
+        if (result.status !== "committed") throw new Error("Expected committed observation.");
+        const activity = store.get(result.activityKey)!, receipt = parseOhObservationActivityValueV1(activity.value)!;
+        expect(receipt.sources).toHaveLength(count); expect(activity.dependencies).toEqual(keys.many);
+        const observation = parseOhObservationRecordV1(store.get(result.observationKeys[0]!))!;
+        expect(observation.value.sources).toHaveLength(1);
+        expect((await observeOhV1(input)).status).toBe("existing"); expect(calls).toBe(1);
+        expect(parseOhObservationActivityValueV1({ ...receipt, sources: [] })).toBeNull();
+        expect(parseOhObservationActivityValueV1({ ...receipt, sources: [receipt.sources[0], receipt.sources[0]] })).toBeNull();
+        const sources = Array.from({ length: 513 }, (_, index) => ({ key: `edition:turn-${index.toString().padStart(5, "0")}`,
+          recordSha256: "a".repeat(64), v: 1 }));
+        expect(parseOhObservationActivityValueV1({ ...receipt, sources })).toBeNull();
+        expect(parseOhObservationValueV1({ ...observation.value, sources: sources.slice(0, 16) })).not.toBeNull();
+        expect(parseOhObservationValueV1({ ...observation.value, sources: sources.slice(0, 17) })).toBeNull();
+        const session = parseOhObservationSessionV1(keys.many.map(key => store.get(key)!));
+        const response = JSON.parse(responseTwo);
+        response.observations[0].sources = Array.from({ length: 17 }, (_, index) => `t${index}`);
+        expect(parseOhObservationResponseV1(JSON.stringify(response), session)).toMatchObject({ ok: false, rejection: "sources" });
+      } finally { store.close(); }
+    }
+    const overflow = turnRecords(Array.from({ length: 513 }, (_, index) => ({ ...sessionOne[0]!, id: `overflow:${index}` })), 0);
+    expect(() => parseOhObservationSessionV1(overflow)).toThrow("1 through 512");
+    expect(() => parseOhObservationSessionV1([])).toThrow("1 through 512");
+  });
+
   test("commits observations as edition records with provenance and one receipt, idempotently", async () => {
     const { keys, store } = openStore();
     const stub = observer({ "2026/03/14 (Sat) 10:15": responseOne });

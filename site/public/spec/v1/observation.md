@@ -48,8 +48,8 @@ free of control characters; every string except `text` is a single line.
 | `speaker` | The speaker label, at most 64 bytes. |
 | `text` | The turn text, at most 512 KiB, line breaks allowed. |
 
-Session turns are ordered as given and are aliased `t0`, `t1`, … in the
-prompt in that order.
+A session contains one through 512 turns. Session turns are ordered as given
+and are aliased `t0`, `t1`, … in the prompt in that order.
 
 ## Observation value
 
@@ -88,7 +88,8 @@ One `activity:observe-<sessionSha256>` record receipts the extraction. Its
 value has `format: "oh.observation-activity.v1"`, `v: 1`, the model
 identifier, `instructionSha256`, `promptSha256`, `responseSha256`, the
 `observedAt` instant, the session digest and optional session index, the
-observation count, the session's turns as sources, and `candidatesTruncated`:
+observation count, the session's turns as sources (one through 512, ordered and
+unique by key), and `candidatesTruncated`:
 the keys of this session's observations whose supersession lookup hit its
 candidate bound (see below), in ascending index order, empty when supersession
 was off or no lookup was truncated. The receipt depends on every turn of the

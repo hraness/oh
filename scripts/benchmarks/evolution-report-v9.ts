@@ -3,6 +3,7 @@
  * for the study reducer. No requests are sent here; responses and occupied failures are authenticated separately. */
 import { canonicalJson, canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import type { Dataset } from "./datasets";
+import type { EvolutionDerivedCorpora } from "./evolution-derived";
 import { assertExactEvolutionCoverage } from "./evolution-dataset";
 import { EVOLUTION_LME_NATIVE_REFERENCE, scoreEvolutionJudgeDecision } from "./evolution-judge";
 import { evolutionJudgeCaseKeyV9, evolutionJudgeJobsV9, loadEvolutionJudgeRubricV9, makeEvolutionJudgePlanV9, validateEvolutionJudgePlanV9,
@@ -28,7 +29,7 @@ export type EvolutionAttemptFailureLoaderV9 = (request: EvolutionRequest, repeat
 export type EvolutionReportInputV9 = Readonly<{ dataset: Dataset; manifestBytes: Uint8Array; manifestSha256: string;
   contextPlan: EvolutionContextPlanV9; readerPlan: EvolutionReaderPlanV2; judgePlan: EvolutionJudgePlanV9;
   readerOutputBytes: Uint8Array; judgeOutputBytes: Uint8Array; judgeOutputSha256: string; loadRawResponse: EvolutionRawResponseLoaderV9;
-  loadServiceMs?: EvolutionServiceMsLoaderV9; loadAttemptFailure?: EvolutionAttemptFailureLoaderV9;
+  loadServiceMs?: EvolutionServiceMsLoaderV9; loadAttemptFailure?: EvolutionAttemptFailureLoaderV9; derived?: EvolutionDerivedCorpora;
   study: Readonly<{ studyBytes: Uint8Array; scopeBytes: Uint8Array; shardId: string; campaignSha256: string }> }>;
 export type EvolutionOutcomeV9 = Readonly<{ questionId: string; variantId: string; reader: string; repeat: number; readerFailed: boolean;
   decisions: readonly (0 | 1 | null)[]; judgeMean: number; locomoF1: number | null;
@@ -158,7 +159,7 @@ export async function buildEvolutionReportV9(input: EvolutionReportInputV9) {
   assertEvolutionContextBindingV9(input.contextPlan, authorization, input.study.shardId);
   const manifest = selectEvolutionReportManifest(input.dataset, input.manifestBytes, input.manifestSha256, { questionIds: shard.questionIds });
   if (input.contextPlan.manifestSha256 !== input.manifestSha256) fail("context selection or input changed");
-  validateEvolutionContextPlanV9Sources(input.contextPlan, projectEvolutionRunnerInputV9(input.dataset, study.readerDatePolicy));
+  validateEvolutionContextPlanV9Sources(input.contextPlan, projectEvolutionRunnerInputV9(input.dataset, study.readerDatePolicy), input.derived);
   const readers = validateEvolutionReaderPlanV2(input.readerPlan, input.contextPlan), judges = validateEvolutionJudgePlanV9(input.judgePlan);
   if (!same(readers.readerProfiles, study.readers) || readers.repeats !== study.repeats || judges.profile !== study.judge
     || judges.rubricSha256 !== study.rubricSha256 || judges.judgeRepeats !== study.judgeRepeats) fail("reader/judge plan differs from the frozen study");
