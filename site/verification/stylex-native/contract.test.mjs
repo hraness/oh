@@ -87,7 +87,7 @@ test("every actual media field is required; viewport and opposing queries cannot
 });
 
 test("legacy identity permits only collector commits and exact installed profile", () => {
-  assert.equal(legacyBase, "27f0587f599b15f0eb657d6c084f0c006915edc9");
+  assert.equal(legacyBase, "f185ca670af0e04ae9786ade50ed436634cb7fb5");
   assert.deepEqual(expectedVersions, { next: "16.3.3", react: "19.2.6", "react-dom": "19.2.6" });
   assertBaselineRange(["site/verification/stylex-native/README.md", "site/verification/stylex-native/contract.mjs", "site/verification/stylex-native/contract.test.mjs"]);
   for (const path of ["site/app/page.tsx", "site/bun.lock", "site/package.json", "package.json", "site/verification/stylex-native/../app.mjs", "/site/verification/stylex-native/test.mjs"])

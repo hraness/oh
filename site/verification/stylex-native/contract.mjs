@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { bounded } from "./support.mjs";
 
-export const legacyBase = "27f0587f599b15f0eb657d6c084f0c006915edc9";
+export const legacyBase = "f185ca670af0e04ae9786ade50ed436634cb7fb5";
 export const expectedVersions = Object.freeze({ next: "16.3.3", react: "19.2.6", "react-dom": "19.2.6" });
 export const totalDeadlineMs = 1_800_000;
 export const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");

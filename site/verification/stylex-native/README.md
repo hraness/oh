@@ -8,16 +8,18 @@ collector and pure tests only: no browser baseline or migration has passed yet.
 ## Scope
 
 The legacy source is commit
-27f0587f599b15f0eb657d6c084f0c006915edc9. The collector requires a clean descendant
+f185ca670af0e04ae9786ade50ed436634cb7fb5. The collector requires a clean descendant
 whose only changes are the files in this directory. Product source, CLI behavior,
 the public specification, release metadata, and package manifests remain at that
 legacy commit. The installed profile is Next 16.3.3, React 19.2.6, React DOM
 19.2.6, and the unchanged frozen site lockfile.
 
-The earlier preparation used 692c0f8. A normal fast-forward added the unrelated
-benchmark-only PR #53 before any native run; the complete site and root manifests
-were byte-identical. The baseline binds the new complete commit, not an exception
-allowlist for changed product inputs.
+The earlier preparation used 692c0f8. A normal fast-forward added benchmark-only
+PR #53 at 27f0587; a later normal merge joined benchmark-only PR #54 at f185ca6.
+Both preceded any native run, and the complete site, root manifests and governing
+instructions were byte-identical. The baseline binds the new complete commit,
+not an exception allowlist for changed product inputs. The one frozen legacy
+install remains intact across this source-equivalent join.
 
 There are 58 layout/media cells. Each has both JavaScript-enabled and
 JavaScript-disabled observations, for 116 observations in a fixed order:
