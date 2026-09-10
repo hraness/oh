@@ -2,7 +2,7 @@
  * It creates only source-derived, opaque receipts. The worker can request a
  * typed call but cannot choose its profile, endpoint, namespace, or cost. */
 import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
-import { invokeMem0Request, makeMem0BatchEmbeddingRequest, splitMem0EmbeddingBatch, MEM0_MAX_BATCH_RESPONSE_BYTES, makeMem0EmbeddingRequest, makeMem0LlmRequest, validateMem0BridgePolicy, type Mem0BridgePolicy, type Mem0Credential, type Mem0Fetcher, type Mem0AnyRequest, type Mem0AnyResult, type openMem0Ledger } from "./mem0-ledger";
+import { invokeMem0Request, makeMem0BatchEmbeddingRequest, splitMem0EmbeddingBatch, MEM0_MAX_BATCH_RESPONSE_BYTES, makeMem0EmbeddingRequest, makeMem0LlmRequest, validateMem0BridgePolicy, validateMem0Request, validateMem0BatchEmbeddingRequest, type Mem0BridgePolicy, type Mem0Credential, type Mem0Fetcher, type Mem0AnyRequest, type Mem0AnyResult, type openMem0Ledger } from "./mem0-ledger";
 
 import { createMem0DurationClock, MEM0_QUALIFICATION_DURATION_POLICY } from "./mem0-duration";
 
@@ -86,18 +86,66 @@ function rpc(value: unknown, policy: Mem0BridgePolicy, batchEnabled: boolean): R
   }
   const current = exact(value, ["kind", "id", "operation", "namespace", "payload"]); if (current.kind !== "rpc" || typeof current.id !== "string" || !/^[A-Za-z0-9._-]{1,80}$/.test(current.id) || (current.operation !== "llm" && current.operation !== "embed") || current.namespace !== policy.namespace || !isPlainRecord(current.payload)) fail("invalid worker RPC"); return { id: current.id, operation: current.operation, payload: current.payload };
 }
+/** Explicit, caller-authenticated checkpoint descriptor. File/state custody belongs
+ * to the recovery owner; this gate authenticates source/policy and settled calls. */
+export type Mem0DispatcherResumeV1 = Readonly<{ protocol: "oh.memory.mem0-dispatcher-resume.v1";
+  checkpointSha256: string; derivationSha256: string; chunkId: string; initialOrdinal: number;
+  expectedCalls: number; expectedExposureMicros: number; replayRequests: readonly Mem0AnyRequest[] }>;
+function dispatcherResume(value: unknown, derivation: Mem0DerivationReceipt, corpus: Mem0SelectedCorpus,
+  policy: Mem0BridgePolicy, ledger: Ledger): Mem0DispatcherResumeV1 {
+  const v = exact(value, ["protocol", "checkpointSha256", "derivationSha256", "chunkId", "initialOrdinal", "expectedCalls", "expectedExposureMicros", "replayRequests"]);
+  const integer = (n: unknown): n is number => typeof n === "number" && Number.isSafeInteger(n) && n >= 0 && !Object.is(n, -0);
+  if (v.protocol !== "oh.memory.mem0-dispatcher-resume.v1" || !sha(v.checkpointSha256)
+    || v.derivationSha256 !== canonicalSha256(derivation) || !corpus.chunks.some(c => c.chunkId === v.chunkId)
+    || !integer(v.initialOrdinal) || v.initialOrdinal < 1 || v.initialOrdinal > 999_984
+    || !integer(v.expectedCalls) || !integer(v.expectedExposureMicros)
+    || !Array.isArray(v.replayRequests) || v.replayRequests.length < 1 || v.replayRequests.length > 16
+    || v.expectedCalls !== v.initialOrdinal + v.replayRequests.length) fail("resume source or ordinal binding");
+  const replayRequests = v.replayRequests.map((raw: unknown, index: number) => {
+    const request = isPlainRecord(raw) && raw.protocol === "oh.memory.mem0-call.v2"
+      ? validateMem0BatchEmbeddingRequest(raw) : validateMem0Request(raw);
+    if (request.ordinal !== (v.initialOrdinal as number) + index || request.runSha256 !== policy.runSha256
+      || request.namespace !== policy.namespace || request.operation === "query-embed"
+      || request.profileSha256 !== canonicalSha256(request.kind === "llm" ? policy.llmProfile : policy.embeddingProfile)
+      || ledger.lookup(request).kind !== "hit") fail("resume requires exact settled prefix");
+    return request;
+  });
+  const summary = ledger.summary();
+  if (summary.calls !== v.expectedCalls || summary.exposureMicros !== v.expectedExposureMicros) fail("resume ledger checkpoint mismatch");
+  return Object.freeze({ ...v, replayRequests: Object.freeze(replayRequests) }) as Mem0DispatcherResumeV1;
+}
 /** A serial dispatcher for one worker. It is deliberately not a generic provider
  * proxy: activity derives each SDK call from a selected source chunk or question. */
-export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpus: unknown; ledger: Ledger; credential: Mem0Credential; fetcher?: Mem0Fetcher; batchEmbeddings?: boolean }>) {
+export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpus: unknown; ledger: Ledger; credential: Mem0Credential; fetcher?: Mem0Fetcher; batchEmbeddings?: boolean; resume?: unknown }>) {
   const policy = validateMem0BridgePolicy(input.policy), corpus = validateMem0SelectedCorpus(input.corpus), derivation = makeMem0DerivationReceipt(policy, corpus);
   if (input.batchEmbeddings !== undefined && typeof input.batchEmbeddings !== "boolean") fail("batch embedding opt-in");
   const batchEmbeddings = input.batchEmbeddings === true, cancellation = new AbortController();
-  let ordinal = 0, activity: Activity | null = null, closed = false, chain: Promise<void> = Promise.resolve();
+  const resume = input.resume === undefined ? undefined : dispatcherResume(input.resume, derivation, corpus, policy, input.ledger);
+  let replayed = 0, replayFailed = false;
+  let ordinal = resume?.initialOrdinal ?? 0, activity: Activity | null = null, closed = false, chain: Promise<void> = Promise.resolve();
   const serial = <T>(action: () => Promise<T>): Promise<T> => { const next = chain.then(action, action); chain = next.then(() => undefined, () => undefined); return next; };
-  const choose = (request: Mem0AnyRequest) => input.fetcher === undefined
-    ? invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, signal: cancellation.signal })
-    : invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, fetcher: input.fetcher, signal: cancellation.signal });
-  return Object.freeze({ derivation, batchEmbeddings, abort: () => cancellation.abort(), maximumCallTimeoutMs: Math.max(policy.llmProfile.timeoutMs, policy.embeddingProfile.timeoutMs), embeddingDimensions: policy.embeddingProfile.embeddingDimensions,
+  const choose = async (request: Mem0AnyRequest): Promise<Mem0AnyResult> => {
+    if (resume !== undefined) {
+      if (replayFailed || cancellation.signal.aborted) fail("resume interrupted or failed");
+      if (replayed < resume.replayRequests.length) {
+        const expected = resume.replayRequests[replayed]!, summary = input.ledger.summary();
+        if (activity?.kind !== "ingest" || activity.chunk.chunkId !== resume.chunkId
+          || request.requestSha256 !== expected.requestSha256 || summary.calls !== resume.expectedCalls
+          || summary.exposureMicros !== resume.expectedExposureMicros) { replayFailed = true; fail("resume generated prefix mismatch"); }
+        const cached = input.ledger.lookup(request);
+        if (cached.kind !== "hit") { replayFailed = true; fail("resume prefix is no longer settled"); }
+        replayed++; return cached.result;
+      }
+    }
+    return input.fetcher === undefined
+      ? invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, signal: cancellation.signal })
+      : invokeMem0Request({ request, ledger: input.ledger, credential: input.credential, fetcher: input.fetcher, signal: cancellation.signal });
+  };
+  return Object.freeze({ derivation, batchEmbeddings,
+    ...(resume === undefined ? {} : { resumeBinding: Object.freeze({ protocol: resume.protocol, checkpointSha256: resume.checkpointSha256,
+      initialOrdinal: resume.initialOrdinal, replayRequestSha256es: Object.freeze(resume.replayRequests.map(r => r.requestSha256)) }),
+      resumeProgress: () => Object.freeze({ replayed, required: resume.replayRequests.length, failed: replayFailed, nextOrdinal: ordinal }) }),
+    abort: () => cancellation.abort(), maximumCallTimeoutMs: Math.max(policy.llmProfile.timeoutMs, policy.embeddingProfile.timeoutMs), embeddingDimensions: policy.embeddingProfile.embeddingDimensions,
     beginIngest(chunkIdInput: unknown) { if (closed || cancellation.signal.aborted || activity !== null) fail("invalid ingest activity"); const chunkId = opaque(chunkIdInput), chunk = corpus.chunks.find(candidate => candidate.chunkId === chunkId); if (!chunk) fail("unknown source chunk"); activity = Object.freeze({ kind: "ingest", chunk }); },
     beginQuery(questionSha256: unknown) { if (closed || activity !== null || !sha(questionSha256)) fail("invalid query activity"); activity = Object.freeze({ kind: "query", questionSha256 }); },
     endActivity() { if (activity === null) fail("no active activity"); activity = null; },
@@ -113,7 +161,7 @@ export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpu
         return Object.freeze({ kind: "rpc-result", protocol: "oh.memory.mem0-rpc.v2", id: frame.id, ok: true, result: Object.freeze({ embeddings: Object.freeze(embeddings) }) });
       }
       const payload = exact(frame.payload, ["text", "action"]); if (payload.action !== "add" && payload.action !== "update" && payload.action !== "search") fail("embedding action"); if (activity.kind === "query" && payload.action !== "search") fail("embedding activity mismatch"); const request = makeMem0EmbeddingRequest(policy, ordinal++, activity.kind === "query" ? "query-embed" : "ingest-embed", payload.text); result = await choose(request); if (result.kind !== "embedding" || !("embedding" in result.value)) fail("embedding result identity"); return Object.freeze({ kind: "rpc-result", id: frame.id, ok: true, result: Object.freeze({ embedding: result.value.embedding }) });
-    }); },
+    }).catch(error => { if (resume !== undefined) replayFailed = true; throw error; }); },
     async close() { await chain; if (activity !== null) fail("cannot close active activity"); closed = true; },
   });
 }

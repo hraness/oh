@@ -206,3 +206,23 @@ It requires a caller-supplied pinned Python environment and writes a private
 receipt. Both modes use fake responses and a socket-blocked worker. No benchmark
 source or actual provider credential is used. Run it through the host scheduler
 where required, supplying `--python` and a fresh `--output` path.
+
+
+A caller may explicitly resume a stopped ingestion with
+`resume.protocol: "oh.memory.mem0-dispatcher-resume.v1"`. The descriptor binds
+an authenticated checkpoint, the current derivation and chunk, the starting
+ordinal, expected ledger call/exposure totals, and one to sixteen exact settled
+requests at that ordinal. The dispatcher releases those original responses only
+when the restarted SDK generates the same requests in the same order. A changed
+request, ledger drift, interruption or malformed resumed RPC fences further
+calls. New requests become eligible only after the complete prefix matches;
+the original ledger and ordinary admission limits still apply.
+
+This dispatcher option does not authenticate files or restore a database. The
+recovery owner must separately verify the original source, stopped process,
+checkpoint, complete persistent state and runtime, copy that state into a fresh
+directory, and prove a zero-call SDK replay before live continuation. Keep the
+original state and captured responses intact. A checkpoint digest alone is not
+proof that a database was restored correctly. Unsettled requests cannot be
+replayed through this option. Without `resume`, the dispatcher still starts at
+ordinal zero and exposes no resume metadata.
