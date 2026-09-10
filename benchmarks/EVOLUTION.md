@@ -436,6 +436,56 @@ and prepare the new V4 contexts from the reviewed execution source; never rewrit
 an old plan to claim the new protocol. Source preservation alone establishes no
 answer-quality gain.
 
+## Canonical source-order control
+
+Run V6 (`oh.memory.evolution-run.v6`) prepares context-plan V5 from one pinned
+original semantic top-100/96,000-byte result per question. It presents the exact
+retained turns in canonical corpus order. LongMemEval's parser supplies a stable
+chronological order; equal-date turns retain their source order. Every whole-turn
+rendering and separator remains unchanged, so the source multiset and total UTF-8
+context bytes equal the parent. This control adds no retrieval, context, headings
+or generated facts.
+
+Use these fields in an otherwise complete private run configuration:
+
+```json
+{
+  "protocol": "oh.memory.evolution-run.v6",
+  "limit": 100,
+  "seed": 17,
+  "concurrency": 24,
+  "readers": ["gpt5-nano-explicit-abstention-composition-v1-reader"],
+  "judge": "gpt4o-gateway-native-rubric-16-judge-v1",
+  "variants": [{
+    "id": "oh-semantic-source-order-96k-v1",
+    "system": "oh-source-order",
+    "budget": { "topK": 100, "contextBytes": 96000 }
+  }],
+  "sourceOrderParent": {
+    "pin": { "path": "/absolute/private/semantic-contexts.json", "sha256": "<file-sha256>" },
+    "variantId": "oh-semantic-top100-96k-v1"
+  }
+}
+```
+
+Retain the dataset, manifest, campaign and output-directory fields; remove the
+V5-only `completionParents` field. Replace the parent path, digest and variant ID
+with the original authenticated V1 semantic artifact. Its manifest, selected
+questions and source corpus bytes must match the new run exactly. V6 admits at
+most 100 development questions, the single treatment above and the fixed reader
+and judge. It remains outside the genetic population domain.
+
+Use the existing `prepare`, `readers`, `run-reader`, `judge-plan`, `run-judge`
+and `report` commands. Every reload authenticates the original parent file and
+reconstructs the result against current source records. Preparation builds no
+index and makes no provider calls. The shared campaign, first-response custody,
+reader request and judge contracts remain unchanged. If the parent was already
+in corpus order, its exact reader request can be reused. Reordered contexts have
+the same byte reservation; their token usage and answer quality must be measured.
+Keep historical execution pins intact and generate new contexts from the reviewed
+source version. A repeated development comparison does not establish confirmation
+or an ordering benefit before its results exist.
+
 ## Explicit concurrency experiments
 
 Run configurations V1–V3 and the original paid queue remain limited to one through
