@@ -226,3 +226,21 @@ original state and captured responses intact. A checkpoint digest alone is not
 proof that a database was restored correctly. Unsettled requests cannot be
 replayed through this option. Without `resume`, the dispatcher still starts at
 ordinal zero and exposes no resume metadata.
+
+For a separately authorized recovery of an ingestion search embedding, the parent
+also accepts `ingestEmbeddingRecovery.protocol:
+"oh.memory.mem0-ingest-embedding-recovery.v1"`. This is mutually exclusive with
+settled-prefix `resume`. It admits at most one new physical attempt after an exact
+single ingestion embedding has a captured network failure with no HTTP response
+and no body. The descriptor binds that failed request, captured failure evidence,
+source chunk, checkpoint, and current ledger call/exposure totals. The restarted
+SDK must first generate the identical search-embedding payload. The new request
+uses the next ordinal; the original request stays occupied and fully reserved.
+LLM extraction, query embeddings, batches, readers and judges are ineligible.
+
+The recovery owner must authenticate and copy the complete stopped state, prove
+the first SDK request offline, and approve a new descriptor before live use.
+Successful recovery allows normal sequential ingestion under the same ledger
+limits. A failed attempt fences continuation; it does not trigger another retry.
+The optional metadata records both physical request identities. Without either
+recovery option, ordinal-zero behavior and result metadata are unchanged.

@@ -360,6 +360,18 @@ export async function openMem0Ledger(authorityInput: unknown) {
       summary: () => { custody(); return Object.freeze({ calls: entries.size, exposureMicros: exposure, antecedentExposureMicros: accounting.cumulativeExposureMicros, combinedExposureMicros: exposure + accounting.cumulativeExposureMicros, additionalBudgetMicros: authority.additionalBudgetMicros, maximumCalls: authority.maximumCalls, policySha256es: Object.freeze(policyBytes.map(sha256Hex)), antecedentAccountingSha256: sha256Hex(accountingBytes) }); },
       auth: campaign.auth,
       lookup: (requestInput: unknown) => { custody(); const request = validateAnyRequest(requestInput), found = entries.get(request.requestSha256); if (!found) return { kind: "miss" as const }; if (found.state === "settled") return { kind: "hit" as const, result: found.result! }; return { kind: "occupied" as const, state: found.state }; },
+      /** Read-only evidence for an explicitly authorized ingestion-vector recovery.
+       * An empty transport failure remains occupied and fully reserved. */
+      inspectIngestEmbeddingFailure: (requestInput: unknown) => {
+        custody(); const request = validateMem0Request(requestInput), found = entries.get(request.requestSha256);
+        if (request.kind !== "embedding" || request.operation !== "ingest-embed" || !found
+          || found.state !== "captured" || found.raw === null || found.raw.length !== 0 || found.transport === null
+          || found.transport.httpStatus !== null || found.transport.complete || found.transport.receivedBytes !== 0
+          || found.transport.error !== "network") fail("ineligible ingestion embedding recovery failure");
+        const evidence = Object.freeze({ protocol: "oh.memory.mem0-ingest-embedding-failure.v1" as const,
+          requestSha256: request.requestSha256, rawSha256: sha256Hex(found.raw), transport: Object.freeze({ ...found.transport }) });
+        return Object.freeze({ ...evidence, evidenceSha256: canonicalSha256(evidence) });
+      },
       admit: (requestInput: unknown) => mutate(async () => { custody(); const request = validateAnyRequest(requestInput); policyFor(request); if (entries.has(request.requestSha256) || entries.size >= authority.maximumCalls || exposure + request.reservationMicros > authority.additionalBudgetMicros) fail("duplicate or exhausted admission");
         if (request.protocol === "oh.memory.mem0-call.v2" || [...entries.values()].some(entry => entry.request.protocol === "oh.memory.mem0-call.v2")) {
           const pending = [...entries.values()].filter(entry => entry.state !== "settled").map(entry => ({ request: entry.request, state: entry.state as "reserved" | "captured" }));

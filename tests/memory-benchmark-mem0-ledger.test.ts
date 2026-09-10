@@ -197,3 +197,22 @@ test("aborted fetch and stalled response body are captured once and remain fully
   expect(current.summary().exposureMicros).toBe(makeMem0EmbeddingRequest(policy, 20, "query-embed", "fetch").reservationMicros * 2);
   await current.close();
 });
+
+test("ingestion failure inspection is read-only and rejects nonempty or non-ingestion outcomes", async () => {
+  const fixture = await ledger(), current = await fixture.ledger;
+  const request = makeMem0EmbeddingRequest(policy, 1, "ingest-embed", "alpha");
+  await current.admit(request); await current.capture(request, new Uint8Array(), {httpStatus:null,complete:false,receivedBytes:0,error:"network",serviceMs:1000});
+  const before = await readFile(join(fixture.directory,"ledger.jsonl"));
+  const evidence = current.inspectIngestEmbeddingFailure(request);
+  expect(evidence.rawSha256).toBe(sha256Hex("")); expect(evidence.requestSha256).toBe(request.requestSha256);
+  const {evidenceSha256,...payload}=evidence; expect(evidenceSha256).toBe(canonicalSha256(payload));
+  expect(await readFile(join(fixture.directory,"ledger.jsonl"))).toEqual(before);
+  expect(current.lookup(request)).toEqual({kind:"occupied",state:"captured"});
+  const query=makeMem0EmbeddingRequest(policy,2,"query-embed","alpha");
+  await current.admit(query);await current.capture(query,new Uint8Array(),{httpStatus:null,complete:false,receivedBytes:0,error:"network",serviceMs:1000});
+  expect(()=>current.inspectIngestEmbeddingFailure(query)).toThrow("ineligible");
+  const nonempty=makeMem0EmbeddingRequest(policy,3,"ingest-embed","alpha");
+  await current.admit(nonempty);await current.capture(nonempty,new Uint8Array([123]),{httpStatus:200,complete:false,receivedBytes:1,error:"body-read",serviceMs:1000});
+  expect(()=>current.inspectIngestEmbeddingFailure(nonempty)).toThrow("ineligible");await current.close();
+  expect(()=>current.inspectIngestEmbeddingFailure(request)).toThrow("closed");
+});
