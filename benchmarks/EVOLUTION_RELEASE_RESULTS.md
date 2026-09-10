@@ -172,6 +172,42 @@ contract, which caps a single query at 100 results, so a wider-evidence
 experiment needs a product change rather than a benchmark setting. The loop
 spent $11.65 across 1,308 requests.
 
+## Second round: evidence selection and answer calibration
+
+The failure atlas over all 500 mini-reader answers showed that the labeled
+evidence was inside Oh's context on 496 of 500 questions and on 49 of the 51
+misses, so the remaining gap is answer construction. Two mechanisms were built
+and tested on the 100 development questions with three repeats each and
+identical contexts per pool, scored by majority of three ($6.82, two
+unverifiable attempts scored zero; [summary](results/memory-evolution-two-stage-dev100-v1.json)).
+
+| Arm on Oh semantic 96 KB, GPT-5 mini answers | Majority of 3 | Mean | Paired vs baseline |
+| --- | ---: | ---: | --- |
+| Single-call combined contract (baseline) | 91 | 90.3 | |
+| Calibration-only contract (exact values, yes/no, concise preferences) | 95 | 92.7 | 4 wins, 0 losses |
+| Two-stage: nano evidence selection, then answer (routed questions) | 86 | 85.7 | 3 wins, 8 losses |
+| Two-stage on every question | 82 | 81.7 | 2 wins, 11 losses |
+
+Two-stage selection with a nano selector lost evidence: its fallbacks stayed
+under 5%, but selected contexts dropped turns the single-call reader used, and
+the loss grew on temporal questions. It is rejected. The calibration contract
+looked like a clean gain on the development set, so it was rebound onto the
+frozen 500-question contexts under a separate $10 campaign
+([summary](results/memory-evolution-full-release-500-calibration-v1.json)):
+
+| Reader on the frozen 500 contexts | BM25 window | Oh semantic | Paired Oh vs BM25 |
+| --- | ---: | ---: | --- |
+| GPT-5 mini, combined contract | 427 (85.4%) | 449 (89.8%) | 39 / 17 / 444 |
+| GPT-5 mini, calibration-only contract | 429 (85.8%) | 446 (89.2%) | 35 / 18 / 447 |
+
+On the full set the two contracts are indistinguishable: a three-question
+difference is inside the observed repeat variation of about four questions per
+hundred. The development gain did not transfer, which is exactly what the
+three-repeat development protocol is meant to expose before a claim is made.
+The stable finding across both contracts is the memory delta: Oh semantic beats
+the same reader on BM25 contexts by 17 to 22 questions with about twice as
+many paired wins as losses.
+
 ## Under a third-party harness
 
 To compare with other systems on someone else's protocol, Oh was run inside
@@ -332,6 +368,9 @@ frameworks under this same reader, judge and accounting.
   arm, category, exposure-stratum and paired summaries, deduplicated cost.
 - [Mini-reader public summary](results/memory-evolution-full-release-500-mini-v1.json):
   the same protocol over the rebound study with `gpt5-mini-explicit-abstention-composition-v1-reader`.
+- [Two-stage development summary](results/memory-evolution-two-stage-dev100-v1.json)
+  and [calibration-only full-500 summary](results/memory-evolution-full-release-500-calibration-v1.json):
+  the second-round experiments above.
 - [Development loop summary](results/memory-evolution-reader-loop-dev100-v1.json)
   and [MemEval summary](results/memory-evolution-memeval-102-v1.json): the
   development experiments and third-party harness runs above.
