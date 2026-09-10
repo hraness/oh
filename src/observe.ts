@@ -346,7 +346,8 @@ export function parseOhObservationRecordV1(value: unknown): OhObservationRecordV
   const record = parseKnowledgeGraphRecordV1(envelope);
   if (record === null || record.kind !== "edition" || !record.key.startsWith(OH_OBSERVATION_KEY_PREFIX_V1)) return null;
   const parsed = parseOhObservationValueV1(record.value);
-  if (parsed === null || parsed.sources.some((source) => !record.dependencies.includes(source.key))
+  const receipts = record.dependencies.filter((dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
+  if (parsed === null || receipts.length !== 1 || parsed.sources.some((source) => !record.dependencies.includes(source.key))
     || (parsed.supersedes !== null && !record.dependencies.includes(parsed.supersedes))) return null;
   return { ...record, kind: "edition", value: parsed };
 }
@@ -443,10 +444,19 @@ export function makeOhObservationPromptV1(session: OhObservationSessionV1): OhOb
     promptSha256: canonicalSha256(messages), sessionSha256: session.sessionSha256 };
 }
 
+/**
+ * Removes one optional Markdown code fence (bare or `json`) around the
+ * response. A linear scan, never a backtracking pattern: the response bound is
+ * 256 KiB and a degenerate fence must not stall the parser.
+ */
 function stripFence(raw: string): string {
   const trimmed = raw.trim();
-  const match = /^```(?:json)?\s*\n([\s\S]*?)\n\s*```$/u.exec(trimmed);
-  return match === null ? trimmed : (match[1] as string).trim();
+  if (trimmed.length < 6 || !trimmed.startsWith("```") || !trimmed.endsWith("```")) return trimmed;
+  const newline = trimmed.indexOf("\n");
+  if (newline === -1) return trimmed;
+  const header = trimmed.slice(3, newline).trim();
+  if (header !== "" && header !== "json") return trimmed;
+  return trimmed.slice(newline + 1, -3).trim();
 }
 
 function parseBoundedJson(raw: string): Readonly<{ ok: true; value: unknown }>
@@ -546,8 +556,12 @@ export function parseOhObservationStatedAtInstantV1(statedAt: string): number | 
   return Date.parse(`${date}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00.000Z`);
 }
 
-/** Session order of an observation: its receipt's session index, then the receipt instant, then the key. */
-export type OhObservationOrderV1 = readonly [sessionIndex: number, instant: string, key: string];
+/**
+ * Session order of an observation: its receipt's session index, then the
+ * receipt instant, then the key. A `null` index is incomparable: two orders
+ * compare by index only when both carry one, otherwise by instant.
+ */
+export type OhObservationOrderV1 = readonly [sessionIndex: number | null, instant: string, key: string];
 
 type SupersessionCandidate = Readonly<{ key: string; order: OhObservationOrderV1; value: OhObservationValueV1 }>;
 
@@ -555,19 +569,37 @@ function observationOrder(store: OhObserveStoreV1, key: string): OhObservationOr
   const sessionSha256 = key.slice(OH_OBSERVATION_KEY_PREFIX_V1.length, OH_OBSERVATION_KEY_PREFIX_V1.length + 64);
   const activity = store.get(ohObservationActivityKeyV1(sessionSha256 as Sha256Hex));
   const parsed = activity === null ? null : parseOhObservationActivityValueV1(activity.value);
-  return [parsed?.sessionIndex ?? -1, parsed?.observedAt ?? "", key];
+  return [parsed?.sessionIndex ?? null, parsed?.observedAt ?? "", key];
+}
+
+/** -1, 0, or 1 for the session position (index when both are known, then instant), ignoring the key. */
+function compareSession(left: OhObservationOrderV1, right: OhObservationOrderV1): -1 | 0 | 1 {
+  if (left[0] !== null && right[0] !== null && left[0] !== right[0]) return left[0] < right[0] ? -1 : 1;
+  return left[1] < right[1] ? -1 : left[1] > right[1] ? 1 : 0;
+}
+
+function compareOrder(left: OhObservationOrderV1, right: OhObservationOrderV1): -1 | 0 | 1 {
+  const session = compareSession(left, right);
+  if (session !== 0) return session;
+  return left[2] < right[2] ? -1 : left[2] > right[2] ? 1 : 0;
 }
 
 function laterOrder(left: OhObservationOrderV1, right: OhObservationOrderV1): boolean {
-  for (const index of [0, 1, 2] as const) {
-    if (left[index] !== right[index]) return left[index] > right[index];
-  }
-  return false;
+  return compareOrder(left, right) > 0;
 }
 
-/** Strictly later session position (index, then instant); the key tiebreak never makes a conflict. */
+/** Strictly later session position (index when both are known, then instant); the key tiebreak never makes a conflict. */
 function laterSession(left: OhObservationOrderV1, right: OhObservationOrderV1): boolean {
-  return left[0] !== right[0] ? left[0] > right[0] : left[1] > right[1];
+  return compareSession(left, right) > 0;
+}
+
+/** The shared conflict rule: session order first, then both statement stamps when they parse. */
+function orderingConflictBetween(prior: Readonly<{ order: OhObservationOrderV1; statedAt: string }>,
+  draft: Readonly<{ order?: OhObservationOrderV1; statedAt: string }>): boolean {
+  if (draft.order !== undefined && laterSession(prior.order, draft.order)) return true;
+  const priorInstant = parseOhObservationStatedAtInstantV1(prior.statedAt);
+  const draftInstant = parseOhObservationStatedAtInstantV1(draft.statedAt);
+  return priorInstant !== null && draftInstant !== null && priorInstant > draftInstant;
 }
 
 /**
@@ -649,10 +681,7 @@ export function resolveOhSupersessionV1(store: OhObserveStoreV1, draft: OhSupers
     if (head === null || laterOrder(candidate.order, head.order)) head = candidate;
   }
   if (head === null) return { candidatesTruncated, orderingConflict: false, supersedes: null };
-  const prior = parseOhObservationStatedAtInstantV1(head.value.statedAt);
-  const current = parseOhObservationStatedAtInstantV1(draft.statedAt);
-  const sessionConflict = draft.order !== undefined && laterSession(head.order, draft.order);
-  const orderingConflict = sessionConflict || (prior !== null && current !== null && prior > current);
+  const orderingConflict = orderingConflictBetween({ order: head.order, statedAt: head.value.statedAt }, draft);
   return { candidatesTruncated, orderingConflict, supersedes: head.key };
 }
 
@@ -709,15 +738,16 @@ export async function observeOhV1(input: OhObserveInputV1): Promise<OhObserveRes
       operation: null, responseSha256: activity.responseSha256, sessionSha256: session.sessionSha256, status: "existing" };
   }
   const prompt = makeOhObservationPromptV1(session);
-  const raw = await input.observer.observe(prompt);
-  const responseSha256 = sha256Hex(typeof raw === "string" ? raw : "");
+  const raw: unknown = await input.observer.observe(prompt);
+  if (typeof raw !== "string") throw new TypeError("Observer must return a string.");
+  const responseSha256 = sha256Hex(raw);
   const parsed = parseOhObservationResponseV1(raw, session);
   if (!parsed.ok) {
     return { index: parsed.index, rejection: parsed.rejection, responseSha256, sessionSha256: session.sessionSha256, status: "rejected" };
   }
   const sessionSources = session.turns.map((turn): OhObservationSourceV1 => ({ key: turn.key, recordSha256: turn.recordSha256, v: 1 }));
   // The draft's own session position: this receipt's index and instant. The key element is unused for the conflict rule.
-  const draftOrder: OhObservationOrderV1 = [session.sessionIndex ?? -1, instant, ""];
+  const draftOrder: OhObservationOrderV1 = [session.sessionIndex, instant, ""];
   const observationChanges: KnowledgeGraphChangeV1[] = [];
   const observationKeys: string[] = [];
   const candidatesTruncated: string[] = [];
@@ -727,7 +757,8 @@ export async function observeOhV1(input: OhObserveInputV1): Promise<OhObserveRes
     let link: OhSupersessionLinkV1 = NO_SUPERSESSION_LINK;
     if (input.supersession === true) {
       link = resolveOhSupersessionV1(input.store, { facet: draft.facet, order: draftOrder, speaker: draft.speaker, statedAt: session.date });
-      // Observations of the same session chain in response order ahead of the store's head.
+      // Observations of the same session chain in response order ahead of the store's head. They share one
+      // session position and one statement stamp, so the conflict rule yields false for an in-session link.
       for (const [priorKey, prior] of pending) {
         if (prior.facet !== null && prior.facet === draft.facet && prior.speaker === draft.speaker) {
           link = { ...link, orderingConflict: false, supersedes: priorKey };
@@ -773,12 +804,17 @@ export type OhSupersessionPolicyResultV1 = Readonly<{
 }>;
 
 /**
- * Links already committed observations (in the given order) to the current
- * chain head with the same facet and speaker, re-putting only records whose
- * link changed. Re-running it is safe: a record's own successors are never
- * candidates for it, so an existing chain is left as it is. Declared product
- * rule: a conflict between session order and statement timestamps is
- * recorded, never resolved by picking a value.
+ * Links already committed observations to the current chain head with the
+ * same facet and speaker, re-putting only records whose link changed. The
+ * batch is processed in session order (the receipt's index, then instant,
+ * then key), whatever order the caller lists the keys in, so batch order can
+ * never decide chain direction; `links` come back in that session order.
+ * Same-facet, same-speaker records of one batch chain to one another in
+ * session order ahead of the store's head, with the ordinary conflict rule.
+ * Re-running it is safe: a record's own successors are never candidates for
+ * it, so an existing chain is left as it is. Declared product rule: a conflict
+ * between session order and statement timestamps is recorded, never resolved
+ * by picking a value.
  */
 export function applySupersessionPolicyV1(input: OhSupersessionPolicyInputV1): OhSupersessionPolicyResultV1 {
   const actorId = safeCode(input.actorId);
@@ -786,27 +822,30 @@ export function applySupersessionPolicyV1(input: OhSupersessionPolicyInputV1): O
   if (actorId === null || instant === null || !Array.isArray(input.observationKeys)
     || input.observationKeys.length === 0 || input.observationKeys.length > 8_192) throw new TypeError("Invalid supersession input.");
   const exclude = new Set(input.observationKeys);
-  const changes: KnowledgeGraphChangeV1[] = [];
-  const links: Array<Readonly<{ key: string } & OhSupersessionLinkV1>> = [];
-  const pending = new Map<string, OhObservationValueV1>();
-  for (const key of input.observationKeys) {
+  const batch = [...exclude].map((key) => {
     const record = input.store.get(key);
     const parsed = record === null ? null : parseOhObservationRecordV1(record);
     if (parsed === null) throw new TypeError(`Not a current observation record: ${key}`);
+    return { key, order: observationOrder(input.store, key), parsed };
+  }).sort((left, right) => compareOrder(left.order, right.order));
+  const changes: KnowledgeGraphChangeV1[] = [];
+  const links: Array<Readonly<{ key: string } & OhSupersessionLinkV1>> = [];
+  const pending = new Map<string, Readonly<{ order: OhObservationOrderV1; value: OhObservationValueV1 }>>();
+  for (const { key, order, parsed } of batch) {
     const value = parsed.value;
-    let link = resolveOhSupersessionV1(input.store, { facet: value.facet, order: observationOrder(input.store, key),
-      speaker: value.speaker, statedAt: value.statedAt }, exclude);
+    let link = resolveOhSupersessionV1(input.store, { facet: value.facet, order, speaker: value.speaker, statedAt: value.statedAt }, exclude);
     for (const [priorKey, prior] of pending) {
-      if (prior.facet !== null && prior.facet === value.facet && prior.speaker === value.speaker) {
-        link = { ...link, orderingConflict: false, supersedes: priorKey };
+      if (prior.value.facet !== null && prior.value.facet === value.facet && prior.value.speaker === value.speaker) {
+        const orderingConflict = orderingConflictBetween({ order: prior.order, statedAt: prior.value.statedAt }, { order, statedAt: value.statedAt });
+        link = { ...link, orderingConflict, supersedes: priorKey };
       }
     }
     const next: OhObservationValueV1 = { ...value, orderingConflict: link.orderingConflict, supersedes: link.supersedes };
-    pending.set(key, next);
+    pending.set(key, { order, value: next });
     links.push({ key, ...link });
     if (next.supersedes !== value.supersedes || next.orderingConflict !== value.orderingConflict) {
-      const activityKey = parsed.dependencies.find((dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
-      if (activityKey === undefined) throw new TypeError(`Observation lacks its receipt dependency: ${key}`);
+      // The record parser guarantees exactly one receipt dependency.
+      const activityKey = parsed.dependencies.find((dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1)) as string;
       assertCurrentSources(input.store, next.sources);
       changes.push({ kind: "put", record: observationRecord(key, activityKey, next), v: 1 });
     }

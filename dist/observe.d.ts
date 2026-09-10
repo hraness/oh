@@ -181,8 +181,12 @@ export declare function makeOhObservationPromptV1(session: OhObservationSessionV
 export declare function parseOhObservationResponseV1(raw: unknown, session: OhObservationSessionV1): OhObservationParseResultV1;
 /** Extracts the first calendar date (and optional clock time) from a free-form session date. */
 export declare function parseOhObservationStatedAtInstantV1(statedAt: string): number | null;
-/** Session order of an observation: its receipt's session index, then the receipt instant, then the key. */
-export type OhObservationOrderV1 = readonly [sessionIndex: number, instant: string, key: string];
+/**
+ * Session order of an observation: its receipt's session index, then the
+ * receipt instant, then the key. A `null` index is incomparable: two orders
+ * compare by index only when both carry one, otherwise by instant.
+ */
+export type OhObservationOrderV1 = readonly [sessionIndex: number | null, instant: string, key: string];
 export type OhSupersessionLinkV1 = Readonly<{
     candidatesTruncated: boolean;
     orderingConflict: boolean;
@@ -240,12 +244,17 @@ export type OhSupersessionPolicyResultV1 = Readonly<{
     operation: OhOperationV1 | null;
 }>;
 /**
- * Links already committed observations (in the given order) to the current
- * chain head with the same facet and speaker, re-putting only records whose
- * link changed. Re-running it is safe: a record's own successors are never
- * candidates for it, so an existing chain is left as it is. Declared product
- * rule: a conflict between session order and statement timestamps is
- * recorded, never resolved by picking a value.
+ * Links already committed observations to the current chain head with the
+ * same facet and speaker, re-putting only records whose link changed. The
+ * batch is processed in session order (the receipt's index, then instant,
+ * then key), whatever order the caller lists the keys in, so batch order can
+ * never decide chain direction; `links` come back in that session order.
+ * Same-facet, same-speaker records of one batch chain to one another in
+ * session order ahead of the store's head, with the ordinary conflict rule.
+ * Re-running it is safe: a record's own successors are never candidates for
+ * it, so an existing chain is left as it is. Declared product rule: a conflict
+ * between session order and statement timestamps is recorded, never resolved
+ * by picking a value.
  */
 export declare function applySupersessionPolicyV1(input: OhSupersessionPolicyInputV1): OhSupersessionPolicyResultV1;
 /** A bounded lexical recommendation detector; not a category router. */

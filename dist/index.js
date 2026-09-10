@@ -17747,7 +17747,8 @@ function parseOhObservationRecordV1(value) {
   if (record === null || record.kind !== "edition" || !record.key.startsWith(OH_OBSERVATION_KEY_PREFIX_V1))
     return null;
   const parsed = parseOhObservationValueV1(record.value);
-  if (parsed === null || parsed.sources.some((source) => !record.dependencies.includes(source.key)) || parsed.supersedes !== null && !record.dependencies.includes(parsed.supersedes))
+  const receipts = record.dependencies.filter((dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
+  if (parsed === null || receipts.length !== 1 || parsed.sources.some((source) => !record.dependencies.includes(source.key)) || parsed.supersedes !== null && !record.dependencies.includes(parsed.supersedes))
     return null;
   return { ...record, kind: "edition", value: parsed };
 }
@@ -17848,8 +17849,16 @@ function makeOhObservationPromptV1(session) {
 }
 function stripFence(raw) {
   const trimmed = raw.trim();
-  const match14 = /^```(?:json)?\s*\n([\s\S]*?)\n\s*```$/u.exec(trimmed);
-  return match14 === null ? trimmed : match14[1].trim();
+  if (trimmed.length < 6 || !trimmed.startsWith("```") || !trimmed.endsWith("```"))
+    return trimmed;
+  const newline = trimmed.indexOf(`
+`);
+  if (newline === -1)
+    return trimmed;
+  const header = trimmed.slice(3, newline).trim();
+  if (header !== "" && header !== "json")
+    return trimmed;
+  return trimmed.slice(newline + 1, -3).trim();
 }
 function parseBoundedJson(raw) {
   let value;
@@ -17972,17 +17981,31 @@ function observationOrder(store, key) {
   const sessionSha256 = key.slice(OH_OBSERVATION_KEY_PREFIX_V1.length, OH_OBSERVATION_KEY_PREFIX_V1.length + 64);
   const activity = store.get(ohObservationActivityKeyV1(sessionSha256));
   const parsed = activity === null ? null : parseOhObservationActivityValueV1(activity.value);
-  return [parsed?.sessionIndex ?? -1, parsed?.observedAt ?? "", key];
+  return [parsed?.sessionIndex ?? null, parsed?.observedAt ?? "", key];
+}
+function compareSession(left3, right3) {
+  if (left3[0] !== null && right3[0] !== null && left3[0] !== right3[0])
+    return left3[0] < right3[0] ? -1 : 1;
+  return left3[1] < right3[1] ? -1 : left3[1] > right3[1] ? 1 : 0;
+}
+function compareOrder(left3, right3) {
+  const session = compareSession(left3, right3);
+  if (session !== 0)
+    return session;
+  return left3[2] < right3[2] ? -1 : left3[2] > right3[2] ? 1 : 0;
 }
 function laterOrder(left3, right3) {
-  for (const index of [0, 1, 2]) {
-    if (left3[index] !== right3[index])
-      return left3[index] > right3[index];
-  }
-  return false;
+  return compareOrder(left3, right3) > 0;
 }
 function laterSession(left3, right3) {
-  return left3[0] !== right3[0] ? left3[0] > right3[0] : left3[1] > right3[1];
+  return compareSession(left3, right3) > 0;
+}
+function orderingConflictBetween(prior, draft) {
+  if (draft.order !== undefined && laterSession(prior.order, draft.order))
+    return true;
+  const priorInstant = parseOhObservationStatedAtInstantV1(prior.statedAt);
+  const draftInstant = parseOhObservationStatedAtInstantV1(draft.statedAt);
+  return priorInstant !== null && draftInstant !== null && priorInstant > draftInstant;
 }
 function reachesExcluded(store, start3, exclude3, memo) {
   const path = [];
@@ -18044,10 +18067,7 @@ function resolveOhSupersessionV1(store, draft, exclude3 = new Set) {
   }
   if (head5 === null)
     return { candidatesTruncated, orderingConflict: false, supersedes: null };
-  const prior = parseOhObservationStatedAtInstantV1(head5.value.statedAt);
-  const current = parseOhObservationStatedAtInstantV1(draft.statedAt);
-  const sessionConflict = draft.order !== undefined && laterSession(head5.order, draft.order);
-  const orderingConflict = sessionConflict || prior !== null && current !== null && prior > current;
+  const orderingConflict = orderingConflictBetween({ order: head5.order, statedAt: head5.value.statedAt }, draft);
   return { candidatesTruncated, orderingConflict, supersedes: head5.key };
 }
 function observationRecord(key, activityKey, value) {
@@ -18098,13 +18118,15 @@ async function observeOhV1(input) {
   }
   const prompt = makeOhObservationPromptV1(session);
   const raw = await input.observer.observe(prompt);
-  const responseSha256 = sha256Hex(typeof raw === "string" ? raw : "");
+  if (typeof raw !== "string")
+    throw new TypeError("Observer must return a string.");
+  const responseSha256 = sha256Hex(raw);
   const parsed = parseOhObservationResponseV1(raw, session);
   if (!parsed.ok) {
     return { index: parsed.index, rejection: parsed.rejection, responseSha256, sessionSha256: session.sessionSha256, status: "rejected" };
   }
   const sessionSources = session.turns.map((turn) => ({ key: turn.key, recordSha256: turn.recordSha256, v: 1 }));
-  const draftOrder = [session.sessionIndex ?? -1, instant, ""];
+  const draftOrder = [session.sessionIndex, instant, ""];
   const observationChanges = [];
   const observationKeys = [];
   const candidatesTruncated = [];
@@ -18189,33 +18211,30 @@ function applySupersessionPolicyV1(input) {
   if (actorId === null || instant === null || !Array.isArray(input.observationKeys) || input.observationKeys.length === 0 || input.observationKeys.length > 8192)
     throw new TypeError("Invalid supersession input.");
   const exclude3 = new Set(input.observationKeys);
-  const changes = [];
-  const links = [];
-  const pending3 = new Map;
-  for (const key of input.observationKeys) {
+  const batch = [...exclude3].map((key) => {
     const record = input.store.get(key);
     const parsed = record === null ? null : parseOhObservationRecordV1(record);
     if (parsed === null)
       throw new TypeError(`Not a current observation record: ${key}`);
+    return { key, order: observationOrder(input.store, key), parsed };
+  }).sort((left3, right3) => compareOrder(left3.order, right3.order));
+  const changes = [];
+  const links = [];
+  const pending3 = new Map;
+  for (const { key, order, parsed } of batch) {
     const value = parsed.value;
-    let link = resolveOhSupersessionV1(input.store, {
-      facet: value.facet,
-      order: observationOrder(input.store, key),
-      speaker: value.speaker,
-      statedAt: value.statedAt
-    }, exclude3);
+    let link = resolveOhSupersessionV1(input.store, { facet: value.facet, order, speaker: value.speaker, statedAt: value.statedAt }, exclude3);
     for (const [priorKey, prior] of pending3) {
-      if (prior.facet !== null && prior.facet === value.facet && prior.speaker === value.speaker) {
-        link = { ...link, orderingConflict: false, supersedes: priorKey };
+      if (prior.value.facet !== null && prior.value.facet === value.facet && prior.value.speaker === value.speaker) {
+        const orderingConflict = orderingConflictBetween({ order: prior.order, statedAt: prior.value.statedAt }, { order, statedAt: value.statedAt });
+        link = { ...link, orderingConflict, supersedes: priorKey };
       }
     }
     const next = { ...value, orderingConflict: link.orderingConflict, supersedes: link.supersedes };
-    pending3.set(key, next);
+    pending3.set(key, { order, value: next });
     links.push({ key, ...link });
     if (next.supersedes !== value.supersedes || next.orderingConflict !== value.orderingConflict) {
       const activityKey = parsed.dependencies.find((dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
-      if (activityKey === undefined)
-        throw new TypeError(`Observation lacks its receipt dependency: ${key}`);
       assertCurrentSources(input.store, next.sources);
       changes.push({ kind: "put", record: observationRecord(key, activityKey, next), v: 1 });
     }

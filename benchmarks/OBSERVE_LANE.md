@@ -56,3 +56,12 @@ Retrieval does not yet read the artifact. Appending derived records to a
 prepared corpus, the semantic cache key extension, the `oh-recall-mq-obs`
 systems and the derived-item result protocol are separate changes on top of
 the recall work.
+
+`renderOhObservationContextV1` gates its `Remembered preferences` block on
+`isOhRecommendationQueryV1`, a query-side lexical router. It reads no label
+and is corpus-general, but the methodology treats any router as a shared
+mechanism: when the recall work wires it, the same routing decision must be
+applied to every retrieval arm, including the controls' derived-free
+rendering path, and audited for category leakage (the share of routed
+queries per category on the development partition, declared before the
+read), before any Phase B read is taken.

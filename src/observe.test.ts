@@ -150,6 +150,8 @@ describe("bounded observation response parser", () => {
       speaker: "user", text: "user started a pottery class at Kiln House." });
     const fenced = "```json\n" + responseOne + "\n```";
     expect(parseOhObservationResponseV1(fenced, session)).toEqual(parsed);
+    expect(parseOhObservationResponseV1("```\n" + responseOne + "\n\n```\n", session)).toEqual(parsed);
+    expect(parseOhObservationResponseV1("```yaml\n" + responseOne + "\n```", session)).toMatchObject({ ok: false, rejection: "response-not-json" });
     expect(parseOhObservationResponseV1(JSON.stringify({ observations: [] }), session)).toEqual({ observations: [], ok: true });
   });
 
@@ -159,6 +161,9 @@ describe("bounded observation response parser", () => {
       ["response-too-large", 42],
       ["response-not-json", "not json"],
       ["response-not-json", "[".repeat(20) + "]".repeat(20)],
+      ["response-not-json", "```\n\n" + "\n".repeat(200_000)],
+      ["response-not-json", "```json\n" + "\n".repeat(200_000) + "```"],
+      ["response-not-json", "```" + "\n".repeat(100_000) + "```" + "\n".repeat(100_000) + "```"],
       ["response-duplicate-key", "{\"observations\":[],\"observations\":[]}"],
       ["response-shape", "{\"observations\":[],\"extra\":1}"],
       ["response-shape", "{\"observations\":{}}"],
@@ -168,6 +173,7 @@ describe("bounded observation response parser", () => {
       ["text", withFirst({ text: "" })],
       ["text", withFirst({ text: "a".repeat(OH_OBSERVATION_LIMITS_V1.textBytes + 1) })],
       ["text", withFirst({ text: "two\nlines" })],
+      ["text", withFirst({ text: "user drinks cafe\u0301 in the afternoon." })],
       ["speaker", withFirst({ speaker: 7 })],
       ["speaker-attribution", withFirst({ speaker: "assistant" })],
       ["kind", withFirst({ kind: "opinion" })],
@@ -185,9 +191,12 @@ describe("bounded observation response parser", () => {
       ["duplicate-text", JSON.stringify({ observations: [good.observations[0], good.observations[0]] })],
     ];
     for (const [rejection, raw] of matrix) {
+      const started = performance.now();
       const parsed = parseOhObservationResponseV1(raw, session);
-      expect({ raw: String(raw).slice(0, 40), rejection: parsed.ok ? "accepted" : parsed.rejection })
-        .toEqual({ raw: String(raw).slice(0, 40), rejection });
+      // Every rejection, including a degenerate code fence near the response bound, is decided in linear time.
+      expect(performance.now() - started).toBeLessThan(100);
+      expect({ raw: JSON.stringify(raw).slice(0, 40), rejection: parsed.ok ? "accepted" : parsed.rejection })
+        .toEqual({ raw: JSON.stringify(raw).slice(0, 40), rejection });
       expect(OH_OBSERVATION_REJECTIONS_V1).toContain(rejection);
     }
     const covered = new Set(matrix.map(([rejection]) => rejection));
@@ -213,8 +222,15 @@ describe("observation profile codec", () => {
     expect(registry.parseRequired("edition", { title: "page" })).toBeNull();
     expect(parseOhObservationRecordV1(createKnowledgeGraphRecordV1({ dependencies: [], key: "edition:obs-a-000", kind: "edition",
       v: 1, value }))).toBeNull();
+    // The dependencies must name every cited source and exactly one receipt.
     expect(parseOhObservationRecordV1(createKnowledgeGraphRecordV1({ dependencies: ["edition:turn-00000"], key: "edition:obs-a-000",
-      kind: "edition", v: 1, value }))?.value).toEqual(value as never);
+      kind: "edition", v: 1, value }))).toBeNull();
+    expect(parseOhObservationRecordV1(createKnowledgeGraphRecordV1({ dependencies: ["activity:observe-a"], key: "edition:obs-a-000",
+      kind: "edition", v: 1, value }))).toBeNull();
+    expect(parseOhObservationRecordV1(createKnowledgeGraphRecordV1({ dependencies: ["activity:observe-a", "activity:observe-b", "edition:turn-00000"],
+      key: "edition:obs-a-000", kind: "edition", v: 1, value }))).toBeNull();
+    expect(parseOhObservationRecordV1(createKnowledgeGraphRecordV1({ dependencies: ["activity:observe-a", "edition:turn-00000"],
+      key: "edition:obs-a-000", kind: "edition", v: 1, value }))?.value).toEqual(value as never);
   });
 
   test("reads calendar dates out of free-form statement stamps", () => {
@@ -359,6 +375,19 @@ describe("observeOhV1", () => {
       expect(applied.operation).toBeNull();
       expect(applied.links.find((link) => link.key === frequencyOne)?.supersedes ?? null).toBeNull();
     }
+    // Batch order never decides chain direction: a descending or shuffled batch is processed in session order.
+    for (const observationKeys of [[frequencyTwo, frequencyOne], [frequencyThree, frequencyOne, frequencyTwo],
+      [frequencyThree, frequencyTwo], [frequencyTwo, frequencyTwo, frequencyOne]]) {
+      const applied = applySupersessionPolicyV1({ actorId: "agent.policy", instant: "2026-04-02T00:00:03.000Z", observationKeys, store });
+      expect(applied.operation).toBeNull();
+      expect(applied.links.map((link) => link.key)).toEqual([...new Set(observationKeys)].sort((left, right) =>
+        [frequencyOne, frequencyTwo, frequencyThree].indexOf(left) - [frequencyOne, frequencyTwo, frequencyThree].indexOf(right)));
+      expect(applied.links.find((link) => link.key === frequencyOne)?.supersedes ?? null).toBeNull();
+      expect(applied.links.find((link) => link.key === frequencyTwo)?.supersedes).toBe(frequencyOne);
+      if (observationKeys.includes(frequencyThree)) {
+        expect(applied.links.find((link) => link.key === frequencyThree)).toMatchObject({ orderingConflict: true, supersedes: frequencyTwo });
+      }
+    }
     expect(store.head().sequence).toBe(sequence);
     expect(parseOhObservationRecordV1(store.get(frequencyOne))!.value.supersedes).toBeNull();
     expect(parseOhObservationRecordV1(store.get(frequencyTwo))!.value.supersedes).toBe(frequencyOne);
@@ -396,6 +425,36 @@ describe("observeOhV1", () => {
       statedAt: "April 1 2026" })).toEqual({ candidatesTruncated: false, orderingConflict: true, supersedes: earlierResult.observationKeys[0]! });
     expect(resolveOhSupersessionV1(store, { facet: "pottery-frequency", order: [2, "2026-04-02T00:00:01.000Z", ""], speaker: "user",
       statedAt: "April 1 2026" })).toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: earlierResult.observationKeys[0]! });
+    store.close();
+  });
+
+  test("treats a missing session index as incomparable, never as earlier than every indexed session", async () => {
+    const indexed: readonly Turn[] = [{ id: "i:0", sessionId: "i", sessionIndex: 3, date: "2026-03-14", speaker: "user",
+      text: "I go to pottery class twice a week." }];
+    const unindexed: readonly Turn[] = [{ id: "u:0", sessionId: "u", date: "2026-03-28", speaker: "user",
+      text: "Pottery update: I now go three times a week instead of twice." }];
+    const { keys, store } = openStoreWith({ indexed, unindexed });
+    const stub = observer({ "2026-03-28": responseTwo, "2026-03-14": JSON.stringify({ observations: [
+      { text: "user goes to pottery class twice a week.", speaker: "user", kind: "fact", eventAt: null, resolvedFrom: null,
+        facet: "pottery-frequency", sources: ["t0"] }] }) });
+    const common = { actorId: "agent.observe", observer: stub, store, supersession: true } as const;
+    const indexedResult = await observeOhV1({ ...common, instant: "2026-04-02T00:00:00.000Z", sessionRecordKeys: keys.indexed });
+    const unindexedResult = await observeOhV1({ ...common, instant: "2026-04-02T00:00:01.000Z", sessionRecordKeys: keys.unindexed });
+    if (indexedResult.status !== "committed" || unindexedResult.status !== "committed") throw new Error("commit");
+    const linked = parseOhObservationRecordV1(store.get(unindexedResult.observationKeys[0]!))!.value;
+    expect(linked).toMatchObject({ orderingConflict: false, supersedes: indexedResult.observationKeys[0]! });
+    expect(parseOhObservationActivityValueV1(store.get(unindexedResult.activityKey)!.value)!.sessionIndex).toBeNull();
+    // A draft without a session index compares by instant only: later than the head's receipt, no conflict; earlier, a conflict.
+    const draft = { facet: "pottery-frequency", speaker: "user", statedAt: "April 1 2026" } as const;
+    expect(resolveOhSupersessionV1(store, { ...draft, order: [null, "2026-04-02T00:00:05.000Z", ""] }))
+      .toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: unindexedResult.observationKeys[0]! });
+    expect(resolveOhSupersessionV1(store, { ...draft, order: [null, "2026-04-02T00:00:00.500Z", ""] }))
+      .toEqual({ candidatesTruncated: false, orderingConflict: true, supersedes: unindexedResult.observationKeys[0]! });
+    // An indexed draft against the unindexed head also compares by instant, whatever its index.
+    expect(resolveOhSupersessionV1(store, { ...draft, order: [0, "2026-04-02T00:00:05.000Z", ""] }))
+      .toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: unindexedResult.observationKeys[0]! });
+    expect(applySupersessionPolicyV1({ actorId: "agent.policy", instant: "2026-04-02T00:00:06.000Z",
+      observationKeys: [...unindexedResult.observationKeys, ...indexedResult.observationKeys], store }).operation).toBeNull();
     store.close();
   });
 
@@ -462,6 +521,16 @@ describe("observeOhV1", () => {
       instant: "2026-04-01T00:00:01.000Z", operationId: "op_page" });
     await expect(observeOhV1({ actorId: "agent.observe", instant: "2026-04-02T00:00:00.000Z", observer: stub,
       sessionRecordKeys: ["edition:page"], store })).rejects.toThrow("Invalid session turn record");
+    // A turn record is exactly the documented keys: one extra key is not a session turn.
+    store.commit({ actorId: "agent.test", changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({ dependencies: [],
+      key: "edition:turn-extra", kind: "edition", v: 1, value: { ...sessionOne[0]!, corpusId: "c" } }), v: 1 }], expectedHead: store.head(),
+      instant: "2026-04-01T00:00:02.000Z", operationId: "op_extra" });
+    expect(() => parseOhObservationSessionV1([store.get("edition:turn-extra")!])).toThrow("Invalid session turn record: edition:turn-extra");
+    // The observer contract is a string; anything else is a caller error, not a parser rejection.
+    const wrong = { modelId: "stub/wrong", observe: () => 42 as unknown as string } satisfies OhObserverV1;
+    await expect(observeOhV1({ actorId: "agent.observe", instant: "2026-04-02T00:00:00.000Z", observer: wrong,
+      sessionRecordKeys: keys.one, store })).rejects.toThrow("Observer must return a string.");
+    expect(store.get(ohObservationActivityKeyV1(parseOhObservationSessionV1(keys.one.map((key) => store.get(key)!)).sessionSha256))).toBeNull();
     store.close();
   });
 });
