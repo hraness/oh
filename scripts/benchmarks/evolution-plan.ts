@@ -1,6 +1,7 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
 import { assertExactEvolutionCoverage, type EvolutionRunnerInput, type EvolutionRunnerQuestion } from "./evolution-dataset";
-import { createEvolutionContextSourceValidator, prepareEvolutionCorpus, type EvolutionPreparedCorpus, type EvolutionRetrievalResult, type EvolutionRetrievalVariant } from "./evolution-retrieval";
+import { createEvolutionContextSourceValidator, evolutionSystemUsesSemantic, isEvolutionRecallSystem, prepareEvolutionCorpus,
+  type EvolutionAnyRetrievalResult, type EvolutionPreparedCorpus, type EvolutionRetrievalResult, type EvolutionRetrievalVariant } from "./evolution-retrieval";
 import { createOhSourceSpanPacker, OH_SPAN_POLICY, OH_SPAN_POOL_VARIANT, type OhSourceSpanResult } from "./evolution-spans";
 import { isEvolutionSpanVariant, parseEvolutionExperimentVariant, type EvolutionExperimentVariant } from "./evolution-variants";
 import { makeEvolutionRequest, makeEvolutionProfileWindowRequest, evolutionReaderContract, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "./evolution-model";
@@ -15,12 +16,13 @@ import { validateEvolutionReleaseContextPlanEnvelope, validateEvolutionReleaseCo
 
 import { validateEvolutionFullContextPlanEnvelope, validateEvolutionFullContextPlanSources, type EvolutionFullContextPlan } from "./evolution-full-context-plan";
 
-export type EvolutionContextCase = Readonly<{ questionId: string; variantId: string; result: EvolutionRetrievalResult }>;
+/** Native systems keep the V1 whole-turn result; recall systems carry the V2 result with the question instant. */
+export type EvolutionContextCase = Readonly<{ questionId: string; variantId: string; result: EvolutionAnyRetrievalResult }>;
 export type EvolutionContextPlan = Readonly<{ protocol: "oh.memory.evolution-context-plan.v1"; manifestSha256: string;
   retrievalSourceSha256: string; inputSha256: string; variants: readonly EvolutionRetrievalVariant[];
   questions: readonly EvolutionRunnerQuestion[]; cases: readonly EvolutionContextCase[]; planSha256: string }>;
 export type EvolutionContextCaseV2 = Readonly<{ questionId: string; variantId: string }> & (
-  Readonly<{ kind: "whole-turn"; result: EvolutionRetrievalResult }> | Readonly<{ kind: "source-spans"; result: OhSourceSpanResult }>);
+  Readonly<{ kind: "whole-turn"; result: EvolutionAnyRetrievalResult }> | Readonly<{ kind: "source-spans"; result: OhSourceSpanResult }>);
 export type EvolutionContextPlanV2 = Readonly<{ protocol: "oh.memory.evolution-context-plan.v2"; manifestSha256: string;
   retrievalSourceSha256: string; inputSha256: string; variants: readonly EvolutionExperimentVariant[];
   questions: readonly EvolutionRunnerQuestion[]; cases: readonly EvolutionContextCaseV2[];
@@ -34,7 +36,8 @@ export type EvolutionReaderPlan = Readonly<{ protocol: "oh.memory.evolution-read
 function fail(reason: string): never { throw new TypeError(`Evolution plan: ${reason}.`); }
 const digest = (value: string) => { if (parseSha256Hex(value) === null) fail("invalid digest"); return value; };
 const pair = (question: string, variant: string) => JSON.stringify([question, variant]);
-const semanticVariant = (variant: Readonly<{ system: string }>) => variant.system === "oh-semantic" || variant.system === "oh-hybrid";
+const semanticVariant = (variant: Readonly<{ system: string }>) => evolutionSystemUsesSemantic(variant.system);
+const resultProtocol = (variant: Readonly<{ system: string }>) => isEvolutionRecallSystem(variant.system) ? "oh.evolution-retrieval.v2" : "oh.evolution-retrieval.v1";
 
 /** Prepare once, then run any reader matrix against the identical source-backed contexts.
  * The input has already crossed the gold-free projection boundary; no labels enter retrieval. */
@@ -60,7 +63,7 @@ export async function makeEvolutionContextPlan(input: Readonly<{ dataset: Evolut
       const preparationMs = performance.now() - start, queryStart = performance.now();
       for (const question of questions) for (const variant of variants) {
         cases.push({ questionId: question.id, variantId: variant.id,
-          result: await prepared.get(semanticVariant(variant))!.retrieve(question.question, variant) });
+          result: await prepared.get(semanticVariant(variant))!.retrieve(question.question, variant, question.questionDate) });
       }
       timing.push({ corpusId: corpus.id, preparationMs, retrievalMs: performance.now() - queryStart,
         queries: [...prepared.values()].reduce((sum, value) => sum + value.stats.queryCount, 0) });
@@ -162,7 +165,7 @@ export async function makeEvolutionExperimentContextPlan(input: Readonly<{ datas
         for (const variant of variants) {
           if (isEvolutionSpanVariant(variant)) cases.push({ questionId: question.id, variantId: variant.id, kind: "source-spans",
             result: spans.pack(question.question, pool, { contextBytes: variant.budget.contextBytes }) });
-          else cases.push({ questionId: question.id, variantId: variant.id, kind: "whole-turn", result: await prepared.retrieve(question.question, variant) });
+          else cases.push({ questionId: question.id, variantId: variant.id, kind: "whole-turn", result: await prepared.retrieve(question.question, variant, question.questionDate) });
         }
       }
       timing.push({ corpusId: corpus.id, preparationMs, retrievalMs: performance.now() - queryStart, queries: prepared.stats.queryCount });
@@ -178,7 +181,7 @@ export async function makeEvolutionExperimentContextPlan(input: Readonly<{ datas
   return { plan, timing };
 }
 
-export function validateEvolutionLegacyResultEnvelope(value: unknown, question: EvolutionRunnerQuestion, byteLimit: number): asserts value is EvolutionRetrievalResult | OhSourceSpanResult {
+export function validateEvolutionLegacyResultEnvelope(value: unknown, question: EvolutionRunnerQuestion, byteLimit: number): asserts value is EvolutionAnyRetrievalResult | OhSourceSpanResult {
   const boundedText = (v: unknown, max = 512) => typeof v === "string" && Buffer.byteLength(v) <= max;
   const integer = (v: unknown, max: number) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= max;
   const common = ["protocol", "preparedSha256", "querySha256", "context", "contextSha256", "contextBytes", "turnIds", "sessionIds", "resultSha256"];
@@ -196,6 +199,17 @@ export function validateEvolutionLegacyResultEnvelope(value: unknown, question: 
       || value.facets.some(v => !boundedText(v, 16_384)) || !Array.isArray(value.coveredFacets)
       || value.coveredFacets.length > value.facets.length || value.coveredFacets.some(v => !integer(v, 3))
       || ![null, "lexical-clause"].includes(value.coverageKind as null | string)) fail("invalid whole-turn result contract");
+    for (const source of value.sources) if (!isPlainRecord(source) || !hasExactKeys(source, ["turnId", "sessionId", "key", "recordSha256"])
+      || ![source.turnId, source.sessionId, source.key].every(v => boundedText(v)) || parseSha256Hex(source.recordSha256) === null) fail("invalid source record identity");
+  } else if (value.protocol === "oh.evolution-retrieval.v2") {
+    if (!hasExactKeys(value, [...common, "variantSha256", "asOf", "renderer", "queries", "window", "sources", "derived", "omittedForBudget"])
+      || parseSha256Hex(value.variantSha256) === null || !(value.asOf === null || typeof value.asOf === "string" && boundedText(value.asOf, 24))
+      || value.renderer !== "oh.recall-render.v1" || !Array.isArray(value.queries) || value.queries.length < 1 || value.queries.length > 6
+      || value.queries.some(v => !boundedText(v, 16_384)) || new Set(value.queries).size !== value.queries.length
+      || !(value.window === null || isPlainRecord(value.window) && hasExactKeys(value.window, ["since", "until", "v"])
+        && boundedText(value.window.since, 24) && boundedText(value.window.until, 24) && value.window.v === 1)
+      || !Array.isArray(value.sources) || value.sources.length !== value.turnIds.length
+      || !Array.isArray(value.derived) || value.derived.length !== 0 || !integer(value.omittedForBudget, 8192)) fail("invalid recall result contract");
     for (const source of value.sources) if (!isPlainRecord(source) || !hasExactKeys(source, ["turnId", "sessionId", "key", "recordSha256"])
       || ![source.turnId, source.sessionId, source.key].every(v => boundedText(v)) || parseSha256Hex(source.recordSha256) === null) fail("invalid source record identity");
   } else if (value.protocol === "oh.evolution-source-spans.v1") {
@@ -255,7 +269,7 @@ export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): 
         || c.result.poolResultSha256 !== pool.resultSha256 || c.result.preparedSha256 !== pool.preparedSha256
         || c.result.contextByteLimit !== variant.budget.contextBytes || c.result.policySha256 !== canonicalSha256(OH_SPAN_POLICY)
         || !Array.isArray(c.result.spans) || c.result.spans.length > OH_SPAN_POLICY.maximumSpans) fail("V2 span treatment or pool binding changed");
-    } else if (c.kind !== "whole-turn" || c.result.protocol !== "oh.evolution-retrieval.v1"
+    } else if (c.kind !== "whole-turn" || c.result.protocol !== resultProtocol(variant)
       || c.result.variantSha256 !== canonicalSha256(variant)) fail("V2 whole-turn treatment changed");
   }
   const { planSha256, ...payload } = plan;
@@ -296,9 +310,12 @@ export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPla
         // The validated variant/result binding chooses the expected prepared identity.
         // A resealed keyword result must not be admitted as semantic (or vice versa).
         const variant = plan.variants.find(v => v.id === c.variantId)!;
+        if (c.result.protocol !== resultProtocol(variant)) fail("result protocol differs from the variant system");
         if (semanticVariant(variant)) {
           validateSemantic ??= createEvolutionContextSourceValidator(source, { semantic: true });
-          validateSemantic(c.result);
+          // Recall results re-render under the question instant; the validator must see the question.
+          if (isEvolutionRecallSystem(variant.system)) validateSemantic(c.result, { question: q.question, questionDate: q.questionDate, system: variant.system });
+          else validateSemantic(c.result);
         } else validate(c.result);
       }
     }

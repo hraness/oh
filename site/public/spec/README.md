@@ -25,6 +25,8 @@ binds these versions:
 | Composite memory | `stable V1 authority over V2 query` |
 | Memory page | `oh.memory-page.v1` |
 | Observation | `oh.observation.v1` |
+| Recall rendering | `oh.recall-render.v1` |
+| Recall date grammar | `oh.recall-date-grammar.v1` |
 
 ## V1 documents
 
@@ -43,6 +45,7 @@ binds these versions:
 - [Composite agent memory](v1/memory.md)
 - [Memory pages and `.oh.md` interchange](v1/memory-page.md)
 - [Observations distilled from sessions](v1/observation.md)
+- [Recall and dated rendering](v1/recall.md)
 - [Compatibility and migration](v1/migration.md)
 
 Machine-readable V1 artifacts:
@@ -68,6 +71,7 @@ Machine-readable V1 artifacts:
 - [`projection-identity.schema.json`](v1/projection-identity.schema.json)
 - [`projection-result.schema.json`](v1/projection-result.schema.json)
 - [`memory-page.schema.json`](v1/memory-page.schema.json)
+- [`recall-date-grammar.json`](v1/recall-date-grammar.json)
 
 ## Conformance
 

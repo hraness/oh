@@ -1,6 +1,6 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
 import { assertExactEvolutionCoverage, type EvolutionRunnerInput, type EvolutionRunnerQuestion } from "./evolution-dataset";
-import { createEvolutionContextSourceValidator, prepareEvolutionCorpus, type EvolutionRetrievalResult } from "./evolution-retrieval";
+import { createEvolutionContextSourceValidator, evolutionLegacyVariant, prepareEvolutionCorpus, type EvolutionRetrievalResult } from "./evolution-retrieval";
 import { createOhSourceSpanPacker, OH_SPAN_POLICY, OH_SPAN_POOL_VARIANT, type OhSourceSpanResult } from "./evolution-spans";
 import { createOhSourceSpanPrototype, OH_SPAN_PROTOTYPE_FOCUSED_POOL_VARIANT, OH_SPAN_PROTOTYPE_POLICY, type OhPrototypeResult } from "./evolution-spans-prototype";
 import { createEvolutionFullHistorySource, validateEvolutionFullHistoryResult, type EvolutionFullHistoryResult } from "./evolution-full-history";
@@ -67,7 +67,7 @@ export async function makeEvolutionContextPlanV3(input: Readonly<{ dataset: Evol
           if (v.system === "full-history") cases.push({ ...common, kind: "full-history", result: full!.result });
           else if (v.system === "oh-source-spans-v2") cases.push({ ...common, kind: "source-spans-v2", result: prototype!.pack(v.mechanism, q.question, byKind.get("focused")!) });
           else if (v.system === "oh-source-spans") cases.push({ ...common, kind: "source-spans", result: spans!.pack(q.question, byKind.get("raw")!, { contextBytes: v.budget.contextBytes }) });
-          else cases.push({ ...common, kind: "whole-turn", result: await prepared!.retrieve(q.question, v) });
+          else cases.push({ ...common, kind: "whole-turn", result: await prepared!.retrieve(q.question, evolutionLegacyVariant(v)) });
         }
       }
       timing.push({ corpusId: corpus.id, preparationMs, retrievalMs: performance.now() - queryStart, queries: prepared?.stats.queryCount ?? 0 });

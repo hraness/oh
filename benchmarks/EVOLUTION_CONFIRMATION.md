@@ -14,6 +14,94 @@ LongMemEval development retains the original GPT-4o proxy scores. Separate Gatew
 
 An exposed benchmark can remain useful for reproducible descriptive scores. High development performance alone will not be called benchmark saturation, fresh generalization or framework superiority.
 
+## BEAM offline preparation
+
+Updated 2026-09-10. The data-side sealing code for BEAM now exists offline;
+no BEAM reader or judge call has been made, and none is scheduled. Under the
+current budget policy every experiment is capped at $20 with GPT-5 nano or
+GPT-5 mini readers only, and the sealed confirmation source is the LoCoMo test
+split. BEAM's per-nugget judging alone exceeds that cap for its 400-question
+partition, so BEAM stays a prepared, unfunded confirmation source until a
+separate budget decision reopens it. Nothing below reads a BEAM outcome.
+
+`DATASETS.beam` pins the Hugging Face revision `3205395e` as three parquet
+parts (byte size and SHA-256 each) plus the canonical JSON re-encoding that the
+loaders parse (`oh.beam-source-canonical.v1`, 285,187,170 bytes). Acquisition is
+an explicit operator step that downloads about 106 MB and needs `python3` with
+`pyarrow==21.0.0` (set `OH_BEAM_PYTHON` to that interpreter):
+
+```sh
+bun run bench:memory fetch --dataset beam
+```
+
+`parseBeam` sits next to `parseLocomo`. Memory systems receive only chat turns
+with their session time anchors; author plans, user profiles, generation seeds,
+narratives, planted-turn labels and every probing-question field stay outside
+the corpus. Each history is one corpus, each probing question carries the last
+session's anchor as its question date, abstention questions are unanswerable,
+`source_chat_ids` become evidence turn identifiers, and the scorer-side object
+(rubric nuggets and reference answers) travels only in the judge-side answer
+field for a later BEAM scoring lane. The release repeats turn identifiers
+inside 4 of the 90 histories: a `source_chat_ids` reference that names one
+turn becomes that turn's evidence identifier, while a reference that names
+several turns stays in `rawEvidenceTurnIds` only and marks the question
+`ambiguousEvidence`, so distractor turns never become gold evidence. On the
+pinned release 41 of the 1,800 questions carry such a reference; the review
+counts them per history (`ambiguousEvidenceQuestions`) so a scope or report
+can stratify or exclude them. Because the resolved gold set of such a question
+is partial, `evidenceMetrics` scores every `ambiguousEvidence` question as
+null (turn and session recall alike) and the retrieval report counts them as
+`ambiguousEvidence` next to `unresolvedEvidence`. `rawEvidenceTurnIds` is
+emitted for BEAM only on ambiguous questions, so the runner's
+`evidenceNormalization` diagnostic (built for LoCoMo reference repairs) counts
+those 41 and no other BEAM question. On the pinned release: 1,620 answerable
+questions; 1,593 with resolved turn evidence, 16 ambiguous-only, 11 without
+any `source_chat_ids` (null retrieval metrics); session-level scorer
+references (`conversation_sessions`) are not used for `evidenceSessionIds`.
+The question-date rule is recorded machine-readably as
+`source.questionDatePolicy` (`BEAM_QUESTION_DATE_POLICY`) in the exposure
+review and re-checked by its parser. `bench:memory --split dev|test` for beam
+splits by history (`groupId` = `corpusId` before a review is applied), not by
+the review's seed/profile/content families; family-aware selection exists only
+through the review + draw path below. `bench:memory extract`, `answer` and
+`judge` refuse `--dataset beam` until a BEAM reader and nugget-judge protocol
+exist; only `fetch`, `state`, `projection`, `retrieval` and the seal commands
+accept it.
+
+The exposure review (`scripts/benchmarks/beam-seal-cli.ts review`) writes
+digests, counts and dispositions only: per history, the content digest (the
+canonical digest of the parsed turns alone, a different preimage from the
+manifest's corpus digest), the
+digests of its seed, profile, narratives, plan and planted user questions,
+exact-turn and sampled word-8-gram overlap against the cached LongMemEval S
+and LoCoMo releases, and the family it belongs to (histories sharing a seed,
+profile or content are one family). Exact-turn matches gate eligibility (zero
+allowed by default); sampled shingles are reported per matched reference
+corpus and gate only under a declared bound, because a first offline pass on
+the pinned files found no identical turn in any of the 90 histories but
+template phrases shared with every LongMemEval S haystack. `review` refuses to
+run without `--declare PATH`, a JSON array of prior-exposure declarations
+(`corpusId`, `exposure`, `evidence`); an explicit empty array is the operator's
+assertion that none exists. One exposure is already known and not yet
+reconciled: a search preview showed part of one history's profile scaffold.
+Its history has not been identified against the review's profile digests, so
+no declaration file is committed yet; a review with an empty declaration
+array is therefore not acceptable as the seal's eligibility audit until that
+history is named and declared, which closes its whole family. The stored
+review re-checks that the declaration list and the per-history declared
+exposures agree exactly, that each history's relations match its family, and
+that no reference dataset repeats. The review's SHA-256 is
+the `eligibilityAuditSha256` a sealed-confirmation scope references.
+
+The family draw (`beam-seal-cli.ts draw`) reuses the existing cryptographic
+partial Fisher–Yates method over the sealed families and records the pool,
+its digest, the review digest, the drawn families and every selected question
+identifier. Replay recomputes the pool from the current dataset and review and
+fails on any change instead of drawing replacements. A future funded BEAM run
+still needs the design-side seal (candidate source digest, non-droppable
+controls, readers, judge profile, rubric digest, decision rule and sample size)
+and the BEAM nugget-judge protocol before its first reader call.
+
 ## Full-history control and next memory experiments
 
 The complete 100-question full-history control and all three fixed source-packing

@@ -28,6 +28,12 @@ function json(bytes: Uint8Array, maximum: number): unknown {
 
 /** Authenticate selected content against the pinned complete exposure manifest without opening other partitions. */
 function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: string, release?: Readonly<{ authorization: EvolutionReleaseAuthorization; shardId: string }>): EvolutionDatasetManifest {
+  return selectEvolutionReportManifest(dataset, bytes, expectedSha256, release === undefined ? undefined
+    : { questionIds: evolutionReleaseShard(release.authorization, release.shardId).questionIds });
+}
+/** Authenticate selected content against the pinned complete exposure manifest without opening other partitions.
+ * Without an explicit coverage the selection must be development-only; with one it must match those exact runner IDs. */
+export function selectEvolutionReportManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: string, coverage?: Readonly<{ questionIds: readonly string[] }>): EvolutionDatasetManifest {
   if (!digest(expectedSha256) || sha256Hex(bytes) !== expectedSha256) fail("manifest bytes changed");
   const value = json(bytes, 128 * 1024 * 1024);
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "dataset", "revision", "sourceSha256", "datasetSha256", "groups", "corpora", "questions", "qualification"])
@@ -73,9 +79,9 @@ function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: s
   const subset = createEvolutionDatasetManifest(dataset, { dataset: manifest.dataset, revision: manifest.revision,
     sourceSha256: manifest.sourceSha256, groups: manifest.groups.filter(g => groups.has(g.groupId)),
     histories: manifest.corpora.filter(c => corpora.has(c.id)).map(c => ({ corpusId: c.id, historyId: c.historyId })) });
-  if (release === undefined) {
+  if (coverage === undefined) {
     if (subset.groups.some(g => g.partition !== "development")) fail("only development results are reportable by this campaign");
-  } else assertExactEvolutionCoverage(evolutionReleaseShard(release.authorization, release.shardId).questionIds, subset.questions.map(q => q.runnerId));
+  } else assertExactEvolutionCoverage(coverage.questionIds, subset.questions.map(q => q.runnerId));
   const sourceCorpora = new Map(manifest.corpora.map(c => [c.id, c])), sourceQuestions = new Map(manifest.questions.map(q => [q.id, q]));
   if (subset.corpora.some(c => !same(c, sourceCorpora.get(c.id))) || subset.questions.some(q => !same(q, sourceQuestions.get(q.id)))) {
     fail("selected questions, gold or corpus content changed");
@@ -274,7 +280,7 @@ async function buildReport(input: EvolutionReportInput, release?: Readonly<{ aut
   const rawArms = input.contextPlan.variants.flatMap(variant => readers.readerProfiles.map(reader => {
     let readerFailures = 0, judgeFailures = 0;
     const readerRequestSha256s: string[] = [], judgeRequestSha256s: string[] = [];
-    const scores: Record<ReportMetric, EvolutionScore[]> = { "judge-accuracy": [], "locomo-f1": [], "evidence-precision": [],
+    const scores: Record<ReportMetric, EvolutionScore[]> = { "judge-accuracy": [], "judge-mean": [], "locomo-f1": [], "evidence-precision": [],
       "evidence-recall": [], "evidence-f1": [], "evidence-all": [] };
     for (const [index, q] of input.dataset.questions.entries()) {
       const id = cases[index]!.id, key = triple(id, variant.id, reader), rc = readerCases.get(key)!, jc = judgeCases.get(key)!;

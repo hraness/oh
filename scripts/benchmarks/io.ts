@@ -1,8 +1,8 @@
-import { mkdir, open, readFile, readdir } from "node:fs/promises";
+import { mkdir, open, readFile, readdir, rm } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 
 import { canonicalSha256, isPlainRecord, sha256Hex } from "../../src/canonical";
-import { DATASETS, parseLocomo, parseLongMemEval, type Dataset, type DatasetName } from "./datasets";
+import { DATASETS, parseBeam, parseLocomo, parseLongMemEval, type Dataset, type DatasetName } from "./datasets";
 
 export const ROOT = resolve(import.meta.dir, "../..");
 // A 120-family extraction can exceed the original 64 MiB pilot bound.
@@ -22,11 +22,74 @@ export async function writeJson(path: string, value: unknown): Promise<void> {
   await writeNew(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+async function downloadBounded(url: string, maximum: number): Promise<Uint8Array> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(180_000) });
+  if (!response.ok || response.body === null) throw new Error(`Dataset download failed (HTTP ${response.status}).`);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      total += next.value.length;
+      if (total > maximum) throw new RangeError("Dataset download exceeded its pinned byte size.");
+      chunks.push(next.value);
+    }
+  } finally { await reader.cancel(); }
+  return Buffer.concat(chunks, total);
+}
+
+/** BEAM parquet parts live beside the canonical JSON in the ignored cache; the converter is scripts/benchmarks/beam-parquet-to-json.py.
+ * Acquisition is an explicit operator step (`bench:memory fetch --dataset beam`, about 106 MB of parquet plus a 285 MB
+ * re-encoding); no benchmark command downloads BEAM implicitly. */
+export function beamSourceDirectory(): string {
+  return join(ROOT, ".cache/benchmarks/datasets/beam-source");
+}
+
+async function acquireBeam(path: string): Promise<void> {
+  const source = DATASETS.beam;
+  const directory = beamSourceDirectory();
+  for (const part of source.parts) {
+    const partPath = join(directory, part.path);
+    const existing = Bun.file(partPath);
+    let bytes: Uint8Array;
+    if (await existing.exists()) {
+      if (existing.size !== part.bytes) throw new Error(`Cached BEAM part ${part.path} byte size does not match its pin.`);
+      bytes = await existing.bytes();
+    } else {
+      bytes = await downloadBounded(`https://huggingface.co/datasets/Mohammadta/BEAM/resolve/${source.revision}/${part.path}`, part.bytes);
+    }
+    if (bytes.length !== part.bytes || sha256Hex(bytes) !== part.sha256) throw new Error(`BEAM part ${part.path} checksum mismatch.`);
+    if (!await existing.exists()) await writeNew(partPath, bytes);
+  }
+  await convertBeamSource({ directory, output: path, python: process.env.OH_BEAM_PYTHON ?? "python3" });
+}
+
+/** Run the pinned converter over verified parquet parts and keep the output only when it matches the canonical JSON pin. */
+export async function convertBeamSource(input: Readonly<{ directory: string; output: string; python: string }>): Promise<void> {
+  const source = DATASETS.beam;
+  const conversion = Bun.spawnSync([input.python, join(ROOT, "scripts/benchmarks/beam-parquet-to-json.py"),
+    "--input-dir", input.directory, "--output", input.output], { stdout: "pipe", stderr: "pipe", timeout: 600_000 });
+  if (conversion.exitCode !== 0) {
+    throw new Error(`BEAM conversion failed (set OH_BEAM_PYTHON to a Python with pyarrow 21.0.0): ${conversion.stderr.toString().trim().slice(0, 512)}`);
+  }
+  const produced = Bun.file(input.output);
+  if (!await produced.exists() || produced.size !== source.bytes || sha256Hex(await produced.bytes()) !== source.sha256) {
+    await rm(input.output, { force: true });
+    throw new Error("BEAM canonical JSON does not match its pinned digest; the converted file was discarded.");
+  }
+}
+
 export async function fetchDataset(name: DatasetName): Promise<string> {
   const source = DATASETS[name];
   const path = datasetPath(name);
   if (await Bun.file(path).exists()) {
     await loadDataset(name);
+    return path;
+  }
+  if (name === "beam") {
+    await acquireBeam(path);
     return path;
   }
   let bytes: Uint8Array;
@@ -37,36 +100,31 @@ export async function fetchDataset(name: DatasetName): Promise<string> {
     if (response.exitCode !== 0) throw new Error("LoCoMo download via gh failed; check GitHub access.");
     bytes = response.stdout;
   } else {
-    const response = await fetch(source.url, { signal: AbortSignal.timeout(180_000) });
-    if (!response.ok || response.body === null) throw new Error(`Dataset download failed (HTTP ${response.status}).`);
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    try {
-      while (true) {
-        const next = await reader.read();
-        if (next.done) break;
-        total += next.value.length;
-        if (total > source.bytes) throw new RangeError("Dataset download exceeded its pinned byte size.");
-        chunks.push(next.value);
-      }
-    } finally { await reader.cancel(); }
-    bytes = Buffer.concat(chunks, total);
+    bytes = await downloadBounded(source.url, source.bytes);
   }
   if (bytes.length !== source.bytes || sha256Hex(bytes) !== source.sha256) throw new Error("Dataset checksum mismatch.");
   await writeNew(path, bytes);
   return path;
 }
 
-export async function loadDataset(name: DatasetName) {
+/** The authenticated, still unparsed cached dataset document; callers parse it with the dataset's own parser. */
+export async function loadDatasetValue(name: DatasetName): Promise<unknown> {
   const file = Bun.file(datasetPath(name));
   const source = DATASETS[name];
   if (!await file.exists()) throw new Error(`Dataset is not cached; run bench:memory fetch --dataset ${name}.`);
-  if (file.size !== source.bytes) throw new Error("Cached dataset byte size does not match its pinned source.");
+  const stale = `delete ${displayPath(datasetPath(name))} and run bench:memory fetch --dataset ${name} again`;
+  if (file.size !== source.bytes) throw new Error(`Cached dataset byte size does not match its pinned source; ${stale}.`);
   const bytes = await file.bytes();
-  if (sha256Hex(bytes) !== source.sha256) throw new Error("Cached dataset checksum mismatch.");
-  const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
-  return name === "locomo" ? parseLocomo(value) : parseLongMemEval(value);
+  if (sha256Hex(bytes) !== source.sha256) throw new Error(`Cached dataset checksum mismatch; ${stale}.`);
+  return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
+}
+
+export function parseDataset(name: DatasetName, value: unknown): Dataset {
+  return name === "locomo" ? parseLocomo(value) : name === "beam" ? parseBeam(value) : parseLongMemEval(value);
+}
+
+export async function loadDataset(name: DatasetName): Promise<Dataset> {
+  return parseDataset(name, await loadDatasetValue(name));
 }
 
 export function excludeGroups(dataset: Dataset, groups: ReadonlySet<string>): Dataset {
