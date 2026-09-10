@@ -1,0 +1,1306 @@
+{
+  "protocol": "oh.memory.reader-loop-development-public.v1",
+  "date": "2026-09-10",
+  "dataset": {
+    "name": "longmemeval-s",
+    "partition": "development",
+    "exposure": "previously-exposed development selection",
+    "questions": 100,
+    "declaredFamilies": 94
+  },
+  "design": {
+    "judge": "gpt4o-gateway-native-rubric-16-judge-v1",
+    "contextsIdentity": "fresh Oh semantic and BM25 contexts prepared locally under the current source; identical across readers within a run directory",
+    "campaign": {
+      "additionalBudgetMicros": 20000000,
+      "maximumCalls": 6000
+    }
+  },
+  "arms": [
+    {
+      "variantId": "semantic-160k",
+      "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+      "cases": 100,
+      "correct": 93,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 16
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 25
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 4
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 20
+        }
+      ]
+    },
+    {
+      "variantId": "semantic-240k",
+      "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+      "cases": 100,
+      "correct": 93,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 16
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 25
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 4
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 20
+        }
+      ]
+    },
+    {
+      "variantId": "semantic-96k",
+      "reader": "gpt41-explicit-abstention-composition-v1-reader",
+      "cases": 100,
+      "correct": 76,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 14
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 20
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 1
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 10
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 14
+        }
+      ]
+    },
+    {
+      "variantId": "semantic-96k",
+      "reader": "gpt5-low-explicit-abstention-composition-v1-reader",
+      "cases": 100,
+      "correct": 87,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 13
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 21
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 4
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 21
+        }
+      ]
+    },
+    {
+      "variantId": "semantic-96k",
+      "reader": "gpt5-mini-calibrated-composition-v1-reader",
+      "cases": 100,
+      "correct": 92,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 15
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 25
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 4
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 20
+        }
+      ]
+    },
+    {
+      "variantId": "semantic-96k",
+      "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+      "cases": 100,
+      "correct": 92,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 16
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 24
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 4
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 20
+        }
+      ]
+    },
+    {
+      "variantId": "semantic-96k",
+      "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader",
+      "cases": 100,
+      "correct": 89,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 15
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 23
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 3
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 10
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 21
+        }
+      ]
+    },
+    {
+      "variantId": "semantic-96k",
+      "reader": "gpt5-mini-timeline-composition-v1-reader",
+      "cases": 100,
+      "correct": 87,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 13
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 23
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 3
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 20
+        }
+      ]
+    },
+    {
+      "variantId": "window-96k",
+      "reader": "gpt5-mini-calibrated-composition-v1-reader",
+      "cases": 100,
+      "correct": 87,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 16
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 21
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 4
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 18
+        }
+      ]
+    },
+    {
+      "variantId": "window-96k",
+      "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+      "cases": 100,
+      "correct": 87,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 15
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 22
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 4
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 18
+        }
+      ]
+    },
+    {
+      "variantId": "window-96k",
+      "reader": "gpt5-mini-timeline-composition-v1-reader",
+      "cases": 100,
+      "correct": 84,
+      "byCategory": [
+        {
+          "id": "knowledge-update",
+          "cases": 17,
+          "correct": 13
+        },
+        {
+          "id": "multi-session",
+          "cases": 28,
+          "correct": 22
+        },
+        {
+          "id": "single-session-assistant",
+          "cases": 17,
+          "correct": 17
+        },
+        {
+          "id": "single-session-preference",
+          "cases": 5,
+          "correct": 3
+        },
+        {
+          "id": "single-session-user",
+          "cases": 11,
+          "correct": 11
+        },
+        {
+          "id": "temporal-reasoning",
+          "cases": 22,
+          "correct": 18
+        }
+      ]
+    }
+  ],
+  "paired": [
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 0,
+      "losses": 0,
+      "ties": 100
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 21,
+      "losses": 4,
+      "ties": 75
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 2,
+      "ties": 90
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 3,
+      "losses": 2,
+      "ties": 95
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 1,
+      "losses": 0,
+      "ties": 99
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 5,
+      "losses": 1,
+      "ties": 94
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 6,
+      "losses": 0,
+      "ties": 94
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 2,
+      "ties": 90
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 2,
+      "ties": 90
+    },
+    {
+      "left": {
+        "variantId": "semantic-160k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 11,
+      "losses": 2,
+      "ties": 87
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 21,
+      "losses": 4,
+      "ties": 75
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 2,
+      "ties": 90
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 3,
+      "losses": 2,
+      "ties": 95
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 1,
+      "losses": 0,
+      "ties": 99
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 5,
+      "losses": 1,
+      "ties": 94
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 6,
+      "losses": 0,
+      "ties": 94
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 2,
+      "ties": 90
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 2,
+      "ties": 90
+    },
+    {
+      "left": {
+        "variantId": "semantic-240k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 11,
+      "losses": 2,
+      "ties": 87
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 19,
+      "ties": 73
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 4,
+      "losses": 20,
+      "ties": 76
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 5,
+      "losses": 21,
+      "ties": 74
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 7,
+      "losses": 20,
+      "ties": 73
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 7,
+      "losses": 18,
+      "ties": 75
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 5,
+      "losses": 16,
+      "ties": 79
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 4,
+      "losses": 15,
+      "ties": 81
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt41-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 5,
+      "losses": 13,
+      "ties": 82
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 1,
+      "losses": 6,
+      "ties": 93
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 2,
+      "losses": 7,
+      "ties": 91
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 4,
+      "losses": 6,
+      "ties": 90
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 3,
+      "losses": 3,
+      "ties": 94
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 8,
+      "ties": 84
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 8,
+      "ties": 84
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-low-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 9,
+      "losses": 6,
+      "ties": 85
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 3,
+      "losses": 3,
+      "ties": 94
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 7,
+      "losses": 4,
+      "ties": 89
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 5,
+      "losses": 0,
+      "ties": 95
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 9,
+      "losses": 4,
+      "ties": 87
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 9,
+      "losses": 4,
+      "ties": 87
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 11,
+      "losses": 3,
+      "ties": 86
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 4,
+      "losses": 1,
+      "ties": 95
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 5,
+      "losses": 0,
+      "ties": 95
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 3,
+      "ties": 89
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 3,
+      "ties": 89
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 11,
+      "losses": 3,
+      "ties": 86
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 5,
+      "losses": 3,
+      "ties": 92
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 6,
+      "ties": 86
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 8,
+      "losses": 6,
+      "ties": 86
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 10,
+      "losses": 5,
+      "ties": 85
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "wins": 7,
+      "losses": 7,
+      "ties": 86
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 7,
+      "losses": 7,
+      "ties": 86
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 7,
+      "losses": 4,
+      "ties": 89
+    },
+    {
+      "left": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "wins": 1,
+      "losses": 1,
+      "ties": 98
+    },
+    {
+      "left": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-calibrated-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 4,
+      "losses": 1,
+      "ties": 95
+    },
+    {
+      "left": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "window-96k",
+        "reader": "gpt5-mini-timeline-composition-v1-reader"
+      },
+      "wins": 3,
+      "losses": 0,
+      "ties": 97
+    }
+  ],
+  "runs": {
+    "dev100-v1": {
+      "cost": {
+        "reader": 931706,
+        "judge": 63942
+      },
+      "arms": [
+        {
+          "variantId": "window-96k",
+          "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 7520,
+            "readerP95Ms": 21204
+          }
+        },
+        {
+          "variantId": "semantic-96k",
+          "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 7617,
+            "readerP95Ms": 17673
+          }
+        }
+      ]
+    },
+    "dev100-contracts-v1": {
+      "cost": {
+        "reader": 2741463,
+        "judge": 92119
+      },
+      "arms": [
+        {
+          "variantId": "window-96k",
+          "reader": "gpt5-mini-calibrated-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 8013,
+            "readerP95Ms": 18049
+          }
+        },
+        {
+          "variantId": "window-96k",
+          "reader": "gpt5-mini-timeline-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 8225,
+            "readerP95Ms": 21309
+          }
+        },
+        {
+          "variantId": "semantic-96k",
+          "reader": "gpt5-mini-calibrated-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 8537,
+            "readerP95Ms": 19242
+          }
+        },
+        {
+          "variantId": "semantic-96k",
+          "reader": "gpt5-mini-timeline-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 7607,
+            "readerP95Ms": 19276
+          }
+        }
+      ]
+    },
+    "dev100-width-v1": {
+      "cost": {
+        "reader": 413264,
+        "judge": 42264
+      },
+      "arms": [
+        {
+          "variantId": "semantic-160k",
+          "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 7420,
+            "readerP95Ms": 16393
+          }
+        },
+        {
+          "variantId": "semantic-240k",
+          "reader": "gpt5-mini-explicit-abstention-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 7420,
+            "readerP95Ms": 16393
+          }
+        }
+      ]
+    },
+    "dev100-readers-v1": {
+      "cost": {
+        "reader": 7689143,
+        "judge": 87499
+      },
+      "arms": [
+        {
+          "variantId": "semantic-96k",
+          "reader": "gpt5-low-explicit-abstention-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 6118,
+            "readerP95Ms": 11909
+          }
+        },
+        {
+          "variantId": "semantic-96k",
+          "reader": "gpt5-mini-high-explicit-abstention-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 14120,
+            "readerP95Ms": 54513
+          }
+        },
+        {
+          "variantId": "semantic-96k",
+          "reader": "gpt41-explicit-abstention-composition-v1-reader",
+          "readerFailures": 0,
+          "judgeFailures": 0,
+          "latency": {
+            "readerP50Ms": 1402,
+            "readerP95Ms": 2944
+          }
+        }
+      ]
+    }
+  },
+  "qualification": [
+    "Development-only descriptive evidence on 100 previously exposed questions; no confirmation, independence or superiority claim.",
+    "Native LongMemEval rubric with Gateway GPT-4o alias and a 16-token cap; not an official reproduction.",
+    "Hosted outputs vary between identical requests; single-run differences of a few questions are within observed repeat variation."
+  ],
+  "summarySha256": "e47851ee55c1dc2e53715150978f2f3430302ee0630df5fc999596eca81a616c"
+}

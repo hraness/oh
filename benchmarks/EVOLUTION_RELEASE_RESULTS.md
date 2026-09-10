@@ -118,6 +118,74 @@ and the stronger one could. Retrieval quality and reader capacity are not
 separable in this benchmark: a memory system should be compared at the reader
 tier its users will run.
 
+## What else was tried on the development set
+
+A development-only loop then tested the remaining levers on the 100
+previously exposed questions, each time on identical Oh semantic contexts
+prepared locally under the current source, with the same judge. The
+[public summary](results/memory-evolution-reader-loop-dev100-v1.json)
+records every arm and pairing; hosted outputs vary between identical
+requests, so single-run differences of a few questions are within observed
+repeat variation.
+
+| Lever | Arm | Correct of 100 | Paired against the mini baseline |
+| --- | --- | ---: | --- |
+| Baseline | GPT-5 mini, explicit-abstention composition, Oh semantic 96 KB | 92 | |
+| Baseline | Same reader and contract, BM25 window 96 KB | 87 | |
+| Answer contract | Calibrated abstention and exact-value formatting | 92 | 3 wins, 3 losses |
+| Answer contract | Explicit internal timeline and per-item counting | 87 | 0 wins, 5 losses |
+| Reader effort | GPT-5 mini at high effort | 89 | 1 win, 4 losses |
+| Reader class | GPT-5 at low effort | 87 | 2 wins, 7 losses |
+| Reader class | GPT-4.1, no reasoning | 76 | 5 wins, 21 losses |
+| Context width | Same retrieval, 160 KB and 240 KB byte budgets | 93 and 93 | |
+
+Three things follow. Prompt engineering is saturated for this reader: the
+calibrated contract fixed some hedged and over-abstained answers and lost an
+equal number elsewhere. Reasoning effort matters more than model size, and
+more effort is not better: mini at medium effort beat mini at high effort,
+GPT-5 at low effort, and GPT-4.1 without reasoning, and it did so at the
+lowest reader cost of the three GPT-5 settings. Byte budget is not the width
+lever: the top 100 retrieved turns already fit within 96 KB for most
+questions, so 160 KB and 240 KB changed only 32 of 200 contexts and moved the
+score by one question. Widening beyond 100 turns is bounded by Oh's search
+contract, which caps a single query at 100 results, so a wider-evidence
+experiment needs a product change rather than a benchmark setting. The loop
+spent $11.65 across 1,308 requests.
+
+## Under a third-party harness
+
+To compare with other systems on someone else's protocol, Oh was run inside
+[ProsusAI MemEval](https://github.com/ProsusAI/MemEval) through the
+retrieval-only command, on its stratified 102-question LongMemEval_S sample.
+MemEval's protocol differs from the study above in ways that lower every
+system's score: it drops the question date, uses a short generic answer prompt
+with a 50-token cap, and re-ingests the haystack per question. Its judge is the
+LongMemEval prompt set on gpt-4o. Three local harness patches were needed and
+are recorded in the [summary](results/memory-evolution-memeval-102-v1.json):
+the Gateway requires a 16-token judge cap instead of 10, the gateway model id
+contains a slash that broke the result filename, and Mem0's embedder name is
+read from an environment variable so it can carry the gateway prefix.
+
+| System on MemEval | Reader | Judge accuracy | Source |
+| --- | --- | ---: | --- |
+| PropMem | gpt-4.1 | 71.6% | MemEval README |
+| SimpleMem | gpt-4.1 | 66.7% | MemEval README |
+| **Oh semantic, 96 KB** | gpt-4.1 | **61.8%** (62.7% on a first run whose rows were lost) | this run |
+| **Oh semantic, 96 KB** | gpt-4.1-mini | **60.8%** | this run |
+| OpenClaw | gpt-4.1 | 59.8% | MemEval README |
+| Full context | gpt-4.1 | 52.0% | MemEval README |
+| Mem0 OSS 1.0.3 | gpt-4.1-mini | pending | this run |
+
+Under this protocol Oh sits between OpenClaw and SimpleMem. Its temporal
+reasoning (41%) and multi-session (41%) scores are where the missing question
+date and the short answer cap bite; single-session user questions were 100%.
+The same retrieval scores 89.8% on the full 500 with the mini reader and the
+question date supplied, so most of the gap between the two tables is protocol,
+not evidence. MemEval's leaderboard does not include Mem0 or Graphiti on
+LongMemEval; the Mem0 row above is a local run of its open-source library
+under MemEval's own adapter, and the Oh gpt-4.1-mini row is its matched
+control.
+
 ## Where this sits among published results
 
 Vendors report LongMemEval_S accuracy with different readers, judges and
@@ -192,6 +260,9 @@ frameworks under this same reader, judge and accounting.
   arm, category, exposure-stratum and paired summaries, deduplicated cost.
 - [Mini-reader public summary](results/memory-evolution-full-release-500-mini-v1.json):
   the same protocol over the rebound study with `gpt5-mini-explicit-abstention-composition-v1-reader`.
+- [Development loop summary](results/memory-evolution-reader-loop-dev100-v1.json)
+  and [MemEval summary](results/memory-evolution-memeval-102-v1.json): the
+  development experiments and third-party harness runs above.
 - [Full-context public summary](results/memory-evolution-full-context-500-v1.json):
   protocol `oh.memory.evolution-full-context-summary.v1`, the unchanged parent
   reduction plus the companion arm and both paired comparisons.
