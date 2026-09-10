@@ -172,6 +172,84 @@ contract, which caps a single query at 100 results, so a wider-evidence
 experiment needs a product change rather than a benchmark setting. The loop
 spent $11.65 across 1,308 requests.
 
+## Second round: evidence selection and answer calibration
+
+The failure atlas over all 500 mini-reader answers showed that the labeled
+evidence was inside Oh's context on 496 of 500 questions and on 49 of the 51
+misses, so the remaining gap is answer construction. Two mechanisms were built
+and tested on the 100 development questions with three repeats each and
+identical contexts per pool, scored by majority of three ($6.82, two
+unverifiable attempts scored zero; [summary](results/memory-evolution-two-stage-dev100-v1.json)).
+
+| Arm on Oh semantic 96 KB, GPT-5 mini answers | Majority of 3 | Mean | Paired vs baseline |
+| --- | ---: | ---: | --- |
+| Single-call combined contract (baseline) | 91 | 90.3 | |
+| Calibration-only contract (exact values, yes/no, concise preferences) | 95 | 92.7 | 4 wins, 0 losses |
+| Two-stage: nano evidence selection, then answer (routed questions) | 86 | 85.7 | 3 wins, 8 losses |
+| Two-stage on every question | 82 | 81.7 | 2 wins, 11 losses |
+
+Two-stage selection with a nano selector lost evidence: its fallbacks stayed
+under 5%, but selected contexts dropped turns the single-call reader used, and
+the loss grew on temporal questions. It is rejected. The calibration contract
+looked like a clean gain on the development set, so it was rebound onto the
+frozen 500-question contexts under a separate $10 campaign
+([summary](results/memory-evolution-full-release-500-calibration-v1.json)):
+
+| Reader on the frozen 500 contexts | BM25 window | Oh semantic | Paired Oh vs BM25 |
+| --- | ---: | ---: | --- |
+| GPT-5 mini, combined contract | 427 (85.4%) | 449 (89.8%) | 39 / 17 / 444 |
+| GPT-5 mini, calibration-only contract | 429 (85.8%) | 446 (89.2%) | 35 / 18 / 447 |
+
+On the full set the two contracts are indistinguishable: a three-question
+difference is inside the observed repeat variation of about four questions per
+hundred. The development gain did not transfer, which is exactly what the
+three-repeat development protocol is meant to expose before a claim is made.
+The stable finding across both contracts is the memory delta: Oh semantic beats
+the same reader on BM25 contexts by 17 to 22 questions with about twice as
+many paired wins as losses.
+
+## Sealed confirmation on LoCoMo
+
+Every LongMemEval_S score above was read during development, so the
+confirmation uses a different benchmark whose scores were never read before
+the candidate was fixed: the LoCoMo test split, 1,540 questions across the
+ten conversations in the four scored categories (single-hop, multi-hop,
+temporal, open-domain; adversarial questions excluded, as Mem0 and Zep report
+it). The study, its question list and scope were sealed by digest before the
+first reader call. The protocol follows the published LoCoMo comparisons:
+the CORRECT/WRONG judge prompt on gpt-4o-mini, the final session date as the
+reference date, and a 24,000-byte retrieval budget for both memory systems
+(about a third of a LoCoMo conversation), so the memory system has to choose.
+Readers are GPT-5 nano and GPT-5 mini under the calibration-only contract,
+one repeat each. All 11,065 calls completed with zero failures for $11.82
+([summary](results/memory-evolution-locomo-sealed-1540-v1.json)).
+
+| Arm | Reader | Overall | Single-hop | Multi-hop | Temporal | Open-domain |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Oh semantic, 24 KB | GPT-5 mini | **84.4%** | 91.3 | 79.1 | 81.3 | 50.0 |
+| Oh semantic, 24 KB | GPT-5 nano | **81.0%** | 87.6 | 76.2 | 77.3 | 50.0 |
+| BM25 window, 24 KB | GPT-5 mini | 81.6% | 90.1 | 69.1 | 80.4 | 47.9 |
+| BM25 window, 24 KB | GPT-5 nano | 78.1% | 87.3 | 63.8 | 76.0 | 46.9 |
+
+Paired on the same questions, Oh semantic beats BM25 window 169 to 124 with
+nano and 126 to 83 with mini (about 2.8 to 2.9 points). The advantage is
+almost entirely multi-hop: 67 wins to 32 losses with nano and 50 to 22 with
+mini, the questions where evidence from several sessions has to be brought
+together. The two previously used conversations (314 questions) and the eight
+never-used ones (1,226) score within a point of each other for every arm.
+
+For comparison, the published LoCoMo judge scores with gpt-4o-mini readers are
+Mem0 66.9, Mem0 with graph 68.4, Letta 74.0 and Zep 75.1. Oh with a nano
+reader, which costs less per token than gpt-4o-mini, scores 81.0, and with mini
+84.4. Two caveats keep this from being a like-for-like win: the readers are
+different models, and even the BM25 control with nano scores 78.1 here, so a
+good part of the distance to those published numbers comes from the reader
+tier and the 24 KB budget rather than from Oh's retrieval alone. What the
+sealed run does establish is that on a benchmark whose scores were never used
+for tuning, Oh's retrieval keeps a consistent paired advantage over the
+lexical control at the same budget, and that the whole stack lands well above
+the published memory-framework results at a fraction of their reader cost.
+
 ## Under a third-party harness
 
 To compare with other systems on someone else's protocol, Oh was run inside
@@ -332,6 +410,11 @@ frameworks under this same reader, judge and accounting.
   arm, category, exposure-stratum and paired summaries, deduplicated cost.
 - [Mini-reader public summary](results/memory-evolution-full-release-500-mini-v1.json):
   the same protocol over the rebound study with `gpt5-mini-explicit-abstention-composition-v1-reader`.
+- [Sealed LoCoMo summary](results/memory-evolution-locomo-sealed-1540-v1.json):
+  the confirmation run above.
+- [Two-stage development summary](results/memory-evolution-two-stage-dev100-v1.json)
+  and [calibration-only full-500 summary](results/memory-evolution-full-release-500-calibration-v1.json):
+  the second-round experiments above.
 - [Development loop summary](results/memory-evolution-reader-loop-dev100-v1.json)
   and [MemEval summary](results/memory-evolution-memeval-102-v1.json): the
   development experiments and third-party harness runs above.
