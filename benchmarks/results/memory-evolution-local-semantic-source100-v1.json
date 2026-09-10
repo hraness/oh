@@ -1,0 +1,125 @@
+{
+  "protocol": "oh.memory.local-semantic-source100.v1",
+  "status": "complete",
+  "datasetPartition": "development",
+  "selectedQuestions": 100,
+  "contexts": 200,
+  "summaries": [
+    {
+      "variantId": "oh-semantic-top100-96k-v1",
+      "questions": 100,
+      "allAnnotatedPresent": 93,
+      "matchedAnnotatedTurns": 176,
+      "totalAnnotatedTurns": 177,
+      "microAnnotatedTurnRecall": 0.9943502824858758,
+      "macroAnnotatedTurnRecall": 0.9893617021276596,
+      "matchedAnnotatedSessions": 192,
+      "totalAnnotatedSessions": 192,
+      "macroAnnotatedSessionRecall": 1.0,
+      "allAnnotatedPaired": [
+        {
+          "reference": "oh-focused-window-96k",
+          "referenceAllPresent": 81,
+          "newlyComplete": 13,
+          "newlyIncomplete": 1
+        },
+        {
+          "reference": "oh-focused-window-opening-96k",
+          "referenceAllPresent": 87,
+          "newlyComplete": 7,
+          "newlyIncomplete": 1
+        }
+      ],
+      "annotatedTurnQuestions": 94,
+      "unscoredTurnQuestions": 6,
+      "annotatedSessionQuestions": 100,
+      "unscoredSessionQuestions": 0,
+      "annotatedTurnChanges": [
+        {
+          "reference": "oh-focused-window-96k",
+          "referenceMatchedAnnotatedTurns": 152,
+          "recoveredAnnotatedTurns": 25,
+          "lostAnnotatedTurns": 1
+        },
+        {
+          "reference": "oh-focused-window-opening-96k",
+          "referenceMatchedAnnotatedTurns": 164,
+          "recoveredAnnotatedTurns": 13,
+          "lostAnnotatedTurns": 1
+        }
+      ]
+    },
+    {
+      "variantId": "oh-hybrid-top100-96k-v1",
+      "questions": 100,
+      "allAnnotatedPresent": 78,
+      "matchedAnnotatedTurns": 150,
+      "totalAnnotatedTurns": 177,
+      "microAnnotatedTurnRecall": 0.847457627118644,
+      "macroAnnotatedTurnRecall": 0.8882978723404256,
+      "matchedAnnotatedSessions": 190,
+      "totalAnnotatedSessions": 192,
+      "macroAnnotatedSessionRecall": 0.9916666666666667,
+      "allAnnotatedPaired": [
+        {
+          "reference": "oh-focused-window-96k",
+          "referenceAllPresent": 81,
+          "newlyComplete": 4,
+          "newlyIncomplete": 7
+        },
+        {
+          "reference": "oh-focused-window-opening-96k",
+          "referenceAllPresent": 87,
+          "newlyComplete": 1,
+          "newlyIncomplete": 10
+        }
+      ],
+      "annotatedTurnQuestions": 94,
+      "unscoredTurnQuestions": 6,
+      "annotatedSessionQuestions": 100,
+      "unscoredSessionQuestions": 0
+    }
+  ],
+  "runtime": {
+    "newIndexes": 100,
+    "vectorQueries": 200,
+    "closedWorkers": 100,
+    "failedWorkers": 0,
+    "totalWallMs": 1882687.0212909998,
+    "corpusDurationMs": {
+      "sum": 1828417.257959,
+      "mean": 18284.17257959,
+      "median": 18119.3826875,
+      "max": 25073.4595
+    },
+    "embeddingMs": {
+      "sum": 1734843.8875440003,
+      "mean": 17348.43887544,
+      "max": 23097.444834
+    },
+    "metalCompilationDiagnostics": 100,
+    "actualGpuOffload": "Not separately measured",
+    "runtimeScope": "Existing public embedding model, local QMD; no reranking or query expansion"
+  },
+  "paidCalls": 0,
+  "pins": {
+    "auditPin": "fd241373fef2d242550ff66f2617aa97981d2860c26d9a9d0a2553faf936700f",
+    "contextIdsPin": "7048e5afd98b780dda6f54519ff29a472b6559f218ba59e8641bdfefe269c9dc",
+    "contextFileSha256": "f0b8943557abaf474f362e13dd4e69917a1a0eaf4bbd74f342841604f5de72dd",
+    "completionFileSha256": "f0f0e9a3f1961f9c3e28be281ee39a2d6be637237be92c6af722397867a9051c",
+    "coverageSummarySha256": "51358d4fd0b2558689aa7ea0e25cc168e1c59a02a75b3a5fe588f7c8b70d2e6a",
+    "evidenceIdsSha256": "d5a29d494418b60c68c8db89bcb17726dfc3dce0b9eeaeafa8cee7b5810f84fb",
+    "priorOpeningCaseAuditSha256": "a34127194ef94483982fa1492365967103294e4561c27e245ec04dbb5ea81b6a"
+  },
+  "qualification": [
+    "Reused100 development questions; no answer-accuracy or superiority claim.",
+    "Exact source turn-ID and session-ID annotation membership only; missing annotations are unscored, not perfect.",
+    "All contexts were frozen before this separate annotation-only join; no source text, gold answer, provider or store was opened.",
+    "Semantic/hybrid top100 packing differs from native focused-neighbor packing despite the same96000-byte cap.",
+    "Declared source session labels do not establish independent histories.",
+    "Exact-turn metrics have94 labeled questions and6 unscored; session metrics have100 labeled questions and192 session memberships. Session presence does not imply the annotated turn is present.",
+    "Recovered/lost annotation counts measure membership changes, not answer corrections or pure budget displacement; retrieval ranking and packing differ.",
+    "This is local retrieval evidence only: no reader answers were generated or scored in this stage.",
+    "All100 workers emitted a Metal compilation diagnostic. The logs do not establish actual GPU offload or CPU fallback."
+  ]
+}

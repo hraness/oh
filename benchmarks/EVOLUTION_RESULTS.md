@@ -614,3 +614,78 @@ response capture and settlement. The SDK fixture predates those boundary
 changes; its small responses fit the new limits. The existing single-text path
 remains the default. This establishes transport compatibility for the fixture,
 not a measured improvement in live latency, cost or benchmark accuracy.
+
+## Local semantic source coverage
+
+Local semantic retrieval included every annotated turn for 93 of 94 labeled
+questions in the same exposed development selection, compared with 81 for
+focused native Oh, 87 for opening-message completion and 78 for hybrid retrieval.
+This measures source availability; this stage generated and scored no reader
+answers.
+
+The run built 100 fresh corpus indices from source turns without benchmark
+gold-answer fields or evidence labels. Each corpus used the same original question for semantic and
+hybrid retrieval, with top100 and a 96,000-byte whole-turn context cap. Both
+variants used the optional Oh profile in
+[`src/semantic-model.ts`](../src/semantic-model.ts): QMD 2.5.3,
+EmbeddingGemma 300M Q8_0, 768 dimensions, L2 normalization and cosine distance.
+Hybrid combined vector retrieval with Oh's native keyword ranking. Neither
+variant used query expansion or reranking.
+
+| Retrieval | All annotated turns present | Exact annotated turns retained |
+| --- | ---: | ---: |
+| Focused native Oh | 81/94 | 152/177 |
+| Opening-message completion | 87/94 | 164/177 |
+| Semantic | 93/94 | 176/177 |
+| Hybrid | 78/94 | 150/177 |
+
+All 200 contexts were frozen before a separate annotation-ID-only audit.
+Six questions lack exact-turn annotations and remain unscored for turn coverage.
+Session annotations have a separate denominator: semantic retrieval included
+all 192 annotated session memberships across 100/100 session-labeled questions.
+Session presence does not establish that a particular annotated turn is present.
+
+Against focused native Oh, semantic retrieval made 13 questions annotation-complete
+and made one incomplete; it recovered 25 annotated turns and lost one. Against
+opening-message completion, it made seven complete and one incomplete, recovering
+13 turns and losing one. Hybrid made four complete and seven incomplete against
+focused Oh, and one complete and ten incomplete against opening completion.
+Ranking and packing differ despite the shared byte cap, so these are membership
+changes, not isolated effects of context displacement or predicted answer gains.
+Repeated development use supplies no independent confirmation.
+
+The local run completed in 31.378 minutes within a 35-minute cap. All 100 indices
+closed successfully after 200 vector searches, with no failed or timed-out
+workers and no paid calls. Mean corpus time was 18.28 seconds; the maximum was
+25.07 seconds. The measurements cover this local run, not a hardware-independent
+throughput estimate. Every worker logged a Metal compilation diagnostic; the
+logs establish neither actual GPU offload nor CPU fallback.
+
+The [complete source-coverage artifact](results/memory-evolution-local-semantic-source100-v1.json)
+retains the aggregate comparisons, timing, source/context pins and qualifications.
+Execution used clean commit `b1518addfdb94d80102f4b71f394b021798bd42f`
+and Bun 1.3.14. The model file was pinned to revision
+`0f741b5a6585bd53aeb15cd1372c56f2a0f65e12` of
+`ggml-org/embeddinggemma-300M-GGUF`, with SHA-256
+`b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63`.
+Weights were already present in a task-private cache; indexing and retrieval ran
+with network access denied. The default production configuration is unchanged.
+
+The public command and contract-check boundaries are:
+
+```sh
+bun scripts/benchmarks/evolution.ts --help
+bun test tests/memory-benchmark-evolution-semantic-plan.test.ts
+```
+
+The test verifies V1 semantic source identity and plan validation with a fake
+backend; it does not reproduce native inference. Public `prepare` has no semantic
+factory or cache option. The measured run therefore used a private orchestration
+script around `prepareEvolutionCorpus` and `OhQmdSemanticBackendV1`, importing
+QMD before Bun SQLite initialization and supplying the real SDK store factory.
+Its source-bearing inputs and persistent indices are private. Reproducing the
+native measurement requires that optional runtime, the pinned model and an
+explicitly permitted corpus; the commands above do not recreate this 100-corpus
+run. The complete context and reader plans passed the public V1 validators.
+This qualification does not establish V2/V3 semantic preparation support or
+benchmark answer accuracy.
