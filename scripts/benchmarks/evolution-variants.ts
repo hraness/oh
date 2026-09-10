@@ -11,7 +11,7 @@ export function isEvolutionSpanVariant(value: EvolutionExperimentVariant): value
   return value.system === "oh-source-spans";
 }
 export function evolutionGenomeCompatible(value: Readonly<{ system: EvolutionExperimentSystem; topK: number; contextBytes: number }>): boolean {
-  if (value.system.startsWith("oh-recall")) return value.topK <= 100;
+  if (value.system.startsWith("oh-recall") || value.system.endsWith("-obs")) return value.topK <= 100;
   return value.system !== "oh-source-spans" || value.topK === 100 && value.contextBytes <= 96_000;
 }
 export function parseEvolutionExperimentVariant(value: unknown): EvolutionExperimentVariant {

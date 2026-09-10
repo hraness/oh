@@ -1,0 +1,65 @@
+{
+  "protocol": "oh.memory.observe-fixture-summary.v1",
+  "date": "2026-09-10",
+  "sourceCommit": "3add170ca8d931603e68dee07f3cbdcf9c08c706",
+  "executionSourceSha256": "a41ae1b370c6526f24df13d0c006844a0e507e059d4d70a364eb0797f4729893",
+  "fixtureSha256": "a34034ad86f5c258baef978c97010d5bbea26f34dc4a8d387797c415e362cb02",
+  "instructionSha256": "771ec3c8ec60ebbb4c048d6d2bec703f94543b2ba6e027c0165b44fc8db4d838",
+  "gate": {
+    "protocol": "oh.observe-rubric-gate.v1",
+    "minimumAttribution": 0.95,
+    "minimumCoverage": 0.9,
+    "minimumDateResolution": 0.9,
+    "minimumKind": 0.8,
+    "minimumVerbatim": 0.9,
+    "maximumLeakage": 0,
+    "maximumParserRejection": 0.05
+  },
+  "campaignCapMicros": 250000,
+  "arms": [
+    {
+      "extractor": "gpt5-nano-reader",
+      "sessions": 8,
+      "observations": 18,
+      "scores": {
+        "dateResolution": 0.625,
+        "attribution": 0.7142857142857143,
+        "verbatim": 0.8076923076923077,
+        "coverage": 0.7142857142857143,
+        "kind": 0.875,
+        "leakage": 0,
+        "parserRejection": 0.125
+      },
+      "pass": false,
+      "physicalCalls": 8,
+      "knownUsageMicros": 3661,
+      "unresolvedReservationMicros": 0,
+      "artifactFileSha256": "5d945c531cf496691834cc5817d65592e019c977accff8b90a3c094c5629ad2c",
+      "rubricFileSha256": "0112222733a00fa8f94666cb3e4be8b96932e5a6d06781bd453c933530d92c5a"
+    },
+    {
+      "extractor": "gpt5-mini-reader",
+      "sessions": 8,
+      "observations": 24,
+      "scores": {
+        "dateResolution": 1,
+        "attribution": 1,
+        "verbatim": 1,
+        "coverage": 1,
+        "kind": 1,
+        "leakage": 0,
+        "parserRejection": 0
+      },
+      "pass": true,
+      "physicalCalls": 8,
+      "knownUsageMicros": 31604,
+      "unresolvedReservationMicros": 0,
+      "artifactFileSha256": "123c5be83f2b428e25acd45faa165b1f840455c59b1f4f0ba855fd9d2b7e4230",
+      "rubricFileSha256": "e237f01eed9513008e4925bd8a8d958db7583d733bfb22fb732a2d4e2b259f79"
+    }
+  ],
+  "totalKnownUsageMicros": 35265,
+  "totalUnresolvedReservationMicros": 0,
+  "decision": "The GPT-5 mini extractor passed the frozen synthetic fixture rubric and is eligible for development-corpus qualification. The nano extractor failed and is not eligible.",
+  "qualification": "One extraction per model per synthetic session, eight sessions. This is a mechanism gate, not a memory benchmark or evidence of general accuracy. Both models used the same frozen instruction and parser. Accounted exposure is a ledger figure, not an invoice."
+}

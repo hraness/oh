@@ -17,7 +17,9 @@ import { assertEvolutionContextBindingV9, evolutionContextBindingV9, makeEvoluti
 import { parseEvolutionReaderDatePolicy, projectEvolutionRunnerInputV9, type EvolutionReaderDatePolicy } from "./evolution-reader-date-policy";
 import { evolutionReaderJobsV2, makeEvolutionReaderPlanV2, validateEvolutionReaderPlanV2, type EvolutionPhysicalJob, type EvolutionReaderPlanV2 } from "./evolution-reader-plan-v2";
 import { EVOLUTION_PHASE_V2_PROTOCOL, buildEvolutionReportV9, evolutionPhaseAttemptsV9 } from "./evolution-report-v9";
-import type { EvolutionRetrievalVariant } from "./evolution-retrieval";
+import { evolutionSystemUsesSemantic, isEvolutionDerivedSystem, type EvolutionRetrievalVariant } from "./evolution-retrieval";
+import { evolutionObserveDatasetRouterAudit, prepareEvolutionDerivedCorpora, type EvolutionDerivedCorpora } from "./evolution-derived";
+import { OBSERVE_LANE_ARTIFACT_MAX_BYTES, parseObserveLaneArtifact } from "./evolution-observe-lane";
 import { openEvolutionStore, type EvolutionAttemptFailure, type EvolutionStore } from "./evolution-store";
 import { assertEvolutionStudyV9Configuration, parseEvolutionV9Variant, selectEvolutionStudyV9Shard, validateEvolutionStudyV9Artifacts,
   EVOLUTION_V9_JUDGES, type EvolutionStudyV9Authorization, type EvolutionV9Judge } from "./evolution-study-v9";
@@ -35,7 +37,7 @@ export type EvolutionRunConfigV9 = Readonly<{ protocol: typeof EVOLUTION_RUN_V9_
   directory: string; storeDirectory: string; concurrency: 24 | 32; semanticCacheDirectory: string }>;
 /** A development V4 configuration whose whole-turn V1 contexts may be rebound under the current retrieval identity. */
 export type EvolutionRebindableDevelopmentConfig = Readonly<{ protocol: "oh.memory.evolution-run.v4"; dataset: "longmemeval-s" | "locomo";
-  datasetPin: EvolutionPin; manifestPin: EvolutionPin; limit: number; seed: number; variants: readonly unknown[]; directory: string }>;
+  datasetPin: EvolutionPin; manifestPin: EvolutionPin; limit: number; seed: number; variants: readonly unknown[]; directory: string; derivedRecordsPin?: EvolutionPin }>;
 export type EvolutionRetrievalIdentity = () => Promise<string>;
 /** Runtime seams. `evolution.ts` passes the bare retrieval identity, so production always resolves the official dataset
  * pin and dispatches through the real transport on a clean committed tree. Offline qualification injects a synthetic
@@ -83,6 +85,7 @@ export function parseEvolutionRunConfigV9(value: unknown): EvolutionRunConfigV9 
   const datasetPin = evolutionPin(value.datasetPin), manifestPin = evolutionPin(value.manifestPin), campaignPin = evolutionPin(value.campaignPin);
   const studyPin = evolutionPin(value.studyPin), scopePin = evolutionPin(value.scopePin);
   const derivedRecordsPin = value.derivedRecordsPin === null ? null : evolutionPin(value.derivedRecordsPin);
+  if (variants.some(v => isEvolutionDerivedSystem(v.system)) !== (derivedRecordsPin !== null)) fail("derived systems and the derived-record pin require each other");
   if (datasetPin.sha256 !== DATASETS[dataset].sha256) fail("dataset source does not match pinned official release");
   const directory = path(value.directory), storeDirectory = path(value.storeDirectory), semanticCacheDirectory = path(value.semanticCacheDirectory);
   const roots = [directory, storeDirectory, semanticCacheDirectory];
@@ -94,7 +97,23 @@ export function parseEvolutionRunConfigV9(value: unknown): EvolutionRunConfigV9 
     judge: value.judge as EvolutionV9Judge, repeats, judgeRepeats, readerDatePolicy: parseEvolutionReaderDatePolicy(value.readerDatePolicy), derivedRecordsPin,
     directory, storeDirectory, concurrency: value.concurrency, semanticCacheDirectory });
 }
+/** A pre-read audit over the selected evaluation questions, containing no question text or answers. */
+export async function writeEvolutionObserveRouterAudit(directory: string, dataset: Dataset): Promise<void> {
+  await writeJson(join(directory, "observe-router-audit.json"), evolutionObserveDatasetRouterAudit(dataset));
+}
+export async function validateEvolutionObserveRouterAudit(directory: string, dataset: Dataset): Promise<void> {
+  const file = Bun.file(join(directory, "observe-router-audit.json"));
+  if (!await file.exists() || file.size > 4 * 1024 * 1024) fail("missing or oversized pre-read observation router audit");
+  if (!same(decode(await file.bytes()), evolutionObserveDatasetRouterAudit(dataset))) fail("pre-read observation router audit differs from selected questions");
+}
+
 async function configInput(pin: EvolutionPin): Promise<EvolutionRunConfigV9> { return parseEvolutionRunConfigV9(await json(pin, 1024 * 1024)); }
+/** Reads and parses a pinned observations artifact and rebuilds its records for exactly the selected corpora; every reload re-derives. */
+export async function loadEvolutionDerivedCorpora(pin: EvolutionPin | null | undefined, corpora: EvolutionRunnerInput["corpora"]): Promise<EvolutionDerivedCorpora | undefined> {
+  if (pin === null || pin === undefined) return undefined;
+  const artifact = parseObserveLaneArtifact(await json(pin, OBSERVE_LANE_ARTIFACT_MAX_BYTES));
+  return prepareEvolutionDerivedCorpora({ artifactSha256: pin.sha256, artifact, corpora });
+}
 
 /** Every reload re-authenticates study, scope and manifest bytes against the configuration's pins. */
 export async function loadEvolutionStudyV9Authorization(config: EvolutionRunConfigV9): Promise<EvolutionStudyV9Authorization> {
@@ -133,32 +152,35 @@ async function contextFor(config: EvolutionRunConfigV9, env: EvolutionV9Environm
     || !same(context.variants, config.variants) || context.inputSha256 !== canonicalSha256(projected)
     || !same(context.questions, projected.questions)) fail("prepared context source/configuration/selection mismatch");
   assertEvolutionContextBindingV9(context, input.authorization, config.shardId);
-  validateEvolutionContextPlanV9Sources(context, projected);
+  validateEvolutionContextPlanV9Sources(context, projected, await loadEvolutionDerivedCorpora(config.derivedRecordsPin, projected.corpora));
+  if (config.derivedRecordsPin !== null) await validateEvolutionObserveRouterAudit(config.directory, input.dataset);
   return context;
 }
 function boundedPlanBytes(plan: unknown, label: string): void {
   if (Buffer.byteLength(JSON.stringify(plan, null, 2) + "\n") > 128 * 1024 * 1024) fail(`${label} exceeds 128 MiB; reduce the explicit selection`);
 }
 
-/** Fresh preparation: whole-turn retrieval for the control and candidate over the exact shard. The derived-record pin
- * is a declared slot; until a retrieval lane consumes it, a study declaring one cannot be prepared. */
+/** Fresh preparation: retrieval for the control and candidate over the exact shard. A declared derived-record pin is
+ * rebuilt into observation records that reach only the derived arms; the prepared identity carries the artifact digest. */
 export async function prepareEvolutionV9(configPin: EvolutionPin, runtime: EvolutionV9Runtime) {
   const env = environment(runtime), { identity } = env;
   const config = await configInput(configPin), input = await selectEvolutionV9(config, env.source), started = performance.now();
   const { study } = input.authorization, retrievalSourceSha256 = await identity();
   if (study.retrievalSourceSha256 !== retrievalSourceSha256) fail("study retrieval source changed before preparation");
   if (study.retrievalProvenance !== null) fail("a rebound study reuses parent contexts through rebind, not fresh preparation");
-  if (study.derivedRecordsPin !== null) fail("derivedRecordsPin is declared but no derived-record retrieval lane is admitted by this revision");
   const dataset = projectEvolutionSelectionV9(input.dataset, config);
-  if (config.variants.some(v => v.system === "oh-semantic" || v.system === "oh-hybrid")) { const optionalQmd: string = "@tobilu/qmd"; await import(optionalQmd); }
+  const derived = await loadEvolutionDerivedCorpora(config.derivedRecordsPin, dataset.corpora), derivedOption = derived === undefined ? {} : { derived };
+  if (config.variants.some(v => evolutionSystemUsesSemantic(v.system))) { const optionalQmd: string = "@tobilu/qmd"; await import(optionalQmd); }
   const base = await makeEvolutionContextPlan({ dataset, variants: config.variants, manifestSha256: config.manifestPin.sha256, retrievalSourceSha256,
-    semanticCacheDirectory: config.semanticCacheDirectory });
-  const plan = makeEvolutionContextPlanV9({ dataset, basePlan: base.plan, binding: evolutionContextBindingV9(input.authorization, config.shardId) });
+    semanticCacheDirectory: config.semanticCacheDirectory, ...derivedOption });
+  const plan = makeEvolutionContextPlanV9({ dataset, basePlan: base.plan, binding: evolutionContextBindingV9(input.authorization, config.shardId), ...derivedOption });
   await readEvolutionPin(configPin); await readEvolutionPin(config.manifestPin, 8 * 1024 * 1024);
+  if (config.derivedRecordsPin !== null) await readEvolutionPin(config.derivedRecordsPin, OBSERVE_LANE_ARTIFACT_MAX_BYTES);
   const reloaded = await loadEvolutionStudyV9Authorization(config);
   if (await identity() !== retrievalSourceSha256) fail("source changed during preparation");
   assertEvolutionContextBindingV9(plan, reloaded, config.shardId);
   boundedPlanBytes(plan, "context plan");
+  if (config.derivedRecordsPin !== null && config.derivedRecordsPin !== undefined) await writeEvolutionObserveRouterAudit(config.directory, input.dataset);
   const contextPath = join(config.directory, "contexts.json"); await writeJson(contextPath, plan);
   await writeJson(join(config.directory, "preparation.json"), { protocol: EVOLUTION_PREPARATION_V9_PROTOCOL, configPin, contextPlanSha256: plan.planSha256,
     retrievalSourceSha256, readerDatePolicySha256: plan.readerDatePolicySha256, timing: base.timing, wallMs: performance.now() - started, modelCalls: 0 });
@@ -171,13 +193,16 @@ export async function rebindEvolutionV9(configPin: EvolutionPin, contextPin: Evo
   const env = environment(runtime), { identity } = env;
   const config = await configInput(configPin), started = performance.now(), input = await selectEvolutionV9(config, env.source);
   const dataset = projectEvolutionSelectionV9(input.dataset, config), retrievalSourceSha256 = await identity();
-  const parent = await json(contextPin) as EvolutionRebindParent;
-  const plan = rebindEvolutionContextPlanV9({ dataset, parent, authorization: input.authorization, shardId: config.shardId, retrievalSourceSha256 });
+  const parent = await json(contextPin) as EvolutionRebindParent, derived = await loadEvolutionDerivedCorpora(config.derivedRecordsPin, dataset.corpora);
+  const plan = rebindEvolutionContextPlanV9({ dataset, parent, authorization: input.authorization, shardId: config.shardId, retrievalSourceSha256,
+    ...(derived === undefined ? {} : { derived }) });
   await readEvolutionPin(configPin); await readEvolutionPin(contextPin, 128 * 1024 * 1024); await readEvolutionPin(config.manifestPin, 8 * 1024 * 1024);
+  if (config.derivedRecordsPin !== null) await readEvolutionPin(config.derivedRecordsPin, OBSERVE_LANE_ARTIFACT_MAX_BYTES);
   const reloaded = await loadEvolutionStudyV9Authorization(config);
   if (await identity() !== retrievalSourceSha256) fail("source changed during rebind");
   assertEvolutionContextBindingV9(plan, reloaded, config.shardId);
   boundedPlanBytes(plan, "context plan");
+  if (config.derivedRecordsPin !== null && config.derivedRecordsPin !== undefined) await writeEvolutionObserveRouterAudit(config.directory, input.dataset);
   const contextPath = join(config.directory, "contexts.json"); await writeJson(contextPath, plan);
   await writeJson(join(config.directory, "preparation.json"), { protocol: EVOLUTION_REBIND_V9_PROTOCOL, configPin, parentContextPin: contextPin,
     parentProtocol: parent.protocol, parentPlanSha256: parent.planSha256, parentRetrievalSourceSha256: parent.retrievalSourceSha256,
@@ -199,10 +224,13 @@ export async function rebindEvolutionDevelopment(config: EvolutionRebindableDeve
   const base = validateEvolutionContextPlan(parent);
   if (base.manifestSha256 !== config.manifestPin.sha256 || !same(base.variants, config.variants)) fail("parent manifest or variants differ from the configuration");
   if (base.retrievalSourceSha256 === retrievalSourceSha256) fail("parent already carries the current retrieval source");
-  const plan = rebindEvolutionBasePlan({ base, dataset: projected, retrievalSourceSha256 });
+  const derived = await loadEvolutionDerivedCorpora(config.derivedRecordsPin, projected.corpora);
+  const plan = rebindEvolutionBasePlan({ base, dataset: projected, retrievalSourceSha256, ...(derived === undefined ? {} : { derived }) });
   await readEvolutionPin(configPin); await readEvolutionPin(contextPin, 128 * 1024 * 1024); await readEvolutionPin(config.manifestPin, 8 * 1024 * 1024);
+  if (config.derivedRecordsPin !== undefined) await readEvolutionPin(config.derivedRecordsPin, OBSERVE_LANE_ARTIFACT_MAX_BYTES);
   if (await identity() !== retrievalSourceSha256) fail("source changed during rebind");
   boundedPlanBytes(plan, "context plan");
+  if (config.derivedRecordsPin !== undefined) await writeEvolutionObserveRouterAudit(config.directory, selection);
   const contextPath = join(config.directory, "contexts.json"); await writeJson(contextPath, plan);
   await writeJson(join(config.directory, "preparation.json"), { protocol: EVOLUTION_REBIND_DEVELOPMENT_PROTOCOL, configPin, parentContextPin: contextPin,
     parentPlanSha256: base.planSha256, parentRetrievalSourceSha256: base.retrievalSourceSha256, contextPlanSha256: plan.planSha256, retrievalSourceSha256,
@@ -360,13 +388,14 @@ export async function reportEvolutionV9(input: Readonly<{ configPin: EvolutionPi
   judgeOutputPin: EvolutionPin; output: string; identity: EvolutionV9Runtime }>) {
   const env = environment(input.identity);
   const config = await configInput(input.configPin), selection = await selectEvolutionV9(config, env.source), contextPlan = await contextFor(config, env, selection);
+  const derived = await loadEvolutionDerivedCorpora(config.derivedRecordsPin, projectEvolutionSelectionV9(selection.dataset, config).corpora);
   const authority = await verifyEvolutionCampaign(config.campaignPin), store = await openEvolutionStore({ directory: config.storeDirectory, campaign: authority.campaign });
   try {
     const settled = (request: EvolutionRequest, response: EvolutionResponse, repeat: number) => {
       const cached = store.lookup(request, repeat);
       if (cached.kind !== "hit" || canonicalSha256(cached.result) !== canonicalSha256(response)) fail("report does not match settled first-response evidence");
     };
-    const report = await buildEvolutionReportV9({ dataset: selection.dataset, manifestBytes: await readEvolutionPin(config.manifestPin, 128 * 1024 * 1024), manifestSha256: config.manifestPin.sha256,
+    const report = await buildEvolutionReportV9({ ...(derived === undefined ? {} : { derived }), dataset: selection.dataset, manifestBytes: await readEvolutionPin(config.manifestPin, 128 * 1024 * 1024), manifestSha256: config.manifestPin.sha256,
       contextPlan, readerPlan: await json(input.readerPlanPin) as EvolutionReaderPlanV2, judgePlan: await json(input.judgePlanPin) as EvolutionJudgePlanV9,
       readerOutputBytes: await readEvolutionPin(input.readerOutputPin, 128 * 1024 * 1024), judgeOutputBytes: await readEvolutionPin(input.judgeOutputPin, 128 * 1024 * 1024),
       judgeOutputSha256: input.judgeOutputPin.sha256,

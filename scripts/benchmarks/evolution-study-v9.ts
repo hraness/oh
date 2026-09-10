@@ -11,7 +11,7 @@ import { EVOLUTION_LOCOMO_J_CATEGORIES, EVOLUTION_LOCOMO_JUDGE_PROFILE_ID, EVOLU
 import { EVOLUTION_PROFILES, type EvolutionProfileId } from "./evolution-model";
 import { evolutionReaderDatePolicySha256, parseEvolutionReaderDatePolicy, type EvolutionReaderDatePolicy } from "./evolution-reader-date-policy";
 import { EVOLUTION_RELEASE_RUBRIC_SHA } from "./evolution-release";
-import { EVOLUTION_RETRIEVAL_SYSTEMS, type EvolutionRetrievalVariant } from "./evolution-retrieval";
+import { EVOLUTION_RETRIEVAL_SYSTEMS, isEvolutionDerivedSystem, isEvolutionV2System, type EvolutionRetrievalVariant } from "./evolution-retrieval";
 
 export const EVOLUTION_STUDY_V9_PROTOCOL = "oh.memory.evolution-study.v9" as const;
 /** `beam` is admitted by the grammar so a later pin can be declared without a protocol change; until
@@ -48,7 +48,7 @@ function repeatCount(value: unknown): number {
 export function parseEvolutionV9Variant(value: unknown): EvolutionRetrievalVariant {
   if (!isPlainRecord(value) || !hasExactKeys(value, ["id", "system", "budget"]) || typeof value.id !== "string" || !/^[a-z0-9][a-z0-9:-]{0,99}$/.test(value.id)
     || !(EVOLUTION_RETRIEVAL_SYSTEMS as readonly unknown[]).includes(value.system) || !isPlainRecord(value.budget) || !hasExactKeys(value.budget, ["topK", "contextBytes"])
-    || !Number.isSafeInteger(value.budget.topK) || (value.budget.topK as number) < 1 || (value.budget.topK as number) > 400
+    || !Number.isSafeInteger(value.budget.topK) || (value.budget.topK as number) < 1 || (value.budget.topK as number) > 400 || isEvolutionV2System(String(value.system)) && (value.budget.topK as number) > 100
     || !Number.isSafeInteger(value.budget.contextBytes) || (value.budget.contextBytes as number) < 1 || (value.budget.contextBytes as number) > 4_000_000) fail("whole-turn retrieval variant required");
   return { id: value.id, system: value.system as EvolutionRetrievalVariant["system"], budget: { topK: value.budget.topK as number, contextBytes: value.budget.contextBytes as number } };
 }
@@ -86,6 +86,7 @@ export function parseEvolutionStudyV9(value: unknown): EvolutionStudyV9 {
   const datasetPin = evolutionPin(value.datasetPin), manifestPin = evolutionPin(value.manifestPin), campaignPin = evolutionPin(value.campaignPin);
   if (datasetPin.sha256 !== pinned.sha256) fail("official dataset pin required");
   const derivedRecordsPin = value.derivedRecordsPin === null ? null : evolutionPin(value.derivedRecordsPin);
+  if ([control, candidate].some(v => isEvolutionDerivedSystem(v.system)) !== (derivedRecordsPin !== null)) fail("derived systems and the derived-record pin require each other");
   let retrievalProvenance: EvolutionV9RetrievalProvenance | null = null;
   if (value.retrievalProvenance !== null) {
     const p = value.retrievalProvenance;
