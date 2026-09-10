@@ -36,6 +36,18 @@ function sha256(value: string): string {
 }
 
 describe("Oh site source contract", () => {
+  test("keeps first-party styling independent of Tailwind", async () => {
+    const [packageJson, postcss, globals] = await Promise.all([
+      read("package.json"),
+      read("postcss.config.mjs"),
+      read("app/globals.css"),
+    ]);
+    const tailwindToken = ["tail", "wind"].join("");
+    expect(`${packageJson}\n${postcss}\n${globals}`).not.toMatch(
+      new RegExp(tailwindToken, "iu"),
+    );
+  });
+
   test("derives available installs from verified publication and preserves the historical capture", async () => {
     const [home, publication, packageSource] = await Promise.all([
       read("app/page.tsx"),
