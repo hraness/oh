@@ -42,10 +42,20 @@ session's anchor as its question date, abstention questions are unanswerable,
 `source_chat_ids` become evidence turn identifiers, and the scorer-side object
 (rubric nuggets and reference answers) travels only in the judge-side answer
 field for a later BEAM scoring lane. The release repeats turn identifiers
-inside some histories; evidence references map to every matching turn.
+inside 4 of the 90 histories: a `source_chat_ids` reference that names one
+turn becomes that turn's evidence identifier, while a reference that names
+several turns stays in `rawEvidenceTurnIds` only and marks the question
+`ambiguousEvidence`, so distractor turns never become gold evidence. On the
+pinned release 41 of the 1,800 questions carry such a reference; the review
+counts them per history (`ambiguousEvidenceQuestions`) so a scope or report
+can stratify or exclude them. `bench:memory extract`, `answer` and `judge`
+refuse `--dataset beam` until a BEAM reader and nugget-judge protocol exist;
+only `fetch`, `state`, `projection`, `retrieval` and the seal commands accept it.
 
 The exposure review (`scripts/benchmarks/beam-seal-cli.ts review`) writes
-digests, counts and dispositions only: per history, the content digest, the
+digests, counts and dispositions only: per history, the content digest (the
+canonical digest of the parsed turns alone, a different preimage from the
+manifest's corpus digest), the
 digests of its seed, profile, narratives, plan and planted user questions,
 exact-turn and sampled word-8-gram overlap against the cached LongMemEval S
 and LoCoMo releases, and the family it belongs to (histories sharing a seed,
@@ -53,9 +63,18 @@ profile or content are one family). Exact-turn matches gate eligibility (zero
 allowed by default); sampled shingles are reported per matched reference
 corpus and gate only under a declared bound, because a first offline pass on
 the pinned files found no identical turn in any of the 90 histories but
-template phrases shared with every LongMemEval S haystack. Operator-declared prior exposure, such as
-the search preview that showed part of one history's profile scaffold, closes
-the whole family and must be declared before any draw. The review's SHA-256 is
+template phrases shared with every LongMemEval S haystack. `review` refuses to
+run without `--declare PATH`, a JSON array of prior-exposure declarations
+(`corpusId`, `exposure`, `evidence`); an explicit empty array is the operator's
+assertion that none exists. One exposure is already known and not yet
+reconciled: a search preview showed part of one history's profile scaffold.
+Its history has not been identified against the review's profile digests, so
+no declaration file is committed yet; a review with an empty declaration
+array is therefore not acceptable as the seal's eligibility audit until that
+history is named and declared, which closes its whole family. The stored
+review re-checks that the declaration list and the per-history declared
+exposures agree exactly, that each history's relations match its family, and
+that no reference dataset repeats. The review's SHA-256 is
 the `eligibilityAuditSha256` a sealed-confirmation scope references.
 
 The family draw (`beam-seal-cli.ts draw`) reuses the existing cryptographic

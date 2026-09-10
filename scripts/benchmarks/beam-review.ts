@@ -19,8 +19,9 @@ export type BeamOverlapThresholds = Readonly<{ maximumExactTurnMatches: number; 
 export type BeamReferenceDataset = Readonly<{ dataset: string; sha256: string; data: Dataset }>;
 export type BeamReviewMatch = Readonly<{ dataset: string; exactTurnMatches: number; sampledShingleMatches: number; maximumCorpusSampledShingleMatches: number;
   matchedCorpora: readonly Readonly<{ corpusId: string; exactTurnMatches: number; sampledShingleMatches: number }>[] }>;
+/** `contentSha256` is canonicalSha256 of the parsed turns alone; the manifest's corpus digest covers id, groupId and cleaned turns, so the two are distinct preimages. */
 export type BeamReviewHistory = Readonly<{
-  corpusId: string; split: BeamSplit; rowIndex: number; sessions: number; turns: number; questions: number;
+  corpusId: string; split: BeamSplit; rowIndex: number; sessions: number; turns: number; questions: number; ambiguousEvidenceQuestions: number;
   contentSha256: string; conversationIdSha256: string; seedSha256: string; profileSha256: string; narrativesSha256: string;
   planSha256: string; userQuestionsSha256: string; suggestedGroupId: string; relatedHistories: readonly string[];
   declaredExposure: Readonly<{ exposure: EvolutionExposure; evidence: string }> | null; overlap: readonly BeamReviewMatch[];
@@ -34,7 +35,7 @@ export type BeamExposureReview = Readonly<{
   declarations: readonly BeamExposureDeclaration[];
   histories: readonly BeamReviewHistory[];
   groups: readonly EvolutionGroupDisposition[];
-  summary: Readonly<{ histories: number; questions: number; eligibleHistories: number; eligibleQuestions: number;
+  summary: Readonly<{ histories: number; questions: number; ambiguousEvidenceQuestions: number; eligibleHistories: number; eligibleQuestions: number;
     eligibleGroups: number; declaredExposures: number; overlappingHistories: number; relatedGroups: number }>;
   qualification: "Declared dispositions from digests and sampled overlap only; no independence, freshness or absence of undeclared exposure is inferred.";
 }>;
@@ -86,12 +87,13 @@ function indexBeam(beam: Dataset): Index {
 }
 
 function scanReference(index: Index, reference: BeamReferenceDataset, histories: number): BeamReviewMatch[] {
-  const counts = new Map<string, { exact: number; shingles: number }>();
+  const counts = new Map<number, Map<string, { exact: number; shingles: number }>>();
   const bump = (history: number, corpusId: string, field: "exact" | "shingles") => {
-    const key = `${history}|${corpusId}`;
-    const entry = counts.get(key) ?? { exact: 0, shingles: 0 };
+    const byCorpus = counts.get(history) ?? new Map<string, { exact: number; shingles: number }>();
+    const entry = byCorpus.get(corpusId) ?? { exact: 0, shingles: 0 };
     entry[field] += 1;
-    counts.set(key, entry);
+    byCorpus.set(corpusId, entry);
+    counts.set(history, byCorpus);
   };
   for (const corpus of reference.data.corpora) {
     const seenShingles = new Set<string>(), seenTurns = new Set<string>();
@@ -109,9 +111,8 @@ function scanReference(index: Index, reference: BeamReferenceDataset, histories:
     }
   }
   const perHistory: { corpusId: string; exactTurnMatches: number; sampledShingleMatches: number }[][] = Array.from({ length: histories }, () => []);
-  for (const [key, entry] of counts) {
-    const [history, corpusId] = key.split("|") as [string, string];
-    perHistory[Number(history)]!.push({ corpusId, exactTurnMatches: entry.exact, sampledShingleMatches: entry.shingles });
+  for (const [history, byCorpus] of counts) {
+    for (const [corpusId, entry] of byCorpus) perHistory[history]!.push({ corpusId, exactTurnMatches: entry.exact, sampledShingleMatches: entry.shingles });
   }
   return perHistory.map((matches) => {
     const sorted = matches.sort((left, right) => (right.exactTurnMatches - left.exactTurnMatches)
@@ -191,9 +192,12 @@ export function reviewBeamExposure(input: Readonly<{
   const known = new Set(beam.corpora.map((corpus) => corpus.id));
   for (const declaration of declarations) if (!known.has(declaration.corpusId)) throw new TypeError("BEAM declaration names an unknown history.");
   const declared = new Map(declarations.map((declaration) => [declaration.corpusId, declaration]));
-  const questionsByCorpus = new Map<string, number>();
-  for (const question of beam.questions) questionsByCorpus.set(question.corpusId, (questionsByCorpus.get(question.corpusId) ?? 0) + 1);
-  const contentDigests = beam.corpora.map((corpus) => sha256Hex(JSON.stringify(corpus.turns)));
+  const questionsByCorpus = new Map<string, number>(), ambiguousByCorpus = new Map<string, number>();
+  for (const question of beam.questions) {
+    questionsByCorpus.set(question.corpusId, (questionsByCorpus.get(question.corpusId) ?? 0) + 1);
+    if (question.ambiguousEvidence === true) ambiguousByCorpus.set(question.corpusId, (ambiguousByCorpus.get(question.corpusId) ?? 0) + 1);
+  }
+  const contentDigests = beam.corpora.map((corpus) => canonicalSha256(corpus.turns));
   const groupIds = suggestGroups(provenance, contentDigests);
   const index = indexBeam(beam);
   const overlapByReference = input.references.map((reference) => scanReference(index, reference, beam.corpora.length));
@@ -205,10 +209,11 @@ export function reviewBeamExposure(input: Readonly<{
     const declaration = declared.get(corpus.id);
     const overlapping = exceedsThresholds(overlap, thresholds);
     return { corpusId: corpus.id, split: history.split, rowIndex: history.rowIndex, sessions: new Set(corpus.turns.map((turn) => turn.sessionId)).size,
-      turns: corpus.turns.length, questions: questionsByCorpus.get(corpus.id) ?? 0, contentSha256: contentDigests[position]!,
+      turns: corpus.turns.length, questions: questionsByCorpus.get(corpus.id) ?? 0, ambiguousEvidenceQuestions: ambiguousByCorpus.get(corpus.id) ?? 0,
+      contentSha256: contentDigests[position]!,
       conversationIdSha256: history.conversationIdSha256, seedSha256: history.seedSha256, profileSha256: history.profileSha256,
       narrativesSha256: history.narrativesSha256, planSha256: history.planSha256, userQuestionsSha256: history.userQuestionsSha256,
-      suggestedGroupId: groupIds[position]!, relatedHistories: members.get(groupIds[position]!)!.filter((id) => id !== corpus.id),
+      suggestedGroupId: groupIds[position]!, relatedHistories: members.get(groupIds[position]!)!.filter((id) => id !== corpus.id).sort(),
       declaredExposure: declaration === undefined ? null : { exposure: declaration.exposure, evidence: declaration.evidence },
       overlap, eligible: declaration === undefined && !overlapping };
   });
@@ -241,7 +246,8 @@ export function reviewBeamExposure(input: Readonly<{
         turns: reference.data.corpora.reduce((sum, corpus) => sum + corpus.turns.length, 0) };
     }),
     shinglePolicy: BEAM_SHINGLE_POLICY, thresholds, declarations, histories, groups,
-    summary: { histories: histories.length, questions: beam.questions.length, eligibleHistories: eligibleHistories.length,
+    summary: { histories: histories.length, questions: beam.questions.length,
+      ambiguousEvidenceQuestions: beam.questions.filter((question) => question.ambiguousEvidence === true).length, eligibleHistories: eligibleHistories.length,
       eligibleQuestions: eligibleHistories.reduce((sum, history) => sum + history.questions, 0), eligibleGroups: eligibleGroups.size,
       declaredExposures: declarations.length, overlappingHistories: histories.filter((history) => history.declaredExposure === null && !history.eligible).length,
       relatedGroups: groups.filter((group) => members.get(group.groupId)!.length > 1).length },
@@ -282,9 +288,10 @@ export function parseBeamExposureReview(value: unknown): BeamExposureReview {
     if (!isPlainRecord(raw) || !hasExactKeys(raw, ["dataset", "sha256", "corpora", "turns"])) throw new TypeError("Invalid BEAM review reference.");
     return { dataset: bounded(raw.dataset, 64), sha256: digest(raw.sha256), corpora: scalar(raw.corpora, 0, 1_000_000), turns: scalar(raw.turns, 0, 100_000_000) };
   });
+  if (new Set(references.map((reference) => reference.dataset)).size !== references.length) throw new TypeError("BEAM review repeats a reference dataset.");
   if (!Array.isArray(value.histories) || value.histories.length < 1 || value.histories.length > BEAM_REVIEW_MAX_HISTORIES) throw new TypeError("Invalid BEAM review histories.");
   const histories: BeamReviewHistory[] = value.histories.map((raw) => {
-    if (!isPlainRecord(raw) || !hasExactKeys(raw, ["corpusId", "split", "rowIndex", "sessions", "turns", "questions", "contentSha256", "conversationIdSha256",
+    if (!isPlainRecord(raw) || !hasExactKeys(raw, ["corpusId", "split", "rowIndex", "sessions", "turns", "questions", "ambiguousEvidenceQuestions", "contentSha256", "conversationIdSha256",
       "seedSha256", "profileSha256", "narrativesSha256", "planSha256", "userQuestionsSha256", "suggestedGroupId", "relatedHistories", "declaredExposure",
       "overlap", "eligible"])) throw new TypeError("Invalid BEAM review history.");
     if (typeof raw.split !== "string" || !BEAM_SPLITS.includes(raw.split as BeamSplit)) throw new TypeError("Invalid BEAM review split.");
@@ -296,7 +303,8 @@ export function parseBeamExposureReview(value: unknown): BeamExposureReview {
     })();
     if (typeof raw.eligible !== "boolean") throw new TypeError("Invalid BEAM review eligibility.");
     return { corpusId: bounded(raw.corpusId, 64), split: raw.split as BeamSplit, rowIndex: scalar(raw.rowIndex, 0, 999), sessions: scalar(raw.sessions, 1, 8_192),
-      turns: scalar(raw.turns, 1, 8_192), questions: scalar(raw.questions, 0, 10_000), contentSha256: digest(raw.contentSha256),
+      turns: scalar(raw.turns, 1, 8_192), questions: scalar(raw.questions, 0, 10_000), ambiguousEvidenceQuestions: scalar(raw.ambiguousEvidenceQuestions, 0, 10_000),
+      contentSha256: digest(raw.contentSha256),
       conversationIdSha256: digest(raw.conversationIdSha256), seedSha256: digest(raw.seedSha256), profileSha256: digest(raw.profileSha256),
       narrativesSha256: digest(raw.narrativesSha256), planSha256: digest(raw.planSha256), userQuestionsSha256: digest(raw.userQuestionsSha256),
       suggestedGroupId: bounded(raw.suggestedGroupId, 64), relatedHistories: raw.relatedHistories.map((id) => bounded(id, 64)), declaredExposure,
@@ -317,10 +325,22 @@ export function parseBeamExposureReview(value: unknown): BeamExposureReview {
   });
   if (new Set(histories.map((history) => history.corpusId)).size !== histories.length) throw new TypeError("BEAM review repeats a history.");
   const known = new Set(histories.map((history) => history.corpusId));
+  const declared = new Map(declarations.map((declaration) => [declaration.corpusId, declaration]));
+  if (histories.filter((history) => history.declaredExposure !== null).length !== declarations.length) throw new TypeError("BEAM review declarations disagree with its histories.");
+  const membersByGroup = new Map<string, string[]>();
+  for (const history of histories) { const list = membersByGroup.get(history.suggestedGroupId) ?? []; list.push(history.corpusId); membersByGroup.set(history.suggestedGroupId, list); }
   for (const history of histories) {
+    if (history.ambiguousEvidenceQuestions > history.questions) throw new TypeError("BEAM review ambiguous evidence exceeds its questions.");
+    const declaration = declared.get(history.corpusId);
+    if ((declaration === undefined) !== (history.declaredExposure === null) || (declaration !== undefined
+      && (declaration.exposure !== history.declaredExposure!.exposure || declaration.evidence !== history.declaredExposure!.evidence))) {
+      throw new TypeError("BEAM review declarations disagree with its histories.");
+    }
     const overlapping = exceedsThresholds(history.overlap, thresholds);
     if (history.eligible !== (history.declaredExposure === null && !overlapping)) throw new TypeError("BEAM review eligibility disagrees with its evidence.");
     if (!known.has(history.suggestedGroupId) || history.relatedHistories.some((id) => !known.has(id) || id === history.corpusId)) throw new TypeError("BEAM review relations name unknown histories.");
+    const expectedRelations = membersByGroup.get(history.suggestedGroupId)!.filter((id) => id !== history.corpusId).sort();
+    if (JSON.stringify(history.relatedHistories) !== JSON.stringify(expectedRelations)) throw new TypeError("BEAM review relations disagree with its families.");
   }
   if (!Array.isArray(value.groups) || value.groups.length > BEAM_REVIEW_MAX_HISTORIES) throw new TypeError("Invalid BEAM review groups.");
   const groups: EvolutionGroupDisposition[] = value.groups.map((raw) => {
@@ -335,10 +355,11 @@ export function parseBeamExposureReview(value: unknown): BeamExposureReview {
   const sealed = new Set(groups.filter((group) => group.partition === "sealed").map((group) => group.groupId));
   for (const history of histories) if (sealed.has(history.suggestedGroupId) && !history.eligible) throw new TypeError("A sealed BEAM family contains an ineligible history.");
   const summary = value.summary;
-  if (!isPlainRecord(summary) || !hasExactKeys(summary, ["histories", "questions", "eligibleHistories", "eligibleQuestions", "eligibleGroups", "declaredExposures",
-    "overlappingHistories", "relatedGroups"])) throw new TypeError("Invalid BEAM review summary.");
+  if (!isPlainRecord(summary) || !hasExactKeys(summary, ["histories", "questions", "ambiguousEvidenceQuestions", "eligibleHistories", "eligibleQuestions", "eligibleGroups",
+    "declaredExposures", "overlappingHistories", "relatedGroups"])) throw new TypeError("Invalid BEAM review summary.");
   const eligible = histories.filter((history) => sealed.has(history.suggestedGroupId));
-  const expected = { histories: histories.length, questions: histories.reduce((sum, history) => sum + history.questions, 0), eligibleHistories: eligible.length,
+  const expected = { histories: histories.length, questions: histories.reduce((sum, history) => sum + history.questions, 0),
+    ambiguousEvidenceQuestions: histories.reduce((sum, history) => sum + history.ambiguousEvidenceQuestions, 0), eligibleHistories: eligible.length,
     eligibleQuestions: eligible.reduce((sum, history) => sum + history.questions, 0), eligibleGroups: sealed.size, declaredExposures: declarations.length,
     overlappingHistories: histories.filter((history) => history.declaredExposure === null && !history.eligible).length,
     relatedGroups: groups.filter((group) => histories.filter((history) => history.suggestedGroupId === group.groupId).length > 1).length };

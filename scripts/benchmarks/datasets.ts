@@ -6,6 +6,8 @@ export type Question = Readonly<{
   id: string; corpusId: string; category: string; question: string; questionDate: string;
   answer: string; unanswerable: boolean; evidenceTurnIds: readonly string[]; evidenceSessionIds: readonly string[];
   rawEvidenceTurnIds?: readonly string[];
+  /** Set when a raw evidence reference names more than one turn (BEAM repeats turn ids inside some histories); those turns are left out of evidenceTurnIds. */
+  ambiguousEvidence?: true;
 }>;
 export const EVIDENCE_REFERENCE_PROTOCOL = "oh.evidence-references.v2" as const;
 export type Dataset = Readonly<{ corpora: readonly Corpus[]; questions: readonly Question[] }>;
@@ -285,7 +287,11 @@ function beamRows(value: unknown): readonly BeamRow[] {
  * planted turn labels (`question_type`, `index`) and every probing-question
  * field stay outside the corpus. `Question.answer` carries the scorer-side
  * probing object as canonical JSON (rubric nuggets and reference answers) for a
- * later BEAM scoring lane; it never enters ingestion.
+ * later BEAM scoring lane; it never enters ingestion. A `source_chat_ids`
+ * reference that names one turn becomes that turn's evidence id; a reference
+ * that names several turns (the release repeats ids inside some histories) is
+ * kept only in `rawEvidenceTurnIds` and the question is marked
+ * `ambiguousEvidence`, so distractor turns never become gold evidence.
  */
 export function parseBeam(value: unknown): Dataset {
   const corpora: Corpus[] = [];
@@ -339,12 +345,15 @@ export function parseBeam(value: unknown): Dataset {
         const scorerJson = canonicalJson(scorerSide);
         if (Buffer.byteLength(scorerJson) > 262_144) throw new TypeError("BEAM probing question exceeds its byte bound.");
         const sourceIds = [...new Set(beamSourceChatIds(question.source_chat_ids))];
-        const evidenceTurnIds = [...new Set(sourceIds.flatMap((sourceId) => bySourceId.get(sourceId) ?? []))];
         if (sourceIds.some((sourceId) => !bySourceId.has(sourceId))) throw new TypeError("BEAM source_chat_ids reference an unknown turn.");
+        const resolved = sourceIds.map((sourceId) => bySourceId.get(sourceId)!);
+        const ambiguous = resolved.some((turnIds) => turnIds.length > 1);
+        const evidenceTurnIds = [...new Set(resolved.filter((turnIds) => turnIds.length === 1).map((turnIds) => turnIds[0]!))];
         questions.push({ id: `${corpusId}:${category}:${index}`, corpusId, category: `beam:${category}`, question: questionText,
           questionDate: lastSessionDate, answer: scorerJson, unanswerable: category === "abstention",
           evidenceTurnIds, rawEvidenceTurnIds: sourceIds.map(String),
-          evidenceSessionIds: [...new Set(evidenceTurnIds.map((turnId) => byId.get(turnId)!.sessionId))] });
+          evidenceSessionIds: [...new Set(evidenceTurnIds.map((turnId) => byId.get(turnId)!.sessionId))],
+          ...(ambiguous ? { ambiguousEvidence: true as const } : {}) });
       }
     }
   }

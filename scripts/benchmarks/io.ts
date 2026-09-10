@@ -107,9 +107,10 @@ export async function loadDatasetValue(name: DatasetName): Promise<unknown> {
   const file = Bun.file(datasetPath(name));
   const source = DATASETS[name];
   if (!await file.exists()) throw new Error(`Dataset is not cached; run bench:memory fetch --dataset ${name}.`);
-  if (file.size !== source.bytes) throw new Error("Cached dataset byte size does not match its pinned source.");
+  const stale = `delete ${displayPath(datasetPath(name))} and run bench:memory fetch --dataset ${name} again`;
+  if (file.size !== source.bytes) throw new Error(`Cached dataset byte size does not match its pinned source; ${stale}.`);
   const bytes = await file.bytes();
-  if (sha256Hex(bytes) !== source.sha256) throw new Error("Cached dataset checksum mismatch.");
+  if (sha256Hex(bytes) !== source.sha256) throw new Error(`Cached dataset checksum mismatch; ${stale}.`);
   return JSON.parse(new TextDecoder().decode(bytes)) as unknown;
 }
 

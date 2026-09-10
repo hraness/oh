@@ -1,8 +1,9 @@
 /** Offline BEAM data-side seal commands: exposure review and the cryptographic family draw.
  * No provider, network or campaign store is touched; both commands print counts and digests only.
  *
- *   bun scripts/benchmarks/beam-seal-cli.ts review --output PATH [--declare PATH] [--reference longmemeval-s,locomo]
+ *   bun scripts/benchmarks/beam-seal-cli.ts review --output PATH --declare PATH [--reference longmemeval-s,locomo]
  *       [--max-exact-turn-matches N] [--max-sampled-shingle-matches-per-corpus N]   (sampled shingles are report-only unless bounded)
+ *   --declare is mandatory: a JSON array of prior-exposure declarations, or an explicit empty array when the operator asserts none.
  *   bun scripts/benchmarks/beam-seal-cli.ts draw --review PATH --families N --output PATH
  */
 import { parseArgs } from "node:util";
@@ -42,10 +43,10 @@ export async function main(argv: readonly string[]): Promise<void> {
   } });
   const command = positionals[0];
   if (command === "review") {
-    if (!values.output) throw new TypeError("review requires --output.");
+    if (!values.output || !values.declare) throw new TypeError("review requires --output and --declare (a JSON array of prior-exposure declarations; [] declares none explicitly).");
     const referenceNames = (values.reference ?? "longmemeval-s,locomo").split(",").filter((name) => name.length > 0);
     for (const name of referenceNames) if (!REFERENCE_NAMES.has(name as DatasetName)) throw new TypeError(`Unknown reference dataset ${name}.`);
-    const declarations = values.declare === undefined ? [] : parseBeamExposureDeclarations((await readJson(values.declare, 1024 * 1024)).value);
+    const declarations = parseBeamExposureDeclarations((await readJson(values.declare, 1024 * 1024)).value);
     const thresholds = { maximumExactTurnMatches: integer(values["max-exact-turn-matches"], BEAM_DEFAULT_THRESHOLDS.maximumExactTurnMatches, "--max-exact-turn-matches"),
       maximumSampledShingleMatchesPerCorpus: values["max-sampled-shingle-matches-per-corpus"] === undefined ? BEAM_DEFAULT_THRESHOLDS.maximumSampledShingleMatchesPerCorpus
         : integer(values["max-sampled-shingle-matches-per-corpus"], 0, "--max-sampled-shingle-matches-per-corpus") };

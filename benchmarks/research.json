@@ -123,6 +123,12 @@
       "scope": "451 questions over web and enterprise agent trajectories: static state, dynamic state, workflows, environment gotchas, and premise awareness. Includes an accuracy-latency frontier metric (LAFS).",
       "lesson": "A stronger follow-up for actual agent experience than conversational retrieval alone. Its memory backend receives trajectories and question text/images, not gold answers or dataset question metadata.",
       "boundary": "The published stack uses a Qwen3.5-9B reader, Qwen3-Embedding-8B for embedding methods, and a GPT-5.2 judge. Haystacks reach 115M tokens. This is a separate protocol and resource budget, not an extension of the present GPT-4.1 pilot."
+    },
+    "beam": {
+      "license": "CC-BY-SA-4.0",
+      "url": "https://huggingface.co/datasets/Mohammadta/BEAM/tree/3205395e897e7318c7b094ef4e6047b9b82dbb03",
+      "status": "prepared offline; not run",
+      "boundary": "Only chat turns and session time anchors enter memory; plans, profiles, seeds, narratives, planted-turn labels (index, question_type) and every probing-question field stay out. Turn ids repeat in 4 of 90 histories; 41 of 1,800 questions carry an ambiguous evidence reference and are marked ambiguousEvidence with those turns left out of evidenceTurnIds. bench:memory extract, answer and judge refuse --dataset beam until a BEAM reader and nugget-judge protocol exist."
     }
   },
   "ohAssessment": {

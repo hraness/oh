@@ -6,6 +6,9 @@ import { applyBeamReview, beamManifestInput, parseBeamExposureReview, reviewBeam
   type BeamExposureReview } from "../scripts/benchmarks/beam-review";
 import { beamScopeQuestionIds, buildBeamFamilyPool, createBeamSelection, parseBeamSelectionDocument, verifyBeamSelection } from "../scripts/benchmarks/beam-selection";
 import { createEvolutionDatasetManifest, projectEvolutionRunnerInput } from "../scripts/benchmarks/evolution-dataset";
+import { parseDataset } from "../scripts/benchmarks/io";
+import { main as sealMain } from "../scripts/benchmarks/beam-seal-cli";
+import { main as benchMain } from "../scripts/benchmark-memory";
 import { makeEvolutionEvaluationScope } from "../scripts/benchmarks/evolution-evaluation-scope";
 import type { RandomIndex } from "../scripts/benchmarks/selection";
 
@@ -76,15 +79,29 @@ describe("parseBeam", () => {
     expect(JSON.stringify(dataset.corpora)).not.toContain("main_question");
     expect(dataset.questions).toHaveLength(4 * 11);
     const question = dataset.questions.find((q) => q.id === "beam-100K-0:knowledge_update:0")!;
+    // Turn id 7 names two turns (s0:0 and s1:0): neither enters evidenceTurnIds; the question is marked ambiguous and keeps the raw reference.
     expect(question).toMatchObject({ corpusId: "beam-100K-0", category: "beam:knowledge_update", questionDate: "2025-03-09 18:30", unanswerable: false,
-      evidenceTurnIds: ["s0:0", "s1:0", "s0:1"], rawEvidenceTurnIds: ["7", "8"], evidenceSessionIds: ["s0", "s1"] });
+      evidenceTurnIds: ["s0:1"], rawEvidenceTurnIds: ["7", "8"], evidenceSessionIds: ["s0"], ambiguousEvidence: true });
     expect(question.question).toContain("PRIVATE_QUESTION_SENTINEL");
     expect(JSON.parse(question.answer)).toEqual({ answer: "PRIVATE_ANSWER_SENTINEL", difficulty: "easy", rubric: ["PRIVATE_RUBRIC_SENTINEL one", "PRIVATE_RUBRIC_SENTINEL two"], source_chat_ids: [7, 8] });
     expect(question.answer).toBe(canonicalJson(JSON.parse(question.answer)));
-    expect(dataset.questions.find((q) => q.id === "beam-100K-0:abstention:0")).toMatchObject({ unanswerable: true, evidenceTurnIds: [], rawEvidenceTurnIds: [] });
-    expect(dataset.questions.find((q) => q.id === "beam-100K-0:event_ordering:0")).toMatchObject({ evidenceTurnIds: ["s0:0", "s1:0", "s1:1"], rawEvidenceTurnIds: ["7", "9"] });
-    expect(dataset.questions.find((q) => q.id === "beam-100K-0:temporal_reasoning:0")).toMatchObject({ evidenceTurnIds: ["s0:1", "s1:2"] });
+    const abstention = dataset.questions.find((q) => q.id === "beam-100K-0:abstention:0")!;
+    expect(abstention).toMatchObject({ unanswerable: true, evidenceTurnIds: [], rawEvidenceTurnIds: [] });
+    expect("ambiguousEvidence" in abstention).toBe(false);
+    expect(dataset.questions.find((q) => q.id === "beam-100K-0:event_ordering:0")).toMatchObject({ evidenceTurnIds: ["s1:1"], rawEvidenceTurnIds: ["7", "9"], ambiguousEvidence: true });
+    const unambiguous = dataset.questions.find((q) => q.id === "beam-100K-0:temporal_reasoning:0")!;
+    expect(unambiguous).toMatchObject({ evidenceTurnIds: ["s0:1", "s1:2"], evidenceSessionIds: ["s0", "s1"] });
+    expect("ambiguousEvidence" in unambiguous).toBe(false);
     expect(dataset.questions.find((q) => q.id === "beam-100K-0:temporal_reasoning:1")).toMatchObject({ evidenceTurnIds: [] });
+    expect(dataset.questions.filter((q) => q.ambiguousEvidence === true)).toHaveLength(4 * 8);
+  });
+
+  test("io dispatches beam to parseBeam and keeps the older parsers routed", () => {
+    expect(parseDataset("beam", document())).toEqual(parseBeam(document()));
+    const longmemDocument = [longmem("ref-a", "A reference sentence long enough to shingle without trouble")];
+    expect(parseDataset("longmemeval-s", longmemDocument)).toEqual(parseLongMemEval(longmemDocument));
+    expect(() => parseDataset("locomo", document())).toThrow();
+    expect(() => parseDataset("beam", longmemDocument)).toThrow("BEAM");
   });
 
   test("rejects envelopes that drift from the pinned release", () => {
@@ -143,14 +160,17 @@ describe("BEAM exposure review", () => {
 
   test("flags exact-turn overlap, joins related histories on shared seeds and writes no text", () => {
     const { review: result } = review();
-    expect(result.summary).toEqual({ histories: 4, questions: 44, eligibleHistories: 3, eligibleQuestions: 33, eligibleGroups: 2, declaredExposures: 0, overlappingHistories: 1, relatedGroups: 1 });
+    expect(result.summary).toEqual({ histories: 4, questions: 44, ambiguousEvidenceQuestions: 32, eligibleHistories: 3, eligibleQuestions: 33, eligibleGroups: 2, declaredExposures: 0,
+      overlappingHistories: 1, relatedGroups: 1 });
     const flagged = result.histories[0]!;
-    expect(flagged).toMatchObject({ corpusId: "beam-100K-0", eligible: false, sessions: 2, turns: 5, questions: 11 });
+    expect(flagged).toMatchObject({ corpusId: "beam-100K-0", eligible: false, sessions: 2, turns: 5, questions: 11, ambiguousEvidenceQuestions: 8,
+      contentSha256: canonicalSha256(parseBeam(beamDocument()).corpora[0]!.turns) });
     expect(flagged.overlap[0]).toMatchObject({ dataset: "longmemeval-s", exactTurnMatches: 1, matchedCorpora: [{ corpusId: "ref-a", exactTurnMatches: 1 }] });
     expect(flagged.overlap[0]!.maximumCorpusSampledShingleMatches).toBe(flagged.overlap[0]!.matchedCorpora[0]!.sampledShingleMatches);
     expect(result.thresholds).toEqual({ maximumExactTurnMatches: 0, maximumSampledShingleMatchesPerCorpus: null });
     expect(result.histories.map((history) => history.suggestedGroupId)).toEqual(["beam-100K-0", "beam-100K-1", "beam-1M-0", "beam-1M-0"]);
     expect(result.histories[2]!.relatedHistories).toEqual(["beam-1M-0"]);
+    expect(result.histories[3]!.relatedHistories).toEqual(["beam-500K-0"]);
     expect(result.groups).toEqual([
       { groupId: "beam-100K-0", partition: "closed", exposure: "unknown", evidence: "1 of 1 related histories exceed the overlap thresholds against longmemeval-s." },
       { groupId: "beam-100K-1", partition: "sealed", exposure: "unseen", evidence: "No declared exposure; 1 related histories within the overlap thresholds against longmemeval-s." },
@@ -171,6 +191,32 @@ describe("BEAM exposure review", () => {
     const lifted = JSON.parse(JSON.stringify(result));
     lifted.histories[0].eligible = true;
     expect(() => parseBeamExposureReview(lifted)).toThrow("eligibility disagrees");
+    // Keep the top-level declaration but erase the history's own declared exposure, reopen its family and fix the summary: the parser still refuses.
+    const erased = JSON.parse(JSON.stringify(result));
+    erased.histories[2].declaredExposure = null; erased.histories[2].eligible = true; erased.histories[3].eligible = true;
+    erased.groups[2].partition = "sealed"; erased.groups[2].exposure = "unseen";
+    erased.summary.eligibleHistories = 3; erased.summary.eligibleQuestions = 33; erased.summary.eligibleGroups = 2;
+    expect(() => parseBeamExposureReview(erased)).toThrow("declarations disagree");
+    const reworded = JSON.parse(JSON.stringify(result));
+    reworded.histories[2].declaredExposure.exposure = "unknown";
+    expect(() => parseBeamExposureReview(reworded)).toThrow("declarations disagree");
+    const orphan = JSON.parse(JSON.stringify(result));
+    orphan.declarations = [];
+    orphan.summary.declaredExposures = 0;
+    expect(() => parseBeamExposureReview(orphan)).toThrow("declarations disagree");
+    const unrelated = JSON.parse(JSON.stringify(result));
+    unrelated.histories[2].relatedHistories = [];
+    expect(() => parseBeamExposureReview(unrelated)).toThrow("relations disagree");
+    const unsorted = JSON.parse(JSON.stringify(result));
+    unsorted.histories[2].relatedHistories = ["beam-1M-0", "beam-100K-1"]; unsorted.histories[1].relatedHistories = ["beam-500K-0"];
+    expect(() => parseBeamExposureReview(unsorted)).toThrow("relations disagree");
+    const doubled = JSON.parse(JSON.stringify(result));
+    doubled.references = [doubled.references[0], doubled.references[0]];
+    doubled.histories = doubled.histories.map((history: { overlap: unknown[] }) => ({ ...history, overlap: [history.overlap[0], history.overlap[0]] }));
+    expect(() => parseBeamExposureReview(doubled)).toThrow("repeats a reference");
+    const overcounted = JSON.parse(JSON.stringify(result));
+    overcounted.histories[0].ambiguousEvidenceQuestions = 12;
+    expect(() => parseBeamExposureReview(overcounted)).toThrow("ambiguous evidence");
     expect(() => reviewBeamExposure({ beam: review().beam, provenance: parseBeamProvenance(beamDocument()), references: [],
       declarations: [{ corpusId: "beam-100K-9", exposure: "unknown", evidence: "x" }] })).toThrow("unknown history");
     expect(() => reviewBeamExposure({ beam: review().beam, provenance: parseBeamProvenance(beamDocument()).slice(1), references: [] })).toThrow("align");
@@ -251,5 +297,25 @@ describe("BEAM family draw", () => {
     const closedManifest = createEvolutionDatasetManifest(grouped, beamManifestInput(closedReview)), closedBytes = new TextEncoder().encode(canonicalJson(closedManifest));
     expect(() => makeEvolutionEvaluationScope({ manifestBytes: closedBytes, manifestSha256: sha256Hex(closedBytes), source: { dataset: "beam", revision: DATASETS.beam.revision, sourceSha256: DATASETS.beam.sha256 },
       request: { mode: "sealed-confirmation", maximumQuestionsPerShard: 100, design, selectedQuestionIds: beamScopeQuestionIds(selection), eligibilityAuditSha256: reviewSha256 } })).toThrow("sealed/unseen");
+  });
+});
+
+describe("BEAM command guards", () => {
+  test("bench:memory refuses the paid commands for beam while fetch and retrieval still route", async () => {
+    for (const command of ["extract", "answer", "judge"]) {
+      await expect(benchMain([command, "--dataset", "beam", "--paid", "--max-usd", "1", "--max-calls", "1"])).rejects.toThrow("no reader or judge protocol");
+    }
+    await expect(benchMain(["select", "--dataset", "beam", "--limit", "1", "--output", "/missing/out.json"])).rejects.toThrow("limited to longmemeval-s");
+    // retrieval passes the guard and fails on the later split check before any dataset is loaded.
+    await expect(benchMain(["retrieval", "--dataset", "beam", "--split", "nope"])).rejects.toThrow("Unknown split");
+  });
+
+  test("the seal CLI requires an explicit declaration file for review and a full argument set for draw", async () => {
+    await expect(sealMain(["review", "--output", "/missing/review.json"])).rejects.toThrow("--declare");
+    await expect(sealMain(["review", "--declare", "/missing/declare.json"])).rejects.toThrow("--output");
+    await expect(sealMain(["review", "--output", "/missing/review.json", "--declare", "/missing/declare.json", "--reference", "beam"])).rejects.toThrow("Unknown reference");
+    await expect(sealMain(["review", "--output", "/missing/review.json", "--declare", "/missing/declare.json"])).rejects.toThrow("must exist");
+    await expect(sealMain(["draw", "--review", "/missing/review.json"])).rejects.toThrow("--families");
+    await expect(sealMain(["seal"])).rejects.toThrow("Usage");
   });
 });
