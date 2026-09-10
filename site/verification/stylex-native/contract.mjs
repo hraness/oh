@@ -7,6 +7,33 @@ export const expectedVersions = Object.freeze({ next: "16.3.3", react: "19.2.6",
 export const totalDeadlineMs = 1_800_000;
 export const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
+// Preserve the outer schedulers' finite worker limits without recomputing or
+// increasing them. Opaque custody bindings are private pass-through values:
+// only the schedulers authenticate leases; this helper grants no authority.
+export function inheritedSchedulerEnvironment(inherited) {
+  const workerLimits = {};
+  for (const key of ["CIRCLE_NODE_TOTAL", "GOMAXPROCS", "JUNGLE_CHECK_TURBO_CONCURRENCY",
+    "RAYON_NUM_THREADS", "UV_THREADPOOL_SIZE", "VIPS_CONCURRENCY", "VITEST_MAX_WORKERS", "JUNGLE_CHECK_WORKER_BUDGET"]) {
+    const value = inherited[key];
+    assert.ok(typeof value === "string" && /^[1-9][0-9]*$/.test(value)
+      && Number.isSafeInteger(Number(value)), `Missing or invalid scheduler worker limit: ${key}`);
+    workerLimits[key] = value;
+  }
+  const budget = Number(workerLimits.JUNGLE_CHECK_WORKER_BUDGET);
+  for (const [key, value] of Object.entries(workerLimits)) {
+    assert.ok(Number(value) <= budget + (key === "CIRCLE_NODE_TOTAL" ? 1 : 0), `Scheduler limit exceeds its inherited budget: ${key}`);
+  }
+  const bindings = {}, bindingEvidence = {};
+  for (const key of ["HRA_LOCAL_EFFICIENCY_LEASE", "JUNGLE_CHECK_RESOURCE_BINDING"]) {
+    const value = inherited[key];
+    assert.ok(typeof value === "string" && value.length > 0 && !value.includes("\0")
+      && Buffer.byteLength(value) <= 4096, `Missing or invalid scheduler custody binding: ${key}`);
+    bindings[key] = value;
+    bindingEvidence[key] = { bytes: Buffer.byteLength(value), sha256: sha256(value) };
+  }
+  return { workerLimits, bindings, bindingEvidence };
+}
+
 export function baselineCells() {
   const cells = [];
   const add = (family, route, width, colorScheme, overrides = {}) => cells.push({

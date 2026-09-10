@@ -9,7 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { assertListenerOwner, bounded, observeChild, OwnedProcesses, parseListenerPids, parseProcessRows, preservingCleanup, ResourceTracker } from './support.mjs';
-import { acceptance, assertBaselineRange, assertInstalled, assertScriptMode, baselineObservations, captureScreenshot, captureSnapshot, expectedMedia, legacyBase, originalsCollected, settle, totalDeadlineMs } from './contract.mjs';
+import { acceptance, assertBaselineRange, assertInstalled, assertScriptMode, baselineObservations, captureScreenshot, captureSnapshot, expectedMedia, inheritedSchedulerEnvironment, legacyBase, originalsCollected, settle, totalDeadlineMs } from './contract.mjs';
 import { proveInteractions, proveRoles } from './surfaces.mjs';
 
 // Build and observe the exact legacy Oh site. This entry point is native-only;
@@ -131,14 +131,16 @@ const playwrightFiles = await inventory(playwrightRoot);
 const executables = await Promise.all([bun, node, executablePath].map((path) => fileRecord(path, path)));
 const collectorPaths = [fileURLToPath(import.meta.url), ...['./support.mjs', './contract.mjs', './surfaces.mjs'].map((path) => fileURLToPath(new URL(path, import.meta.url)))];
 const collectorFiles = await Promise.all(collectorPaths.map((path) => fileRecord(path, path)));
-const environment = { PATH: `${dirname(node)}:${dirname(bun)}:/usr/bin:/bin`, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', TMPDIR: join(output, 'runtime') };
+const scheduler = inheritedSchedulerEnvironment(process.env);
+const recordedEnvironment = { PATH: `${dirname(node)}:${dirname(bun)}:/usr/bin:/bin`, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1', TMPDIR: join(output, 'runtime'), ...scheduler.workerLimits };
+const environment = { ...recordedEnvironment, ...scheduler.bindings };
 const { chromium } = await import(pathToFileURL(playwrightEntry).href);
 const receipt = {
   schema: 'oh-site-native-baseline-v1', startedAt: new Date().toISOString(),
   root, site, legacyBase, head: await git('rev-parse', 'HEAD'), tree: await git('rev-parse', 'HEAD^{tree}'),
   source: before, sourceSha256: hash(JSON.stringify(before)), build: null,
   installed, installedSha256: hash(JSON.stringify(installed)), selectedVersions, selectedPackageFiles, playwrightFiles, executables, collectorFiles,
-  buildCommand: [bun, 'run', 'build'], environment, node: process.version,
+  buildCommand: [bun, 'run', 'build'], environment: recordedEnvironment, schedulerBindings: scheduler.bindingEvidence, node: process.version,
   coverage: { cells: 58, observations: 116, modes: ['js', 'no-js'], absoluteDeadlineMs: totalDeadlineMs },
   browserExecutable: executablePath, browserExecutableSha256: args.get('--chromium-sha'),
   observations: [], errors: [], cleanup: { originalOperationsCollected: false }, work: 'pending', accepted: false,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { acceptance, assertBaselineRange, assertInstalled, assertMedia, assertScriptMode, baselineCells, baselineObservations,
-  captureScreenshot, captureSnapshot, expectedMedia, expectedVersions, legacyBase, originalsCollected, screenshotOptions, settle, settledState } from "./contract.mjs";
+  captureScreenshot, captureSnapshot, expectedMedia, expectedVersions, inheritedSchedulerEnvironment, legacyBase, originalsCollected, screenshotOptions, settle, settledState, sha256 } from "./contract.mjs";
 import { assertInteractionInventory, tabTo, focusEvidence, linkStateTargets, roles } from "./surfaces.mjs";
 
 const cell = baselineObservations()[0];
@@ -11,6 +11,51 @@ const snapshot = () => {
   return { media: expectedMedia(cell), fonts, animations, readinessAfter: { fonts: structuredClone(fonts), animations: [] },
     viewport: { width: cell.width, scrollX: 0, scrollY: 0 }, focus: { id: "" }, nodes: [{ styles: { color: "rgb(1, 2, 3)" }, box: { x: 0, y: 0 } }] };
 };
+
+const schedulerInput = () => ({
+  CIRCLE_NODE_TOTAL: "6", GOMAXPROCS: "3", JUNGLE_CHECK_TURBO_CONCURRENCY: "2", RAYON_NUM_THREADS: "4",
+  UV_THREADPOOL_SIZE: "5", VIPS_CONCURRENCY: "1", VITEST_MAX_WORKERS: "5", JUNGLE_CHECK_WORKER_BUDGET: "5",
+  HRA_LOCAL_EFFICIENCY_LEASE: '{"private":"host-custody"}', JUNGLE_CHECK_RESOURCE_BINDING: '{"private":"repository-custody"}',
+});
+
+test("clean child environment preserves only exact inherited scheduler limits and private bindings", () => {
+  const original = schedulerInput();
+  const result = inheritedSchedulerEnvironment({ ...original, HOME: "excluded-home", GITHUB_TOKEN: "excluded-secret",
+    VERCEL_OIDC_TOKEN: "excluded-provider", NODE_OPTIONS: "excluded-loader", GITHUB_ACTIONS: "true", PATH: "excluded-path" });
+  assert.deepEqual({ ...result.workerLimits, ...result.bindings }, original);
+  assert.deepEqual(Object.keys(result.bindings), ["HRA_LOCAL_EFFICIENCY_LEASE", "JUNGLE_CHECK_RESOURCE_BINDING"]);
+  assert.equal(Object.keys(result.workerLimits).length, 8);
+  for (const [key, value] of Object.entries(result.bindings)) {
+    assert.deepEqual(result.bindingEvidence[key], { bytes: Buffer.byteLength(value), sha256: sha256(value) });
+    assert.ok(!JSON.stringify({ ...result.workerLimits, bindings: result.bindingEvidence }).includes(value));
+  }
+  assert.ok(!JSON.stringify(result).includes("excluded-"));
+  assert.deepEqual(original, schedulerInput());
+});
+
+test("scheduler pass-through rejects absent, malformed or widened limits without defaults or value disclosure", () => {
+  const input = schedulerInput();
+  for (const key of Object.keys(input)) {
+    const absent = { ...input }; delete absent[key];
+    assert.throws(() => inheritedSchedulerEnvironment(absent), /Missing or invalid scheduler/);
+  }
+  for (const key of Object.keys(input).filter((key) => !key.endsWith("LEASE") && !key.endsWith("BINDING"))) {
+    for (const value of [undefined, 1, "", "0", "-1", "01", "1.0", "1e1", " 1", "9007199254740992", "private-invalid"]) {
+      assert.throws(() => inheritedSchedulerEnvironment({ ...input, [key]: value }), (error) => {
+        assert.match(error.message, /Missing or invalid scheduler/); assert.ok(!error.message.includes("private-invalid")); return true;
+      });
+    }
+    if (key !== "JUNGLE_CHECK_WORKER_BUDGET") {
+      assert.throws(() => inheritedSchedulerEnvironment({ ...input, [key]: key === "CIRCLE_NODE_TOTAL" ? "7" : "6" }), /exceeds/);
+    }
+  }
+  assert.throws(() => inheritedSchedulerEnvironment({ ...input, JUNGLE_CHECK_WORKER_BUDGET: "4" }), /exceeds/);
+  for (const key of ["HRA_LOCAL_EFFICIENCY_LEASE", "JUNGLE_CHECK_RESOURCE_BINDING"]) {
+    for (const value of [undefined, 1, "", "private\0invalid", "x".repeat(4097), "é".repeat(2049)]) {
+      assert.throws(() => inheritedSchedulerEnvironment({ ...input, [key]: value }), /Missing or invalid scheduler custody/);
+    }
+  }
+});
 
 test("closed 58-cell corpus keeps every breakpoint, route, palette and 116 JS/no-JS observations", () => {
   const cells = baselineCells(), observations = baselineObservations();

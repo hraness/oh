@@ -95,6 +95,15 @@ exclusive scheduler. It invokes the existing site command, bun run build, once
 production output on one owned loopback port. It does not run next dev or claim
 HMR/state continuity.
 
+The clean build, server and browser environment preserves the schedulers' eight
+inherited worker-limit values exactly, including a smaller configured pool.
+Missing, malformed or over-budget limits stop the collector; it never supplies
+a replacement budget. The two opaque scheduler custody bindings pass unchanged
+to children but appear only as byte counts and hashes in the receipt. This is
+environment preservation, not independent lease authentication. No general
+environment copy, credentials, provider settings or session variables enter the
+child environment.
+
 The absolute collection deadline is 1,800 seconds, including the build;
 individual observations have a 60-second bound. Every failure is terminal for
 that invocation. Build output and evidence are retained; there is no rerun,
