@@ -32,7 +32,7 @@ type EvolutionLegacyRunConfig = Readonly<{ protocol: "oh.memory.evolution-run.v1
   datasetPin: EvolutionPin; manifestPin: EvolutionPin; campaignPin: EvolutionPin; limit: number; seed: number;
   variants: readonly EvolutionTreatment[]; readers: readonly EvolutionProfileId[];
   judge: EvolutionJudgeProfileId; directory: string; storeDirectory: string;
-  concurrency: number }>;
+  concurrency: number; semanticCacheDirectory?: string }>;
 export type EvolutionCompletionParentPins = Readonly<Record<"prefix" | "lexical" | "semantic", Readonly<{ pin: EvolutionPin; variantId: string }>>>;
 export type EvolutionCompletionRunConfig = Omit<EvolutionLegacyRunConfig, "protocol" | "variants"> & Readonly<{
   protocol: "oh.memory.evolution-run.v5"; variants: readonly EvolutionCompletionTreatment[]; completionParents: EvolutionCompletionParentPins }>;
@@ -59,7 +59,8 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   const v7 = isPlainRecord(value) && value.protocol === "oh.memory.evolution-run.v7";
   const v8 = isPlainRecord(value) && value.protocol === "oh.memory.evolution-run.v8";
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "dataset", "datasetPin", "manifestPin", "campaignPin", "limit", "seed",
-    "variants", "readers", "judge", "directory", "storeDirectory", "concurrency", ...(v5 ? ["completionParents"] : []), ...(v6 ? ["sourceOrderParent"] : []), ...(v7 ? ["studyPin", "scopePin", "shardId", "semanticCacheDirectory"] : []), ...(v8 ? ["companionStudyPin", "shardId"] : [])]) || !["oh.memory.evolution-run.v1", "oh.memory.evolution-run.v2", "oh.memory.evolution-run.v3", "oh.memory.evolution-run.v4", "oh.memory.evolution-run.v5", "oh.memory.evolution-run.v6", "oh.memory.evolution-run.v7", "oh.memory.evolution-run.v8"].includes(String(value.protocol))
+    "variants", "readers", "judge", "directory", "storeDirectory", "concurrency", ...(v5 ? ["completionParents"] : []), ...(v6 ? ["sourceOrderParent"] : []), ...(v7 ? ["studyPin", "scopePin", "shardId", "semanticCacheDirectory"] : []), ...(v8 ? ["companionStudyPin", "shardId"] : []),
+    ...(!v7 && !v8 && Object.hasOwn(value, "semanticCacheDirectory") ? ["semanticCacheDirectory"] : [])]) || !["oh.memory.evolution-run.v1", "oh.memory.evolution-run.v2", "oh.memory.evolution-run.v3", "oh.memory.evolution-run.v4", "oh.memory.evolution-run.v5", "oh.memory.evolution-run.v6", "oh.memory.evolution-run.v7", "oh.memory.evolution-run.v8"].includes(String(value.protocol))
     || !["longmemeval-s", "locomo"].includes(String(value.dataset)) || !positive(value.limit, 2000) || !positive(value.seed, 1_000_000)
     || !validConcurrency(value.concurrency, value.protocol) || !Array.isArray(value.variants) || value.variants.length < 1 || value.variants.length > 32
     || !Array.isArray(value.readers) || value.readers.length < 1 || value.readers.length > 8
@@ -84,6 +85,14 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   let completionParents: EvolutionCompletionParentPins | undefined;
   let sourceOrderParent: EvolutionSourceOrderRunConfig["sourceOrderParent"] | undefined;
   let release: Pick<EvolutionReleaseRunConfig, "studyPin" | "scopePin" | "shardId" | "semanticCacheDirectory"> | undefined;
+  let developmentCache: Readonly<{ semanticCacheDirectory: string }> | undefined;
+  if (!v7 && !v8 && Object.hasOwn(value, "semanticCacheDirectory")) {
+    // Optional local semantic cache for development lanes; the same overlap rules as the release lane apply.
+    const semanticCacheDirectory = path(value.semanticCacheDirectory);
+    for (const pin of [datasetPin, manifestPin, campaignPin]) if (pin.path === semanticCacheDirectory || pin.path.startsWith(semanticCacheDirectory + "/")) fail("development input overlaps semantic cache");
+    if ([directory, storeDirectory].some(root => semanticCacheDirectory === root || semanticCacheDirectory.startsWith(root + "/") || root.startsWith(semanticCacheDirectory + "/"))) fail("semantic cache overlaps run/store");
+    developmentCache = { semanticCacheDirectory };
+  }
   let companion: Pick<EvolutionFullContextRunConfig, "companionStudyPin" | "shardId"> | undefined;
   if (v8) {
     if (value.dataset !== "longmemeval-s" || value.limit !== 100 || value.seed !== 17 || readers.length !== 1 || !(EVOLUTION_RELEASE_READERS as readonly unknown[]).includes(readers[0])
@@ -127,7 +136,7 @@ export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
   }
   return { protocol: value.protocol as EvolutionRunConfig["protocol"], dataset: value.dataset as "longmemeval-s" | "locomo", datasetPin, manifestPin, campaignPin,
     limit: value.limit, seed: value.seed, variants, readers, judge: value.judge as EvolutionRunConfig["judge"], directory, storeDirectory, concurrency: value.concurrency,
-    ...(completionParents === undefined ? {} : { completionParents }), ...(sourceOrderParent === undefined ? {} : { sourceOrderParent }), ...(release ?? {}), ...(companion ?? {}) } as EvolutionRunConfig;
+    ...(completionParents === undefined ? {} : { completionParents }), ...(sourceOrderParent === undefined ? {} : { sourceOrderParent }), ...(release ?? {}), ...(companion ?? {}), ...(developmentCache ?? {}) } as EvolutionRunConfig;
 }
 async function json(pin: EvolutionPin, maximum = 128 * 1024 * 1024): Promise<unknown> {
   return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await readEvolutionPin(pin, maximum)));
@@ -263,7 +272,13 @@ export async function prepareEvolution(configPin: EvolutionPin) {
     parents: await loadEvolutionSourceOrderParents(config, dataset), manifestSha256: config.manifestPin.sha256, retrievalSourceSha256 }), timing: [] }
     : config.protocol === "oh.memory.evolution-run.v5" ? { plan: makeEvolutionCompletionPlan({ dataset,
     parents: await loadEvolutionCompletionParents(config, dataset), manifestSha256: config.manifestPin.sha256, retrievalSourceSha256 }), timing: [] }
-    : await makeEvolutionExperimentContextPlan({ dataset, variants: config.variants, manifestSha256: config.manifestPin.sha256, retrievalSourceSha256 });
+    : await (async () => {
+      const semanticCacheDirectory = config.semanticCacheDirectory;
+      // Load optional QMD before the first SQLite instance when a development lane asks for local semantic retrieval.
+      if (semanticCacheDirectory !== undefined) { const optionalQmd: string = "@tobilu/qmd"; await import(optionalQmd); }
+      return makeEvolutionExperimentContextPlan({ dataset, variants: config.variants, manifestSha256: config.manifestPin.sha256, retrievalSourceSha256,
+        ...(semanticCacheDirectory === undefined ? {} : { semanticCacheDirectory }) });
+    })();
   await readEvolutionPin(configPin); await readEvolutionPin(config.manifestPin);
   if (config.protocol === "oh.memory.evolution-run.v7") {
     const reloaded = await loadEvolutionReleaseAuthorization(config);
