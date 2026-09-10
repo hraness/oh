@@ -89,7 +89,8 @@ bun scripts/benchmarks/evolution.ts --help
 Each command takes an absolute configuration path and its SHA-256. Configuration
 contains the pinned dataset and exposure manifest, selected development limit and
 seed, retrieval variants, reader profiles, judge profile, private output
-directory, shared campaign store directory and concurrency from 1 through 12.
+directory, shared campaign store directory and explicit concurrency. Run V1–V3
+accept 1 through 12; V4 and V5 accept 24 or 32.
 `parseEvolutionRunConfig` is the authoritative schema. Run/store directories must
 be separate. Outputs use new files and cannot overwrite earlier evidence.
 
@@ -351,6 +352,89 @@ facts missed by isolated keyword matches and their immediate neighbors. The
 comparison holds top-K, context allowance, reader contract and judge fixed.
 Source coverage is a diagnostic, and reader accuracy still requires a paid
 comparison. It is not a selected production default or a benchmark victory.
+
+## Protected source completion
+
+Run V5 (`oh.memory.evolution-run.v5`) compares lexical and local semantic
+completion while preserving an existing focused-window context byte-for-byte.
+Each arm keeps the original context of at most 96,000 UTF-8 bytes and appends at
+most 24,000 bytes, including separators. The total cannot exceed 120,000 bytes.
+This tests additional retrieval coverage without evicting existing evidence.
+It has a separate context V4 wire and remains outside genetic parent selection.
+
+Both arms use the same packing rule. In cached hit order, try the occurrence's
+opening user turn, the hit and its immediate neighbors from that same occurrence.
+Deduplicate turns already present. Admit each missing bundle only when it fits
+in full; otherwise record the omission and try the next hit. All appended text
+comes from current source turns with their original dates and speakers.
+Repeated session IDs remain distinct when their occurrence indices differ.
+
+Start with a valid development configuration and use these V5 fields:
+
+```json
+{
+  "protocol": "oh.memory.evolution-run.v5",
+  "limit": 100,
+  "seed": 17,
+  "concurrency": 24,
+  "readers": ["gpt5-nano-explicit-abstention-composition-v1-reader"],
+  "variants": [
+    {
+      "id": "oh-focused-prefix-lexical-completion-120k-v1",
+      "system": "oh-source-completion",
+      "mode": "lexical",
+      "prefixBytes": 96000,
+      "completionBytes": 24000
+    },
+    {
+      "id": "oh-focused-prefix-semantic-completion-120k-v1",
+      "system": "oh-source-completion",
+      "mode": "semantic",
+      "prefixBytes": 96000,
+      "completionBytes": 24000
+    }
+  ],
+  "completionParents": {
+    "prefix": {
+      "pin": { "path": "/absolute/private/focused-contexts.json", "sha256": "<file-sha256>" },
+      "variantId": "oh-focused-window-96k"
+    },
+    "lexical": {
+      "pin": { "path": "/absolute/private/lexical-contexts.json", "sha256": "<file-sha256>" },
+      "variantId": "oh-focused-96k"
+    },
+    "semantic": {
+      "pin": { "path": "/absolute/private/semantic-contexts.json", "sha256": "<file-sha256>" },
+      "variantId": "oh-semantic-top100-96k-v1"
+    }
+  }
+}
+```
+
+Retain the dataset, manifest, campaign, judge and directory fields from the
+configuration. Replace each placeholder with the original file's SHA-256 and
+select its actual variant ID. The two completion treatment IDs, modes, budgets
+and ordering are fixed. V5 admits at most 100 development questions and two
+reader profiles; every parent must describe the exact same selected question
+set and manifest.
+
+Parents are authenticated original V1 context plans: `oh-focused-window` for
+the prefix, `oh-focused` for the lexical pool and `oh-semantic` for the semantic
+pool, each with top-K 100 and a 96,000-byte allowance. Semantic parents must
+come from the qualified optional backend. A keyword result cannot be relabeled
+as semantic. Retained pool omissions remain explicit; these finite cached pools
+need not contain every search hit. Parent files must be outside the new output
+and campaign-store directories.
+
+Use the existing `prepare`, `readers`, `run-reader`, `judge-plan`, `run-judge`
+and `report` commands. Preparation builds no index and makes no provider calls.
+Every context reload checks the original parent file pins, selection, source
+record digests and deterministic packing. The reader, shared spending ledger,
+first-response recovery and judge contracts remain unchanged. Equal final
+prompt bytes reuse the same request identity. Keep historical source pins intact
+and prepare the new V4 contexts from the reviewed execution source; never rewrite
+an old plan to claim the new protocol. Source preservation alone establishes no
+answer-quality gain.
 
 ## Explicit concurrency experiments
 

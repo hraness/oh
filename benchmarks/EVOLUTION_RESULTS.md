@@ -614,3 +614,147 @@ response capture and settlement. The SDK fixture predates those boundary
 changes; its small responses fit the new limits. The existing single-text path
 remains the default. This establishes transport compatibility for the fixture,
 not a measured improvement in live latency, cost or benchmark accuracy.
+
+## Local semantic source coverage
+
+Local semantic retrieval included every annotated turn for 93 of 94 labeled
+questions in the same exposed development selection, compared with 81 for
+focused native Oh, 87 for opening-message completion and 78 for hybrid retrieval.
+This measures source availability; this stage generated and scored no reader
+answers.
+
+The run built 100 fresh corpus indices from source turns without benchmark
+gold-answer fields or evidence labels. Each corpus used the same original question for semantic and
+hybrid retrieval, with top100 and a 96,000-byte whole-turn context cap. Both
+variants used the optional Oh profile in
+[`src/semantic-model.ts`](../src/semantic-model.ts): QMD 2.5.3,
+EmbeddingGemma 300M Q8_0, 768 dimensions, L2 normalization and cosine distance.
+Hybrid combined vector retrieval with Oh's native keyword ranking. Neither
+variant used query expansion or reranking.
+
+| Retrieval | All annotated turns present | Exact annotated turns retained |
+| --- | ---: | ---: |
+| Focused native Oh | 81/94 | 152/177 |
+| Opening-message completion | 87/94 | 164/177 |
+| Semantic | 93/94 | 176/177 |
+| Hybrid | 78/94 | 150/177 |
+
+All 200 contexts were frozen before a separate annotation-ID-only audit.
+Six questions lack exact-turn annotations and remain unscored for turn coverage.
+Session annotations have a separate denominator: semantic retrieval included
+all 192 annotated session memberships across 100/100 session-labeled questions.
+Session presence does not establish that a particular annotated turn is present.
+
+Against focused native Oh, semantic retrieval made 13 questions annotation-complete
+and made one incomplete; it recovered 25 annotated turns and lost one. Against
+opening-message completion, it made seven complete and one incomplete, recovering
+13 turns and losing one. Hybrid made four complete and seven incomplete against
+focused Oh, and one complete and ten incomplete against opening completion.
+Ranking and packing differ despite the shared byte cap, so these are membership
+changes, not isolated effects of context displacement or predicted answer gains.
+Repeated development use supplies no independent confirmation.
+
+The local run completed in 31.378 minutes within a 35-minute cap. All 100 indices
+closed successfully after 200 vector searches, with no failed or timed-out
+workers and no paid calls. Mean corpus time was 18.28 seconds; the maximum was
+25.07 seconds. The measurements cover this local run, not a hardware-independent
+throughput estimate. Every worker logged a Metal compilation diagnostic; the
+logs establish neither actual GPU offload nor CPU fallback.
+
+The [complete source-coverage artifact](results/memory-evolution-local-semantic-source100-v1.json)
+retains the aggregate comparisons, timing, source/context pins and qualifications.
+Execution used clean commit `b1518addfdb94d80102f4b71f394b021798bd42f`
+and Bun 1.3.14. The model file was pinned to revision
+`0f741b5a6585bd53aeb15cd1372c56f2a0f65e12` of
+`ggml-org/embeddinggemma-300M-GGUF`, with SHA-256
+`b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63`.
+Weights were already present in a task-private cache; indexing and retrieval ran
+with network access denied. The default production configuration is unchanged.
+
+The public command and contract-check boundaries are:
+
+```sh
+bun scripts/benchmarks/evolution.ts --help
+bun test tests/memory-benchmark-evolution-semantic-plan.test.ts
+```
+
+The test verifies V1 semantic source identity and plan validation with a fake
+backend; it does not reproduce native inference. Public `prepare` has no semantic
+factory or cache option. The measured run therefore used a private orchestration
+script around `prepareEvolutionCorpus` and `OhQmdSemanticBackendV1`, importing
+QMD before Bun SQLite initialization and supplying the real SDK store factory.
+Its source-bearing inputs and persistent indices are private. Reproducing the
+native measurement requires that optional runtime, the pinned model and an
+explicitly permitted corpus; the commands above do not recreate this 100-corpus
+run. The complete context and reader plans passed the public V1 validators.
+This qualification does not establish V2/V3 semantic preparation support or
+benchmark answer accuracy.
+
+## Semantic and hybrid reader comparison
+
+Semantic retrieval scored 82/100 with the combined nano reader and 90/100 with
+mini's abstention contract. The matched BM25 controls scored 78 and 86. Both
+semantic results improve on the corresponding observed development controls;
+these repeatedly exposed questions do not establish confirmation or superiority.
+
+The matrix was fixed before all 100 semantic contexts were available: semantic
+and hybrid top100/96,000-byte retrieval, each with the same two reader contracts
+used in the opening-message comparison. All 400 answers and all 288 distinct
+judge requests completed with verified responses. No failed attempt was replaced.
+
+| Retrieval | Nano, abstention + composition | Mini, abstention |
+| --- | ---: | ---: |
+| BM25 window, prior matched control | 78/100 | 86/100 |
+| Focused native Oh, prior matched control | 81/100 | 85/100 |
+| Opening-message completion, prior treatment | 76/100 | 88/100 |
+| Semantic | **82/100** | **90/100** |
+| Hybrid | 73/100 | 87/100 |
+
+Semantic won nine and lost five questions against BM25 with nano, and won seven
+and lost three with mini. Against focused Oh, the corresponding wins/losses were
+6/5 and 8/3; against opening completion, 11/5 and 5/3. The prior opening nano
+judge failure remains zero. Hybrid lost to semantic by nine correct answers with
+nano and three with mini. Better evidence availability did not eliminate reader
+errors: semantic retained all annotated turns for 93/94 labeled questions, but
+its reader scores use all 100 questions, including six without turn annotations.
+
+The [complete semantic400 artifact](results/memory-evolution-semantic-400-v1.json)
+contains all 14 paired comparisons, category results, failure counts, cache
+accounting, source pins and timing. The audit reconstructed the 400 current and
+600 matched control outcomes from authenticated phase and plan artifacts. It
+also reconciled all 2,464 previously occupied campaign requests and verified that
+156 prior judge requests and responses were reused exactly. The earlier,
+higher-scoring BM25 repeat was not substituted for the matched control.
+
+This stage added 400 reader calls and 132 judge calls, with 1,567,956 microdollars
+of known usage and no new unresolved reservations. Reader execution took
+89.262 seconds; judging took 13.502 seconds at concurrency 32. These times exclude
+local indexing, host admission waits, preparation and reporting. Cache-inclusive
+cost attribution in the artifact differs from this incremental spend.
+
+The shared successor campaign ended this stage at 2,996 calls and 8,905,923
+microdollars of exposure: 8,899,060 known and the prior 6,863 unresolved. Its
+10-dollar cap remains unchanged. This stage used clean commit
+`b1518addfdb94d80102f4b71f394b021798bd42f` and the existing Gateway GPT-4o alias
+with the native rubric, contains-yes scoring and a 16-token cap. It is not an
+exact pinned-snapshot, 10-token official reproduction. An untouched comparison
+and a completed external-framework baseline remain outstanding.
+
+## Mem0 response-envelope compatibility
+
+The first real extraction completed with HTTP 200, but its Gateway metadata was
+inside the assistant message and its usage object included additional billing
+fields. The previous parent expected envelope-level metadata and rejected that
+response. The adapter now accepts either metadata spelling at the envelope or
+validated assistant message, rejects conflicting copies, and checks the observed
+cost aliases and token details. Embeddings still require envelope-level metadata.
+Request identities, raw captures, ledger events and cost ceilings are unchanged.
+
+A read-only replay of the actual captured response validates 8,368 input tokens,
+7,342 output tokens and 3,356 microdollars of usage, including 6,784 reasoning
+tokens. It produced 12 syntactically valid memory rows; this is neither a complete
+corpus ingestion nor an accuracy result. The earlier embedding remains exactly
+15 microdollars. Fourteen focused tests with 137 assertions and scoped TypeScript
+checks passed, with independent review. Reconciliation and SDK replay must reuse
+the original captures before further qualification calls; parser success alone
+does not establish live completion.

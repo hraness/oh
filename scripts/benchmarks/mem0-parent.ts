@@ -15,6 +15,15 @@ export type Mem0SelectedCorpus = Readonly<{ protocol: "oh.memory.mem0-selected-c
 export type Mem0DerivationReceipt = Readonly<{ protocol: "oh.memory.mem0-derivation.v1"; policySha256: string; corpusSha256: string; sourceReceiptSha256: string; runSha256: string; namespace: string; chunkCount: number; receiptSha256: string }>;
 type Activity = Readonly<{ kind: "ingest"; chunk: Mem0SourceChunk } | { kind: "query"; questionSha256: string }>;
 function fail(reason: string): never { throw new TypeError(`Mem0 parent: ${reason}.`); }
+/** Optional benchmark clock metadata; capture/request bytes are never rewritten. */
+export function makeMem0ExperimentDateBinding(value: unknown) {
+  if (typeof value !== "string" || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value) || value.startsWith("0000-")) fail("experiment date must be a valid YYYY-MM-DD calendar date");
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) fail("experiment date must be a valid YYYY-MM-DD calendar date");
+  const payload = { protocol: "oh.memory.mem0-experiment-date.v1", experimentDate: value,
+    seam: "mem0.memory.main.generate_additive_extraction_prompt", explicitDates: "preserved" } as const;
+  return Object.freeze({ ...payload, bindingSha256: canonicalSha256(payload) });
+}
 function exact(value: unknown, keys: readonly string[]): Record<string, unknown> { if (!isPlainRecord(value) || !hasExactKeys(value, keys)) fail("invalid exact object"); return value; }
 function sha(value: unknown): value is string { return typeof value === "string" && parseSha256Hex(value) !== null; }
 function text(value: unknown, maximum = MAX_TEXT): string { if (typeof value !== "string" || value.length === 0 || Buffer.byteLength(value) > maximum || new TextDecoder("utf-8", { fatal: true }).decode(Buffer.from(value)) !== value) fail("invalid bounded text"); return value; }
@@ -111,8 +120,9 @@ export function createMem0RpcDispatcher(input: Readonly<{ policy: unknown; corpu
 
 /** Bounded real-SDK process harness. No credential is copied to the Python
  * environment; only dispatcher.handle can turn an SDK RPC into a provider call. */
-export async function startMem0Worker(input: Readonly<{ command: readonly string[]; workerDirectory: string; mem0Directory: string; durationPolicy?: unknown; persistentVectorStore?: boolean; dispatcher: ReturnType<typeof createMem0RpcDispatcher>; corpus: unknown }>) {
+export async function startMem0Worker(input: Readonly<{ command: readonly string[]; workerDirectory: string; mem0Directory: string; durationPolicy?: unknown; persistentVectorStore?: boolean; experimentDate?: string; dispatcher: ReturnType<typeof createMem0RpcDispatcher>; corpus: unknown }>) {
   const corpus = validateMem0SelectedCorpus(input.corpus), command = [...input.command];
+  const experimentDateBinding = input.experimentDate === undefined ? undefined : makeMem0ExperimentDateBinding(input.experimentDate);
   if (command.length < 2 || command.length > 16 || command.some(part => typeof part !== "string" || part.length < 1 || part.length > 4096 || part.includes("\0")) || input.dispatcher.derivation.corpusSha256 !== corpus.corpusSha256) fail("worker command or corpus binding");
   if (input.persistentVectorStore !== undefined && typeof input.persistentVectorStore !== "boolean") fail("persistent vector-store flag");
   const frameLimit = input.dispatcher.batchEmbeddings === true ? MEM0_MAX_BATCH_RESPONSE_BYTES : MAX_FRAME;
@@ -122,7 +132,8 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
   const clock = createMem0DurationClock(input.durationPolicy ?? MEM0_QUALIFICATION_DURATION_POLICY);
   if (input.dispatcher.maximumCallTimeoutMs > clock.policy.drainMs) fail("provider timeout exceeds drain policy");
   const { spawn } = await import("node:child_process");
-  const child = spawn(command[0]!, command.slice(1), { cwd: input.workerDirectory, stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH ?? "", PYTHONPATH: input.workerDirectory, MEM0_DIR: input.mem0Directory, MEM0_VECTOR_DIMENSIONS: String(input.dispatcher.embeddingDimensions), MEM0_VECTOR_PERSISTENCE: input.persistentVectorStore === true ? "local" : "memory", MEM0_EMBEDDING_BATCH: input.dispatcher.batchEmbeddings === true ? "v2" : "off", MEM0_TELEMETRY: "false", NO_PROXY: "*", HTTP_PROXY: "", HTTPS_PROXY: "", ALL_PROXY: "", http_proxy: "", https_proxy: "", all_proxy: "" } });
+  const child = spawn(command[0]!, command.slice(1), { cwd: input.workerDirectory, stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH ?? "", PYTHONPATH: input.workerDirectory, MEM0_DIR: input.mem0Directory, MEM0_VECTOR_DIMENSIONS: String(input.dispatcher.embeddingDimensions), MEM0_VECTOR_PERSISTENCE: input.persistentVectorStore === true ? "local" : "memory", MEM0_EMBEDDING_BATCH: input.dispatcher.batchEmbeddings === true ? "v2" : "off", MEM0_TELEMETRY: "false", NO_PROXY: "*", HTTP_PROXY: "", HTTPS_PROXY: "", ALL_PROXY: "", http_proxy: "", https_proxy: "", all_proxy: "",
+    ...(experimentDateBinding === undefined ? {} : { MEM0_EXPERIMENT_DATE: experimentDateBinding.experimentDate }) } });
   if (!child.stdin || !child.stdout || !child.stderr) { child.kill(); fail("worker pipes unavailable"); }
   let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
   const lifecycleTimer = setTimeout(() => { broken = true; input.dispatcher.abort(); child.kill(); forceKillTimer = setTimeout(() => child.kill("SIGKILL"), clock.policy.killGraceMs); }, clock.policy.lifecycleMs);
@@ -168,6 +179,7 @@ export async function startMem0Worker(input: Readonly<{ command: readonly string
   const id = () => `mem0-${++sequence}`;
   return Object.freeze({
     derivation: input.dispatcher.derivation, durationPolicySha256: clock.policySha256,
+    ...(experimentDateBinding === undefined ? {} : { experimentDateBinding }),
     prepare: () => send({ kind: "prepare", id: id(), namespace: input.dispatcher.derivation.namespace }, null),
     add: (chunkIdInput: unknown) => { const chunkId = opaque(chunkIdInput), chunk = corpus.chunks.find(candidate => candidate.chunkId === chunkId); if (!chunk) fail("unknown source chunk"); return send({ kind: "add", id: id(), namespace: input.dispatcher.derivation.namespace, messages: chunk.turns.map(turn => ({ role: turn.role, content: `[${turn.date}] ${turn.text}` })), metadata: { chunkId: chunk.chunkId, sourceDigest: chunk.sourceSha256 } }, () => input.dispatcher.beginIngest(chunkId)); },
     search: (questionSha256: unknown, query: unknown) => { if (!sha(questionSha256) || questionSha256 !== sha256Hex(text(query))) fail("invalid query digest"); return send({ kind: "search", id: id(), namespace: input.dispatcher.derivation.namespace, query: text(query), topK: 50, threshold: 0.1 }, () => input.dispatcher.beginQuery(questionSha256)); },

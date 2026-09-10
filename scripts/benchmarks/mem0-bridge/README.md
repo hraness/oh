@@ -139,6 +139,31 @@ Derived facts require their own authenticated context contract before evaluation
 with the shared reader/judge matrix. Exact SDK prompts and responses remain in
 private captured-call ledgers; public receipts contain only digests and counts.
 
+For a benchmark that needs stable extraction prompts across UTC midnight, a
+parent may explicitly pass `experimentDate: "2026-09-09"` to `startMem0Worker`.
+The value must be a real calendar date in `YYYY-MM-DD` form. Declare the date
+when configuring the experiment and retain
+`makeMem0ExperimentDateBinding(experimentDate)` in its pinned execution
+descriptor. The opted-in worker exposes the same `experimentDateBinding`, with
+protocol `oh.memory.mem0-experiment-date.v1` and a canonical binding digest.
+
+This option binds the pinned SDK's module-local
+`mem0.memory.main.generate_additive_extraction_prompt` callable. It supplies
+`current_date` only when that argument is missing or `None`; the SDK then uses
+that date for an absent observation date. Explicit `current_date` and
+`timestamp` arguments pass through unchanged. This is an experiment clock, not
+a source-event timestamp or a rewrite of captured prompts. The worker does not
+patch `datetime`, alter installed SDK files, or change the source turns.
+
+When the option is omitted, the SDK retains its wall-clock defaults and the
+parent's environment and returned metadata shape remain unchanged. An ambient
+`MEM0_EXPERIMENT_DATE` is not inherited by the parent-launched child. Exact
+request hashes still govern replay: a changed date cannot reuse an earlier
+response unless the complete generated request matches. The focused contract
+check is `bun test tests/memory-benchmark-mem0-experiment-date.test.ts`; it uses
+synthetic process and prompt fixtures without requiring an installed Mem0 SDK.
+Real-SDK clock qualification and any paid recovery remain separate evidence.
+
 A parent may explicitly set `persistentVectorStore: true` to retain Qdrant
 collections under its supplied Mem0 state directory. The default remains
 in-memory. History and vectors are then available for inspection after process

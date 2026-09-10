@@ -175,8 +175,11 @@ export function validateMem0Request(value: unknown): Mem0Request {
   if (canonicalSha256(current) !== canonicalSha256(rebuilt)) fail("request reconstruction changed");
   return rebuilt;
 }
-function gateway(envelope: Record<string, unknown>, selected: Mem0CallProfile) {
-  const meta = envelope.providerMetadata ?? envelope.provider_metadata;
+function gateway(envelope: Record<string, unknown>, selected: Mem0CallProfile, message: Record<string, unknown> = {}) {
+  const copies = [envelope.providerMetadata, envelope.provider_metadata, message.providerMetadata, message.provider_metadata]
+    .filter(value => value !== undefined);
+  if (copies.length === 0 || copies.some(value => canonicalSha256(value) !== canonicalSha256(copies[0]))) fail("missing or conflicting gateway metadata");
+  const meta = copies[0];
   if (!isPlainRecord(meta) || !isPlainRecord(meta.gateway) || !isPlainRecord(meta.gateway.routing)) fail("missing gateway routing");
   const route = meta.gateway.routing;
   if (envelope.model !== selected.model || route.finalProvider !== selected.provider || route.originalModelId !== selected.model || route.canonicalSlug !== selected.model) fail("gateway route mismatch");
@@ -203,18 +206,49 @@ function usageDetail(value: unknown, allowed: readonly string[], maximum: number
   if (!isPlainRecord(value) || Object.keys(value).some(key => !allowed.includes(key))) fail("ambiguous usage detail");
   for (const item of Object.values(value)) if (!integer(item, maximum)) fail("usage detail bound");
 }
+/** Compare decimal aliases before micro-dollar rounding; equal rounded charges
+ * alone cannot establish that two reported costs agree. */
+function dollarIdentity(value: unknown): string {
+  if (micros(value) === null) fail("missing gateway cost alias");
+  const match = /^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/.exec(String(value));
+  if (!match) fail("invalid gateway cost alias");
+  let coefficient = BigInt(match[1]! + (match[2] ?? "")), exponent = Number(match[3] ?? 0) - (match[2]?.length ?? 0);
+  if (coefficient === 0n) return "0";
+  while (coefficient % 10n === 0n) { coefficient /= 10n; exponent++; }
+  return `${coefficient}e${exponent}`;
+}
+function usageExtensions(value: Record<string, unknown>, gatewayMeta: Record<string, unknown>): void {
+  for (const [usageKey, gatewayKey] of [["cost", "cost"], ["market_cost", "marketCost"], ["gateway_cost", "gatewayCost"]] as const) {
+    if (Object.hasOwn(value, usageKey) && dollarIdentity(value[usageKey]) !== dollarIdentity(gatewayMeta[gatewayKey])) fail("conflicting gateway cost alias");
+  }
+  if (Object.hasOwn(value, "is_byok") && value.is_byok !== false) fail("unsupported usage credential mode");
+  if (Object.hasOwn(value, "cache_creation_input_tokens") && !integer(value.cache_creation_input_tokens, 0)) fail("unsupported cache creation usage");
+  if (Object.hasOwn(value, "cost_details")) {
+    const detail = exact(value.cost_details, ["upstream_inference_cost", "upstream_inference_prompt_cost", "upstream_inference_completions_cost"]);
+    // The admitted system-credential response reports no separately billed
+    // upstream/BYOK charge. Other billing modes require their own qualification.
+    if (detail.upstream_inference_cost !== null && dollarIdentity(detail.upstream_inference_cost) !== "0"
+      || dollarIdentity(detail.upstream_inference_prompt_cost) !== "0" || dollarIdentity(detail.upstream_inference_completions_cost) !== "0") fail("unsupported upstream usage cost");
+  }
+}
 function parseUsage(value: unknown, request: Mem0AnyRequest, gatewayMeta: Record<string, unknown>) {
   if (!isPlainRecord(value)) fail("usage object");
   const keys = Object.keys(value).sort();
   const llm = request.kind === "llm";
   const required = llm ? ["completion_tokens", "prompt_tokens", "total_tokens"] : ["prompt_tokens", "total_tokens"];
-  const allowed = llm ? [...required, "completion_tokens_details", "prompt_tokens_details"] : [...required, "prompt_tokens_details"];
+  const extensions = ["cost", "market_cost", "gateway_cost", "is_byok", "cost_details", "cache_creation_input_tokens"];
+  const allowed = llm ? [...required, "completion_tokens_details", "prompt_tokens_details", ...extensions] : [...required, "prompt_tokens_details", ...extensions];
   if (required.some(key => !Object.hasOwn(value, key)) || keys.some(key => !allowed.includes(key))) fail("ambiguous usage metadata");
+  usageExtensions(value, gatewayMeta);
   if (!integer(value.prompt_tokens, request.inputUpperBound) || !integer(value.total_tokens, request.inputUpperBound + request.profile.maxOutputTokens)) fail("usage bound");
   const output = llm ? value.completion_tokens : 0;
   if (!integer(output, request.profile.maxOutputTokens) || value.total_tokens !== value.prompt_tokens + output) fail("usage total");
-  usageDetail(value.prompt_tokens_details, ["audio_tokens", "cached_tokens"], value.prompt_tokens);
-  if (llm) usageDetail(value.completion_tokens_details, ["accepted_prediction_tokens", "audio_tokens", "reasoning_tokens", "rejected_prediction_tokens"], output);
+  usageDetail(value.prompt_tokens_details, ["audio_tokens", "cached_tokens", "video_tokens"], value.prompt_tokens);
+  if (isPlainRecord(value.prompt_tokens_details) && Object.hasOwn(value.prompt_tokens_details, "video_tokens") && value.prompt_tokens_details.video_tokens !== 0) fail("unsupported video usage");
+  if (llm) {
+    usageDetail(value.completion_tokens_details, ["accepted_prediction_tokens", "audio_tokens", "reasoning_tokens", "rejected_prediction_tokens", "image_tokens"], output);
+    if (isPlainRecord(value.completion_tokens_details) && Object.hasOwn(value.completion_tokens_details, "image_tokens") && value.completion_tokens_details.image_tokens !== 0) fail("unsupported image usage");
+  }
   const tokenRateMicros = cost(value.prompt_tokens, output, request.profile), gatewayReportedMicros = micros(gatewayMeta.cost);
   const charged = Math.max(tokenRateMicros, gatewayReportedMicros ?? 0); if (charged > request.reservationMicros) fail("usage exceeds reservation");
   return Object.freeze({ inputTokens: value.prompt_tokens, outputTokens: output, tokenRateMicros, gatewayReportedMicros, micros: charged });
@@ -222,11 +256,19 @@ function parseUsage(value: unknown, request: Mem0AnyRequest, gatewayMeta: Record
 export function parseMem0Response(raw: Uint8Array, requestInput: unknown): Mem0Result {
   const request = validateMem0Request(requestInput); if (!(raw instanceof Uint8Array) || raw.length === 0 || raw.length > MAX_RAW) fail("response bytes");
   let envelope: unknown; try { envelope = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw)); } catch { fail("malformed response"); }
-  if (!isPlainRecord(envelope)) fail("response object"); const meta = gateway(envelope, request.profile), usage = parseUsage(envelope.usage, request, meta);
+  if (!isPlainRecord(envelope)) fail("response object");
+  let message: Record<string, unknown> | undefined;
+  if (request.kind === "llm") {
+    const choice = Array.isArray(envelope.choices) && envelope.choices.length === 1 && isPlainRecord(envelope.choices[0]) ? envelope.choices[0] : null;
+    if (!choice || choice.index !== undefined && choice.index !== 0 || choice.finish_reason !== "stop" || !isPlainRecord(choice.message)
+      || choice.message.role !== "assistant" || Object.hasOwn(choice.message, "refusal") && choice.message.refusal !== null
+      || choice.message.tool_calls !== undefined && choice.message.tool_calls !== null
+      || choice.message.function_call !== undefined && choice.message.function_call !== null) fail("LLM completion shape");
+    message = choice.message;
+  }
+  const meta = gateway(envelope, request.profile, message), usage = parseUsage(envelope.usage, request, meta);
   let value: Mem0Result["value"];
-  if (request.kind === "llm") { const choice = Array.isArray(envelope.choices) && envelope.choices.length === 1 && isPlainRecord(envelope.choices[0]) ? envelope.choices[0] : null;
-    if (!choice || choice.finish_reason !== "stop" || !isPlainRecord(choice.message) || choice.message.role !== "assistant" || (Object.hasOwn(choice.message, "refusal") && choice.message.refusal !== null)) fail("LLM completion shape");
-    value = Object.freeze({ content: boundedText(choice.message.content) }); }
+  if (request.kind === "llm") { value = Object.freeze({ content: boundedText(message!.content) }); }
   else { if (envelope.object !== "list" || !Array.isArray(envelope.data) || envelope.data.length !== 1 || !isPlainRecord(envelope.data[0]) || envelope.data[0].index !== 0 || !Array.isArray(envelope.data[0].embedding) || envelope.data[0].embedding.length !== request.profile.embeddingDimensions || envelope.data[0].embedding.some(n => typeof n !== "number" || !Number.isFinite(n))) fail("embedding shape"); value = Object.freeze({ embedding: Object.freeze([...envelope.data[0].embedding] as number[]) }); }
   return Object.freeze({ requestSha256: request.requestSha256, profileSha256: request.profileSha256, rawSha256: sha256Hex(raw), rawBytes: raw.length, kind: request.kind, value, usage });
 }
