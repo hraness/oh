@@ -1,0 +1,232 @@
+{
+  "protocol": "oh.evolution-semantic-error-diagnosis.v1",
+  "status": "retrospective-development-diagnosis",
+  "selection": {
+    "questions": 100,
+    "exposure": "repeatedly-used-development",
+    "selectionSha256": "88b6a0039f6bad371ef6a3b5ba967eaa0361b13320e8d1036e7bb6658c5715cf"
+  },
+  "parent": {
+    "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+    "variantId": "oh-semantic-top100-96k-v1",
+    "contextByteCap": 96000,
+    "correct": 82,
+    "errors": 18
+  },
+  "byCategory": [
+    {
+      "category": "knowledge-update",
+      "cases": 17,
+      "correct": 14,
+      "failures": 3
+    },
+    {
+      "category": "multi-session",
+      "cases": 28,
+      "correct": 19,
+      "failures": 9
+    },
+    {
+      "category": "single-session-assistant",
+      "cases": 17,
+      "correct": 17,
+      "failures": 0
+    },
+    {
+      "category": "single-session-preference",
+      "cases": 5,
+      "correct": 3,
+      "failures": 2
+    },
+    {
+      "category": "single-session-user",
+      "cases": 11,
+      "correct": 11,
+      "failures": 0
+    },
+    {
+      "category": "temporal-reasoning",
+      "cases": 22,
+      "correct": 18,
+      "failures": 4
+    }
+  ],
+  "annotatedEvidence": {
+    "annotatedQuestions": 94,
+    "allAnnotatedTurnsPresent": 93,
+    "correctWhenAllAnnotatedTurnsPresent": 76,
+    "errorsWithAllAnnotatedTurnsPresent": 17,
+    "errorsWithAllAnnotatedSessionsRepresented": 18,
+    "unanswerableQuestions": 7,
+    "unanswerableCorrect": 7,
+    "physicalFailureCases": 0
+  },
+  "manualPrimaryHypotheses": {
+    "answer-construction": 11,
+    "missing-annotated-fact": 1,
+    "grading-or-source-conflict": 6
+  },
+  "answerConstructionSubtypes": {
+    "set-enumeration": 3,
+    "preference-and-advice": 2,
+    "source-attribution": 1,
+    "event-date-duration": 1,
+    "event-date-order": 2,
+    "event-date-filter-and-count": 1,
+    "state-transition": 1
+  },
+  "pairedDescriptiveComparisons": [
+    {
+      "reader": "gpt5-mini-explicit-abstention-v1-reader",
+      "variantId": "oh-semantic-top100-96k-v1",
+      "paired": {
+        "cases": 100,
+        "candidateCorrect": 82,
+        "referenceCorrect": 90,
+        "wins": 2,
+        "losses": 10,
+        "ties": 88
+      },
+      "semanticFailuresCorrect": 10,
+      "candidate": "frozen-semantic-nano-parent"
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "variantId": "oh-focused-prefix-lexical-completion-120k-v1",
+      "paired": {
+        "cases": 100,
+        "candidateCorrect": 82,
+        "referenceCorrect": 74,
+        "wins": 12,
+        "losses": 4,
+        "ties": 84
+      },
+      "semanticFailuresCorrect": 4,
+      "candidate": "frozen-semantic-nano-parent"
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "variantId": "oh-focused-prefix-semantic-completion-120k-v1",
+      "paired": {
+        "cases": 100,
+        "candidateCorrect": 82,
+        "referenceCorrect": 76,
+        "wins": 10,
+        "losses": 4,
+        "ties": 86
+      },
+      "semanticFailuresCorrect": 4,
+      "candidate": "frozen-semantic-nano-parent"
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "variantId": "oh-focused-window-96k",
+      "paired": {
+        "cases": 100,
+        "candidateCorrect": 82,
+        "referenceCorrect": 81,
+        "wins": 6,
+        "losses": 5,
+        "ties": 89
+      },
+      "semanticFailuresCorrect": 5,
+      "candidate": "frozen-semantic-nano-parent"
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "variantId": "oh-focused-window-opening-96k",
+      "paired": {
+        "cases": 100,
+        "candidateCorrect": 82,
+        "referenceCorrect": 76,
+        "wins": 11,
+        "losses": 5,
+        "ties": 84
+      },
+      "semanticFailuresCorrect": 5,
+      "candidate": "frozen-semantic-nano-parent"
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "variantId": "oh-hybrid-top100-96k-v1",
+      "paired": {
+        "cases": 100,
+        "candidateCorrect": 82,
+        "referenceCorrect": 73,
+        "wins": 14,
+        "losses": 5,
+        "ties": 81
+      },
+      "semanticFailuresCorrect": 5,
+      "candidate": "frozen-semantic-nano-parent"
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "variantId": "oh-semantic-source-order-96k-v1",
+      "paired": {
+        "cases": 100,
+        "candidateCorrect": 82,
+        "referenceCorrect": 76,
+        "wins": 9,
+        "losses": 3,
+        "ties": 88
+      },
+      "semanticFailuresCorrect": 3,
+      "candidate": "frozen-semantic-nano-parent"
+    },
+    {
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "variantId": "window-96k",
+      "paired": {
+        "cases": 100,
+        "candidateCorrect": 82,
+        "referenceCorrect": 78,
+        "wins": 9,
+        "losses": 5,
+        "ties": 86
+      },
+      "semanticFailuresCorrect": 5,
+      "candidate": "frozen-semantic-nano-parent"
+    }
+  ],
+  "measuredParentUsageAttribution": {
+    "reader": {
+      "physicalRequests": 100,
+      "inputTokens": 1977821,
+      "cachedInputTokens": 0,
+      "outputTokens": 43998,
+      "reasoningTokens": 38400,
+      "micros": 116542
+    },
+    "judge": {
+      "physicalRequests": 100,
+      "inputTokens": 16314,
+      "cachedInputTokens": 0,
+      "outputTokens": 236,
+      "reasoningTokens": 0,
+      "micros": 43170
+    }
+  },
+  "measuredParentReaderAndJudgeMicros": 159712,
+  "artifactPins": {
+    "semanticReportSha256": "8738ca66f65597450ae6ed81505de4cfcb0652fb8d00e350b523d983a7ebeb74",
+    "semanticContextSha256": "f0b8943557abaf474f362e13dd4e69917a1a0eaf4bbd74f342841604f5de72dd",
+    "privateDiagnosisManifestSha256": "b3cc5eb9421d50670ea6ac8fee0e348c760d68495e1816d7eeb8eff10996e905"
+  },
+  "qualifications": [
+    "Same repeatedly exposed100 development questions; annotations are incomplete evidence proxies.",
+    "Manual taxonomy does not establish causal mechanisms; all official18 failures remain failures.",
+    "Mini comparison changes both model and prompt; no isolated model effect.",
+    "Six cases are flagged for grading/source/precision uncertainty without regrading or target rewriting.",
+    "Native rubric runs through Gateway alias with16-token cap, not official pinned10-token reproduction.",
+    "Forecasts use prior actual usage and frozen rates; new request reservations and authority require separate review.",
+    "Current full500 study remains frozen and unchanged.",
+    "The 11/1/6 taxonomy is a retrospective manual primary-label hypothesis, not independently adjudicated causal attribution.",
+    "An absent annotation is not proof of absent answer information; included annotations are not proof of sufficient or internally consistent evidence.",
+    "All recorded scores remain unchanged. The mini comparison changes both model and prompt.",
+    "Counts use previously authenticated pinned stage artifacts; this diagnosis did not reopen original raw captures or the paid store."
+  ],
+  "newProviderCalls": 0,
+  "newNativeIndexes": 0,
+  "recordedScoresChanged": 0
+}

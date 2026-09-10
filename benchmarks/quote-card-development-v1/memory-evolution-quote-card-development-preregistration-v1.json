@@ -1,0 +1,169 @@
+{
+  "protocol": "oh.evolution-quote-card-development-design.v1",
+  "status": "design-preregistered-implementation-and-dispatch-pins-pending",
+  "selection": {
+    "questions": 100,
+    "exposure": "same-repeatedly-used-development",
+    "selectionSha256": "88b6a0039f6bad371ef6a3b5ba967eaa0361b13320e8d1036e7bb6658c5715cf",
+    "exactPrivateQuestionIdsFileSha256": "6a599500d0eed563eaf4e288302ed33aa9c150b33e96a724738f6700c7292be3",
+    "caseRouting": "all100, no category/evidence/error-dependent routing"
+  },
+  "parent": {
+    "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+    "variantId": "oh-semantic-top100-96k-v1",
+    "correct": 82,
+    "comparison": "immutable cached first-attempt scores; no fresh parent repeat in this matrix",
+    "contextArtifactSha256": "f0b8943557abaf474f362e13dd4e69917a1a0eaf4bbd74f342841604f5de72dd",
+    "reportSha256": "8738ca66f65597450ae6ed81505de4cfcb0652fb8d00e350b523d983a7ebeb74"
+  },
+  "arms": [
+    {
+      "id": "validated-quote-cards-v1",
+      "cases": 100,
+      "pipeline": "shared source-validated extraction, cards only, existing combined-contract nano finalizer"
+    },
+    {
+      "id": "validated-quote-cards-operations-v1",
+      "cases": 100,
+      "pipeline": "the identical extractor capture/cards plus bounded deterministic operations, same finalizer"
+    }
+  ],
+  "sharedExtraction": {
+    "model": "openai/gpt-5-nano",
+    "provider": "openai",
+    "route": "vercel-ai-gateway",
+    "reasoningEffort": "low",
+    "maxOutputTokensIncludingReasoning": 8192,
+    "input": "exact parent question/date and complete unchanged retained semantic96KB context; no fresh retrieval",
+    "maxCards": 32,
+    "maxOperations": 16,
+    "maxQuoteUtf8Bytes": 2048,
+    "maxExtractorAnswerUtf8Bytes": 32768,
+    "maxFinalContextUtf8BytesPerArm": 16384,
+    "schema": "one versioned JSON object containing cards and optional bounded operation plans; shared by both arms",
+    "cardReferences": "source alias, exact quote and small tag; host derives turnID/source digest and uniquely matching UTF-8 range",
+    "sourceDerivedFields": "host resolves the source alias and unique exact quote occurrence, then derives source digest, byte range, speaker and statement date from authenticated parent source",
+    "validation": "reject foreign source aliases, empty/oversized/absent or ambiguously matching quotes, duplicate cards, unknown schema keys and oversized output; validate every card before rendering; final context overflow fails that arm without trimming",
+    "relations": "model-derived relevance and tags are explicitly labeled interpretations, not proven facts",
+    "retainedDistinctions": "user experience, plan, hypothetical/example, assistant assertion, explicit event date, statement date, uncertainty and conflicting states",
+    "prohibitions": "no gold/annotation/category/outcome inputs; no benchmark-specific examples, exception list, query rewrite or scorer-guided repair"
+  },
+  "operations": {
+    "execution": "pure bounded interpreter; no arbitrary code or model-provided computed values",
+    "allowed": [
+      "distinct-literals",
+      "sum",
+      "difference",
+      "date-interval-days",
+      "date-order"
+    ],
+    "schema": "kind, operands:[{cardId,literal}], unit:string|null",
+    "units": [
+      "mm",
+      "cm",
+      "m",
+      "km",
+      "mg",
+      "g",
+      "kg",
+      "s",
+      "min",
+      "h",
+      "d"
+    ],
+    "operands": "only admitted card IDs and exact quoted literals; host parses bare decimals when unit is null, dimension-compatible explicit units otherwise, and complete ISO YYYY-MM-DD dates only",
+    "limits": "at most16 independent operations,32 referenced cards; no operation-to-operation references, finite bounded exact-decimal arithmetic",
+    "ambiguityPolicy": "unknown/unsupported operations or approximate/conflicting operands yield explicit unresolved results; no relative-date inference, automatic use of statement dates, event-date filter or semantic deduplication; distinct literals use exact byte identity",
+    "scopeLimit": "arithmetic is deterministic after operands are chosen; card relevance, grouping and event/state interpretation remain model-derived"
+  },
+  "finalizer": {
+    "profile": "gpt5-nano-explicit-abstention-composition-v1-reader",
+    "maxOutputTokensIncludingReasoning": 8192,
+    "answerContract": "unchanged combined explicit-abstention/composition instructions",
+    "contextLimit": "each arm at most16384UTF8 bytes total; B adds results to the same complete card rendering and fails on overflow without trimming",
+    "isolation": "A receives neither operation plans nor interpreter output; B adds only interpreter results; existing profile unchanged and exact per-stage request identities"
+  },
+  "judge": {
+    "profile": "gpt4o-gateway-native-rubric-16-judge-v1",
+    "qualification": "native prompt/reduction through unpinned Gateway alias and16-token cap; not official pinned10-token reproduction"
+  },
+  "failurePolicy": {
+    "scoreZero": "authenticated extractor/reader/judge failure, malformed/truncated extraction, invalid quote schema or unavailable required stage",
+    "validEmptyCards": "finalizer proceeds and may abstain",
+    "unsupportedOperation": "explicit unresolved result, not a failed transport and never a fabricated number",
+    "noRepair": "no retry, repair call, selective replacement or original-context fallback",
+    "denominator": "all100 planned per arm; complete only when every case has an authenticated terminal success/failure; never-admitted remain separately unattempted",
+    "money": "preserve all first captures and occupied reservations; shared extractor charged once physically and fully attributed to each stand-alone arm comparison"
+  },
+  "serviceQualification": {
+    "predeterminedCases": 6,
+    "order": "first six lexically sorted opaque IDs in pinned private selection",
+    "criterion": "transport/usage/capture and enforcement of declared schema/failure handling only; never answer correctness",
+    "reuse": "all first canary captures retained in terminal100; no accuracy-dependent expansion",
+    "stop": "systematic client rejection, broken custody/accounting or zero successful physical responses in a wave; stop new admission and drain"
+  },
+  "maximumNewPhysicalRequestsBeforeDedup": {
+    "extraction": 100,
+    "finalAnswer": 200,
+    "judge": 200,
+    "total": 500
+  },
+  "plannedComparisons": [
+    "A versus frozen82 parent",
+    "B versus frozen82 parent",
+    "B versus A"
+  ],
+  "reporting": "all planned arms, wins/losses/ties, per-category counts, complete/failed/unattempted cases, unique physical calls, known cost, unresolved reservations and stage latency",
+  "developmentPromotionRule": {
+    "allArmsComplete": true,
+    "minimumNetGainAgainstParent": 5,
+    "minimumCorrectOf100": 87,
+    "maximumSchemaStageFailuresPerArm": 1,
+    "maximumAttributedCostRatioToParent": 2.25,
+    "parentAttributedMicros": 159712,
+    "maximumAttributedMicrosPerArm": 359352,
+    "tieBreak": "higher recorded correct count, then lower attributed exposure, then A",
+    "inference": "development selection gate only; two adaptively proposed arms are not a confirmatory superiority test"
+  },
+  "costForecast": {
+    "rateSource": "frozen prior nano profile, not current external pricing",
+    "rateSourceSha256": "3537cda6ac19ec8b0d0068052f36c79ba4a6097b1ddc6c75349cadde00ebb191",
+    "nanoNanodollarsPerToken": {
+      "input": 50,
+      "output": 400
+    },
+    "scenarios": [
+      {
+        "extractionOutputTokensPerQuestionIncludingReasoning": 2000,
+        "extraExtractorInputTokensPerQuestion": 200,
+        "finalInputTokensPerQuestion": 3500,
+        "finalOutputTokensTotal": 43998,
+        "extractor100Dollars": 0.17989105,
+        "finalizer100Dollars": 0.0350992,
+        "judge100ObservedDollars": 0.04317,
+        "oneCandidateTotalDollars": 0.25816025,
+        "twoCandidatesSharingExtractionTotalDollars": 0.33642945
+      },
+      {
+        "extractionOutputTokensPerQuestionIncludingReasoning": 4096,
+        "extraExtractorInputTokensPerQuestion": 200,
+        "finalInputTokensPerQuestion": 3500,
+        "finalOutputTokensTotal": 43998,
+        "extractor100Dollars": 0.26373105,
+        "finalizer100Dollars": 0.0350992,
+        "judge100ObservedDollars": 0.04317,
+        "oneCandidateTotalDollars": 0.34200025,
+        "twoCandidatesSharingExtractionTotalDollars": 0.42026945
+      }
+    ],
+    "qualification": "assumed output/card token volumes; excludes native indexing because exact parent context reused; actual conservative reservations may exceed forecast; B interpreter results may raise final input above the shared3500-token assumption"
+  },
+  "dispatchPrerequisites": [
+    "independent implementation review and synthetic source/quote/arithmetic/old-request parity tests",
+    "freeze source/schema/prompts/existing profile hashes, full100 logical matrix and all extractor physical requests before first new output; construct and freeze downstream exact physical plans from authenticated preceding captures before each stage dispatch",
+    "root-owned explicit campaign authority, remaining allocation, bounded transport/capture and canary manifest"
+  ],
+  "unchangedStudy": "The separately frozen full500 candidate and study remain unchanged; no closed400 source/answer access for this development design.",
+  "newProviderCalls": 0,
+  "budgetAuthorityGranted": false
+}

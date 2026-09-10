@@ -1,0 +1,77 @@
+{
+  "protocol": "oh.memory.mem0-live-qualification-summary.v1",
+  "date": "2026-09-10",
+  "scope": {
+    "dataset": "longmemeval-s",
+    "corpora": 1,
+    "partition": "previously-exposed-development",
+    "originalSourceTurns": 616,
+    "sourceParts": 619,
+    "sourceChunks": 149,
+    "sourceTextBytes": 487820
+  },
+  "implementation": {
+    "mem0": "2.0.20",
+    "mem0Commit": "9a7924befd7026e41e445ba809370009e5e985a6",
+    "qdrantClient": "1.19.0",
+    "extractionModel": "openai/gpt-4.1-nano",
+    "embeddingModel": "openai/text-embedding-3-small",
+    "modelIdentity": "Gateway aliases",
+    "embeddingDimensions": 1536,
+    "experimentDate": "2026-09-09",
+    "topK": 50,
+    "threshold": 0.1,
+    "rerank": false
+  },
+  "result": {
+    "completedChunks": 149,
+    "requiredChunks": 149,
+    "searchCompleted": true,
+    "workerExitCode": 0,
+    "workerDrained": true,
+    "readerContextBytes": 13001,
+    "retrievedMemories": 50,
+    "includedMemories": 50,
+    "omittedMemories": 0,
+    "duplicateProjectionRows": 0,
+    "readerScores": null
+  },
+  "finalContinuation": {
+    "elapsedMs": 63558.746208000004,
+    "newPhysicalCalls": 48,
+    "knownIncrementalMicros": 16661,
+    "newUnresolvedMicros": 0,
+    "successfulRpc": {
+      "llm": 16,
+      "singleEmbedding": 17,
+      "batchEmbedding": 15,
+      "embeddingInputs": 78
+    }
+  },
+  "accounting": {
+    "currentPolicyPhysicalCalls": 427,
+    "currentPolicyKnownMicros": 156569,
+    "currentPolicyUnresolvedMicros": 164,
+    "currentPolicyExposureMicros": 156733,
+    "priorRetiredPolicyPhysicalCalls": 5,
+    "priorRetiredPolicyKnownMicros": 3391,
+    "priorRetiredPolicyUnresolvedMicros": 8277,
+    "priorRetiredPolicyExposureMicros": 11668,
+    "combinedMem0PhysicalCalls": 432,
+    "combinedMem0ExposureMicros": 168401,
+    "invoiceClaim": false
+  },
+  "evidence": {
+    "terminalSha256": "ba288582348db7947e714173ba2750500887e3386b61d432e34da4152807e630",
+    "searchSha256": "771752f2d681062dac0649c982c676a8b0ffd8bd3e591d5e437abc00340a238d",
+    "contextSha256": "877ead6691daecab9eb5e6a3389e54ebeaba4ff8361d75138bae03d6b8c26545",
+    "offlineAdapterReceiptSha256": "18bbfda234b61aa8236080bd5b478b669672ea1ac0ff76d38fbb329e6d8b414e"
+  },
+  "limitations": [
+    "One-corpus execution qualification, not a Mem0 accuracy comparison or superiority result.",
+    "All original timeout attempts remain occupied and reserved; explicit reviewed continuations preserve original accounting.",
+    "The final continuation timing excludes earlier attempts, checkpoint preparation and scheduler waits.",
+    "Returned memory attribution is not an entailment guarantee; derived rows are not original-source citations.",
+    "Gateway aliases and a fixed extraction date are declared experiment choices."
+  ]
+}
