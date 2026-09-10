@@ -909,3 +909,22 @@ Including the retired earlier attempt, Mem0 exposure is 130,465 microdollars.
 Its single 15-dollar allocation remains separate from the evolution campaign;
 13 dollars remain unallocated to the comparison. No Mem0 benchmark score or
 superiority claim follows from this partial ingestion.
+
+## Follow-up evidence and experiments
+
+The [semantic error diagnosis](quote-card-development-v1/SEMANTIC_DIAGNOSIS.md)
+examines the fixed 82/100 nano result without changing any grades. The
+[two-arm preregistration](quote-card-development-v1/QUOTE_CARD_PREREGISTRATION.md)
+freezes a source-validated quote-card experiment and a separate deterministic
+operations test on the same development selection. Neither changes the running
+full500 candidate.
+
+The [live Mem0 qualification](results/memory-evolution-mem0-live-qualification-v1.json)
+completed ingestion of one exposed corpus's 616 source turns in 149 chunks and
+its top-50 search. All 50 retrieved memories fit the 13,001-byte derived context.
+The final continuation took 63.56 seconds and added 48 calls/$0.016661. Across
+the current extraction policy, 427 physical calls account for $0.156569 known
+usage plus $0.000164 unresolved. The retired policy adds $0.011668 separately;
+combined Mem0 exposure is $0.168401, not a provider invoice. Earlier timeout
+attempts remain occupied and reserved. This qualifies the live ingestion/search
+and context path; no reader accuracy or external-framework win is established.
