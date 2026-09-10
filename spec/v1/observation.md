@@ -1,0 +1,115 @@
+# Oh observations V1
+
+An Oh observation is one dated, self-contained sentence distilled from a
+conversation session, stored as an ordinary Oh `edition` record under the
+`oh.observation.v1` application profile. It is derived memory: every
+observation depends on the source turn records it cites, and the extraction
+that produced it is receipted by one `activity` record. Observations add no
+record kind, contract manifest entry, ontology assertion, or search index.
+They are retrievable through the existing keyword and semantic lanes exactly
+like any other record.
+
+## Extraction input
+
+The extraction instruction is frozen text. Its SHA-256 digest is exported as
+`OH_OBSERVATION_INSTRUCTION_SHA256_V1` and recorded in every receipt. Changing
+one byte of the instruction is a new instruction with a new digest; it is
+versioned, never edited in place.
+
+The model input is exactly two messages: the instruction as the system message
+and a JSON user message with `sessionDate` and the session's `turns`, each
+carrying an alias `t<n>`, the turn's `speaker`, and its `text`. Nothing else
+reaches the model. In particular, no question, answer, category, or dataset
+label is part of the input, so an extraction cannot specialize to an evaluation.
+The instruction is corpus-general: it asks for absolute dates resolved from the
+session date with the relative expression preserved, verbatim proper nouns and
+quantities, explicit speaker attribution, one event per observation, and
+`changed from X to Y` phrasing for updates.
+
+A session is one ordered list of current `edition` turn records that share
+one `sessionId`, one `date`, and one optional `sessionIndex`. The session
+digest covers the date, the session identity, and each turn's speaker and
+text, so the same session content has the same digest under any record keys.
+
+## Observation value
+
+The value has `format: "oh.observation.v1"` and `v: 1`. Parsers require the
+exact fields below and reject unknown fields.
+
+| Field | Contract |
+| --- | --- |
+| `text` | Nonempty single-line text, at most 1 KiB. |
+| `speaker` | The exact speaker label of a cited turn, at most 64 bytes. |
+| `statedAt` | The session date, copied verbatim, at most 256 bytes. |
+| `eventAt` | `null` or a calendar date `YYYY-MM-DD` the proleptic Gregorian calendar reproduces exactly. |
+| `resolvedFrom` | `null` exactly when `eventAt` is `null`; otherwise the expression the date was resolved from, at most 256 bytes. |
+| `facet` | `null` or a lowercase hyphenated topic token of letters, digits, and hyphens, at most 48 characters. |
+| `kind` | One of `fact`, `event`, `plan`, `preference`, `update`. |
+| `supersedes` | `null` or the key of the observation this one replaces. |
+| `orderingConflict` | Boolean; `true` only when `supersedes` is set. |
+| `sources` | One through 16 cited turns, each exactly `key`, `recordSha256`, and `v: 1`, unique by key. |
+
+The complete canonical-JSON value is limited to 8 KiB. A cited source names a
+turn record by key and by the record digest that was current when the
+observation was extracted; a consumer that finds a different current digest
+treats the observation as stale.
+
+## Keys, dependencies, and the receipt
+
+Observation keys are `edition:obs-<sessionSha256>-<nnn>` where `nnn` is the
+zero-padded index of the observation in the model response, at most 48 per
+session. The record's `dependencies` list the receipt key, every cited source
+key, and the superseded key when present, so the graph rejects an observation
+whose sources do not exist.
+
+One `activity:observe-<sessionSha256>` record receipts the extraction. Its
+value has `format: "oh.observation-activity.v1"`, `v: 1`, the model
+identifier, `instructionSha256`, `promptSha256`, `responseSha256`, the
+`observedAt` instant, the session digest and optional session index, the
+observation count, and the session's turns as sources. The receipt depends on
+every turn of the session. Extraction is idempotent by session content: when
+the receipt exists, the observer is not called and the existing keys are
+returned. A rejected response commits nothing.
+
+## Bounded response parser
+
+The parser accepts only a JSON object with the single key `observations`,
+optionally wrapped in a Markdown code fence. It rejects, with a stable reason
+code, a response over 256 KiB, malformed JSON, a duplicate object key, nesting
+deeper than eight levels, more than 48 observations, an observation with extra
+or missing fields, and any field outside the bounds above. Source aliases must
+name turns of the session; the speaker must be the label of a cited turn; a
+`resolvedFrom` without an `eventAt`, or the reverse, is rejected; identical
+texts within one response are rejected. The rejection index names the first
+failing observation.
+
+## Supersession
+
+An optional policy links a new observation to the latest current observation
+with the same `facet` and `speaker`. The candidate set is the keyword lane
+restricted to observation keys and re-parsed through this profile; a
+candidate already superseded by another is skipped. Session order is the
+receipt's session index, then its instant, then the key. When the predecessor's
+statement date is later than the successor's, the successor records
+`orderingConflict: true` and both dates render. The policy never chooses which
+value is correct.
+
+## Rendering
+
+A renderer places observations ahead of raw turns as
+`Memory: [<statedAt>] <speaker> (<kind>): <text>`, followed by the event date
+and its expression when present, `(superseded on <date>)` when a rendered
+successor exists, and an explicit both-dates marker on an ordering conflict.
+For a query that matches a bounded recommendation pattern, `preference`
+observations are grouped first under `Remembered preferences (<facets>)`. The
+renderer uses no model and is re-runnable from the stored records alone.
+
+## Boundaries
+
+- The library never dispatches a model call. The caller supplies an observer
+  with a model identifier and an `observe(prompt)` function.
+- Observations never replace raw turns; they are added beside them.
+- The record codec can be registered where `edition` is reserved for this
+  profile. It is not part of the contract manifest.
+- No ontology assertion is written, because an observation binds no subject,
+  predicate, and object.

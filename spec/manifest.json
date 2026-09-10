@@ -16,6 +16,9 @@
         "pageSpecification": "./v1/memory-page.md",
         "specification": "./v1/memory.md"
       },
+      "observation": {
+        "specification": "./v1/observation.md"
+      },
       "ontology": "./v1/ontology.json",
       "projection": {
         "identitySchema": "./v1/projection-identity.schema.json",

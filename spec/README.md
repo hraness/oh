@@ -24,6 +24,7 @@ binds these versions:
 | Projection semantics | `oh.projection.positive-datalog.v1` |
 | Composite memory | `stable V1 authority over V2 query` |
 | Memory page | `oh.memory-page.v1` |
+| Observation | `oh.observation.v1` |
 
 ## V1 documents
 
@@ -41,6 +42,7 @@ binds these versions:
 - [Derived projections](v1/projection.md)
 - [Composite agent memory](v1/memory.md)
 - [Memory pages and `.oh.md` interchange](v1/memory-page.md)
+- [Observations distilled from sessions](v1/observation.md)
 - [Compatibility and migration](v1/migration.md)
 
 Machine-readable V1 artifacts:

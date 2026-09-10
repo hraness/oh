@@ -39,6 +39,7 @@ const markdownFiles = [
   "spec/v1/projection.md",
   "spec/v1/memory.md",
   "spec/v1/memory-page.md",
+  "spec/v1/observation.md",
   "spec/v1/migration.md",
   "skills/oh/SKILL.md",
 ] as const;
@@ -291,7 +292,7 @@ describe("versioned public contract", () => {
       .filter(([key]) => key !== "cacheSchemaSha256")
       .flatMap(([, value]) => collectStringLeaves(value));
     const claims = [version.contract, version.embeddingProfile, version.ontology, version.specification,
-      ...collectStringLeaves(version.memory),
+      ...collectStringLeaves(version.memory), ...collectStringLeaves(version.observation),
       ...collectStringLeaves(version.projection), ...semanticCloudAssets,
       ...(Array.isArray(version.schemas) ? version.schemas : [])];
     expect(claims.length).toBeGreaterThan(4);

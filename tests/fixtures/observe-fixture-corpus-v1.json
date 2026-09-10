@@ -1,0 +1,93 @@
+{
+  "protocol": "oh.observe-fixture-corpus.v1",
+  "corpora": [
+    {
+      "id": "fixture-household",
+      "turns": [
+        { "id": "h1:0", "sessionId": "h1", "sessionIndex": 0, "date": "2026/03/14 (Sat) 10:15", "speaker": "user",
+          "text": "I started a pottery class at Kiln House three weeks ago, and I go twice a week." },
+        { "id": "h1:1", "sessionId": "h1", "sessionIndex": 0, "date": "2026/03/14 (Sat) 10:15", "speaker": "assistant",
+          "text": "That sounds relaxing. A stoneware clay could suit hand-building." },
+        { "id": "h1:2", "sessionId": "h1", "sessionIndex": 0, "date": "2026/03/14 (Sat) 10:15", "speaker": "user",
+          "text": "Also, I prefer oolong tea over coffee in the afternoon." },
+        { "id": "h2:0", "sessionId": "h2", "sessionIndex": 1, "date": "2026/03/28 (Sat) 09:00", "speaker": "user",
+          "text": "Pottery update: I now go three times a week instead of twice. My instructor is Marisol Vega." },
+        { "id": "h2:1", "sessionId": "h2", "sessionIndex": 1, "date": "2026/03/28 (Sat) 09:00", "speaker": "assistant",
+          "text": "Three sessions a week is a solid pace." },
+        { "id": "h3:0", "sessionId": "h3", "sessionIndex": 2, "date": "2026/04/02 (Thu) 19:30", "speaker": "user",
+          "text": "Two days ago my landlord raised the rent from $1,450 to $1,600 a month, starting April 10." },
+        { "id": "h3:1", "sessionId": "h3", "sessionIndex": 2, "date": "2026/04/02 (Thu) 19:30", "speaker": "assistant",
+          "text": "For example, if rent were $9,999 you could imagine renegotiating; that is only a hypothetical." },
+        { "id": "h3:2", "sessionId": "h3", "sessionIndex": 2, "date": "2026/04/02 (Thu) 19:30", "speaker": "user",
+          "text": "I want to move somewhere cheaper eventually." }
+      ]
+    },
+    {
+      "id": "fixture-work",
+      "turns": [
+        { "id": "w1:0", "sessionId": "w1", "sessionIndex": 0, "date": "2026/05/05 (Tue) 08:45", "speaker": "user",
+          "text": "A week ago I joined Northwind Robotics as a firmware engineer. My salary is 98,500 euros." },
+        { "id": "w1:1", "sessionId": "w1", "sessionIndex": 0, "date": "2026/05/05 (Tue) 08:45", "speaker": "assistant",
+          "text": "Congratulations. Would you like tips on onboarding?" },
+        { "id": "w1:2", "sessionId": "w1", "sessionIndex": 0, "date": "2026/05/05 (Tue) 08:45", "speaker": "user",
+          "text": "Yes, but I dislike long stand-up meetings." },
+        { "id": "w2:0", "sessionId": "w2", "sessionIndex": 1, "date": "2026/06/20 (Sat) 14:00", "speaker": "user",
+          "text": "Tomorrow I fly to Lisbon for the Northwind offsite; the flight is 2 hours 35 minutes." },
+        { "id": "w2:1", "sessionId": "w2", "sessionIndex": 1, "date": "2026/06/20 (Sat) 14:00", "speaker": "assistant",
+          "text": "Pack a light jacket; June evenings there can be cool." },
+        { "id": "w3:0", "sessionId": "w3", "sessionIndex": 2, "date": "2026/07/08 (Wed) 12:10", "speaker": "user",
+          "text": "On 3 July my manager changed my title from firmware engineer to firmware lead. In ten days I present the Q3 roadmap." },
+        { "id": "w3:1", "sessionId": "w3", "sessionIndex": 2, "date": "2026/07/08 (Wed) 12:10", "speaker": "assistant",
+          "text": "You might want a 12-slide deck, though that is only a suggestion." }
+      ]
+    },
+    {
+      "id": "fixture-family",
+      "turns": [
+        { "id": "f1:0", "sessionId": "f1", "sessionIndex": 0, "date": "2026/03/14 (Sat) 17:05", "speaker": "user",
+          "text": "Yesterday my daughter Ines turned 7. We booked a trip to Kyoto for 5 nights." },
+        { "id": "f1:1", "sessionId": "f1", "sessionIndex": 0, "date": "2026/03/14 (Sat) 17:05", "speaker": "assistant",
+          "text": "Kyoto in spring is lovely; the cherry blossoms usually peak in early April." },
+        { "id": "f2:0", "sessionId": "f2", "sessionIndex": 1, "date": "2026/04/02 (Thu) 21:40", "speaker": "user",
+          "text": "The Kyoto trip changed from 5 nights to 8 nights because we found a cheaper ryokan, the Hanami Inn." },
+        { "id": "f2:1", "sessionId": "f2", "sessionIndex": 1, "date": "2026/04/02 (Thu) 21:40", "speaker": "user",
+          "text": "I would rather not fly with a layover longer than 2 hours." }
+      ]
+    }
+  ],
+  "expectations": [
+    { "corpusId": "fixture-household", "sessionId": "h1", "turnId": "h1:0", "speaker": "user",
+      "dates": [{ "expression": "three weeks ago", "eventAt": "2026-02-21" }], "verbatim": ["Kiln House", "twice a week"], "kinds": [] },
+    { "corpusId": "fixture-household", "sessionId": "h1", "turnId": "h1:1", "speaker": "assistant",
+      "dates": [], "verbatim": ["stoneware"], "kinds": [] },
+    { "corpusId": "fixture-household", "sessionId": "h1", "turnId": "h1:2", "speaker": "user",
+      "dates": [], "verbatim": ["oolong tea"], "kinds": ["preference"] },
+    { "corpusId": "fixture-household", "sessionId": "h2", "turnId": "h2:0", "speaker": "user",
+      "dates": [], "verbatim": ["three times a week", "Marisol Vega"], "kinds": ["update"] },
+    { "corpusId": "fixture-household", "sessionId": "h3", "turnId": "h3:0", "speaker": "user",
+      "dates": [{ "expression": "two days ago", "eventAt": "2026-03-31" }, { "expression": "April 10", "eventAt": "2026-04-10" }],
+      "verbatim": ["$1,450", "$1,600"], "kinds": ["update"] },
+    { "corpusId": "fixture-household", "sessionId": "h3", "turnId": "h3:2", "speaker": "user",
+      "dates": [], "verbatim": ["cheaper"], "kinds": ["plan", "preference"] },
+    { "corpusId": "fixture-work", "sessionId": "w1", "turnId": "w1:0", "speaker": "user",
+      "dates": [{ "expression": "a week ago", "eventAt": "2026-04-28" }], "verbatim": ["Northwind Robotics", "98,500 euros"], "kinds": [] },
+    { "corpusId": "fixture-work", "sessionId": "w1", "turnId": "w1:2", "speaker": "user",
+      "dates": [], "verbatim": ["stand-up"], "kinds": ["preference"] },
+    { "corpusId": "fixture-work", "sessionId": "w2", "turnId": "w2:0", "speaker": "user",
+      "dates": [{ "expression": "tomorrow", "eventAt": "2026-06-21" }], "verbatim": ["Lisbon", "2 hours 35 minutes"], "kinds": [] },
+    { "corpusId": "fixture-work", "sessionId": "w3", "turnId": "w3:0", "speaker": "user",
+      "dates": [{ "expression": "3 July", "eventAt": "2026-07-03" }, { "expression": "ten days", "eventAt": "2026-07-18" }],
+      "verbatim": ["firmware engineer", "firmware lead", "Q3 roadmap"], "kinds": ["update"] },
+    { "corpusId": "fixture-work", "sessionId": "w3", "turnId": "w3:1", "speaker": "assistant",
+      "dates": [], "verbatim": ["12-slide"], "kinds": [] },
+    { "corpusId": "fixture-family", "sessionId": "f1", "turnId": "f1:0", "speaker": "user",
+      "dates": [{ "expression": "yesterday", "eventAt": "2026-03-13" }], "verbatim": ["Ines", "7", "Kyoto", "5 nights"], "kinds": [] },
+    { "corpusId": "fixture-family", "sessionId": "f2", "turnId": "f2:0", "speaker": "user",
+      "dates": [], "verbatim": ["5 nights", "8 nights", "Hanami Inn"], "kinds": ["update"] },
+    { "corpusId": "fixture-family", "sessionId": "f2", "turnId": "f2:1", "speaker": "user",
+      "dates": [], "verbatim": ["2 hours"], "kinds": ["preference"] }
+  ],
+  "absent": [
+    { "corpusId": "fixture-household", "sessionId": "h3", "text": "9,999" }
+  ]
+}
