@@ -70,6 +70,16 @@ describe("oh CLI", () => {
     expect(JSON.parse(put.stdout)).toMatchObject({ operationId: "op_cli", sequence: 1 });
     const search = await run(["search", "Ada", "--db", database]);
     expect(JSON.parse(search.stdout).results[0].record.key).toBe("entity:ada");
+    const recall = await run(["recall", "what did Ada build last week", "--db", database, "--as-of", "2026-01-08T12:00:00.000Z", "--limit", "5"]);
+    expect(recall.code).toBe(0);
+    const recalled = JSON.parse(recall.stdout);
+    expect(recalled.recall.results[0].record.key).toBe("entity:ada");
+    expect(recalled.recall.window).toEqual({ since: "2025-12-29T00:00:00.000Z", until: "2026-01-04T23:59:59.999Z", v: 1 });
+    expect(recalled.rendering.text.startsWith("Question date: 2026/01/08 (Thu)")).toBe(true);
+    expect(recalled.rendering.keys).toEqual(["entity:ada"]);
+    const undated = JSON.parse((await run(["recall", "Ada", "--db", database])).stdout);
+    expect(undated.recall.window).toBeNull();
+    expect(undated.rendering.text).toBe('{"name":"Ada Lovelace"}');
     const verify = await run(["verify", "--db", database]);
     expect(JSON.parse(verify.stdout)).toMatchObject({ operations: 1, records: 1, sqliteIntegrity: "ok" });
   });
@@ -106,6 +116,11 @@ describe("oh CLI", () => {
       ["log", "--db", database, "--limit", "1001"],
       ["search", "Ada", "--db", database, "--mode", "remote"],
       ["search", "Ada", "--db", database, "--limit", "101"],
+      ["recall", "Ada", "--db", database, "--limit", "101"],
+      ["recall", "Ada", "--db", database, "--mode", "remote"],
+      ["recall", "Ada", "--db", database, "--as-of", "2026-01-08"],
+      ["recall", "Ada", "--db", database, "--as-of", ""],
+      ["recall", "--db", database],
       ["put", "--kind", "unknown", "--key", "entity:ada", "--json", "{}"],
       ["put", "--kind", "entity", "--key", "bad key", "--json", "{}"],
       ["put", "--kind", "entity", "--key", "entity:ada", "--json", "{}", "--file", malformedJson],

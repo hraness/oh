@@ -1,11 +1,17 @@
 import { opaqueId, type JsonValue } from "./canonical";
 import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordKindV1,
   type KnowledgeGraphRecordV1 } from "./graph";
+import { recallOhV1, type OhRecallResponseV1, type OhRecallWindowV1 } from "./recall";
 import { searchOhV1, type OhSearchModeV1, type OhSearchResponseV1 } from "./search";
 import type { OhSemanticSearchBackend } from "./semantic";
 import { OhSqliteStore, type OhHeadV1, type OhReplayVerificationV1 } from "./sqlite/store";
 import { synchronizeOhStoreV1, type OhOperationSyncTransportV1, type OhSyncResultV1 } from "./sync";
 import type { OhOperationV1 } from "./operation";
+
+export { defaultOhRecallViewV1, OH_RECALL_DATE_GRAMMAR_V1, OH_RECALL_LIMITS_V1, OH_RECALL_RENDERER_V1, recallOhV1,
+  renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
+export type { OhRecallDateRuleV1, OhRecallDateWindowV1, OhRecallDiagnosticV1, OhRecallEvidenceV1, OhRecallRecordViewV1,
+  OhRecallRenderingV1, OhRecallResponseV1, OhRecallResultV1, OhRecallViewV1, OhRecallWindowV1 } from "./recall";
 
 export type OhOpenOptionsV1 = Readonly<{
   databasePath?: string;
@@ -80,6 +86,15 @@ export class Oh {
     return await searchOhV1({ ...(this.semanticBackend === undefined ? {} : { backend: this.semanticBackend }),
       ...(options.limit === undefined ? {} : { limit: options.limit }),
       ...(options.mode === undefined ? {} : { mode: options.mode }), query, store: this.store });
+  }
+
+  /** Fused recall over bounded V1 searches; `asOf` defaults to no question instant. */
+  async recall(queries: string | readonly string[], options: Readonly<{ asOf?: string | null; limit?: number;
+    mode?: OhSearchModeV1; window?: OhRecallWindowV1 | null }> = {}): Promise<OhRecallResponseV1> {
+    return await recallOhV1({ ...(this.semanticBackend === undefined ? {} : { backend: this.semanticBackend }),
+      asOf: options.asOf ?? null, ...(options.limit === undefined ? {} : { limit: options.limit }),
+      ...(options.mode === undefined ? {} : { mode: options.mode }), ...(options.window === undefined ? {} : { window: options.window }),
+      queries: typeof queries === "string" ? [queries] : queries, store: this.store });
   }
 
   async sync(transport: OhOperationSyncTransportV1, options?: Parameters<typeof synchronizeOhStoreV1>[2]): Promise<OhSyncResultV1> {

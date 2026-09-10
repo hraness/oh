@@ -160,7 +160,7 @@ describe("explicit V3 source mechanisms and complete full-history control", () =
         expect(() => parseEvolutionRunConfig({ ...config, variants: [native] })).toThrow("V3");
         for (const v of [{ ...full, budget: {} }, { ...prototypes[0]!, mechanism: "unknown" }, { ...prototypes[0]!, budget: { topK: 100, contextBytes: 96000 } }])
             expect(() => parseEvolutionTreatment(v)).toThrow();
-        for (const file of ["evolution-plan-v3.ts", "evolution-treatments-v3.ts", "evolution-spans-prototype.ts", "evolution-full-history.ts"])
+        for (const file of ["evolution-plan-v3.ts", "evolution-treatments-v3.ts", "evolution-spans-prototype.ts", "evolution-full-history.ts", "evolution-dates.ts"])
             expect(EVOLUTION_CONTEXT_SOURCE_FILES as readonly string[]).toContain(`scripts/benchmarks/${file}`);
     });
     test("complete V3 reader/judge/report matrix retains failed full-history reservation and counts judge failures separately", async () => {

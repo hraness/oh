@@ -11,6 +11,7 @@ import {
   OH_KNOWLEDGE_LIMITS_V1,
   OH_ONTOLOGY_VERSION_V1,
 } from "../src/ontology.ts";
+import { OH_RECALL_DATE_GRAMMAR_V1 } from "../src/recall.ts";
 import { OH_EMBEDDING_PROFILE_V1 } from "../src/semantic.ts";
 import {
   OH_CLOUDFLARE_EMBEDDING_PROFILE_V1,
@@ -39,6 +40,7 @@ const markdownFiles = [
   "spec/v1/projection.md",
   "spec/v1/memory.md",
   "spec/v1/memory-page.md",
+  "spec/v1/recall.md",
   "spec/v1/migration.md",
   "skills/oh/SKILL.md",
 ] as const;
@@ -257,6 +259,7 @@ describe("public identity and documentation", () => {
       "oh list",
       "oh log",
       "oh search",
+      "oh recall",
       "oh tombstone",
       "oh verify",
       "oh sync export",
@@ -291,7 +294,7 @@ describe("versioned public contract", () => {
       .filter(([key]) => key !== "cacheSchemaSha256")
       .flatMap(([, value]) => collectStringLeaves(value));
     const claims = [version.contract, version.embeddingProfile, version.ontology, version.specification,
-      ...collectStringLeaves(version.memory),
+      ...collectStringLeaves(version.memory), ...collectStringLeaves(version.recall),
       ...collectStringLeaves(version.projection), ...semanticCloudAssets,
       ...(Array.isArray(version.schemas) ? version.schemas : [])];
     expect(claims.length).toBeGreaterThan(4);
@@ -466,6 +469,19 @@ describe("versioned public contract", () => {
     const page = await readFile(join(root, "spec/v1/memory-page.md"), "utf8");
     expect(page).toContain("self-contained transport for one memory-page record");
     expect(page).toContain("contain no vectors, embedding model, provider, score");
+  });
+
+  test("discovers the recall surface with its frozen date grammar", async () => {
+    const manifest = await json("spec/manifest.json");
+    const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
+    expect(version.recall).toEqual({ dateGrammar: "./v1/recall-date-grammar.json", specification: "./v1/recall.md" });
+    expect(await json("spec/v1/recall-date-grammar.json")).toEqual(OH_RECALL_DATE_GRAMMAR_V1);
+    const recall = await readFile(join(root, "spec/v1/recall.md"), "utf8");
+    expect(recall).toContain("never widens");
+    expect(recall).toContain("`oh.recall-date-grammar.v1`");
+    expect(recall).toContain("`oh.recall-render.v1`");
+    expect(recall).toContain("Question date:");
+    for (const rule of OH_RECALL_DATE_GRAMMAR_V1.rules) expect(recall).toContain(`\`${rule.id}\``);
   });
 
   test("keeps every JSON Schema parseable, versioned, and locally closed", async () => {

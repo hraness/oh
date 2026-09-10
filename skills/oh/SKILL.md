@@ -60,7 +60,12 @@ oh list --kind statement --limit 50 --db .oh/oh.sqlite --space default
 oh log --limit 20 --db .oh/oh.sqlite --space default
 oh search "analytical engine" --mode keyword --limit 10 \
   --db .oh/oh.sqlite --space default
+oh recall "what changed last week" --as-of 2026-01-08T12:00:00.000Z \
+  --db .oh/oh.sqlite --space default
 ```
+
+`oh recall` fuses bounded searches, resolves a relative date in the query
+against `--as-of`, and renders matches chronologically under dated headers.
 
 A missing `get` exits with status 3 and prints no record. Treat it as absence,
 not a corrupt database. CLI output is canonical JSON, so parse it rather than

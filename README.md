@@ -172,6 +172,8 @@ try {
 
   const result = await oh.search("Ada", { mode: "keyword" });
   console.log(result.results[0]?.record);
+  // Fused, dated recall over the same bounded search: spec/v1/recall.md
+  console.log((await oh.recall(["Ada", "engine"], { asOf: null })).results.length);
   console.log(oh.verify());
 } finally {
   await oh.close();

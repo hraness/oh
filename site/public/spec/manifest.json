@@ -17,6 +17,10 @@
         "specification": "./v1/memory.md"
       },
       "ontology": "./v1/ontology.json",
+      "recall": {
+        "dateGrammar": "./v1/recall-date-grammar.json",
+        "specification": "./v1/recall.md"
+      },
       "projection": {
         "identitySchema": "./v1/projection-identity.schema.json",
         "querySchema": "./v1/projection-query.schema.json",

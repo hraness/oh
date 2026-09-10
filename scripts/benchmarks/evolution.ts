@@ -186,7 +186,7 @@ export const EVOLUTION_CONTEXT_SOURCE_FILES = ["scripts/benchmarks/evolution.ts"
   "scripts/benchmarks/evolution-dataset.ts", "scripts/benchmarks/evolution-plan.ts", "scripts/benchmarks/evolution-spans.ts",
   "scripts/benchmarks/evolution-variants.ts", "scripts/benchmarks/evolution-plan-v3.ts", "scripts/benchmarks/evolution-treatments-v3.ts",
   "scripts/benchmarks/evolution-spans-prototype.ts", "scripts/benchmarks/evolution-full-history.ts", "scripts/benchmarks/evolution-completion.ts",
-  "scripts/benchmarks/evolution-completion-plan.ts", "scripts/benchmarks/evolution-source-order.ts", "scripts/benchmarks/evolution-source-order-plan.ts", "scripts/benchmarks/evolution-evaluation-scope.ts", "scripts/benchmarks/evolution-release.ts", "scripts/benchmarks/evolution-release-plan.ts", "scripts/benchmarks/evolution-full-context-study.ts", "scripts/benchmarks/evolution-full-context-plan.ts", "package.json", "bun.lock"] as const;
+  "scripts/benchmarks/evolution-completion-plan.ts", "scripts/benchmarks/evolution-source-order.ts", "scripts/benchmarks/evolution-source-order-plan.ts", "scripts/benchmarks/evolution-evaluation-scope.ts", "scripts/benchmarks/evolution-release.ts", "scripts/benchmarks/evolution-release-plan.ts", "scripts/benchmarks/evolution-full-context-study.ts", "scripts/benchmarks/evolution-full-context-plan.ts", "scripts/benchmarks/evolution-dates.ts", "package.json", "bun.lock"] as const;
 export async function retrievalIdentity() {
   const source = await codeIdentity();
   const files = source.files.filter(f => f.path.startsWith("src/") || (EVOLUTION_CONTEXT_SOURCE_FILES as readonly string[]).includes(f.path));

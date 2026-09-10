@@ -17016,6 +17016,408 @@ async function searchOhV1(input) {
   return { diagnostics, mode, results, v: 1 };
 }
 
+// src/recall.ts
+var OH_RECALL_LIMITS_V1 = Object.freeze({
+  maximumQueries: 6,
+  maximumQueryBytes: 16384,
+  maximumLimit: 100,
+  maximumRenderedResults: 8192,
+  maximumBudgetBytes: 4000000,
+  maximumScannedRecords: 65536,
+  rrfConstant: 60,
+  v: 1
+});
+var OH_RECALL_RENDERER_V1 = "oh.recall-render.v1";
+var WEEKDAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+var WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+var DAY_MS = 86400000;
+var OH_RECALL_DATE_GRAMMAR_V1 = Object.freeze({
+  id: "oh.recall-date-grammar.v1",
+  timeZone: "UTC",
+  weekStart: "monday",
+  numbers: Object.freeze({
+    a: 1,
+    an: 1,
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12
+  }),
+  weekdays: WEEKDAY_NAMES,
+  rules: Object.freeze([
+    { id: "today", pattern: "\\btoday\\b", kind: "day", offset: 0 },
+    { id: "yesterday", pattern: "\\byesterday\\b", kind: "day", offset: -1 },
+    { id: "tomorrow", pattern: "\\btomorrow\\b", kind: "day", offset: 1 },
+    { id: "days-ago", pattern: "\\b(NUMBER) days? ago\\b", kind: "around", unit: "day", sign: -1, toleranceDays: 0 },
+    { id: "weeks-ago", pattern: "\\b(NUMBER) weeks? ago\\b", kind: "around", unit: "week", sign: -1, toleranceDays: 3 },
+    { id: "months-ago", pattern: "\\b(NUMBER) months? ago\\b", kind: "around", unit: "month", sign: -1, toleranceDays: 15 },
+    { id: "years-ago", pattern: "\\b(NUMBER) years? ago\\b", kind: "around", unit: "year", sign: -1, toleranceDays: 45 },
+    { id: "in-days", pattern: "\\bin (NUMBER) days?\\b", kind: "around", unit: "day", sign: 1, toleranceDays: 0 },
+    { id: "in-weeks", pattern: "\\bin (NUMBER) weeks?\\b", kind: "around", unit: "week", sign: 1, toleranceDays: 3 },
+    { id: "in-months", pattern: "\\bin (NUMBER) months?\\b", kind: "around", unit: "month", sign: 1, toleranceDays: 15 },
+    { id: "in-years", pattern: "\\bin (NUMBER) years?\\b", kind: "around", unit: "year", sign: 1, toleranceDays: 45 },
+    { id: "last-week", pattern: "\\blast week\\b", kind: "week", offset: -1 },
+    { id: "this-week", pattern: "\\bthis week\\b", kind: "week", offset: 0 },
+    { id: "next-week", pattern: "\\bnext week\\b", kind: "week", offset: 1 },
+    { id: "last-month", pattern: "\\blast month\\b", kind: "month", offset: -1 },
+    { id: "this-month", pattern: "\\bthis month\\b", kind: "month", offset: 0 },
+    { id: "next-month", pattern: "\\bnext month\\b", kind: "month", offset: 1 },
+    { id: "last-year", pattern: "\\blast year\\b", kind: "year", offset: -1 },
+    { id: "this-year", pattern: "\\bthis year\\b", kind: "year", offset: 0 },
+    { id: "next-year", pattern: "\\bnext year\\b", kind: "year", offset: 1 },
+    { id: "last-weekend", pattern: "\\blast weekend\\b", kind: "weekend", offset: -1 },
+    { id: "this-weekend", pattern: "\\bthis weekend\\b", kind: "weekend", offset: 0 },
+    { id: "next-weekend", pattern: "\\bnext weekend\\b", kind: "weekend", offset: 1 },
+    { id: "past-span", pattern: "\\b(?:in|over|during|within) the (?:last|past) (?:(NUMBER) )?(UNIT)s?\\b", kind: "past" },
+    { id: "last-weekday", pattern: "\\blast (WEEKDAY)\\b", kind: "weekday", offset: -1 },
+    { id: "this-weekday", pattern: "\\bthis (WEEKDAY)\\b", kind: "weekday", offset: 0 },
+    { id: "next-weekday", pattern: "\\bnext (WEEKDAY)\\b", kind: "weekday", offset: 1 }
+  ]),
+  v: 1
+});
+function bounded(value, maximumBytes, label) {
+  if (typeof value !== "string" || value.length === 0 || utf8ByteLength(value) > maximumBytes) {
+    throw new TypeError(`Recall ${label} must be nonempty text of at most ${maximumBytes} bytes.`);
+  }
+  return value;
+}
+function instantOrNull(value, label) {
+  if (value === null)
+    return null;
+  const instant = parseCanonicalInstantV1(value);
+  if (instant === null)
+    throw new TypeError(`Recall ${label} must be null or a canonical UTC instant.`);
+  return instant;
+}
+function checkedWindow(value) {
+  if (value === undefined || value === null)
+    return null;
+  if (typeof value !== "object" || Array.isArray(value))
+    throw new TypeError("Recall window must be an object.");
+  const window = value;
+  const keys3 = Object.keys(window).sort();
+  if (keys3.join(",") !== "since,until,v" || window.v !== 1)
+    throw new TypeError("Recall window needs exactly since, until, and v.");
+  const since = parseCanonicalInstantV1(window.since), until = parseCanonicalInstantV1(window.until);
+  if (since === null || until === null || since > until)
+    throw new TypeError("Recall window needs canonical since <= until.");
+  return { since, until, v: 1 };
+}
+function checkedView(value) {
+  if (value === undefined)
+    return defaultOhRecallViewV1;
+  if (typeof value !== "function")
+    throw new TypeError("Recall view must be a function.");
+  return value;
+}
+function checkedRecordView(view, record) {
+  const result = view(record);
+  if (typeof result !== "object" || result === null || Array.isArray(result))
+    throw new TypeError("Recall view must return an object.");
+  const candidate = result;
+  if (Object.keys(candidate).sort().join(",") !== "instant,order,session,text") {
+    throw new TypeError("Recall view needs exactly instant, order, session, and text.");
+  }
+  const instant = instantOrNull(candidate.instant, "view instant");
+  if (candidate.order !== null && !Number.isSafeInteger(candidate.order))
+    throw new TypeError("Recall view order must be null or an integer.");
+  if (typeof candidate.session !== "string" || candidate.session.length === 0 || utf8ByteLength(candidate.session) > 512) {
+    throw new TypeError("Recall view session must be nonempty text of at most 512 bytes.");
+  }
+  if (typeof candidate.text !== "string" || utf8ByteLength(candidate.text) > OH_RECALL_LIMITS_V1.maximumBudgetBytes) {
+    throw new TypeError(`Recall view text exceeds ${OH_RECALL_LIMITS_V1.maximumBudgetBytes} bytes.`);
+  }
+  return { instant, order: candidate.order, session: candidate.session, text: candidate.text };
+}
+function defaultOhRecallViewV1(record) {
+  const value = record.value;
+  const object = typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
+  const observedAt = object === null ? null : parseCanonicalInstantV1(object.observedAt);
+  const session = object !== null && typeof object.sessionId === "string" && object.sessionId.length > 0 && utf8ByteLength(object.sessionId) <= 512 ? object.sessionId : record.key;
+  const text = object !== null && typeof object.text === "string" ? object.text : canonicalJson(value);
+  return { instant: observedAt, order: null, session, text };
+}
+function compareInstants(left3, right3) {
+  if (left3 === right3)
+    return 0;
+  if (left3 === null)
+    return 1;
+  if (right3 === null)
+    return -1;
+  return left3 < right3 ? -1 : 1;
+}
+function compareOrders(left3, right3) {
+  if (left3 === right3)
+    return 0;
+  if (left3 === null)
+    return 1;
+  if (right3 === null)
+    return -1;
+  return left3 - right3;
+}
+async function recallOhV1(input) {
+  if (!Array.isArray(input.queries) || input.queries.length < 1 || input.queries.length > OH_RECALL_LIMITS_V1.maximumQueries) {
+    throw new RangeError(`Recall needs 1 through ${OH_RECALL_LIMITS_V1.maximumQueries} queries.`);
+  }
+  const queries = input.queries.map((query) => bounded(query, OH_RECALL_LIMITS_V1.maximumQueryBytes, "query"));
+  if (new Set(queries).size !== queries.length)
+    throw new TypeError("Recall queries must be distinct.");
+  const limit = input.limit ?? 10;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > OH_RECALL_LIMITS_V1.maximumLimit) {
+    throw new RangeError(`Recall limit must be 1 through ${OH_RECALL_LIMITS_V1.maximumLimit}.`);
+  }
+  const mode = input.mode ?? "keyword";
+  if (mode !== "keyword" && mode !== "semantic" && mode !== "hybrid")
+    throw new TypeError("Recall mode must be keyword, semantic, or hybrid.");
+  const asOf = instantOrNull(input.asOf, "asOf"), window = checkedWindow(input.window), view = checkedView(input.view);
+  const fused = new Map;
+  const diagnostics = [];
+  const add5 = (record, evidence) => {
+    const current = fused.get(record.key) ?? { evidence: [], record, score: 0 };
+    current.evidence.push(evidence);
+    current.score += 1 / (OH_RECALL_LIMITS_V1.rrfConstant + evidence.rank);
+    fused.set(record.key, current);
+  };
+  for (const [index, query] of queries.entries()) {
+    const response = await searchOhV1({ ...input.backend === undefined ? {} : { backend: input.backend }, limit, mode, query, store: input.store });
+    diagnostics.push(...response.diagnostics);
+    response.results.forEach((result, position) => {
+      add5(result.record, { lane: "query", query: index, rank: position + 1, score: result.score, v: 1 });
+    });
+  }
+  if (window !== null) {
+    let scanned = [];
+    try {
+      scanned = input.store.snapshotRecords(OH_RECALL_LIMITS_V1.maximumScannedRecords);
+    } catch (error) {
+      diagnostics.push({
+        code: "window-unavailable",
+        message: error instanceof Error ? error.message : "The window lane could not scan the current records.",
+        v: 1
+      });
+    }
+    const dated = scanned.flatMap((record) => {
+      const viewed = checkedRecordView(view, record);
+      return viewed.instant !== null && viewed.instant >= window.since && viewed.instant <= window.until ? [{ record, viewed }] : [];
+    }).sort((left3, right3) => compareInstants(left3.viewed.instant, right3.viewed.instant) || compareOrders(left3.viewed.order, right3.viewed.order) || left3.record.key.localeCompare(right3.record.key));
+    dated.slice(0, limit).forEach((entry, position) => {
+      const rank = position + 1;
+      add5(entry.record, { lane: "window", query: null, rank, score: 1 / (OH_RECALL_LIMITS_V1.rrfConstant + rank), v: 1 });
+    });
+  }
+  const results = [...fused.entries()].sort((left3, right3) => right3[1].score - left3[1].score || left3[0].localeCompare(right3[0])).map(([, entry]) => ({ evidence: entry.evidence, record: entry.record, score: entry.score, v: 1 }));
+  return { asOf, diagnostics, mode, queries, results, window, v: 1 };
+}
+function dayNumber(instant) {
+  return Math.floor(Date.parse(instant) / DAY_MS);
+}
+function dayStart(day) {
+  return new Date(day * DAY_MS).toISOString();
+}
+function dayEnd(day) {
+  return new Date(day * DAY_MS + DAY_MS - 1).toISOString();
+}
+function weekdayOf(day) {
+  return new Date(day * DAY_MS).getUTCDay();
+}
+function mondayOf(day) {
+  return day - (weekdayOf(day) + 6) % 7;
+}
+function formatDay(day) {
+  const date = new Date(day * DAY_MS);
+  const pad = (value) => value.toString().padStart(2, "0");
+  return `${date.getUTCFullYear()}/${pad(date.getUTCMonth() + 1)}/${pad(date.getUTCDate())} (${WEEKDAY_LABELS[date.getUTCDay()]})`;
+}
+function shiftDay(day, unit, count) {
+  if (unit === "day")
+    return day + count;
+  if (unit === "week")
+    return day + count * 7;
+  const date = new Date(day * DAY_MS);
+  const year = date.getUTCFullYear(), month = date.getUTCMonth() + (unit === "month" ? count : 12 * count);
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return Math.floor(Date.UTC(year, month, Math.min(date.getUTCDate(), lastDay)) / DAY_MS);
+}
+function windowFor(rule, count, weekday, unit, asOfDay) {
+  const date = new Date(asOfDay * DAY_MS), year = date.getUTCFullYear(), month = date.getUTCMonth();
+  switch (rule.kind) {
+    case "day":
+      return [asOfDay + rule.offset, asOfDay + rule.offset];
+    case "around": {
+      const target = shiftDay(asOfDay, rule.unit, rule.sign * count);
+      return [target - rule.toleranceDays, target + rule.toleranceDays];
+    }
+    case "week": {
+      const monday = mondayOf(asOfDay) + rule.offset * 7;
+      return [monday, monday + 6];
+    }
+    case "month":
+      return [Math.floor(Date.UTC(year, month + rule.offset, 1) / DAY_MS), Math.floor(Date.UTC(year, month + rule.offset + 1, 0) / DAY_MS)];
+    case "year":
+      return [Math.floor(Date.UTC(year + rule.offset, 0, 1) / DAY_MS), Math.floor(Date.UTC(year + rule.offset, 11, 31) / DAY_MS)];
+    case "weekend": {
+      const saturday = mondayOf(asOfDay) + rule.offset * 7 + 5;
+      return [saturday, saturday + 1];
+    }
+    case "past":
+      return [shiftDay(asOfDay, unit, -count), asOfDay];
+    case "weekday": {
+      const target = weekday, current = weekdayOf(asOfDay);
+      if (rule.offset < 0) {
+        const back = (current - target + 7) % 7 || 7;
+        return [asOfDay - back, asOfDay - back];
+      }
+      if (rule.offset > 0) {
+        const forward = (target - current + 7) % 7 || 7;
+        return [asOfDay + forward, asOfDay + forward];
+      }
+      const day = mondayOf(asOfDay) + (target + 6) % 7;
+      return [day, day];
+    }
+  }
+}
+function resolveRelativeDateWindowV1(query, asOf) {
+  const text = bounded(query, OH_RECALL_LIMITS_V1.maximumQueryBytes, "query").normalize("NFC").toLowerCase();
+  const asOfInstant = parseCanonicalInstantV1(asOf);
+  if (asOfInstant === null)
+    throw new TypeError("Recall asOf must be a canonical UTC instant.");
+  const numbers = OH_RECALL_DATE_GRAMMAR_V1.numbers;
+  const numberPattern = `(\\d{1,3}|${Object.keys(numbers).join("|")})`;
+  const weekdayPattern = `(${WEEKDAY_NAMES.join("|")})`, unitPattern = "(day|week|month|year)";
+  const found = [];
+  for (const rule2 of OH_RECALL_DATE_GRAMMAR_V1.rules) {
+    const source = rule2.pattern.replace("(NUMBER)", numberPattern).replace("(WEEKDAY)", weekdayPattern).replace("(UNIT)", unitPattern);
+    for (const match14 of text.matchAll(new RegExp(source, "gu"))) {
+      const capture2 = match14[1] ?? "";
+      let count2 = 0, weekday2 = null, unit2 = null;
+      if (rule2.kind === "weekday")
+        weekday2 = WEEKDAY_NAMES.indexOf(capture2);
+      else if (rule2.kind === "around" || rule2.kind === "past") {
+        count2 = capture2.length === 0 && rule2.kind === "past" ? 1 : /^\d+$/u.test(capture2) ? Number(capture2) : numbers[capture2] ?? 0;
+        if (count2 < 1)
+          continue;
+        if (rule2.kind === "past")
+          unit2 = match14[2] ?? null;
+      }
+      const start3 = match14.index ?? 0;
+      found.push({ expression: match14[0], rule: rule2, count: count2, weekday: weekday2, unit: unit2, start: start3, end: start3 + match14[0].length });
+    }
+  }
+  const outer = found.filter((item) => !found.some((other) => other !== item && other.start <= item.start && other.end >= item.end && other.end - other.start > item.end - item.start));
+  const distinct = new Map(outer.map((item) => [`${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`, item]));
+  if (distinct.size !== 1)
+    return null;
+  const [{ expression, rule, count, weekday, unit }] = [...distinct.values()];
+  const [first, last2] = windowFor(rule, count, weekday, unit, dayNumber(asOfInstant));
+  return { expression, rule: rule.id, since: dayStart(first), until: dayEnd(last2), v: 1 };
+}
+function offsetLabel(days2) {
+  if (days2 === 0)
+    return "the day of the question";
+  const count = Math.abs(days2), unit = count === 1 ? "day" : "days";
+  return `${count} ${unit} ${days2 < 0 ? "before" : "after"} the question`;
+}
+function gapMarker(days2) {
+  if (days2 < 14)
+    return `[${days2} ${days2 === 1 ? "day" : "days"} later]`;
+  if (days2 < 61) {
+    const weeks2 = Math.floor(days2 / 7);
+    return `[${weeks2} ${weeks2 === 1 ? "week" : "weeks"} later]`;
+  }
+  if (days2 < 365) {
+    const months = Math.floor(days2 / 30);
+    return `[${months} ${months === 1 ? "month" : "months"} later]`;
+  }
+  const years = Math.floor(days2 / 365);
+  return `[${years} ${years === 1 ? "year" : "years"} later]`;
+}
+function compose(selected, asOf) {
+  if (asOf === null)
+    return { blocks: selected.map((item) => item.view.text), keys: selected.map((item) => item.key) };
+  const sessions = new Map;
+  for (const item of selected) {
+    const members = sessions.get(item.view.session);
+    if (members === undefined)
+      sessions.set(item.view.session, [item]);
+    else
+      members.push(item);
+  }
+  const compareMembers = (left3, right3) => compareInstants(left3.view.instant, right3.view.instant) || compareOrders(left3.view.order, right3.view.order) || left3.index - right3.index;
+  const grouped = [...sessions.entries()].map(([session, members]) => {
+    const sorted = [...members].sort(compareMembers);
+    return { instant: sorted[0]?.view.instant ?? null, members: sorted, session };
+  });
+  const dated = grouped.filter((group) => group.instant !== null).sort((left3, right3) => compareInstants(left3.instant, right3.instant) || left3.session.localeCompare(right3.session));
+  const undated = grouped.filter((group) => group.instant === null);
+  const asOfDay = dayNumber(asOf);
+  const blocks = [`Question date: ${formatDay(asOfDay)}`], keys3 = [];
+  let previousDay = null;
+  for (const group of dated) {
+    const day = dayNumber(group.instant);
+    if (previousDay !== null && day - previousDay >= 1)
+      blocks.push(gapMarker(day - previousDay));
+    previousDay = day;
+    blocks.push(`Date: ${formatDay(day)}, ${offsetLabel(day - asOfDay)}
+${group.members.map((item) => item.view.text).join(`
+
+`)}`);
+    keys3.push(...group.members.map((item) => item.key));
+  }
+  for (const group of undated) {
+    blocks.push(`Date: unknown
+${group.members.map((item) => item.view.text).join(`
+
+`)}`);
+    keys3.push(...group.members.map((item) => item.key));
+  }
+  return { blocks, keys: keys3 };
+}
+function composedBytes(blocks) {
+  let bytes = 0;
+  for (const [index, block] of blocks.entries())
+    bytes += utf8ByteLength(block) + (index === 0 ? 0 : 2);
+  return bytes;
+}
+function renderOhRecallV1(input, options) {
+  if (!Array.isArray(input.results) || input.results.length > OH_RECALL_LIMITS_V1.maximumRenderedResults) {
+    throw new RangeError(`Recall rendering accepts at most ${OH_RECALL_LIMITS_V1.maximumRenderedResults} results.`);
+  }
+  const asOf = instantOrNull(options.asOf, "asOf"), view = checkedView(options.view), budget = options.budgetBytes;
+  if (!Number.isSafeInteger(budget) || budget < 1 || budget > OH_RECALL_LIMITS_V1.maximumBudgetBytes) {
+    throw new RangeError(`Recall budget must be 1 through ${OH_RECALL_LIMITS_V1.maximumBudgetBytes} bytes.`);
+  }
+  const seen = new Set, selected = [];
+  let omitted = 0, layout = compose([], asOf);
+  for (const [index, result] of input.results.entries()) {
+    const record = result.record;
+    if (typeof record !== "object" || record === null || typeof record.key !== "string")
+      throw new TypeError("Recall rendering needs records.");
+    if (seen.has(record.key))
+      continue;
+    seen.add(record.key);
+    const candidate = { index, key: record.key, view: checkedRecordView(view, record) };
+    const attempt = compose([...selected, candidate], asOf);
+    if (composedBytes(attempt.blocks) > budget) {
+      omitted += 1;
+      continue;
+    }
+    selected.push(candidate);
+    layout = attempt;
+  }
+  const text = selected.length === 0 ? "" : layout.blocks.join(`
+
+`);
+  return { bytes: utf8ByteLength(text), keys: layout.keys, omitted, renderer: OH_RECALL_RENDERER_V1, text, v: 1 };
+}
+
 // src/sqlite/store.ts
 import { mkdirSync } from "fs";
 import { dirname } from "path";
@@ -18762,6 +19164,17 @@ class Oh {
       store: this.store
     });
   }
+  async recall(queries, options = {}) {
+    return await recallOhV1({
+      ...this.semanticBackend === undefined ? {} : { backend: this.semanticBackend },
+      asOf: options.asOf ?? null,
+      ...options.limit === undefined ? {} : { limit: options.limit },
+      ...options.mode === undefined ? {} : { mode: options.mode },
+      ...options.window === undefined ? {} : { window: options.window },
+      queries: typeof queries === "string" ? [queries] : queries,
+      store: this.store
+    });
+  }
   async sync(transport, options) {
     return await synchronizeOhStoreV1(this.store, transport, options);
   }
@@ -18780,5 +19193,12 @@ class Oh {
   }
 }
 export {
-  Oh
+  resolveRelativeDateWindowV1,
+  renderOhRecallV1,
+  recallOhV1,
+  defaultOhRecallViewV1,
+  Oh,
+  OH_RECALL_RENDERER_V1,
+  OH_RECALL_LIMITS_V1,
+  OH_RECALL_DATE_GRAMMAR_V1
 };

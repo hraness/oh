@@ -6,6 +6,7 @@ import { evolutionPin, readEvolutionPin, verifyEvolutionCampaign, type Evolution
 import { codeIdentity } from "./io";
 import { boundEvolutionCompletionWire, freezeEvolutionCompletion, type EvolutionCompletionParent } from "./evolution-completion";
 import { validateEvolutionContextPlanSources, type EvolutionContextPlan } from "./evolution-plan";
+import { evolutionLegacyResult } from "./evolution-retrieval";
 import { readSelectorLaneSource, SELECTOR_LANE_SOURCE_MAX_BYTES } from "./evolution-selector-lane";
 import { EVOLUTION_FACT_CARD_POLICY, prepareEvolutionFactCards, renderEvolutionFactCards, type EvolutionFactCardPlan, type EvolutionFactCardCapture, type EvolutionFactCardContext } from "./evolution-fact-cards";
 import { EVOLUTION_PROFILES, evolutionReaderContract, makeEvolutionRequest, parseEvolutionResponse, type EvolutionRequest, type EvolutionResponse } from "./evolution-model";
@@ -83,7 +84,7 @@ function compile(data: Awaited<ReturnType<typeof inputs>>): EvolutionFactCardLan
   const { config, input, context, variant } = data;
   const factories = new Map(input.corpora.map(c => [c.id, prepareEvolutionFactCards({ ...c, groupId: c.id })]));
   const cases = input.questions.map((q): PreparedCase => {
-    const result = context.cases.find(c => c.questionId === q.id && c.variantId === variant.id)!.result;
+    const result = evolutionLegacyResult(context.cases.find(c => c.questionId === q.id && c.variantId === variant.id)!.result);
     const parent = { variant, result, expectedResultSha256: result.resultSha256 };
     let extractor: EvolutionFactCardPlan | null = null;
     try { extractor = factories.get(q.corpusId)!.makePlan(q, parent); } catch (e) { if (!(e instanceof TypeError)) throw e; }
