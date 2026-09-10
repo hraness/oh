@@ -1,5 +1,9 @@
 # Full-release descriptive LongMemEval comparison (V7)
 
+This study has completed. [EVOLUTION_RELEASE_RESULTS.md](EVOLUTION_RELEASE_RESULTS.md)
+reports the outcome and the [public summary](results/memory-evolution-full-release-500-v1.json)
+records it. The procedure below remains the reference for reproduction.
+
 V7 admits one separately frozen, full500 descriptive study. It compares BM25 window retrieval and Oh semantic retrieval, both top100/96,000 UTF-8 context bytes, using `gpt5-nano-explicit-abstention-composition-v1-reader` and `gpt4o-gateway-native-rubric-16-judge-v1`. Semantic contexts retain their retrieval order. The fixed candidate must be selected before study preparation or access to additional scores. This path does not broaden an existing development configuration.
 
 The existing exposure manifest stays unchanged. Every release question is included, and declared family/history components stay in one shard. Admission requires exactly five100-question shards; a different grouping that cannot satisfy this bound fails. Development/evaluated and closed/unknown strata are reported separately. A closed question is not made unseen or held out by this path. Generic sealed-scope metadata helpers are not an implemented BEAM evaluator or freshness attestation.

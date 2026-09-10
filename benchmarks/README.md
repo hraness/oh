@@ -9,7 +9,7 @@ For fast development sweeps across shared corpus indexes, use the [development l
 
 For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below. The separately frozen [Gateway amendment](GATEWAY_STUDY_V3.md) preserves closed subscription responses and uses budgeted Gateway calls for unattempted work.
 
-The [completed 120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) report the latest audited outcomes and their limits.
+The [full 500-question comparison](EVOLUTION_RELEASE_RESULTS.md) reports the latest completed outcome: BM25 window 378/500, Oh semantic 379/500 and full history 355/500 with the same nano reader and adapted native judge, with its exposure and protocol limits. The earlier [120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) remain closed.
 
 Start with the network-free checks:
 

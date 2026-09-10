@@ -1,0 +1,3574 @@
+{
+  "protocol": "oh.memory.evolution-full-context-summary.v1",
+  "status": "complete",
+  "mode": "full-release-descriptive-companion",
+  "design": {
+    "parentVariants": [
+      {
+        "id": "window-96k",
+        "system": "bm25-window",
+        "budget": {
+          "topK": 100,
+          "contextBytes": 96000
+        }
+      },
+      {
+        "id": "semantic-96k",
+        "system": "oh-semantic",
+        "budget": {
+          "topK": 100,
+          "contextBytes": 96000
+        }
+      }
+    ],
+    "companionVariants": [
+      {
+        "id": "full-history",
+        "system": "full-history"
+      }
+    ],
+    "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+    "judge": "gpt4o-gateway-native-rubric-16-judge-v1",
+    "rubricSha256": "00d319ba0a194a69871576d8c677c1557d7706f69b599c9b7beee32441d58cfc",
+    "candidatePresentation": "retrieval-order",
+    "fullContextPresentation": "every-turn-input-corpus-order"
+  },
+  "scope": {
+    "releaseQuestions": 500,
+    "selectedQuestions": 500,
+    "declaredGroups": 471,
+    "declaredHistories": 471,
+    "connectedDeclaredClusters": 471,
+    "logicalReaderCases": 1500,
+    "shards": 5,
+    "strata": [
+      {
+        "partition": "closed",
+        "exposure": "unknown",
+        "questions": 400,
+        "groups": 377
+      },
+      {
+        "partition": "development",
+        "exposure": "development",
+        "questions": 100,
+        "groups": 94
+      }
+    ],
+    "parentLogicalReaderCases": 1000,
+    "companionLogicalReaderCases": 500,
+    "companionShards": 5
+  },
+  "pins": {
+    "parentSummarySha256": "d753cfd8d08abf897dc048ab64de19cff5cd2f7581967c6ecf571b2b065c8e93",
+    "parentStudySha256": "513f80836730fe2402d7eb421b2cc25c719a5982e28d0ae0f559e09a3716eebe",
+    "parentScopeSha256": "41d4c7778c363b1f64ba4a252beb3acbf4fdcac92ddf41b5f357bbf08677407a",
+    "parentScopeFileSha256": "b3f517533aa4f113d6357fab6c05d30ffaa183a3079469e9d1104d3af46c6cdc",
+    "companionStudySha256": "6a43ce2eac77e29656b436cf030de045c8b63dee5db868f9436110c43aa11f82",
+    "companionCampaignFileSha256": "450c4ae9fe16346fe2ec4ddda6de9caad2231568c363daae06b824e4bda7d5bf",
+    "companionCampaignSha256": "b3b737217381a7138fc373c951799d67a9568617a0804ddcf7165dbfca9e5579",
+    "companionSourceSha256": "b931b2c94d029c5a3f6bc81efed89fdea0e30927794b4e14b3f4de1a53f37a85",
+    "fullHistoryPolicySha256": "7b7092a64d5c7b8116062f63ef8d2a71df0315324c800ab73f14b742f74ef2f3",
+    "reports": [
+      {
+        "shardId": "shard-001",
+        "reportFileSha256": "217fb72b0438b30af459bd5acc4e2432e5d9fa411647fa533a6bfc9dd33ad34e"
+      },
+      {
+        "shardId": "shard-002",
+        "reportFileSha256": "9646040219848a14515d2413880597ca801a5c41d3a0a38d1e83c019bb2b5a78"
+      },
+      {
+        "shardId": "shard-003",
+        "reportFileSha256": "3a4f307a253c891efa128fea391bb4e01583b540d7eb10de44b9c808accc1b13"
+      },
+      {
+        "shardId": "shard-004",
+        "reportFileSha256": "0dbd1426c5489a55143ca344674d620870a7a2b0f9afa3d99b4761ad891cc794"
+      },
+      {
+        "shardId": "shard-005",
+        "reportFileSha256": "8994eaeae1a0ec280cbb85c7297d13ec11432d1deb8fced787604b1141c3123f"
+      }
+    ],
+    "parent": {
+      "studySha256": "513f80836730fe2402d7eb421b2cc25c719a5982e28d0ae0f559e09a3716eebe",
+      "scopeSha256": "41d4c7778c363b1f64ba4a252beb3acbf4fdcac92ddf41b5f357bbf08677407a",
+      "scopeFileSha256": "b3f517533aa4f113d6357fab6c05d30ffaa183a3079469e9d1104d3af46c6cdc",
+      "manifestSha256": "c58ac7878cc0235fb6b5d55ad72bd48ecc85f1d64e17d6a39759accd885476b9",
+      "sourceSha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+      "campaignFileSha256": "646251baf1feeb9a5862a04afa1c7fccc9c3e4b53ff55992842cefb378c0dd1c",
+      "campaignSha256": "9e71fdafb825c8dda3b75b6dfb1180659d605b51e87daea12d125a31dcfde5ec",
+      "retrievalSourceSha256": "be550b5a3eb11981700c753e7e10851ab231e40d18c13c12246a87e774b26715",
+      "reports": [
+        {
+          "shardId": "shard-001",
+          "reportFileSha256": "bc836c0a33fe3fd52531910f3dc534a34c74f829c99ed742c8662692f3b252b8"
+        },
+        {
+          "shardId": "shard-002",
+          "reportFileSha256": "89efc466a839d59fccdcfee7e718fdd1f93cb072fda6ac495d889e7f44b1bd6f"
+        },
+        {
+          "shardId": "shard-003",
+          "reportFileSha256": "1595b2167bd53977378851b72304df7b458c1064af29fcd6a5d08e76ee8e4f51"
+        },
+        {
+          "shardId": "shard-004",
+          "reportFileSha256": "3a926e7d62cddb5836ae22a6cd50cca26e541a2f51fbf25a3ad01f7466448344"
+        },
+        {
+          "shardId": "shard-005",
+          "reportFileSha256": "a95034db688ad029ffaf064396ee20f1aaf1b47cf318de2a99c9c2ee5cb75403"
+        }
+      ]
+    }
+  },
+  "arms": [
+    {
+      "variantId": "window-96k",
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.756,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8333333333333334,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.6240601503759399,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9642857142857143,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.4,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9428571428571428,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7368421052631579,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.745,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.10320955380493303,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1024034375542239,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1329435766613128,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.045728639852332234,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.05485302016699244,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09622650506117324,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.11273355854330679,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10478182575782798,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09692046599335262,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.9740666666666666,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9935897435897436,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9566416040100251,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9496240601503759,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9804583333333332,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9484999999999999,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.17942242153291366,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.18480918186627962,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.22749649102303596,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08739452980632037,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10388403670184529,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.15605622213148004,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.1962745184617303,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.18174939222305173,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.17011453877236016,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.946,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9871794871794872,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8947368421052632,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9097744360902256,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.955,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.91,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "variantId": "semantic-96k",
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.758,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.8205128205128205,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.6917293233082706,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9464285714285714,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.43333333333333335,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.706766917293233,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7525,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.78,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.08271686195693577,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08840889660566845,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.11641382304070104,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.03947057803113918,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04455915454171474,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04082355857242512,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.09454678550937944,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08177067772248892,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08650159889472274,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.9995,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9981203007518797,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.999375,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.14895699258940917,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.16210122428934282,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.2041687092684766,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.0758518337714706,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08521041376653651,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.0783083072107041,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.16838019442466662,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.14751780826001615,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.15471372990698096,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.998,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9924812030075187,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9975,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "variantId": "full-history",
+      "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+      "readerFailures": 0,
+      "judgeFailures": 0,
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.71,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7051282051282052,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.6240601503759399,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9642857142857143,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.3,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.9,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.6842105263157895,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.7025,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.74,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.040160050715791734,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.042321807035600414,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.0552661125058585,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.020652066339260998,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.021130226061297618,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.02058418462315606,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04659560921339413,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.03997210589668243,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.040911829992228955,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 1,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 0.07649013984522895,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08119091298714574,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.10408300851933258,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04046429339588807,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.04138230764700785,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.0403341384295709,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.08825773854809059,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.0761578601072378,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 0.07781925879719392,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "overall": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "failed": 0,
+            "mean": 1,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "failed": 0,
+              "mean": 1,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "parentComparison": {
+    "candidateVariantId": "semantic-96k",
+    "controlVariantId": "window-96k",
+    "reader": "gpt5-nano-explicit-abstention-composition-v1-reader",
+    "metrics": [
+      {
+        "metric": "judge-accuracy",
+        "paired": {
+          "cases": 500,
+          "scored": 500,
+          "unscored": 0,
+          "wins": 43,
+          "losses": 42,
+          "ties": 415,
+          "meanDelta": 0.002,
+          "declaredGroups": 471,
+          "declaredHistories": 471
+        },
+        "byCategory": [
+          {
+            "id": "knowledge-update",
+            "cases": 78,
+            "scored": 78,
+            "unscored": 0,
+            "wins": 3,
+            "losses": 4,
+            "ties": 71,
+            "meanDelta": -0.01282051282051282,
+            "declaredGroups": 72,
+            "declaredHistories": 72
+          },
+          {
+            "id": "multi-session",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 16,
+            "losses": 7,
+            "ties": 110,
+            "meanDelta": 0.06766917293233082,
+            "declaredGroups": 122,
+            "declaredHistories": 122
+          },
+          {
+            "id": "single-session-assistant",
+            "cases": 56,
+            "scored": 56,
+            "unscored": 0,
+            "wins": 2,
+            "losses": 3,
+            "ties": 51,
+            "meanDelta": -0.017857142857142856,
+            "declaredGroups": 56,
+            "declaredHistories": 56
+          },
+          {
+            "id": "single-session-preference",
+            "cases": 30,
+            "scored": 30,
+            "unscored": 0,
+            "wins": 5,
+            "losses": 4,
+            "ties": 21,
+            "meanDelta": 0.03333333333333333,
+            "declaredGroups": 30,
+            "declaredHistories": 30
+          },
+          {
+            "id": "single-session-user",
+            "cases": 70,
+            "scored": 70,
+            "unscored": 0,
+            "wins": 3,
+            "losses": 6,
+            "ties": 61,
+            "meanDelta": -0.04285714285714286,
+            "declaredGroups": 64,
+            "declaredHistories": 64
+          },
+          {
+            "id": "temporal-reasoning",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 14,
+            "losses": 18,
+            "ties": 101,
+            "meanDelta": -0.03007518796992481,
+            "declaredGroups": 127,
+            "declaredHistories": 127
+          }
+        ],
+        "byExposureStratum": [
+          {
+            "partition": "closed",
+            "exposure": "unknown",
+            "cases": 400,
+            "scored": 400,
+            "unscored": 0,
+            "wins": 38,
+            "losses": 35,
+            "ties": 327,
+            "meanDelta": 0.0075,
+            "declaredGroups": 377,
+            "declaredHistories": 377
+          },
+          {
+            "partition": "development",
+            "exposure": "development",
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "wins": 5,
+            "losses": 7,
+            "ties": 88,
+            "meanDelta": -0.02,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          }
+        ]
+      },
+      {
+        "metric": "evidence-precision",
+        "paired": {
+          "cases": 500,
+          "scored": 500,
+          "unscored": 0,
+          "wins": 96,
+          "losses": 371,
+          "ties": 33,
+          "meanDelta": -0.020492691847997103,
+          "declaredGroups": 471,
+          "declaredHistories": 471
+        },
+        "byCategory": [
+          {
+            "id": "knowledge-update",
+            "cases": 78,
+            "scored": 78,
+            "unscored": 0,
+            "wins": 16,
+            "losses": 54,
+            "ties": 8,
+            "meanDelta": -0.0139945409485555,
+            "declaredGroups": 72,
+            "declaredHistories": 72
+          },
+          {
+            "id": "multi-session",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 33,
+            "losses": 93,
+            "ties": 7,
+            "meanDelta": -0.016529753620611827,
+            "declaredGroups": 122,
+            "declaredHistories": 122
+          },
+          {
+            "id": "single-session-assistant",
+            "cases": 56,
+            "scored": 56,
+            "unscored": 0,
+            "wins": 11,
+            "losses": 43,
+            "ties": 2,
+            "meanDelta": -0.0062580618211930655,
+            "declaredGroups": 56,
+            "declaredHistories": 56
+          },
+          {
+            "id": "single-session-preference",
+            "cases": 30,
+            "scored": 30,
+            "unscored": 0,
+            "wins": 5,
+            "losses": 23,
+            "ties": 2,
+            "meanDelta": -0.010293865625277706,
+            "declaredGroups": 30,
+            "declaredHistories": 30
+          },
+          {
+            "id": "single-session-user",
+            "cases": 70,
+            "scored": 70,
+            "unscored": 0,
+            "wins": 7,
+            "losses": 58,
+            "ties": 5,
+            "meanDelta": -0.055402946488748106,
+            "declaredGroups": 64,
+            "declaredHistories": 64
+          },
+          {
+            "id": "temporal-reasoning",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 24,
+            "losses": 100,
+            "ties": 9,
+            "meanDelta": -0.018186773033927444,
+            "declaredGroups": 127,
+            "declaredHistories": 127
+          }
+        ],
+        "byExposureStratum": [
+          {
+            "partition": "closed",
+            "exposure": "unknown",
+            "cases": 400,
+            "scored": 400,
+            "unscored": 0,
+            "wins": 73,
+            "losses": 303,
+            "ties": 24,
+            "meanDelta": -0.02301114803533891,
+            "declaredGroups": 377,
+            "declaredHistories": 377
+          },
+          {
+            "partition": "development",
+            "exposure": "development",
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "wins": 23,
+            "losses": 68,
+            "ties": 9,
+            "meanDelta": -0.010418867098629887,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          }
+        ]
+      },
+      {
+        "metric": "evidence-recall",
+        "paired": {
+          "cases": 500,
+          "scored": 500,
+          "unscored": 0,
+          "wins": 26,
+          "losses": 0,
+          "ties": 474,
+          "meanDelta": 0.02543333333333333,
+          "declaredGroups": 471,
+          "declaredHistories": 471
+        },
+        "byCategory": [
+          {
+            "id": "knowledge-update",
+            "cases": 78,
+            "scored": 78,
+            "unscored": 0,
+            "wins": 1,
+            "losses": 0,
+            "ties": 77,
+            "meanDelta": 0.00641025641025641,
+            "declaredGroups": 72,
+            "declaredHistories": 72
+          },
+          {
+            "id": "multi-session",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 13,
+            "losses": 0,
+            "ties": 120,
+            "meanDelta": 0.041478696741854636,
+            "declaredGroups": 122,
+            "declaredHistories": 122
+          },
+          {
+            "id": "single-session-assistant",
+            "cases": 56,
+            "scored": 56,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 0,
+            "ties": 56,
+            "meanDelta": 0,
+            "declaredGroups": 56,
+            "declaredHistories": 56
+          },
+          {
+            "id": "single-session-preference",
+            "cases": 30,
+            "scored": 30,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 0,
+            "ties": 30,
+            "meanDelta": 0,
+            "declaredGroups": 30,
+            "declaredHistories": 30
+          },
+          {
+            "id": "single-session-user",
+            "cases": 70,
+            "scored": 70,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 0,
+            "ties": 70,
+            "meanDelta": 0,
+            "declaredGroups": 64,
+            "declaredHistories": 64
+          },
+          {
+            "id": "temporal-reasoning",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 12,
+            "losses": 0,
+            "ties": 121,
+            "meanDelta": 0.05037593984962407,
+            "declaredGroups": 127,
+            "declaredHistories": 127
+          }
+        ],
+        "byExposureStratum": [
+          {
+            "partition": "closed",
+            "exposure": "unknown",
+            "cases": 400,
+            "scored": 400,
+            "unscored": 0,
+            "wins": 17,
+            "losses": 0,
+            "ties": 383,
+            "meanDelta": 0.01891666666666667,
+            "declaredGroups": 377,
+            "declaredHistories": 377
+          },
+          {
+            "partition": "development",
+            "exposure": "development",
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "wins": 9,
+            "losses": 0,
+            "ties": 91,
+            "meanDelta": 0.051500000000000004,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          }
+        ]
+      },
+      {
+        "metric": "evidence-f1",
+        "paired": {
+          "cases": 500,
+          "scored": 500,
+          "unscored": 0,
+          "wins": 97,
+          "losses": 370,
+          "ties": 33,
+          "meanDelta": -0.03046542894350423,
+          "declaredGroups": 471,
+          "declaredHistories": 471
+        },
+        "byCategory": [
+          {
+            "id": "knowledge-update",
+            "cases": 78,
+            "scored": 78,
+            "unscored": 0,
+            "wins": 16,
+            "losses": 54,
+            "ties": 8,
+            "meanDelta": -0.022707957576936815,
+            "declaredGroups": 72,
+            "declaredHistories": 72
+          },
+          {
+            "id": "multi-session",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 33,
+            "losses": 92,
+            "ties": 8,
+            "meanDelta": -0.02332778175455938,
+            "declaredGroups": 122,
+            "declaredHistories": 122
+          },
+          {
+            "id": "single-session-assistant",
+            "cases": 56,
+            "scored": 56,
+            "unscored": 0,
+            "wins": 11,
+            "losses": 43,
+            "ties": 2,
+            "meanDelta": -0.011542696034849786,
+            "declaredGroups": 56,
+            "declaredHistories": 56
+          },
+          {
+            "id": "single-session-preference",
+            "cases": 30,
+            "scored": 30,
+            "unscored": 0,
+            "wins": 5,
+            "losses": 23,
+            "ties": 2,
+            "meanDelta": -0.01867362293530875,
+            "declaredGroups": 30,
+            "declaredHistories": 30
+          },
+          {
+            "id": "single-session-user",
+            "cases": 70,
+            "scored": 70,
+            "unscored": 0,
+            "wins": 7,
+            "losses": 58,
+            "ties": 5,
+            "meanDelta": -0.07774791492077594,
+            "declaredGroups": 64,
+            "declaredHistories": 64
+          },
+          {
+            "id": "temporal-reasoning",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 25,
+            "losses": 100,
+            "ties": 8,
+            "meanDelta": -0.027894324037063732,
+            "declaredGroups": 127,
+            "declaredHistories": 127
+          }
+        ],
+        "byExposureStratum": [
+          {
+            "partition": "closed",
+            "exposure": "unknown",
+            "cases": 400,
+            "scored": 400,
+            "unscored": 0,
+            "wins": 74,
+            "losses": 302,
+            "ties": 24,
+            "meanDelta": -0.03423158396303547,
+            "declaredGroups": 377,
+            "declaredHistories": 377
+          },
+          {
+            "partition": "development",
+            "exposure": "development",
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "wins": 23,
+            "losses": 68,
+            "ties": 9,
+            "meanDelta": -0.015400808865379246,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          }
+        ]
+      },
+      {
+        "metric": "evidence-all",
+        "paired": {
+          "cases": 500,
+          "scored": 500,
+          "unscored": 0,
+          "wins": 26,
+          "losses": 0,
+          "ties": 474,
+          "meanDelta": 0.052,
+          "declaredGroups": 471,
+          "declaredHistories": 471
+        },
+        "byCategory": [
+          {
+            "id": "knowledge-update",
+            "cases": 78,
+            "scored": 78,
+            "unscored": 0,
+            "wins": 1,
+            "losses": 0,
+            "ties": 77,
+            "meanDelta": 0.01282051282051282,
+            "declaredGroups": 72,
+            "declaredHistories": 72
+          },
+          {
+            "id": "multi-session",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 13,
+            "losses": 0,
+            "ties": 120,
+            "meanDelta": 0.09774436090225563,
+            "declaredGroups": 122,
+            "declaredHistories": 122
+          },
+          {
+            "id": "single-session-assistant",
+            "cases": 56,
+            "scored": 56,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 0,
+            "ties": 56,
+            "meanDelta": 0,
+            "declaredGroups": 56,
+            "declaredHistories": 56
+          },
+          {
+            "id": "single-session-preference",
+            "cases": 30,
+            "scored": 30,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 0,
+            "ties": 30,
+            "meanDelta": 0,
+            "declaredGroups": 30,
+            "declaredHistories": 30
+          },
+          {
+            "id": "single-session-user",
+            "cases": 70,
+            "scored": 70,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 0,
+            "ties": 70,
+            "meanDelta": 0,
+            "declaredGroups": 64,
+            "declaredHistories": 64
+          },
+          {
+            "id": "temporal-reasoning",
+            "cases": 133,
+            "scored": 133,
+            "unscored": 0,
+            "wins": 12,
+            "losses": 0,
+            "ties": 121,
+            "meanDelta": 0.09022556390977443,
+            "declaredGroups": 127,
+            "declaredHistories": 127
+          }
+        ],
+        "byExposureStratum": [
+          {
+            "partition": "closed",
+            "exposure": "unknown",
+            "cases": 400,
+            "scored": 400,
+            "unscored": 0,
+            "wins": 17,
+            "losses": 0,
+            "ties": 383,
+            "meanDelta": 0.0425,
+            "declaredGroups": 377,
+            "declaredHistories": 377
+          },
+          {
+            "partition": "development",
+            "exposure": "development",
+            "cases": 100,
+            "scored": 100,
+            "unscored": 0,
+            "wins": 9,
+            "losses": 0,
+            "ties": 91,
+            "meanDelta": 0.09,
+            "declaredGroups": 94,
+            "declaredHistories": 94
+          }
+        ]
+      }
+    ]
+  },
+  "comparisons": [
+    {
+      "left": {
+        "variantId": "window-96k",
+        "reader": "gpt5-nano-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "full-history",
+        "reader": "gpt5-nano-explicit-abstention-composition-v1-reader"
+      },
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 62,
+            "losses": 39,
+            "ties": 399,
+            "meanDelta": 0.046,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 15,
+              "losses": 5,
+              "ties": 58,
+              "meanDelta": 0.1282051282051282,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 17,
+              "losses": 17,
+              "ties": 99,
+              "meanDelta": 0,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 2,
+              "losses": 2,
+              "ties": 52,
+              "meanDelta": 0,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 5,
+              "losses": 2,
+              "ties": 23,
+              "meanDelta": 0.1,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 6,
+              "losses": 3,
+              "ties": 61,
+              "meanDelta": 0.04285714285714286,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 17,
+              "losses": 10,
+              "ties": 106,
+              "meanDelta": 0.05263157894736842,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 50,
+              "losses": 33,
+              "ties": 317,
+              "meanDelta": 0.0425,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 12,
+              "losses": 6,
+              "ties": 82,
+              "meanDelta": 0.06,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 494,
+            "losses": 6,
+            "ties": 0,
+            "meanDelta": 0.06304950308914095,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 78,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.06008163051862352,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 130,
+              "losses": 3,
+              "ties": 0,
+              "meanDelta": 0.07767746415545439,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 56,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.025076573513071247,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 30,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.03372279410569482,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 70,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.07564232043801719,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 130,
+              "losses": 3,
+              "ties": 0,
+              "meanDelta": 0.06613794932991277,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 398,
+              "losses": 2,
+              "ties": 0,
+              "meanDelta": 0.06480971986114531,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 96,
+              "losses": 4,
+              "ties": 0,
+              "meanDelta": 0.05600863600112373,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 27,
+            "ties": 473,
+            "meanDelta": -0.02593333333333333,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 1,
+              "ties": 77,
+              "meanDelta": -0.00641025641025641,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 14,
+              "ties": 119,
+              "meanDelta": -0.043358395989974936,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 56,
+              "meanDelta": 0,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 30,
+              "meanDelta": 0,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 70,
+              "meanDelta": 0,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 12,
+              "ties": 121,
+              "meanDelta": -0.05037593984962407,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 18,
+              "ties": 382,
+              "meanDelta": -0.01954166666666667,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 9,
+              "ties": 91,
+              "meanDelta": -0.051500000000000004,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 493,
+            "losses": 7,
+            "ties": 0,
+            "meanDelta": 0.10293228168768405,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 78,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.10361826887913392,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 130,
+              "losses": 3,
+              "ties": 0,
+              "meanDelta": 0.12341348250370342,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 56,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.04693023641043233,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 30,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.06250172905483743,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 70,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.11572208370190916,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 129,
+              "losses": 4,
+              "ties": 0,
+              "meanDelta": 0.1080167799136397,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 397,
+              "losses": 3,
+              "ties": 0,
+              "meanDelta": 0.10559153211581354,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 96,
+              "losses": 4,
+              "ties": 0,
+              "meanDelta": 0.09229527997516625,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 27,
+            "ties": 473,
+            "meanDelta": -0.054,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 1,
+              "ties": 77,
+              "meanDelta": -0.01282051282051282,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 14,
+              "ties": 119,
+              "meanDelta": -0.10526315789473684,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 56,
+              "meanDelta": 0,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 30,
+              "meanDelta": 0,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 70,
+              "meanDelta": 0,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 12,
+              "ties": 121,
+              "meanDelta": -0.09022556390977443,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 18,
+              "ties": 382,
+              "meanDelta": -0.045,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 9,
+              "ties": 91,
+              "meanDelta": -0.09,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "left": {
+        "variantId": "semantic-96k",
+        "reader": "gpt5-nano-explicit-abstention-composition-v1-reader"
+      },
+      "right": {
+        "variantId": "full-history",
+        "reader": "gpt5-nano-explicit-abstention-composition-v1-reader"
+      },
+      "metrics": [
+        {
+          "metric": "judge-accuracy",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 66,
+            "losses": 42,
+            "ties": 392,
+            "meanDelta": 0.048,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 16,
+              "losses": 7,
+              "ties": 55,
+              "meanDelta": 0.11538461538461539,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 24,
+              "losses": 15,
+              "ties": 94,
+              "meanDelta": 0.06766917293233082,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 1,
+              "losses": 2,
+              "ties": 53,
+              "meanDelta": -0.017857142857142856,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 7,
+              "losses": 3,
+              "ties": 20,
+              "meanDelta": 0.13333333333333333,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 3,
+              "losses": 3,
+              "ties": 64,
+              "meanDelta": 0,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 15,
+              "losses": 12,
+              "ties": 106,
+              "meanDelta": 0.022556390977443608,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 52,
+              "losses": 32,
+              "ties": 316,
+              "meanDelta": 0.05,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 14,
+              "losses": 10,
+              "ties": 76,
+              "meanDelta": 0.04,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-precision",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 500,
+            "losses": 0,
+            "ties": 0,
+            "meanDelta": 0.042556811241143855,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 78,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.04608708957006802,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 133,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.061147710534842505,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 56,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.018818511691878176,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 30,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.023428928480417114,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 70,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.02023937394926908,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 133,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.04795117629598526,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 400,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.041798571825806395,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 100,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.04558976890249382,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-recall",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 1,
+            "ties": 499,
+            "meanDelta": -0.0005,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 78,
+              "meanDelta": 0,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 1,
+              "ties": 132,
+              "meanDelta": -0.0018796992481203006,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 56,
+              "meanDelta": 0,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 30,
+              "meanDelta": 0,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 70,
+              "meanDelta": 0,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 133,
+              "meanDelta": 0,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 1,
+              "ties": 399,
+              "meanDelta": -0.000625,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 100,
+              "meanDelta": 0,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-f1",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 500,
+            "losses": 0,
+            "ties": 0,
+            "meanDelta": 0.07246685274417997,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 78,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.0809103113021971,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 133,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.10008570074914408,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 56,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.035387540375582525,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 30,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.04382810611952867,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 70,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.03797416878113324,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 133,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.08012245587657602,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 400,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.07135994815277813,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 100,
+              "losses": 0,
+              "ties": 0,
+              "meanDelta": 0.07689447110978699,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        },
+        {
+          "metric": "evidence-all",
+          "paired": {
+            "cases": 500,
+            "scored": 500,
+            "unscored": 0,
+            "wins": 0,
+            "losses": 1,
+            "ties": 499,
+            "meanDelta": -0.002,
+            "declaredGroups": 471,
+            "declaredHistories": 471
+          },
+          "byCategory": [
+            {
+              "id": "knowledge-update",
+              "cases": 78,
+              "scored": 78,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 78,
+              "meanDelta": 0,
+              "declaredGroups": 72,
+              "declaredHistories": 72
+            },
+            {
+              "id": "multi-session",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 1,
+              "ties": 132,
+              "meanDelta": -0.007518796992481203,
+              "declaredGroups": 122,
+              "declaredHistories": 122
+            },
+            {
+              "id": "single-session-assistant",
+              "cases": 56,
+              "scored": 56,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 56,
+              "meanDelta": 0,
+              "declaredGroups": 56,
+              "declaredHistories": 56
+            },
+            {
+              "id": "single-session-preference",
+              "cases": 30,
+              "scored": 30,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 30,
+              "meanDelta": 0,
+              "declaredGroups": 30,
+              "declaredHistories": 30
+            },
+            {
+              "id": "single-session-user",
+              "cases": 70,
+              "scored": 70,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 70,
+              "meanDelta": 0,
+              "declaredGroups": 64,
+              "declaredHistories": 64
+            },
+            {
+              "id": "temporal-reasoning",
+              "cases": 133,
+              "scored": 133,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 133,
+              "meanDelta": 0,
+              "declaredGroups": 127,
+              "declaredHistories": 127
+            }
+          ],
+          "byExposureStratum": [
+            {
+              "partition": "closed",
+              "exposure": "unknown",
+              "cases": 400,
+              "scored": 400,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 1,
+              "ties": 399,
+              "meanDelta": -0.0025,
+              "declaredGroups": 377,
+              "declaredHistories": 377
+            },
+            {
+              "partition": "development",
+              "exposure": "development",
+              "cases": 100,
+              "scored": 100,
+              "unscored": 0,
+              "wins": 0,
+              "losses": 0,
+              "ties": 100,
+              "meanDelta": 0,
+              "declaredGroups": 94,
+              "declaredHistories": 94
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cost": {
+    "combined": {
+      "occupiedRequests": 2916,
+      "physicalRequests": 2916,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 4964045,
+      "unresolvedReservationMicros": 0,
+      "accountedMicros": 4964045
+    },
+    "parent": {
+      "campaignSha256": "9e71fdafb825c8dda3b75b6dfb1180659d605b51e87daea12d125a31dcfde5ec",
+      "occupiedRequests": 1916,
+      "physicalRequests": 1916,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 1627158,
+      "unresolvedReservationMicros": 0,
+      "accountedMicros": 1627158,
+      "usageCoverage": {
+        "knownRequests": 1916,
+        "unknownRequests": 0
+      },
+      "shardAttributedOccurrences": 1916,
+      "crossShardReusedOccurrences": 0,
+      "phases": [
+        {
+          "phase": "reader",
+          "occupiedRequests": 1000,
+          "physicalRequests": 1000,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 1225913,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 1225913,
+          "usageCoverage": {
+            "knownRequests": 1000,
+            "unknownRequests": 0
+          }
+        },
+        {
+          "phase": "judge",
+          "occupiedRequests": 916,
+          "physicalRequests": 916,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 401245,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 401245,
+          "usageCoverage": {
+            "knownRequests": 916,
+            "unknownRequests": 0
+          }
+        }
+      ],
+      "qualification": "Each distinct request is counted once across shards only when its complete first-evidence projection is identical. Known usage plus unresolved full reservations is conservative attributed exposure, not incremental campaign spending or a provider invoice."
+    },
+    "companion": {
+      "campaignSha256": "b3b737217381a7138fc373c951799d67a9568617a0804ddcf7165dbfca9e5579",
+      "occupiedRequests": 1000,
+      "physicalRequests": 1000,
+      "unknownDispatches": 0,
+      "knownUsageMicros": 3336887,
+      "unresolvedReservationMicros": 0,
+      "accountedMicros": 3336887,
+      "usageCoverage": {
+        "knownRequests": 1000,
+        "unknownRequests": 0
+      },
+      "shardAttributedOccurrences": 1000,
+      "crossShardReusedOccurrences": 0,
+      "phases": [
+        {
+          "phase": "reader",
+          "occupiedRequests": 500,
+          "physicalRequests": 500,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 3111829,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 3111829,
+          "usageCoverage": {
+            "knownRequests": 500,
+            "unknownRequests": 0
+          }
+        },
+        {
+          "phase": "judge",
+          "occupiedRequests": 500,
+          "physicalRequests": 500,
+          "unknownDispatches": 0,
+          "knownUsageMicros": 225058,
+          "unresolvedReservationMicros": 0,
+          "accountedMicros": 225058,
+          "usageCoverage": {
+            "knownRequests": 500,
+            "unknownRequests": 0
+          }
+        }
+      ]
+    },
+    "qualification": "Deduplicate identical first evidence within each campaign. Different campaign identities are counted separately even when request hashes match; combined values are conservative attributed exposure, not newly spent money or a provider invoice."
+  },
+  "latency": {
+    "parent": {
+      "occupiedRequests": 1916,
+      "physicalRequests": 1916,
+      "unknownDispatches": 0,
+      "measuredRequests": 1916,
+      "unmeasuredPhysicalRequests": 0,
+      "totalMs": 5817087.393736002,
+      "p50Ms": 2379.9888329999994,
+      "p95Ms": 8170.513916,
+      "phases": [
+        {
+          "phase": "reader",
+          "occupiedRequests": 1000,
+          "physicalRequests": 1000,
+          "unknownDispatches": 0,
+          "measuredRequests": 1000,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 4941152.83066,
+          "p50Ms": 4367.262499999999,
+          "p95Ms": 9839.580042000001
+        },
+        {
+          "phase": "judge",
+          "occupiedRequests": 916,
+          "physicalRequests": 916,
+          "unknownDispatches": 0,
+          "measuredRequests": 916,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 875934.563075999,
+          "p50Ms": 739.3180420000008,
+          "p95Ms": 2029.5857500000002
+        }
+      ],
+      "qualification": "Distinct original physical service durations, including reused captures. No summed wall-time, cache-hit latency or end-to-end throughput claim."
+    },
+    "companion": {
+      "occupiedRequests": 1000,
+      "physicalRequests": 1000,
+      "unknownDispatches": 0,
+      "measuredRequests": 1000,
+      "unmeasuredPhysicalRequests": 0,
+      "totalMs": 4989481.116225004,
+      "p50Ms": 3747.183874999995,
+      "p95Ms": 13390.948167000002,
+      "phases": [
+        {
+          "phase": "reader",
+          "occupiedRequests": 500,
+          "physicalRequests": 500,
+          "unknownDispatches": 0,
+          "measuredRequests": 500,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 4472150.297533,
+          "p50Ms": 8194.4545,
+          "p95Ms": 15728.336333
+        },
+        {
+          "phase": "judge",
+          "occupiedRequests": 500,
+          "physicalRequests": 500,
+          "unknownDispatches": 0,
+          "measuredRequests": 500,
+          "unmeasuredPhysicalRequests": 0,
+          "totalMs": 517330.818692,
+          "p50Ms": 768.141082999995,
+          "p95Ms": 2146.8107919999966
+        }
+      ]
+    },
+    "qualification": "Original distinct service times within each campaign. Cross-campaign reuse, cache-hit latency, summed wall time and end-to-end throughput are not independently identified here."
+  },
+  "qualification": [
+    "Exact500 questions in all three arms; every planned failure remains in the answer denominator at zero. Evidence eligibility is independent of answer failures.",
+    "The frozen parent's BM25/semantic result is retained unchanged. The companion adds complete source history and does not amend the parent study.",
+    "Original development and closed/unknown exposure strata remain disclosed. Unknown is not unseen; declared families and histories are not proven independent. No fresh confirmation, saturation or superiority claim.",
+    "Native LongMemEval rubric with Gateway GPT-4o alias and adapted16-token cap; not pinned-snapshot or official protocol reproduction.",
+    "Caller authenticates original study/scope/report bytes; shard reporters authenticate source and raw responses. This reducer validates ID-only outcomes, aggregate consistency and campaign-separated attribution, not raw-source custody or a logical-to-physical mapping."
+  ],
+  "summarySha256": "c927bc1fa230cc11cdbb1b6556be665f1962718e40cd0216ac6a308eccdd07ff"
+}

@@ -555,6 +555,10 @@ The [ID selector prototype](EVOLUTION_SELECTOR.md) retains exact source turns in
 
 [Run V7](EVOLUTION_RELEASE_V7.md) adds a separately pinned full500 LongMemEval study: five exact100-question shards, fixed96KB BM25/Oh semantic pair, combined-contract nano and native16 Gateway judge. It preserves original development and closed/unknown exposure declarations, retains all failures, and combines reportV2 shards into an aggregate-only public projection. Existing runV1–V6 paths remain development-only. This scope does not claim fresh confirmation or official-protocol reproduction.
 
+Both studies have completed; [the results page](EVOLUTION_RELEASE_RESULTS.md)
+reports BM25 window 378/500, Oh semantic 379/500 and full history 355/500 with
+zero failures, the paired and category breakdowns, cost and the fact-card outcome.
+
 [Run V8's full-context companion](FULL_CONTEXT_COMPANION.md) adds a separately
 accounted complete-source control over those same500 IDs with the same reader
 and judge. V7 keeps its original two arms. V8 performs no retrieval or QMD
