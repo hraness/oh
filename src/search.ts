@@ -1,5 +1,5 @@
 import type { KnowledgeGraphRecordV1 } from "./graph";
-import type { OhSemanticSearchBackendV1 } from "./semantic";
+import type { OhSemanticSearchBackend } from "./semantic";
 import type { OhSqliteStore } from "./sqlite/store";
 
 export type OhSearchModeV1 = "hybrid" | "keyword" | "semantic";
@@ -22,7 +22,7 @@ export type OhSearchResponseV1 = Readonly<{
 }>;
 
 export async function searchOhV1(input: Readonly<{
-  backend?: OhSemanticSearchBackendV1;
+  backend?: OhSemanticSearchBackend;
   limit?: number;
   mode?: OhSearchModeV1;
   query: string;
@@ -32,7 +32,7 @@ export async function searchOhV1(input: Readonly<{
   const mode = input.mode ?? "keyword";
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw new RangeError("Search limit must be 1 through 100.");
   const keyword = mode === "semantic" ? [] : input.store.searchKeyword(input.query, Math.min(100, limit * 3));
-  let semantic: Awaited<ReturnType<OhSemanticSearchBackendV1["search"]>> = [];
+  let semantic: Awaited<ReturnType<OhSemanticSearchBackend["search"]>> = [];
   const diagnostics: OhSearchDiagnosticV1[] = [];
   if (mode !== "keyword") {
     if (input.backend === undefined) {

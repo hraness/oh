@@ -20,6 +20,7 @@ binds these versions:
 | Local embedding profile | `1` |
 | Hosted semantic cache V1 | `oh.cloudflare.embeddinggemma.v1` |
 | Hosted semantic cache V2 | `oh.semantic-cloud.v2` |
+| Precomputed hosted vector snapshot | `oh.semantic-hosted-snapshot.v1` |
 | Projection semantics | `oh.projection.positive-datalog.v1` |
 | Composite memory | `stable V1 authority over V2 query` |
 | Memory page | `oh.memory-page.v1` |
@@ -36,6 +37,7 @@ binds these versions:
 - [Local embedding profile](v1/embedding.md)
 - [Hosted semantic cache](v1/semantic-cloud.md)
 - [Isolated hosted semantic cache V2](v2/semantic-cloud.md)
+- [Precomputed hosted embeddings](hosted-embedding-v1/README.md)
 - [Derived projections](v1/projection.md)
 - [Composite agent memory](v1/memory.md)
 - [Memory pages and `.oh.md` interchange](v1/memory-page.md)
@@ -51,6 +53,7 @@ Machine-readable V1 artifacts:
 - [`libsql-semantic-cache-schema-v1.sql`](v1/libsql-semantic-cache-schema-v1.sql)
 - [`libsql-semantic-digest-fixture-v1.json`](v1/libsql-semantic-digest-fixture-v1.json)
 - [`semantic-cloud V2 manifest`](v2/manifest.json)
+- [`precomputed hosted embedding manifest`](hosted-embedding-v1/manifest.json)
 - [`libsql-semantic-cache-schema-v2.sql`](v2/libsql-semantic-cache-schema-v2.sql)
 - [`libsql-semantic-digest-fixture-v2.json`](v2/libsql-semantic-digest-fixture-v2.json)
 - [`contract.schema.json`](v1/contract.schema.json)

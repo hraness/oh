@@ -1,0 +1,18 @@
+{
+  "chunkBytes": 4096,
+  "chunking": "contiguous-utf8-scalars-no-overlap-v1",
+  "dimensions": 1536,
+  "distance": "cosine",
+  "documentFormat": "oh-record-document-v1",
+  "encoding": "float",
+  "engine": "oh.precomputed-hosted.v1",
+  "gateway": "vercel-ai-gateway",
+  "model": "openai/text-embedding-3-small",
+  "modelIdentity": "alias",
+  "normalization": "l2",
+  "provider": "openai",
+  "queryFormat": "raw-utf8-v1",
+  "queryMaxBytes": 8192,
+  "recordAggregation": "maximum-chunk-cosine-v1",
+  "v": 2
+}
