@@ -689,3 +689,72 @@ explicitly permitted corpus; the commands above do not recreate this 100-corpus
 run. The complete context and reader plans passed the public V1 validators.
 This qualification does not establish V2/V3 semantic preparation support or
 benchmark answer accuracy.
+
+## Semantic and hybrid reader comparison
+
+Semantic retrieval scored 82/100 with the combined nano reader and 90/100 with
+mini's abstention contract. The matched BM25 controls scored 78 and 86. Both
+semantic results improve on the corresponding observed development controls;
+these repeatedly exposed questions do not establish confirmation or superiority.
+
+The matrix was fixed before all 100 semantic contexts were available: semantic
+and hybrid top100/96,000-byte retrieval, each with the same two reader contracts
+used in the opening-message comparison. All 400 answers and all 288 distinct
+judge requests completed with verified responses. No failed attempt was replaced.
+
+| Retrieval | Nano, abstention + composition | Mini, abstention |
+| --- | ---: | ---: |
+| BM25 window, prior matched control | 78/100 | 86/100 |
+| Focused native Oh, prior matched control | 81/100 | 85/100 |
+| Opening-message completion, prior treatment | 76/100 | 88/100 |
+| Semantic | **82/100** | **90/100** |
+| Hybrid | 73/100 | 87/100 |
+
+Semantic won nine and lost five questions against BM25 with nano, and won seven
+and lost three with mini. Against focused Oh, the corresponding wins/losses were
+6/5 and 8/3; against opening completion, 11/5 and 5/3. The prior opening nano
+judge failure remains zero. Hybrid lost to semantic by nine correct answers with
+nano and three with mini. Better evidence availability did not eliminate reader
+errors: semantic retained all annotated turns for 93/94 labeled questions, but
+its reader scores use all 100 questions, including six without turn annotations.
+
+The [complete semantic400 artifact](results/memory-evolution-semantic-400-v1.json)
+contains all 14 paired comparisons, category results, failure counts, cache
+accounting, source pins and timing. The audit reconstructed the 400 current and
+600 matched control outcomes from authenticated phase and plan artifacts. It
+also reconciled all 2,464 previously occupied campaign requests and verified that
+156 prior judge requests and responses were reused exactly. The earlier,
+higher-scoring BM25 repeat was not substituted for the matched control.
+
+This stage added 400 reader calls and 132 judge calls, with 1,567,956 microdollars
+of known usage and no new unresolved reservations. Reader execution took
+89.262 seconds; judging took 13.502 seconds at concurrency 32. These times exclude
+local indexing, host admission waits, preparation and reporting. Cache-inclusive
+cost attribution in the artifact differs from this incremental spend.
+
+The shared successor campaign ended this stage at 2,996 calls and 8,905,923
+microdollars of exposure: 8,899,060 known and the prior 6,863 unresolved. Its
+10-dollar cap remains unchanged. This stage used clean commit
+`b1518addfdb94d80102f4b71f394b021798bd42f` and the existing Gateway GPT-4o alias
+with the native rubric, contains-yes scoring and a 16-token cap. It is not an
+exact pinned-snapshot, 10-token official reproduction. An untouched comparison
+and a completed external-framework baseline remain outstanding.
+
+## Mem0 response-envelope compatibility
+
+The first real extraction completed with HTTP 200, but its Gateway metadata was
+inside the assistant message and its usage object included additional billing
+fields. The previous parent expected envelope-level metadata and rejected that
+response. The adapter now accepts either metadata spelling at the envelope or
+validated assistant message, rejects conflicting copies, and checks the observed
+cost aliases and token details. Embeddings still require envelope-level metadata.
+Request identities, raw captures, ledger events and cost ceilings are unchanged.
+
+A read-only replay of the actual captured response validates 8,368 input tokens,
+7,342 output tokens and 3,356 microdollars of usage, including 6,784 reasoning
+tokens. It produced 12 syntactically valid memory rows; this is neither a complete
+corpus ingestion nor an accuracy result. The earlier embedding remains exactly
+15 microdollars. Fourteen focused tests with 137 assertions and scoped TypeScript
+checks passed, with independent review. Reconciliation and SDK replay must reuse
+the original captures before further qualification calls; parser success alone
+does not establish live completion.
