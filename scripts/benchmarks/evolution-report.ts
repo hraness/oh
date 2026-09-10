@@ -12,6 +12,9 @@ import { loadJudgeProfile } from "./judge";
 import { validateEvolutionReleaseArtifacts, evolutionReleaseShard, type EvolutionReleaseAuthorization } from "./evolution-release";
 import { assertEvolutionReleaseContextBinding } from "./evolution-release-plan";
 
+import { validateEvolutionFullContextArtifacts } from "./evolution-full-context-study";
+import { assertEvolutionFullContextBinding } from "./evolution-full-context-plan";
+
 function fail(message: string): never { throw new TypeError(`Evolution report: ${message}.`); }
 const pair = (q: string, v: string) => JSON.stringify([q, v]);
 const triple = (q: string, v: string, r: string) => JSON.stringify([q, v, r]);
@@ -215,6 +218,25 @@ export async function buildEvolutionReleaseShardReport(input: EvolutionReportInp
     release: { studySha256: authorization.studySha256, scopeSha256: authorization.scope.scopeSha256, scopeFileSha256: authorization.scopeFileSha256,
       shardId: input.release.shardId, questionIds: evolutionReleaseShard(authorization, input.release.shardId).questionIds,
       campaignSha256: input.release.campaignSha256, retrievalSourceSha256: input.contextPlan.retrievalSourceSha256, candidatePresentation: authorization.study.candidatePresentation,
+      outcomes: built.outcomes, physical: built.physical } };
+}
+export async function buildEvolutionFullContextShardReport(input: EvolutionReportInput & Readonly<{ companion: {
+  studyBytes: Uint8Array; parentStudyBytes: Uint8Array; parentScopeBytes: Uint8Array; shardId: string; campaignSha256: string } }>) {
+  const authorization = validateEvolutionFullContextArtifacts({ ...input.companion, manifestBytes: input.manifestBytes });
+  const { study, parent } = authorization;
+  if (!digest(input.companion.campaignSha256) || input.contextPlan.protocol !== "oh.memory.evolution-context-plan.v7"
+    || !same(input.readerPlan.readerProfiles, [study.reader]) || input.judgePlan.profile !== study.judge
+    || input.judgePlan.rubricSha256 !== study.rubricSha256) fail("full-context companion profile/context binding");
+  assertEvolutionFullContextBinding(input.contextPlan, authorization, input.companion.shardId);
+  const built = await buildReport(input, { authorization: parent, shardId: input.companion.shardId });
+  return { ...built.report, protocol: "oh.memory.evolution-report.v3" as const,
+    qualification: "Full-release descriptive full-context companion; parent study unchanged. Exposed/unknown source is not fresh confirmation or superiority evidence.",
+    dataset: { ...built.report.dataset, partition: "full-release-descriptive" as const },
+    companion: { studySha256: authorization.studySha256, parentStudySha256: parent.studySha256,
+      parentScopeSha256: parent.scope.scopeSha256, parentScopeFileSha256: parent.scopeFileSha256,
+      shardId: input.companion.shardId, questionIds: evolutionReleaseShard(parent, input.companion.shardId).questionIds,
+      campaignSha256: input.companion.campaignSha256, sourceSha256: study.sourceSha256,
+      fullHistoryPolicySha256: study.fullHistoryPolicySha256, sourcePresentation: "every-turn-input-corpus-order" as const,
       outcomes: built.outcomes, physical: built.physical } };
 }
 async function buildReport(input: EvolutionReportInput, release?: Readonly<{ authorization: EvolutionReleaseAuthorization; shardId: string }>) {
