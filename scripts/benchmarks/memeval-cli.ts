@@ -38,7 +38,10 @@ export function parseMemEvalArgs(args: readonly string[]): MemEvalQuery {
  * Turns keep haystack order inside a session and are sorted by date string across sessions, matching the dataset parser. */
 export function memEvalConversationCorpus(value: unknown): Corpus {
   if (typeof value !== "object" || value === null || Array.isArray(value)) fail("conversation object required");
-  const record = value as Record<string, unknown>, turns: Turn[] = [], sessions: number[] = [];
+  const item = value as Record<string, unknown>;
+  // A MemEval item nests its sessions under `conversation`; a bare conversation carries them at the top level.
+  const nested = typeof item.conversation === "object" && item.conversation !== null && !Array.isArray(item.conversation);
+  const record = nested ? item.conversation as Record<string, unknown> : item, turns: Turn[] = [], sessions: number[] = [];
   for (const key of Object.keys(record)) { const m = /^session_(\d{1,4})$/.exec(key); if (m && Array.isArray(record[key])) sessions.push(Number(m[1])); }
   if (!sessions.length || sessions.length > 1_000) fail("between 1 and 1000 sessions required");
   sessions.sort((a, b) => a - b);
@@ -56,8 +59,8 @@ export function memEvalConversationCorpus(value: unknown): Corpus {
   }
   if (!turns.length) fail("no turns");
   turns.sort((left, right) => left.date < right.date ? -1 : left.date > right.date ? 1 : 0);
-  const qa = Array.isArray(record.qa) && record.qa.length && typeof (record.qa[0] as Record<string, unknown>)?.question_id === "string"
-    ? String((record.qa[0] as Record<string, unknown>).question_id) : null;
+  const qaList = Array.isArray(item.qa) ? item.qa : Array.isArray(record.qa) ? record.qa : [];
+  const qa = qaList.length && typeof (qaList[0] as Record<string, unknown>)?.question_id === "string" ? String((qaList[0] as Record<string, unknown>).question_id) : null;
   const id = qa && /^[A-Za-z0-9_-]{1,128}$/.test(qa) ? qa : `conv-${canonicalSha256(turns).slice(0, 16)}`;
   return { id, groupId: id.replace(/_abs$/, ""), turns };
 }

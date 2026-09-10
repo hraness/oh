@@ -20,6 +20,7 @@ test("MemEval conversations map to an Oh corpus with ordered sessions, dated tur
   expect(corpus.turns[0]).toEqual({ id: "session_1:0", sessionId: "session_1", sessionIndex: 0, date: "2023/05/20 (Sat) 02:21", speaker: "user", text: "I adopted a beagle named Lola last week." });
   const { qa: _qa, ...anonymous } = conv;
   expect(memEvalConversationCorpus(anonymous).id).toMatch(/^conv-[0-9a-f]{16}$/);
+  expect(memEvalConversationCorpus({ sample_id: "synthetic_1_abs", conversation: anonymous, qa: conv.qa })).toEqual(corpus);
   for (const bad of [[], null, { session_1: [] }, { session_1: [{ speaker: "user", text: "x" }] }, { ...conv, session_1_date_time: "" }, { ...conv, session_1: [{ speaker: "", text: "x" }] }]) {
     expect(() => memEvalConversationCorpus(bad)).toThrow();
   }
