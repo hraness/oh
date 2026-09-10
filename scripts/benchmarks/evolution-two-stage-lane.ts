@@ -9,6 +9,7 @@ import { evolutionPin, readEvolutionPin, verifyEvolutionCampaign, type Evolution
 import { codeIdentity } from "./io";
 import { boundEvolutionCompletionWire, freezeEvolutionCompletion } from "./evolution-completion";
 import { validateEvolutionContextPlanSources, type EvolutionContextPlan } from "./evolution-plan";
+import { evolutionLegacyResult } from "./evolution-retrieval";
 import { readSelectorLaneSource, SELECTOR_LANE_SOURCE_MAX_BYTES } from "./evolution-selector-lane";
 import { EVOLUTION_QUESTION_SHAPE_ROUTER_V1, auditEvolutionQuestionShapeRouter, routeEvolutionQuestionShapeV1, type EvolutionQuestionShapeDecision } from "./evolution-question-shape";
 import { OH_SELECTOR_POLICY_V2, evolutionTwoStageProfiles, makeEvolutionTwoStageAnswerRequest, prepareEvolutionTwoStage,
@@ -125,7 +126,7 @@ function compile(data: Awaited<ReturnType<typeof inputs>>): EvolutionTwoStageLan
   const routes = input.questions.map(q => { const d = routeEvolutionQuestionShapeV1(q.question); return { questionId: q.id, shape: d.shape, routed: d.routed, matchedRules: d.matchedRules }; });
   const routed = new Map(routes.map(r => [r.questionId, r.routed]));
   const poolFor = (questionId: string, variantId: string): EvolutionTwoStagePool => {
-    const variant = variants.find(v => v.id === variantId)!, result = context.cases.find(c => c.questionId === questionId && c.variantId === variantId)!.result;
+    const variant = variants.find(v => v.id === variantId)!, result = evolutionLegacyResult(context.cases.find(c => c.questionId === questionId && c.variantId === variantId)!.result);
     return { variant, result, expectedResultSha256: result.resultSha256 };
   };
   const pools = input.questions.flatMap(q => variants.map(v => { const p = poolFor(q.id, v.id);
@@ -260,7 +261,7 @@ export async function runEvolutionTwoStageLane(options: Readonly<{ configPin: Ev
   try {
     const factories = new Map(input.corpora.map(c => [c.id, prepareEvolutionTwoStage({ ...c, groupId: c.id })]));
     const poolFor = (questionId: string, variantId: string): EvolutionTwoStagePool => {
-      const variant = data.variants.find(v => v.id === variantId)!, result = data.context.cases.find(c => c.questionId === questionId && c.variantId === variantId)!.result;
+      const variant = data.variants.find(v => v.id === variantId)!, result = evolutionLegacyResult(data.context.cases.find(c => c.questionId === questionId && c.variantId === variantId)!.result);
       return { variant, result, expectedResultSha256: result.resultSha256 };
     };
     const selectionKey = (s: Pick<PreparedSelection, "questionId" | "variantId" | "selectorProfile">, repeat: number) => JSON.stringify([s.questionId, s.variantId, s.selectorProfile, repeat]);

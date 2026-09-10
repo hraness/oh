@@ -28,6 +28,8 @@ import { EVOLUTION_SOURCE_ORDER_READER, EVOLUTION_SOURCE_ORDER_TREATMENTS, makeE
 import { parseEvolutionFullContextStudy, validateEvolutionFullContextArtifacts, assertEvolutionFullContextConfiguration,
   EVOLUTION_FULL_CONTEXT_VARIANTS, type EvolutionFullContextAuthorization } from "./evolution-full-context-study";
 import { makeEvolutionFullContextPlan, assertEvolutionFullContextBinding } from "./evolution-full-context-plan";
+import { EVOLUTION_RUN_V9_PROTOCOL, executeEvolutionPhaseV9, parseEvolutionRunConfigV9, prepareEvolutionJudgesV9, prepareEvolutionReadersV9, prepareEvolutionV9,
+  rebindEvolutionDevelopment, rebindEvolutionV9, reportEvolutionV9, type EvolutionRunConfigV9 } from "./evolution-runner-v9";
 
 type EvolutionLegacyRunConfig = Readonly<{ protocol: "oh.memory.evolution-run.v1" | "oh.memory.evolution-run.v2" | "oh.memory.evolution-run.v3" | "oh.memory.evolution-run.v4"; dataset: "longmemeval-s" | "locomo";
   datasetPin: EvolutionPin; manifestPin: EvolutionPin; campaignPin: EvolutionPin; limit: number; seed: number;
@@ -44,7 +46,8 @@ export type EvolutionReleaseRunConfig = Omit<EvolutionLegacyRunConfig, "protocol
   protocol: "oh.memory.evolution-run.v7"; studyPin: EvolutionPin; scopePin: EvolutionPin; shardId: string; semanticCacheDirectory: string }>;
 export type EvolutionFullContextRunConfig = Omit<EvolutionLegacyRunConfig, "protocol"> & Readonly<{
   protocol: "oh.memory.evolution-run.v8"; companionStudyPin: EvolutionPin; shardId: string }>;
-export type EvolutionRunConfig = EvolutionLegacyRunConfig | EvolutionCompletionRunConfig | EvolutionSourceOrderRunConfig | EvolutionReleaseRunConfig | EvolutionFullContextRunConfig;
+export type EvolutionRunConfig = EvolutionLegacyRunConfig | EvolutionCompletionRunConfig | EvolutionSourceOrderRunConfig | EvolutionReleaseRunConfig | EvolutionFullContextRunConfig | EvolutionRunConfigV9;
+export type { EvolutionRunConfigV9 } from "./evolution-runner-v9";
 function fail(reason: string): never { throw new TypeError(`Evolution runner: ${reason}.`); }
 function positive(value: unknown, max: number): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value > 0 && value <= max; }
 function validConcurrency(value: unknown, protocol: unknown): value is number {
@@ -55,6 +58,8 @@ function path(value: unknown): string {
   return value;
 }
 export function parseEvolutionRunConfig(value: unknown): EvolutionRunConfig {
+  // V9 explicit-selection configurations carry their own key set (study/scope pins, repeats, date policy, derived-record slot).
+  if (isPlainRecord(value) && value.protocol === EVOLUTION_RUN_V9_PROTOCOL) return parseEvolutionRunConfigV9(value);
   const v5 = isPlainRecord(value) && value.protocol === "oh.memory.evolution-run.v5";
   const v6 = isPlainRecord(value) && value.protocol === "oh.memory.evolution-run.v6";
   const v7 = isPlainRecord(value) && value.protocol === "oh.memory.evolution-run.v7";
@@ -167,6 +172,7 @@ export async function loadEvolutionFullContextAuthorization(config: EvolutionFul
   return authorization;
 }
 async function selected(config: EvolutionRunConfig) {
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return fail("V9 selection is owned by the V9 lane");
   const raw = await readEvolutionPin(config.datasetPin, DATASETS[config.dataset].bytes);
   if (raw.length !== DATASETS[config.dataset].bytes) fail("dataset length changed");
   const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
@@ -188,14 +194,21 @@ export const EVOLUTION_CONTEXT_SOURCE_FILES = ["scripts/benchmarks/evolution.ts"
   "scripts/benchmarks/evolution-dataset.ts", "scripts/benchmarks/evolution-plan.ts", "scripts/benchmarks/evolution-spans.ts",
   "scripts/benchmarks/evolution-variants.ts", "scripts/benchmarks/evolution-plan-v3.ts", "scripts/benchmarks/evolution-treatments-v3.ts",
   "scripts/benchmarks/evolution-spans-prototype.ts", "scripts/benchmarks/evolution-full-history.ts", "scripts/benchmarks/evolution-completion.ts",
-  "scripts/benchmarks/evolution-completion-plan.ts", "scripts/benchmarks/evolution-source-order.ts", "scripts/benchmarks/evolution-source-order-plan.ts", "scripts/benchmarks/evolution-evaluation-scope.ts", "scripts/benchmarks/evolution-release.ts", "scripts/benchmarks/evolution-release-plan.ts", "scripts/benchmarks/evolution-full-context-study.ts", "scripts/benchmarks/evolution-full-context-plan.ts", "package.json", "bun.lock"] as const;
+  "scripts/benchmarks/evolution-completion-plan.ts", "scripts/benchmarks/evolution-source-order.ts", "scripts/benchmarks/evolution-source-order-plan.ts", "scripts/benchmarks/evolution-evaluation-scope.ts", "scripts/benchmarks/evolution-release.ts", "scripts/benchmarks/evolution-release-plan.ts", "scripts/benchmarks/evolution-full-context-study.ts", "scripts/benchmarks/evolution-full-context-plan.ts",
+  "scripts/benchmarks/evolution-plan-v9.ts", "scripts/benchmarks/evolution-study-v9.ts", "scripts/benchmarks/evolution-reader-date-policy.ts", "scripts/benchmarks/evolution-runner-v9.ts",
+  "scripts/benchmarks/evolution-dates.ts",
+  "package.json", "bun.lock"] as const;
 export async function retrievalIdentity() {
   const source = await codeIdentity();
   const files = source.files.filter(f => f.path.startsWith("src/") || (EVOLUTION_CONTEXT_SOURCE_FILES as readonly string[]).includes(f.path));
   return canonicalSha256({ files, bun: Bun.version });
 }
 /** V4 versions queue capacity; its context wire version still follows the treatment. */
-export function validateEvolutionContextRunVersion(context: Pick<EvolutionAnyContextPlan, "protocol">, config: Pick<EvolutionRunConfig, "protocol">): void {
+export function validateEvolutionContextRunVersion(context: Pick<EvolutionAnyContextPlan, "protocol"> | Pick<import("./evolution-plan-v9").EvolutionContextPlanV9, "protocol">, config: Pick<EvolutionRunConfig, "protocol">): void {
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL || context.protocol === "oh.memory.evolution-context-plan.v9") {
+    if (config.protocol !== EVOLUTION_RUN_V9_PROTOCOL || context.protocol !== "oh.memory.evolution-context-plan.v9") fail("V9 contexts require explicit run V9");
+    return;
+  }
   if (config.protocol === "oh.memory.evolution-run.v8" || context.protocol === "oh.memory.evolution-context-plan.v7") {
     if (config.protocol !== "oh.memory.evolution-run.v8" || context.protocol !== "oh.memory.evolution-context-plan.v7") fail("full-context companion requires explicit run V8");
     return;
@@ -232,6 +245,7 @@ export async function loadEvolutionSourceOrderParents(config: EvolutionSourceOrd
   return projectEvolutionSourceOrderParents({ plan: await json(config.sourceOrderParent.pin), variantId: config.sourceOrderParent.variantId }, dataset, config.manifestPin.sha256);
 }
 async function contextFor(config: EvolutionRunConfig, selection?: Awaited<ReturnType<typeof selected>>) {
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return fail("V9 contexts are owned by the V9 lane");
   const file = join(config.directory, "contexts.json"), stat = Bun.file(file);
   if (!await stat.exists() || stat.size > 128 * 1024 * 1024) fail("missing or oversized context plan");
   const context = validateEvolutionAnyContextPlan(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await stat.bytes())) as EvolutionAnyContextPlan);
@@ -257,7 +271,9 @@ async function contextFor(config: EvolutionRunConfig, selection?: Awaited<Return
   return context;
 }
 export async function prepareEvolution(configPin: EvolutionPin) {
-  const config = await configInput(configPin), input = await selected(config), started = performance.now();
+  const config = await configInput(configPin);
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return prepareEvolutionV9(configPin, retrievalIdentity);
+  const input = await selected(config), started = performance.now();
   const dataset = projectEvolutionRunnerInput(input.dataset), retrievalSourceSha256 = await retrievalIdentity();
   if (config.protocol === "oh.memory.evolution-run.v7") {
     if (input.release === undefined || input.release.study.retrievalSourceSha256 !== retrievalSourceSha256) fail("study retrieval source changed before preparation");
@@ -302,7 +318,9 @@ export async function prepareEvolution(configPin: EvolutionPin) {
  * No index, retrieval, embedding or provider call; the parent retrieval outputs are re-validated against current source. */
 export async function rebindEvolutionRelease(configPin: EvolutionPin, contextPin: EvolutionPin) {
   const config = await configInput(configPin), started = performance.now();
-  if (config.protocol !== "oh.memory.evolution-run.v7") fail("rebind requires a V7 release configuration");
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return rebindEvolutionV9(configPin, contextPin, retrievalIdentity);
+  if (config.protocol === "oh.memory.evolution-run.v4") return rebindEvolutionDevelopment({ ...config, protocol: config.protocol }, configPin, contextPin, retrievalIdentity);
+  if (config.protocol !== "oh.memory.evolution-run.v7") fail("rebind requires a V4 development, V7 release or V9 configuration");
   const input = await selected(config), dataset = projectEvolutionRunnerInput(input.dataset), retrievalSourceSha256 = await retrievalIdentity();
   const parent = validateEvolutionReleaseContextPlanEnvelope(await json(contextPin));
   const plan = rebindEvolutionReleaseContextPlan({ dataset, parent, authorization: input.release!, shardId: config.shardId, retrievalSourceSha256 });
@@ -318,7 +336,9 @@ export async function rebindEvolutionRelease(configPin: EvolutionPin, contextPin
   return { status: "rebound", contextPath, contextFileSha256: sha256Hex(await readFile(contextPath)), contexts: plan.cases.length, parentPlanSha256: parent.planSha256, modelCalls: 0 };
 }
 export async function prepareEvolutionReaders(configPin: EvolutionPin, contextPin: EvolutionPin) {
-  const config = await configInput(configPin), context = await contextFor(config), pinned = await json(contextPin);
+  const config = await configInput(configPin);
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return prepareEvolutionReadersV9(configPin, contextPin, retrievalIdentity);
+  const context = await contextFor(config), pinned = await json(contextPin);
   if (canonicalSha256(context) !== canonicalSha256(pinned)) fail("context pin differs from config-bound context");
   const plan = makeEvolutionReaderPlan(context, config.readers), planPath = join(config.directory, "readers.json");
   if (Buffer.byteLength(JSON.stringify(plan, null, 2) + "\n") > 128 * 1024 * 1024) fail("reader plan exceeds 128 MiB; reduce the explicit selection or treatments");
@@ -341,7 +361,9 @@ function authenticateReaderResponses(store: EvolutionStore, reader: EvolutionRea
 }
 export async function executeEvolutionPhase(input: Readonly<{ configPin: EvolutionPin; planPin: EvolutionPin;
   phase: "reader" | "judge"; maxUsd: number; maxNewCalls: number; credential: EvolutionCredential; output: string }>) {
-  const config = await configInput(input.configPin), authority = await verifyEvolutionCampaign(config.campaignPin);
+  const config = await configInput(input.configPin);
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return executeEvolutionPhaseV9({ ...input, identity: retrievalIdentity });
+  const authority = await verifyEvolutionCampaign(config.campaignPin);
   if (!Number.isSafeInteger(input.maxUsd * 1_000_000) || input.maxUsd * 1_000_000 !== authority.campaign.additionalBudgetMicros
     || !Number.isSafeInteger(input.maxNewCalls) || input.maxNewCalls < 0 || Object.is(input.maxNewCalls, -0)
     || input.maxNewCalls > 20_000) fail("explicit spending/call bound differs from campaign");
@@ -449,7 +471,9 @@ export function evolutionPhaseAttempts(value: unknown, phase: "reader" | "judge"
   return { responses, failures };
 }
 export async function prepareEvolutionJudges(configPin: EvolutionPin, readerPlanPin: EvolutionPin, readerOutputPin: EvolutionPin) {
-  const config = await configInput(configPin), selection = await selected(config), contextPlan = await contextFor(config, selection);
+  const config = await configInput(configPin);
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return prepareEvolutionJudgesV9(configPin, readerPlanPin, readerOutputPin, retrievalIdentity);
+  const selection = await selected(config), contextPlan = await contextFor(config, selection);
   const readerPlan = validateEvolutionReaderPlan(await json(readerPlanPin) as EvolutionReaderPlan, contextPlan);
   const authority = await verifyEvolutionCampaign(config.campaignPin), store = await openEvolutionStore({ directory: config.storeDirectory, campaign: authority.campaign });
   let plan: EvolutionJudgePlan;
@@ -479,7 +503,9 @@ async function authenticatePreparedJudge(config: EvolutionRunConfig, store: Evol
 }
 export async function reportEvolution(input: Readonly<{ configPin: EvolutionPin; readerPlanPin: EvolutionPin;
   judgePlanPin: EvolutionPin; readerOutputPin: EvolutionPin; judgeOutputPin: EvolutionPin; output: string }>) {
-  const config = await configInput(input.configPin), selection = await selected(config), contextPlan = await contextFor(config, selection);
+  const config = await configInput(input.configPin);
+  if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return reportEvolutionV9({ ...input, identity: retrievalIdentity });
+  const selection = await selected(config), contextPlan = await contextFor(config, selection);
   const authority = await verifyEvolutionCampaign(config.campaignPin), store = await openEvolutionStore({ directory: config.storeDirectory, campaign: authority.campaign });
   try {
     const reportInput = { dataset: selection.dataset,
@@ -537,7 +563,7 @@ export function parseEvolutionArgs(args: readonly string[]) {
 }
 async function main(args: readonly string[]) {
   if (!args.length || args[0] === "--help") {
-    console.log("Oh memory evolution runner (V1-V6 development; explicit V7 full-release descriptive; V8 full-context companion)\nprepare | rebind | readers | judge-plan | run-reader | run-judge | report\nAll commands require --config ABS --config-sha256 SHA. readers requires --context ABS --context-sha256 SHA. rebind (V7 only) takes a parent study's --context ABS --context-sha256 SHA and reuses its exact retrieval under a study that declares retrievalProvenance and differs only in reader/campaign. judge-plan requires --reader-plan ABS --reader-plan-sha256 SHA --reader-output ABS --reader-output-sha256 SHA. run phases require --plan ABS --plan-sha256 SHA --max-usd CAP --max-new-calls N --output ABS. report requires reader-plan, judge-plan, reader-output, judge-output pins and --output ABS. Paid phases use selected VERCEL_OIDC_TOKEN or BENCHMARK_OPENAI_API_KEY and one pinned campaign ledger. No automatic retries. V1-V6 keep development-only selection; V7 preserves closed/unknown exposure in a separately pinned full-release descriptive scope; V8 adds only a separately authorized complete-source control over its exact500 IDs."); return;
+    console.log("Oh memory evolution runner (V1-V6 development; explicit V7 full-release descriptive; V8 full-context companion; V9 explicit-selection studies with indexed repeats)\nprepare | rebind | readers | judge-plan | run-reader | run-judge | report\nAll commands require --config ABS --config-sha256 SHA. readers requires --context ABS --context-sha256 SHA. rebind (V7, V9 and V4 development) takes a parent --context ABS --context-sha256 SHA and reuses its exact retrieval under the current source identity: V7/V9 studies declare retrievalProvenance; a V4 development configuration rebinds its own whole-turn V1 contexts. V9 configurations (see EVOLUTION_RELEASE_V9.md) pin a V9 study and V2 scope, run reader-plan V2 with a repeat index per case and judge-plan V9 with judge repeats, and write phase V2 receipts keyed by (request, repeat). judge-plan requires --reader-plan ABS --reader-plan-sha256 SHA --reader-output ABS --reader-output-sha256 SHA. run phases require --plan ABS --plan-sha256 SHA --max-usd CAP --max-new-calls N --output ABS. report requires reader-plan, judge-plan, reader-output, judge-output pins and --output ABS. Paid phases use selected VERCEL_OIDC_TOKEN or BENCHMARK_OPENAI_API_KEY and one pinned campaign ledger. No automatic retries. V1-V6 keep development-only selection; V7 preserves closed/unknown exposure in a separately pinned full-release descriptive scope; V8 adds only a separately authorized complete-source control over its exact500 IDs."); return;
   }
   const { command, flags } = parseEvolutionArgs(args);
   const pin = (name: string) => evolutionPin({ path: flags.get(name), sha256: flags.get(name + "-sha256") });

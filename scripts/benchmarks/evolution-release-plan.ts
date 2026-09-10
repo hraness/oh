@@ -4,7 +4,7 @@ import { assertExactEvolutionCoverage, type EvolutionRunnerInput } from "./evolu
 import { boundEvolutionCompletionWire, freezeEvolutionCompletion } from "./evolution-completion";
 import { validateEvolutionContextPlan, validateEvolutionContextPlanSources, type EvolutionContextPlan } from "./evolution-plan";
 import { evolutionReleaseShard, type EvolutionReleaseAuthorization } from "./evolution-release";
-import type { EvolutionRetrievalResult } from "./evolution-retrieval";
+import { evolutionLegacyResult, type EvolutionRetrievalResult } from "./evolution-retrieval";
 export type EvolutionReleaseContextBinding = Readonly<{ studySha256: string; scopeSha256: string; shardId: string; candidatePresentation: "retrieval-order" }>;
 export type EvolutionReleaseContextPlan = Omit<EvolutionContextPlan, "protocol" | "cases"> & EvolutionReleaseContextBinding & Readonly<{
   protocol: "oh.memory.evolution-context-plan.v6"; basePlan: EvolutionContextPlan;
@@ -33,7 +33,7 @@ export function makeEvolutionReleaseContextPlan(input: Readonly<{ dataset: Evolu
     || binding.candidatePresentation !== "retrieval-order" || base.questions.length !== 100 || base.variants.length !== 2
     || base.variants[0]!.system !== "bm25-window" || base.variants[1]!.system !== "oh-semantic"
     || base.variants.some(v => v.budget.contextBytes !== 96_000 || v.budget.topK !== 100)) fail("fixed bound required");
-  const cases = base.cases.map(c => ({ ...c, kind: "whole-turn" as const }));
+  const cases = base.cases.map(c => ({ ...c, kind: "whole-turn" as const, result: evolutionLegacyResult(c.result) }));
   const { planSha256: _old, protocol: _protocol, cases: _cases, ...fields } = base;
   const payload = { protocol: "oh.memory.evolution-context-plan.v6" as const, ...fields, ...binding, basePlan: base, cases };
   return freezeEvolutionCompletion(structuredClone({ ...payload, planSha256: canonicalSha256(payload) }));

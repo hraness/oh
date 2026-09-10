@@ -99,6 +99,7 @@ export async function runRetrieval(dataset: Dataset, systems: readonly System[],
   const deterministicRows = rows.map(({ retrievalMs: _retrievalMs, ...row }) => row)
     .sort((left, right) => `${left.questionId}:${left.system}`.localeCompare(`${right.questionId}:${right.system}`));
   return { status: "completed", rows, summaries, comparisons, ingestion, unresolvedEvidence: unresolvedReferences.length,
+    ambiguousEvidence: dataset.questions.filter((question) => question.ambiguousEvidence === true).length,
     evidenceProtocol: EVIDENCE_REFERENCE_PROTOCOL, queryOrder: "global-question-rotation.v1",
     evidenceNormalization: { questions: normalizations.length, examples: normalizations.slice(0, 64) },
     unresolvedReferences: unresolvedReferences.slice(0, 64),
@@ -111,5 +112,6 @@ export async function runRetrieval(dataset: Dataset, systems: readonly System[],
       "Unit index build time covers both Oh and BM25 indexes once per representation; query latency excludes this preparation.",
       "Full context is an unbounded reference; every other system shares the same UTF-8 context-byte budget.",
       "Intervals are paired conversation/family-cluster bootstrap estimates; ten LoCoMo conversations limit statistical power.",
-      "Missing evidence references remain misses; unanswerable or unannotated cases have null retrieval metrics."] };
+      "Missing evidence references remain misses; unanswerable or unannotated cases have null retrieval metrics.",
+      "Questions with an ambiguous evidence reference have null retrieval metrics."] };
 }

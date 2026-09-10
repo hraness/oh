@@ -6,7 +6,10 @@ import { hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import { evolutionPin, readEvolutionPin, type EvolutionPin } from "./evolution-budget";
 import { makeEvolutionReleaseScope, parseEvolutionReleaseStudy, validateEvolutionReleaseArtifacts } from "./evolution-release";
 import { buildEvolutionReleaseReport } from "./evolution-release-report";
+import { EVOLUTION_STUDY_V9_PROTOCOL, makeEvolutionStudyV9Scope, parseEvolutionStudyV9, validateEvolutionStudyV9Artifacts } from "./evolution-study-v9";
+import { buildEvolutionStudyV9Report } from "./evolution-study-v9-report";
 import { retrievalIdentity } from "./evolution";
+export const EVOLUTION_STUDY_V9_COMBINE_PROTOCOL = "oh.memory.evolution-study-combine.v9" as const;
 function fail(reason: string): never { throw new TypeError(`Evolution release CLI: ${reason}.`); }
 function absolute(value: unknown): string {
   if (typeof value !== "string" || !value.length || value.length > 4096 || value.includes("\0") || resolve(value) !== value) fail("absolute output path required");
@@ -34,14 +37,36 @@ async function writeOutput(output: string, value: unknown, inputs: readonly Evol
   return { status: "written", output, sha256: sha256Hex(text), modelCalls: 0 };
 }
 export async function prepareEvolutionReleaseScope(studyPin: EvolutionPin, output: string) {
-  const studyBytes = await readEvolutionPin(studyPin, 1_048_576), study = parseEvolutionReleaseStudy(parse(studyBytes));
+  const studyBytes = await readEvolutionPin(studyPin, 4 * 1024 * 1024), raw = parse(studyBytes);
+  // V9 explicit-selection studies share the offline scope command; the V7 path below is unchanged.
+  const v9 = isPlainRecord(raw) && raw.protocol === EVOLUTION_STUDY_V9_PROTOCOL;
+  const study = v9 ? parseEvolutionStudyV9(raw) : parseEvolutionReleaseStudy(raw);
+  if (!v9 && studyBytes.length > 1_048_576) fail("release study byte bound");
   if (study.retrievalSourceSha256 !== await retrievalIdentity()) fail("study does not pin the current retrieval source");
-  const manifestBytes = await readEvolutionPin(study.manifestPin, 8 * 1024 * 1024), scope = makeEvolutionReleaseScope(studyBytes, manifestBytes);
-  await readEvolutionPin(studyPin, 1_048_576); await readEvolutionPin(study.manifestPin, 8 * 1024 * 1024);
+  const manifestBytes = await readEvolutionPin(study.manifestPin, 8 * 1024 * 1024);
+  const scope = v9 ? makeEvolutionStudyV9Scope(studyBytes, manifestBytes) : makeEvolutionReleaseScope(studyBytes, manifestBytes);
+  await readEvolutionPin(studyPin, 4 * 1024 * 1024); await readEvolutionPin(study.manifestPin, 8 * 1024 * 1024);
   return writeOutput(absolute(output), scope, [studyPin, study.manifestPin, study.datasetPin, study.campaignPin]);
+}
+/** Offline reduction of every V9 shard report into an aggregate-only study summary. */
+export async function combineEvolutionStudyV9(inputPin: EvolutionPin, output: string) {
+  const value = parse(await readEvolutionPin(inputPin, 1_048_576));
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "studyPin", "scopePin", "reportPins"]) || value.protocol !== EVOLUTION_STUDY_V9_COMBINE_PROTOCOL
+    || !Array.isArray(value.reportPins) || value.reportPins.length < 1 || value.reportPins.length > 999) fail("exact V9 combine descriptor required");
+  const studyPin = evolutionPin(value.studyPin), scopePin = evolutionPin(value.scopePin), reportPins = value.reportPins.map(evolutionPin);
+  if (new Set(reportPins.map(p => p.path)).size !== reportPins.length || new Set(reportPins.map(p => p.sha256)).size !== reportPins.length) fail("duplicate shard artifact");
+  const studyBytes = await readEvolutionPin(studyPin, 4 * 1024 * 1024), study = parseEvolutionStudyV9(parse(studyBytes));
+  const manifestBytes = await readEvolutionPin(study.manifestPin, 8 * 1024 * 1024), scopeBytes = await readEvolutionPin(scopePin, 8 * 1024 * 1024);
+  const authorization = validateEvolutionStudyV9Artifacts({ studyBytes, manifestBytes, scopeBytes });
+  if (reportPins.length !== authorization.scope.shards.length) fail("one report pin per scope shard required");
+  const reports = await Promise.all(reportPins.map(async pin => ({ pin, report: parse(await readEvolutionPin(pin, 64 * 1024 * 1024)) })));
+  const report = buildEvolutionStudyV9Report({ authorization, reports });
+  for (const pin of [inputPin, studyPin, study.manifestPin, scopePin, ...reportPins]) await readEvolutionPin(pin, 64 * 1024 * 1024);
+  return writeOutput(absolute(output), report, [inputPin, studyPin, scopePin, study.manifestPin, study.datasetPin, study.campaignPin, ...reportPins]);
 }
 export async function combineEvolutionRelease(inputPin: EvolutionPin, output: string) {
   const value = parse(await readEvolutionPin(inputPin, 1_048_576));
+  if (isPlainRecord(value) && value.protocol === EVOLUTION_STUDY_V9_COMBINE_PROTOCOL) return combineEvolutionStudyV9(inputPin, output);
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "studyPin", "scopePin", "reportPins"])
     || value.protocol !== "oh.memory.evolution-release-combine.v1" || !Array.isArray(value.reportPins) || value.reportPins.length !== 5) fail("exact five-shard combine descriptor required");
   const studyPin = evolutionPin(value.studyPin), scopePin = evolutionPin(value.scopePin), reportPins = value.reportPins.map(evolutionPin);
@@ -57,7 +82,7 @@ export async function combineEvolutionRelease(inputPin: EvolutionPin, output: st
 }
 async function main(args: readonly string[]) {
   if (!args.length || args[0] === "--help") {
-    console.log("Full500 descriptive scope/report tools (no dataset text, store or provider calls).\nscope --study ABS --study-sha256 SHA --output ABS\ncombine --input ABS --input-sha256 SHA --output ABS\nOutputs are exclusive. V7 prepare/readers/run-reader/judge-plan/run-judge/report use evolution.ts and the exact five shard IDs; old development configurations retain their partition checks."); return;
+    console.log("Full500 descriptive scope/report tools (no dataset text, store or provider calls).\nscope --study ABS --study-sha256 SHA --output ABS\ncombine --input ABS --input-sha256 SHA --output ABS\nOutputs are exclusive. V7 prepare/readers/run-reader/judge-plan/run-judge/report use evolution.ts and the exact five shard IDs; old development configurations retain their partition checks. A V9 study (oh.memory.evolution-study.v9) uses the same scope command and a combine descriptor with protocol oh.memory.evolution-study-combine.v9 carrying one report pin per scope shard."); return;
   }
   const a = parseEvolutionReleaseArgs(args);
   console.log(JSON.stringify(a.command === "scope" ? await prepareEvolutionReleaseScope(a.pin, a.output) : await combineEvolutionRelease(a.pin, a.output)));

@@ -131,7 +131,8 @@ describe("composable isolated reader answer contracts", () => {
       } else expect(() => makeEvolutionProfileWindowRequest(id, msg)).toThrow("profile-window");
     }
     expect(ids.size).toBe(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length);
-    expect(Object.keys(EVOLUTION_PROFILES)).toHaveLength(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length + 4);
+    // Four GPT-4o judges plus the LoCoMo leaderboard-parity judge on gpt-4o-mini.
+    expect(Object.keys(EVOLUTION_PROFILES)).toHaveLength(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length + 5);
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {
     // The answer factorial holds the eight answer contracts; evidence-selection-v1 is the stage-1 selector contract of the two-stage lane.

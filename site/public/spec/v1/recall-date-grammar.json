@@ -1,0 +1,221 @@
+{
+  "id": "oh.recall-date-grammar.v1",
+  "timeZone": "UTC",
+  "weekStart": "monday",
+  "numbers": {
+    "a": 1,
+    "an": 1,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12
+  },
+  "articles": [
+    "a",
+    "an"
+  ],
+  "weekdays": [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday"
+  ],
+  "exclusions": [
+    {
+      "id": "anchored",
+      "scope": "prefix",
+      "pattern": "\\b(?:before|after|since|until|prior to|following)\\s+$"
+    }
+  ],
+  "rules": [
+    {
+      "id": "today",
+      "pattern": "\\btoday\\b",
+      "kind": "day",
+      "offset": 0
+    },
+    {
+      "id": "yesterday",
+      "pattern": "\\byesterday\\b",
+      "kind": "day",
+      "offset": -1
+    },
+    {
+      "id": "tomorrow",
+      "pattern": "\\btomorrow\\b",
+      "kind": "day",
+      "offset": 1
+    },
+    {
+      "id": "days-ago",
+      "pattern": "\\b(NUMBER) days? ago\\b",
+      "kind": "around",
+      "unit": "day",
+      "sign": -1,
+      "toleranceDays": 0
+    },
+    {
+      "id": "weeks-ago",
+      "pattern": "\\b(NUMBER) weeks? ago\\b",
+      "kind": "around",
+      "unit": "week",
+      "sign": -1,
+      "toleranceDays": 3
+    },
+    {
+      "id": "months-ago",
+      "pattern": "\\b(NUMBER) months? ago\\b",
+      "kind": "around",
+      "unit": "month",
+      "sign": -1,
+      "toleranceDays": 15
+    },
+    {
+      "id": "years-ago",
+      "pattern": "\\b(NUMBER) years? ago\\b",
+      "kind": "around",
+      "unit": "year",
+      "sign": -1,
+      "toleranceDays": 45
+    },
+    {
+      "id": "in-days",
+      "pattern": "\\bin (NUMBER) days?\\b",
+      "kind": "around",
+      "unit": "day",
+      "sign": 1,
+      "toleranceDays": 0
+    },
+    {
+      "id": "in-weeks",
+      "pattern": "\\bin (NUMBER) weeks?\\b",
+      "kind": "around",
+      "unit": "week",
+      "sign": 1,
+      "toleranceDays": 3
+    },
+    {
+      "id": "in-months",
+      "pattern": "\\bin (NUMBER) months?\\b",
+      "kind": "around",
+      "unit": "month",
+      "sign": 1,
+      "toleranceDays": 15
+    },
+    {
+      "id": "in-years",
+      "pattern": "\\bin (NUMBER) years?\\b",
+      "kind": "around",
+      "unit": "year",
+      "sign": 1,
+      "toleranceDays": 45
+    },
+    {
+      "id": "last-week",
+      "pattern": "\\blast week\\b",
+      "kind": "week",
+      "offset": -1
+    },
+    {
+      "id": "this-week",
+      "pattern": "\\bthis week\\b",
+      "kind": "week",
+      "offset": 0
+    },
+    {
+      "id": "next-week",
+      "pattern": "\\bnext week\\b",
+      "kind": "week",
+      "offset": 1
+    },
+    {
+      "id": "last-month",
+      "pattern": "\\blast month\\b",
+      "kind": "month",
+      "offset": -1
+    },
+    {
+      "id": "this-month",
+      "pattern": "\\bthis month\\b",
+      "kind": "month",
+      "offset": 0
+    },
+    {
+      "id": "next-month",
+      "pattern": "\\bnext month\\b",
+      "kind": "month",
+      "offset": 1
+    },
+    {
+      "id": "last-year",
+      "pattern": "\\blast year\\b",
+      "kind": "year",
+      "offset": -1
+    },
+    {
+      "id": "this-year",
+      "pattern": "\\bthis year\\b",
+      "kind": "year",
+      "offset": 0
+    },
+    {
+      "id": "next-year",
+      "pattern": "\\bnext year\\b",
+      "kind": "year",
+      "offset": 1
+    },
+    {
+      "id": "last-weekend",
+      "pattern": "\\blast weekend\\b",
+      "kind": "weekend",
+      "offset": -1
+    },
+    {
+      "id": "this-weekend",
+      "pattern": "\\bthis weekend\\b",
+      "kind": "weekend",
+      "offset": 0
+    },
+    {
+      "id": "next-weekend",
+      "pattern": "\\bnext weekend\\b",
+      "kind": "weekend",
+      "offset": 1
+    },
+    {
+      "id": "past-span",
+      "pattern": "\\b(?:in|over|during|within) the (?:last|past) (?:(NUMBER) )?(UNIT)s?\\b",
+      "kind": "past"
+    },
+    {
+      "id": "last-weekday",
+      "pattern": "\\blast (WEEKDAY)\\b",
+      "kind": "weekday",
+      "offset": -1
+    },
+    {
+      "id": "this-weekday",
+      "pattern": "\\bthis (WEEKDAY)\\b",
+      "kind": "weekday",
+      "offset": 0
+    },
+    {
+      "id": "next-weekday",
+      "pattern": "\\bnext (WEEKDAY)\\b",
+      "kind": "weekday",
+      "offset": 1
+    }
+  ],
+  "v": 1
+}
