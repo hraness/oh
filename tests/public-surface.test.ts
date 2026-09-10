@@ -42,6 +42,9 @@ const markdownFiles = [
   "spec/v1/memory-page.md",
   "spec/v1/recall.md",
   "spec/v1/migration.md",
+  "spec/v1/observation.md",
+  "benchmarks/PROTOCOL_CARD.md",
+  "benchmarks/ANALYSIS_PLAN.md",
   "skills/oh/SKILL.md",
 ] as const;
 

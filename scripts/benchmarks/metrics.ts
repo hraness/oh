@@ -29,14 +29,16 @@ export function evidenceMetrics(question: Question, turnIds: readonly string[], 
   const turns = [...new Set(turnIds)];
   const sessions = new Set(sessionIds);
   const matches = turns.filter((id) => expectedTurns.has(id)).length;
-  const eligible = !question.unanswerable && expectedTurns.size > 0;
+  // An ambiguous reference (BEAM repeats turn ids inside some histories) leaves the gold set partial, so the question is not scorable.
+  const scorable = !question.unanswerable && question.ambiguousEvidence !== true;
+  const eligible = scorable && expectedTurns.size > 0;
   const first = turns.findIndex((id) => expectedTurns.has(id));
   return {
     turnRecall: eligible ? matches / expectedTurns.size : null,
     turnPrecision: eligible ? matches / Math.max(1, turns.length) : null,
     allTurns: eligible ? Number(matches === expectedTurns.size) : null,
     reciprocalRank: eligible ? (first < 0 ? 0 : 1 / (first + 1)) : null,
-    sessionRecall: !question.unanswerable && expectedSessions.size > 0
+    sessionRecall: scorable && expectedSessions.size > 0
       ? [...expectedSessions].filter((id) => sessions.has(id)).length / expectedSessions.size : null,
   };
 }

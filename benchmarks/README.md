@@ -9,7 +9,7 @@ For fast development sweeps across shared corpus indexes, use the [development l
 
 For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below. The separately frozen [Gateway amendment](GATEWAY_STUDY_V3.md) preserves closed subscription responses and uses budgeted Gateway calls for unattempted work.
 
-The [full 500-question comparison](EVOLUTION_RELEASE_RESULTS.md) reports the latest completed outcomes: with the nano reader BM25 window 378/500, Oh semantic 379/500 and full history 355/500; with GPT-5 mini on the same contexts BM25 427/500 and Oh semantic 449/500, with exposure and protocol limits and a table of published results. The earlier [120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) remain closed.
+The [protocol card](PROTOCOL_CARD.md) and [pre-registered analysis plan](ANALYSIS_PLAN.md) fix the matched settings, strata and statistics for every current LongMemEval comparison. The [full 500-question comparison](EVOLUTION_RELEASE_RESULTS.md) reports the latest completed outcomes: with the nano reader BM25 window 378/500, Oh semantic 379/500 and full history 355/500; with GPT-5 mini on the same contexts BM25 427/500 and Oh semantic 449/500, with exposure and protocol limits and a table of published results. The earlier [120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) remain closed.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
 
@@ -86,7 +86,11 @@ LongMemEval S downloads about 277 MB. `longmemeval-oracle` is a smaller,
 evidence-only diagnostic, **not** the S benchmark. `locomo` is also supported;
 its download uses `gh` and its data is licensed CC BY-NC 4.0. Review that
 noncommercial license for your intended use. The cleaned LongMemEval release
-is MIT-licensed. Neither dataset is included in the npm package.
+is MIT-licensed. Neither dataset is included in the npm package. `beam` (data
+CC BY-SA 4.0) is an explicit, unfunded confirmation source: its fetch needs
+`python3` with `pyarrow==21.0.0` to re-encode three pinned parquet parts, and
+its offline exposure review and family draw are described in the
+[confirmation method](EVOLUTION_CONFIRMATION.md#beam-offline-preparation).
 
 The state, projection, and retrieval paths use SQLite `:memory:`. The SQLite
 crash stress helper is the one exception: it uses a disposable database file in

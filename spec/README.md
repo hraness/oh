@@ -46,6 +46,10 @@ binds these versions:
 - [Recall and dated rendering](v1/recall.md)
 - [Compatibility and migration](v1/migration.md)
 
+Draft narratives, not part of the V1 contract manifest:
+
+- [Observations](v1/observation.md)
+
 Machine-readable V1 artifacts:
 
 - [`contract.json`](v1/contract.json)

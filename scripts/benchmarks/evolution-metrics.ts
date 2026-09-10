@@ -156,21 +156,22 @@ export function scoreEvolutionEvidence(expectedIds: readonly string[], retrieved
     all: expected.size ? found === expected.size : null };
 }
 
-export type EvolutionMetric = "judge-accuracy" | "locomo-f1" | "evidence-recall" | "evidence-all";
+/** `judge-mean` is the per-question mean judge decision over declared repeats (V9); fractional, never null. */
+export type EvolutionMetric = "judge-accuracy" | "judge-mean" | "locomo-f1" | "evidence-recall" | "evidence-all";
 export type EvolutionMetricCase = Readonly<{ id: string; groupId: string; historyId: string; category: string }>;
 export type EvolutionScore = Readonly<{ id: string; score: number | null; failed: boolean }>;
 function validScore(result: EvolutionScore, metric: EvolutionMetric): void {
   if (typeof result.failed !== "boolean" || (result.score !== null && (!Number.isFinite(result.score) || result.score < 0 || result.score > 1))) {
     throw new TypeError("Invalid metric score or failure flag.");
   }
-  if ((metric === "judge-accuracy" || metric === "locomo-f1") && result.score === null) throw new TypeError("Answer metrics require every eligible score, including failures.");
+  if ((metric === "judge-accuracy" || metric === "judge-mean" || metric === "locomo-f1") && result.score === null) throw new TypeError("Answer metrics require every eligible score, including failures.");
   if (result.failed && result.score !== 0) throw new TypeError("A failed result must score zero.");
   if ((metric === "judge-accuracy" || metric === "evidence-all") && result.score !== null && result.score !== 0 && result.score !== 1) {
     throw new TypeError("Binary metric received a fractional score.");
   }
 }
 export function summarizeEvolutionScores(cases: readonly EvolutionMetricCase[], results: readonly EvolutionScore[], metric: EvolutionMetric) {
-  if (!["judge-accuracy", "locomo-f1", "evidence-recall", "evidence-all"].includes(metric)) throw new TypeError("Unknown evolution metric.");
+  if (!["judge-accuracy", "judge-mean", "locomo-f1", "evidence-recall", "evidence-all"].includes(metric)) throw new TypeError("Unknown evolution metric.");
   assertExactEvolutionCoverage(cases.map(c => c.id), results.map(r => r.id));
   results.forEach(result => validScore(result, metric));
   for (const c of cases) if ([c.groupId, c.historyId, c.category].some(v => typeof v !== "string" || !v.length || v.length > 512)) throw new TypeError("Invalid metric case grouping.");
