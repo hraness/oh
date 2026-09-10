@@ -1,0 +1,168 @@
+/**
+ * Corpus-general acceptance rubric for observation extraction. It scores
+ * observations produced over a synthetic fixture corpus against expectations
+ * written independently of any benchmark: date resolution, speaker
+ * attribution, verbatim quantities and names, turn coverage, kind labelling,
+ * absence of hypothetical filler, and the parser rejection rate. The rubric
+ * gates an extractor before any benchmark corpus is touched; it never reads
+ * a question, a gold answer, or a category.
+ */
+import { canonicalSha256, hasExactKeys, isPlainRecord } from "../../src/canonical";
+import type { KnowledgeGraphRecordV1 } from "../../src/graph";
+import { parseOhObservationDateV1, parseOhObservationRecordV1, OH_OBSERVATION_KINDS_V1, type OhObservationKindV1 } from "../../src/observe";
+import type { Turn } from "./datasets";
+
+export const OBSERVE_FIXTURE_PROTOCOL = "oh.observe-fixture-corpus.v1" as const;
+export const OBSERVE_RUBRIC_PROTOCOL = "oh.observe-rubric-report.v1" as const;
+
+/** Declared before any extraction run; a change is a new rubric version. */
+export const OBSERVE_RUBRIC_GATE_V1 = Object.freeze({
+  protocol: "oh.observe-rubric-gate.v1",
+  minimumAttribution: 0.95,
+  minimumCoverage: 0.9,
+  minimumDateResolution: 0.9,
+  minimumKind: 0.8,
+  minimumVerbatim: 0.9,
+  maximumLeakage: 0,
+  maximumParserRejection: 0.05,
+} as const);
+
+export type ObserveFixtureExpectation = Readonly<{ corpusId: string; sessionId: string; turnId: string; speaker: string;
+  dates: readonly Readonly<{ expression: string; eventAt: string }>[]; verbatim: readonly string[]; kinds: readonly OhObservationKindV1[] }>;
+export type ObserveFixtureCorpus = Readonly<{ protocol: typeof OBSERVE_FIXTURE_PROTOCOL;
+  corpora: readonly Readonly<{ id: string; turns: readonly Turn[] }>[];
+  expectations: readonly ObserveFixtureExpectation[];
+  absent: readonly Readonly<{ corpusId: string; sessionId: string; text: string }>[] }>;
+export type ObserveRubricObservation = Readonly<{ text: string; speaker: string; kind: OhObservationKindV1;
+  eventAt: string | null; resolvedFrom: string | null; sourceTurnIds: readonly string[] }>;
+export type ObserveRubricSession = Readonly<{ corpusId: string; sessionId: string;
+  status: "completed" | "rejected" | "failed" | "not-run"; observations: readonly ObserveRubricObservation[] }>;
+type Item = Readonly<{ check: "date" | "attribution" | "verbatim" | "coverage" | "kind" | "leakage";
+  corpusId: string; sessionId: string; turnId: string | null; target: string; pass: boolean }>;
+export type ObserveRubricReport = Readonly<{ protocol: typeof OBSERVE_RUBRIC_PROTOCOL; fixtureSha256: string; gate: typeof OBSERVE_RUBRIC_GATE_V1;
+  sessions: number; completedSessions: number; rejectedSessions: number; observations: number;
+  scores: Readonly<{ dateResolution: number; attribution: number; verbatim: number; coverage: number; kind: number;
+    leakage: number; parserRejection: number }>;
+  failures: readonly Item[]; items: number; pass: boolean; reportSha256: string }>;
+
+function fail(reason: string): never { throw new TypeError(`Observe rubric: ${reason}.`); }
+function record(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
+  if (!isPlainRecord(value) || !hasExactKeys(value, keys)) fail(`${label} shape`); return value;
+}
+function text(value: unknown, maximum: number): string {
+  if (typeof value !== "string" || value.length === 0 || Buffer.byteLength(value) > maximum || /\p{Surrogate}/u.test(value)) fail("bounded text"); return value;
+}
+function list(value: unknown, maximum: number): readonly unknown[] {
+  if (!Array.isArray(value) || value.length > maximum) fail("bounded list"); return value;
+}
+function unique(values: readonly string[]): void { if (new Set(values).size !== values.length) fail("duplicate identifier"); }
+
+export function parseObserveFixtureCorpus(value: unknown): ObserveFixtureCorpus {
+  const v = record(value, ["protocol", "corpora", "expectations", "absent"], "fixture");
+  if (v.protocol !== OBSERVE_FIXTURE_PROTOCOL) fail("fixture protocol");
+  const corpora = list(v.corpora, 64).map(c => {
+    const corpus = record(c, ["id", "turns"], "corpus");
+    const turns = list(corpus.turns, 4096).map((t): Turn => {
+      const turn = record(t, ["id", "sessionId", "sessionIndex", "date", "speaker", "text"], "turn");
+      if (typeof turn.sessionIndex !== "number" || !Number.isSafeInteger(turn.sessionIndex) || turn.sessionIndex < 0) fail("session index");
+      return { id: text(turn.id, 512), sessionId: text(turn.sessionId, 512), sessionIndex: turn.sessionIndex,
+        date: text(turn.date, 256), speaker: text(turn.speaker, 64), text: text(turn.text, 65_536) };
+    });
+    if (turns.length === 0) fail("empty corpus"); unique(turns.map(t => t.id));
+    return { id: text(corpus.id, 512), turns };
+  });
+  unique(corpora.map(c => c.id));
+  const turnIds = new Map(corpora.map(c => [c.id, new Map(c.turns.map(t => [t.id, t]))]));
+  const expectations = list(v.expectations, 4096).map((e): ObserveFixtureExpectation => {
+    const expectation = record(e, ["corpusId", "sessionId", "turnId", "speaker", "dates", "verbatim", "kinds"], "expectation");
+    const corpusId = text(expectation.corpusId, 512), turnId = text(expectation.turnId, 512), sessionId = text(expectation.sessionId, 512);
+    const turn = turnIds.get(corpusId)?.get(turnId);
+    if (turn === undefined || turn.sessionId !== sessionId) fail("expectation names an unknown turn");
+    const speaker = text(expectation.speaker, 64);
+    if (turn.speaker !== speaker) fail("expectation speaker differs from the turn");
+    const dates = list(expectation.dates, 16).map(d => {
+      const date = record(d, ["expression", "eventAt"], "date expectation");
+      const eventAt = parseOhObservationDateV1(date.eventAt);
+      if (eventAt === null) fail("date expectation");
+      return { expression: text(date.expression, 256), eventAt };
+    });
+    const verbatim = list(expectation.verbatim, 32).map(s => text(s, 1024));
+    for (const needle of verbatim) if (!turn.text.includes(needle)) fail("verbatim expectation is not in the turn text");
+    const kinds = list(expectation.kinds, OH_OBSERVATION_KINDS_V1.length).map(k => {
+      const kind = OH_OBSERVATION_KINDS_V1.find(c => c === k); if (kind === undefined) fail("kind expectation"); return kind;
+    });
+    return { corpusId, sessionId, turnId, speaker, dates, verbatim, kinds };
+  });
+  unique(expectations.map(e => `${e.corpusId}\u001f${e.turnId}`));
+  const absent = list(v.absent, 256).map(a => {
+    const item = record(a, ["corpusId", "sessionId", "text"], "absence");
+    const corpusId = text(item.corpusId, 512), sessionId = text(item.sessionId, 512);
+    if (!corpora.some(c => c.id === corpusId && c.turns.some(t => t.sessionId === sessionId))) fail("absence names an unknown session");
+    return { corpusId, sessionId, text: text(item.text, 1024) };
+  });
+  return { protocol: OBSERVE_FIXTURE_PROTOCOL, corpora, expectations, absent };
+}
+
+/** Projects committed observation records to rubric rows through the turn records they cite. */
+export function observeRubricSessionFromRecords(input: Readonly<{ corpusId: string; sessionId: string; status: ObserveRubricSession["status"];
+  observations: readonly KnowledgeGraphRecordV1[]; turns: readonly KnowledgeGraphRecordV1[] }>): ObserveRubricSession {
+  const turnIds = new Map(input.turns.map(turn => {
+    if (!isPlainRecord(turn.value) || typeof turn.value.id !== "string") fail("turn record without an id");
+    return [turn.key, turn.value.id];
+  }));
+  const observations = input.observations.map((raw): ObserveRubricObservation => {
+    const parsed = parseOhObservationRecordV1(raw); if (parsed === null) fail("not an observation record");
+    const sourceTurnIds = parsed.value.sources.map(source => { const id = turnIds.get(source.key); if (id === undefined) fail("cited turn is not in the session"); return id; });
+    return { text: parsed.value.text, speaker: parsed.value.speaker, kind: parsed.value.kind, eventAt: parsed.value.eventAt,
+      resolvedFrom: parsed.value.resolvedFrom, sourceTurnIds };
+  });
+  return { corpusId: input.corpusId, sessionId: input.sessionId, status: input.status, observations };
+}
+
+const ratio = (passed: number, total: number) => total === 0 ? 1 : passed / total;
+const fold = (value: string) => value.normalize("NFC").toLocaleLowerCase("en-US");
+
+export function scoreObserveRubric(fixture: ObserveFixtureCorpus, sessions: readonly ObserveRubricSession[]): ObserveRubricReport {
+  const expectedSessions = new Set(fixture.corpora.flatMap(c => c.turns.map(t => `${c.id}\u001f${t.sessionId}`)));
+  const seen = new Set<string>();
+  for (const session of sessions) {
+    const id = `${session.corpusId}\u001f${session.sessionId}`;
+    if (!expectedSessions.has(id) || seen.has(id)) fail("rubric rows must cover each fixture session once");
+    seen.add(id);
+    if (!["completed", "rejected", "failed", "not-run"].includes(session.status)) fail("session status");
+    if (session.status !== "completed" && session.observations.length > 0) fail("only a completed session carries observations");
+  }
+  if (seen.size !== expectedSessions.size) fail("rubric rows must cover each fixture session once");
+  const bySession = new Map(sessions.map(s => [`${s.corpusId}\u001f${s.sessionId}`, s]));
+  const items: Item[] = [];
+  for (const e of fixture.expectations) {
+    const session = bySession.get(`${e.corpusId}\u001f${e.sessionId}`)!;
+    const citing = session.observations.filter(o => o.sourceTurnIds.includes(e.turnId));
+    const item = (check: Item["check"], target: string, pass: boolean) => items.push({ check, corpusId: e.corpusId, sessionId: e.sessionId, turnId: e.turnId, target, pass });
+    item("coverage", e.turnId, citing.length > 0);
+    item("attribution", e.speaker, citing.length > 0 && citing.every(o => o.speaker === e.speaker));
+    for (const date of e.dates) {
+      item("date", `${date.expression} -> ${date.eventAt}`, citing.some(o => o.eventAt === date.eventAt
+        && o.resolvedFrom !== null && fold(o.resolvedFrom).includes(fold(date.expression))));
+    }
+    for (const needle of e.verbatim) item("verbatim", needle, citing.some(o => o.text.includes(needle)));
+    if (e.kinds.length > 0) item("kind", e.kinds.join("|"), citing.some(o => e.kinds.includes(o.kind)));
+  }
+  for (const a of fixture.absent) {
+    const session = bySession.get(`${a.corpusId}\u001f${a.sessionId}`)!;
+    items.push({ check: "leakage", corpusId: a.corpusId, sessionId: a.sessionId, turnId: null, target: a.text,
+      pass: !session.observations.some(o => o.text.includes(a.text)) });
+  }
+  const score = (check: Item["check"]) => { const rows = items.filter(i => i.check === check); return ratio(rows.filter(i => i.pass).length, rows.length); };
+  const rejected = sessions.filter(s => s.status === "rejected").length, completed = sessions.filter(s => s.status === "completed").length;
+  const scores = { dateResolution: score("date"), attribution: score("attribution"), verbatim: score("verbatim"), coverage: score("coverage"),
+    kind: score("kind"), leakage: 1 - score("leakage"), parserRejection: ratio(rejected, sessions.length) };
+  const gate = OBSERVE_RUBRIC_GATE_V1;
+  const pass = scores.dateResolution >= gate.minimumDateResolution && scores.attribution >= gate.minimumAttribution
+    && scores.verbatim >= gate.minimumVerbatim && scores.coverage >= gate.minimumCoverage && scores.kind >= gate.minimumKind
+    && scores.leakage <= gate.maximumLeakage && scores.parserRejection <= gate.maximumParserRejection;
+  const payload = { protocol: OBSERVE_RUBRIC_PROTOCOL, fixtureSha256: canonicalSha256(fixture), gate, sessions: sessions.length,
+    completedSessions: completed, rejectedSessions: rejected, observations: sessions.reduce((s, row) => s + row.observations.length, 0),
+    scores, failures: items.filter(i => !i.pass), items: items.length, pass };
+  return Object.freeze({ ...payload, reportSha256: canonicalSha256(payload) });
+}
