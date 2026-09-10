@@ -554,3 +554,11 @@ The [ID selector prototype](EVOLUTION_SELECTOR.md) retains exact source turns in
 ### Explicit full-release descriptive scope
 
 [Run V7](EVOLUTION_RELEASE_V7.md) adds a separately pinned full500 LongMemEval study: five exact100-question shards, fixed96KB BM25/Oh semantic pair, combined-contract nano and native16 Gateway judge. It preserves original development and closed/unknown exposure declarations, retains all failures, and combines reportV2 shards into an aggregate-only public projection. Existing runV1–V6 paths remain development-only. This scope does not claim fresh confirmation or official-protocol reproduction.
+
+[Run V8's full-context companion](FULL_CONTEXT_COMPANION.md) adds a separately
+accounted complete-source control over those same500 IDs with the same reader
+and judge. V7 keeps its original two arms. V8 performs no retrieval or QMD
+indexing, uses the existing full-history renderer and profile-window accounting,
+and combines five parent and five companion shard reports without reclassifying
+unknown exposure as fresh evidence. Capacity and spending approval remain
+separate from metadata admission.
