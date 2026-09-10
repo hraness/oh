@@ -140,6 +140,9 @@ function parseSha256Hex(value) {
 function safeCode(value, maximumLength = 128) {
   return typeof value === "string" && value.length <= maximumLength && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
 }
+function orderedUnique(values, key) {
+  return values.every((value, index) => index === 0 || key(values[index - 1]) < key(value));
+}
 
 // src/graph.ts
 var OH_GRAPH_LIMITS_V1 = Object.freeze({
@@ -168,6 +171,99 @@ var OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = Object.freeze([
   "view",
   "vocabulary"
 ]);
+var KNOWLEDGE_GRAPH_RECORD_KEYS_V1 = [
+  "dependencies",
+  "key",
+  "kind",
+  "recordSha256",
+  "v",
+  "value"
+];
+function exactKnowledgeGraphRecordEnvelopeV1(value) {
+  try {
+    if (!isPlainRecord(value))
+      return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== KNOWLEDGE_GRAPH_RECORD_KEYS_V1.length || ownKeys.some((key) => typeof key !== "string") || KNOWLEDGE_GRAPH_RECORD_KEYS_V1.some((key) => !ownKeys.includes(key)))
+      return null;
+    const detached = {};
+    for (const key of KNOWLEDGE_GRAPH_RECORD_KEYS_V1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined)
+        return null;
+      detached[key] = descriptor.value;
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
+function exactGraphDependenciesV1(value) {
+  try {
+    if (!Array.isArray(value))
+      return null;
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(value, "length");
+    const length = lengthDescriptor?.value;
+    if (typeof length !== "number" || !Number.isSafeInteger(length) || length < 0 || length > OH_GRAPH_LIMITS_V1.dependenciesPerRecord)
+      return null;
+    const ownKeys = Reflect.ownKeys(value);
+    if (ownKeys.length !== length + 1 || !ownKeys.includes("length") || ownKeys.some((key) => key !== "length" && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/u.test(key) || Number(key) >= length)))
+      return null;
+    const detached = [];
+    for (let index = 0;index < length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (descriptor === undefined || !descriptor.enumerable || descriptor.get !== undefined || descriptor.set !== undefined)
+        return null;
+      detached.push(descriptor.value);
+    }
+    return detached;
+  } catch {
+    return null;
+  }
+}
+function recordKey(value) {
+  return typeof value === "string" && value.length <= 512 && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
+}
+function createKnowledgeGraphRecordV1(input) {
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["dependencies", "key", "kind", "v", "value"]) || input.v !== 1)
+    throw new TypeError("Invalid graph record input.");
+  const dependencyInput = exactGraphDependenciesV1(input.dependencies);
+  if (dependencyInput === null)
+    throw new TypeError("Invalid graph record dependencies.");
+  const key = recordKey(input.key);
+  const kind = OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.find((candidate) => candidate === input.kind);
+  if (key === null || kind === undefined)
+    throw new TypeError("Invalid graph record identity.");
+  const dependencies = dependencyInput.map(recordKey);
+  if (dependencies.some((dependency) => dependency === null) || !orderedUnique(dependencies, String) || dependencies.includes(key)) {
+    throw new TypeError("Graph dependencies must be ordered, unique, and non-reflexive.");
+  }
+  const valueJson = canonicalJson(input.value);
+  if (Buffer.byteLength(valueJson, "utf8") > OH_GRAPH_LIMITS_V1.recordBytes) {
+    throw new RangeError("Graph record value exceeds its canonical byte limit.");
+  }
+  const payload = { dependencies, key, kind, v: 1, value: input.value };
+  return { ...payload, recordSha256: canonicalSha256(payload) };
+}
+function parseKnowledgeGraphRecordV1(value) {
+  const envelope = exactKnowledgeGraphRecordEnvelopeV1(value);
+  if (envelope === null)
+    return null;
+  const recordSha256 = parseSha256Hex(envelope.recordSha256);
+  const input = {
+    dependencies: envelope.dependencies,
+    key: envelope.key,
+    kind: envelope.kind,
+    v: envelope.v,
+    value: envelope.value
+  };
+  try {
+    const created = createKnowledgeGraphRecordV1(input);
+    return recordSha256 !== null && created.recordSha256 === recordSha256 ? { ...created, recordSha256 } : null;
+  } catch {
+    return null;
+  }
+}
 
 // src/semantic-model.ts
 var OH_EMBEDDING_PROFILE_V1 = Object.freeze({
@@ -15788,6 +15884,384 @@ function makeSemanticBoundary(options) {
     }
   };
 }
+// src/semantic-hosted-model.ts
+var OH_HOSTED_EMBEDDING_PROFILE_V2 = Object.freeze({
+  chunkBytes: 4096,
+  chunking: "contiguous-utf8-scalars-no-overlap-v1",
+  dimensions: 1536,
+  distance: "cosine",
+  documentFormat: "oh-record-document-v1",
+  encoding: "float",
+  engine: "oh.precomputed-hosted.v1",
+  gateway: "vercel-ai-gateway",
+  model: "openai/text-embedding-3-small",
+  modelIdentity: "alias",
+  normalization: "l2",
+  provider: "openai",
+  queryFormat: "raw-utf8-v1",
+  queryMaxBytes: 8192,
+  recordAggregation: "maximum-chunk-cosine-v1",
+  v: 2
+});
+var OH_HOSTED_PROFILE_SHA256_V2 = canonicalSha256(OH_HOSTED_EMBEDDING_PROFILE_V2);
+var OH_HOSTED_LIMITS_V1 = Object.freeze({
+  records: 4096,
+  embeddings: 4096,
+  queries: 1024,
+  sourceBytes: 32 * 1024 * 1024,
+  snapshotBytes: 128 * 1024 * 1024,
+  batchInputs: 128,
+  batchBytes: 128 * 1024,
+  inputBytes: 16 * 1024 * 1024
+});
+function hostedInteger(value, maximum, minimum = 0) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || Object.is(value, -0) || value < minimum || value > maximum)
+    throw new TypeError("Invalid hosted integer.");
+  return value;
+}
+function boundHostedWire(value, maximumBytes) {
+  let bytes = 0, nodes = 0;
+  const ancestors = new Set;
+  const add6 = (amount) => {
+    bytes += amount;
+    if (bytes > maximumBytes)
+      throw new RangeError("Hosted wire byte limit exceeded.");
+  };
+  const visit = (v, depth) => {
+    if (++nodes > 8000000 || depth > 32)
+      throw new RangeError("Hosted wire structure limit exceeded.");
+    if (typeof v === "string") {
+      if (Buffer.byteLength(v) > maximumBytes || /\p{Surrogate}/u.test(v))
+        throw new TypeError("Invalid hosted string.");
+      add6(Buffer.byteLength(JSON.stringify(v)));
+      return;
+    }
+    if (v === null || typeof v === "boolean") {
+      add6(v === null ? 4 : v ? 4 : 5);
+      return;
+    }
+    if (typeof v === "number") {
+      if (!Number.isFinite(v) || Object.is(v, -0))
+        throw new TypeError("Invalid hosted number.");
+      add6(String(v).length);
+      return;
+    }
+    if (typeof v !== "object" || ancestors.has(v))
+      throw new TypeError("Hosted wire must be acyclic JSON.");
+    ancestors.add(v);
+    try {
+      if (Array.isArray(v)) {
+        if (v.length > 8000000 || Reflect.ownKeys(v).length !== v.length + 1)
+          throw new TypeError("Invalid hosted dense array.");
+        add6(2 + Math.max(0, v.length - 1));
+        for (let i = 0;i < v.length; i++) {
+          const d = Object.getOwnPropertyDescriptor(v, String(i));
+          if (!d?.enumerable || !Object.hasOwn(d, "value"))
+            throw new TypeError("Hosted arrays require data elements.");
+          visit(d.value, depth + 1);
+        }
+      } else {
+        if (!isPlainRecord(v))
+          throw new TypeError("Invalid hosted plain object.");
+        const keys3 = Reflect.ownKeys(v);
+        add6(2 + Math.max(0, keys3.length - 1));
+        for (const key of keys3) {
+          const d = Object.getOwnPropertyDescriptor(v, key);
+          if (typeof key !== "string" || !d.enumerable || !Object.hasOwn(d, "value"))
+            throw new TypeError("Hosted objects require data properties.");
+          visit(key, depth + 1);
+          add6(1);
+          visit(d.value, depth + 1);
+        }
+      }
+    } finally {
+      ancestors.delete(v);
+    }
+  };
+  visit(value, 0);
+}
+function freezeHosted(value) {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value))
+      freezeHosted(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+function object(value, keys3) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, keys3))
+    throw new TypeError("Invalid hosted object.");
+  if (Reflect.ownKeys(value).some((key) => typeof key !== "string" || !Object.getOwnPropertyDescriptor(value, key)?.enumerable || !Object.hasOwn(Object.getOwnPropertyDescriptor(value, key), "value")))
+    throw new TypeError("Invalid hosted data properties.");
+  return value;
+}
+function array3(value, maximum) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > maximum)
+    throw new TypeError("Invalid hosted array.");
+  if (Reflect.ownKeys(value).length !== value.length + 1)
+    throw new TypeError("Invalid hosted array properties.");
+  for (let i = 0;i < value.length; i++) {
+    const d = Object.getOwnPropertyDescriptor(value, String(i));
+    if (!d?.enumerable || !Object.hasOwn(d, "value"))
+      throw new TypeError("Invalid hosted dense array.");
+  }
+  return value;
+}
+function digest(value) {
+  const result = parseSha256Hex(value);
+  if (result === null)
+    throw new TypeError("Invalid hosted digest.");
+  return result;
+}
+function role(value) {
+  if (value !== "document" && value !== "query")
+    throw new TypeError("Invalid hosted role.");
+  return value;
+}
+function finiteVector(value) {
+  if (!Array.isArray(value) || value.length !== 1536)
+    throw new TypeError("Hosted vectors require 1536 components.");
+  return array3(value, 1536).map((component) => {
+    if (typeof component !== "number" || !Number.isFinite(component) || Object.is(component, -0)) {
+      throw new TypeError("Invalid hosted vector component.");
+    }
+    return component;
+  });
+}
+function normalizeOhHostedEmbeddingV2(value) {
+  const vector = finiteVector(value);
+  const scale = vector.reduce((max5, n) => Math.max(max5, Math.abs(n)), 0);
+  if (scale === 0)
+    throw new TypeError("Hosted vector has zero magnitude.");
+  const length2 = Math.sqrt(vector.reduce((sum2, n) => sum2 + (n / scale) ** 2, 0));
+  return Object.freeze(vector.map((n) => n / scale / length2 || 0));
+}
+function hostedQueryV1(value) {
+  if (typeof value !== "string" || value.length === 0 || Buffer.byteLength(value, "utf8") > OH_HOSTED_EMBEDDING_PROFILE_V2.queryMaxBytes || /\p{Surrogate}/u.test(value))
+    throw new TypeError("Invalid hosted query.");
+  return value;
+}
+function hostedDocumentChunksV1(record) {
+  boundHostedWire(record, OH_HOSTED_LIMITS_V1.sourceBytes);
+  const parsed = parseKnowledgeGraphRecordV1(record);
+  if (parsed === null)
+    throw new TypeError("Invalid hosted source record.");
+  const document = recordDocument(parsed);
+  const chunks = [];
+  let start3 = 0, bytes = 0, input = "";
+  const flush = () => {
+    if (bytes === 0)
+      return;
+    chunks.push({ start: start3, end: start3 + bytes, input, inputSha256: sha256Hex(input) });
+    start3 += bytes;
+    bytes = 0;
+    input = "";
+  };
+  for (const scalar of document) {
+    const size10 = new TextEncoder().encode(scalar).length;
+    if (bytes + size10 > 4096)
+      flush();
+    input += scalar;
+    bytes += size10;
+  }
+  flush();
+  return freezeHosted(chunks);
+}
+function hostedRecordsV1(value) {
+  boundHostedWire(value, OH_HOSTED_LIMITS_V1.sourceBytes);
+  let bytes = 0;
+  const records = array3(value, OH_HOSTED_LIMITS_V1.records).map((raw) => {
+    const record = parseKnowledgeGraphRecordV1(raw);
+    if (record === null)
+      throw new TypeError("Invalid hosted source record.");
+    bytes += new TextEncoder().encode(recordDocument(record)).length;
+    if (bytes > OH_HOSTED_LIMITS_V1.sourceBytes)
+      throw new RangeError("Hosted source byte limit exceeded.");
+    return record;
+  }).sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  if (new Set(records.map((record) => record.key)).size !== records.length)
+    throw new TypeError("Duplicate hosted source key.");
+  return freezeHosted(structuredClone(records));
+}
+function hostedSourceSha256V1(records) {
+  return canonicalSha256({ protocol: "oh.semantic-hosted-source.v1", records: records.map(({ key, recordSha256 }) => ({ key, recordSha256 })) });
+}
+function parseOhHostedSettlementV1(value) {
+  boundHostedWire(value, 32768);
+  const v = object(value, [
+    "authoritySha256",
+    "settlementSha256",
+    "requestSha256",
+    "responseSha256",
+    "profileSha256",
+    "role",
+    "inputSha256s",
+    "knownCostMicros",
+    "reservationMicros",
+    "latencyMs",
+    "physicalCalls"
+  ]);
+  if (v.profileSha256 !== OH_HOSTED_PROFILE_SHA256_V2 || v.physicalCalls !== 1)
+    throw new TypeError("Wrong hosted settlement profile/calls.");
+  const reservationMicros = hostedInteger(v.reservationMicros, Number.MAX_SAFE_INTEGER);
+  const knownCostMicros = hostedInteger(v.knownCostMicros, reservationMicros);
+  if (typeof v.latencyMs !== "number" || !Number.isFinite(v.latencyMs) || v.latencyMs < 0 || v.latencyMs > 300000 || Object.is(v.latencyMs, -0))
+    throw new TypeError("Invalid hosted latency.");
+  return Object.freeze({
+    authoritySha256: digest(v.authoritySha256),
+    settlementSha256: digest(v.settlementSha256),
+    requestSha256: digest(v.requestSha256),
+    responseSha256: digest(v.responseSha256),
+    profileSha256: OH_HOSTED_PROFILE_SHA256_V2,
+    role: role(v.role),
+    inputSha256s: Object.freeze(array3(v.inputSha256s, 128).map(digest)),
+    knownCostMicros,
+    reservationMicros,
+    latencyMs: v.latencyMs,
+    physicalCalls: 1
+  });
+}
+function parseOhHostedSnapshotV1(value) {
+  boundHostedWire(value, OH_HOSTED_LIMITS_V1.snapshotBytes);
+  const v = object(value, ["protocol", "profileSha256", "sourceSha256", "records", "queries", "embeddings", "receipts"]);
+  if (v.protocol !== "oh.semantic-hosted-snapshot.v1" || v.profileSha256 !== OH_HOSTED_PROFILE_SHA256_V2) {
+    throw new TypeError("Wrong hosted snapshot protocol/profile.");
+  }
+  const receipts = array3(v.receipts, 4096).map(parseOhHostedSettlementV1);
+  if (new Set(receipts.map((r) => r.requestSha256)).size !== receipts.length || new Set(receipts.map((r) => r.settlementSha256)).size !== receipts.length)
+    throw new TypeError("Duplicate hosted receipt.");
+  const usedReceiptInputs = new Set;
+  const embeddings = array3(v.embeddings, 4096).map((raw) => {
+    const e = object(raw, ["role", "inputSha256", "vector", "receiptIndex", "inputIndex"]);
+    const receiptIndex = hostedInteger(e.receiptIndex, receipts.length - 1);
+    const receipt = receipts[receiptIndex];
+    const inputIndex = hostedInteger(e.inputIndex, receipt.inputSha256s.length - 1);
+    const inputSha256 = digest(e.inputSha256), embeddingRole = role(e.role);
+    const key = `${receiptIndex}:${inputIndex}`;
+    if (usedReceiptInputs.has(key) || receipt.inputSha256s[inputIndex] !== inputSha256 || receipt.role !== embeddingRole) {
+      throw new TypeError("Hosted receipt/input binding mismatch.");
+    }
+    usedReceiptInputs.add(key);
+    const vector = finiteVector(e.vector);
+    const norm = vector.reduce((sum2, n) => sum2 + n * n, 0);
+    if (!Number.isFinite(norm) || Math.abs(norm - 1) > 0.000001)
+      throw new TypeError("Hosted snapshot vector is not L2 normalized.");
+    return Object.freeze({ role: embeddingRole, inputSha256, vector: Object.freeze(vector), receiptIndex, inputIndex });
+  });
+  if (usedReceiptInputs.size !== receipts.reduce((sum2, r) => sum2 + r.inputSha256s.length, 0)) {
+    throw new TypeError("Hosted receipt input coverage is incomplete.");
+  }
+  const used = new Set;
+  const claim = (index, expectedRole, sha) => {
+    const n = hostedInteger(index, embeddings.length - 1), embedding = embeddings[n];
+    if (used.has(n) || embedding.role !== expectedRole || embedding.inputSha256 !== sha)
+      throw new TypeError("Hosted source/vector binding mismatch.");
+    used.add(n);
+    return n;
+  };
+  let previousKey = "", inputBytes = 0;
+  const records = array3(v.records, 4096).map((raw) => {
+    const r = object(raw, ["key", "recordSha256", "documentSha256", "chunks"]);
+    const key = safeCode(r.key, 512);
+    if (key === null || key <= previousKey)
+      throw new TypeError("Hosted records must have unique sorted keys.");
+    previousKey = key;
+    let next = 0;
+    const chunks = array3(r.chunks, 4096).map((rawChunk) => {
+      const c = object(rawChunk, ["start", "end", "inputSha256", "embeddingIndex"]);
+      const start3 = hostedInteger(c.start, OH_HOSTED_LIMITS_V1.sourceBytes), end3 = hostedInteger(c.end, OH_HOSTED_LIMITS_V1.sourceBytes, start3 + 1);
+      if (start3 !== next || end3 - start3 > 4096)
+        throw new TypeError("Hosted chunk coverage is not contiguous.");
+      next = end3;
+      inputBytes += end3 - start3;
+      if (inputBytes > OH_HOSTED_LIMITS_V1.inputBytes)
+        throw new RangeError("Hosted input limit exceeded.");
+      const inputSha256 = digest(c.inputSha256);
+      return Object.freeze({ start: start3, end: end3, inputSha256, embeddingIndex: claim(c.embeddingIndex, "document", inputSha256) });
+    });
+    return Object.freeze({ key, recordSha256: digest(r.recordSha256), documentSha256: digest(r.documentSha256), chunks: Object.freeze(chunks) });
+  });
+  let previousQuery = "";
+  const queries = array3(v.queries, 1024).map((raw) => {
+    const q = object(raw, ["querySha256", "embeddingIndex"]), querySha256 = digest(q.querySha256);
+    if (querySha256 <= previousQuery)
+      throw new TypeError("Hosted queries must have unique sorted hashes.");
+    previousQuery = querySha256;
+    return Object.freeze({ querySha256, embeddingIndex: claim(q.embeddingIndex, "query", querySha256) });
+  });
+  if (used.size !== embeddings.length || hostedSourceSha256V1(records) !== v.sourceSha256)
+    throw new TypeError("Hosted snapshot source coverage mismatch.");
+  return Object.freeze({
+    protocol: "oh.semantic-hosted-snapshot.v1",
+    profileSha256: OH_HOSTED_PROFILE_SHA256_V2,
+    sourceSha256: digest(v.sourceSha256),
+    records: Object.freeze(records),
+    queries: Object.freeze(queries),
+    embeddings: Object.freeze(embeddings),
+    receipts: Object.freeze(receipts)
+  });
+}
+
+// src/semantic-hosted.ts
+class OhHostedSemanticBackendV2 {
+  profile = OH_HOSTED_EMBEDDING_PROFILE_V2;
+  snapshot;
+  snapshotSha256;
+  #indexed = false;
+  #closed = false;
+  constructor(snapshot) {
+    this.snapshot = parseOhHostedSnapshotV1(snapshot);
+    this.snapshotSha256 = canonicalSha256(this.snapshot);
+    Object.freeze(this);
+  }
+  async index(value) {
+    this.#open();
+    this.#indexed = false;
+    const records = hostedRecordsV1(value);
+    if (hostedSourceSha256V1(records) !== this.snapshot.sourceSha256)
+      throw new TypeError("Hosted index source mismatch.");
+    for (const [index, record] of records.entries()) {
+      const expected = this.snapshot.records[index];
+      const chunks = hostedDocumentChunksV1(record);
+      if (sha256Hex(recordDocument(record)) !== expected.documentSha256 || chunks.length !== expected.chunks.length || chunks.some((chunk2, i) => chunk2.start !== expected.chunks[i].start || chunk2.end !== expected.chunks[i].end || chunk2.inputSha256 !== expected.chunks[i].inputSha256))
+        throw new TypeError("Hosted document/chunk binding mismatch.");
+    }
+    this.#indexed = true;
+    return { indexed: records.length, v: 1 };
+  }
+  async search(query, limit, authority) {
+    this.#open();
+    if (!this.#indexed)
+      throw new Error("Hosted index has not been source-validated.");
+    hostedInteger(limit, 100, 1);
+    const querySha = sha256Hex(hostedQueryV1(query));
+    const found = this.snapshot.queries.find((q) => q.querySha256 === querySha);
+    if (found === undefined)
+      throw new Error("No precomputed hosted vector for this exact query.");
+    const vector = this.snapshot.embeddings[found.embeddingIndex].vector;
+    const results = [];
+    for (const record of this.snapshot.records) {
+      if (authority.get(record.key)?.recordSha256 !== record.recordSha256)
+        continue;
+      let score = -1;
+      for (const chunk2 of record.chunks) {
+        const candidate = this.snapshot.embeddings[chunk2.embeddingIndex].vector;
+        const cosine = candidate.reduce((sum2, component, index) => sum2 + component * vector[index], 0);
+        score = Math.max(score, Math.min(1, Math.max(-1, cosine)));
+      }
+      results.push({ key: record.key, recordSha256: record.recordSha256, score, v: 1 });
+    }
+    return results.sort((a, b) => b.score - a.score || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)).slice(0, limit);
+  }
+  async close() {
+    this.#closed = true;
+    this.#indexed = false;
+  }
+  #open() {
+    if (this.#closed)
+      throw new Error("Hosted semantic backend is closed.");
+  }
+}
 
 // src/semantic.ts
 class OhQmdSemanticBackendV1 {
@@ -15807,10 +16281,16 @@ class OhQmdSemanticBackendV1 {
   }
 }
 export {
+  parseOhHostedSnapshotV1,
+  normalizeOhHostedEmbeddingV2,
   normalizeOhEmbeddingV1,
   formatOhEmbeddingQueryV1,
   formatOhEmbeddingDocumentV1,
   cosineSimilarityV1,
   OhQmdSemanticBackendV1,
+  OhHostedSemanticBackendV2,
+  OH_HOSTED_PROFILE_SHA256_V2,
+  OH_HOSTED_LIMITS_V1,
+  OH_HOSTED_EMBEDDING_PROFILE_V2,
   OH_EMBEDDING_PROFILE_V1
 };

@@ -29,4 +29,7 @@ export declare class OhQmdSemanticBackendV1 implements OhSemanticSearchBackendV1
     search(query: string, limit: number, authority: OhSqliteStore): ReturnType<OhSemanticSearchBackendV1["search"]>;
     close(): Promise<void>;
 }
+export { OhHostedSemanticBackendV2 } from "./semantic-hosted";
+export { OH_HOSTED_EMBEDDING_PROFILE_V2, OH_HOSTED_PROFILE_SHA256_V2, OH_HOSTED_LIMITS_V1, normalizeOhHostedEmbeddingV2, parseOhHostedSnapshotV1 } from "./semantic-hosted-model";
+export type { OhHostedEmbeddingProfileV2, OhSemanticSearchBackendV2, OhSemanticSearchBackend, OhHostedSnapshotV1, OhHostedSettlementV1 } from "./semantic-hosted-model";
 //# sourceMappingURL=semantic.d.ts.map

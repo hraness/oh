@@ -1,19 +1,19 @@
 import { type JsonValue } from "./canonical";
 import { type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
 import { type OhSearchModeV1, type OhSearchResponseV1 } from "./search";
-import type { OhSemanticSearchBackendV1 } from "./semantic";
+import type { OhSemanticSearchBackend } from "./semantic";
 import { OhSqliteStore, type OhHeadV1, type OhReplayVerificationV1 } from "./sqlite/store";
 import { synchronizeOhStoreV1, type OhOperationSyncTransportV1, type OhSyncResultV1 } from "./sync";
 import type { OhOperationV1 } from "./operation";
 export type OhOpenOptionsV1 = Readonly<{
     databasePath?: string;
-    semanticBackend?: OhSemanticSearchBackendV1;
+    semanticBackend?: OhSemanticSearchBackend;
     spaceId?: string;
 }>;
 export declare class Oh {
     #private;
     readonly store: OhSqliteStore;
-    readonly semanticBackend: OhSemanticSearchBackendV1 | undefined;
+    readonly semanticBackend: OhSemanticSearchBackend | undefined;
     private constructor();
     static open(options?: OhOpenOptionsV1): Oh;
     head(): OhHeadV1;

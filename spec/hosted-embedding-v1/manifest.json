@@ -1,0 +1,10 @@
+{
+  "protocol": "oh.precomputed-hosted-contract.v1",
+  "profile": "./profile.json",
+  "profileSha256": "4db0f52aac5759d5fd37efc489e4c95f35b0f815ca19dec41addf72926061454",
+  "snapshotProtocol": "oh.semantic-hosted-snapshot.v1",
+  "snapshotSchema": "./snapshot.schema.json",
+  "specification": "./README.md",
+  "activation": "explicit-precomputed-snapshot-only",
+  "v": 1
+}

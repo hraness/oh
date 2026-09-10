@@ -1,5 +1,5 @@
 import type { KnowledgeGraphRecordV1 } from "./graph";
-import type { OhSemanticSearchBackendV1 } from "./semantic";
+import type { OhSemanticSearchBackend } from "./semantic";
 import type { OhSqliteStore } from "./sqlite/store";
 export type OhSearchModeV1 = "hybrid" | "keyword" | "semantic";
 export type OhSearchDiagnosticV1 = Readonly<{
@@ -25,7 +25,7 @@ export type OhSearchResponseV1 = Readonly<{
     v: 1;
 }>;
 export declare function searchOhV1(input: Readonly<{
-    backend?: OhSemanticSearchBackendV1;
+    backend?: OhSemanticSearchBackend;
     limit?: number;
     mode?: OhSearchModeV1;
     query: string;
