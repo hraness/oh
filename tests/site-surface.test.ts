@@ -83,10 +83,14 @@ describe("public site surface", () => {
 
   test("keeps accent text and action labels above AA contrast in both appearances", async () => {
     const css = await readFile(join(root, "site/app/globals.css"), "utf8");
+    const theme = await readFile(join(root, "site/styles/vendor/hraness-paper/paper-theme.css"), "utf8");
+    expect(css).toContain('@import "../styles/vendor/hraness-paper/paper-theme.css"');
+    expect(theme).toContain('--hraness-site-accent: var(--primary);');
+    expect(theme).toContain('--hraness-site-accent-ink: var(--primary-foreground);');
     const token = (name: string): string[] =>
-      [...css.matchAll(new RegExp(`${name}:\\s*(#[a-f0-9]{6})`, "giu"))].map((match) => match[1] as string);
-    const accents = token("--hraness-site-accent");
-    const accentInks = token("--hraness-site-accent-ink");
+      theme.match(new RegExp(`${name}:\\s*light-dark\\((#[a-f0-9]{6}),\\s*(#[a-f0-9]{6})\\)`, "iu"))?.slice(1) ?? [];
+    const accents = token("--primary");
+    const accentInks = token("--primary-foreground");
     const backgrounds = token("--background");
     expect(accents).toHaveLength(2);
     expect(accentInks).toHaveLength(2);

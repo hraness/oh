@@ -83,9 +83,10 @@ describe("Oh site source contract", () => {
   });
 
   test("uses Nebula Sans for every proportional role while preserving monospace for code", async () => {
-    const [packageJson, globals] = await Promise.all([
+    const [packageJson, globals, paper] = await Promise.all([
       read("package.json"),
       read("app/globals.css"),
+      read("styles/vendor/hraness-paper/paper-theme.css"),
     ]);
 
     expect(packageJson).toContain(
@@ -93,7 +94,8 @@ describe("Oh site source contract", () => {
     );
     expect(globals).toContain('@import "@hraness/design-kit/fonts.css"');
     expect(globals).toContain('@import "@hraness/design-kit/product-marketing.css"');
-    expect(globals).toContain('--font-text: "Nebula Sans"');
+    expect(globals).toContain('@import "../styles/vendor/hraness-paper/paper-theme.css"');
+    expect(paper).toContain('--font-text: "Nebula Sans"');
     expect(globals).toContain("font-family: var(--font-text)");
     expect(globals).not.toMatch(/Georgia|Times New Roman/u);
     expect(globals).toContain("font-family: ui-monospace, SFMono-Regular, Menlo, monospace");
@@ -239,12 +241,13 @@ describe("Oh site source contract", () => {
     expect(packageJson.engines).toEqual({ node: "24.x" });
     expect(scripts).toEqual({
       build: "next build --webpack",
+      "check:theme": "bun scripts/check-paper-theme.mjs",
       dev: "next dev --webpack",
       lint: "eslint . --ignore-pattern .next",
       postbuild: "bun test ./tests/runtime.test.ts",
       prebuild: "bun run test",
       start: "next start",
-      test: "bun test ./tests/source.test.ts ./tests/home.test.tsx",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx",
       typecheck: "tsc --noEmit",
     });
     expect(vercelConfig).toEqual({
