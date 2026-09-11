@@ -2,6 +2,8 @@ import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../s
 import type { Message } from "./model";
 import { EVOLUTION_READER_CONTRACTS, parseEvolutionReaderContractId, type EvolutionReaderContractId, type EvolutionReaderAblationContractId } from "./evolution-reader-contracts";
 import { OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT } from "./observe-extractor-v2";
+import { EVOLUTION_ANSWER_AUDIT_PROFILE_ID, EVOLUTION_ANSWER_AUDIT_INSTRUCTION_SHA256_V1,
+  EVOLUTION_ANSWER_AUDIT_POLICY_SHA256_V1, validateEvolutionAnswerAuditMessages } from "./evolution-answer-audit";
 
 export const EVOLUTION_GATEWAY_ENDPOINT = "https://ai-gateway.vercel.sh/v1/chat/completions";
 export const EVOLUTION_OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
@@ -19,7 +21,8 @@ export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${
 export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"
   | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1" | "gpt4o-mini-locomo-j-judge-v1";
 export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2";
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId;
+export type EvolutionAnswerAuditProfileId = typeof EVOLUTION_ANSWER_AUDIT_PROFILE_ID;
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
@@ -27,6 +30,7 @@ export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: st
   qualification: "gateway-alias" | "official-snapshot-request"; expectedSnapshot: string | null;
   settings: Readonly<{ temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }> }>;
   responseFormat?: typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT;
+  answerAuditContract?: Readonly<{ policySha256: string; instructionSha256: string }>;
   pricingCheckedAt: "2026-09-09"; prices: readonly PriceTier[];
   readerContract?: Readonly<{ baseReader: EvolutionBaseReaderId; id: EvolutionReaderAblationContractId; instructionSha256: string }> }>;
 type Body = Readonly<{ model: string; messages: readonly Message[]; stream: false; store: false; max_tokens: number;
@@ -129,7 +133,12 @@ const EXTRACTOR_PROFILES: Readonly<Record<EvolutionExtractorProfileId, Evolution
   "gpt5-mini-structured-extractor-v2": { ...LEGACY_PROFILES["gpt5-mini-reader"], id: "gpt5-mini-structured-extractor-v2",
     settings: { reasoning: { effort: "low" } }, responseFormat: OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT },
 });
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES });
+/** The audit lane has one fixed instruction and input grammar; it is not a general answer-reader profile. */
+const ANSWER_AUDIT_PROFILES: Readonly<Record<EvolutionAnswerAuditProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_ANSWER_AUDIT_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_ANSWER_AUDIT_PROFILE_ID,
+    answerAuditContract: { policySha256: EVOLUTION_ANSWER_AUDIT_POLICY_SHA256_V1, instructionSha256: EVOLUTION_ANSWER_AUDIT_INSTRUCTION_SHA256_V1 } },
+});
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
@@ -170,6 +179,7 @@ function applicablePrice(prices: readonly PriceTier[], input: number): PriceTier
 /** Pure, immutable request preparation; the caller owns admission, raw-byte capture, transport and settlement. */
 export function makeEvolutionRequest(profileId: EvolutionProfileId, messages: readonly Message[]): EvolutionRequest {
   const selected = getProfile(profileId);
+  if (selected.answerAuditContract !== undefined) validateEvolutionAnswerAuditMessages(messages);
   if (!validMessages(messages, selected)) fail("invalid prompt shape");
   const copied = structuredClone(messages);
   const body: Body = { model: selected.model, messages: copied, stream: false, store: false, max_tokens: selected.maxOutputTokens,

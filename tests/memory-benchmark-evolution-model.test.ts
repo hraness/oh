@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
+import { makeEvolutionAnswerAuditMessages } from "../scripts/benchmarks/evolution-answer-audit";
 import { EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_OPENAI_ENDPOINT, EVOLUTION_PROFILES, EVOLUTION_RESPONSE_MAX_BYTES,
   makeEvolutionRequest, parseEvolutionResponse, validateEvolutionRequest, type EvolutionProfileId,
   type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
@@ -29,7 +30,9 @@ describe("memory evolution model contracts", () => {
     const ids = Object.keys(EVOLUTION_PROFILES) as EvolutionProfileId[];
     const hashes = new Set<string>();
     for (const id of ids) {
-      const prompt = id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1" ? directJudgeMessages : messages;
+      const prompt = id === "gpt5-mini-answer-audit-v1"
+        ? makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "Blue.", draftAnswer: "Blue." })
+        : id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1" ? directJudgeMessages : messages;
       const request = makeEvolutionRequest(id, prompt), bytes = raw(response(request));
       const result = parseEvolutionResponse(bytes, request);
       expect(validateEvolutionRequest(structuredClone(request))).toEqual(request);

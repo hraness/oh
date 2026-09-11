@@ -20,7 +20,7 @@ const structured = () => makeEvolutionRequest("gpt5-mini-structured-extractor-v2
 test("adding extractor profiles preserves every existing profile, V1 request and full-window request byte", () => {
   // Frozen from ebc46ed201714641d59907bd9cabe933e6dfa70e before adding these profiles.
   // JSON-byte digests cover property order, all profile/request digests and financial preimages.
-  const profiles = Object.entries(EVOLUTION_PROFILES).filter(([id]) => !extractors.includes(id as EvolutionExtractorProfileId))
+  const profiles = Object.entries(EVOLUTION_PROFILES).filter(([id]) => !extractors.includes(id as EvolutionExtractorProfileId) && id !== "gpt5-mini-answer-audit-v1")
     .sort(([a], [b]) => a < b ? -1 : 1);
   const requests = profiles.map(([id, profile]) => makeEvolutionRequest(id as EvolutionProfileId,
     profile.qualification === "official-snapshot-request" || ["gpt4o-gateway-native-rubric-judge-v1", "gpt4o-gateway-native-rubric-16-judge-v1"].includes(id)
