@@ -15,6 +15,7 @@ import { makeEvolutionContextPlan, makeEvolutionExperimentContextPlan, makeEvolu
   validateEvolutionContextPlanSources, type EvolutionAnyContextPlan, type EvolutionReaderPlan } from "./evolution-plan";
 import { openEvolutionStore, validateEvolutionAttemptFailure, type EvolutionAttemptFailure, type EvolutionStore } from "./evolution-store";
 import { invokeEvolutionRequest, type EvolutionCredential } from "./evolution-transport";
+import { assertEvolutionLiveProfiles } from "./evolution-live-admission";
 import { EVOLUTION_PAID_QUEUE_V2_PROTOCOL, runLabPaidQueue, runLabPaidQueueV2 } from "./lab-paid-queue";
 import { loadJudgeProfile } from "./judge";
 import { makeEvolutionJudgePlan, validateEvolutionJudgePlan, type EvolutionJudgePlan, type EvolutionJudgeProfileId } from "./evolution-judge";
@@ -290,6 +291,7 @@ async function contextFor(config: EvolutionRunConfig, selection?: Awaited<Return
 export async function prepareEvolution(configPin: EvolutionPin) {
   const config = await configInput(configPin);
   if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return prepareEvolutionV9(configPin, retrievalIdentity);
+  assertEvolutionLiveProfiles([...config.readers, config.judge]);
   const input = await selected(config), started = performance.now();
   const dataset = projectEvolutionRunnerInput(input.dataset), retrievalSourceSha256 = await retrievalIdentity();
   if (config.protocol === "oh.memory.evolution-run.v7") {
@@ -360,6 +362,7 @@ export async function rebindEvolutionRelease(configPin: EvolutionPin, contextPin
 export async function prepareEvolutionReaders(configPin: EvolutionPin, contextPin: EvolutionPin) {
   const config = await configInput(configPin);
   if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return prepareEvolutionReadersV9(configPin, contextPin, retrievalIdentity);
+  assertEvolutionLiveProfiles([...config.readers, config.judge]);
   const context = await contextFor(config), pinned = await json(contextPin);
   if (canonicalSha256(context) !== canonicalSha256(pinned)) fail("context pin differs from config-bound context");
   const plan = makeEvolutionReaderPlan(context, config.readers), planPath = join(config.directory, "readers.json");
@@ -385,6 +388,8 @@ export async function executeEvolutionPhase(input: Readonly<{ configPin: Evoluti
   phase: "reader" | "judge"; maxUsd: number; maxNewCalls: number; credential: EvolutionCredential; output: string }>) {
   const config = await configInput(input.configPin);
   if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return executeEvolutionPhaseV9({ ...input, identity: retrievalIdentity });
+  // Zero-call execution remains available to reconstruct historical occupied evidence.
+  if (input.maxNewCalls > 0) assertEvolutionLiveProfiles([...config.readers, config.judge]);
   const authority = await verifyEvolutionCampaign(config.campaignPin);
   if (!Number.isSafeInteger(input.maxUsd * 1_000_000) || input.maxUsd * 1_000_000 !== authority.campaign.additionalBudgetMicros
     || !Number.isSafeInteger(input.maxNewCalls) || input.maxNewCalls < 0 || Object.is(input.maxNewCalls, -0)
@@ -496,6 +501,7 @@ export function evolutionPhaseAttempts(value: unknown, phase: "reader" | "judge"
 export async function prepareEvolutionJudges(configPin: EvolutionPin, readerPlanPin: EvolutionPin, readerOutputPin: EvolutionPin) {
   const config = await configInput(configPin);
   if (config.protocol === EVOLUTION_RUN_V9_PROTOCOL) return prepareEvolutionJudgesV9(configPin, readerPlanPin, readerOutputPin, retrievalIdentity);
+  assertEvolutionLiveProfiles([...config.readers, config.judge]);
   const selection = await selected(config), contextPlan = await contextFor(config, selection);
   const readerPlan = validateEvolutionReaderPlan(await json(readerPlanPin) as EvolutionReaderPlan, contextPlan);
   const authority = await verifyEvolutionCampaign(config.campaignPin), store = await openEvolutionStore({ directory: config.storeDirectory, campaign: authority.campaign });
