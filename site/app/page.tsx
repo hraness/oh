@@ -211,7 +211,7 @@ export default function Home() {
   ];
 
   return (
-    <>
+    <div data-hraness-marketing-preset="editorial">
       <script
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         type="application/ld+json"
@@ -226,6 +226,7 @@ export default function Home() {
 
       <main id="main" tabIndex={-1}>
         <MarketingPage>
+          <div className="hraness-marketing-field">
           <ProductHero
             actions={[
               { href: "#install", label: "Install Oh" },
@@ -233,7 +234,8 @@ export default function Home() {
             ]}
             boundary={footnote}
             className="oh-marketing-hero"
-            eyebrow="Open-source tools for agentic research"
+            eyebrow=""
+            example="Open-source tools for agentic research"
             frame={(
               <MarketingProofFrame
                 caption="An illustrative review, not evidence from a real study. The public citation record is checked against its schema and digest."
@@ -255,9 +257,10 @@ export default function Home() {
             )}
             heading={heading}
             headingId="hero-title"
-            name="Oh"
+            name=""
             summary={lead}
           />
+          </div>
 
           <MarketingStatStrip
             ariaLabel="Runtime-backed facts"
@@ -278,7 +281,7 @@ export default function Home() {
                 </p>
               ),
             }))}
-            label="The research model"
+            label=""
             summary="A research graph is a set of connected records. Oh separates the question, the source, and the claim so you can revisit one without losing the others. An assertion records a stance on a claim; citations link that stance to its evidence."
           />
 
@@ -286,7 +289,7 @@ export default function Home() {
             heading="Every step of a review keeps its own record."
             headingId="trace-title"
             id="trace"
-            label="One review, traced"
+            label=""
             layout="split"
             summary="Follow this illustrative review from a question to a brief. Each key identifies a record you can open. The citation connects a stance on the claim to the captured report; the log gives you a verifiable operation history. That history shows what changed, not whether the claim is true."
           >
@@ -353,7 +356,7 @@ oh get evidence:table-2 \\
                 ),
               },
             ]}
-            label="Interfaces"
+            label=""
             summary="The CLI, TypeScript SDK, and packaged Agent Skill operate the same records and contract. There is no separate agent-only path behind the convenient one."
           />
 
@@ -362,16 +365,17 @@ oh get evidence:table-2 \\
             headingId="kernel-title"
             id="kernel"
             items={trust}
-            label="The kernel"
+            label=""
             summary="Oh makes integrity and provenance mechanics inspectable. It does not turn a retrieval score, a valid digest, or an agent's output into an accepted research claim."
           />
 
           <MarketingInstallPanel
-            eyebrow={`Current release · v${releaseVersion}`}
+            eyebrow=""
             heading="Install and start locally."
             headingId="install-title"
             id="install"
           >
+            <p className="install-note">{`Current release · v${releaseVersion}`}</p>
             <pre className="install-command" tabIndex={0}><code>{`bun add --global @hraness/oh@${releaseVersion}
 oh --help`}</code></pre>
             <pre className="install-command" tabIndex={0}><code>{`oh init
@@ -403,7 +407,7 @@ oh verify`}</code></pre>
             heading="Before you install."
             headingId="questions-title"
             id="questions"
-            label="Questions"
+            label=""
             questions={questions.map(({ answer, question }) => ({
               answer: <p>{answer}</p>,
               question,
@@ -414,7 +418,7 @@ oh verify`}</code></pre>
             heading="Built by Ben Guo"
             headingId="maker-title"
             id="maker"
-            label="The maker"
+            label=""
             links={[
               { href: "https://hraness.com", label: "hraness.com" },
               { href: "https://x.com/hraness", label: "@hraness" },
@@ -452,6 +456,6 @@ oh verify`}</code></pre>
           <a href="https://hraness.com/projects">Hraness projects</a>
         </nav>
       </footer>
-    </>
+    </div>
   );
 }

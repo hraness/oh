@@ -2,6 +2,7 @@
 @import "@hraness/design-kit/fonts.css";
 @import "@hraness/design-kit/product-marketing.css";
 @import "../styles/vendor/hraness-paper/paper-theme.css";
+@import "../vendor/hraness-marketing/product-marketing-preset.css";
 
 /* Paper owns the common palette; this local alias keeps the specification and
  * existing proof components independent of the shared stylesheet's layout. */
@@ -42,8 +43,8 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
-/* Marketing grammar bindings. The palette above is the source of truth. */
-:where(.hraness-marketing-page, .hraness-marketing-header) {
+/* The specification keeps its existing Paper header and reading typography. */
+.spec-header {
   --hraness-marketing-ink: var(--foreground);
   --hraness-marketing-muted: var(--muted);
   --hraness-marketing-background: var(--background);
@@ -59,14 +60,8 @@ a:focus-visible {
   color: var(--hraness-site-accent);
 }
 
-.oh-marketing-hero {
-  gap: clamp(1.25rem, 2.5vw, 2rem);
-  padding-block-start: clamp(1.5rem, 3vw, 2.5rem);
-}
-.oh-marketing-hero .hraness-marketing-hero__copy { gap: 1rem; }
 .oh-marketing-hero .hraness-marketing-hero__heading {
   max-inline-size: 22ch;
-  font-size: var(--hraness-paper-heading-size);
 }
 
 .hraness-marketing-stats {
@@ -92,7 +87,7 @@ a:focus-visible {
   padding: clamp(1.25rem, 3vw, 2rem);
   overflow-wrap: anywhere;
 }
-.citation-preview h2 { margin: 0; font-size: clamp(1.25rem, 2vw, 1.65rem); line-height: 1.3; }
+.citation-preview h2 { margin: 0; font-family: var(--font-text); font-size: clamp(1.25rem, 2vw, 1.65rem); line-height: 1.3; }
 .citation-preview > p { max-inline-size: 52ch; color: var(--muted); }
 .citation-preview dl { margin-block: 1.5rem; }
 .citation-preview dl > div {
@@ -160,9 +155,9 @@ a:focus-visible {
   }
 }
 
-/* A three-row sticky header would take a third of a phone viewport. */
+/* The specification retains its existing phone navigation behavior. */
 @media (max-width: 48rem) {
-  .hraness-marketing-header {
+  .spec-header {
     position: static;
   }
 }
@@ -575,19 +570,4 @@ a:focus-visible {
   html {
     scroll-behavior: auto;
   }
-}
-
-/* Pinned v0.4 marketing recipes predate configurable heading sizes. Keep this
- * small adapter local so the component runtime can upgrade independently. */
-[data-hraness-theme="paper"] :where(.hraness-marketing-hero__heading, .hraness-marketing-cta__heading) {
-  font-size: var(--hraness-paper-heading-size);
-  line-height: var(--hraness-paper-heading-leading);
-  letter-spacing: var(--hraness-paper-heading-tracking);
-}
-[data-hraness-theme="paper"] :where(.hraness-marketing-section__heading, .hraness-marketing-install__heading, .hraness-marketing-primitives__heading, .hraness-marketing-interfaces__heading, .hraness-marketing-trust__heading, .hraness-marketing-quotes__heading, .hraness-marketing-pricing__heading, .hraness-marketing-questions__heading, .hraness-marketing-maker__heading) {
-  font-size: var(--hraness-paper-section-heading-size);
-  line-height: var(--hraness-paper-heading-leading);
-}
-[data-hraness-theme="paper"] .hraness-marketing-hero__summary {
-  font-size: var(--hraness-paper-summary-size);
 }
