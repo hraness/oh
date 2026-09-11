@@ -181,7 +181,7 @@ LongMemEval judge profiles are explicit and keep separate request identities:
 | --- | --- | --- | --- |
 | `gpt4o-official-snapshot-judge` | Direct OpenAI `gpt-4o-2024-08-06` | One user message, 10 tokens | Native `contains yes` |
 | `gpt4o-gateway-native-rubric-16-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 16 tokens | Native `contains yes` |
-| `gpt4o-gateway-native-rubric-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 10 tokens | Native `contains yes` |
+| `gpt4o-gateway-native-rubric-judge-v1` (historical replay only) | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 10 tokens | Native `contains yes` |
 | `gpt4o-gateway-judge` | Gateway `openai/gpt-4o`, OpenAI provider only | System and user messages, 16 tokens | Strict yes/no |
 
 All native-rubric profiles require the parity-qualified, source-attributed
@@ -205,6 +205,19 @@ its rejected first attempts and full unresolved reservations are preserved.
 Changing the limit requires new requests, not a retry or relabeling of those
 captures. Qualify any new provider/profile combination with one bounded request
 before expanding; stop on a deterministic provider configuration rejection.
+
+The 10-token Gateway profile is blocked for new live admission by the
+[captured configuration rejection](results/memory-evolution-native-judge-rejection-v1.json).
+V1–V9 preparation and execution with a positive new-call limit check all configured
+profiles, including the downstream judge, before reading source inputs or spending
+on readers. Generic callers can use `assertEvolutionLiveProfiles` for the same
+whole-run preflight. Transport checks each cache miss before credential validation,
+reservation or dispatch; existing hits and captured first responses still replay
+or finalize, and unresolved attempts retain their full reservations without retry.
+Zero-call execution and pure artifact parsing, reconstruction and reporting remain
+available. No profile, request bytes or native scoring rule changes, and no
+compatible profile is selected automatically. Passing this guard does not establish
+live provider qualification.
 
 Run configuration V1, V2 and V3 may explicitly select either Gateway native-rubric ID; those
 versions still describe treatment/context shapes. The model request remains V1
