@@ -22,7 +22,9 @@ export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-ju
   | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1" | "gpt4o-mini-locomo-j-judge-v1";
 export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2";
 export type EvolutionAnswerAuditProfileId = typeof EVOLUTION_ANSWER_AUDIT_PROFILE_ID;
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId;
+export const EVOLUTION_BEAM_JUDGE_PROFILE_IDS = ["gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1"] as const;
+export type EvolutionBeamJudgeProfileId = typeof EVOLUTION_BEAM_JUDGE_PROFILE_IDS[number];
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
@@ -138,7 +140,18 @@ const ANSWER_AUDIT_PROFILES: Readonly<Record<EvolutionAnswerAuditProfileId, Evol
   [EVOLUTION_ANSWER_AUDIT_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_ANSWER_AUDIT_PROFILE_ID,
     answerAuditContract: { policySha256: EVOLUTION_ANSWER_AUDIT_POLICY_SHA256_V1, instructionSha256: EVOLUTION_ANSWER_AUDIT_INSTRUCTION_SHA256_V1 } },
 });
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES });
+/** BEAM-only transport profiles. Prompts and released score parsing remain caller-owned;
+ * plain text transport preserves the upstream grammar without adding JSON mode or a schema.
+ * These Gateway aliases and finite output caps are operational choices, not upstream model parity. */
+const BEAM_JUDGE_PROFILES: Readonly<Record<EvolutionBeamJudgeProfileId, EvolutionModelProfile>> = frozen({
+  "gpt4o-beam-event-extraction-v1": profile("gpt4o-beam-event-extraction-v1", "openai/gpt-4o", "openai", 128_000, 1_024,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+  "gpt4o-beam-event-equivalence-v1": profile("gpt4o-beam-event-equivalence-v1", "openai/gpt-4o", "openai", 128_000, 32,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+  "gpt4o-beam-nugget-v1": profile("gpt4o-beam-nugget-v1", "openai/gpt-4o", "openai", 128_000, 512,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+});
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
@@ -155,7 +168,8 @@ function getProfile(value: unknown): EvolutionModelProfile {
   return EVOLUTION_PROFILES[value as EvolutionProfileId];
 }
 function validMessages(value: unknown, selected: EvolutionModelProfile): value is readonly Message[] {
-  const nativeJudge = selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1";
+  const nativeJudge = selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
+    || selected.id === "gpt4o-beam-event-extraction-v1" || selected.id === "gpt4o-beam-nugget-v1";
   return Array.isArray(value) && (nativeJudge
     ? value.length === 1 && value[0]?.role === "user"
     : value.length === 2 && value[0]?.role === "system" && value[1]?.role === "user")

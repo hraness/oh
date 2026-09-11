@@ -137,6 +137,7 @@ describe("composable isolated reader answer contracts", () => {
       "gpt4o-gateway-native-rubric-16-judge-v1", "gpt4o-mini-locomo-j-judge-v1",
       "gpt5-mini-low-extractor-v1", "gpt5-mini-structured-extractor-v2",
       "gpt5-mini-answer-audit-v1",
+      "gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1",
     ].sort());
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {

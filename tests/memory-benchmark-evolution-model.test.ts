@@ -32,7 +32,8 @@ describe("memory evolution model contracts", () => {
     for (const id of ids) {
       const prompt = id === "gpt5-mini-answer-audit-v1"
         ? makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "Blue.", draftAnswer: "Blue." })
-        : id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1" ? directJudgeMessages : messages;
+        : id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1"
+          || id === "gpt4o-beam-event-extraction-v1" || id === "gpt4o-beam-nugget-v1" ? directJudgeMessages : messages;
       const request = makeEvolutionRequest(id, prompt), bytes = raw(response(request));
       const result = parseEvolutionResponse(bytes, request);
       expect(validateEvolutionRequest(structuredClone(request))).toEqual(request);
