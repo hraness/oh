@@ -3,7 +3,7 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
-import { EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_PROFILES, evolutionReaderContract, makeEvolutionProfileWindowRequest,
+import { EVOLUTION_BEAM_JUDGE_PROFILE_IDS, EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_PROFILES, evolutionReaderContract, makeEvolutionProfileWindowRequest,
   makeEvolutionRequest, parseEvolutionResponse, supportsEvolutionProfileWindow, validateEvolutionRequest,
   type EvolutionExtractorProfileId, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT } from "../scripts/benchmarks/observe-extractor-v2";
@@ -20,7 +20,8 @@ const structured = () => makeEvolutionRequest("gpt5-mini-structured-extractor-v2
 test("adding extractor profiles preserves every existing profile, V1 request and full-window request byte", () => {
   // Frozen from ebc46ed201714641d59907bd9cabe933e6dfa70e before adding these profiles.
   // JSON-byte digests cover property order, all profile/request digests and financial preimages.
-  const profiles = Object.entries(EVOLUTION_PROFILES).filter(([id]) => !extractors.includes(id as EvolutionExtractorProfileId) && id !== "gpt5-mini-answer-audit-v1")
+  const profiles = Object.entries(EVOLUTION_PROFILES).filter(([id]) => !extractors.includes(id as EvolutionExtractorProfileId) && id !== "gpt5-mini-answer-audit-v1"
+    && !(EVOLUTION_BEAM_JUDGE_PROFILE_IDS as readonly string[]).includes(id))
     .sort(([a], [b]) => a < b ? -1 : 1);
   const requests = profiles.map(([id, profile]) => makeEvolutionRequest(id as EvolutionProfileId,
     profile.qualification === "official-snapshot-request" || ["gpt4o-gateway-native-rubric-judge-v1", "gpt4o-gateway-native-rubric-16-judge-v1"].includes(id)

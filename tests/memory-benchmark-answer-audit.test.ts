@@ -6,7 +6,7 @@ import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { EVOLUTION_ANSWER_AUDIT_INSTRUCTION_V1, EVOLUTION_ANSWER_AUDIT_INSTRUCTION_SHA256_V1,
   EVOLUTION_ANSWER_AUDIT_POLICY_V1, EVOLUTION_ANSWER_AUDIT_POLICY_SHA256_V1, EVOLUTION_ANSWER_AUDIT_PROFILE_ID,
   makeEvolutionAnswerAuditMessages, validateEvolutionAnswerAuditMessages } from "../scripts/benchmarks/evolution-answer-audit";
-import { EVOLUTION_PROFILES, evolutionReaderContract, makeEvolutionProfileWindowRequest, makeEvolutionRequest,
+import { EVOLUTION_BEAM_JUDGE_PROFILE_IDS, EVOLUTION_PROFILES, evolutionReaderContract, makeEvolutionProfileWindowRequest, makeEvolutionRequest,
   parseEvolutionResponse, supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId,
   type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { openEvolutionStore } from "../scripts/benchmarks/evolution-store";
@@ -22,7 +22,8 @@ const directJudgeMessages = [{ role: "user" as const, content: "Evaluate this Lo
 
 describe("isolated answer-audit contract", () => {
   test("appends one profile while preserving all 97 prior profile and request bytes", () => {
-    const profiles = Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== EVOLUTION_ANSWER_AUDIT_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
+    const profiles = Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== EVOLUTION_ANSWER_AUDIT_PROFILE_ID
+      && !(EVOLUTION_BEAM_JUDGE_PROFILE_IDS as readonly string[]).includes(id)).sort(([a], [b]) => a < b ? -1 : 1);
     const requests = profiles.map(([id, p]) => makeEvolutionRequest(id as EvolutionProfileId,
       p.qualification === "official-snapshot-request" || ["gpt4o-gateway-native-rubric-judge-v1", "gpt4o-gateway-native-rubric-16-judge-v1"].includes(id) ? directJudgeMessages : legacyMessages));
     const windows = profiles.filter(([id]) => supportsEvolutionProfileWindow(id as EvolutionProfileId))
