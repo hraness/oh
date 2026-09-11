@@ -11,10 +11,16 @@ different protocol, never as a matched result. The card was fixed on
 
 Every experiment under this card runs inside one campaign with a cap of at
 most $20 of accounted exposure. Readers are GPT-5 nano or GPT-5 mini only.
-The sealed holdout is the LoCoMo test split, not BEAM. No direct OpenAI key
-is used, so the official LongMemEval judge snapshot is never called; the judge
-below is a Gateway alias and every result is labelled alias-only. Accounted
-exposure is a conservative ledger figure, not a provider invoice.
+The original policy designated the LoCoMo test split as its sealed holdout,
+rather than BEAM. The completed [LoCoMo comparison](EVOLUTION_RELEASE_RESULTS.md#matched-descriptive-comparison-on-locomo)
+instead includes all ten already exposed conversations: 314 development
+questions and 1,226 previously evaluated questions. Its single-repeat result
+is descriptive and does not establish fresh confirmation. This exposure
+correction does not change the frozen analysis plan or its decision rules.
+No direct OpenAI key is used, so the official LongMemEval judge snapshot is
+never called; the judge below is a Gateway alias and every result is labelled
+alias-only. Accounted exposure is a conservative ledger figure, not a
+provider invoice.
 
 ## Dataset and strata
 

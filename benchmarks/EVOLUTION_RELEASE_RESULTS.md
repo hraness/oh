@@ -208,21 +208,26 @@ The stable finding across both contracts is the memory delta: Oh semantic beats
 the same reader on BM25 contexts by 17 to 22 questions with about twice as
 many paired wins as losses.
 
-## Sealed confirmation on LoCoMo
+## Matched descriptive comparison on LoCoMo
 
-Every LongMemEval_S score above was read during development, so the
-confirmation uses a different benchmark whose scores were never read before
-the candidate was fixed: the LoCoMo test split, 1,540 questions across the
-ten conversations in the four scored categories (single-hop, multi-hop,
-temporal, open-domain; adversarial questions excluded, as Mem0 and Zep report
-it). The study, its question list and scope were sealed by digest before the
-first reader call. The protocol follows the published LoCoMo comparisons:
+The completed LoCoMo comparison covers 1,540 questions across all ten
+conversations in the four scored categories (single-hop, multi-hop, temporal,
+open-domain; adversarial questions excluded, as Mem0 and Zep report it).
+It includes 314 development questions from two conversations and 1,226
+previously evaluated questions from the other eight. All ten conversations
+were already exposed to earlier studies, as detailed in the
+[exposure record](#locomo-exposure-and-the-parity-lane).
+The study, its question list and scope were sealed by digest before this
+run's first reader call; that seal preserves the design without making the
+data untouched. The protocol follows the published LoCoMo comparisons:
 the CORRECT/WRONG judge prompt on gpt-4o-mini, the final session date as the
 reference date, and a 24,000-byte retrieval budget for both memory systems
 (about a third of a LoCoMo conversation), so the memory system has to choose.
 Readers are GPT-5 nano and GPT-5 mini under the calibration-only contract,
 one repeat each. All 11,065 calls completed with zero failures for $11.82
 ([summary](results/memory-evolution-locomo-sealed-1540-v1.json)).
+The summary reports descriptive paired results, with no cluster confidence
+interval or superiority decision.
 
 | Arm | Reader | Overall | Single-hop | Multi-hop | Temporal | Open-domain |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
@@ -235,20 +240,20 @@ Paired on the same questions, Oh semantic beats BM25 window 169 to 124 with
 nano and 126 to 83 with mini (about 2.8 to 2.9 points). The advantage is
 almost entirely multi-hop: 67 wins to 32 losses with nano and 50 to 22 with
 mini, the questions where evidence from several sessions has to be brought
-together. The two previously used conversations (314 questions) and the eight
-never-used ones (1,226) score within a point of each other for every arm.
+together. Absolute score differences between the development and previously
+evaluated strata range from 0.43 to 1.48 percentage points. BM25 with mini has
+the largest difference: 82.80% on development versus 81.32% on the evaluated
+stratum.
 
 For comparison, the published LoCoMo judge scores with gpt-4o-mini readers are
-Mem0 66.9, Mem0 with graph 68.4, Letta 74.0 and Zep 75.1. Oh with a nano
-reader, which costs less per token than gpt-4o-mini, scores 81.0, and with mini
-84.4. Two caveats keep this from being a like-for-like win: the readers are
-different models, and even the BM25 control with nano scores 78.1 here, so a
-good part of the distance to those published numbers comes from the reader
-tier and the 24 KB budget rather than from Oh's retrieval alone. What the
-sealed run does establish is that on a benchmark whose scores were never used
-for tuning, Oh's retrieval keeps a consistent paired advantage over the
-lexical control at the same budget, and that the whole stack lands well above
-the published memory-framework results at a fraction of their reader cost.
+Mem0 66.9, Mem0 with graph 68.4, Letta 74.0 and Zep 75.1. Oh scores 81.0 with
+nano and 84.4 with mini. The readers differ from those published comparisons,
+and the context budgets are not matched; even the BM25 control with nano
+scores 78.1 here. These differences prevent attributing the gap to Oh's
+retrieval alone or claiming an external-framework win. Within this exposed
+comparison, Oh has a paired advantage over BM25 at both reader tiers with
+the same budget. It does not establish fresh confirmation or a matched cost
+advantage over the published frameworks.
 
 ## Under a third-party harness
 
@@ -322,8 +327,8 @@ third-party harnesses can run that comparison.
 
 ## LoCoMo: exposure and the parity lane
 
-No LoCoMo score has been read under the [V9 protocol](EVOLUTION_RELEASE_V9.md)
-yet; this section records what is declared before that read. Every one of the
+The completed [V9 comparison](results/memory-evolution-locomo-sealed-1540-v1.json)
+retains the exposure dispositions recorded before that run. Every one of the
 ten LoCoMo conversations is exposed. The two seed-17 development conversations
 (conv-49 and conv-50) were used for development-only reader, judge and
 memory-representation runs recorded above. The other eight were read by the
@@ -410,8 +415,8 @@ frameworks under this same reader, judge and accounting.
   arm, category, exposure-stratum and paired summaries, deduplicated cost.
 - [Mini-reader public summary](results/memory-evolution-full-release-500-mini-v1.json):
   the same protocol over the rebound study with `gpt5-mini-explicit-abstention-composition-v1-reader`.
-- [Sealed LoCoMo summary](results/memory-evolution-locomo-sealed-1540-v1.json):
-  the confirmation run above.
+- [LoCoMo descriptive summary](results/memory-evolution-locomo-sealed-1540-v1.json):
+  the matched comparison above, with its original exposure dispositions.
 - [Two-stage development summary](results/memory-evolution-two-stage-dev100-v1.json)
   and [calibration-only full-500 summary](results/memory-evolution-full-release-500-calibration-v1.json):
   the second-round experiments above.
