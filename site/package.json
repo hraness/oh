@@ -7,13 +7,14 @@
     "node": "24.x"
   },
   "scripts": {
+    "check:theme": "bun scripts/check-paper-theme.mjs",
     "dev": "next dev --webpack",
     "prebuild": "bun run test",
     "build": "next build --webpack",
     "postbuild": "bun test ./tests/runtime.test.ts",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
-    "test": "bun test ./tests/source.test.ts ./tests/home.test.tsx",
+    "test": "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
