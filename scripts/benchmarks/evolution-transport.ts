@@ -1,5 +1,6 @@
 import { qualifyGatewayOIDC, type GatewayStudyAuth } from "./gateway-study-v3";
 import { validateEvolutionRequest, type EvolutionRequest } from "./evolution-model";
+import { assertEvolutionLiveProfiles } from "./evolution-live-admission";
 import type { EvolutionRaw, EvolutionStore } from "./evolution-store";
 
 export type EvolutionCredential = Readonly<{ kind: "gateway-oidc"; token: string; auth: GatewayStudyAuth }>
@@ -18,6 +19,7 @@ export async function invokeEvolutionRequest(input: Readonly<{ request: Evolutio
     if (cached.status === "captured") return { cached: true, recovered: true, result: store.finalize(request, repeat) };
     throw new Error("Evolution request has an unresolved reservation; no repeat dispatch.");
   }
+  assertEvolutionLiveProfiles([request.profileId]);
   const credential = input.credential;
   const qualify = () => {
     if (input.stopped?.()) throw new Error("Evolution request admission stopped.");

@@ -24,6 +24,7 @@ import { openEvolutionStore, type EvolutionAttemptFailure, type EvolutionStore }
 import { assertEvolutionStudyV9Configuration, parseEvolutionV9Variant, selectEvolutionStudyV9Shard, validateEvolutionStudyV9Artifacts,
   EVOLUTION_V9_JUDGES, type EvolutionStudyV9Authorization, type EvolutionV9Judge } from "./evolution-study-v9";
 import { invokeEvolutionRequest, type EvolutionCredential } from "./evolution-transport";
+import { assertEvolutionLiveProfiles } from "./evolution-live-admission";
 import { EVOLUTION_PAID_QUEUE_V2_PROTOCOL, runLabPaidQueueV2 } from "./lab-paid-queue";
 
 export const EVOLUTION_RUN_V9_PROTOCOL = "oh.memory.evolution-run.v9" as const;
@@ -164,7 +165,9 @@ function boundedPlanBytes(plan: unknown, label: string): void {
  * rebuilt into observation records that reach only the derived arms; the prepared identity carries the artifact digest. */
 export async function prepareEvolutionV9(configPin: EvolutionPin, runtime: EvolutionV9Runtime) {
   const env = environment(runtime), { identity } = env;
-  const config = await configInput(configPin), input = await selectEvolutionV9(config, env.source), started = performance.now();
+  const config = await configInput(configPin);
+  assertEvolutionLiveProfiles([...config.readers, config.judge]);
+  const input = await selectEvolutionV9(config, env.source), started = performance.now();
   const { study } = input.authorization, retrievalSourceSha256 = await identity();
   if (study.retrievalSourceSha256 !== retrievalSourceSha256) fail("study retrieval source changed before preparation");
   if (study.retrievalProvenance !== null) fail("a rebound study reuses parent contexts through rebind, not fresh preparation");
@@ -239,7 +242,9 @@ export async function rebindEvolutionDevelopment(config: EvolutionRebindableDeve
 }
 
 export async function prepareEvolutionReadersV9(configPin: EvolutionPin, contextPin: EvolutionPin, runtime: EvolutionV9Runtime) {
-  const config = await configInput(configPin), context = await contextFor(config, environment(runtime)), pinned = await json(contextPin);
+  const config = await configInput(configPin);
+  assertEvolutionLiveProfiles([...config.readers, config.judge]);
+  const context = await contextFor(config, environment(runtime)), pinned = await json(contextPin);
   if (canonicalSha256(context) !== canonicalSha256(pinned)) fail("context pin differs from config-bound context");
   const plan = makeEvolutionReaderPlanV2(context, config.readers, config.repeats), planPath = join(config.directory, "readers.json");
   boundedPlanBytes(plan, "reader plan");
@@ -268,7 +273,9 @@ async function judgePlanFor(config: EvolutionRunConfigV9, store: EvolutionStore,
 }
 export async function prepareEvolutionJudgesV9(configPin: EvolutionPin, readerPlanPin: EvolutionPin, readerOutputPin: EvolutionPin, runtime: EvolutionV9Runtime) {
   const env = environment(runtime);
-  const config = await configInput(configPin), selection = await selectEvolutionV9(config, env.source), contextPlan = await contextFor(config, env, selection);
+  const config = await configInput(configPin);
+  assertEvolutionLiveProfiles([...config.readers, config.judge]);
+  const selection = await selectEvolutionV9(config, env.source), contextPlan = await contextFor(config, env, selection);
   const authority = await verifyEvolutionCampaign(config.campaignPin), store = await openEvolutionStore({ directory: config.storeDirectory, campaign: authority.campaign });
   let plan: EvolutionJudgePlanV9;
   try { plan = await judgePlanFor(config, store, selection, contextPlan, readerPlanPin, readerOutputPin); } finally { await store.close(); }
@@ -307,9 +314,11 @@ export async function runEvolutionJobsV9(input: Readonly<{ store: EvolutionStore
       } catch { /* The drained phase projects the occupied attempt separately from a verified response. */ }
     } else pending.push(job);
   }
+  const admitted = pending.slice(0, input.maxNewCalls);
+  assertEvolutionLiveProfiles(admitted.map(job => job.request.profileId));
   let admissionAttempts = 0;
   const stopped = input.stopped ?? (() => false);
-  const execution = await runLabPaidQueueV2(pending.slice(0, input.maxNewCalls), { protocol: EVOLUTION_PAID_QUEUE_V2_PROTOCOL, concurrency: input.concurrency, stopped,
+  const execution = await runLabPaidQueueV2(admitted, { protocol: EVOLUTION_PAID_QUEUE_V2_PROTOCOL, concurrency: input.concurrency, stopped,
     execute: async (job: EvolutionPhysicalJob) => {
       admissionAttempts++;
       const invoked = await invokeEvolutionRequest({ request: job.request, store, credential: input.credential, repeat: job.repeat, stopped,
@@ -324,7 +333,10 @@ export async function runEvolutionJobsV9(input: Readonly<{ store: EvolutionStore
 export async function executeEvolutionPhaseV9(input: Readonly<{ configPin: EvolutionPin; planPin: EvolutionPin; phase: "reader" | "judge"; maxUsd: number; maxNewCalls: number;
   credential: EvolutionCredential; output: string; identity: EvolutionV9Runtime }>) {
   const env = environment(input.identity);
-  const config = await configInput(input.configPin), authority = await verifyEvolutionCampaign(config.campaignPin);
+  const config = await configInput(input.configPin);
+  // Zero-call execution remains available to reconstruct historical occupied evidence.
+  if (input.maxNewCalls > 0) assertEvolutionLiveProfiles([...config.readers, config.judge]);
+  const authority = await verifyEvolutionCampaign(config.campaignPin);
   if (!Number.isSafeInteger(input.maxUsd * 1_000_000) || input.maxUsd * 1_000_000 !== authority.campaign.additionalBudgetMicros
     || !Number.isSafeInteger(input.maxNewCalls) || input.maxNewCalls < 0 || Object.is(input.maxNewCalls, -0) || input.maxNewCalls > 20_000) fail("explicit spending/call bound differs from campaign");
   if (input.credential.kind === "gateway-oidc" && canonicalSha256(input.credential.auth) !== canonicalSha256(authority.auth)) fail("selected OIDC identity mismatch");
