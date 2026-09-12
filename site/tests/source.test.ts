@@ -118,11 +118,12 @@ describe("Oh site source contract", () => {
     expect(packageJson).toContain(
       '"@hraness/design-kit": "github:hraness/design-kit#v0.6.3"',
     );
-    expect(globals).toStartWith("@layer base, components, oh-marketing;");
+    expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([
       '@import "@hraness/design-kit/styles.css";',
       '@import "../styles/vendor/hraness-paper/paper-theme.css";',
       '@import "../vendor/hraness-marketing/product-marketing-preset.css";',
+      '@import "../vendor/hraness-lantern/lantern-material.css";',
     ]);
     expect(paper).toContain('--font-text: "Nebula Sans"');
     expect(globals).toContain("font-family: var(--font-text)");
