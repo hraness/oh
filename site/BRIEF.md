@@ -38,6 +38,11 @@ document layout. Citation proof JSON, specification artifacts, release metadata,
 kit/UI versions, and the Paper snapshot are unchanged. The separate marketing
 snapshot records immutable source and file hashes.
 
+Phone section anchors reserve 6rem above the section boundary so headings
+clear the three-row sticky homepage header; the less-padded install card uses
+8.75rem so its card boundary also clears the header. All navigation links remain visible;
+the specification's phone navigation retains its existing behavior.
+
 ## FINISH
 
 Check desktop and phone layouts in both themes, including citation readability,

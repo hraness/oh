@@ -160,6 +160,16 @@ a:focus-visible {
   .spec-header {
     position: static;
   }
+
+  /* Clear the three-row phone header without moving the page's sections. */
+  [data-hraness-marketing-preset="editorial"] .hraness-marketing-page > [id] {
+    scroll-margin-block-start: 6rem;
+  }
+
+  /* The install card has less internal padding than the narrative sections. */
+  [data-hraness-marketing-preset="editorial"] #install {
+    scroll-margin-block-start: 8.75rem;
+  }
 }
 
 .hraness-marketing-interface pre {
