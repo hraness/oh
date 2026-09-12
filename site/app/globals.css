@@ -1,11 +1,13 @@
-@layer base, components, oh-marketing;
+@layer base, components, oh-marketing, oh-material;
 
 @import "@hraness/design-kit/styles.css";
 @import "../styles/vendor/hraness-paper/paper-theme.css";
 @import "../vendor/hraness-marketing/product-marketing-preset.css";
+@import "../vendor/hraness-lantern/lantern-material.css";
 
 /* The bounded PostCSS bridge emits the immutable editorial preset in the
- * oh-marketing layer. Paper and product-specific rules remain unlayered. */
+ * oh-marketing layer and Lantern paint in oh-material. Paper and product-specific
+ * rules remain unlayered; specification pages never opt into Lantern. */
 
 /* Paper owns the common palette; this local alias keeps the specification and
  * existing proof components independent of the shared stylesheet's layout. */
@@ -65,6 +67,11 @@ a:focus-visible {
 
 .oh-marketing-hero .hraness-marketing-hero__heading {
   max-inline-size: 22ch;
+}
+
+/* Preserve the hero's content gutter while Lantern owns the backdrop. */
+.hraness-material-wall > .oh-marketing-hero {
+  padding-inline: var(--hraness-marketing-gutter);
 }
 
 .hraness-marketing-stats {
