@@ -122,7 +122,7 @@ describe("Oh site source contract", () => {
     expect(globals.match(/^@import .+;$/gmu)).toEqual([
       '@import "@hraness/design-kit/styles.css";',
       '@import "../styles/vendor/hraness-paper/paper-theme.css";',
-      '@import "../vendor/hraness-marketing/product-marketing-preset.css" layer(oh-marketing);',
+      '@import "../vendor/hraness-marketing/product-marketing-preset.css";',
     ]);
     expect(paper).toContain('--font-text: "Nebula Sans"');
     expect(globals).toContain("font-family: var(--font-text)");
@@ -276,7 +276,8 @@ describe("Oh site source contract", () => {
       postbuild: "bun test ./tests/runtime.test.ts",
       prebuild: "bun run test",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/editorial-layer.test.ts",
+      "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });
     expect(vercelConfig).toEqual({

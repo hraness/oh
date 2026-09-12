@@ -122,7 +122,7 @@ describe("evidence-led product narrative", () => {
     const theme = await read("site/styles/vendor/hraness-paper/paper-theme.css");
     const layout = await read("site/app/layout.tsx");
 
-    expect(css).toContain('@import "@hraness/design-kit/product-marketing.css"');
+    expect(css).toContain('@import "@hraness/design-kit/styles.css"');
     expect(css).toContain('overflow-x: clip');
     expect(css).toContain('a:focus-visible {\n  outline: 2px solid var(--hraness-site-accent)');
     expect(css).toContain('@media (pointer: coarse)');
