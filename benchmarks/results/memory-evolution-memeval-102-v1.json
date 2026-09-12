@@ -1,0 +1,159 @@
+{
+  "protocol": "oh.memory.memeval-longmemeval-public.v1",
+  "date": "2026-09-10",
+  "harness": {
+    "name": "ProsusAI MemEval",
+    "commit": "807ae6d",
+    "sample": "longmemeval_s_stratified_102 (seed 42, 17 per category)",
+    "sampleSha256": "df2e4aad329166f9cf4a846445ba5250c04f78cb510b9c46b8e791369345faf1",
+    "readerPrompt": "harness Mem0/OpenClaw/Hindsight prompt shape, max_tokens 50, temperature 0.1, no question date",
+    "judge": "LongMemEval native prompts, openai/gpt-4o via Gateway alias",
+    "localPatches": [
+      "judge max_tokens 10 -> 16 (Gateway minimum)",
+      "model tag sanitized for a slash",
+      "Mem0 embedder model name taken from MEMEVAL_EMBEDDING_MODEL"
+    ]
+  },
+  "systems": [
+    {
+      "system": "oh",
+      "reader": "openai/gpt-4.1-mini",
+      "accuracy": 0.6078,
+      "taskAverageAccuracy": 0.6078,
+      "f1Mean": 0.2332,
+      "byCategory": {
+        "Knowledge Update": {
+          "accuracy": 0.8235,
+          "n": 17
+        },
+        "Multi-Session": {
+          "accuracy": 0.3529,
+          "n": 17
+        },
+        "Single-Session Assistant": {
+          "accuracy": 0.8824,
+          "n": 17
+        },
+        "Single-Session Preference": {
+          "accuracy": 0.1176,
+          "n": 17
+        },
+        "Single-Session User": {
+          "accuracy": 1.0,
+          "n": 17
+        },
+        "Temporal Reasoning": {
+          "accuracy": 0.4706,
+          "n": 17
+        }
+      },
+      "tokens": {
+        "calls": 204,
+        "prompt_tokens": 1854684,
+        "completion_tokens": 3165,
+        "total_tokens": 1857849
+      },
+      "config": {
+        "ohSystem": "oh-semantic",
+        "ohTopK": 100,
+        "ohMaxBytes": 96000
+      }
+    },
+    {
+      "system": "oh",
+      "reader": "openai/gpt-4.1",
+      "accuracy": 0.6176,
+      "taskAverageAccuracy": 0.6176,
+      "f1Mean": 0.2383,
+      "byCategory": {
+        "Knowledge Update": {
+          "accuracy": 0.7647,
+          "n": 17
+        },
+        "Multi-Session": {
+          "accuracy": 0.4118,
+          "n": 17
+        },
+        "Single-Session Assistant": {
+          "accuracy": 0.9412,
+          "n": 17
+        },
+        "Single-Session Preference": {
+          "accuracy": 0.1765,
+          "n": 17
+        },
+        "Single-Session User": {
+          "accuracy": 1.0,
+          "n": 17
+        },
+        "Temporal Reasoning": {
+          "accuracy": 0.4118,
+          "n": 17
+        }
+      },
+      "tokens": {
+        "calls": 204,
+        "prompt_tokens": 1854695,
+        "completion_tokens": 3171,
+        "total_tokens": 1857866
+      },
+      "config": {
+        "ohSystem": "oh-semantic",
+        "ohTopK": 100,
+        "ohMaxBytes": 96000
+      }
+    },
+    {
+      "system": "mem0",
+      "reader": "openai/gpt-4.1-mini",
+      "questions": 30,
+      "subset": "first 30 of the stratified sample in file order",
+      "accuracy": 0.4333,
+      "byCategory": {
+        "Knowledge Update": {
+          "accuracy": 1.0,
+          "n": 2
+        },
+        "Multi-Session": {
+          "accuracy": 0.4286,
+          "n": 7
+        },
+        "Single-Session Assistant": {
+          "accuracy": 0.1667,
+          "n": 6
+        },
+        "Single-Session Preference": {
+          "accuracy": 0.25,
+          "n": 4
+        },
+        "Single-Session User": {
+          "accuracy": 1.0,
+          "n": 4
+        },
+        "Temporal Reasoning": {
+          "accuracy": 0.2857,
+          "n": 7
+        }
+      },
+      "tokens": {
+        "calls": 2982,
+        "prompt_tokens": 7574550,
+        "completion_tokens": 1388687,
+        "total_tokens": 8963237
+      },
+      "config": {
+        "mem0": "1.0.3 OSS, infer=True, local Qdrant, batches of 10 turns per add, top-20 search, extraction and answer model gpt-4.1-mini, embedder openai/text-embedding-3-small"
+      },
+      "matchedOhOnSameQuestions": {
+        "openai/gpt-4.1": {
+          "correct": 20,
+          "of": 30
+        },
+        "openai/gpt-4.1-mini": {
+          "correct": 18,
+          "of": 30
+        }
+      }
+    }
+  ]
+}

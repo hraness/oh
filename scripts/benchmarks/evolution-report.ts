@@ -1,5 +1,6 @@
 import { canonicalJson, canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import type { Dataset } from "./datasets";
+import type { EvolutionDerivedCorpora } from "./evolution-derived";
 import { assertExactEvolutionCoverage, createEvolutionDatasetManifest, EVOLUTION_DATASET_PROTOCOL,
   evolutionRunnerCorpusId, evolutionRunnerQuestionId, projectEvolutionRunnerInput, type EvolutionDatasetManifest } from "./evolution-dataset";
 import { EVOLUTION_LME_NATIVE_REFERENCE, makeEvolutionJudgePlan, scoreEvolutionJudgeDecision, validateEvolutionJudgePlan, type EvolutionJudgePlan } from "./evolution-judge";
@@ -28,6 +29,12 @@ function json(bytes: Uint8Array, maximum: number): unknown {
 
 /** Authenticate selected content against the pinned complete exposure manifest without opening other partitions. */
 function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: string, release?: Readonly<{ authorization: EvolutionReleaseAuthorization; shardId: string }>): EvolutionDatasetManifest {
+  return selectEvolutionReportManifest(dataset, bytes, expectedSha256, release === undefined ? undefined
+    : { questionIds: evolutionReleaseShard(release.authorization, release.shardId).questionIds });
+}
+/** Authenticate selected content against the pinned complete exposure manifest without opening other partitions.
+ * Without an explicit coverage the selection must be development-only; with one it must match those exact runner IDs. */
+export function selectEvolutionReportManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: string, coverage?: Readonly<{ questionIds: readonly string[] }>): EvolutionDatasetManifest {
   if (!digest(expectedSha256) || sha256Hex(bytes) !== expectedSha256) fail("manifest bytes changed");
   const value = json(bytes, 128 * 1024 * 1024);
   if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "dataset", "revision", "sourceSha256", "datasetSha256", "groups", "corpora", "questions", "qualification"])
@@ -73,9 +80,9 @@ function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: s
   const subset = createEvolutionDatasetManifest(dataset, { dataset: manifest.dataset, revision: manifest.revision,
     sourceSha256: manifest.sourceSha256, groups: manifest.groups.filter(g => groups.has(g.groupId)),
     histories: manifest.corpora.filter(c => corpora.has(c.id)).map(c => ({ corpusId: c.id, historyId: c.historyId })) });
-  if (release === undefined) {
+  if (coverage === undefined) {
     if (subset.groups.some(g => g.partition !== "development")) fail("only development results are reportable by this campaign");
-  } else assertExactEvolutionCoverage(evolutionReleaseShard(release.authorization, release.shardId).questionIds, subset.questions.map(q => q.runnerId));
+  } else assertExactEvolutionCoverage(coverage.questionIds, subset.questions.map(q => q.runnerId));
   const sourceCorpora = new Map(manifest.corpora.map(c => [c.id, c])), sourceQuestions = new Map(manifest.questions.map(q => [q.id, q]));
   if (subset.corpora.some(c => !same(c, sourceCorpora.get(c.id))) || subset.questions.some(q => !same(q, sourceQuestions.get(q.id)))) {
     fail("selected questions, gold or corpus content changed");
@@ -84,10 +91,10 @@ function selectedManifest(dataset: Dataset, bytes: Uint8Array, expectedSha256: s
 }
 
 /** Source provenance is checked independently of the context's self-authored digest. Ranking is not rerun. */
-function authenticateContexts(dataset: Dataset, plan: EvolutionAnyContextPlan, manifestSha256: string): void {
+function authenticateContexts(dataset: Dataset, plan: EvolutionAnyContextPlan, manifestSha256: string, derived?: EvolutionDerivedCorpora): void {
   const projected = projectEvolutionRunnerInput(dataset);
   if (plan.manifestSha256 !== manifestSha256) fail("context selection or input changed");
-  validateEvolutionContextPlanSources(plan, projected);
+  validateEvolutionContextPlanSources(plan, projected, derived);
 }
 
 export type EvolutionRawResponseLoader = (request: EvolutionRequest, response: EvolutionResponse) => Promise<Uint8Array>;
@@ -201,7 +208,7 @@ function cost(responses: ReadonlyMap<string, EvolutionResponse>, failures: Reado
 export type EvolutionReportInput = Readonly<{ dataset: Dataset; manifestBytes: Uint8Array; manifestSha256: string;
   contextPlan: EvolutionAnyContextPlan; readerPlan: EvolutionReaderPlan; judgePlan: EvolutionJudgePlan;
   readerOutputBytes: Uint8Array; judgeOutputBytes: Uint8Array; judgeOutputSha256: string; loadRawResponse: EvolutionRawResponseLoader;
-  loadServiceMs?: EvolutionServiceMsLoader; loadAttemptFailure?: EvolutionAttemptFailureLoader }>;
+  loadServiceMs?: EvolutionServiceMsLoader; loadAttemptFailure?: EvolutionAttemptFailureLoader; derived?: EvolutionDerivedCorpora }>;
 export async function buildEvolutionReport(input: EvolutionReportInput) { return (await buildReport(input)).report; }
 export async function buildEvolutionReleaseShardReport(input: EvolutionReportInput & Readonly<{ release: { studyBytes: Uint8Array; scopeBytes: Uint8Array; shardId: string; campaignSha256: string } }>) {
   const authorization = validateEvolutionReleaseArtifacts({ studyBytes: input.release.studyBytes, scopeBytes: input.release.scopeBytes, manifestBytes: input.manifestBytes });
@@ -241,7 +248,7 @@ export async function buildEvolutionFullContextShardReport(input: EvolutionRepor
 }
 async function buildReport(input: EvolutionReportInput, release?: Readonly<{ authorization: EvolutionReleaseAuthorization; shardId: string }>) {
   const manifest = selectedManifest(input.dataset, input.manifestBytes, input.manifestSha256, release);
-  authenticateContexts(input.dataset, input.contextPlan, input.manifestSha256);
+  authenticateContexts(input.dataset, input.contextPlan, input.manifestSha256, input.derived);
   const readers = validateEvolutionReaderPlan(input.readerPlan, input.contextPlan), judges = validateEvolutionJudgePlan(input.judgePlan);
   const readerOutputSha256 = sha256Hex(input.readerOutputBytes);
   if (judges.readerOutputSha256 !== readerOutputSha256 || !digest(input.judgeOutputSha256)
@@ -274,7 +281,7 @@ async function buildReport(input: EvolutionReportInput, release?: Readonly<{ aut
   const rawArms = input.contextPlan.variants.flatMap(variant => readers.readerProfiles.map(reader => {
     let readerFailures = 0, judgeFailures = 0;
     const readerRequestSha256s: string[] = [], judgeRequestSha256s: string[] = [];
-    const scores: Record<ReportMetric, EvolutionScore[]> = { "judge-accuracy": [], "locomo-f1": [], "evidence-precision": [],
+    const scores: Record<ReportMetric, EvolutionScore[]> = { "judge-accuracy": [], "judge-mean": [], "locomo-f1": [], "evidence-precision": [],
       "evidence-recall": [], "evidence-f1": [], "evidence-all": [] };
     for (const [index, q] of input.dataset.questions.entries()) {
       const id = cases[index]!.id, key = triple(id, variant.id, reader), rc = readerCases.get(key)!, jc = judgeCases.get(key)!;

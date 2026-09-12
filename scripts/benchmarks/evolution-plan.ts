@@ -1,6 +1,10 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, parseSha256Hex, sha256Hex } from "../../src/canonical";
 import { assertExactEvolutionCoverage, type EvolutionRunnerInput, type EvolutionRunnerQuestion } from "./evolution-dataset";
-import { createEvolutionContextSourceValidator, prepareEvolutionCorpus, type EvolutionPreparedCorpus, type EvolutionRetrievalResult, type EvolutionRetrievalVariant } from "./evolution-retrieval";
+import { createEvolutionContextSourceValidator, EVOLUTION_RETRIEVAL_SYSTEMS, evolutionSystemResultProtocol, evolutionSystemUsesSemantic, isEvolutionDerivedSystem, isEvolutionV2System,
+  prepareEvolutionCorpus, type EvolutionAnyRetrievalResult, type EvolutionPreparedCorpus, type EvolutionRetrievalResult,
+  type EvolutionRetrievalVariant, type EvolutionV2System } from "./evolution-retrieval";
+import { boundEvolutionCompletionWire } from "./evolution-completion";
+import { evolutionDerivedRecordsFor, type EvolutionDerivedCorpora } from "./evolution-derived";
 import { createOhSourceSpanPacker, OH_SPAN_POLICY, OH_SPAN_POOL_VARIANT, type OhSourceSpanResult } from "./evolution-spans";
 import { isEvolutionSpanVariant, parseEvolutionExperimentVariant, type EvolutionExperimentVariant } from "./evolution-variants";
 import { makeEvolutionRequest, makeEvolutionProfileWindowRequest, evolutionReaderContract, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "./evolution-model";
@@ -15,12 +19,13 @@ import { validateEvolutionReleaseContextPlanEnvelope, validateEvolutionReleaseCo
 
 import { validateEvolutionFullContextPlanEnvelope, validateEvolutionFullContextPlanSources, type EvolutionFullContextPlan } from "./evolution-full-context-plan";
 
-export type EvolutionContextCase = Readonly<{ questionId: string; variantId: string; result: EvolutionRetrievalResult }>;
+/** Native systems keep the V1 whole-turn result; recall systems carry the V2 result with the question instant. */
+export type EvolutionContextCase = Readonly<{ questionId: string; variantId: string; result: EvolutionAnyRetrievalResult }>;
 export type EvolutionContextPlan = Readonly<{ protocol: "oh.memory.evolution-context-plan.v1"; manifestSha256: string;
   retrievalSourceSha256: string; inputSha256: string; variants: readonly EvolutionRetrievalVariant[];
   questions: readonly EvolutionRunnerQuestion[]; cases: readonly EvolutionContextCase[]; planSha256: string }>;
 export type EvolutionContextCaseV2 = Readonly<{ questionId: string; variantId: string }> & (
-  Readonly<{ kind: "whole-turn"; result: EvolutionRetrievalResult }> | Readonly<{ kind: "source-spans"; result: OhSourceSpanResult }>);
+  Readonly<{ kind: "whole-turn"; result: EvolutionAnyRetrievalResult }> | Readonly<{ kind: "source-spans"; result: OhSourceSpanResult }>);
 export type EvolutionContextPlanV2 = Readonly<{ protocol: "oh.memory.evolution-context-plan.v2"; manifestSha256: string;
   retrievalSourceSha256: string; inputSha256: string; variants: readonly EvolutionExperimentVariant[];
   questions: readonly EvolutionRunnerQuestion[]; cases: readonly EvolutionContextCaseV2[];
@@ -34,14 +39,26 @@ export type EvolutionReaderPlan = Readonly<{ protocol: "oh.memory.evolution-read
 function fail(reason: string): never { throw new TypeError(`Evolution plan: ${reason}.`); }
 const digest = (value: string) => { if (parseSha256Hex(value) === null) fail("invalid digest"); return value; };
 const pair = (question: string, variant: string) => JSON.stringify([question, variant]);
-const semanticVariant = (variant: Readonly<{ system: string }>) => variant.system === "oh-semantic" || variant.system === "oh-hybrid";
+const semanticVariant = (variant: Readonly<{ system: string }>) => evolutionSystemUsesSemantic(variant.system);
+const derivedVariant = (variant: Readonly<{ system: string }>) => isEvolutionDerivedSystem(variant.system);
+const resultProtocol = (variant: Readonly<{ system: string }>) => evolutionSystemResultProtocol(variant.system);
+/** Each prepared mode keeps its own source identity: turn-only keyword, turn-only semantic, and semantic with derived records. */
+const preparedMode = (variant: Readonly<{ system: string }>) => `${semanticVariant(variant) ? "semantic" : "keyword"}:${derivedVariant(variant) ? "derived" : "turns"}`;
+/** Derived arms and a derived-record source imply each other; a plan never silently drops or invents observations. */
+function derivedFor(variants: readonly Readonly<{ system: string }>[], derived: EvolutionDerivedCorpora | undefined): EvolutionDerivedCorpora | undefined {
+  if (variants.some(derivedVariant) !== (derived !== undefined)) fail(derived === undefined ? "derived systems require pinned derived records" : "derived records are pinned but no variant consumes them");
+  return derived;
+}
 
 /** Prepare once, then run any reader matrix against the identical source-backed contexts.
  * The input has already crossed the gold-free projection boundary; no labels enter retrieval. */
 export async function makeEvolutionContextPlan(input: Readonly<{ dataset: EvolutionRunnerInput;
   variants: readonly EvolutionRetrievalVariant[]; manifestSha256: string; retrievalSourceSha256: string;
-  semanticCacheDirectory?: string }>) {
-  const dataset = structuredClone(input.dataset), variants = structuredClone(input.variants);
+  semanticCacheDirectory?: string; derived?: EvolutionDerivedCorpora }>) {
+  boundEvolutionCompletionWire(input.dataset, 128 * 1024 * 1024, 6_000_000);
+  if (!Array.isArray(input.dataset.corpora) || input.dataset.corpora.length < 1 || input.dataset.corpora.length > 2000
+    || !Array.isArray(input.dataset.questions) || !Array.isArray(input.variants)) fail("invalid projected input bounds");
+  const dataset = structuredClone(input.dataset), variants = structuredClone(input.variants), derived = derivedFor(variants, input.derived);
   if (dataset.questions.length < 1 || dataset.questions.length > 2000 || variants.length < 1 || variants.length > 32
     || new Set(variants.map(v => v.id)).size !== variants.length) fail("invalid context matrix bounds");
   assertExactEvolutionCoverage(dataset.questions.map(q => q.id), dataset.questions.map(q => q.id));
@@ -50,17 +67,20 @@ export async function makeEvolutionContextPlan(input: Readonly<{ dataset: Evolut
     const questions = dataset.questions.filter(q => q.corpusId === corpus.id);
     if (questions.length === 0) fail("unselected corpus");
     const start = performance.now();
-    const prepared = new Map<boolean, EvolutionPreparedCorpus>();
+    const prepared = new Map<string, EvolutionPreparedCorpus>();
     try {
-      // Each mode retains its own source identity, including in a mixed plan.
-      for (const semantic of new Set(variants.map(semanticVariant))) {
-        prepared.set(semantic, await prepareEvolutionCorpus({ ...corpus, groupId: corpus.id },
-          !semantic || input.semanticCacheDirectory === undefined ? {} : { semanticCacheDirectory: input.semanticCacheDirectory }));
+      // Each mode retains its own source identity, including in a mixed plan; derived records reach only the arms that declare them.
+      for (const variant of variants) {
+        const mode = preparedMode(variant);
+        if (prepared.has(mode)) continue;
+        prepared.set(mode, await prepareEvolutionCorpus({ ...corpus, groupId: corpus.id }, {
+          ...(!semanticVariant(variant) || input.semanticCacheDirectory === undefined ? {} : { semanticCacheDirectory: input.semanticCacheDirectory }),
+          ...(derivedVariant(variant) ? { derivedRecords: evolutionDerivedRecordsFor(derived!, corpus.id) } : {}) }));
       }
       const preparationMs = performance.now() - start, queryStart = performance.now();
       for (const question of questions) for (const variant of variants) {
         cases.push({ questionId: question.id, variantId: variant.id,
-          result: await prepared.get(semanticVariant(variant))!.retrieve(question.question, variant) });
+          result: await prepared.get(preparedMode(variant))!.retrieve(question.question, variant, question.questionDate) });
       }
       timing.push({ corpusId: corpus.id, preparationMs, retrievalMs: performance.now() - queryStart,
         queries: [...prepared.values()].reduce((sum, value) => sum + value.stats.queryCount, 0) });
@@ -79,15 +99,30 @@ export async function makeEvolutionContextPlan(input: Readonly<{ dataset: Evolut
   return { plan, timing };
 }
 export function validateEvolutionContextPlan(plan: EvolutionContextPlan): EvolutionContextPlan {
+  boundEvolutionCompletionWire(plan, 128 * 1024 * 1024, 6_000_000);
+  if (!isPlainRecord(plan) || !hasExactKeys(plan, ["protocol", "manifestSha256", "retrievalSourceSha256", "inputSha256", "variants", "questions", "cases", "planSha256"])
+    || !Array.isArray(plan.questions) || !Array.isArray(plan.variants) || !Array.isArray(plan.cases)) fail("context plan shape");
   const { planSha256, ...payload } = plan;
   if (plan.protocol !== "oh.memory.evolution-context-plan.v1" || canonicalSha256(payload) !== digest(planSha256)
     || plan.questions.length < 1 || plan.questions.length > 2000 || plan.variants.length < 1 || plan.variants.length > 32
     || plan.cases.length !== plan.questions.length * plan.variants.length) fail("context plan shape or digest");
   digest(plan.manifestSha256); digest(plan.retrievalSourceSha256); digest(plan.inputSha256);
+  for (const variant of plan.variants) if (!isPlainRecord(variant) || !hasExactKeys(variant, ["id", "system", "budget"])
+    || typeof variant.id !== "string" || typeof variant.system !== "string" || !variant.id || Buffer.byteLength(variant.id) > 512 || !(EVOLUTION_RETRIEVAL_SYSTEMS as readonly unknown[]).includes(variant.system)
+    || !isPlainRecord(variant.budget) || !hasExactKeys(variant.budget, ["topK", "contextBytes"])
+    || typeof variant.budget.topK !== "number" || !Number.isSafeInteger(variant.budget.topK) || variant.budget.topK < 1 || variant.budget.topK > (isEvolutionV2System(variant.system) ? 100 : 400)
+    || typeof variant.budget.contextBytes !== "number" || !Number.isSafeInteger(variant.budget.contextBytes) || variant.budget.contextBytes < 1 || variant.budget.contextBytes > 4_000_000) fail("invalid context variant");
+  for (const q of plan.questions) if (!isPlainRecord(q) || !hasExactKeys(q, ["id", "corpusId", "question", "questionDate"])
+    || [q.id, q.corpusId, q.question, q.questionDate].some(v => typeof v !== "string" || Buffer.byteLength(v) > 16_384)
+    || !q.id || !q.corpusId || !q.question) fail("invalid context question projection");
+  for (const c of plan.cases) if (!isPlainRecord(c) || !hasExactKeys(c, ["questionId", "variantId", "result"])) fail("invalid context case");
+  if (new Set(plan.variants.map(v => v.id)).size !== plan.variants.length || new Set(plan.questions.map(q => q.id)).size !== plan.questions.length) fail("duplicate context IDs");
   const expected = plan.questions.flatMap(q => plan.variants.map(v => pair(q.id, v.id)));
   assertExactEvolutionCoverage(expected, plan.cases.map(c => pair(c.questionId, c.variantId)));
   for (const c of plan.cases) {
     const question = plan.questions.find(q => q.id === c.questionId)!, variant = plan.variants.find(v => v.id === c.variantId)!;
+    validateEvolutionLegacyResultEnvelope(c.result, question, variant.budget.contextBytes);
+    if (c.result.protocol !== resultProtocol(variant)) fail("result protocol differs from the variant system");
     const { resultSha256, ...result } = c.result;
     if (sha256Hex(result.context) !== result.contextSha256 || Buffer.byteLength(result.context) !== result.contextBytes
       || result.contextBytes > variant.budget.contextBytes || canonicalSha256(result) !== resultSha256
@@ -130,11 +165,14 @@ export function validateEvolutionReaderPlan(plan: EvolutionReaderPlan, context: 
 
 /** Native-only calls keep the V1 wire representation. Mixed span plans use a separate V2 union. */
 export async function makeEvolutionExperimentContextPlan(input: Readonly<{ dataset: EvolutionRunnerInput;
-  variants: readonly EvolutionTreatment[]; manifestSha256: string; retrievalSourceSha256: string }>) {
-  const parsed = input.variants.map(parseEvolutionTreatment);
-  if (parsed.some(isEvolutionV3Treatment)) return makeEvolutionContextPlanV3({ ...input, variants: parsed });
+  variants: readonly EvolutionTreatment[]; manifestSha256: string; retrievalSourceSha256: string; semanticCacheDirectory?: string;
+  derived?: EvolutionDerivedCorpora }>) {
+  const parsed = input.variants.map(parseEvolutionTreatment), { semanticCacheDirectory, derived, ...rest } = input;
+  if (parsed.some(isEvolutionV3Treatment)) { derivedFor([], derived); return makeEvolutionContextPlanV3({ ...rest, variants: parsed }); }
   const variants = parsed as EvolutionExperimentVariant[];
-  if (!variants.some(isEvolutionSpanVariant)) return makeEvolutionContextPlan({ ...input, variants: variants as EvolutionRetrievalVariant[] });
+  if (!variants.some(isEvolutionSpanVariant)) return makeEvolutionContextPlan({ ...rest, variants: variants as EvolutionRetrievalVariant[],
+    ...(semanticCacheDirectory === undefined ? {} : { semanticCacheDirectory }), ...(derived === undefined ? {} : { derived }) });
+  if (derived !== undefined || variants.some(derivedVariant)) fail("derived systems require a native V1 context plan");
   if (!Array.isArray(input.dataset.corpora) || input.dataset.corpora.length < 1 || input.dataset.corpora.length > 2000
     || !Array.isArray(input.dataset.questions) || input.dataset.questions.length < 1 || input.dataset.questions.length > 2000) fail("invalid projected input bounds");
   for (const c of input.dataset.corpora) if (!Array.isArray(c.turns) || c.turns.length < 1 || c.turns.length > 8192) fail("invalid source corpus bounds");
@@ -161,7 +199,7 @@ export async function makeEvolutionExperimentContextPlan(input: Readonly<{ datas
         for (const variant of variants) {
           if (isEvolutionSpanVariant(variant)) cases.push({ questionId: question.id, variantId: variant.id, kind: "source-spans",
             result: spans.pack(question.question, pool, { contextBytes: variant.budget.contextBytes }) });
-          else cases.push({ questionId: question.id, variantId: variant.id, kind: "whole-turn", result: await prepared.retrieve(question.question, variant) });
+          else cases.push({ questionId: question.id, variantId: variant.id, kind: "whole-turn", result: await prepared.retrieve(question.question, variant, question.questionDate) });
         }
       }
       timing.push({ corpusId: corpus.id, preparationMs, retrievalMs: performance.now() - queryStart, queries: prepared.stats.queryCount });
@@ -177,7 +215,7 @@ export async function makeEvolutionExperimentContextPlan(input: Readonly<{ datas
   return { plan, timing };
 }
 
-export function validateEvolutionLegacyResultEnvelope(value: unknown, question: EvolutionRunnerQuestion, byteLimit: number): asserts value is EvolutionRetrievalResult | OhSourceSpanResult {
+export function validateEvolutionLegacyResultEnvelope(value: unknown, question: EvolutionRunnerQuestion, byteLimit: number): asserts value is EvolutionAnyRetrievalResult | OhSourceSpanResult {
   const boundedText = (v: unknown, max = 512) => typeof v === "string" && Buffer.byteLength(v) <= max;
   const integer = (v: unknown, max: number) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 && v <= max;
   const common = ["protocol", "preparedSha256", "querySha256", "context", "contextSha256", "contextBytes", "turnIds", "sessionIds", "resultSha256"];
@@ -187,7 +225,7 @@ export function validateEvolutionLegacyResultEnvelope(value: unknown, question: 
     || !Array.isArray(value.turnIds) || value.turnIds.length > 8192 || value.turnIds.some(v => !boundedText(v))
     || new Set(value.turnIds).size !== value.turnIds.length || !Array.isArray(value.sessionIds)
     || value.sessionIds.length > value.turnIds.length || value.sessionIds.some(v => !boundedText(v))
-    || new Set(value.sessionIds).size !== value.sessionIds.length) fail("invalid result envelope");
+    || new Set(value.sessionIds).size !== value.sessionIds.length) fail("invalid result envelope for context");
   if (value.protocol === "oh.evolution-retrieval.v1") {
     if (!hasExactKeys(value, [...common, "variantSha256", "sources", "omittedForBudget", "facets", "coveredFacets", "coverageKind"])
       || parseSha256Hex(value.variantSha256) === null || !Array.isArray(value.sources) || value.sources.length !== value.turnIds.length
@@ -197,6 +235,25 @@ export function validateEvolutionLegacyResultEnvelope(value: unknown, question: 
       || ![null, "lexical-clause"].includes(value.coverageKind as null | string)) fail("invalid whole-turn result contract");
     for (const source of value.sources) if (!isPlainRecord(source) || !hasExactKeys(source, ["turnId", "sessionId", "key", "recordSha256"])
       || ![source.turnId, source.sessionId, source.key].every(v => boundedText(v)) || parseSha256Hex(source.recordSha256) === null) fail("invalid source record identity");
+  } else if (value.protocol === "oh.evolution-retrieval.v2") {
+    if (!hasExactKeys(value, [...common, "variantSha256", "asOf", "renderer", "queries", "window", "sources", "derived", "omittedForBudget"])
+      || parseSha256Hex(value.variantSha256) === null || !(value.asOf === null || typeof value.asOf === "string" && boundedText(value.asOf, 24))
+      || value.renderer !== "oh.recall-render.v1" || !Array.isArray(value.queries) || value.queries.length < 1 || value.queries.length > 6
+      || value.queries.some(v => !boundedText(v, 16_384)) || new Set(value.queries).size !== value.queries.length
+      || !(value.window === null || isPlainRecord(value.window) && hasExactKeys(value.window, ["since", "until", "v"])
+        && boundedText(value.window.since, 24) && boundedText(value.window.until, 24) && value.window.v === 1)
+      || !Array.isArray(value.sources) || value.sources.length !== value.turnIds.length
+      || !Array.isArray(value.derived) || value.derived.length > 8192 || !integer(value.omittedForBudget, 8192)) fail("invalid recall result contract");
+    for (const source of value.sources) if (!isPlainRecord(source) || !hasExactKeys(source, ["turnId", "sessionId", "key", "recordSha256"])
+      || ![source.turnId, source.sessionId, source.key].every(v => boundedText(v)) || parseSha256Hex(source.recordSha256) === null) fail("invalid source record identity");
+    const derivedKeys = new Set<string>();
+    for (const item of value.derived) {
+      if (!isPlainRecord(item) || !hasExactKeys(item, ["key", "recordSha256", "sourceKeys", "sourceTurnIds"]) || !boundedText(item.key) || derivedKeys.has(item.key as string)
+        || parseSha256Hex(item.recordSha256) === null || !Array.isArray(item.sourceKeys) || item.sourceKeys.length < 1 || item.sourceKeys.length > 16
+        || !Array.isArray(item.sourceTurnIds) || item.sourceTurnIds.length !== item.sourceKeys.length
+        || [...item.sourceKeys, ...item.sourceTurnIds].some(v => !boundedText(v))) fail("invalid recall result contract: derived record identity");
+      derivedKeys.add(item.key as string);
+    }
   } else if (value.protocol === "oh.evolution-source-spans.v1") {
     if (!hasExactKeys(value, [...common, "poolResultSha256", "policySha256", "contextByteLimit", "spans"])
       || parseSha256Hex(value.poolResultSha256) === null || parseSha256Hex(value.policySha256) === null
@@ -254,7 +311,7 @@ export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): 
         || c.result.poolResultSha256 !== pool.resultSha256 || c.result.preparedSha256 !== pool.preparedSha256
         || c.result.contextByteLimit !== variant.budget.contextBytes || c.result.policySha256 !== canonicalSha256(OH_SPAN_POLICY)
         || !Array.isArray(c.result.spans) || c.result.spans.length > OH_SPAN_POLICY.maximumSpans) fail("V2 span treatment or pool binding changed");
-    } else if (c.kind !== "whole-turn" || c.result.protocol !== "oh.evolution-retrieval.v1"
+    } else if (c.kind !== "whole-turn" || c.result.protocol !== resultProtocol(variant)
       || c.result.variantSha256 !== canonicalSha256(variant)) fail("V2 whole-turn treatment changed");
   }
   const { planSha256, ...payload } = plan;
@@ -263,7 +320,8 @@ export function validateEvolutionAnyContextPlan(plan: EvolutionAnyContextPlan): 
 }
 
 /** Source authentication is required before admission or reporting, including resealed cache rows. */
-export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPlan, input: EvolutionRunnerInput): void {
+export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPlan, input: EvolutionRunnerInput, derived?: EvolutionDerivedCorpora): void {
+  if (plan.protocol !== "oh.memory.evolution-context-plan.v1" && plan.protocol !== "oh.memory.evolution-context-plan.v2") derivedFor([], derived);
   if (plan.protocol === "oh.memory.evolution-context-plan.v7") { validateEvolutionFullContextPlanSources(plan, input); return; }
   if (plan.protocol === "oh.memory.evolution-context-plan.v6") { validateEvolutionReleaseContextPlanSources(plan, input); return; }
   if (plan.protocol === "oh.memory.evolution-context-plan.v5") {
@@ -277,12 +335,14 @@ export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPla
   }
   if (plan.protocol === "oh.memory.evolution-context-plan.v3") return validateEvolutionContextPlanV3Sources(plan, input);
   validateEvolutionAnyContextPlan(plan);
+  derivedFor(plan.variants, derived);
   if (plan.inputSha256 !== canonicalSha256(input) || canonicalSha256(plan.questions) !== canonicalSha256(input.questions)) fail("context source selection changed");
   assertExactEvolutionCoverage([...new Set(input.questions.map(q => q.corpusId))], input.corpora.map(c => c.id));
   const poolByQuestion = new Map(plan.protocol === "oh.memory.evolution-context-plan.v2" ? plan.pools.map(p => [p.questionId, p.result]) : []);
   for (const corpus of input.corpora) {
     const source = { ...corpus, groupId: corpus.id }, validate = createEvolutionContextSourceValidator(source);
     let validateSemantic: ReturnType<typeof createEvolutionContextSourceValidator> | undefined;
+    let validateDerived: ReturnType<typeof createEvolutionContextSourceValidator> | undefined;
     const spans = plan.protocol === "oh.memory.evolution-context-plan.v2" ? createOhSourceSpanPacker(source) : undefined;
     const questions = new Map(input.questions.filter(q => q.corpusId === corpus.id).map(q => [q.id, q]));
     for (const q of questions.values()) { const pool = poolByQuestion.get(q.id); if (pool !== undefined) validate(pool); }
@@ -295,9 +355,16 @@ export function validateEvolutionContextPlanSources(plan: EvolutionAnyContextPla
         // The validated variant/result binding chooses the expected prepared identity.
         // A resealed keyword result must not be admitted as semantic (or vice versa).
         const variant = plan.variants.find(v => v.id === c.variantId)!;
-        if (semanticVariant(variant)) {
+        if (c.result.protocol !== resultProtocol(variant)) fail("result protocol differs from the variant system");
+        if (derivedVariant(variant)) {
+          // Derived results are bound to the pinned artifact's exact records; the validator rebuilds the context from them.
+          validateDerived ??= createEvolutionContextSourceValidator(source, { semantic: true, derivedRecords: evolutionDerivedRecordsFor(derived!, corpus.id) });
+          validateDerived(c.result, { question: q.question, questionDate: q.questionDate, system: variant.system as EvolutionV2System });
+        } else if (semanticVariant(variant)) {
           validateSemantic ??= createEvolutionContextSourceValidator(source, { semantic: true });
-          validateSemantic(c.result);
+          // Recall results re-render under the question instant; the validator must see the question.
+          if (isEvolutionV2System(variant.system)) validateSemantic(c.result, { question: q.question, questionDate: q.questionDate, system: variant.system });
+          else validateSemantic(c.result);
         } else validate(c.result);
       }
     }

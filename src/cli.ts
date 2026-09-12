@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { lstat, readFile } from "node:fs/promises";
 
-import { canonicalJson, opaqueId, safeCode, type JsonValue } from "./canonical";
+import { canonicalJson, opaqueId, parseCanonicalInstantV1, safeCode, type JsonValue } from "./canonical";
 import { OH_CONTRACT_MANIFEST_V1 } from "./contract";
 import { OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1, createKnowledgeGraphRecordV1,
   type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
+import { renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
 import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
@@ -19,9 +20,11 @@ type ValidatedInvocation = Readonly<{
 }>;
 
 const KNOWN_OPTIONS = new Set([
-  "actor", "after", "db", "depends-on", "expected-generation", "file",
+  "actor", "after", "as-of", "db", "depends-on", "expected-generation", "file",
   "json", "key", "kind", "limit", "mode", "operation", "space",
 ]);
+/** The CLI renders recall under one fixed byte budget; the SDK renderer accepts any budget up to its limit. */
+const RECALL_RENDER_BUDGET_BYTES = 96_000;
 const GLOBAL_OPTIONS = ["db", "space"] as const;
 const MUTATION_OPTIONS = ["actor", "expected-generation", "operation"] as const;
 
@@ -140,6 +143,18 @@ async function validateInvocation(command: string, parsed: ParsedArguments): Pro
       throw new TypeError("search needs a bounded query and a valid mode.");
     }
     integer(one(parsed, "limit"), "limit", 1, 100);
+  } else if (command === "recall") {
+    assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, "as-of", "limit", "mode"]);
+    assertPositionals(parsed, 1, 1024);
+    const query = parsed.positionals.join(" ");
+    const mode = one(parsed, "mode", "keyword");
+    if (query.trim().length === 0 || query.length > 4096
+      || (mode !== "keyword" && mode !== "semantic" && mode !== "hybrid")) {
+      throw new TypeError("recall needs a bounded query and a valid mode.");
+    }
+    const asOf = one(parsed, "as-of");
+    if (asOf !== undefined && parseCanonicalInstantV1(asOf) === null) throw new TypeError("--as-of needs a canonical UTC instant.");
+    integer(one(parsed, "limit"), "limit", 1, 100);
   } else if (command === "put") {
     assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, ...MUTATION_OPTIONS,
       "depends-on", "file", "json", "key", "kind"]);
@@ -214,6 +229,7 @@ Usage:
   oh list [--kind KIND] [--limit N]
   oh log [--limit N]
   oh search QUERY [--mode keyword|semantic|hybrid] [--limit N]
+  oh recall QUERY [--as-of INSTANT] [--mode keyword|semantic|hybrid] [--limit N]
   oh tombstone KEY
   oh verify
   oh sync export [--after N] [--limit N]
@@ -292,6 +308,17 @@ export async function runOhCli(arguments_: readonly string[]): Promise<number> {
       if (query.length === 0 || (mode !== "keyword" && mode !== "semantic" && mode !== "hybrid")) throw new TypeError("search needs a query and a valid mode.");
       const limit = integer(one(parsed, "limit"), "limit");
       print(await oh.search(query, { ...(limit === undefined ? {} : { limit }), mode })); return 0;
+    }
+    if (command === "recall") {
+      const query = parsed.positionals.join(" ");
+      const mode = one(parsed, "mode", "keyword");
+      if (query.length === 0 || (mode !== "keyword" && mode !== "semantic" && mode !== "hybrid")) throw new TypeError("recall needs a query and a valid mode.");
+      const limit = integer(one(parsed, "limit"), "limit");
+      const asOf = parseCanonicalInstantV1(one(parsed, "as-of"));
+      const resolved = asOf === null ? null : resolveRelativeDateWindowV1(query, asOf);
+      const window = resolved === null ? null : { since: resolved.since, until: resolved.until, v: 1 as const };
+      const recall = await oh.recall(query, { asOf, ...(limit === undefined ? {} : { limit }), mode, window });
+      print({ recall, rendering: renderOhRecallV1(recall, { asOf, budgetBytes: RECALL_RENDER_BUDGET_BYTES }), v: 1 }); return 0;
     }
     if (command === "verify") { print(oh.verify()); return 0; }
     if (command === "sync") {

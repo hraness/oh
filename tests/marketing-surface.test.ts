@@ -119,6 +119,8 @@ describe("evidence-led product narrative", () => {
 
   test("carries the shared responsive and accessibility contract in product-owned CSS", async () => {
     const css = await read("site/app/globals.css");
+    const theme = await read("site/styles/vendor/hraness-paper/paper-theme.css");
+    const layout = await read("site/app/layout.tsx");
 
     expect(css).toContain('@import "@hraness/design-kit/product-marketing.css"');
     expect(css).toContain('overflow-x: clip');
@@ -126,7 +128,10 @@ describe("evidence-led product narrative", () => {
     expect(css).toContain('@media (pointer: coarse)');
     expect(css).toContain('min-height: 3rem');
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(css).toContain('@media (prefers-color-scheme: dark)');
+    expect(css).toContain('@import "../styles/vendor/hraness-paper/paper-theme.css"');
+    expect(layout).toContain('data-hraness-theme="paper"');
+    expect(theme).toContain('color-scheme: light dark');
+    expect(theme).toContain('--background: light-dark(');
     expect(css).toContain('font-family: var(--font-text)');
     expect(css).not.toMatch(/Georgia|Times New Roman/u);
   });

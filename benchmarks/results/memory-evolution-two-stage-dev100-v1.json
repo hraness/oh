@@ -1,0 +1,307 @@
+{
+  "protocol": "oh.memory.two-stage-development-public.v1",
+  "date": "2026-09-10",
+  "campaign": {
+    "id": "oh-memory-two-stage-20260910",
+    "additionalBudgetMicros": 20000000,
+    "maximumCalls": 6000
+  },
+  "design": {
+    "questions": 100,
+    "partition": "development",
+    "repeats": 3,
+    "pools": [
+      "semantic-96k (Oh semantic top-100/96 KB)",
+      "window-96k (BM25 window top-100/96 KB)"
+    ],
+    "selector": "gpt5-nano-evidence-selection-v1-reader",
+    "answerers": [
+      "gpt5-mini-explicit-abstention-composition-v1-reader",
+      "gpt5-mini-calibration-only-v1-reader",
+      "gpt5-mini-selected-answer-v1-reader"
+    ],
+    "judge": "gpt4o-gateway-native-rubric-16-judge-v1",
+    "policySha256": "6173bbc7f937900b7c9fae476c0231529159cf0ec3e8ebfa9b33a1f8d886e2df",
+    "routerSha256": "7a28e42bfa776282065be92b2589e4bb523e253565f666abdfebeab018a0c0bc"
+  },
+  "status": "incomplete",
+  "coverage": {
+    "completeCaseAccounting": true,
+    "completeAttemptCoverage": false,
+    "logicalCases": 2400,
+    "preparationFailedCases": 0,
+    "occupiedRequests": 3012,
+    "notRunRequests": 0
+  },
+  "total": {
+    "physicalRequests": 3012,
+    "occupiedRequests": 3012,
+    "completed": 3010,
+    "failed": 2,
+    "notRun": 0,
+    "confirmedMicros": 6824346,
+    "unresolvedMicros": 78310,
+    "exposureMicros": 6902656
+  },
+  "summaries": [
+    {
+      "arm": "single-call-eac",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "repeats": 3,
+      "meanCorrect": 90.33333333333333,
+      "majorityCorrect": 91,
+      "failedCases": 1,
+      "routedQuestions": 63,
+      "selectionsPlanned": 0,
+      "selectionsCompleted": 0,
+      "fallbacks": 0,
+      "fallbackRate": null
+    },
+    {
+      "arm": "single-call-eac",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "repeats": 3,
+      "meanCorrect": 86.33333333333333,
+      "majorityCorrect": 88,
+      "failedCases": 0,
+      "routedQuestions": 63,
+      "selectionsPlanned": 0,
+      "selectionsCompleted": 0,
+      "fallbacks": 0,
+      "fallbackRate": null
+    },
+    {
+      "arm": "calibration-only",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "repeats": 3,
+      "meanCorrect": 92.66666666666667,
+      "majorityCorrect": 95,
+      "failedCases": 1,
+      "routedQuestions": 63,
+      "selectionsPlanned": 0,
+      "selectionsCompleted": 0,
+      "fallbacks": 0,
+      "fallbackRate": null
+    },
+    {
+      "arm": "calibration-only",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "repeats": 3,
+      "meanCorrect": 86.66666666666667,
+      "majorityCorrect": 87,
+      "failedCases": 0,
+      "routedQuestions": 63,
+      "selectionsPlanned": 0,
+      "selectionsCompleted": 0,
+      "fallbacks": 0,
+      "fallbackRate": null
+    },
+    {
+      "arm": "two-stage-routed-nano",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "repeats": 3,
+      "meanCorrect": 85.66666666666669,
+      "majorityCorrect": 86,
+      "failedCases": 0,
+      "routedQuestions": 63,
+      "selectionsPlanned": 189,
+      "selectionsCompleted": 189,
+      "fallbacks": 8,
+      "fallbackRate": 0.042328042328042326
+    },
+    {
+      "arm": "two-stage-routed-nano",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "repeats": 3,
+      "meanCorrect": 79.33333333333334,
+      "majorityCorrect": 76,
+      "failedCases": 0,
+      "routedQuestions": 63,
+      "selectionsPlanned": 189,
+      "selectionsCompleted": 189,
+      "fallbacks": 10,
+      "fallbackRate": 0.05291005291005291
+    },
+    {
+      "arm": "two-stage-all-nano",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "repeats": 3,
+      "meanCorrect": 81.66666666666666,
+      "majorityCorrect": 82,
+      "failedCases": 0,
+      "routedQuestions": 63,
+      "selectionsPlanned": 300,
+      "selectionsCompleted": 300,
+      "fallbacks": 13,
+      "fallbackRate": 0.043333333333333335
+    },
+    {
+      "arm": "two-stage-all-nano",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "repeats": 3,
+      "meanCorrect": 73.33333333333333,
+      "majorityCorrect": 72,
+      "failedCases": 0,
+      "routedQuestions": 63,
+      "selectionsPlanned": 300,
+      "selectionsCompleted": 300,
+      "fallbacks": 21,
+      "fallbackRate": 0.07
+    }
+  ],
+  "paired": [
+    {
+      "arm": "calibration-only",
+      "control": "single-call-eac",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "majorityDelta": 4,
+      "meanDelta": 2.3333333333333326,
+      "wins": 4,
+      "losses": 0,
+      "ties": 96
+    },
+    {
+      "arm": "calibration-only",
+      "control": "single-call-eac",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "majorityDelta": -1,
+      "meanDelta": 0.33333333333333337,
+      "wins": 1,
+      "losses": 2,
+      "ties": 97
+    },
+    {
+      "arm": "two-stage-routed-nano",
+      "control": "single-call-eac",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "majorityDelta": -5,
+      "meanDelta": -4.666666666666668,
+      "wins": 3,
+      "losses": 8,
+      "ties": 89
+    },
+    {
+      "arm": "two-stage-routed-nano",
+      "control": "single-call-eac",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "majorityDelta": -12,
+      "meanDelta": -7.000000000000001,
+      "wins": 0,
+      "losses": 12,
+      "ties": 88
+    },
+    {
+      "arm": "two-stage-all-nano",
+      "control": "single-call-eac",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "majorityDelta": -9,
+      "meanDelta": -8.666666666666668,
+      "wins": 2,
+      "losses": 11,
+      "ties": 87
+    },
+    {
+      "arm": "two-stage-all-nano",
+      "control": "single-call-eac",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "majorityDelta": -16,
+      "meanDelta": -13,
+      "wins": 0,
+      "losses": 16,
+      "ties": 84
+    },
+    {
+      "arm": "two-stage-routed-nano",
+      "control": "calibration-only",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "majorityDelta": -9,
+      "meanDelta": -6.999999999999999,
+      "wins": 1,
+      "losses": 10,
+      "ties": 89
+    },
+    {
+      "arm": "two-stage-routed-nano",
+      "control": "calibration-only",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "majorityDelta": -11,
+      "meanDelta": -7.333333333333334,
+      "wins": 0,
+      "losses": 11,
+      "ties": 89
+    },
+    {
+      "arm": "two-stage-all-nano",
+      "control": "calibration-only",
+      "variantId": "semantic-96k",
+      "denominator": 100,
+      "majorityDelta": -13,
+      "meanDelta": -11,
+      "wins": 1,
+      "losses": 14,
+      "ties": 85
+    },
+    {
+      "arm": "two-stage-all-nano",
+      "control": "calibration-only",
+      "variantId": "window-96k",
+      "denominator": 100,
+      "majorityDelta": -15,
+      "meanDelta": -13.333333333333334,
+      "wins": 1,
+      "losses": 16,
+      "ties": 83
+    }
+  ],
+  "memoryDelta": [
+    {
+      "arm": "single-call-eac",
+      "minuend": "semantic-96k",
+      "subtrahend": "window-96k",
+      "majorityDelta": 3,
+      "meanDelta": 4
+    },
+    {
+      "arm": "calibration-only",
+      "minuend": "semantic-96k",
+      "subtrahend": "window-96k",
+      "majorityDelta": 8,
+      "meanDelta": 6
+    },
+    {
+      "arm": "two-stage-routed-nano",
+      "minuend": "semantic-96k",
+      "subtrahend": "window-96k",
+      "majorityDelta": 10,
+      "meanDelta": 6.333333333333343
+    },
+    {
+      "arm": "two-stage-all-nano",
+      "minuend": "semantic-96k",
+      "subtrahend": "window-96k",
+      "majorityDelta": 10,
+      "meanDelta": 8.333333333333329
+    }
+  ],
+  "qualification": [
+    "Development-only descriptive evidence on 100 previously exposed questions with identical retrieval contexts per pool; no confirmation or superiority claim.",
+    "Two attempts were unverifiable and score zero; their reservations are retained.",
+    "Native LongMemEval rubric via the Gateway GPT-4o alias with a 16-token cap."
+  ]
+}

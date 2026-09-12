@@ -66,7 +66,7 @@ The final custody collector already created `gateway-v6-final-audit-config.json`
 Only when an independent replay is needed, run the admitted [final auditor](../scripts/benchmark-audit/audit-gateway-study-v6-final.ts) through the installed host scheduler:
 
 ```sh
-"$ABS_HRA_HOST_RUN" --mode=heavy --lane=compute --label=oh-v6-final-audit -- \
+"$ABS_OOMPA_HOST_RUN" --mode=heavy --lane=compute --label=oh-v6-final-audit -- \
   "$ABS_BUN" "$AUDITOR_V6" "$WORK/gateway-v6-final-audit-config.json"
 ```
 

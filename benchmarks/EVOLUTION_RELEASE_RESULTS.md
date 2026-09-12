@@ -16,12 +16,30 @@ the complete conversation. With GPT-5 mini on the same contexts, Oh semantic
 reaches 89.8% and beats BM25 by 22 questions; see the stronger-reader section. None of this establishes
 superiority over other frameworks, an official leaderboard score, or benchmark
 saturation. The exposure caveat matters: 100 of the 500 questions were used
-during earlier development, and the remaining 400 are recorded as closed with
-unknown exposure. Unknown does not mean unseen.
+during earlier development, and the remaining 400 were recorded as closed with
+unknown exposure when these studies ran. Unknown does not mean unseen.
+
+## Exposure declaration
+
+From 2026-09-10 all 500 questions are development or evaluated. The closed
+stratum's aggregate scores were read in the three studies on this page and
+then used to choose readers, contracts and retrieval arms, so no question
+on this benchmark is a holdout any more. During the failure analysis that
+followed the mini-reader study, 41 closed questions were inspected per
+question. The full-500 tables on this page are therefore descriptive,
+in-sample scores. Later reports split them into three declared strata,
+development (100 questions in 94 groups), inspected-closed (the 41 inspected
+questions and their group mates, 44 questions in 40 groups) and
+aggregate-only-closed (356 questions in 337 groups), reported side by side.
+Partition labels are unchanged, so the development selection is still the
+same 100 questions. The [protocol card](PROTOCOL_CARD.md) and the
+[pre-registered analysis plan](ANALYSIS_PLAN.md) fix the settings and
+statistics for everything that follows; the re-score of every study on this
+page through the new paired-statistics scorer reproduces each total below.
 
 ## Answer accuracy
 
-| Arm | Correct | Closed/unknown (400) | Development (100) |
+| Arm | Correct | Closed (400, evaluated) | Development (100) |
 | --- | ---: | ---: | ---: |
 | BM25 window, 96 KB | 378/500 (75.6%) | 298/400 (74.5%) | 80/100 |
 | Oh semantic, 96 KB | 379/500 (75.8%) | 301/400 (75.2%) | 78/100 |
@@ -97,13 +115,15 @@ with GPT-5 mini under the same explicit-abstention composition contract and the
 same adapted judge. The contexts were rebound rather than rebuilt, so the two
 studies differ only in the reader and the campaign that paid for it.
 
-| Arm | Nano reader | GPT-5 mini reader | Mini, closed/unknown (400) | Mini, development (100) |
+| Arm | Nano reader | GPT-5 mini reader | Mini, closed (400, evaluated) | Mini, development (100) |
 | --- | ---: | ---: | ---: | ---: |
 | BM25 window, 96 KB | 378/500 (75.6%) | 427/500 (85.4%) | 342/400 | 85/100 |
 | Oh semantic, 96 KB | 379/500 (75.8%) | 449/500 (89.8%) | 359/400 | 90/100 |
 
 With the mini reader, Oh semantic beats BM25 window by 22 questions: 39 paired
-wins against 17 losses with 444 ties. The gain concentrates where retrieval
+wins against 17 losses with 444 ties (exact one-sided sign test p = 0.0023;
+95% cluster-bootstrap interval +1.6 to +7.3 points over the 471 declared
+groups, below the 5-point clear-gain rule of the analysis plan). The gain concentrates where retrieval
 order and coverage matter, temporal reasoning (13 wins, 3 losses; 121 versus
 111 of 133) and multi-session questions (16 wins, 8 losses; 112 versus 104 of
 133). Per shard the mini counts were 92/86, 90/87, 88/84, 90/88 and 89/82. All
@@ -117,6 +137,163 @@ cheaper reader could not exploit Oh's better-ordered, higher-recall context,
 and the stronger one could. Retrieval quality and reader capacity are not
 separable in this benchmark: a memory system should be compared at the reader
 tier its users will run.
+
+## What else was tried on the development set
+
+A development-only loop then tested the remaining levers on the 100
+previously exposed questions, each time on identical Oh semantic contexts
+prepared locally under the current source, with the same judge. The
+[public summary](results/memory-evolution-reader-loop-dev100-v1.json)
+records every arm and pairing; hosted outputs vary between identical
+requests, so single-run differences of a few questions are within observed
+repeat variation.
+
+| Lever | Arm | Correct of 100 | Paired against the mini baseline |
+| --- | --- | ---: | --- |
+| Baseline | GPT-5 mini, explicit-abstention composition, Oh semantic 96 KB | 92 | |
+| Baseline | Same reader and contract, BM25 window 96 KB | 87 | |
+| Answer contract | Calibrated abstention and exact-value formatting | 92 | 3 wins, 3 losses |
+| Answer contract | Explicit internal timeline and per-item counting | 87 | 0 wins, 5 losses |
+| Reader effort | GPT-5 mini at high effort | 89 | 1 win, 4 losses |
+| Reader class | GPT-5 at low effort | 87 | 2 wins, 7 losses |
+| Reader class | GPT-4.1, no reasoning | 76 | 5 wins, 21 losses |
+| Context width | Same retrieval, 160 KB and 240 KB byte budgets | 93 and 93 | |
+
+Three things follow. Prompt engineering is saturated for this reader: the
+calibrated contract fixed some hedged and over-abstained answers and lost an
+equal number elsewhere. Reasoning effort matters more than model size, and
+more effort is not better: mini at medium effort beat mini at high effort,
+GPT-5 at low effort, and GPT-4.1 without reasoning, and it did so at the
+lowest reader cost of the three GPT-5 settings. Byte budget is not the width
+lever: the top 100 retrieved turns already fit within 96 KB for most
+questions, so 160 KB and 240 KB changed only 32 of 200 contexts and moved the
+score by one question. Widening beyond 100 turns is bounded by Oh's search
+contract, which caps a single query at 100 results, so a wider-evidence
+experiment needs a product change rather than a benchmark setting. The loop
+spent $11.65 across 1,308 requests.
+
+## Second round: evidence selection and answer calibration
+
+The failure atlas over all 500 mini-reader answers showed that the labeled
+evidence was inside Oh's context on 496 of 500 questions and on 49 of the 51
+misses, so the remaining gap is answer construction. Two mechanisms were built
+and tested on the 100 development questions with three repeats each and
+identical contexts per pool, scored by majority of three ($6.82, two
+unverifiable attempts scored zero; [summary](results/memory-evolution-two-stage-dev100-v1.json)).
+
+| Arm on Oh semantic 96 KB, GPT-5 mini answers | Majority of 3 | Mean | Paired vs baseline |
+| --- | ---: | ---: | --- |
+| Single-call combined contract (baseline) | 91 | 90.3 | |
+| Calibration-only contract (exact values, yes/no, concise preferences) | 95 | 92.7 | 4 wins, 0 losses |
+| Two-stage: nano evidence selection, then answer (routed questions) | 86 | 85.7 | 3 wins, 8 losses |
+| Two-stage on every question | 82 | 81.7 | 2 wins, 11 losses |
+
+Two-stage selection with a nano selector lost evidence: its fallbacks stayed
+under 5%, but selected contexts dropped turns the single-call reader used, and
+the loss grew on temporal questions. It is rejected. The calibration contract
+looked like a clean gain on the development set, so it was rebound onto the
+frozen 500-question contexts under a separate $10 campaign
+([summary](results/memory-evolution-full-release-500-calibration-v1.json)):
+
+| Reader on the frozen 500 contexts | BM25 window | Oh semantic | Paired Oh vs BM25 |
+| --- | ---: | ---: | --- |
+| GPT-5 mini, combined contract | 427 (85.4%) | 449 (89.8%) | 39 / 17 / 444 |
+| GPT-5 mini, calibration-only contract | 429 (85.8%) | 446 (89.2%) | 35 / 18 / 447 |
+
+On the full set the two contracts are indistinguishable: a three-question
+difference is inside the observed repeat variation of about four questions per
+hundred. The development gain did not transfer, which is exactly what the
+three-repeat development protocol is meant to expose before a claim is made.
+The stable finding across both contracts is the memory delta: Oh semantic beats
+the same reader on BM25 contexts by 17 to 22 questions with about twice as
+many paired wins as losses.
+
+## Matched descriptive comparison on LoCoMo
+
+The completed LoCoMo comparison covers 1,540 questions across all ten
+conversations in the four scored categories (single-hop, multi-hop, temporal,
+open-domain; adversarial questions excluded, as Mem0 and Zep report it).
+It includes 314 development questions from two conversations and 1,226
+previously evaluated questions from the other eight. All ten conversations
+were already exposed to earlier studies, as detailed in the
+[exposure record](#locomo-exposure-and-the-parity-lane).
+The study, its question list and scope were sealed by digest before this
+run's first reader call; that seal preserves the design without making the
+data untouched. The protocol follows the published LoCoMo comparisons:
+the CORRECT/WRONG judge prompt on gpt-4o-mini, the final session date as the
+reference date, and a 24,000-byte retrieval budget for both memory systems
+(about a third of a LoCoMo conversation), so the memory system has to choose.
+Readers are GPT-5 nano and GPT-5 mini under the calibration-only contract,
+one repeat each. All 11,065 calls completed with zero failures for $11.82
+([summary](results/memory-evolution-locomo-sealed-1540-v1.json)).
+The summary reports descriptive paired results, with no cluster confidence
+interval or superiority decision.
+
+| Arm | Reader | Overall | Single-hop | Multi-hop | Temporal | Open-domain |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Oh semantic, 24 KB | GPT-5 mini | **84.4%** | 91.3 | 79.1 | 81.3 | 50.0 |
+| Oh semantic, 24 KB | GPT-5 nano | **81.0%** | 87.6 | 76.2 | 77.3 | 50.0 |
+| BM25 window, 24 KB | GPT-5 mini | 81.6% | 90.1 | 69.1 | 80.4 | 47.9 |
+| BM25 window, 24 KB | GPT-5 nano | 78.1% | 87.3 | 63.8 | 76.0 | 46.9 |
+
+Paired on the same questions, Oh semantic beats BM25 window 169 to 124 with
+nano and 126 to 83 with mini (about 2.8 to 2.9 points). The advantage is
+almost entirely multi-hop: 67 wins to 32 losses with nano and 50 to 22 with
+mini, the questions where evidence from several sessions has to be brought
+together. Absolute score differences between the development and previously
+evaluated strata range from 0.43 to 1.48 percentage points. BM25 with mini has
+the largest difference: 82.80% on development versus 81.32% on the evaluated
+stratum.
+
+For comparison, the published LoCoMo judge scores with gpt-4o-mini readers are
+Mem0 66.9, Mem0 with graph 68.4, Letta 74.0 and Zep 75.1. Oh scores 81.0 with
+nano and 84.4 with mini. The readers differ from those published comparisons,
+and the context budgets are not matched; even the BM25 control with nano
+scores 78.1 here. These differences prevent attributing the gap to Oh's
+retrieval alone or claiming an external-framework win. Within this exposed
+comparison, Oh has a paired advantage over BM25 at both reader tiers with
+the same budget. It does not establish fresh confirmation or a matched cost
+advantage over the published frameworks.
+
+## Under a third-party harness
+
+To compare with other systems on someone else's protocol, Oh was run inside
+[ProsusAI MemEval](https://github.com/ProsusAI/MemEval) through the
+retrieval-only command, on its stratified 102-question LongMemEval_S sample.
+MemEval's protocol differs from the study above in ways that lower every
+system's score: it drops the question date, uses a short generic answer prompt
+with a 50-token cap, and re-ingests the haystack per question. Its judge is the
+LongMemEval prompt set on gpt-4o. Three local harness patches were needed and
+are recorded in the [summary](results/memory-evolution-memeval-102-v1.json):
+the Gateway requires a 16-token judge cap instead of 10, the gateway model id
+contains a slash that broke the result filename, and Mem0's embedder name is
+read from an environment variable so it can carry the gateway prefix.
+
+| System on MemEval | Reader | Judge accuracy | Source |
+| --- | --- | ---: | --- |
+| PropMem | gpt-4.1 | 71.6% | MemEval README |
+| SimpleMem | gpt-4.1 | 66.7% | MemEval README |
+| **Oh semantic, 96 KB** | gpt-4.1 | **61.8%** (62.7% on a first run whose rows were lost) | this run |
+| **Oh semantic, 96 KB** | gpt-4.1-mini | **60.8%** | this run |
+| OpenClaw | gpt-4.1 | 59.8% | MemEval README |
+| Full context | gpt-4.1 | 52.0% | MemEval README |
+| Mem0 OSS 1.0.3, first 30 questions | gpt-4.1-mini | 43.3% (13/30) | this run |
+| **Oh semantic on the same 30** | gpt-4.1-mini / gpt-4.1 | **60.0% (18/30) / 66.7% (20/30)** | this run |
+
+Under this protocol Oh sits between OpenClaw and SimpleMem. Its temporal
+reasoning (41%) and multi-session (41%) scores are where the missing question
+date and the short answer cap bite; single-session user questions were 100%.
+The same retrieval scores 89.8% on the full 500 with the mini reader and the
+question date supplied, so most of the gap between the two tables is protocol,
+not evidence. MemEval's leaderboard does not include Mem0 or Graphiti on
+LongMemEval; the Mem0 row above is a local run of its open-source library
+under MemEval's own adapter on the first 30 questions of the sample (its
+ingestion takes about twelve minutes per question, so the run was bounded),
+and the Oh rows on the same 30 questions are the matched controls. With the
+same gpt-4.1-mini reader, Oh answered 18 of those 30 and Mem0 13, and Mem0
+spent 9.0 million tokens across 2,982 calls against about 0.55 million for
+Oh. Thirty questions cannot support a precise margin; it is a matched
+observation, not a superiority claim.
 
 ## Where this sits among published results
 
@@ -147,6 +324,52 @@ with a small reader lands with Honcho and above every gpt-4o result except
 Mem0's, Chronos's and Mastra's, but a matched comparison needs the same reader,
 judge and sample; the retrieval-only command in this repository exists so
 third-party harnesses can run that comparison.
+
+## LoCoMo: exposure and the parity lane
+
+The completed [V9 comparison](results/memory-evolution-locomo-sealed-1540-v1.json)
+retains the exposure dispositions recorded before that run. Every one of the
+ten LoCoMo conversations is exposed. The two seed-17 development conversations
+(conv-49 and conv-50) were used for development-only reader, judge and
+memory-representation runs recorded above. The other eight were read by the
+retrieval-only held-out report ([locomo-heldout-v2.json](results/locomo-heldout-v2.json),
+1,586 questions, 1,224 evidence-labelled) and the 48-question reader/judge
+held-out run ([locomo-judge-heldout.json](results/locomo-judge-heldout.json)),
+both summarized in the [benchmark README](README.md#recorded-reader-results).
+The private exposure manifest therefore declares the development pair as
+development/development and the eight test conversations as closed/evaluated.
+Nothing in LoCoMo is unseen, and no LoCoMo result will be called a holdout.
+Counted from the pinned file, the parity denominator per conversation is
+conv-26 152, conv-30 81, conv-41 152, conv-42 199, conv-43 178, conv-44 123,
+conv-47 150, conv-48 191, conv-49 156 and conv-50 158 (1,540 of 1,986; the
+446 adversarial questions are outside it).
+
+The parity lane scores J the way Mem0 and Zep report it: the Packer/Mem0/Zep
+CORRECT/WRONG prompt ([profile](profiles/locomo-judge-v1.json), a normalized
+transcription of Zep's grader in `zep_locomo_eval.py`: straight quotes, the
+upstream typo removed, de-indented, without its trailing JSON-label
+instruction, with named placeholders for its format slots) on a gpt-4o-mini
+alias at temperature 0 with a 512-token output cap, over categories 1-4
+(multi-hop 282, temporal 321, open-domain 96, single-hop 841; 1,540
+questions), with the adversarial category outside the denominator because it
+has no gold. Exactly one label must appear; both, neither or a truncated
+completion is a judge failure scored 0, never a label. The official F1 is reported beside J as a
+diagnostic that underestimates abstention. The reader date policy is fixed in
+the study as the final session date, the closest analogue to the leaders'
+harnesses, before any score exists. Like-for-like references are Mem0 66.88 /
+Mem0g 68.44 and Zep 75.14 with the gpt-4o-mini answerer; a GPT-5 nano or mini
+reader on the same lane is a different reader tier and will be labelled so.
+Ten conversations are ten clusters, so any interval will be wide by
+construction. Under the current budget policy the first descriptor uses the
+GPT-5 nano reader with three indexed repeats at 24 KB under a $20 cap; the
+gpt-4o-mini row is declared but unfunded.
+
+The V9 protocol smoke (E4a) rebound the five mini full-500 context plans under
+a V9 study with zero API calls: the V2 scope (`36df7bbf…5cc6`) reproduced the
+five V1 shards exactly, and every rebound case carried the parent case's exact
+retrieval result under the current retrieval source `f2cc0ace…7f0a`. The
+[V9 page](EVOLUTION_RELEASE_V9.md#rebind-existing-contexts-e4a) lists the
+per-shard digests; the private receipt holds the full values.
 
 ## Fact-card development experiment
 
@@ -192,6 +415,14 @@ frameworks under this same reader, judge and accounting.
   arm, category, exposure-stratum and paired summaries, deduplicated cost.
 - [Mini-reader public summary](results/memory-evolution-full-release-500-mini-v1.json):
   the same protocol over the rebound study with `gpt5-mini-explicit-abstention-composition-v1-reader`.
+- [LoCoMo descriptive summary](results/memory-evolution-locomo-sealed-1540-v1.json):
+  the matched comparison above, with its original exposure dispositions.
+- [Two-stage development summary](results/memory-evolution-two-stage-dev100-v1.json)
+  and [calibration-only full-500 summary](results/memory-evolution-full-release-500-calibration-v1.json):
+  the second-round experiments above.
+- [Development loop summary](results/memory-evolution-reader-loop-dev100-v1.json)
+  and [MemEval summary](results/memory-evolution-memeval-102-v1.json): the
+  development experiments and third-party harness runs above.
 - [Full-context public summary](results/memory-evolution-full-context-500-v1.json):
   protocol `oh.memory.evolution-full-context-summary.v1`, the unchanged parent
   reduction plus the companion arm and both paired comparisons.

@@ -1,6 +1,9 @@
 import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import type { Message } from "./model";
 import { EVOLUTION_READER_CONTRACTS, parseEvolutionReaderContractId, type EvolutionReaderContractId, type EvolutionReaderAblationContractId } from "./evolution-reader-contracts";
+import { OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT } from "./observe-extractor-v2";
+import { EVOLUTION_ANSWER_AUDIT_PROFILE_ID, EVOLUTION_ANSWER_AUDIT_INSTRUCTION_SHA256_V1,
+  EVOLUTION_ANSWER_AUDIT_POLICY_SHA256_V1, validateEvolutionAnswerAuditMessages } from "./evolution-answer-audit";
 
 export const EVOLUTION_GATEWAY_ENDPOINT = "https://ai-gateway.vercel.sh/v1/chat/completions";
 export const EVOLUTION_OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
@@ -11,23 +14,34 @@ export const EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS = 400_000;
 export const EVOLUTION_PROFILE_WINDOW_MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 export const EVOLUTION_BASE_READER_IDS = ["qwen37-flash-reader", "gpt5-nano-reader", "gemini25-flash-lite-reader",
-  "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader"] as const;
+  "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader", "gpt5-mini-high-reader", "gpt5-low-reader", "gpt41-reader", "gpt4o-mini-reader"] as const;
 export type EvolutionBaseReaderId = typeof EVOLUTION_BASE_READER_IDS[number];
 type ReaderStem<T> = T extends `${infer Stem}-reader` ? Stem : never;
-export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${EvolutionReaderAblationContractId}-reader`;
+export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${Exclude<EvolutionReaderAblationContractId, "task-complete-v1">}-reader`;
 export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"
-  | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1";
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId;
+  | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1" | "gpt4o-mini-locomo-j-judge-v1";
+export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2";
+export type EvolutionAnswerAuditProfileId = typeof EVOLUTION_ANSWER_AUDIT_PROFILE_ID;
+export const EVOLUTION_BEAM_JUDGE_PROFILE_IDS = ["gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1"] as const;
+export type EvolutionBeamJudgeProfileId = typeof EVOLUTION_BEAM_JUDGE_PROFILE_IDS[number];
+export const EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID = "gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader";
+export type EvolutionLongDeadlineReaderProfileId = typeof EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID;
+export const EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v1-reader";
+export type EvolutionTaskCompleteReaderProfileId = typeof EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID;
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
   endpoint: string; contextWindow: number; maxOutputTokens: number; timeoutMs: number;
   qualification: "gateway-alias" | "official-snapshot-request"; expectedSnapshot: string | null;
   settings: Readonly<{ temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }> }>;
+  responseFormat?: typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT;
+  answerAuditContract?: Readonly<{ policySha256: string; instructionSha256: string }>;
   pricingCheckedAt: "2026-09-09"; prices: readonly PriceTier[];
   readerContract?: Readonly<{ baseReader: EvolutionBaseReaderId; id: EvolutionReaderAblationContractId; instructionSha256: string }> }>;
 type Body = Readonly<{ model: string; messages: readonly Message[]; stream: false; store: false; max_tokens: number;
   temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }>;
+  response_format?: typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT;
   providerOptions?: Readonly<{ gateway: Readonly<{ only: readonly string[]; order: readonly string[] }> }> }>;
 type EvolutionRequestCommon = Readonly<{ profileId: EvolutionProfileId;
   endpoint: string; body: Body; model: string; provider: string; requestSha256: string; profileSha256: string;
@@ -80,6 +94,22 @@ const LEGACY_PROFILES: Readonly<Record<EvolutionLegacyProfileId, EvolutionModelP
     { temperature: 0, reasoning: { effort: "none" } }, [tier(100, 10, 400)]),
   "gpt5-mini-reader": profile("gpt5-mini-reader", "openai/gpt-5-mini", "openai", 400_000, 8_192,
     { reasoning: { effort: "medium" } }, [tier(250, 25, 2_000)]),
+  "gpt5-mini-high-reader": profile("gpt5-mini-high-reader", "openai/gpt-5-mini", "openai", 400_000, 8_192,
+    { reasoning: { effort: "high" } }, [tier(250, 25, 2_000)]),
+  // GPT-5 at low effort; Gateway list price checked 2026-09-10 ($1.25 / $10 per million, cached input assumed at the family's 10%).
+  "gpt5-low-reader": profile("gpt5-low-reader", "openai/gpt-5", "openai", 400_000, 8_192,
+    { reasoning: { effort: "low" } }, [tier(1_250, 125, 10_000)]),
+  // GPT-4.1 has no reasoning setting; Gateway list price checked 2026-09-10 ($2 / $0.50 cached / $8 per million).
+  "gpt41-reader": profile("gpt41-reader", "openai/gpt-4.1", "openai", 1_047_576, 2_048,
+    { temperature: 0, reasoning: { effort: "none" } }, [tier(2_000, 500, 8_000)]),
+  // GPT-4o mini answerer for the LoCoMo like-for-like row (Mem0 paper and Zep use gpt-4o-mini as answerer and grader);
+  // Gateway list price checked 2026-09-10 ($0.15 / $0.075 cached / $0.60 per million). Single call, temperature 0.
+  "gpt4o-mini-reader": profile("gpt4o-mini-reader", "openai/gpt-4o-mini", "openai", 128_000, 2_048,
+    { temperature: 0 }, [tier(150, 75, 600)]),
+  // LoCoMo leaderboard-parity judge: the CORRECT/WRONG prompt asks for a one-sentence explanation before the label, and a
+  // truncated completion is a judge failure scored 0, so the cap (512) leaves room for a verbose explanation; cost is negligible.
+  "gpt4o-mini-locomo-j-judge-v1": profile("gpt4o-mini-locomo-j-judge-v1", "openai/gpt-4o-mini", "openai", 128_000, 512,
+    { temperature: 0 }, [tier(150, 75, 600)]),
   "gpt4o-gateway-judge": profile("gpt4o-gateway-judge", "openai/gpt-4o", "openai", 128_000, 16,
     { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
   "gpt4o-gateway-native-rubric-16-judge-v1": profile("gpt4o-gateway-native-rubric-16-judge-v1", "openai/gpt-4o", "openai", 128_000, 16,
@@ -91,17 +121,57 @@ const LEGACY_PROFILES: Readonly<Record<EvolutionLegacyProfileId, EvolutionModelP
 });
 
 /** Resolve a closed model/effort × answer-contract choice without changing legacy identities. */
-export function evolutionReaderProfileId(baseReader: EvolutionBaseReaderId, contract: EvolutionReaderContractId = "legacy-v1"): EvolutionBaseReaderId | EvolutionAblationReaderId {
+export function evolutionReaderProfileId(baseReader: EvolutionBaseReaderId, contract: EvolutionReaderContractId = "legacy-v1"): EvolutionBaseReaderId | EvolutionAblationReaderId | EvolutionTaskCompleteReaderProfileId {
   if (!EVOLUTION_BASE_READER_IDS.includes(baseReader)) fail("unknown base reader");
   const id = parseEvolutionReaderContractId(contract);
+  if (id === "task-complete-v1") {
+    if (baseReader !== "gpt5-mini-reader") fail("task-complete-v1 requires the gpt5-mini base reader");
+    return EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID;
+  }
   return id === "legacy-v1" ? baseReader : `${baseReader.slice(0, -7)}-${id}-reader` as EvolutionAblationReaderId;
 }
 const ablationProfiles = Object.fromEntries(EVOLUTION_BASE_READER_IDS.flatMap(baseReader =>
-  (["explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1"] as const).map(contract => {
+  (["explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1", "calibrated-composition-v1", "timeline-composition-v1",
+    "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1"] as const).map(contract => {
     const id = evolutionReaderProfileId(baseReader, contract), base = LEGACY_PROFILES[baseReader];
     return [id, { ...base, id, readerContract: { baseReader, id: contract, instructionSha256: EVOLUTION_READER_CONTRACTS[contract].instructionSha256 } }];
   }))) as unknown as Record<EvolutionAblationReaderId, EvolutionModelProfile>;
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles });
+/** Extractor-only profiles: the structured contract is fixed here, never supplied by a caller. */
+const EXTRACTOR_PROFILES: Readonly<Record<EvolutionExtractorProfileId, EvolutionModelProfile>> = frozen({
+  "gpt5-mini-low-extractor-v1": { ...LEGACY_PROFILES["gpt5-mini-reader"], id: "gpt5-mini-low-extractor-v1",
+    settings: { reasoning: { effort: "low" } } },
+  "gpt5-mini-structured-extractor-v2": { ...LEGACY_PROFILES["gpt5-mini-reader"], id: "gpt5-mini-structured-extractor-v2",
+    settings: { reasoning: { effort: "low" } }, responseFormat: OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT },
+});
+/** The audit lane has one fixed instruction and input grammar; it is not a general answer-reader profile. */
+const ANSWER_AUDIT_PROFILES: Readonly<Record<EvolutionAnswerAuditProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_ANSWER_AUDIT_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_ANSWER_AUDIT_PROFILE_ID,
+    answerAuditContract: { policySha256: EVOLUTION_ANSWER_AUDIT_POLICY_SHA256_V1, instructionSha256: EVOLUTION_ANSWER_AUDIT_INSTRUCTION_SHA256_V1 } },
+});
+/** BEAM-only transport profiles. Prompts and released score parsing remain caller-owned;
+ * plain text transport preserves the upstream grammar without adding JSON mode or a schema.
+ * These Gateway aliases and finite output caps are operational choices, not upstream model parity. */
+const BEAM_JUDGE_PROFILES: Readonly<Record<EvolutionBeamJudgeProfileId, EvolutionModelProfile>> = frozen({
+  "gpt4o-beam-event-extraction-v1": profile("gpt4o-beam-event-extraction-v1", "openai/gpt-4o", "openai", 128_000, 1_024,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+  "gpt4o-beam-event-equivalence-v1": profile("gpt4o-beam-event-equivalence-v1", "openai/gpt-4o", "openai", 128_000, 32,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+  "gpt4o-beam-nugget-v1": profile("gpt4o-beam-nugget-v1", "openai/gpt-4o", "openai", 128_000, 512,
+    { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
+});
+/** Explicit deadline treatment: same EAC body, prices and bounds, with a distinct native request identity.
+ * It is never selected by the base-reader/contract helper and does not authorize retries of occupied jobs. */
+const LONG_DEADLINE_READER_PROFILES: Readonly<Record<EvolutionLongDeadlineReaderProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID]: { ...ablationProfiles["gpt5-mini-explicit-abstention-composition-v1-reader"],
+    id: EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID, timeoutMs: 600_000 },
+});
+/** One opt-in task-complete treatment; the existing model/contract product and defaults stay unchanged. */
+const TASK_COMPLETE_READER_PROFILES: Readonly<Record<EvolutionTaskCompleteReaderProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID,
+    timeoutMs: 600_000, readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v1",
+      instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v1"].instructionSha256 } },
+});
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
@@ -109,7 +179,7 @@ export function evolutionReaderContract(profileId: EvolutionProfileId): Evolutio
 }
 export function supportsEvolutionProfileWindow(profileId: EvolutionProfileId): boolean {
   const selected = getProfile(profileId), base = selected.readerContract?.baseReader ?? selected.id;
-  return ["gpt5-nano-reader", "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader"].includes(base)
+  return ["gpt5-nano-reader", "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader", "gpt5-mini-high-reader", "gpt5-low-reader"].includes(base)
     && selected.contextWindow === EVOLUTION_PROFILE_WINDOW_INPUT_TOKENS && selected.maxOutputTokens === 8_192;
 }
 
@@ -118,7 +188,8 @@ function getProfile(value: unknown): EvolutionModelProfile {
   return EVOLUTION_PROFILES[value as EvolutionProfileId];
 }
 function validMessages(value: unknown, selected: EvolutionModelProfile): value is readonly Message[] {
-  const nativeJudge = selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1";
+  const nativeJudge = selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
+    || selected.id === "gpt4o-beam-event-extraction-v1" || selected.id === "gpt4o-beam-nugget-v1";
   return Array.isArray(value) && (nativeJudge
     ? value.length === 1 && value[0]?.role === "user"
     : value.length === 2 && value[0]?.role === "system" && value[1]?.role === "user")
@@ -142,13 +213,17 @@ function applicablePrice(prices: readonly PriceTier[], input: number): PriceTier
 /** Pure, immutable request preparation; the caller owns admission, raw-byte capture, transport and settlement. */
 export function makeEvolutionRequest(profileId: EvolutionProfileId, messages: readonly Message[]): EvolutionRequest {
   const selected = getProfile(profileId);
+  if (selected.answerAuditContract !== undefined) validateEvolutionAnswerAuditMessages(messages);
   if (!validMessages(messages, selected)) fail("invalid prompt shape");
   const copied = structuredClone(messages);
   const body: Body = { model: selected.model, messages: copied, stream: false, store: false, max_tokens: selected.maxOutputTokens,
     ...structuredClone(selected.settings), ...(selected.endpoint === EVOLUTION_GATEWAY_ENDPOINT
-      ? { providerOptions: { gateway: { only: [selected.provider], order: [selected.provider] } } } : {}) };
+      ? { providerOptions: { gateway: { only: [selected.provider], order: [selected.provider] } } } : {}),
+    ...(selected.responseFormat === undefined ? {} : { response_format: structuredClone(selected.responseFormat) }) };
   // UTF-8 bytes plus framing is intentionally looser than an estimated token count. No silent truncation.
-  const inputUpperBound = Buffer.byteLength(JSON.stringify(copied)) + 2_048;
+  // The fixed schema is provider input too; reserve its bytes and framing without changing legacy preimages.
+  const schemaBytes = selected.responseFormat === undefined ? 0 : Buffer.byteLength(JSON.stringify({ response_format: selected.responseFormat }));
+  const inputUpperBound = Buffer.byteLength(JSON.stringify(copied)) + 2_048 + schemaBytes;
   if (inputUpperBound + selected.maxOutputTokens > selected.contextWindow) fail("conservative context bound exceeded");
   const profileSha256 = canonicalSha256(selected);
   const reservationMicros = rateCost(inputUpperBound, 0, selected.maxOutputTokens,

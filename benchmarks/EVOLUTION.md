@@ -181,7 +181,7 @@ LongMemEval judge profiles are explicit and keep separate request identities:
 | --- | --- | --- | --- |
 | `gpt4o-official-snapshot-judge` | Direct OpenAI `gpt-4o-2024-08-06` | One user message, 10 tokens | Native `contains yes` |
 | `gpt4o-gateway-native-rubric-16-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 16 tokens | Native `contains yes` |
-| `gpt4o-gateway-native-rubric-judge-v1` | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 10 tokens | Native `contains yes` |
+| `gpt4o-gateway-native-rubric-judge-v1` (historical replay only) | Gateway `openai/gpt-4o`, OpenAI provider only | One user message, 10 tokens | Native `contains yes` |
 | `gpt4o-gateway-judge` | Gateway `openai/gpt-4o`, OpenAI provider only | System and user messages, 16 tokens | Strict yes/no |
 
 All native-rubric profiles require the parity-qualified, source-attributed
@@ -205,6 +205,19 @@ its rejected first attempts and full unresolved reservations are preserved.
 Changing the limit requires new requests, not a retry or relabeling of those
 captures. Qualify any new provider/profile combination with one bounded request
 before expanding; stop on a deterministic provider configuration rejection.
+
+The 10-token Gateway profile is blocked for new live admission by the
+[captured configuration rejection](results/memory-evolution-native-judge-rejection-v1.json).
+V1–V9 preparation and execution with a positive new-call limit check all configured
+profiles, including the downstream judge, before reading source inputs or spending
+on readers. Generic callers can use `assertEvolutionLiveProfiles` for the same
+whole-run preflight. Transport checks each cache miss before credential validation,
+reservation or dispatch; existing hits and captured first responses still replay
+or finalize, and unresolved attempts retain their full reservations without retry.
+Zero-call execution and pure artifact parsing, reconstruction and reporting remain
+available. No profile, request bytes or native scoring rule changes, and no
+compatible profile is selected automatically. Passing this guard does not establish
+live provider qualification.
 
 Run configuration V1, V2 and V3 may explicitly select either Gateway native-rubric ID; those
 versions still describe treatment/context shapes. The model request remains V1
@@ -295,7 +308,8 @@ conversations. Use fresh histories or an untouched benchmark for confirmation.
 ## Reader answer-contract experiments
 
 Answer contracts can be varied independently of the reader model, reasoning effort
-and retrieved context. The closed contract catalog provides a small factorial:
+and retrieved context. The closed contract catalog provides a small factorial
+plus an opt-in GPT-5 mini treatment:
 
 | Contract | Unsupported questions | Answer composition |
 | --- | --- | --- |
@@ -303,13 +317,31 @@ and retrieved context. The closed contract catalog provides a small factorial:
 | `explicit-abstention-v1` | Explicit statement that information is missing | Existing instructions |
 | `composition-v1` | Existing literal `None` instruction | Event deduplication, date/state resolution, arithmetic and remembered preferences |
 | `explicit-abstention-composition-v1` | Explicit statement that information is missing | Both changes together |
+| `calibrated-composition-v1` | Calibrated abstention (legacy: carries a dataset-specific example) | Composition plus exact-value calibration |
+| `timeline-composition-v1` | Calibrated abstention (legacy, as above) | Composition, calibration and explicit timeline work |
+| `calibration-only-v1` | Explicit statement that information is missing | Composition plus exact-value calibration |
+| `selected-answer-v1` | Explicit statement that information is missing | As `calibration-only-v1`, plus a note that the memory holds selected source turns |
+| `evidence-selection-v1` | Not an answer contract | Stage-one alias selection for the [two-stage lane](EVOLUTION_TWO_STAGE.md); `evolutionAnswerMessages` refuses it and runner and selector-lane configurations reject its reader profiles, so it never answers over a memory field |
+| `task-complete-v1` | Explicit uncertainty for unsupported parts, with supported parts still answered | Requested-facet coverage, source attribution, unresolved contradictions, date/state resolution, arithmetic, historical requirements and one-item-per-line lists; GPT-5 mini only |
 
 `evolutionReaderProfileId(baseReader, contract)` returns an immutable ID accepted
 in the existing configuration's `readers` list. For example,
 `evolutionReaderProfileId("gpt5-nano-reader", "explicit-abstention-v1")` returns
-`gpt5-nano-explicit-abstention-v1-reader`. The same contracts are available for
-each of the six existing reader model/effort choices. Calling the helper with
+`gpt5-nano-explicit-abstention-v1-reader`. The factorial contracts are available for
+each of the ten existing reader model/effort choices. Calling the helper with
 `legacy-v1` returns the original reader ID.
+
+`evolutionReaderProfileId("gpt5-mini-reader", "task-complete-v1")` instead selects
+`gpt5-mini-task-complete-long-deadline-v1-reader`. This separate opt-in profile
+uses GPT-5 mini at medium effort, an 8,192-token output cap and a 600,000 ms
+deadline. Other base readers reject this contract. Compare it with
+`gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader` to hold the
+model, effort and deadline fixed. Both render the unchanged `question`,
+`questionDate` and `memory` envelope. The new instruction asks for complete
+requested answers while separating user actions from assistant suggestions,
+plans from outcomes, and unresolved conflicts from dated updates. This is an
+instruction treatment; offline construction and replay tests do not establish
+that a model follows it or that accuracy improves.
 
 New profiles record the base reader, contract ID and instruction digest. They
 inherit that reader's provider, model, prices, settings and output cap. Full-history
@@ -511,6 +543,32 @@ time separately from reused cached work. Do not repeat occupied requests to
 manufacture a matched timing sample. Archive the qualification receipt and retain
 the capacity in every run configuration.
 
+## Recall systems and the V2 result protocol
+
+Three development systems score the product recall surface documented in
+[`spec/v1/recall.md`](../spec/v1/recall.md): `oh-recall` (one semantic query,
+dated chronological rendering), `oh-recall-mq` (the question, its focused
+term form, and up to four lexical clauses fused by reciprocal rank), and
+`oh-recall-mq-dw` (the same plus the frozen relative-date window lane). Every
+query keeps the 1 through 100 search limit; the fused pool is cut to `topK`
+before rendering under the byte budget. Retrieval mode is semantic, matching
+the promoted `oh-semantic` configuration, so `oh-recall` differs from it only
+by presentation.
+
+Recall results use `oh.evolution-retrieval.v2`. `turnIds`, `sessionIds`, and
+`sources` still describe raw turns, so evidence scoring is unchanged; the
+result adds `asOf` (the question instant parsed by
+`scripts/benchmarks/evolution-dates.ts`, strict and fail-closed over the
+LongMemEval and LoCoMo timestamp grammars, `null` when the dataset supplies no
+question date), `renderer`, `queries`, `window`, and an empty `derived` list
+reserved for derived records. The source validator dispatches by protocol:
+V1 results re-render exactly as before, and V2 results re-render through
+`renderOhRecallV1` with the question, its date, and the recall system, so the
+re-derived queries, window, and dated bytes must all match. Protocols defined
+over V1 whole-turn results (completion, source order, release rebind, fact
+cards) refuse a recall result instead of misreading it. `evolution-dates.ts`
+is part of the retrieval identity.
+
 ## Validation and takeover
 
 Focused tests are under `tests/memory-benchmark-evolution-*.test.ts` and run in
@@ -550,6 +608,7 @@ References: [LoCoMo evaluator](https://github.com/snap-research/locomo/blob/3eb6
 
 Successor allowances use the [campaign V2 lineage contract](EVOLUTION_CAMPAIGNS_V2.md).
 The [ID selector prototype](EVOLUTION_SELECTOR.md) retains exact source turns in a separate experiment protocol.
+The [two-stage evidence-selection lane](EVOLUTION_TWO_STAGE.md) selects source turns from pinned semantic and BM25 contexts with a question-shape router, answers from the re-rendered selection, and reports reader-matched controls on both pins.
 
 ### Explicit full-release descriptive scope
 
@@ -558,6 +617,15 @@ The [ID selector prototype](EVOLUTION_SELECTOR.md) retains exact source turns in
 Both studies have completed; [the results page](EVOLUTION_RELEASE_RESULTS.md)
 reports BM25 window 378/500, Oh semantic 379/500 and full history 355/500 with
 zero failures, the paired and category breakdowns, cost and the fact-card outcome.
+
+[Run V9](EVOLUTION_RELEASE_V9.md) generalizes the release lane: an explicit
+ordered question selection (development pinned by IDs), declared candidate and
+control systems at any admitted whole-turn budget, indexed reader and judge
+repeats keyed through the campaign store, a declared reader date policy, a
+derived-record pin slot, `rebind` for V1, V7 and V9 parents and for V4
+development contexts, and the LoCoMo leaderboard-parity judge. V9 has its own
+study, scope V2, context, reader-plan V2, judge-plan, phase-receipt V2 and
+report protocols; V1-V8 are unchanged.
 
 [Run V8's full-context companion](FULL_CONTEXT_COMPANION.md) adds a separately
 accounted complete-source control over those same500 IDs with the same reader

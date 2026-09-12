@@ -12,7 +12,9 @@ import { runRetrieval } from "./benchmarks/runner";
 
 const HELP = `Usage: bun run bench:memory <fetch|extract|retrieval|state|projection|answer|judge|summarize|select> [options]
 
-  --dataset locomo|longmemeval-s|longmemeval-oracle   Default: locomo
+  --dataset locomo|longmemeval-s|longmemeval-oracle|beam   Default: locomo
+                                                  (beam fetch needs python3 + pyarrow; see benchmarks/EVOLUTION_CONFIRMATION.md;
+                                                  beam supports fetch, state, projection and retrieval only: no extract, answer or judge)
   --split dev|test|all                            Default: dev; split by conversation/family
   --seed N                                       Default: 17
   --limit N                                      Deterministic category-balanced pilot
@@ -95,6 +97,9 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const datasetName = values.dataset ?? (command === "select" ? "longmemeval-s" : "locomo");
   if (!Object.hasOwn(DATASETS, datasetName)) throw new TypeError("Unknown dataset.");
   const name = datasetName as DatasetName;
+  if (name === "beam" && (command === "extract" || command === "answer" || command === "judge")) {
+    throw new TypeError("BEAM has no reader or judge protocol yet; only fetch, state, projection, retrieval and the beam-seal-cli review/draw are supported.");
+  }
   if ((command === "select" || values.selection !== undefined) && name !== "longmemeval-s") {
     throw new TypeError("Family selection is limited to longmemeval-s.");
   }
@@ -212,7 +217,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     seed, sourceSha256: code.sourceSha256, gitHead: code.gitHead,
     status: result.status ?? "completed", summaries, comparisons: result.comparisons,
     provider: result.provider, spend: result.spend, stopped: result.stopped, extraction: result.extraction, memoryUnits: result.memoryUnits,
-    unresolvedEvidence: result.unresolvedEvidence,
+    unresolvedEvidence: result.unresolvedEvidence, ambiguousEvidence: result.ambiguousEvidence,
     evidenceProtocol: result.evidenceProtocol, evidenceNormalization: result.evidenceNormalization,
     unresolvedReferences: result.unresolvedReferences, resultSha256: result.resultSha256 }, null, 2));
   if (result.status === "failed" || result.status === "incomplete") process.exitCode = 1;

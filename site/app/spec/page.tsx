@@ -58,6 +58,7 @@ export default function Specification() {
         ariaLabel="Specification navigation"
         brand="Oh"
         brandLabel="Oh home"
+        className="spec-header"
         links={[
           { href: "/", label: "Overview" },
           { current: true, href: "/spec", label: "Specification" },

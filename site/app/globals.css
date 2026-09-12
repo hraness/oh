@@ -1,40 +1,15 @@
 @import "@hraness/design-kit/fonts.css";
 @import "@hraness/design-kit/product-marketing.css";
+@import "../styles/vendor/hraness-paper/paper-theme.css";
+@import "../vendor/hraness-marketing/product-marketing-preset.css";
 
-/* Product palette. Light is the default; dark mirrors every token. The
- * marketing grammar reads these through the bindings below. */
+/* Paper owns the common palette; this local alias keeps the specification and
+ * existing proof components independent of the shared stylesheet's layout. */
 :root {
-  color-scheme: light dark;
-  --background: #fbfaf6;
-  --surface: #ffffff;
-  --foreground: #16201a;
-  --muted: #5d6963;
-  --line: rgba(22, 32, 26, 0.12);
-  --inverse-background: #13211b;
-  --inverse-foreground: #eef2ea;
-  --inverse: var(--inverse-background);
-  --font-text: "Nebula Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-heading: var(--font-text);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  --hraness-site-accent: #214c3a;
-  --hraness-site-accent-ink: #ffffff;
+  --inverse-background: var(--inverse);
   font-family: var(--font-text);
   font-synthesis: none;
   line-height: 1.55;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #121614;
-    --surface: #191e1b;
-    --foreground: #e8ece7;
-    --muted: #a6b0a9;
-    --line: rgba(232, 236, 231, 0.14);
-    --inverse-background: #0b1511;
-    --inverse-foreground: #edf2ee;
-    --hraness-site-accent: #8fd3a8;
-    --hraness-site-accent-ink: #0b2417;
-  }
 }
 
 * {
@@ -67,8 +42,8 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
-/* Marketing grammar bindings. The palette above is the source of truth. */
-:where(.hraness-marketing-page, .hraness-marketing-header) {
+/* The specification keeps its existing Paper header and reading typography. */
+.spec-header {
   --hraness-marketing-ink: var(--foreground);
   --hraness-marketing-muted: var(--muted);
   --hraness-marketing-background: var(--background);
@@ -78,21 +53,14 @@ a:focus-visible {
   --hraness-marketing-text-font: var(--font-text);
   --hraness-marketing-heading-font: var(--font-text);
   --hraness-marketing-mono-font: var(--font-mono);
-  --hraness-marketing-measure: 72rem;
 }
 
 .brand-mark {
   color: var(--hraness-site-accent);
 }
 
-.oh-marketing-hero {
-  gap: clamp(1.25rem, 2.5vw, 2rem);
-  padding-block-start: clamp(1.5rem, 3vw, 2.5rem);
-}
-.oh-marketing-hero .hraness-marketing-hero__copy { gap: 1rem; }
 .oh-marketing-hero .hraness-marketing-hero__heading {
   max-inline-size: 22ch;
-  font-size: clamp(2.3rem, 4.5vw, 3.5rem);
 }
 
 .hraness-marketing-stats {
@@ -118,7 +86,7 @@ a:focus-visible {
   padding: clamp(1.25rem, 3vw, 2rem);
   overflow-wrap: anywhere;
 }
-.citation-preview h2 { margin: 0; font-size: clamp(1.25rem, 2vw, 1.65rem); line-height: 1.3; }
+.citation-preview h2 { margin: 0; font-family: var(--font-text); font-size: clamp(1.25rem, 2vw, 1.65rem); line-height: 1.3; }
 .citation-preview > p { max-inline-size: 52ch; color: var(--muted); }
 .citation-preview dl { margin-block: 1.5rem; }
 .citation-preview dl > div {
@@ -186,10 +154,20 @@ a:focus-visible {
   }
 }
 
-/* A three-row sticky header would take a third of a phone viewport. */
+/* The specification retains its existing phone navigation behavior. */
 @media (max-width: 48rem) {
-  .hraness-marketing-header {
+  .spec-header {
     position: static;
+  }
+
+  /* Clear the three-row phone header without moving the page's sections. */
+  [data-hraness-marketing-preset="editorial"] .hraness-marketing-page > [id] {
+    scroll-margin-block-start: 6rem;
+  }
+
+  /* The install card has less internal padding than the narrative sections. */
+  [data-hraness-marketing-preset="editorial"] #install {
+    scroll-margin-block-start: 8.75rem;
   }
 }
 
@@ -380,7 +358,7 @@ a:focus-visible {
 
 .spec-intro h1 {
   margin: 0;
-  font-size: clamp(2.5rem, 5vw, 4.25rem);
+  font-size: var(--hraness-paper-heading-size);
   font-weight: 500;
   letter-spacing: -0.022em;
   line-height: 1.05;
@@ -417,7 +395,7 @@ a:focus-visible {
 
 .spec-section h2 {
   margin: 0 0 1.25rem;
-  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-size: var(--hraness-paper-section-heading-size);
   font-weight: 500;
   letter-spacing: -0.012em;
   line-height: 1.15;

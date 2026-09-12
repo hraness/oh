@@ -70,7 +70,7 @@ function design(value: unknown): EvolutionEvaluationDesign {
   return { experimentSpecSha256: digest(v.experimentSpecSha256), candidate, controls, readers,
     judge: named(v.judge), rubricSha256: digest(v.rubricSha256) };
 }
-function metadata(input: EvolutionEvaluationScopeInput): EvolutionDatasetManifest {
+function metadata(input: Pick<EvolutionEvaluationScopeInput, "manifestBytes" | "manifestSha256" | "source">): EvolutionDatasetManifest {
   if (!(input.manifestBytes instanceof Uint8Array) || !input.manifestBytes.length || input.manifestBytes.length > MAX_BYTES
     || sha256Hex(input.manifestBytes) !== digest(input.manifestSha256)) fail("pinned manifest bytes changed or exceeded bound");
   const source = record(input.source, ["dataset", "revision", "sourceSha256"]);
@@ -195,5 +195,131 @@ export function validateEvolutionEvaluationScope(input: EvolutionEvaluationScope
 export function assertEvolutionEvaluationShardCoverage(scope: EvolutionEvaluationScope, shardId: string, ids: readonly string[]): void {
   const shard = scope.shards.find(s => s.id === shardId); if (!shard) fail("unknown shard");
   if (!Array.isArray(ids) || ids.length > 100) fail("bounded shard coverage required");
+  assertExactEvolutionCoverage(shard.questionIds, ids);
+}
+
+/* ---------------------------------------------------------------------------------------------------------
+ * V2: explicit ordered selection, shard caps to 260, cluster policies for conversation-level benchmarks.
+ * V1 above is untouched; V7 studies keep using it. A V2 scope never reinterprets a V1 scope.
+ * ------------------------------------------------------------------------------------------------------- */
+export const EVOLUTION_EVALUATION_SCOPE_V2_PROTOCOL = "oh.memory.evaluation-scope.v2" as const;
+export const EVOLUTION_EVALUATION_SCOPE_V2_MAXIMUM_SHARD = 260;
+export const EVOLUTION_EVALUATION_SHARD_POLICIES = ["packed-clusters", "one-cluster-per-shard"] as const;
+export type EvolutionEvaluationShardPolicy = typeof EVOLUTION_EVALUATION_SHARD_POLICIES[number];
+export type EvolutionEvaluationDesignV2 = EvolutionEvaluationDesign & Readonly<{
+  dataset: string; candidateVariantSha256: string; repeats: number; judgeRepeats: number; readerDatePolicySha256: string;
+}>;
+export type EvolutionEvaluationScopeRequestV2 = Readonly<{
+  mode: "explicit-selection"; maximumQuestionsPerShard: number; shardPolicy: EvolutionEvaluationShardPolicy;
+  design: EvolutionEvaluationDesignV2; selectedQuestionIds: readonly string[];
+}>;
+export type EvolutionEvaluationScopeInputV2 = Readonly<{
+  manifestBytes: Uint8Array; manifestSha256: string;
+  source: Readonly<{ dataset: string; revision: string; sourceSha256: string }>;
+  request: EvolutionEvaluationScopeRequestV2;
+}>;
+export const EVOLUTION_EVALUATION_SCOPE_V2_FAILURE_POLICY = "all-planned-questions;reader-failure-zero;judge-failure-zero-separate;unadmitted-incomplete;indexed-repeats-predeclared" as const;
+export const EVOLUTION_EVALUATION_SCOPE_V2_QUALIFICATION = "Metadata custody only; declared clusters are not proven independent; unknown exposure is not unseen; an explicit selection is a declared subset, not a fresh sample. Referenced experiment and eligibility documents require separate authentication." as const;
+export type EvolutionEvaluationScopeV2 = Readonly<{
+  protocol: typeof EVOLUTION_EVALUATION_SCOPE_V2_PROTOCOL; mode: "explicit-selection"; shardPolicy: EvolutionEvaluationShardPolicy;
+  manifestSha256: string; source: EvolutionEvaluationScopeInputV2["source"]; datasetMetadataSha256: string;
+  design: EvolutionEvaluationDesignV2; maximumQuestionsPerShard: number; selectedQuestionIdsSha256: string;
+  questions: readonly EvolutionEvaluationScopeQuestion[];
+  shards: readonly Readonly<{ id: string; clusterIds: readonly string[]; questionIds: readonly string[]; questionIdsSha256: string }>[];
+  coverage: Readonly<{ releaseQuestions: number; selectedQuestions: number; declaredGroups: number; declaredHistories: number;
+    connectedDeclaredClusters: number; partiallySelectedClusters: number; logicalReaderCases: number; logicalJudgeCases: number }>;
+  strata: readonly Readonly<{ partition: EvolutionPartition; exposure: EvolutionExposure; questions: number; groups: number }>[];
+  failurePolicy: typeof EVOLUTION_EVALUATION_SCOPE_V2_FAILURE_POLICY;
+  qualification: typeof EVOLUTION_EVALUATION_SCOPE_V2_QUALIFICATION;
+  scopeSha256: string;
+}>;
+function repeatCount(value: unknown): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 1 || (value as number) > 3) fail("repeats require 1..3");
+  return value as number;
+}
+function designV2(value: unknown): EvolutionEvaluationDesignV2 {
+  const v = record(value, ["experimentSpecSha256", "dataset", "candidate", "candidateVariantSha256", "controls", "readers", "judge", "rubricSha256", "repeats", "judgeRepeats", "readerDatePolicySha256"]);
+  const candidate = named(v.candidate), controls = list(v.controls, 4).map(named), readers = list(v.readers, 4).map(named);
+  assertExactEvolutionCoverage([candidate, ...controls].map(x => x.id), [candidate, ...controls].map(x => x.id));
+  assertExactEvolutionCoverage(readers.map(x => x.id), readers.map(x => x.id));
+  return { experimentSpecSha256: digest(v.experimentSpecSha256), dataset: text(v.dataset), candidate, candidateVariantSha256: digest(v.candidateVariantSha256),
+    controls, readers, judge: named(v.judge), rubricSha256: digest(v.rubricSha256), repeats: repeatCount(v.repeats), judgeRepeats: repeatCount(v.judgeRepeats),
+    readerDatePolicySha256: digest(v.readerDatePolicySha256) };
+}
+/** Explicit ordered selection over declared clusters. `packed-clusters` reproduces the V1 packing over the selected
+ * members (the LongMemEval full500 selection therefore yields the V1 shards); `one-cluster-per-shard` gives every
+ * declared conversation cluster its own shard for LoCoMo and BEAM. Partially selected clusters (LoCoMo without its
+ * adversarial category) are admitted and counted; they are never split across shards. */
+export function makeEvolutionEvaluationScopeV2(input: EvolutionEvaluationScopeInputV2): EvolutionEvaluationScopeV2 {
+  record(input, ["manifestBytes", "manifestSha256", "source", "request"]);
+  const m = metadata(input), request = input.request;
+  record(request, ["mode", "maximumQuestionsPerShard", "shardPolicy", "design", "selectedQuestionIds"]);
+  if (request.mode !== "explicit-selection") fail("explicit selection mode required");
+  if (!(EVOLUTION_EVALUATION_SHARD_POLICIES as readonly string[]).includes(request.shardPolicy)) fail("unknown shard policy");
+  const maximum = request.maximumQuestionsPerShard;
+  if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > EVOLUTION_EVALUATION_SCOPE_V2_MAXIMUM_SHARD) fail("shards require a 1..260 question cap");
+  const spec = designV2(request.design);
+  if (spec.dataset !== input.source.dataset) fail("design dataset differs from source");
+  const groupMap = new Map(m.groups.map(g => [g.groupId, g])), byCorpus = new Map(m.corpora.map(c => [c.id, c]));
+  const roots = m.questions.map((_, i) => i), groupHeads = new Map<string, number>(), historyHeads = new Map<string, number>();
+  const find = (index: number): number => { while (roots[index] !== index) { roots[index] = roots[roots[index]!]!; index = roots[index]!; } return index; };
+  m.questions.forEach((q, i) => { for (const [map, key] of [[groupHeads, q.groupId], [historyHeads, q.historyId]] as const) {
+    const previous = map.get(key); if (previous === undefined) map.set(key, i); else roots[find(i)] = find(previous);
+  } });
+  const components = new Map<number, typeof m.questions[number][]>();
+  m.questions.forEach((q, i) => { const key = find(i), rows = components.get(key) ?? []; rows.push(q); components.set(key, rows); });
+  const chosen = list(request.selectedQuestionIds).map(value => text(value));
+  assertExactEvolutionCoverage(chosen, chosen);
+  const chosenSet = new Set(chosen), knownIds = new Set(m.questions.map(q => q.runnerId));
+  if (chosen.some(id => !knownIds.has(id))) fail("foreign selected question");
+  let partial = 0;
+  const clusters = [...components.values()].map(rows => rows.sort((a, b) => a.runnerId < b.runnerId ? -1 : a.runnerId > b.runnerId ? 1 : 0))
+    .map(rows => ({ clusterId: `cluster-${canonicalSha256(rows.map(q => q.runnerId))}`, rows, selected: rows.filter(q => chosenSet.has(q.runnerId)) }))
+    .filter(c => { if (c.selected.length > 0 && c.selected.length !== c.rows.length) partial++; return c.selected.length > 0; })
+    .sort((a, b) => a.selected[0]!.runnerId < b.selected[0]!.runnerId ? -1 : 1);
+  const questions: EvolutionEvaluationScopeQuestion[] = [], shards: Array<{ clusterIds: string[]; questionIds: string[] }> = [];
+  let shard: { clusterIds: string[]; questionIds: string[] } = { clusterIds: [], questionIds: [] };
+  for (const cluster of clusters) {
+    if (cluster.selected.length > maximum) fail("declared cluster exceeds shard cap; never split it");
+    if (request.shardPolicy === "one-cluster-per-shard" ? shard.questionIds.length > 0 : shard.questionIds.length + cluster.selected.length > maximum) {
+      shards.push(shard); shard = { clusterIds: [], questionIds: [] };
+    }
+    shard.clusterIds.push(cluster.clusterId);
+    for (const q of cluster.selected) {
+      const g = groupMap.get(q.groupId)!, c = byCorpus.get(q.corpusId)!;
+      questions.push({ id: q.runnerId, corpusId: c.runnerId, groupId: q.groupId, historyId: q.historyId, clusterId: cluster.clusterId,
+        category: q.category, partition: q.partition, exposure: g.exposure, questionContentSha256: q.contentSha256, corpusContentSha256: c.contentSha256 });
+      shard.questionIds.push(q.runnerId);
+    }
+  }
+  if (shard.questionIds.length) shards.push(shard);
+  if (shards.length > 999) fail("shard count exceeds the three-digit identifier space");
+  assertExactEvolutionCoverage(chosen, questions.map(q => q.id));
+  const strataKeys = [...new Set(questions.map(q => JSON.stringify([q.partition, q.exposure])))].sort();
+  const strata = strataKeys.map(key => {
+    const rows = questions.filter(q => JSON.stringify([q.partition, q.exposure]) === key), first = rows[0]!;
+    return { partition: first.partition, exposure: first.exposure, questions: rows.length, groups: new Set(rows.map(q => q.groupId)).size };
+  });
+  const arms = (1 + spec.controls.length) * spec.readers.length;
+  const payload = { protocol: EVOLUTION_EVALUATION_SCOPE_V2_PROTOCOL, mode: request.mode, shardPolicy: request.shardPolicy, manifestSha256: input.manifestSha256,
+    source: { ...input.source }, datasetMetadataSha256: m.datasetSha256, design: spec, maximumQuestionsPerShard: maximum,
+    selectedQuestionIdsSha256: canonicalSha256(chosen), questions,
+    shards: shards.map((s, index) => ({ id: `shard-${String(index + 1).padStart(3, "0")}`, clusterIds: s.clusterIds, questionIds: s.questionIds, questionIdsSha256: canonicalSha256(s.questionIds) })),
+    coverage: { releaseQuestions: m.questions.length, selectedQuestions: questions.length, declaredGroups: new Set(questions.map(q => q.groupId)).size,
+      declaredHistories: new Set(questions.map(q => q.historyId)).size, connectedDeclaredClusters: clusters.length, partiallySelectedClusters: partial,
+      logicalReaderCases: questions.length * arms * spec.repeats, logicalJudgeCases: questions.length * arms * spec.repeats * spec.judgeRepeats }, strata,
+    failurePolicy: EVOLUTION_EVALUATION_SCOPE_V2_FAILURE_POLICY, qualification: EVOLUTION_EVALUATION_SCOPE_V2_QUALIFICATION };
+  return freeze({ ...payload, scopeSha256: canonicalSha256(payload) });
+}
+export function validateEvolutionEvaluationScopeV2(input: EvolutionEvaluationScopeInputV2, bytes: Uint8Array): EvolutionEvaluationScopeV2 {
+  if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > MAX_BYTES) fail("bounded serialized scope required");
+  const expected = makeEvolutionEvaluationScopeV2(input);
+  let value: unknown; try { value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); } catch { fail("invalid scope JSON"); }
+  if (canonicalSha256(value) !== canonicalSha256(expected)) fail("scope differs from pinned metadata and declared design");
+  return expected;
+}
+export function assertEvolutionEvaluationShardCoverageV2(scope: EvolutionEvaluationScopeV2, shardId: string, ids: readonly string[]): void {
+  const shard = scope.shards.find(s => s.id === shardId); if (!shard) fail("unknown shard");
+  if (!Array.isArray(ids) || ids.length > EVOLUTION_EVALUATION_SCOPE_V2_MAXIMUM_SHARD) fail("bounded shard coverage required");
   assertExactEvolutionCoverage(shard.questionIds, ids);
 }

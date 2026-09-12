@@ -256,3 +256,16 @@ test("a rebound study reuses exact parent retrieval under a declared reader/camp
   expect(parseEvolutionArgs(["rebind", "--config", "/a/c.json", "--config-sha256", h("c"), "--context", "/a/x.json", "--context-sha256", h("x")]).command).toBe("rebind");
   expect(() => parseEvolutionArgs(["rebind", "--config", "/a/c.json", "--config-sha256", h("c")])).toThrow();
 });
+
+test("development lanes may pin an optional local semantic cache that cannot overlap run, store or inputs", () => {
+  const f = fixture(), base = { protocol: "oh.memory.evolution-run.v4", dataset: "longmemeval-s", datasetPin: f.config.datasetPin, manifestPin: f.config.manifestPin,
+    campaignPin: f.config.campaignPin, limit: 100, seed: 17, variants: f.config.variants, readers: ["gpt5-mini-explicit-abstention-composition-v1-reader"],
+    judge: f.config.judge, directory: "/example/dev/output", storeDirectory: "/example/dev/store", concurrency: 24 };
+  expect("semanticCacheDirectory" in parseEvolutionRunConfig(base)).toBe(false);
+  const cached = parseEvolutionRunConfig({ ...base, semanticCacheDirectory: "/example/dev/qmd-cache" }) as Record<string, unknown>;
+  expect(cached.semanticCacheDirectory).toBe("/example/dev/qmd-cache");
+  for (const bad of ["/example/dev/output", "/example/dev/store/cache", "/example", "relative/cache"]) {
+    expect(() => parseEvolutionRunConfig({ ...base, semanticCacheDirectory: bad })).toThrow();
+  }
+  expect(() => parseEvolutionRunConfig({ ...f.config, semanticCacheDirectory: undefined })).toThrow();
+});

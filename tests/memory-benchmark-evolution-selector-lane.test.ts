@@ -7,7 +7,7 @@ import { codeIdentity } from "../scripts/benchmarks/io";
 import { EVOLUTION_PROFILES, evolutionReaderProfileId, evolutionReaderContract } from "../scripts/benchmarks/evolution-model";
 import { openEvolutionStore } from "../scripts/benchmarks/evolution-store";
 import { parseSelectorLaneConfig, parseSelectorLaneSource, readSelectorLaneSource, SELECTOR_LANE_SOURCE_MAX_BYTES, prepareSelectorLane, runSelectorLane, type SelectorLaneConfig } from "../scripts/benchmarks/evolution-selector-lane";
-import { EVOLUTION_READER_CONTRACTS, EVOLUTION_READER_CONTRACT_IDS } from "../scripts/benchmarks/evolution-reader-contracts";
+import { EVOLUTION_ANSWER_CONTRACT_IDS, EVOLUTION_READER_CONTRACTS, EVOLUTION_READER_CONTRACT_IDS } from "../scripts/benchmarks/evolution-reader-contracts";
 import { answerMessages } from "../scripts/benchmarks/model";
 import type { EvolutionCampaign, EvolutionPin } from "../scripts/benchmarks/evolution-budget";
 
@@ -154,6 +154,7 @@ test("source, config, scorer and prepared-plan pins reject substitution; labels 
   const f = await fixture(["gpt5-nano-reader"]), fake = provider();
   try {
     expect(() => parseSelectorLaneConfig({ ...f.config, partition: "sealed" })).toThrow();
+    expect(() => parseSelectorLaneConfig({ ...f.config, readers: ["gpt5-nano-evidence-selection-v1-reader"] })).toThrow("selection contracts are not answer readers");
     expect(() => parseSelectorLaneSource({ ...f.source, questions: [{ ...f.source.questions[0], answer: "leak" }] })).toThrow("question shape");
     const tampered = structuredClone(f.plan); (tampered.cases[0]!.pool as any).context = "invented replacement";
     const badPlan = await f.pin("bad-plan.json", tampered);
@@ -182,11 +183,14 @@ test("explicit zero new-call allowance preserves all missing cases without openi
 
 
 test("each answer-contract profile dispatches its exact immutable instruction for both selector arms", async () => {
-  const readers = EVOLUTION_READER_CONTRACT_IDS.map(contract => evolutionReaderProfileId("gpt5-nano-reader", contract));
+  // evidence-selection-v1 is a stage-1 selector contract, not an answer contract; the answer factorial keeps the eight answer contracts.
+  const contracts = EVOLUTION_ANSWER_CONTRACT_IDS.filter(contract => contract !== "task-complete-v1");
+  expect(contracts).toEqual(EVOLUTION_READER_CONTRACT_IDS.filter(contract => contract !== "evidence-selection-v1" && contract !== "task-complete-v1"));
+  const readers = contracts.map(contract => evolutionReaderProfileId("gpt5-nano-reader", contract));
   const f = await fixture(readers), fake = provider();
   try {
     const report = await runSelectorLane({ configPin: f.configPin, planPin: f.planPin, credential: credential(), fetcher: fake.fetcher });
-    expect(report.complete).toBeTrue(); expect(report.cases).toHaveLength(16);
+    expect(report.complete).toBeTrue(); expect(report.cases).toHaveLength(contracts.length * 4);
     expect(report.phases.selector!.physicalRequests).toBe(2);
     for (const attempt of report.attempts.filter(a => a.phase === "reader")) {
       const contract = evolutionReaderContract(attempt.request.profileId);
@@ -197,7 +201,7 @@ test("each answer-contract profile dispatches its exact immutable instruction fo
         expect(attempt.request.body.messages).toEqual(answerMessages(data, data.memory));
       }
     }
-    expect(new Set(report.attempts.filter(a => a.phase === "reader").map(a => a.request.body.messages[0]!.content)).size).toBe(4);
+    expect(new Set(report.attempts.filter(a => a.phase === "reader").map(a => a.request.body.messages[0]!.content)).size).toBe(contracts.length);
   } finally { await rm(f.directory, { recursive: true, force: true }); }
 });
 

@@ -1,10 +1,13 @@
 import { type JsonValue } from "./canonical";
 import { type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
+import { type OhRecallResponseV1, type OhRecallWindowV1 } from "./recall";
 import { type OhSearchModeV1, type OhSearchResponseV1 } from "./search";
 import type { OhSemanticSearchBackend } from "./semantic";
 import { OhSqliteStore, type OhHeadV1, type OhReplayVerificationV1 } from "./sqlite/store";
 import { synchronizeOhStoreV1, type OhOperationSyncTransportV1, type OhSyncResultV1 } from "./sync";
 import type { OhOperationV1 } from "./operation";
+export { defaultOhRecallViewV1, OH_RECALL_DATE_GRAMMAR_V1, OH_RECALL_LIMITS_V1, OH_RECALL_RENDERER_V1, recallOhV1, renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
+export type { OhRecallDateRuleV1, OhRecallDateWindowV1, OhRecallDiagnosticV1, OhRecallEvidenceV1, OhRecallRecordViewV1, OhRecallRenderingV1, OhRecallResponseV1, OhRecallResultV1, OhRecallViewV1, OhRecallWindowV1 } from "./recall";
 export type OhOpenOptionsV1 = Readonly<{
     databasePath?: string;
     semanticBackend?: OhSemanticSearchBackend;
@@ -44,6 +47,13 @@ export declare class Oh {
         limit?: number;
         mode?: OhSearchModeV1;
     }>): Promise<OhSearchResponseV1>;
+    /** Fused recall over bounded V1 searches; `asOf` defaults to no question instant. */
+    recall(queries: string | readonly string[], options?: Readonly<{
+        asOf?: string | null;
+        limit?: number;
+        mode?: OhSearchModeV1;
+        window?: OhRecallWindowV1 | null;
+    }>): Promise<OhRecallResponseV1>;
     sync(transport: OhOperationSyncTransportV1, options?: Parameters<typeof synchronizeOhStoreV1>[2]): Promise<OhSyncResultV1>;
     verify(): OhReplayVerificationV1;
     close(): Promise<void>;

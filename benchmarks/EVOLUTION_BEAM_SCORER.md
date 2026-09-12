@@ -11,3 +11,38 @@ Real SciPy produced non-finite tau in 293 of the deliberately degenerate expande
 No BEAM dataset files, questions or answers were opened, and no provider calls were made. These results establish bounded synthetic compatibility with specific scorer primitives. They provide no BEAM accuracy result, live judge qualification, end-to-end reproduction, freshness attestation or superiority claim. Dataset exposure review remains pending.
 
 Evidence receipts: baseline `97b8d8a5b2b6e6f24200f20b995ec704a7779f1def0591112622513fcc94e3e9`; expanded `074fe8fd512038fbc5937a6543309786981149586d97a804b630a9ce36d7c425`; pinned environment `6ae5d2683bd0656aa3109f830010d90741d937210297c746abc6d6d6f0b3a3f0`. The accompanying compact JSON omits private paths and retains source and harness hashes.
+
+## Bounded transport profiles
+
+The native request catalogue now includes three opt-in GPT-4o Gateway profiles:
+`gpt4o-beam-event-extraction-v1` (1,024 output tokens),
+`gpt4o-beam-event-equivalence-v1` (32), and `gpt4o-beam-nugget-v1`
+(512). Extraction and nugget requests use one user message; equivalence uses
+system and user messages. They use plain text transport at temperature zero,
+preserve the native provider restriction, and reserve the complete input/output
+bound before dispatch through the shared campaign store.
+
+These profiles provide request, capture and accounting support. They do not
+enable a BEAM experiment through the general benchmark CLI or provide an
+end-to-end scorer. Gateway aliases and output limits are operational choices,
+not evidence of matching the released model configuration. Live qualification,
+dataset allocation and an explicitly bounded campaign remain separate steps.
+All existing profile and request bytes remain unchanged.
+
+## Opt-in reader deadline
+
+`gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader` uses a
+600,000 ms transport deadline. Its request body, explicit-abstention/composition
+instruction, GPT-5 mini medium reasoning, 8,192 output-token cap, prices and
+context admission bounds match `gpt5-mini-explicit-abstention-composition-v1-reader`.
+The existing reader retains its 120,000 ms deadline and remains the choice
+returned by the base-reader/contract selector. Both conservative-input and
+explicit profile-window requests retain their existing accounting rules.
+
+The longer deadline has a distinct profile and request hash. Existing captured
+responses and unresolved reservations keep their original identities and costs;
+selecting this profile does not authorize retrying or replacing an earlier job.
+Transport still captures the first response and performs no automatic retry.
+An empty response at a deadline leaves provider outcome and billing uncertain,
+so its full reservation remains held. The new profile is an operational option,
+with no claim of live completion, better accuracy or production activation.
