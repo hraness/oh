@@ -184,7 +184,8 @@ test("explicit zero new-call allowance preserves all missing cases without openi
 
 test("each answer-contract profile dispatches its exact immutable instruction for both selector arms", async () => {
   // evidence-selection-v1 is a stage-1 selector contract, not an answer contract; the answer factorial keeps the eight answer contracts.
-  const contracts = EVOLUTION_ANSWER_CONTRACT_IDS; expect(contracts).toEqual(EVOLUTION_READER_CONTRACT_IDS.filter(contract => contract !== "evidence-selection-v1"));
+  const contracts = EVOLUTION_ANSWER_CONTRACT_IDS.filter(contract => contract !== "task-complete-v1");
+  expect(contracts).toEqual(EVOLUTION_READER_CONTRACT_IDS.filter(contract => contract !== "evidence-selection-v1" && contract !== "task-complete-v1"));
   const readers = contracts.map(contract => evolutionReaderProfileId("gpt5-nano-reader", contract));
   const f = await fixture(readers), fake = provider();
   try {

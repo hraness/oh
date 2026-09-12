@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { makeEvolutionAnswerAuditMessages } from "../scripts/benchmarks/evolution-answer-audit";
-import { EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID as longId, EVOLUTION_PROFILES, evolutionReaderContract,
+import { EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID as longId, EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID, EVOLUTION_PROFILES, evolutionReaderContract,
   evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest, parseEvolutionResponse,
   supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
@@ -18,7 +18,7 @@ const single = [{ role: "user" as const, content: "Evaluate this LongMemEval ans
 const messages = evolutionAnswerMessages({ question: "Which color?", questionDate: "2026-09-11" }, "[t0] Blue.", "explicit-abstention-composition-v1");
 
 test("the opt-in deadline preserves all 101 prior profile/request bytes and all 54 profile-window requests", () => {
-  const old = Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== longId).sort(([a], [b]) => a < b ? -1 : 1);
+  const old = Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== longId && id !== EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
   const audit = makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "The synthetic tile is blue.", draftAnswer: "Blue." });
   const requests = old.map(([id, p]) => makeEvolutionRequest(id as EvolutionProfileId,
     id === "gpt5-mini-answer-audit-v1" ? audit : p.qualification === "official-snapshot-request"

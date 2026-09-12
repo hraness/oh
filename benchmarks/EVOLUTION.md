@@ -308,7 +308,8 @@ conversations. Use fresh histories or an untouched benchmark for confirmation.
 ## Reader answer-contract experiments
 
 Answer contracts can be varied independently of the reader model, reasoning effort
-and retrieved context. The closed contract catalog provides a small factorial:
+and retrieved context. The closed contract catalog provides a small factorial
+plus an opt-in GPT-5 mini treatment:
 
 | Contract | Unsupported questions | Answer composition |
 | --- | --- | --- |
@@ -321,13 +322,26 @@ and retrieved context. The closed contract catalog provides a small factorial:
 | `calibration-only-v1` | Explicit statement that information is missing | Composition plus exact-value calibration |
 | `selected-answer-v1` | Explicit statement that information is missing | As `calibration-only-v1`, plus a note that the memory holds selected source turns |
 | `evidence-selection-v1` | Not an answer contract | Stage-one alias selection for the [two-stage lane](EVOLUTION_TWO_STAGE.md); `evolutionAnswerMessages` refuses it and runner and selector-lane configurations reject its reader profiles, so it never answers over a memory field |
+| `task-complete-v1` | Explicit uncertainty for unsupported parts, with supported parts still answered | Requested-facet coverage, source attribution, unresolved contradictions, date/state resolution, arithmetic, historical requirements and one-item-per-line lists; GPT-5 mini only |
 
 `evolutionReaderProfileId(baseReader, contract)` returns an immutable ID accepted
 in the existing configuration's `readers` list. For example,
 `evolutionReaderProfileId("gpt5-nano-reader", "explicit-abstention-v1")` returns
-`gpt5-nano-explicit-abstention-v1-reader`. The same contracts are available for
-each of the six existing reader model/effort choices. Calling the helper with
+`gpt5-nano-explicit-abstention-v1-reader`. The factorial contracts are available for
+each of the ten existing reader model/effort choices. Calling the helper with
 `legacy-v1` returns the original reader ID.
+
+`evolutionReaderProfileId("gpt5-mini-reader", "task-complete-v1")` instead selects
+`gpt5-mini-task-complete-long-deadline-v1-reader`. This separate opt-in profile
+uses GPT-5 mini at medium effort, an 8,192-token output cap and a 600,000 ms
+deadline. Other base readers reject this contract. Compare it with
+`gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader` to hold the
+model, effort and deadline fixed. Both render the unchanged `question`,
+`questionDate` and `memory` envelope. The new instruction asks for complete
+requested answers while separating user actions from assistant suggestions,
+plans from outcomes, and unresolved conflicts from dated updates. This is an
+instruction treatment; offline construction and replay tests do not establish
+that a model follows it or that accuracy improves.
 
 New profiles record the base reader, contract ID and instruction digest. They
 inherit that reader's provider, model, prices, settings and output cap. Full-history
