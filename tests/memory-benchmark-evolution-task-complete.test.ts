@@ -34,21 +34,21 @@ test("task-complete preserves every prior profile, request, full-window request 
   // Captured before editing clean main e9b2ea030a292f5af97fa0a66514d691b58e78d7.
   // JSON-byte digests include field ordering, nested identities and accounting preimages.
   expect(old).toHaveLength(102);
-  expect(sha256Hex(JSON.stringify(old))).toBe("f9c4b985865bf2ff61e469daf234de55fec926040eecd6ab663d5800c548dd5e");
-  expect(sha256Hex(JSON.stringify(requests))).toBe("cbc1d7a938b7f9eed489eeba188594e0bf79a5fa0ef33e2271eeb819a496d09c");
+  expect<string>(sha256Hex(JSON.stringify(old))).toBe("f9c4b985865bf2ff61e469daf234de55fec926040eecd6ab663d5800c548dd5e");
+  expect<string>(sha256Hex(JSON.stringify(requests))).toBe("cbc1d7a938b7f9eed489eeba188594e0bf79a5fa0ef33e2271eeb819a496d09c");
   expect(windows).toHaveLength(55);
-  expect(sha256Hex(JSON.stringify(windows))).toBe("d22c853e4732e3e0af5ab4446e22dc1ecb39bcfc4a951ed5181e7a1a3ac4c3cc");
+  expect<string>(sha256Hex(JSON.stringify(windows))).toBe("d22c853e4732e3e0af5ab4446e22dc1ecb39bcfc4a951ed5181e7a1a3ac4c3cc");
   expect(Object.keys(contracts)).toHaveLength(9);
-  expect(sha256Hex(JSON.stringify(contracts))).toBe("3cc3aba22e804bb928c254ec860380205d7f22ac1e2741f9856e2d8467ccde41");
+  expect<string>(sha256Hex(JSON.stringify(contracts))).toBe("3cc3aba22e804bb928c254ec860380205d7f22ac1e2741f9856e2d8467ccde41");
 });
 
 test("one opt-in profile binds the frozen instruction and preserves the gold-free input envelope", () => {
   const p = EVOLUTION_PROFILES[candidateId], contract = EVOLUTION_READER_CONTRACTS["task-complete-v1"];
   expect(p).toEqual({ ...EVOLUTION_PROFILES["gpt5-mini-reader"], id: candidateId, timeoutMs: 600000,
     readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v1", instructionSha256: contract.instructionSha256 } });
-  expect(canonicalSha256(p)).toBe("9dbc1d92b9b59bc071da8f57a2860a133e443927440968a63dfdd99b5f4d2308");
+  expect<string>(canonicalSha256(p)).toBe("9dbc1d92b9b59bc071da8f57a2860a133e443927440968a63dfdd99b5f4d2308");
   expect(contract.instruction).toBe(TASK_COMPLETE_INSTRUCTION_V1);
-  expect(contract.instructionSha256).toBe("a3b695e67cfffe11ba78a302fa7c165319a28527d2814d3f474317edab1ec206");
+  expect<string>(contract.instructionSha256).toBe("a3b695e67cfffe11ba78a302fa7c165319a28527d2814d3f474317edab1ec206");
   expect(Object.isFrozen(p.readerContract)).toBe(true);
   expect(evolutionReaderContract(candidateId)).toBe("task-complete-v1");
   expect(evolutionReaderProfileId("gpt5-mini-reader", "task-complete-v1")).toBe(candidateId);
