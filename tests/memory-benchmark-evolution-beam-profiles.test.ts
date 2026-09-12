@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { makeEvolutionAnswerAuditMessages } from "../scripts/benchmarks/evolution-answer-audit";
-import { EVOLUTION_BEAM_JUDGE_PROFILE_IDS as beamIds, EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_PROFILES,
+import { EVOLUTION_BEAM_JUDGE_PROFILE_IDS as beamIds, EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID, EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_PROFILES,
   evolutionReaderContract, makeEvolutionRequest, makeEvolutionProfileWindowRequest, parseEvolutionResponse,
   supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { openEvolutionStore } from "../scripts/benchmarks/evolution-store";
@@ -16,7 +16,8 @@ const single = [{ role: "user" as const, content: "Evaluate this LongMemEval ans
 const prompts = (id: string) => id === "gpt4o-beam-event-equivalence-v1" ? ordinary : single;
 
 test("BEAM profiles preserve all 98 existing profile/request bytes and all 54 full-window requests", () => {
-  const old = Object.entries(EVOLUTION_PROFILES).filter(([id]) => !(beamIds as readonly string[]).includes(id)).sort(([a], [b]) => a < b ? -1 : 1);
+  const old = Object.entries(EVOLUTION_PROFILES).filter(([id]) => !(beamIds as readonly string[]).includes(id)
+    && id !== EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
   const audit = makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "The synthetic tile is blue.", draftAnswer: "Blue." });
   const requests = old.map(([id, p]) => makeEvolutionRequest(id as EvolutionProfileId,
     id === "gpt5-mini-answer-audit-v1" ? audit : p.qualification === "official-snapshot-request"

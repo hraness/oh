@@ -131,13 +131,14 @@ describe("composable isolated reader answer contracts", () => {
       } else expect(() => makeEvolutionProfileWindowRequest(id, msg)).toThrow("profile-window");
     }
     expect(ids.size).toBe(EVOLUTION_BASE_READER_IDS.length * EVOLUTION_READER_CONTRACT_IDS.length);
-    // The closed reader product excludes the judges, extractor-only profiles and isolated answer-audit lane.
+    // The closed reader product excludes judges, isolated lanes and the opt-in deadline treatment.
     expect(Object.keys(EVOLUTION_PROFILES).filter(id => !ids.has(id)).sort()).toEqual([
       "gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1",
       "gpt4o-gateway-native-rubric-16-judge-v1", "gpt4o-mini-locomo-j-judge-v1",
       "gpt5-mini-low-extractor-v1", "gpt5-mini-structured-extractor-v2",
       "gpt5-mini-answer-audit-v1",
       "gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1",
+      "gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader",
     ].sort());
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {

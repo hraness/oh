@@ -28,3 +28,21 @@ end-to-end scorer. Gateway aliases and output limits are operational choices,
 not evidence of matching the released model configuration. Live qualification,
 dataset allocation and an explicitly bounded campaign remain separate steps.
 All existing profile and request bytes remain unchanged.
+
+## Opt-in reader deadline
+
+`gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader` uses a
+600,000 ms transport deadline. Its request body, explicit-abstention/composition
+instruction, GPT-5 mini medium reasoning, 8,192 output-token cap, prices and
+context admission bounds match `gpt5-mini-explicit-abstention-composition-v1-reader`.
+The existing reader retains its 120,000 ms deadline and remains the choice
+returned by the base-reader/contract selector. Both conservative-input and
+explicit profile-window requests retain their existing accounting rules.
+
+The longer deadline has a distinct profile and request hash. Existing captured
+responses and unresolved reservations keep their original identities and costs;
+selecting this profile does not authorize retrying or replacing an earlier job.
+Transport still captures the first response and performs no automatic retry.
+An empty response at a deadline leaves provider outcome and billing uncertain,
+so its full reservation remains held. The new profile is an operational option,
+with no claim of live completion, better accuracy or production activation.
