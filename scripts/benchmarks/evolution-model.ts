@@ -17,7 +17,7 @@ export const EVOLUTION_BASE_READER_IDS = ["qwen37-flash-reader", "gpt5-nano-read
   "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader", "gpt5-mini-high-reader", "gpt5-low-reader", "gpt41-reader", "gpt4o-mini-reader"] as const;
 export type EvolutionBaseReaderId = typeof EVOLUTION_BASE_READER_IDS[number];
 type ReaderStem<T> = T extends `${infer Stem}-reader` ? Stem : never;
-export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${EvolutionReaderAblationContractId}-reader`;
+export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${Exclude<EvolutionReaderAblationContractId, "task-complete-v1">}-reader`;
 export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"
   | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1" | "gpt4o-mini-locomo-j-judge-v1";
 export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2";
@@ -26,7 +26,9 @@ export const EVOLUTION_BEAM_JUDGE_PROFILE_IDS = ["gpt4o-beam-event-extraction-v1
 export type EvolutionBeamJudgeProfileId = typeof EVOLUTION_BEAM_JUDGE_PROFILE_IDS[number];
 export const EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID = "gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader";
 export type EvolutionLongDeadlineReaderProfileId = typeof EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID;
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId;
+export const EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v1-reader";
+export type EvolutionTaskCompleteReaderProfileId = typeof EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID;
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
@@ -119,9 +121,13 @@ const LEGACY_PROFILES: Readonly<Record<EvolutionLegacyProfileId, EvolutionModelP
 });
 
 /** Resolve a closed model/effort × answer-contract choice without changing legacy identities. */
-export function evolutionReaderProfileId(baseReader: EvolutionBaseReaderId, contract: EvolutionReaderContractId = "legacy-v1"): EvolutionBaseReaderId | EvolutionAblationReaderId {
+export function evolutionReaderProfileId(baseReader: EvolutionBaseReaderId, contract: EvolutionReaderContractId = "legacy-v1"): EvolutionBaseReaderId | EvolutionAblationReaderId | EvolutionTaskCompleteReaderProfileId {
   if (!EVOLUTION_BASE_READER_IDS.includes(baseReader)) fail("unknown base reader");
   const id = parseEvolutionReaderContractId(contract);
+  if (id === "task-complete-v1") {
+    if (baseReader !== "gpt5-mini-reader") fail("task-complete-v1 requires the gpt5-mini base reader");
+    return EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID;
+  }
   return id === "legacy-v1" ? baseReader : `${baseReader.slice(0, -7)}-${id}-reader` as EvolutionAblationReaderId;
 }
 const ablationProfiles = Object.fromEntries(EVOLUTION_BASE_READER_IDS.flatMap(baseReader =>
@@ -159,7 +165,13 @@ const LONG_DEADLINE_READER_PROFILES: Readonly<Record<EvolutionLongDeadlineReader
   [EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID]: { ...ablationProfiles["gpt5-mini-explicit-abstention-composition-v1-reader"],
     id: EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID, timeoutMs: 600_000 },
 });
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES });
+/** One opt-in task-complete treatment; the existing model/contract product and defaults stay unchanged. */
+const TASK_COMPLETE_READER_PROFILES: Readonly<Record<EvolutionTaskCompleteReaderProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID,
+    timeoutMs: 600_000, readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v1",
+      instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v1"].instructionSha256 } },
+});
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
