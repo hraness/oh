@@ -2,6 +2,7 @@ import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../s
 import type { Message } from "./model";
 import { EVOLUTION_READER_CONTRACTS, parseEvolutionReaderContractId, type EvolutionReaderContractId, type EvolutionReaderAblationContractId } from "./evolution-reader-contracts";
 import { OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT } from "./observe-extractor-v2";
+import { OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT } from "./observe-extractor-v3-schema";
 import { EVOLUTION_ANSWER_AUDIT_PROFILE_ID, EVOLUTION_ANSWER_AUDIT_INSTRUCTION_SHA256_V1,
   EVOLUTION_ANSWER_AUDIT_POLICY_SHA256_V1, validateEvolutionAnswerAuditMessages } from "./evolution-answer-audit";
 
@@ -20,7 +21,8 @@ type ReaderStem<T> = T extends `${infer Stem}-reader` ? Stem : never;
 export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${Exclude<EvolutionReaderAblationContractId, "task-complete-v1">}-reader`;
 export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"
   | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1" | "gpt4o-mini-locomo-j-judge-v1";
-export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2";
+export const EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID = "gpt5-mini-evidence-32k-long-deadline-v3-extractor";
+export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2" | typeof EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID;
 export type EvolutionAnswerAuditProfileId = typeof EVOLUTION_ANSWER_AUDIT_PROFILE_ID;
 export const EVOLUTION_BEAM_JUDGE_PROFILE_IDS = ["gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1"] as const;
 export type EvolutionBeamJudgeProfileId = typeof EVOLUTION_BEAM_JUDGE_PROFILE_IDS[number];
@@ -31,17 +33,18 @@ export type EvolutionTaskCompleteReaderProfileId = typeof EVOLUTION_TASK_COMPLET
 export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
+export type EvolutionExtractorResponseFormat = typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT | typeof OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
   endpoint: string; contextWindow: number; maxOutputTokens: number; timeoutMs: number;
   qualification: "gateway-alias" | "official-snapshot-request"; expectedSnapshot: string | null;
   settings: Readonly<{ temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }> }>;
-  responseFormat?: typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT;
+  responseFormat?: EvolutionExtractorResponseFormat;
   answerAuditContract?: Readonly<{ policySha256: string; instructionSha256: string }>;
   pricingCheckedAt: "2026-09-09"; prices: readonly PriceTier[];
   readerContract?: Readonly<{ baseReader: EvolutionBaseReaderId; id: EvolutionReaderAblationContractId; instructionSha256: string }> }>;
 type Body = Readonly<{ model: string; messages: readonly Message[]; stream: false; store: false; max_tokens: number;
   temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }>;
-  response_format?: typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT;
+  response_format?: EvolutionExtractorResponseFormat;
   providerOptions?: Readonly<{ gateway: Readonly<{ only: readonly string[]; order: readonly string[] }> }> }>;
 type EvolutionRequestCommon = Readonly<{ profileId: EvolutionProfileId;
   endpoint: string; body: Body; model: string; provider: string; requestSha256: string; profileSha256: string;
@@ -142,6 +145,8 @@ const EXTRACTOR_PROFILES: Readonly<Record<EvolutionExtractorProfileId, Evolution
     settings: { reasoning: { effort: "low" } } },
   "gpt5-mini-structured-extractor-v2": { ...LEGACY_PROFILES["gpt5-mini-reader"], id: "gpt5-mini-structured-extractor-v2",
     settings: { reasoning: { effort: "low" } }, responseFormat: OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT },
+  [EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID,
+    maxOutputTokens: 32_768, timeoutMs: 600_000, settings: { reasoning: { effort: "low" } }, responseFormat: OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT },
 });
 /** The audit lane has one fixed instruction and input grammar; it is not a general answer-reader profile. */
 const ANSWER_AUDIT_PROFILES: Readonly<Record<EvolutionAnswerAuditProfileId, EvolutionModelProfile>> = frozen({
