@@ -24,7 +24,9 @@ export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-m
 export type EvolutionAnswerAuditProfileId = typeof EVOLUTION_ANSWER_AUDIT_PROFILE_ID;
 export const EVOLUTION_BEAM_JUDGE_PROFILE_IDS = ["gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1"] as const;
 export type EvolutionBeamJudgeProfileId = typeof EVOLUTION_BEAM_JUDGE_PROFILE_IDS[number];
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId;
+export const EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID = "gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader";
+export type EvolutionLongDeadlineReaderProfileId = typeof EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID;
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
@@ -151,7 +153,13 @@ const BEAM_JUDGE_PROFILES: Readonly<Record<EvolutionBeamJudgeProfileId, Evolutio
   "gpt4o-beam-nugget-v1": profile("gpt4o-beam-nugget-v1", "openai/gpt-4o", "openai", 128_000, 512,
     { temperature: 0 }, [tier(2_500, 1_250, 10_000)]),
 });
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES });
+/** Explicit deadline treatment: same EAC body, prices and bounds, with a distinct native request identity.
+ * It is never selected by the base-reader/contract helper and does not authorize retries of occupied jobs. */
+const LONG_DEADLINE_READER_PROFILES: Readonly<Record<EvolutionLongDeadlineReaderProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID]: { ...ablationProfiles["gpt5-mini-explicit-abstention-composition-v1-reader"],
+    id: EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID, timeoutMs: 600_000 },
+});
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
