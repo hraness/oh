@@ -1,7 +1,11 @@
-@import "@hraness/design-kit/fonts.css";
-@import "@hraness/design-kit/product-marketing.css";
+@layer base, components, oh-marketing;
+
+@import "@hraness/design-kit/styles.css";
 @import "../styles/vendor/hraness-paper/paper-theme.css";
-@import "../vendor/hraness-marketing/product-marketing-preset.css";
+@import "../vendor/hraness-marketing/product-marketing-preset.css" layer(oh-marketing);
+
+/* Keep the immutable editorial preset above compiled component recipes, while
+ * the unlayered Paper theme and product-specific rules retain their overrides. */
 
 /* Paper owns the common palette; this local alias keeps the specification and
  * existing proof components independent of the shared stylesheet's layout. */
