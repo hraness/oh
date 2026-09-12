@@ -6,6 +6,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
+import { withReducedTransparency } from "./browser-transparency.mjs";
 
 // Use an explicitly selected installed browser, never a signed-in profile or an
 // implicit download. Run after `bun run build`, under the repository scheduler.
@@ -117,6 +118,7 @@ try {
               return Object.fromEntries([
                 "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing",
                 "textTransform", "minBlockSize", "paddingBlockStart", "paddingBlockEnd", "backgroundImage",
+                "backgroundColor", "backgroundSize", "color", "backdropFilter", "borderTopStyle", "borderTopWidth",
               ].map((name) => [name, style[name]]));
             };
             const layers = [];
@@ -140,7 +142,9 @@ try {
               body: styles("body"), heading: styles("h1"),
               sectionHeading: styles(".hraness-marketing-section__heading"),
               header: styles(".hraness-marketing-header__inner"),
-              hero: styles(".hraness-marketing-hero"), field: styles(".hraness-marketing-field"),
+              hero: styles(".hraness-marketing-hero"), field: styles(".hraness-material-wall"),
+              chrome: styles(".hraness-material-chrome"), pane: styles(".hraness-material-pane"),
+              material: document.querySelector('[data-hraness-material="lantern"]') !== null,
               label: styles('[data-slot="ask-ai-about-this-label"]'),
               link: styles('[data-slot="ask-ai-about-this-link"]'),
               fonts: { body: document.fonts.check('16px "Nebula Sans"'), display: document.fonts.check('44px "Instrument Serif"') },
@@ -174,8 +178,23 @@ try {
             closeTo(metrics.hero.paddingBlockEnd, mobile ? 72 : 64, "editorial hero end");
             closeTo(metrics.sectionHeading.fontSize, mobile ? 38.4 : 52, "editorial h2");
             assert.ok(metrics.layers.some((layer) => layer.startsWith("oh-marketing")), "Editorial override layer missing");
-            assert.match(metrics.field.backgroundImage, /url\(/u);
-          } else assert.match(metrics.heading.fontFamily, /Nebula Sans/u);
+            assert.equal(metrics.material, true);
+            assert.ok(metrics.layers.includes("oh-material"), "Lantern override layer missing");
+            assert.equal((metrics.field.backgroundImage.match(/repeating-linear-gradient\(/gu) ?? []).length, 2);
+            assert.equal((metrics.field.backgroundImage.match(/radial-gradient\(/gu) ?? []).length, 1);
+            assert.doesNotMatch(metrics.field.backgroundImage, /url\(/u, "Lantern wall has no texture assets");
+            assert.equal(metrics.field.backgroundSize, "auto, auto, auto, auto", "Canonical wall layers must not inherit editorial texture tiling");
+            assert.equal(metrics.pane.backgroundColor, colorScheme === "light" ? "rgb(255, 254, 250)" : "rgb(29, 26, 24)", "Opaque Paper reading pane");
+            assert.equal(metrics.pane.color, colorScheme === "light" ? "rgb(28, 25, 23)" : "rgb(245, 242, 237)", "Paired reading ink");
+            assert.equal(metrics.pane.borderTopStyle, "solid");
+            closeTo(metrics.pane.borderTopWidth, 1, "reading seam");
+            assert.equal(metrics.chrome.backdropFilter, "blur(20px) saturate(1.1)");
+          } else {
+            assert.match(metrics.heading.fontFamily, /Nebula Sans/u);
+            assert.equal(metrics.material, false);
+            assert.equal(metrics.pane, null);
+            assert.equal(metrics.chrome, null);
+          }
 
           await page.keyboard.press("Tab");
           assert.equal(await page.locator(".skip-link").evaluate((element) => document.activeElement === element), true);
@@ -200,6 +219,41 @@ try {
             assert.equal(await details.evaluate((element) => element.open), true);
             await page.keyboard.press("Enter");
             assert.equal(await details.evaluate((element) => element.open), false);
+            // Same native page and controls: material fallback must remove
+            // glazing without hiding text or replacing the existing focus.
+            const readMaterial = () => page.evaluate(() => {
+              const style = (selector) => {
+                const element = document.querySelector(selector);
+                if (!element) throw new Error(`Missing material target ${selector}`);
+                const value = getComputedStyle(element);
+                return { image: value.backgroundImage, background: value.backgroundColor,
+                  color: value.color, backdrop: value.backdropFilter, shadow: value.boxShadow };
+              };
+              return { wall: style(".hraness-material-wall"), chrome: style(".hraness-material-chrome"),
+                pane: style(".hraness-material-pane"), canvas: style("body") };
+            });
+            await withReducedTransparency(page, async () => {
+              const fallback = await readMaterial();
+              assert.equal(fallback.wall.image, "none");
+              assert.equal(fallback.chrome.backdrop, "none");
+              assert.equal(fallback.chrome.background, metrics.pane.backgroundColor, "Reduced-transparency opaque chrome");
+              assert.equal(fallback.pane.background, metrics.pane.backgroundColor);
+            });
+            await page.emulateMedia({ forcedColors: "active" });
+            try {
+              const fallback = await readMaterial();
+              for (const surface of [fallback.wall, fallback.chrome, fallback.pane]) {
+                assert.equal(surface.image, "none");
+                assert.equal(surface.background, fallback.canvas.background);
+                assert.equal(surface.shadow, "none");
+              }
+              assert.equal(fallback.pane.color, fallback.canvas.color);
+              assert.equal(fallback.chrome.backdrop, "none");
+              await details.locator("summary").focus();
+              assert.equal(await details.locator("summary").evaluate((element) =>
+                element.matches(":focus-visible") && Number.parseFloat(getComputedStyle(element).outlineWidth) >= 2), true);
+            } finally { await page.emulateMedia({ forcedColors: "none" }); }
+            assert.equal((await readMaterial()).wall.image, metrics.field.backgroundImage, "Material restores after native media changes");
           }
           assert.deepEqual(failures, [], `${label}: runtime/resource failures`);
           log(`PASS ${label}: compiled layers, theme, fonts, geometry, focus, targets and disclosure`);

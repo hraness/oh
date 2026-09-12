@@ -211,7 +211,7 @@ export default function Home() {
   ];
 
   return (
-    <div data-hraness-marketing-preset="editorial">
+    <div data-hraness-marketing-preset="editorial" data-hraness-material="lantern">
       <script
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         type="application/ld+json"
@@ -221,12 +221,13 @@ export default function Home() {
         action={{ href: "#install", label: "Install Oh" }}
         brand={<><BrandMark />Oh</>}
         brandLabel="Oh home"
+        className="hraness-material-chrome"
         links={navigation}
       />
 
       <main id="main" tabIndex={-1}>
         <MarketingPage>
-          <div className="hraness-marketing-field">
+          <div className="hraness-material-wall">
           <ProductHero
             actions={[
               { href: "#install", label: "Install Oh" },
@@ -238,6 +239,7 @@ export default function Home() {
             example="Open-source tools for agentic research"
             frame={(
               <MarketingProofFrame
+                className="hraness-material-pane"
                 caption="An illustrative review, not evidence from a real study. The public citation record is checked against its schema and digest."
                 credit={`${currentVersion.contractId} · ${currentVersion.status}`}
                 title="From a claim to its source"
@@ -391,7 +393,7 @@ oh verify`}</code></pre>
               <code>.oh/oh.sqlite</code> and the <code>default</code> space unless you choose another.{" "}
               <a href="https://github.com/hraness/oh#install-and-first-run">Read the full first run on GitHub</a>.
             </p>
-            <details className="first-run-details">
+            <details className="first-run-details hraness-material-disclosure">
               <summary>See an example of the first-run output</summary>
               <MarketingProofFrame
                 caption="A fresh database: init and verify stay local and print canonical JSON. This historical capture predates the current install version above."

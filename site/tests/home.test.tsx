@@ -25,12 +25,12 @@ test("makes the illustrative citation readable while keeping historical output a
   expect(hero).not.toContain("recordsSha256");
   expect(html).toContain("An illustrative review, not evidence from a real study");
   expect(html).toContain('href="#trace"');
-  expect(html).toContain('<details class="first-run-details">');
+  expect(html).toContain('<details class="first-run-details hraness-material-disclosure">');
   expect(html).toContain("This historical capture predates the current install version above");
   expect(html).toContain("source CLI 0.4.0");
   expect(html).toContain("captured September 5, 2026");
   expect(html).toContain("recordsSha256");
-  expect(html).not.toMatch(/<details class="first-run-details"[^>]*\bopen/u);
+  expect(html).not.toMatch(/<details class="first-run-details hraness-material-disclosure"[^>]*\bopen/u);
 });
 
 test("scopes the editorial preset to the homepage and keeps the citation in its field", () => {
@@ -40,7 +40,7 @@ test("scopes the editorial preset to the homepage and keeps the citation in its 
     .on('[data-hraness-marketing-preset="editorial"] .hraness-marketing-header', {
       element() { elements.push("header"); },
     })
-    .on('[data-hraness-marketing-preset="editorial"] #main .hraness-marketing-field .citation-preview', {
+    .on('[data-hraness-marketing-preset="editorial"] #main .hraness-material-wall .citation-preview', {
       element() { elements.push("citation"); },
     })
     .transform(html);
@@ -51,4 +51,20 @@ test("scopes the editorial preset to the homepage and keeps the citation in its 
   expect(specification).not.toContain("data-hraness-marketing-preset");
   expect(specification).toContain("spec-header");
   expect(specification).toContain("spec-document");
+  expect(specification).not.toContain("data-hraness-material");
+  expect(specification).not.toContain("hraness-material-");
+});
+
+test("confines Lantern to the homepage chrome, hero wall, citation plane and real disclosure", () => {
+  const html = renderToStaticMarkup(<Home />), hooks: string[] = [];
+  new HTMLRewriter()
+    .on('[data-hraness-material="lantern"]', { element() { hooks.push("island"); } })
+    .on('header.hraness-material-chrome', { element() { hooks.push("chrome"); } })
+    .on('#main .hraness-material-wall:not(.hraness-marketing-field)', { element() { hooks.push("hero"); } })
+    .on('.hraness-material-pane .citation-preview', { element() { hooks.push("citation"); } })
+    .on('details.hraness-material-disclosure:not([open])', { element() { hooks.push("disclosure"); } })
+    .transform(html);
+  expect(hooks).toEqual(["island", "chrome", "hero", "citation", "disclosure"]);
+  expect(html).not.toContain('data-selected');
+  expect(html).not.toContain('hraness-marketing-field');
 });
