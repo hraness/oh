@@ -146,6 +146,42 @@ All three retain the same 8,192-token output allowance and token prices.
 The new profiles cannot be selected as answer readers or through the
 full-history reader route.
 
+For a separately budgeted extraction experiment, the opt-in
+`gpt5-mini-evidence-32k-long-deadline-v3-extractor` profile binds a fixed
+evidence schema, a 32,768-token output allowance and a 600-second request
+deadline. It keeps the low-reasoning mini model, provider route and token
+prices of `gpt5-mini-low-extractor-v1`. No default profile changes. The
+full schema bytes and output allowance increase the conservative
+reservation and reduce the input space admitted within the 400,000-token
+context bound.
+
+The static schema in `scripts/benchmarks/observe-extractor-v3-schema.ts`
+retains every V2 field and bound. It adds `modes`, using seven fixed labels,
+and `evidence`, with 1–16 `{turn, quote}` entries per observation. A request
+uses the caller's separately frozen system and source messages:
+
+```ts
+import {
+  EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID,
+  makeEvolutionRequest,
+} from "../scripts/benchmarks/evolution-model";
+
+const request = makeEvolutionRequest(
+  EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID,
+  messages, // Exactly one system message followed by one user/source message.
+);
+```
+
+This prepares a request without dispatching it. The caller must freeze
+the prompt, source and full budget, and qualify the extraction contract
+before a live experiment. The schema constrains output shape; callers
+still validate source identities, exact quotations, attribution, UTF-8
+byte limits and semantic support. Existing response-size and parser
+limits remain unchanged. A larger allowance and a schema do not guarantee
+a complete response or correct extraction; truncations remain failures
+and the transport does not retry them. Existing captured requests keep
+their original identities and charges.
+
 The V2 inference contract in `scripts/benchmarks/observe-extractor-v2.ts`
 limits output to 48 observations and identifies a source turn for attribution.
 The parser derives the speaker from that turn and requires all citations to
