@@ -14,25 +14,25 @@
     "postbuild": "bun test ./tests/runtime.test.ts",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
-    "test": "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx",
+    "test": "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/editorial-layer.test.ts",
+    "test:browser": "bun scripts/check-stylex-browser.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hraness/design-kit": "github:hraness/design-kit#v0.4.0",
-    "@hraness/ui": "github:hraness/ui#v0.4.10",
+    "@hraness/design-kit": "github:hraness/design-kit#v0.6.3",
+    "@hraness/ui": "github:hraness/ui#v0.5.13",
     "next": "16.3.3",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.2.1",
     "@types/bun": "1.3.14",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.3",
-    "tailwindcss": "4.2.1",
+    "playwright-core": "1.62.0",
     "typescript": "5.9.3"
   },
   "type": "module"

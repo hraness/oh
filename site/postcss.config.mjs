@@ -1,6 +1,8 @@
+import { fileURLToPath } from "node:url";
+
 const config = {
   plugins: {
-    "@tailwindcss/postcss": {},
+    [fileURLToPath(new URL("./scripts/postcss-editorial-layer.cjs", import.meta.url))]: {},
   },
 };
 

@@ -36,6 +36,32 @@ function sha256(value: string): string {
 }
 
 describe("Oh site source contract", () => {
+  test("keeps first-party styling independent of Tailwind", async () => {
+    const [packageJson, lockfile, postcss, globals] = await Promise.all([
+      read("package.json"),
+      read("bun.lock"),
+      read("postcss.config.mjs"),
+      read("app/globals.css"),
+    ]);
+    const tailwindToken = ["tail", "wind"].join("");
+    expect(`${packageJson}\n${lockfile}\n${postcss}\n${globals}`).not.toMatch(
+      new RegExp(tailwindToken, "iu"),
+    );
+  });
+
+  test("keeps immutable shared release pins synchronized with the committed lockfile", async () => {
+    const [packageJson, lockfile] = await Promise.all([
+      read("package.json"),
+      read("bun.lock"),
+    ]);
+    const dependencies = record(record(JSON.parse(packageJson), "package").dependencies, "dependencies");
+    for (const name of ["@hraness/ui", "@hraness/design-kit"]) {
+      const pin = dependencies[name];
+      expect(pin).toMatch(/^github:hraness\/(?:ui|design-kit)#v\d+\.\d+\.\d+$/u);
+      expect(lockfile).toContain(`${JSON.stringify(name)}: ${JSON.stringify(pin)}`);
+    }
+  });
+
   test("derives available installs from verified publication and preserves the historical capture", async () => {
     const [home, publication, packageSource] = await Promise.all([
       read("app/page.tsx"),
@@ -69,7 +95,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/ui": "github:hraness/ui#v0.4.10"',
+      '"@hraness/ui": "github:hraness/ui#v0.5.13"',
     );
     expect(home).toContain('import { AskAiAboutThis } from "@hraness/ui"');
     expect(home).toContain(
@@ -90,12 +116,14 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.4.0"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.6.3"',
     );
-    expect(globals).toContain('@import "@hraness/design-kit/fonts.css"');
-    expect(globals).toContain('@import "@hraness/design-kit/product-marketing.css"');
-    expect(globals).toContain('@import "../styles/vendor/hraness-paper/paper-theme.css"');
-    expect(globals).toContain('@import "../vendor/hraness-marketing/product-marketing-preset.css"');
+    expect(globals).toStartWith("@layer base, components, oh-marketing;");
+    expect(globals.match(/^@import .+;$/gmu)).toEqual([
+      '@import "@hraness/design-kit/styles.css";',
+      '@import "../styles/vendor/hraness-paper/paper-theme.css";',
+      '@import "../vendor/hraness-marketing/product-marketing-preset.css";',
+    ]);
     expect(paper).toContain('--font-text: "Nebula Sans"');
     expect(globals).toContain("font-family: var(--font-text)");
     expect(globals).not.toMatch(/Georgia|Times New Roman/u);
@@ -248,7 +276,8 @@ describe("Oh site source contract", () => {
       postbuild: "bun test ./tests/runtime.test.ts",
       prebuild: "bun run test",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/editorial-layer.test.ts",
+      "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });
     expect(vercelConfig).toEqual({

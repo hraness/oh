@@ -10,7 +10,14 @@ test("makes the illustrative citation readable while keeping historical output a
   const hero = /data-hraness-marketing="hero"[\s\S]*?<\/header>/u.exec(html)?.[0] ?? "";
   expect(html.match(/<h1\b/gu)).toHaveLength(1);
   expect(hero).toContain("What backs the 12-week endpoint?");
-  expect(hero).toContain('<p class="hraness-marketing-hero__example">Open-source tools for agentic research</p>');
+  const examples: string[] = [];
+  new HTMLRewriter()
+    .on('[data-hraness-marketing="hero"] p.hraness-marketing-hero__example', {
+      element() { examples.push(""); },
+      text(chunk) { examples[examples.length - 1] += chunk.text; },
+    })
+    .transform(html);
+  expect(examples).toEqual(["Open-source tools for agentic research"]);
   expect(hero).not.toContain("Ask your agent to file the trial report");
   expect(hero).toContain(citationRecord.value.locator);
   expect(hero).toContain(citationRecord.value.relationship);

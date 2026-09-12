@@ -1,8 +1,11 @@
-@import "tailwindcss";
-@import "@hraness/design-kit/fonts.css";
-@import "@hraness/design-kit/product-marketing.css";
+@layer base, components, oh-marketing;
+
+@import "@hraness/design-kit/styles.css";
 @import "../styles/vendor/hraness-paper/paper-theme.css";
 @import "../vendor/hraness-marketing/product-marketing-preset.css";
+
+/* The bounded PostCSS bridge emits the immutable editorial preset in the
+ * oh-marketing layer. Paper and product-specific rules remain unlayered. */
 
 /* Paper owns the common palette; this local alias keeps the specification and
  * existing proof components independent of the shared stylesheet's layout. */
@@ -208,8 +211,11 @@ a:focus-visible {
 }
 
 .ask-ai [data-slot="ask-ai-about-this-label"] {
+  font-family: var(--font-text);
   font-size: 0.85rem;
   font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .ask-ai [data-slot="ask-ai-about-this-links"] {
@@ -229,6 +235,7 @@ a:focus-visible {
   border-radius: 0.5rem;
   color: inherit;
   gap: 0.25rem;
+  font-family: var(--font-text);
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1;
@@ -567,6 +574,7 @@ a:focus-visible {
 }
 
 @media (pointer: coarse) {
+  .ask-ai [data-slot="ask-ai-about-this-link"],
   .spec-nav a,
   .site-footer a,
   .hraness-marketing-header__nav a {
