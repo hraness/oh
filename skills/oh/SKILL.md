@@ -30,9 +30,9 @@ oh --help
 oh version
 ```
 
-Use the verified public CLI `@hraness/oh@0.5.0`. Its identical tarball and
-checksum are mirrored by the immutable GitHub Release `v0.5.0`.
-[Public release verification](https://github.com/hraness/oh/actions/runs/34745154295).
+Use the verified public CLI `@hraness/oh@0.5.1`. Its identical tarball and
+checksum are mirrored by the immutable GitHub Release `v0.5.1`.
+[Public release verification](https://github.com/hraness/oh/actions/runs/34764808391).
 It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
