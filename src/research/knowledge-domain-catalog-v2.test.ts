@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { canonicalJson, type JsonValue } from "./document-domain";
-import { sha256Text } from "./integrity-domain";
+import { parseSha256Hex, sha256Text } from "./integrity-domain";
 import { spongeCoreKnowledgeCatalogV1 } from "./knowledge-core-v1";
 import { spongeKnowledgeDomainCatalog } from "./knowledge-domain-catalog";
 import { spongeKnowledgeDomainCatalogV2, type SpongeKnowledgeDomainCatalogV2 } from "./knowledge-domain-catalog-v2";
@@ -112,7 +112,7 @@ describe("qualified domain catalog V2", () => {
   test("retains every published V1 byte and pins explicit revision lineage", async () => {
     const legacy = await spongeKnowledgeDomainCatalog();
     const catalog = await spongeKnowledgeDomainCatalogV2();
-    expect(await sha256Text(canonicalJson(catalog.historicalPacks as unknown as JsonValue)))
+    expect<string>(await sha256Text(canonicalJson(catalog.historicalPacks as unknown as JsonValue)))
       .toBe("f46f14f829ab6d41a91988dd35a9f3b0423064c22c3d639169757a5a9b3c6d1a");
     expect(catalog.historicalPacks).toEqual(legacy.packs);
     expect(catalog.corePack).toEqual(legacy.corePack);
@@ -284,8 +284,8 @@ describe("qualified domain catalog V2", () => {
     expect(denied.passed).toBe(false);
     expect(denied.violations.map(violation => violation.code)).toContain("privacy-denied");
     const rightsDecisions = await Promise.all(statements.map(statement => createKnowledgeRightsDecisionV1({
-      actorEntityId: authority.authorEntityId, allowedDisclosures: ["private"], decidedAt: authority.occurredAt,
-      policySha256: authority.authoringPolicySha256, purposes: ["private-research"], subjectSha256: statement.statementSha256, v: 1,
+      actorEntityId: parseKnowledgeEntityId(authority.authorEntityId)!, allowedDisclosures: ["private"], decidedAt: authority.occurredAt,
+      policySha256: parseSha256Hex(authority.authoringPolicySha256)!, purposes: ["private-research"], subjectSha256: statement.statementSha256, v: 1,
     }).then(unwrap)));
     expect((await evaluateKnowledgeShapeV1({ ...input, rightsDecisions })).passed).toBe(true);
   });

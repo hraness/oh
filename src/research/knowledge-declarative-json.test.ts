@@ -35,7 +35,7 @@ test("raw evidence opt-in preserves JSON keys in null-prototype copies without e
   const raw: unknown = JSON.parse('{"__proto__":{"polluted":true},"constructor":"retained","prototype":[] }');
   expect(knowledgeDeclarativeJson(raw)).toBeUndefined();
   const copied = knowledgeDeclarativeJson(raw, 1024, { preserveObjectKeys: true });
-  expect(copied).toEqual(raw);
+  expect<unknown>(copied).toEqual(raw);
   expect(Object.getPrototypeOf(copied)).toBeNull();
   expect(Object.prototype).not.toHaveProperty("polluted");
   let executed = false;

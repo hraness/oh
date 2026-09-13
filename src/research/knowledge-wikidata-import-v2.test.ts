@@ -105,7 +105,7 @@ test("ranks, qualifiers and reference group boundaries remain attached to each s
       { hash: "two", snaks: { P854: [{ snaktype: "somevalue", property: "P854" }] } }] };
   const result = await createKnowledgeWikidataImportPreviewV2(inputForClaims({ P31: [raw] }));
   if (!result.ok) throw new Error(result.error.field);
-  expect(result.value.sourceAssertions[0]?.rawStatement).toEqual(raw);
+  expect<unknown>(result.value.sourceAssertions[0]?.rawStatement).toEqual(raw);
   expect(result.value.sourceAssertions[0]?.rank).toBe("deprecated");
   expect(new Set(result.value.records.filter(record => record.kind === "snak").map(record => JSON.stringify(record.selector))).size).toBe(4);
 });
@@ -133,7 +133,7 @@ test("historical lowercase statement prefixes retain their exact source GUID byt
   if (!current.ok) throw new Error(current.error.field);
   expect(current.value.omissions).toEqual([]);
   expect(current.value.sourceAssertions[0]?.selector.statementId).toBe(raw.id);
-  expect(current.value.sourceAssertions[0]?.rawStatement).toEqual(raw);
+  expect<unknown>(current.value.sourceAssertions[0]?.rawStatement).toEqual(raw);
   const legacy = await createKnowledgeWikidataImportPreviewV1({ ...input, v: 1 });
   if (!legacy.ok) throw new Error(legacy.error.field);
   expect(legacy.value.omissions[0]?.reason).toBe("invalid-statement-group");
