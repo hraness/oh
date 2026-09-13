@@ -186,6 +186,10 @@ describe("public identity and documentation", () => {
     });
     expect(readme).toContain("installation instructions below use `0.5.0`");
     expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.5.0`");
+    expect(skill).toContain("For an existing installation, use its installed CLI");
+    expect(skill).toContain("oh research catalog-v2");
+    expect(skill).toContain("oh research wikidata-mappings");
+    expect(skill).toContain("wikidata-mapping-preview --file PATH");
     expect(readme).toContain("https://github.com/hraness/oh/actions/runs/34745154295");
     expect(skill).toContain("https://github.com/hraness/oh/actions/runs/34745154295");
     expect(readme).not.toContain("This source tree prepares version");

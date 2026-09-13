@@ -1,3 +1,4 @@
+import { constants } from "node:fs";
 import {
   access,
   lstat,
@@ -13,6 +14,8 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, extname, join, relative, resolve, sep } from "node:path";
+import { gunzipSync } from "node:zlib";
+import { deriveWikidataInventoryV1, WIKIDATA_INVENTORY_LIMITS_V1, wikidataSourceSha256V1 } from "./capture-wikidata-inventory";
 import { publicReleaseEnvironment } from "./release-process-environment";
 import { runBoundedProcess } from "./run-bounded-process";
 
@@ -30,6 +33,10 @@ const TEXT_EXTENSIONS = new Set([
   "", ".css", ".js", ".json", ".map", ".md", ".mjs", ".sh", ".sql", ".ts", ".txt", ".yaml", ".yml",
 ]);
 const DATABASE_EXTENSIONS = new Set([".db", ".sqlite", ".sqlite3"]);
+// This is one reviewed source corpus, not a general compressed-file allowance.
+const REVIEWED_WIKIDATA_ARCHIVE = "spec/research-v1/wikidata/2026-09-13/sources.jsonl.gz";
+const REVIEWED_WIKIDATA_ARCHIVE_SHA256 = "4bfbadee1d0a352e7269feb24b09fa2cf000e25ace9cbaaadb8bcf037a739610";
+const MAXIMUM_EXPANDED_WIKIDATA_BYTES = 10_342_838;
 const FORBIDDEN_TEXT = [
   { label: "developer home path", pattern: /\/(?:Users|home)\/[A-Za-z0-9._-]+\//u },
   { label: "task-local temporary path", pattern: /\/private\/tmp\/[A-Za-z0-9._/-]+/u },
@@ -72,7 +79,68 @@ async function startsWithSqliteHeader(path: string): Promise<boolean> {
   }
 }
 
-async function scanPackage(root: string): Promise<void> {
+function forbiddenTextProblems(source: string): string[] {
+  return FORBIDDEN_TEXT.filter((rule) => rule.pattern.test(source)).map((rule) => `contains ${rule.label}`);
+}
+
+/** Content audit only: package admission also requires the exact path and compressed-byte digest below. */
+export function auditWikidataCorpusContent(compressed: Uint8Array): number {
+  if (compressed.byteLength === 0 || compressed.byteLength > MAXIMUM_FILE_BYTES) {
+    throw new Error("Wikidata corpus exceeds its compressed byte bound");
+  }
+  let expanded: Buffer;
+  try {
+    expanded = gunzipSync(compressed, { maxOutputLength: MAXIMUM_EXPANDED_WIKIDATA_BYTES });
+  } catch (cause) {
+    throw new Error("Wikidata corpus is invalid gzip or exceeds its expanded byte bound", { cause });
+  }
+  if (expanded.byteLength > MAXIMUM_EXPANDED_WIKIDATA_BYTES) {
+    throw new Error("Wikidata corpus exceeds its expanded byte bound");
+  }
+  const source = new TextDecoder("utf-8", { fatal: true }).decode(expanded);
+  if (!source.endsWith("\n")) throw new Error("Wikidata corpus must end in a newline");
+  const lines = source.slice(0, -1).split("\n");
+  if (lines.length > WIKIDATA_INVENTORY_LIMITS_V1.sources) throw new Error("Wikidata corpus exceeds its source count bound");
+  const sources: unknown[] = lines.map((line) => JSON.parse(line) as unknown);
+  // Verify source envelopes, body bytes/hashes, API provenance, and the complete traversal offline.
+  deriveWikidataInventoryV1(sources);
+  const problems = forbiddenTextProblems(source);
+  for (const value of sources) {
+    const body = record(value, "Wikidata source").body;
+    if (typeof body !== "string") throw new Error("Wikidata source body must be text");
+    // Scan the original response too, so JSONL string escaping cannot hide a match.
+    problems.push(...forbiddenTextProblems(body));
+  }
+  if (problems.length > 0) throw new Error([...new Set(problems)].sort().join("; "));
+  return expanded.byteLength;
+}
+
+async function readReviewedWikidataArchive(path: string): Promise<Buffer> {
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const information = await handle.stat();
+    if (!information.isFile() || information.size <= 0 || information.size > MAXIMUM_FILE_BYTES) {
+      throw new Error("Wikidata corpus is not a bounded regular file");
+    }
+    const output = Buffer.alloc(information.size + 1);
+    let length = 0;
+    while (length < output.length) {
+      const { bytesRead } = await handle.read(output, length, output.length - length, length);
+      if (bytesRead === 0) break;
+      length += bytesRead;
+    }
+    if (length !== information.size) throw new Error("Wikidata corpus changed while reading");
+    const compressed = output.subarray(0, length);
+    if (wikidataSourceSha256V1(compressed) !== REVIEWED_WIKIDATA_ARCHIVE_SHA256) {
+      throw new Error("Wikidata corpus does not match its reviewed SHA-256");
+    }
+    return compressed;
+  } finally {
+    await handle.close();
+  }
+}
+
+export async function scanPackage(root: string): Promise<void> {
   const problems: string[] = [];
   let files = 0;
   let bytes = 0;
@@ -98,9 +166,12 @@ async function scanPackage(root: string): Promise<void> {
     }
     files += 1;
     bytes += information.size;
-    if (information.size > MAXIMUM_FILE_BYTES) problems.push(`${packagePath} exceeds the per-file size bound`);
     if (files > MAXIMUM_FILES || bytes > MAXIMUM_UNPACKED_BYTES) {
       throw new Error("Packed package exceeded its finite inventory bound.");
+    }
+    if (information.size > MAXIMUM_FILE_BYTES) {
+      problems.push(`${packagePath} exceeds the per-file size bound`);
+      return;
     }
     const extension = extname(path).toLowerCase();
     if (DATABASE_EXTENSIONS.has(extension) || await startsWithSqliteHeader(path)) {
@@ -108,6 +179,15 @@ async function scanPackage(root: string): Promise<void> {
     }
     if ([".env", ".npmrc"].includes(basename(path))) {
       problems.push(`${packagePath} contains a private configuration artifact`);
+    }
+    if (packagePath === REVIEWED_WIKIDATA_ARCHIVE) {
+      try {
+        bytes += auditWikidataCorpusContent(await readReviewedWikidataArchive(path));
+      } catch (error) {
+        problems.push(`${packagePath}: ${error instanceof Error ? error.message : "Wikidata corpus audit failed"}`);
+      }
+      if (bytes > MAXIMUM_UNPACKED_BYTES) throw new Error("Packed package exceeded its finite inventory bound.");
+      return;
     }
     if (!TEXT_EXTENSIONS.has(extension) && basename(path) !== "LICENSE") {
       problems.push(`${packagePath} has an unreviewed file extension`);
@@ -122,9 +202,7 @@ async function scanPackage(root: string): Promise<void> {
         problems.push(`${packagePath} violates the reviewed Effect runtime graph boundary`);
       }
     }
-    for (const rule of FORBIDDEN_TEXT) {
-      if (rule.pattern.test(source)) problems.push(`${packagePath} contains ${rule.label}`);
-    }
+    problems.push(...forbiddenTextProblems(source).map((problem) => `${packagePath} ${problem}`));
   }
   await visit(root);
   if ([...topLevel].sort().join("\n") !== [...EXPECTED_TOP_LEVEL].sort().join("\n")) {
