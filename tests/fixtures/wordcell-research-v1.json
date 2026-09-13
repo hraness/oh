@@ -1,0 +1,186 @@
+{
+  "v": 1,
+  "producer": {
+    "repository": "https://github.com/hraness/wordcell",
+    "commit": "16a5fae9ae7af39a9b697006add5d39c9fae122f",
+    "version": "0.21.1",
+    "source": "src/graph-facts.ts",
+    "sourceSha256": "2c0b3e97bde7eb66e91f839b9a3b312b98d7cb37ef642258517e56ea38b69e61",
+    "function": "createGraphSnapshot",
+    "envelopeContract": "oh.graph.v1",
+    "envelopeKernelCommit": "9296338cf2312a061bb22c0c4a4ff11d5d7a7a03"
+  },
+  "mapping": {
+    "authority": "unasserted",
+    "selectedFact": {
+      "relation": "wordcell.relation",
+      "tuple": [
+        "notes/cloud-report",
+        "notes/cloud-atlas",
+        "cites",
+        6
+      ]
+    },
+    "semantics": "Map only the authored cites relation to a proposed research claim; ordinary links and inferred edges carry no extra authority."
+  },
+  "root": "/wordcell-synthetic",
+  "sources": [
+    {
+      "path": "index.md",
+      "content": "# Navigation\n[[notes/cloud-report]]\n"
+    },
+    {
+      "path": "notes/cloud-atlas.md",
+      "content": "---\ntitle: Cloud atlas\ndocument_id: cloud-atlas\ntype: source\n---\n# Cloud atlas\nA synthetic source about cloud classification.\n"
+    },
+    {
+      "path": "notes/cloud-report.md",
+      "content": "---\ntitle: Cloud report\ndocument_id: cloud-report\ntype: note\nrelations:\n  cites: notes/cloud-atlas\n---\n# Cloud report\nThis synthetic report cites [[notes/cloud-atlas]].\n"
+    }
+  ],
+  "snapshot": {
+    "schemaVersion": 1,
+    "vaultIdentity": "8a3329623a775d9636fd4d73ba4c6e06dc50d7560b102c5a2e809782a67d554e",
+    "catalogNoteId": "index",
+    "sourceDigests": [
+      {
+        "path": "index.md",
+        "contentSha256": "41e88664db04b1bffb5372263e6f51454a9d380b5d42c807bc90d86099527988"
+      },
+      {
+        "path": "notes/cloud-atlas.md",
+        "contentSha256": "32959e5dc89085beff7e7ac3f974d548beea7e070777864aad1a9b09e36d96cf"
+      },
+      {
+        "path": "notes/cloud-report.md",
+        "contentSha256": "004593ab2c7df798832966f65e150d6f712172ab083f6bbba5a8850657d2b7b0"
+      }
+    ],
+    "records": [
+      {
+        "key": "edition:note/5552e83a9ec48d898f134e69b45da9052a57cd933f06f9d145b4e4443e6c9480",
+        "id": "notes/cloud-atlas",
+        "path": "notes/cloud-atlas.md",
+        "documentId": "cloud-atlas",
+        "contentSha256": "32959e5dc89085beff7e7ac3f974d548beea7e070777864aad1a9b09e36d96cf",
+        "facts": [
+          {
+            "relation": "wordcell.note",
+            "tuple": [
+              "notes/cloud-atlas",
+              "notes/cloud-atlas.md",
+              "Cloud atlas",
+              "source"
+            ]
+          }
+        ]
+      },
+      {
+        "key": "edition:note/a26af59a8ae6460fa89e296e9a79ffadb230aa021b23694408326829e29586a7",
+        "id": "notes/cloud-report",
+        "path": "notes/cloud-report.md",
+        "documentId": "cloud-report",
+        "contentSha256": "004593ab2c7df798832966f65e150d6f712172ab083f6bbba5a8850657d2b7b0",
+        "facts": [
+          {
+            "relation": "wordcell.link",
+            "tuple": [
+              "notes/cloud-report",
+              "notes/cloud-atlas",
+              9
+            ]
+          },
+          {
+            "relation": "wordcell.note",
+            "tuple": [
+              "notes/cloud-report",
+              "notes/cloud-report.md",
+              "Cloud report",
+              "note"
+            ]
+          },
+          {
+            "relation": "wordcell.relation",
+            "tuple": [
+              "notes/cloud-report",
+              "notes/cloud-atlas",
+              "cites",
+              6
+            ]
+          }
+        ]
+      }
+    ],
+    "revision": "1740a779ca4d302a2948ecb7c899a356cafacc994b9c76b2e0ce1a80b785d83a",
+    "factCount": 4
+  },
+  "sourceEnvelopes": [
+    {
+      "dependencies": [],
+      "key": "edition:note/5552e83a9ec48d898f134e69b45da9052a57cd933f06f9d145b4e4443e6c9480",
+      "kind": "edition",
+      "v": 1,
+      "value": {
+        "key": "edition:note/5552e83a9ec48d898f134e69b45da9052a57cd933f06f9d145b4e4443e6c9480",
+        "id": "notes/cloud-atlas",
+        "path": "notes/cloud-atlas.md",
+        "documentId": "cloud-atlas",
+        "contentSha256": "32959e5dc89085beff7e7ac3f974d548beea7e070777864aad1a9b09e36d96cf",
+        "facts": [
+          {
+            "relation": "wordcell.note",
+            "tuple": [
+              "notes/cloud-atlas",
+              "notes/cloud-atlas.md",
+              "Cloud atlas",
+              "source"
+            ]
+          }
+        ]
+      },
+      "recordSha256": "90833631270ddf3d844784c8a8b3e0d6f06adca4b85cb6cf2a69dd3480f2ff4d"
+    },
+    {
+      "dependencies": [],
+      "key": "edition:note/a26af59a8ae6460fa89e296e9a79ffadb230aa021b23694408326829e29586a7",
+      "kind": "edition",
+      "v": 1,
+      "value": {
+        "key": "edition:note/a26af59a8ae6460fa89e296e9a79ffadb230aa021b23694408326829e29586a7",
+        "id": "notes/cloud-report",
+        "path": "notes/cloud-report.md",
+        "documentId": "cloud-report",
+        "contentSha256": "004593ab2c7df798832966f65e150d6f712172ab083f6bbba5a8850657d2b7b0",
+        "facts": [
+          {
+            "relation": "wordcell.link",
+            "tuple": [
+              "notes/cloud-report",
+              "notes/cloud-atlas",
+              9
+            ]
+          },
+          {
+            "relation": "wordcell.note",
+            "tuple": [
+              "notes/cloud-report",
+              "notes/cloud-report.md",
+              "Cloud report",
+              "note"
+            ]
+          },
+          {
+            "relation": "wordcell.relation",
+            "tuple": [
+              "notes/cloud-report",
+              "notes/cloud-atlas",
+              "cites",
+              6
+            ]
+          }
+        ]
+      },
+      "recordSha256": "3d4509b0e1f3b6aea65eeb51ddf1a518cac60c3d466a731d045529862b4255e5"
+    }
+  ]
+}

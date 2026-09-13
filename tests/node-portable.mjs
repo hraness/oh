@@ -9,6 +9,29 @@ const memoryCompatibility = await import("@hraness/oh/experimental/memory");
 const memoryPage = await import("@hraness/oh/memory-page");
 const projection = await import("@hraness/oh/projection");
 const semanticCloud = await import("@hraness/oh/semantic-cloud");
+const research = await import("@hraness/oh/research");
+const researchStore = await import("@hraness/oh/research-store");
+
+// Preparation and storage codecs must share one private registry after the split
+// package build. A copied object gains that brand only through verification.
+const researchEntity = { entityId: `kent_${"a".repeat(24)}`, identityOperationId: "identity.node-fixture",
+  identityRevision: 1, redirectEntityId: null, state: "active", v: 1 };
+const researchSource = await research.parseKnowledgeGraphRecordV1("entity", researchEntity);
+assert.equal(researchSource.ok, true);
+const researchPacket = await research.prepareOhResearchPacketV1({ records: [{ kind: "entity", value: researchEntity }] });
+assert.equal(researchPacket.authority, "unasserted");
+assert.equal(researchPacket.records[0].value.source.recordSha256, researchSource.value.recordSha256);
+assert.notEqual(researchPacket.records[0].recordSha256, researchSource.value.recordSha256);
+const researchCodecs = researchStore.createOhResearchPacketCodecRegistryV1(researchPacket);
+assert.deepEqual(researchCodecs.parseRequired("entity", researchPacket.records[0].value), researchPacket.records[0].value);
+assert.equal(researchCodecs.parseRequired("statement", researchPacket.records[0].value), null);
+const copiedResearchPacket = structuredClone(researchPacket);
+assert.throws(() => researchStore.createOhResearchPacketCodecRegistryV1(copiedResearchPacket), /Prepare or verify/);
+const verifiedResearchPacket = await research.verifyOhResearchPacketV1(copiedResearchPacket);
+assert.notEqual(verifiedResearchPacket, null);
+assert.equal(researchStore.createOhResearchPacketCodecRegistryV1(verifiedResearchPacket).sealed, true);
+copiedResearchPacket.records[0].value.source.value.identityRevision = 2;
+assert.equal(await research.verifyOhResearchPacketV1(copiedResearchPacket), null);
 
 assert.equal(typeof store.createOhStoreBindingV1, "function");
 assert.equal(typeof store.OhRecordCodecRegistry, "function");

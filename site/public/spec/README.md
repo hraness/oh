@@ -28,6 +28,13 @@ binds these versions:
 | Recall rendering | `oh.recall-render.v1` |
 | Recall date grammar | `oh.recall-date-grammar.v1` |
 
+## Optional research profile
+
+The [portable research profile](research-v1/README.md) adds typed source
+records, domain packs and verified packet interchange through optional package
+entry points. Its source namespaces and digest preimages remain distinct from
+the base Oh V1 envelope contract.
+
 ## V1 documents
 
 - [Canonical JSON and digests](v1/canonical-json.md)

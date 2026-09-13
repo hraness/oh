@@ -9,7 +9,7 @@ import { renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
 import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
-export const OH_PACKAGE_VERSION = "0.4.3" as const;
+export const OH_PACKAGE_VERSION = "0.5.0" as const;
 
 type ParsedArguments = { options: Map<string, string[]>; positionals: string[] };
 type ValidatedInvocation = Readonly<{
@@ -234,10 +234,13 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
+  oh research catalog
+  oh research validate-draft|wikidata-preview|prepare-packet|verify-packet --file PATH
   oh contract
   oh version
 
-Global options: --db PATH (default .oh/oh.sqlite), --space ID (default default)
+Research commands are offline and do not open a database.
+Store options: --db PATH (default .oh/oh.sqlite), --space ID (default default)
 Mutation options: --actor ID, --operation ID, --expected-generation N
 `;
 
@@ -252,6 +255,10 @@ export async function runOhCli(arguments_: readonly string[]): Promise<number> {
     if (arguments_.length !== 1) throw new TypeError("version does not accept arguments or options.");
     process.stdout.write(`${OH_PACKAGE_VERSION}\n`);
     return 0;
+  }
+  if (command === "research") {
+    const { runOhResearchCli } = await import("./research-cli");
+    return runOhResearchCli(arguments_.slice(1));
   }
   const parsed = parseArguments(arguments_.slice(1));
   const validated = await validateInvocation(command, parsed);

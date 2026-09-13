@@ -263,3 +263,26 @@ Report the exact database and space, reads or mutations performed, final head
 generation and operation digest, replay result, search diagnostics, and any
 sync counts. Do not claim success from a command exit alone when `oh verify`
 was part of the requested workflow.
+
+## Work with the optional research profile
+
+Version 0.5.0 introduces offline `oh research catalog`, `validate-draft`,
+`wikidata-preview`, `prepare-packet` and `verify-packet` commands. All commands
+except `catalog` require `--file PATH` and read a bounded JSON file; they open
+no database and perform no network calls. The catalog describes available
+packs, not installation in the selected host.
+
+For typed research, use `@hraness/oh/research` to compile a proposal against
+the host's trusted, permitted schema and identity context. Compilation creates
+proposed/private records. Use `@hraness/oh/research-store` to commit a verified
+packet only to the explicitly selected store with its expected head and an
+idempotent operation ID. Preserve source semantic digests separately from Oh
+envelope digests. A transported review or rights record does not grant host
+authority.
+
+A Wordcell source snapshot retains Markdown and Git authority. A Sponge
+proposal retains that host's authorization and review boundary. Neither
+consumer is required to operate Oh. See the versioned research specification
+at `https://oh.computer/spec/research-v1/README.md` for packet verification, captured
+Wikidata revisions, limits and the requirement for separately deletable
+personal payload storage.

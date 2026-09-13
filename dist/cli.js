@@ -1729,6 +1729,4166 @@ var init_sync_model = __esm(() => {
   OH_SYNC_INGRESS_BUNDLE_NODES_V1 = OH_SYNC_INGRESS_OPERATION_NODES_V1 + 4 * 1024;
 });
 
+// src/research/document-domain.ts
+function isRecord(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+function isJsonArray(value) {
+  return Array.isArray(value);
+}
+function parseJsonValue(value, limits = {}) {
+  const maxDepth = limits.maxDepth ?? 64;
+  const maxNodes = limits.maxNodes ?? 40000;
+  let nodes = 0;
+  function visit(candidate, depth) {
+    nodes += 1;
+    if (nodes > maxNodes || depth > maxDepth)
+      return;
+    if (candidate === null || typeof candidate === "boolean" || typeof candidate === "string") {
+      return candidate;
+    }
+    if (typeof candidate === "number") {
+      return Number.isFinite(candidate) ? candidate : undefined;
+    }
+    if (Array.isArray(candidate)) {
+      const result = [];
+      for (const item of candidate) {
+        const parsed2 = visit(item, depth + 1);
+        if (parsed2 === undefined)
+          return;
+        result.push(parsed2);
+      }
+      return result;
+    }
+    if (!isRecord(candidate))
+      return;
+    const entries = [];
+    for (const key of Object.keys(candidate).sort()) {
+      const parsed2 = visit(candidate[key], depth + 1);
+      if (parsed2 === undefined)
+        return;
+      entries.push([key, parsed2]);
+    }
+    return Object.fromEntries(entries);
+  }
+  const parsed = visit(value, 0);
+  return parsed === undefined ? { ok: false, error: "invalid-title" } : { ok: true, value: parsed };
+}
+function canonicalJson2(value) {
+  if (value === null || typeof value !== "object")
+    return JSON.stringify(value);
+  if (isJsonArray(value)) {
+    return `[${value.map((item) => canonicalJson2(item)).join(",")}]`;
+  }
+  const record = value;
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson2(record[key])}`).join(",")}}`;
+}
+
+// src/research/integrity-domain.ts
+function parseSha256Hex2(value) {
+  return typeof value === "string" && SPONGE_SHA256_HEX_PATTERN.test(value) ? value : null;
+}
+function parseCanonicalInstantV12(value) {
+  if (typeof value !== "string" || !SPONGE_CANONICAL_INSTANT_PATTERN.test(value))
+    return null;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value ? value : null;
+}
+function utf8ByteLength2(value) {
+  return utf8.encode(value).byteLength;
+}
+async function sha256Hex2(bytes) {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+async function sha256Text(value) {
+  return sha256Hex2(utf8.encode(value));
+}
+var SPONGE_SHA256_HEX_PATTERN, SPONGE_CANONICAL_INSTANT_PATTERN, utf8;
+var init_integrity_domain = __esm(() => {
+  SPONGE_SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/u;
+  SPONGE_CANONICAL_INSTANT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
+  utf8 = new TextEncoder;
+});
+
+// src/research/unknown.ts
+function isJsonRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isPlainRecord2(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+function hasExactKeys2(value, keys) {
+  const actual = Object.keys(value);
+  return actual.length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+}
+function hasExactDataKeys(value, expectedKeys) {
+  const keys = Reflect.ownKeys(value);
+  if (keys.length !== expectedKeys.length || keys.some((key) => typeof key !== "string"))
+    return false;
+  const expected = new Set(expectedKeys);
+  for (const key of keys) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!expected.has(key) || descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable)
+      return false;
+  }
+  return true;
+}
+
+// src/research/knowledge-ontology-v1.ts
+function success(value) {
+  return { ok: true, value };
+}
+function failure(field, code = "invalid-input") {
+  return { error: { code, field }, ok: false };
+}
+function boundedText2(value, maximumUtf8Bytes = SPONGE_KNOWLEDGE_LIMITS_V1.textBytes) {
+  if (typeof value !== "string" || value.length === 0 || value.normalize("NFC") !== value || utf8ByteLength2(value) > maximumUtf8Bytes)
+    return null;
+  for (const character of value) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= 8 || code >= 11 && code <= 12 || code >= 14 && code <= 31 || code >= 127 && code <= 159 || code >= 55296 && code <= 57343)
+      return null;
+  }
+  return value;
+}
+function safeCode2(value, maximumLength = 96) {
+  return typeof value === "string" && value.length <= maximumLength && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value) ? value : null;
+}
+function languageTag(value) {
+  return typeof value === "string" && value.length <= 64 && /^(?:und|[a-z]{2,3}(?:-[a-z0-9]{2,8})*)$/u.test(value) ? value : null;
+}
+function positiveInteger(value, allowZero = false) {
+  return Number.isSafeInteger(value) && !Object.is(value, -0) && value >= (allowZero ? 0 : 1) ? value : null;
+}
+function parseOpaqueId(value, prefix) {
+  return typeof value === "string" && new RegExp(`^${prefix}[a-z0-9]{24}$`, "u").test(value) ? value : null;
+}
+function parseKnowledgeEntityId(value) {
+  return parseOpaqueId(value, "kent_");
+}
+function parseKnowledgeAssertionId(value) {
+  return parseOpaqueId(value, "kast_");
+}
+function parseKnowledgeEvidenceId(value) {
+  return parseOpaqueId(value, "kevd_");
+}
+function parseKnowledgeInquiryId(value) {
+  return parseOpaqueId(value, "kinq_");
+}
+function parseKnowledgeEditionId(value) {
+  return parseOpaqueId(value, "kedn_");
+}
+function parseKnowledgeEntityV1(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "entityId",
+    "identityOperationId",
+    "identityRevision",
+    "redirectEntityId",
+    "state",
+    "v"
+  ]) || value["v"] !== 1)
+    return failure("entity");
+  const entityId = parseKnowledgeEntityId(value["entityId"]);
+  const identityOperationId = safeCode2(value["identityOperationId"], 128);
+  const identityRevision = positiveInteger(value["identityRevision"]);
+  const redirectEntityId = value["redirectEntityId"] === null ? null : parseKnowledgeEntityId(value["redirectEntityId"]);
+  const state = SPONGE_KNOWLEDGE_ENTITY_STATES_V1.find((candidate) => candidate === value["state"]);
+  return entityId !== null && identityOperationId !== null && identityRevision !== null && (value["redirectEntityId"] === null || redirectEntityId !== null) && state !== undefined && state === "redirected" === (redirectEntityId !== null) && redirectEntityId !== entityId ? success({
+    entityId,
+    identityOperationId,
+    identityRevision,
+    redirectEntityId,
+    state,
+    v: 1
+  }) : failure("entity");
+}
+function asJson(value) {
+  return value;
+}
+function canonicalKey(value) {
+  return canonicalJson2(asJson(value));
+}
+function isOrderedUnique(values, key = canonicalKey) {
+  return values.every((value, index) => index === 0 || key(values[index - 1]) < key(value));
+}
+function parseKnowledgeSchemaRefV1(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, ["code", "namespace", "revision", "schemaSha256", "v"]) || value["v"] !== 1)
+    return failure("schemaRef");
+  const code = safeCode2(value["code"]);
+  const namespace = safeCode2(value["namespace"], 128);
+  const revision = positiveInteger(value["revision"]);
+  const schemaSha256 = parseSha256Hex2(value["schemaSha256"]);
+  return code !== null && namespace !== null && revision !== null && schemaSha256 !== null ? success({ code, namespace, revision, schemaSha256, v: 1 }) : failure("schemaRef");
+}
+function canonicalInteger(value) {
+  return typeof value === "string" && value.length <= 1024 && CANONICAL_INTEGER.test(value) ? value : null;
+}
+function canonicalDecimal(value) {
+  return typeof value === "string" && value.length <= 1024 && value !== "-0" && CANONICAL_DECIMAL.test(value) ? value : null;
+}
+function compareCanonicalDecimals(left, right) {
+  const parts = (value) => {
+    const negative = value.startsWith("-");
+    const unsigned = negative ? value.slice(1) : value;
+    const [integer = "0", fraction = ""] = unsigned.split(".");
+    return { fraction, integer, negative };
+  };
+  const leftParts = parts(left);
+  const rightParts = parts(right);
+  const scale = Math.max(leftParts.fraction.length, rightParts.fraction.length);
+  const scaled = (value) => {
+    const digits = BigInt(`${value.integer}${value.fraction.padEnd(scale, "0")}`);
+    return value.negative ? -digits : digits;
+  };
+  const leftScaled = scaled(leftParts);
+  const rightScaled = scaled(rightParts);
+  return leftScaled < rightScaled ? -1 : leftScaled > rightScaled ? 1 : 0;
+}
+function nonnegativeDecimal(value) {
+  const parsed = canonicalDecimal(value);
+  return parsed !== null && !parsed.startsWith("-") ? parsed : null;
+}
+function parseQuantityUncertainty(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, ["kind", "minus", "plus", "v"]) || value["v"] !== 1 || value["kind"] !== "absolute" && value["kind"] !== "relative")
+    return null;
+  const minus = nonnegativeDecimal(value["minus"]);
+  const plus = nonnegativeDecimal(value["plus"]);
+  return minus === null || plus === null ? null : { kind: value["kind"], minus, plus, v: 1 };
+}
+function temporalLexeme(value, precision) {
+  if (typeof value !== "string" || value.length > 64)
+    return null;
+  const valid = precision === "year" ? /^-?(?:0|[1-9][0-9]{0,8})$/u.test(value) : precision === "month" ? /^-?(?:0|[1-9][0-9]{0,8})-(?:0[1-9]|1[0-2])$/u.test(value) : precision === "day" ? /^-?(?:0|[1-9][0-9]{0,8})-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])$/u.test(value) : precision === "minute" ? /^-?(?:0|[1-9][0-9]{0,8})-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]$/u.test(value) : precision === "second" ? /^-?(?:0|[1-9][0-9]{0,8})-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/u.test(value) : /^-?(?:0|[1-9][0-9]{0,8})-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\.[0-9]{3}$/u.test(value);
+  return valid ? value : null;
+}
+function parseTemporalValue(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "calendar",
+    "certainty",
+    "earliest",
+    "kind",
+    "latest",
+    "precision",
+    "timezone",
+    "v",
+    "value"
+  ]) || value["kind"] !== "time" || value["v"] !== 1)
+    return null;
+  const precision = value["precision"];
+  if (precision !== "year" && precision !== "month" && precision !== "day" && precision !== "minute" && precision !== "second" && precision !== "millisecond")
+    return null;
+  const calendar = parseKnowledgeSchemaRefV1(value["calendar"]);
+  const certainty = value["certainty"];
+  const temporal = temporalLexeme(value["value"], precision);
+  const earliest = value["earliest"] === null ? null : temporalLexeme(value["earliest"], precision);
+  const latest = value["latest"] === null ? null : temporalLexeme(value["latest"], precision);
+  const timezone = value["timezone"] === null ? null : typeof value["timezone"] === "string" && /^(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$/u.test(value["timezone"]) ? value["timezone"] : null;
+  if (!calendar.ok || temporal === null || value["earliest"] !== null && earliest === null || value["latest"] !== null && latest === null || value["timezone"] !== null && timezone === null || timezone !== null && (precision === "year" || precision === "month" || precision === "day") || certainty !== "after" && certainty !== "approximate" && certainty !== "before" && certainty !== "between" && certainty !== "exact" || certainty === "exact" && (earliest !== null || latest !== null) || certainty === "before" && (earliest !== null || latest === null) || certainty === "after" && (earliest === null || latest !== null) || certainty === "between" && (earliest === null || latest === null) || earliest !== null && latest !== null && compareCanonicalTemporalLexemes(earliest, latest) > 0)
+    return null;
+  return {
+    calendar: calendar.value,
+    certainty,
+    earliest,
+    kind: "time",
+    latest,
+    precision,
+    timezone,
+    v: 1,
+    value: temporal
+  };
+}
+function compareCanonicalTemporalLexemes(left, right) {
+  const normalize = (value) => {
+    const negative = value.startsWith("-");
+    const unsigned = negative ? value.slice(1) : value;
+    const separator = unsigned.indexOf("-");
+    const year = separator === -1 ? unsigned : unsigned.slice(0, separator);
+    const rest = separator === -1 ? "" : unsigned.slice(separator);
+    const paddedYear = year.padStart(9, "0");
+    return `${negative ? "0" : "1"}:${negative ? paddedYear.split("").map((digit) => 9 - Number(digit)).join("") : paddedYear}${rest}`;
+  };
+  const leftKey = normalize(left);
+  const rightKey = normalize(right);
+  return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+}
+function canonicalDuration(value) {
+  return typeof value === "string" && value.length <= 128 && /^-?P(?=\d|T\d)(?:\d+Y)?(?:\d+M)?(?:\d+W)?(?:\d+D)?(?:T(?=\d)(?:\d+H)?(?:\d+M)?(?:\d+(?:\.\d+)?S)?)?$/u.test(value) ? value : null;
+}
+function canonicalRecurrenceRule(value) {
+  if (typeof value !== "string" || value.length > 2048 || value.length === 0)
+    return null;
+  const parts = value.split(";");
+  const keys = [];
+  for (const part of parts) {
+    const match = /^([A-Z][A-Z0-9_]*)=([A-Z0-9,+-]+)$/u.exec(part);
+    if (match === null)
+      return null;
+    keys.push(match[1]);
+  }
+  return isOrderedUnique(keys, (item) => item) && keys.includes("FREQ") ? value : null;
+}
+function parseGeometryPoint(value) {
+  if (!Array.isArray(value) || value.length !== 2 && value.length !== 3)
+    return null;
+  const coordinates = value.map(canonicalDecimal);
+  if (coordinates.some((coordinate) => coordinate === null))
+    return null;
+  return coordinates;
+}
+function mediaType(value) {
+  return typeof value === "string" && /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/u.test(value) ? value : null;
+}
+function canonicalUri(value) {
+  if (typeof value !== "string" || value.length > 4096)
+    return null;
+  try {
+    const uri = new URL(value);
+    return uri.username === "" && uri.password === "" && uri.protocol !== "javascript:" && uri.protocol !== "data:" && uri.protocol !== "file:" && uri.href === value ? value : null;
+  } catch {
+    return null;
+  }
+}
+function parseKnowledgeValueInternal(value, depth) {
+  if (!isPlainRecord2(value) || value["v"] !== 1 || depth > 8)
+    return null;
+  switch (value["kind"]) {
+    case "entity": {
+      if (!hasExactKeys2(value, ["entityId", "kind", "v"]))
+        return null;
+      const entityId = parseKnowledgeEntityId(value["entityId"]);
+      return entityId === null ? null : { entityId, kind: "entity", v: 1 };
+    }
+    case "text": {
+      if (!hasExactKeys2(value, ["kind", "language", "text", "v"]))
+        return null;
+      const language = languageTag(value["language"]);
+      const text = boundedText2(value["text"]);
+      return language === null || text === null ? null : { kind: "text", language, text, v: 1 };
+    }
+    case "string": {
+      const parsedValue = boundedText2(value["value"]);
+      return hasExactKeys2(value, ["kind", "v", "value"]) && parsedValue !== null ? { kind: "string", v: 1, value: parsedValue } : null;
+    }
+    case "boolean":
+      return hasExactKeys2(value, ["kind", "v", "value"]) && typeof value["value"] === "boolean" ? { kind: "boolean", v: 1, value: value["value"] } : null;
+    case "integer": {
+      const integer = canonicalInteger(value["value"]);
+      return hasExactKeys2(value, ["kind", "v", "value"]) && integer !== null ? { kind: "integer", v: 1, value: integer } : null;
+    }
+    case "decimal": {
+      const decimal = canonicalDecimal(value["value"]);
+      return hasExactKeys2(value, ["kind", "v", "value"]) && decimal !== null ? { kind: "decimal", v: 1, value: decimal } : null;
+    }
+    case "quantity": {
+      if (!hasExactKeys2(value, [
+        "kind",
+        "lowerBound",
+        "uncertainty",
+        "unit",
+        "upperBound",
+        "v",
+        "value"
+      ]))
+        return null;
+      const parsedValue = canonicalDecimal(value["value"]);
+      const lowerBound = value["lowerBound"] === null ? null : canonicalDecimal(value["lowerBound"]);
+      const upperBound = value["upperBound"] === null ? null : canonicalDecimal(value["upperBound"]);
+      const uncertainty = value["uncertainty"] === null ? null : parseQuantityUncertainty(value["uncertainty"]);
+      const unit = parseKnowledgeSchemaRefV1(value["unit"]);
+      return parsedValue !== null && (value["lowerBound"] === null || lowerBound !== null) && (value["upperBound"] === null || upperBound !== null) && (value["uncertainty"] === null || uncertainty !== null) && (lowerBound === null || compareCanonicalDecimals(lowerBound, parsedValue) <= 0) && (upperBound === null || compareCanonicalDecimals(parsedValue, upperBound) <= 0) && unit.ok ? {
+        kind: "quantity",
+        lowerBound,
+        uncertainty,
+        unit: unit.value,
+        upperBound,
+        v: 1,
+        value: parsedValue
+      } : null;
+    }
+    case "time":
+      return parseTemporalValue(value);
+    case "interval": {
+      if (!hasExactKeys2(value, ["end", "kind", "start", "v"]))
+        return null;
+      const start = value["start"] === null ? null : parseTemporalValue(value["start"]);
+      const end = value["end"] === null ? null : parseTemporalValue(value["end"]);
+      return (value["start"] === null || start !== null) && (value["end"] === null || end !== null) && (start !== null || end !== null) && !(start !== null && end !== null && start.precision === end.precision && canonicalKey(start.calendar) === canonicalKey(end.calendar) && compareCanonicalTemporalLexemes(start.value, end.value) > 0) ? { end, kind: "interval", start, v: 1 } : null;
+    }
+    case "duration": {
+      const iso8601 = canonicalDuration(value["iso8601"]);
+      return hasExactKeys2(value, ["iso8601", "kind", "v"]) && iso8601 !== null ? { iso8601, kind: "duration", v: 1 } : null;
+    }
+    case "recurrence": {
+      if (!hasExactKeys2(value, ["calendar", "kind", "rule", "startsAt", "v"])) {
+        return null;
+      }
+      const calendar = parseKnowledgeSchemaRefV1(value["calendar"]);
+      const rule = canonicalRecurrenceRule(value["rule"]);
+      const startsAt = value["startsAt"] === null ? null : parseTemporalValue(value["startsAt"]);
+      return calendar.ok && rule !== null && (value["startsAt"] === null || startsAt !== null) ? { calendar: calendar.value, kind: "recurrence", rule, startsAt, v: 1 } : null;
+    }
+    case "geometry": {
+      if (!hasExactKeys2(value, [
+        "coordinates",
+        "crs",
+        "geometryType",
+        "kind",
+        "precisionMeters",
+        "v"
+      ]) || !Array.isArray(value["coordinates"]) || value["coordinates"].length > SPONGE_KNOWLEDGE_LIMITS_V1.geometryPoints) {
+        return null;
+      }
+      const coordinates = value["coordinates"].map(parseGeometryPoint);
+      const crs = parseKnowledgeSchemaRefV1(value["crs"]);
+      const geometryType = value["geometryType"];
+      const precisionMeters = value["precisionMeters"] === null ? null : nonnegativeDecimal(value["precisionMeters"]);
+      if (!crs.ok || coordinates.some((point) => point === null) || value["precisionMeters"] !== null && precisionMeters === null || geometryType !== "point" && geometryType !== "line-string" && geometryType !== "polygon")
+        return null;
+      const points = coordinates;
+      if (geometryType === "point" && points.length !== 1 || geometryType === "line-string" && points.length < 2 || geometryType === "polygon" && (points.length < 4 || canonicalKey(points[0]) !== canonicalKey(points.at(-1))))
+        return null;
+      return {
+        coordinates: points,
+        crs: crs.value,
+        geometryType,
+        kind: "geometry",
+        precisionMeters,
+        v: 1
+      };
+    }
+    case "uri": {
+      const uri = canonicalUri(value["uri"]);
+      return hasExactKeys2(value, ["kind", "uri", "v"]) && uri !== null ? { kind: "uri", uri, v: 1 } : null;
+    }
+    case "identifier": {
+      if (!hasExactKeys2(value, ["kind", "scheme", "v", "value"]))
+        return null;
+      const scheme = parseKnowledgeSchemaRefV1(value["scheme"]);
+      const identifier = boundedText2(value["value"], 4096);
+      return scheme.ok && identifier !== null ? { kind: "identifier", scheme: scheme.value, v: 1, value: identifier } : null;
+    }
+    case "media": {
+      if (!hasExactKeys2(value, [
+        "kind",
+        "mediaType",
+        "sourceEntityId",
+        "sourceSha256",
+        "v"
+      ]))
+        return null;
+      const parsedMediaType = mediaType(value["mediaType"]);
+      const sourceEntityId = parseKnowledgeEntityId(value["sourceEntityId"]);
+      const sourceSha256 = parseSha256Hex2(value["sourceSha256"]);
+      return parsedMediaType !== null && sourceEntityId !== null && sourceSha256 !== null ? { kind: "media", mediaType: parsedMediaType, sourceEntityId, sourceSha256, v: 1 } : null;
+    }
+    case "list":
+    case "set": {
+      if (!hasExactKeys2(value, ["kind", "v", "values"]) || !Array.isArray(value["values"]) || value["values"].length > SPONGE_KNOWLEDGE_LIMITS_V1.listValues)
+        return null;
+      const values = [];
+      for (const child of value["values"]) {
+        const parsed = parseKnowledgeValueInternal(child, depth + 1);
+        if (parsed === null)
+          return null;
+        values.push(parsed);
+      }
+      if (value["kind"] === "set" && !isOrderedUnique(values))
+        return null;
+      return { kind: value["kind"], v: 1, values };
+    }
+    case "extension": {
+      if (!hasExactKeys2(value, [
+        "canonicalizerSha256",
+        "canonicalValue",
+        "kind",
+        "mediaType",
+        "schema",
+        "v",
+        "valueSha256"
+      ]))
+        return null;
+      const canonicalizerSha256 = parseSha256Hex2(value["canonicalizerSha256"]);
+      const canonicalValue = boundedText2(value["canonicalValue"], SPONGE_KNOWLEDGE_LIMITS_V1.extensionBytes);
+      const parsedMediaType = mediaType(value["mediaType"]);
+      const schema = parseKnowledgeSchemaRefV1(value["schema"]);
+      const valueSha256 = parseSha256Hex2(value["valueSha256"]);
+      return canonicalizerSha256 !== null && canonicalValue !== null && parsedMediaType !== null && schema.ok && valueSha256 !== null ? {
+        canonicalizerSha256,
+        canonicalValue,
+        kind: "extension",
+        mediaType: parsedMediaType,
+        schema: schema.value,
+        v: 1,
+        valueSha256
+      } : null;
+    }
+    default:
+      return null;
+  }
+}
+function parseKnowledgeValueV1(value) {
+  const parsed = parseKnowledgeValueInternal(value, 0);
+  return parsed === null ? failure("value") : success(parsed);
+}
+async function verifyKnowledgeValueV1(value) {
+  const parsed = parseKnowledgeValueV1(value);
+  if (!parsed.ok)
+    return parsed;
+  if (parsed.value.kind === "extension") {
+    const expected = await sha256Text(parsed.value.canonicalValue);
+    if (expected !== parsed.value.valueSha256) {
+      return failure("valueSha256", "digest-mismatch");
+    }
+  }
+  if (parsed.value.kind === "list" || parsed.value.kind === "set") {
+    for (const child of parsed.value.values) {
+      const verified = await verifyKnowledgeValueV1(child);
+      if (!verified.ok)
+        return verified;
+    }
+  }
+  return success(parsed.value);
+}
+function parseDimension(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, ["predicate", "v", "value"]) || value["v"] !== 1)
+    return null;
+  const predicate = parseKnowledgeSchemaRefV1(value["predicate"]);
+  const parsedValue = parseKnowledgeValueV1(value["value"]);
+  return predicate.ok && parsedValue.ok ? { predicate: predicate.value, v: 1, value: parsedValue.value } : null;
+}
+function parseContextInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, ["dimensions", "scenario", "v"]) || value["v"] !== 1 || !Array.isArray(value["dimensions"]))
+    return failure("context");
+  if (value["dimensions"].length > SPONGE_KNOWLEDGE_LIMITS_V1.dimensions) {
+    return failure("dimensions", "limit-exceeded");
+  }
+  const scenario = SPONGE_KNOWLEDGE_SCENARIOS_V1.find((candidate) => candidate === value["scenario"]);
+  const dimensions = [];
+  for (const item of value["dimensions"]) {
+    const parsed = parseDimension(item);
+    if (parsed === null)
+      return failure("dimensions");
+    dimensions.push(parsed);
+  }
+  return scenario === undefined ? failure("scenario") : success({ dimensions, scenario, v: 1 });
+}
+async function parseKnowledgeContextV1(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "contextSha256",
+    "dimensions",
+    "scenario",
+    "v"
+  ]))
+    return failure("context");
+  const contextSha256 = parseSha256Hex2(value["contextSha256"]);
+  const input = parseContextInput({
+    dimensions: value["dimensions"],
+    scenario: value["scenario"],
+    v: value["v"]
+  });
+  if (contextSha256 === null || !input.ok)
+    return failure("context");
+  if (!isOrderedUnique(input.value.dimensions)) {
+    return failure("dimensions", "noncanonical-input");
+  }
+  for (const dimension of input.value.dimensions) {
+    const verified = await verifyKnowledgeValueV1(dimension.value);
+    if (!verified.ok)
+      return failure(verified.error.field, verified.error.code);
+  }
+  const expected = await sha256Text(canonicalKey(input.value));
+  return expected === contextSha256 ? success({ ...input.value, contextSha256 }) : failure("contextSha256", "digest-mismatch");
+}
+function parseStatementInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "object",
+    "predicate",
+    "qualifiers",
+    "subject",
+    "v"
+  ]) || value["v"] !== 1 || !Array.isArray(value["qualifiers"])) {
+    return failure("statement");
+  }
+  if (value["qualifiers"].length > SPONGE_KNOWLEDGE_LIMITS_V1.qualifiers) {
+    return failure("qualifiers", "limit-exceeded");
+  }
+  const object = parseKnowledgeValueV1(value["object"]);
+  const predicate = parseKnowledgeSchemaRefV1(value["predicate"]);
+  const subject = parseKnowledgeEntityId(value["subject"]);
+  const qualifiers = [];
+  for (const item of value["qualifiers"]) {
+    const parsed = parseDimension(item);
+    if (parsed === null)
+      return failure("qualifiers");
+    qualifiers.push(parsed);
+  }
+  return object.ok && predicate.ok && subject !== null ? success({ object: object.value, predicate: predicate.value, qualifiers, subject, v: 1 }) : failure("statement");
+}
+async function parseKnowledgeStatementV1(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "object",
+    "predicate",
+    "qualifiers",
+    "statementSha256",
+    "subject",
+    "v"
+  ]))
+    return failure("statement");
+  const statementSha256 = parseSha256Hex2(value["statementSha256"]);
+  const input = parseStatementInput({
+    object: value["object"],
+    predicate: value["predicate"],
+    qualifiers: value["qualifiers"],
+    subject: value["subject"],
+    v: value["v"]
+  });
+  if (statementSha256 === null || !input.ok)
+    return failure("statement");
+  if (!isOrderedUnique(input.value.qualifiers)) {
+    return failure("qualifiers", "noncanonical-input");
+  }
+  const verifiedValue = await verifyKnowledgeValueV1(input.value.object);
+  if (!verifiedValue.ok)
+    return verifiedValue;
+  for (const qualifier of input.value.qualifiers) {
+    const verified = await verifyKnowledgeValueV1(qualifier.value);
+    if (!verified.ok)
+      return failure(verified.error.field, verified.error.code);
+  }
+  const expected = await sha256Text(canonicalKey(input.value));
+  return expected === statementSha256 ? success({ ...input.value, statementSha256 }) : failure("statementSha256", "digest-mismatch");
+}
+function parseAgentRef(value) {
+  if (!isPlainRecord2(value) || value["v"] !== 1)
+    return null;
+  if (value["kind"] === "entity" && hasExactKeys2(value, ["entityId", "kind", "v"])) {
+    const entityId = parseKnowledgeEntityId(value["entityId"]);
+    return entityId === null ? null : { entityId, kind: "entity", v: 1 };
+  }
+  if (value["kind"] === "model" && hasExactKeys2(value, [
+    "kind",
+    "model",
+    "receiptSha256",
+    "v"
+  ])) {
+    const model = parseKnowledgeSchemaRefV1(value["model"]);
+    const receiptSha256 = parseSha256Hex2(value["receiptSha256"]);
+    return model.ok && receiptSha256 !== null ? { kind: "model", model: model.value, receiptSha256, v: 1 } : null;
+  }
+  if (value["kind"] === "system" && hasExactKeys2(value, [
+    "authority",
+    "kind",
+    "receiptSha256",
+    "v"
+  ])) {
+    const authority = parseKnowledgeSchemaRefV1(value["authority"]);
+    const receiptSha256 = parseSha256Hex2(value["receiptSha256"]);
+    return authority.ok && receiptSha256 !== null ? { authority: authority.value, kind: "system", receiptSha256, v: 1 } : null;
+  }
+  return null;
+}
+function parseActivityInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "actor",
+    "inputSha256s",
+    "kind",
+    "occurredAt",
+    "outputSha256s",
+    "policySha256",
+    "tool",
+    "v"
+  ]) || value["v"] !== 1)
+    return failure("activity");
+  const actor = parseAgentRef(value["actor"]);
+  const inputSha256s = parseShaArray(value["inputSha256s"], SPONGE_KNOWLEDGE_LIMITS_V1.references);
+  const kind = SPONGE_KNOWLEDGE_ACTIVITY_KINDS_V1.find((candidate) => candidate === value["kind"]);
+  const occurredAt = parseCanonicalInstantV12(value["occurredAt"]);
+  const outputSha256s = parseShaArray(value["outputSha256s"], SPONGE_KNOWLEDGE_LIMITS_V1.references);
+  const policySha256 = parseSha256Hex2(value["policySha256"]);
+  const tool = value["tool"] === null ? null : parseKnowledgeSchemaRefV1(value["tool"]);
+  const toolValue = tool === null ? null : tool.ok ? tool.value : null;
+  return actor !== null && inputSha256s !== null && kind !== undefined && occurredAt !== null && outputSha256s !== null && policySha256 !== null && (value["tool"] === null || toolValue !== null) ? success({
+    actor,
+    inputSha256s,
+    kind,
+    occurredAt,
+    outputSha256s,
+    policySha256,
+    tool: toolValue,
+    v: 1
+  }) : failure("activity");
+}
+async function parseKnowledgeActivityV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "activitySha256")) {
+    return failure("activity");
+  }
+  const activitySha256 = parseSha256Hex2(value["activitySha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "activitySha256"));
+  const parsed = parseActivityInput(input);
+  if (activitySha256 === null || !parsed.ok)
+    return failure("activity");
+  const expected = await sha256Text(canonicalKey(parsed.value));
+  return expected === activitySha256 ? success({ ...parsed.value, activitySha256 }) : failure("activitySha256", "digest-mismatch");
+}
+function parseStringCodes(value, maximum) {
+  if (!Array.isArray(value) || value.length > maximum)
+    return null;
+  const parsed = value.map((item) => safeCode2(item));
+  if (parsed.some((item) => item === null))
+    return null;
+  const codes = parsed;
+  return isOrderedUnique(codes, (item) => item) ? codes : null;
+}
+function parseAssertionInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "acceptedPurposes",
+    "assertionId",
+    "assertor",
+    "confidence",
+    "contextSha256",
+    "provenanceActivitySha256",
+    "reviewActivitySha256",
+    "stance",
+    "state",
+    "statementSha256",
+    "v"
+  ]) || value["v"] !== 1)
+    return failure("assertion");
+  const acceptedPurposes = parseStringCodes(value["acceptedPurposes"], SPONGE_KNOWLEDGE_LIMITS_V1.acceptedPurposes);
+  const assertionId = parseKnowledgeAssertionId(value["assertionId"]);
+  const assertor = parseAgentRef(value["assertor"]);
+  const confidence = value["confidence"] === null ? null : parseKnowledgeSchemaRefV1(value["confidence"]);
+  const confidenceValue = confidence === null ? null : confidence.ok ? confidence.value : null;
+  const contextSha256 = value["contextSha256"] === null ? null : parseSha256Hex2(value["contextSha256"]);
+  const provenanceActivitySha256 = parseSha256Hex2(value["provenanceActivitySha256"]);
+  const reviewActivitySha256 = value["reviewActivitySha256"] === null ? null : parseSha256Hex2(value["reviewActivitySha256"]);
+  const stance = SPONGE_KNOWLEDGE_ASSERTION_STANCES_V1.find((candidate) => candidate === value["stance"]);
+  const state = SPONGE_KNOWLEDGE_ASSERTION_STATES_V1.find((candidate) => candidate === value["state"]);
+  const statementSha256 = parseSha256Hex2(value["statementSha256"]);
+  if (acceptedPurposes === null || assertionId === null || assertor === null || value["confidence"] !== null && confidenceValue === null || value["contextSha256"] !== null && contextSha256 === null || provenanceActivitySha256 === null || value["reviewActivitySha256"] !== null && reviewActivitySha256 === null || stance === undefined || state === undefined || statementSha256 === null)
+    return failure("assertion");
+  if (assertor.kind === "model" && (state !== "proposed" || acceptedPurposes.length !== 0 || reviewActivitySha256 !== null))
+    return failure("assertor", "authority-violation");
+  if (state === "accepted-for-purpose" !== acceptedPurposes.length > 0 || state !== "proposed" && reviewActivitySha256 === null)
+    return failure("state", "authority-violation");
+  return success({
+    acceptedPurposes,
+    assertionId,
+    assertor,
+    confidence: confidenceValue,
+    contextSha256,
+    provenanceActivitySha256,
+    reviewActivitySha256,
+    stance,
+    state,
+    statementSha256,
+    v: 1
+  });
+}
+async function parseKnowledgeAssertionV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "assertionSha256")) {
+    return failure("assertion");
+  }
+  const assertionSha256 = parseSha256Hex2(value["assertionSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "assertionSha256"));
+  const parsed = parseAssertionInput(input);
+  if (assertionSha256 === null || !parsed.ok)
+    return failure("assertion");
+  const expected = await sha256Text(canonicalKey(parsed.value));
+  return expected === assertionSha256 ? success({ ...parsed.value, assertionSha256 }) : failure("assertionSha256", "digest-mismatch");
+}
+function parseEvidenceInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "assertionSha256",
+    "bearing",
+    "disclosure",
+    "evidenceId",
+    "observationSha256",
+    "provenanceActivitySha256",
+    "selector",
+    "sourceEntityId",
+    "v"
+  ]) || value["v"] !== 1)
+    return failure("evidence");
+  const assertionSha256 = parseSha256Hex2(value["assertionSha256"]);
+  const bearing = SPONGE_KNOWLEDGE_EVIDENCE_BEARINGS_V1.find((candidate) => candidate === value["bearing"]);
+  const disclosure = value["disclosure"];
+  const evidenceId = parseKnowledgeEvidenceId(value["evidenceId"]);
+  const observationSha256 = value["observationSha256"] === null ? null : parseSha256Hex2(value["observationSha256"]);
+  const provenanceActivitySha256 = parseSha256Hex2(value["provenanceActivitySha256"]);
+  const selector = value["selector"] === null ? null : boundedText2(value["selector"], 8192);
+  const sourceEntityId = value["sourceEntityId"] === null ? null : parseKnowledgeEntityId(value["sourceEntityId"]);
+  return assertionSha256 !== null && bearing !== undefined && (disclosure === "private" || disclosure === "public" || disclosure === "shared") && evidenceId !== null && (value["observationSha256"] === null || observationSha256 !== null) && provenanceActivitySha256 !== null && (value["selector"] === null || selector !== null) && (value["sourceEntityId"] === null || sourceEntityId !== null) && (observationSha256 !== null || sourceEntityId !== null) ? success({
+    assertionSha256,
+    bearing,
+    disclosure,
+    evidenceId,
+    observationSha256,
+    provenanceActivitySha256,
+    selector,
+    sourceEntityId,
+    v: 1
+  }) : failure("evidence");
+}
+async function parseKnowledgeEvidenceLinkV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "evidenceSha256")) {
+    return failure("evidence");
+  }
+  const evidenceSha256 = parseSha256Hex2(value["evidenceSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "evidenceSha256"));
+  const parsed = parseEvidenceInput(input);
+  if (evidenceSha256 === null || !parsed.ok)
+    return failure("evidence");
+  const expected = await sha256Text(canonicalKey(parsed.value));
+  return expected === evidenceSha256 ? success({ ...parsed.value, evidenceSha256 }) : failure("evidenceSha256", "digest-mismatch");
+}
+function parseInquiryInput(value) {
+  if (!isPlainRecord2(value))
+    return failure("inquiry");
+  const hasParentEdition = Object.hasOwn(value, "parentEditionId");
+  if (!hasExactKeys2(value, hasParentEdition ? [...inquiryRequiredKeys, "parentEditionId"] : inquiryRequiredKeys) || value["v"] !== 1 || !Array.isArray(value["parentInquiryIds"])) {
+    return failure("inquiry");
+  }
+  const answerForm = safeCode2(value["answerForm"]);
+  const authorEntityId = parseKnowledgeEntityId(value["authorEntityId"]);
+  const contextSha256 = value["contextSha256"] === null ? null : parseSha256Hex2(value["contextSha256"]);
+  const createdAt = parseCanonicalInstantV12(value["createdAt"]);
+  const inquiryId = parseKnowledgeInquiryId(value["inquiryId"]);
+  const language = languageTag(value["language"]);
+  const parentEditionId = hasParentEdition && value["parentEditionId"] !== null ? parseKnowledgeEditionId(value["parentEditionId"]) : null;
+  const parentInquiryIds = value["parentInquiryIds"].map(parseKnowledgeInquiryId);
+  const privacy = value["privacy"];
+  const question = boundedText2(value["question"], 16384);
+  const status = value["status"];
+  return answerForm !== null && authorEntityId !== null && (value["contextSha256"] === null || contextSha256 !== null) && createdAt !== null && inquiryId !== null && language !== null && (!hasParentEdition || value["parentEditionId"] === null || parentEditionId !== null) && parentInquiryIds.every((item) => item !== null) && isOrderedUnique(parentInquiryIds, (item) => item) && (privacy === "private" || privacy === "public" || privacy === "shared") && question !== null && (status === "abandoned" || status === "open" || status === "paused" || status === "resolved") ? success({
+    answerForm,
+    authorEntityId,
+    contextSha256,
+    createdAt,
+    inquiryId,
+    language,
+    parentEditionId,
+    parentInquiryIds,
+    privacy,
+    question,
+    status,
+    v: 1
+  }) : failure("inquiry");
+}
+function inquiryDigestInput(input) {
+  const { parentEditionId, ...rest } = input;
+  return parentEditionId === null ? rest : input;
+}
+async function parseKnowledgeInquiryV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "inquirySha256")) {
+    return failure("inquiry");
+  }
+  const inquirySha256 = parseSha256Hex2(value["inquirySha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "inquirySha256"));
+  const parsed = parseInquiryInput(input);
+  if (inquirySha256 === null || !parsed.ok)
+    return failure("inquiry");
+  const expected = await sha256Text(canonicalKey(inquiryDigestInput(parsed.value)));
+  return expected === inquirySha256 ? success({ ...parsed.value, inquirySha256 }) : failure("inquirySha256", "digest-mismatch");
+}
+function schemaRefs(value) {
+  if (!Array.isArray(value) || value.length > 512)
+    return null;
+  const parsed = [];
+  for (const item of value) {
+    const ref = parseKnowledgeSchemaRefV1(item);
+    if (!ref.ok)
+      return null;
+    parsed.push(ref.value);
+  }
+  return isOrderedUnique(parsed) ? parsed : null;
+}
+function parseShaArray(value, maximum) {
+  if (!Array.isArray(value) || value.length > maximum)
+    return null;
+  const parsed = value.map(parseSha256Hex2);
+  return parsed.every((item) => item !== null) && isOrderedUnique(parsed, (item) => item) ? parsed : null;
+}
+function parseViewSpecInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "audience",
+    "budgets",
+    "excludedContextSha256s",
+    "includedContextSha256s",
+    "language",
+    "policySha256s",
+    "root",
+    "shapes",
+    "v",
+    "viewForm",
+    "vocabularies"
+  ]) || value["v"] !== 1 || !isPlainRecord2(value["budgets"]) || !isPlainRecord2(value["policySha256s"]) || !isPlainRecord2(value["root"])) {
+    return failure("viewSpec");
+  }
+  const audience = safeCode2(value["audience"]);
+  const budgets = value["budgets"];
+  const parsedBudgets = hasExactKeys2(budgets, ["bytes", "depth", "sources"]) ? {
+    bytes: positiveInteger(budgets["bytes"]),
+    depth: positiveInteger(budgets["depth"]),
+    sources: positiveInteger(budgets["sources"])
+  } : null;
+  const excludedContextSha256s = parseShaArray(value["excludedContextSha256s"], 512);
+  const includedContextSha256s = parseShaArray(value["includedContextSha256s"], 512);
+  const language = languageTag(value["language"]);
+  const policies = value["policySha256s"];
+  const policySha256s = hasExactKeys2(policies, ["dispute", "evidence", "rights", "traversal"]) ? {
+    dispute: parseSha256Hex2(policies["dispute"]),
+    evidence: parseSha256Hex2(policies["evidence"]),
+    rights: parseSha256Hex2(policies["rights"]),
+    traversal: parseSha256Hex2(policies["traversal"])
+  } : null;
+  const root = value["root"];
+  const parsedRoot = root["kind"] === "entity" && hasExactKeys2(root, ["entityId", "kind"]) ? (() => {
+    const entityId = parseKnowledgeEntityId(root["entityId"]);
+    return entityId === null ? null : { entityId, kind: "entity" };
+  })() : root["kind"] === "inquiry" && hasExactKeys2(root, ["inquiryId", "kind"]) ? (() => {
+    const inquiryId = parseKnowledgeInquiryId(root["inquiryId"]);
+    return inquiryId === null ? null : { inquiryId, kind: "inquiry" };
+  })() : null;
+  const shapes = schemaRefs(value["shapes"]);
+  const viewForm = safeCode2(value["viewForm"]);
+  const vocabularies = schemaRefs(value["vocabularies"]);
+  return audience !== null && parsedBudgets !== null && parsedBudgets.bytes !== null && parsedBudgets.depth !== null && parsedBudgets.sources !== null && excludedContextSha256s !== null && includedContextSha256s !== null && language !== null && policySha256s !== null && policySha256s.dispute !== null && policySha256s.evidence !== null && policySha256s.rights !== null && policySha256s.traversal !== null && parsedRoot !== null && shapes !== null && viewForm !== null && vocabularies !== null ? success({
+    audience,
+    budgets: parsedBudgets,
+    excludedContextSha256s,
+    includedContextSha256s,
+    language,
+    policySha256s,
+    root: parsedRoot,
+    shapes,
+    v: 1,
+    viewForm,
+    vocabularies
+  }) : failure("viewSpec");
+}
+async function parseKnowledgeViewSpecV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "viewSpecSha256")) {
+    return failure("viewSpec");
+  }
+  const viewSpecSha256 = parseSha256Hex2(value["viewSpecSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "viewSpecSha256"));
+  const parsed = parseViewSpecInput(input);
+  if (viewSpecSha256 === null || !parsed.ok)
+    return failure("viewSpec");
+  const expected = await sha256Text(canonicalKey(parsed.value));
+  return expected === viewSpecSha256 ? success({ ...parsed.value, viewSpecSha256 }) : failure("viewSpecSha256", "digest-mismatch");
+}
+function parseEditionInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "candidateSha256",
+    "dependencyManifestSha256",
+    "editionId",
+    "humanReviewReceiptSha256",
+    "inputGraphRevisionSha256",
+    "purpose",
+    "reviewDecisionSha256",
+    "v"
+  ]) || value["v"] !== 1)
+    return failure("edition");
+  const candidateSha256 = parseSha256Hex2(value["candidateSha256"]);
+  const dependencyManifestSha256 = parseSha256Hex2(value["dependencyManifestSha256"]);
+  const editionId = parseKnowledgeEditionId(value["editionId"]);
+  const humanReviewReceiptSha256 = parseSha256Hex2(value["humanReviewReceiptSha256"]);
+  const inputGraphRevisionSha256 = parseSha256Hex2(value["inputGraphRevisionSha256"]);
+  const reviewDecisionSha256 = parseSha256Hex2(value["reviewDecisionSha256"]);
+  return candidateSha256 !== null && dependencyManifestSha256 !== null && editionId !== null && humanReviewReceiptSha256 !== null && inputGraphRevisionSha256 !== null && value["purpose"] === SPONGE_KNOWLEDGE_PUBLIC_PURPOSE_V1 && reviewDecisionSha256 !== null ? success({
+    candidateSha256,
+    dependencyManifestSha256,
+    editionId,
+    humanReviewReceiptSha256,
+    inputGraphRevisionSha256,
+    purpose: SPONGE_KNOWLEDGE_PUBLIC_PURPOSE_V1,
+    reviewDecisionSha256,
+    v: 1
+  }) : failure("edition");
+}
+async function parseKnowledgeEditionV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "editionSha256")) {
+    return failure("edition");
+  }
+  const editionSha256 = parseSha256Hex2(value["editionSha256"]);
+  const parsed = parseEditionInput(Object.fromEntries(Object.entries(value).filter(([key]) => key !== "editionSha256")));
+  if (editionSha256 === null || !parsed.ok)
+    return failure("edition");
+  return await sha256Text(canonicalKey(parsed.value)) === editionSha256 ? success({ ...parsed.value, editionSha256 }) : failure("editionSha256", "digest-mismatch");
+}
+var SPONGE_KNOWLEDGE_LIMITS_V1, SPONGE_KNOWLEDGE_PUBLIC_PURPOSE_V1 = "public-encyclopedia", SPONGE_KNOWLEDGE_ENTITY_STATES_V1, CANONICAL_INTEGER, CANONICAL_DECIMAL, SPONGE_KNOWLEDGE_SCENARIOS_V1, SPONGE_KNOWLEDGE_ACTIVITY_KINDS_V1, SPONGE_KNOWLEDGE_ASSERTION_STANCES_V1, SPONGE_KNOWLEDGE_ASSERTION_STATES_V1, SPONGE_KNOWLEDGE_EVIDENCE_BEARINGS_V1, inquiryRequiredKeys;
+var init_knowledge_ontology_v1 = __esm(() => {
+  init_integrity_domain();
+  SPONGE_KNOWLEDGE_LIMITS_V1 = Object.freeze({
+    acceptedPurposes: 32,
+    contexts: 128,
+    dimensions: 64,
+    evidence: 1024,
+    extensionBytes: 64 * 1024,
+    geometryPoints: 4096,
+    listValues: 256,
+    passages: 512,
+    qualifiers: 128,
+    references: 2048,
+    statementBytes: 256 * 1024,
+    textBytes: 64 * 1024
+  });
+  SPONGE_KNOWLEDGE_ENTITY_STATES_V1 = [
+    "active",
+    "quarantined",
+    "redirected",
+    "tombstoned"
+  ];
+  CANONICAL_INTEGER = /^(?:0|-[1-9][0-9]*|[1-9][0-9]*)$/u;
+  CANONICAL_DECIMAL = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*[1-9])?$/u;
+  SPONGE_KNOWLEDGE_SCENARIOS_V1 = [
+    "actual",
+    "counterfactual",
+    "hypothetical",
+    "planned"
+  ];
+  SPONGE_KNOWLEDGE_ACTIVITY_KINDS_V1 = [
+    "extraction",
+    "human-entry",
+    "human-review",
+    "import",
+    "model-proposal",
+    "normalization",
+    "publication",
+    "resolution",
+    "transformation"
+  ];
+  SPONGE_KNOWLEDGE_ASSERTION_STANCES_V1 = [
+    "questions",
+    "refutes",
+    "reports",
+    "supports",
+    "undetermined"
+  ];
+  SPONGE_KNOWLEDGE_ASSERTION_STATES_V1 = [
+    "accepted-for-purpose",
+    "disputed",
+    "proposed",
+    "reviewed",
+    "superseded",
+    "withdrawn"
+  ];
+  SPONGE_KNOWLEDGE_EVIDENCE_BEARINGS_V1 = [
+    "background",
+    "contradicts",
+    "corroborates",
+    "direct-observation",
+    "method",
+    "quotation",
+    "registry-record",
+    "supports"
+  ];
+  inquiryRequiredKeys = [
+    "answerForm",
+    "authorEntityId",
+    "contextSha256",
+    "createdAt",
+    "inquiryId",
+    "language",
+    "parentInquiryIds",
+    "privacy",
+    "question",
+    "status",
+    "v"
+  ];
+});
+
+// src/research/knowledge-ontology-contract-v1.ts
+function success2(value) {
+  return { ok: true, value };
+}
+function failure2(field, code = "invalid-input") {
+  return { error: { code, field }, ok: false };
+}
+function asJson2(value) {
+  return value;
+}
+function canonicalKey2(value) {
+  return canonicalJson2(asJson2(value));
+}
+function orderedUnique2(values, key = canonicalKey2) {
+  return values.every((value, index) => index === 0 || key(values[index - 1]) < key(value));
+}
+function sortedUnique(values, key = canonicalKey2) {
+  const sorted = [...values].sort((left, right) => {
+    const leftKey = key(left);
+    const rightKey = key(right);
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+  return orderedUnique2(sorted, key) ? sorted : null;
+}
+function boundedText3(value, maximumBytes = 16384) {
+  if (typeof value !== "string" || value.length === 0 || value.normalize("NFC") !== value || utf8ByteLength2(value) > maximumBytes)
+    return null;
+  for (const character of value) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= 8 || code >= 11 && code <= 12 || code >= 14 && code <= 31 || code >= 127 && code <= 159 || code >= 55296 && code <= 57343)
+      return null;
+  }
+  return value;
+}
+function safeCode3(value, maximumLength = 128) {
+  return typeof value === "string" && value.length <= maximumLength && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value) ? value : null;
+}
+function languageTag2(value) {
+  return typeof value === "string" && value.length <= 64 && /^(?:und|[a-z]{2,3}(?:-[a-z0-9]{2,8})*)$/u.test(value) ? value : null;
+}
+function positiveInteger2(value, allowZero = false) {
+  return Number.isSafeInteger(value) && !Object.is(value, -0) && value >= (allowZero ? 0 : 1) ? value : null;
+}
+function parseShaArray2(value, maximum = 4096) {
+  if (!Array.isArray(value) || value.length > maximum)
+    return null;
+  const parsed = value.map(parseSha256Hex2);
+  return parsed.every((item) => item !== null) && orderedUnique2(parsed, (item) => item) ? parsed : null;
+}
+function parseRefArray(value, maximum = 512) {
+  if (!Array.isArray(value) || value.length > maximum)
+    return null;
+  const parsed = [];
+  for (const item of value) {
+    const ref = parseKnowledgeSchemaRefV1(item);
+    if (!ref.ok)
+      return null;
+    parsed.push(ref.value);
+  }
+  return orderedUnique2(parsed) ? parsed : null;
+}
+function sameRef(left, right) {
+  return canonicalKey2(left) === canonicalKey2(right);
+}
+function parseCanonicalDecimal(value) {
+  return typeof value === "string" && value.length <= 1024 && value !== "-0" && /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*[1-9])?$/u.test(value) ? value : null;
+}
+function compareDecimals(left, right) {
+  const parts = (value) => {
+    const negative = value.startsWith("-");
+    const unsigned = negative ? value.slice(1) : value;
+    const [integer = "0", fraction = ""] = unsigned.split(".");
+    return { fraction, integer, negative };
+  };
+  const leftParts = parts(left);
+  const rightParts = parts(right);
+  const scale = Math.max(leftParts.fraction.length, rightParts.fraction.length);
+  const scaled = (value) => {
+    const magnitude = BigInt(`${value.integer}${value.fraction.padEnd(scale, "0")}`);
+    return value.negative ? -magnitude : magnitude;
+  };
+  const leftScaled = scaled(leftParts);
+  const rightScaled = scaled(rightParts);
+  return leftScaled < rightScaled ? -1 : leftScaled > rightScaled ? 1 : 0;
+}
+function parseLocalizedTexts(value) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 128)
+    return null;
+  const parsed = [];
+  for (const item of value) {
+    if (!isPlainRecord2(item) || !hasExactKeys2(item, ["language", "text", "v"]) || item["v"] !== 1)
+      return null;
+    const language = languageTag2(item["language"]);
+    const text = boundedText3(item["text"]);
+    if (language === null || text === null)
+      return null;
+    parsed.push({ language, text, v: 1 });
+  }
+  return orderedUnique2(parsed) ? parsed : null;
+}
+function parseSchemaIdentity(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, ["code", "namespace", "revision", "v"]) || value["v"] !== 1)
+    return null;
+  const code = safeCode3(value["code"]);
+  const namespace = safeCode3(value["namespace"]);
+  const revision = positiveInteger2(value["revision"]);
+  return code === null || namespace === null || revision === null ? null : { code, namespace, revision, v: 1 };
+}
+function refForIdentity(identity, digest) {
+  return {
+    code: identity.code,
+    namespace: identity.namespace,
+    revision: identity.revision,
+    schemaSha256: digest,
+    v: 1
+  };
+}
+function parseKnowledgeValueRangeV1(value) {
+  if (!isPlainRecord2(value) || value["v"] !== 1)
+    return failure2("valueRange");
+  switch (value["kind"]) {
+    case "any":
+      return hasExactKeys2(value, ["kind", "v"]) ? success2({ kind: "any", v: 1 }) : failure2("valueRange");
+    case "value-kinds": {
+      if (!hasExactKeys2(value, ["kind", "v", "valueKinds"]) || !Array.isArray(value["valueKinds"]) || value["valueKinds"].length === 0) {
+        return failure2("valueRange");
+      }
+      const kinds = value["valueKinds"].filter((item) => KNOWLEDGE_VALUE_KINDS_V1.some((candidate) => candidate === item));
+      return kinds.length === value["valueKinds"].length && orderedUnique2(kinds, (item) => item) ? success2({ kind: "value-kinds", v: 1, valueKinds: kinds }) : failure2("valueKinds", "noncanonical-input");
+    }
+    case "entity-concepts": {
+      if (!hasExactKeys2(value, ["concepts", "kind", "v"]))
+        return failure2("valueRange");
+      const concepts = parseRefArray(value["concepts"]);
+      return concepts !== null && concepts.length > 0 ? success2({ concepts, kind: "entity-concepts", v: 1 }) : failure2("concepts");
+    }
+    case "numeric": {
+      if (!hasExactKeys2(value, ["kind", "lowerBound", "unit", "upperBound", "v"])) {
+        return failure2("valueRange");
+      }
+      const lowerBound = value["lowerBound"] === null ? null : parseCanonicalDecimal(value["lowerBound"]);
+      const upperBound = value["upperBound"] === null ? null : parseCanonicalDecimal(value["upperBound"]);
+      const unit = value["unit"] === null ? null : parseKnowledgeSchemaRefV1(value["unit"]);
+      if (value["lowerBound"] !== null && lowerBound === null || value["upperBound"] !== null && upperBound === null || value["unit"] !== null && (unit === null || !unit.ok) || lowerBound !== null && upperBound !== null && compareDecimals(lowerBound, upperBound) > 0)
+        return failure2("valueRange");
+      return success2({
+        kind: "numeric",
+        lowerBound,
+        unit: unit === null || !unit.ok ? null : unit.value,
+        upperBound,
+        v: 1
+      });
+    }
+    case "text": {
+      if (!hasExactKeys2(value, ["kind", "languages", "maximumBytes", "v"])) {
+        return failure2("valueRange");
+      }
+      const maximumBytes = positiveInteger2(value["maximumBytes"]);
+      let languages = null;
+      if (value["languages"] !== null) {
+        if (!Array.isArray(value["languages"]))
+          return failure2("languages");
+        const parsed = value["languages"].map(languageTag2);
+        if (parsed.some((item) => item === null) || !orderedUnique2(parsed, (item) => item))
+          return failure2("languages");
+        languages = parsed;
+      }
+      return maximumBytes === null ? failure2("maximumBytes") : success2({ kind: "text", languages, maximumBytes, v: 1 });
+    }
+    case "enum": {
+      if (!hasExactKeys2(value, ["kind", "v", "values"]) || !Array.isArray(value["values"]) || value["values"].length === 0 || value["values"].length > 256) {
+        return failure2("valueRange");
+      }
+      const values = [];
+      for (const item of value["values"]) {
+        const parsed = parseKnowledgeValueV1(item);
+        if (!parsed.ok)
+          return failure2("values");
+        values.push(parsed.value);
+      }
+      return orderedUnique2(values) ? success2({ kind: "enum", v: 1, values }) : failure2("values", "noncanonical-input");
+    }
+    default:
+      return failure2("valueRange");
+  }
+}
+function parseVocabularyInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "canonicalizerSha256",
+    "labels",
+    "namespace",
+    "ownerEntityId",
+    "previousRevisionSha256",
+    "revision",
+    "state",
+    "v"
+  ]) || value["v"] !== 1)
+    return failure2("vocabulary");
+  const canonicalizerSha256 = parseSha256Hex2(value["canonicalizerSha256"]);
+  const labels = parseLocalizedTexts(value["labels"]);
+  const namespace = safeCode3(value["namespace"]);
+  const ownerEntityId = parseKnowledgeEntityId(value["ownerEntityId"]);
+  const previousRevisionSha256 = value["previousRevisionSha256"] === null ? null : parseSha256Hex2(value["previousRevisionSha256"]);
+  const revision = positiveInteger2(value["revision"]);
+  const state = value["state"];
+  return canonicalizerSha256 !== null && labels !== null && namespace !== null && ownerEntityId !== null && (value["previousRevisionSha256"] === null || previousRevisionSha256 !== null) && revision !== null && revision === 1 === (previousRevisionSha256 === null) && (state === "private" || state === "public" || state === "retired" || state === "shared") ? success2({
+    canonicalizerSha256,
+    labels,
+    namespace,
+    ownerEntityId,
+    previousRevisionSha256,
+    revision,
+    state,
+    v: 1
+  }) : failure2("vocabulary");
+}
+async function createKnowledgeVocabularyRevisionV1(input) {
+  const parsed = parseVocabularyInput(input);
+  return parsed.ok ? success2({ ...parsed.value, revisionSha256: await sha256Text(canonicalKey2(parsed.value)) }) : parsed;
+}
+async function parseKnowledgeVocabularyRevisionV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "revisionSha256")) {
+    return failure2("vocabulary");
+  }
+  const revisionSha256 = parseSha256Hex2(value["revisionSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "revisionSha256"));
+  const parsed = parseVocabularyInput(input);
+  if (revisionSha256 === null || !parsed.ok)
+    return failure2("vocabulary");
+  const expected = await sha256Text(canonicalKey2(parsed.value));
+  return expected === revisionSha256 ? success2({ ...parsed.value, revisionSha256 }) : failure2("revisionSha256", "digest-mismatch");
+}
+function parseSchemaRevisionBase(value) {
+  const definitions = parseLocalizedTexts(value["definitions"]);
+  const identity = parseSchemaIdentity(value["identity"]);
+  const labels = parseLocalizedTexts(value["labels"]);
+  const previousRevisionSha256 = value["previousRevisionSha256"] === null ? null : parseSha256Hex2(value["previousRevisionSha256"]);
+  const reviewDecisionSha256 = value["reviewDecisionSha256"] === null ? null : parseSha256Hex2(value["reviewDecisionSha256"]);
+  const vocabularySha256 = parseSha256Hex2(value["vocabularySha256"]);
+  return definitions !== null && identity !== null && labels !== null && (value["previousRevisionSha256"] === null || previousRevisionSha256 !== null) && (value["reviewDecisionSha256"] === null || reviewDecisionSha256 !== null) && vocabularySha256 !== null && identity.revision === 1 === (previousRevisionSha256 === null) ? {
+    definitions,
+    identity,
+    labels,
+    previousRevisionSha256,
+    reviewDecisionSha256,
+    v: 1,
+    vocabularySha256
+  } : null;
+}
+function parseSchemaRevisionInput(value) {
+  if (!isPlainRecord2(value) || value["v"] !== 1)
+    return failure2("schemaRevision");
+  const base = parseSchemaRevisionBase(value);
+  if (base === null)
+    return failure2("schemaRevision");
+  switch (value["kind"]) {
+    case "concept": {
+      if (!hasExactKeys2(value, [
+        "broader",
+        "definitions",
+        "identity",
+        "kind",
+        "labels",
+        "previousRevisionSha256",
+        "reviewDecisionSha256",
+        "v",
+        "vocabularySha256"
+      ])) {
+        return failure2("schemaRevision");
+      }
+      const broader = parseRefArray(value["broader"]);
+      return broader === null ? failure2("broader") : success2({ ...base, broader, kind: "concept" });
+    }
+    case "predicate": {
+      if (!hasExactKeys2(value, [
+        "definitions",
+        "domainConcepts",
+        "identity",
+        "inversePredicate",
+        "kind",
+        "labels",
+        "previousRevisionSha256",
+        "qualifierPredicates",
+        "range",
+        "reviewDecisionSha256",
+        "v",
+        "vocabularySha256"
+      ]))
+        return failure2("schemaRevision");
+      const domainConcepts = parseRefArray(value["domainConcepts"]);
+      const inversePredicate = value["inversePredicate"] === null ? null : parseKnowledgeSchemaRefV1(value["inversePredicate"]);
+      const qualifierPredicates = parseRefArray(value["qualifierPredicates"]);
+      const range = parseKnowledgeValueRangeV1(value["range"]);
+      return domainConcepts !== null && qualifierPredicates !== null && range.ok && (value["inversePredicate"] === null || inversePredicate !== null && inversePredicate.ok) ? success2({
+        ...base,
+        domainConcepts,
+        inversePredicate: inversePredicate === null || !inversePredicate.ok ? null : inversePredicate.value,
+        kind: "predicate",
+        qualifierPredicates,
+        range: range.value
+      }) : failure2("schemaRevision");
+    }
+    case "unit": {
+      if (!hasExactKeys2(value, [
+        "definitions",
+        "dimension",
+        "identity",
+        "kind",
+        "labels",
+        "offset",
+        "previousRevisionSha256",
+        "reviewDecisionSha256",
+        "scale",
+        "symbol",
+        "v",
+        "vocabularySha256"
+      ]))
+        return failure2("schemaRevision");
+      const dimension = safeCode3(value["dimension"]);
+      const offset = parseCanonicalDecimal(value["offset"]);
+      const scale = parseCanonicalDecimal(value["scale"]);
+      const symbol = boundedText3(value["symbol"], 256);
+      return dimension !== null && offset !== null && scale !== null && scale !== "0" && symbol !== null ? success2({ ...base, dimension, kind: "unit", offset, scale, symbol }) : failure2("schemaRevision");
+    }
+    case "mapping": {
+      if (!hasExactKeys2(value, [
+        "definitions",
+        "identity",
+        "kind",
+        "labels",
+        "mappingActivitySha256",
+        "mappingPolicySha256",
+        "previousRevisionSha256",
+        "relation",
+        "reviewDecisionSha256",
+        "source",
+        "target",
+        "v",
+        "vocabularySha256"
+      ])) {
+        return failure2("schemaRevision");
+      }
+      const mappingActivitySha256 = parseSha256Hex2(value["mappingActivitySha256"]);
+      const mappingPolicySha256 = parseSha256Hex2(value["mappingPolicySha256"]);
+      const relation = value["relation"];
+      const source = parseKnowledgeSchemaRefV1(value["source"]);
+      const target = parseKnowledgeSchemaRefV1(value["target"]);
+      return mappingActivitySha256 !== null && mappingPolicySha256 !== null && (relation === "broader" || relation === "close" || relation === "exact" || relation === "narrower" || relation === "related" || relation === "transformable") && source.ok && target.ok && !sameRef(source.value, target.value) ? success2({
+        ...base,
+        kind: "mapping",
+        mappingActivitySha256,
+        mappingPolicySha256,
+        relation,
+        source: source.value,
+        target: target.value
+      }) : failure2("schemaRevision");
+    }
+    default:
+      return failure2("schemaRevision");
+  }
+}
+async function createKnowledgeSchemaRevisionV1(input) {
+  const parsed = parseSchemaRevisionInput(input);
+  if (!parsed.ok)
+    return parsed;
+  const revisionSha256 = await sha256Text(canonicalKey2(parsed.value));
+  return success2({
+    ...parsed.value,
+    ref: refForIdentity(parsed.value.identity, revisionSha256),
+    revisionSha256
+  });
+}
+async function parseKnowledgeSchemaRevisionV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "ref") || !Object.hasOwn(value, "revisionSha256"))
+    return failure2("schemaRevision");
+  const ref = parseKnowledgeSchemaRefV1(value["ref"]);
+  const revisionSha256 = parseSha256Hex2(value["revisionSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "ref" && key !== "revisionSha256"));
+  const parsed = parseSchemaRevisionInput(input);
+  if (!ref.ok || revisionSha256 === null || !parsed.ok)
+    return failure2("schemaRevision");
+  const expected = await sha256Text(canonicalKey2(parsed.value));
+  const expectedRef = refForIdentity(parsed.value.identity, expected);
+  return expected === revisionSha256 && sameRef(ref.value, expectedRef) ? success2({ ...parsed.value, ref: ref.value, revisionSha256 }) : failure2("revisionSha256", "digest-mismatch");
+}
+function parseEntity(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "entityId",
+    "identityOperationId",
+    "identityRevision",
+    "redirectEntityId",
+    "state",
+    "v"
+  ]) || value["v"] !== 1)
+    return null;
+  const entityId = parseKnowledgeEntityId(value["entityId"]);
+  const identityOperationId = safeCode3(value["identityOperationId"]);
+  const identityRevision = positiveInteger2(value["identityRevision"]);
+  const redirectEntityId = value["redirectEntityId"] === null ? null : parseKnowledgeEntityId(value["redirectEntityId"]);
+  const state = value["state"];
+  return entityId !== null && identityOperationId !== null && identityRevision !== null && (value["redirectEntityId"] === null || redirectEntityId !== null) && (state === "active" || state === "quarantined" || state === "redirected" || state === "tombstoned") && state === "redirected" === (redirectEntityId !== null) && redirectEntityId !== entityId ? { entityId, identityOperationId, identityRevision, redirectEntityId, state, v: 1 } : null;
+}
+function parseEntityArray(value) {
+  if (!Array.isArray(value) || value.length > 1024)
+    return null;
+  const entities = value.map(parseEntity);
+  return entities.every((entity) => entity !== null) && orderedUnique2(entities, (entity) => entity.entityId) ? entities : null;
+}
+function parseAssignments(value) {
+  if (!Array.isArray(value) || value.length > 1024)
+    return null;
+  const assignments = [];
+  for (const item of value) {
+    if (!isPlainRecord2(item) || !hasExactKeys2(item, ["fromEntityId", "toEntityIds", "v"]) || item["v"] !== 1 || !Array.isArray(item["toEntityIds"]))
+      return null;
+    const fromEntityId = parseKnowledgeEntityId(item["fromEntityId"]);
+    const toEntityIds = item["toEntityIds"].map(parseKnowledgeEntityId);
+    if (fromEntityId === null || toEntityIds.length === 0 || toEntityIds.some((entityId) => entityId === null) || !orderedUnique2(toEntityIds, (entityId) => entityId))
+      return null;
+    assignments.push({ fromEntityId, toEntityIds, v: 1 });
+  }
+  return orderedUnique2(assignments, (assignment) => assignment.fromEntityId) ? assignments : null;
+}
+function identityOperationLaw(value) {
+  const preimageById = new Map(value.preimageEntities.map((entity) => [entity.entityId, entity]));
+  const postimageById = new Map(value.postimageEntities.map((entity) => [entity.entityId, entity]));
+  const assignmentById = new Map(value.assignments.map((assignment) => [assignment.fromEntityId, assignment]));
+  if (preimageById.size !== value.preimageEntities.length || postimageById.size !== value.postimageEntities.length || assignmentById.size !== value.assignments.length)
+    return false;
+  if (value.postimageEntities.some((entity) => entity.identityOperationId !== value.operationId))
+    return false;
+  for (const before of value.preimageEntities) {
+    const after = postimageById.get(before.entityId);
+    if (after === undefined || after.identityRevision !== before.identityRevision + 1 || !assignmentById.has(before.entityId))
+      return false;
+  }
+  for (const after of value.postimageEntities) {
+    if (!preimageById.has(after.entityId) && after.identityRevision !== 1)
+      return false;
+  }
+  const assignedTargets = new Set(value.assignments.flatMap((assignment) => assignment.toEntityIds));
+  const newIds = value.postimageEntities.filter((entity) => !preimageById.has(entity.entityId)).map((entity) => entity.entityId);
+  if (value.kind !== "create" && newIds.some((entityId) => !assignedTargets.has(entityId))) {
+    return false;
+  }
+  switch (value.kind) {
+    case "create":
+      return value.preimageEntities.length === 0 && value.postimageEntities.length === 1 && value.assignments.length === 0 && value.postimageEntities[0]?.state === "active" && value.postimageEntities[0]?.identityRevision === 1;
+    case "merge": {
+      if (value.preimageEntities.length < 2 || value.assignments.length !== value.preimageEntities.length || newIds.length !== 0)
+        return false;
+      const targets = new Set(value.assignments.flatMap((assignment) => assignment.toEntityIds));
+      if (targets.size !== 1)
+        return false;
+      const targetId = [...targets][0];
+      if (targetId === undefined || !preimageById.has(targetId))
+        return false;
+      return value.postimageEntities.every((entity) => entity.entityId === targetId ? entity.state === "active" && entity.redirectEntityId === null : entity.state === "redirected" && entity.redirectEntityId === targetId);
+    }
+    case "split": {
+      if (value.preimageEntities.length !== 1 || value.assignments.length !== 1 || newIds.length < 2)
+        return false;
+      const before = value.preimageEntities[0];
+      const assignment = value.assignments[0];
+      const oldAfter = postimageById.get(before.entityId);
+      return assignment.fromEntityId === before.entityId && assignment.toEntityIds.length === newIds.length && assignment.toEntityIds.every((entityId) => newIds.includes(entityId)) && oldAfter?.state === "tombstoned" && newIds.every((entityId) => postimageById.get(entityId)?.state === "active");
+    }
+    case "rekey": {
+      if (value.preimageEntities.length !== 1 || value.assignments.length !== 1 || newIds.length !== 1)
+        return false;
+      const before = value.preimageEntities[0];
+      const replacement = newIds[0];
+      const assignment = value.assignments[0];
+      return assignment.fromEntityId === before.entityId && assignment.toEntityIds.length === 1 && assignment.toEntityIds[0] === replacement && postimageById.get(before.entityId)?.state === "redirected" && postimageById.get(before.entityId)?.redirectEntityId === replacement && postimageById.get(replacement)?.state === "active";
+    }
+    case "quarantine":
+    case "tombstone": {
+      if (value.preimageEntities.length !== 1 || value.postimageEntities.length !== 1 || value.assignments.length !== 1)
+        return false;
+      const before = value.preimageEntities[0];
+      const after = value.postimageEntities[0];
+      const assignment = value.assignments[0];
+      return before.entityId === after.entityId && assignment.fromEntityId === before.entityId && assignment.toEntityIds.length === 1 && assignment.toEntityIds[0] === before.entityId && after.state === (value.kind === "quarantine" ? "quarantined" : "tombstoned");
+    }
+  }
+}
+async function canonicalIdentityInput(input) {
+  const activitySha256 = parseSha256Hex2(input.activitySha256);
+  const assignments = sortedUnique(input.assignments, (assignment) => assignment.fromEntityId);
+  const kind = SPONGE_KNOWLEDGE_IDENTITY_OPERATION_KINDS_V1.find((candidate) => candidate === input.kind);
+  const occurredAt = parseCanonicalInstantV12(input.occurredAt);
+  const operationId = safeCode3(input.operationId);
+  const postimageEntities = sortedUnique(input.postimageEntities, (entity) => entity.entityId);
+  const preimageEntities = sortedUnique(input.preimageEntities, (entity) => entity.entityId);
+  if (activitySha256 === null || assignments === null || kind === undefined || occurredAt === null || operationId === null || postimageEntities === null || preimageEntities === null)
+    return failure2("identityOperation");
+  const canonicalAssignments = assignments.map((assignment) => {
+    const toEntityIds = sortedUnique(assignment.toEntityIds, (entityId) => entityId);
+    return toEntityIds === null ? null : { ...assignment, toEntityIds };
+  });
+  if (canonicalAssignments.some((assignment) => assignment === null)) {
+    return failure2("assignments", "noncanonical-input");
+  }
+  const canonical = {
+    activitySha256,
+    assignments: canonicalAssignments,
+    kind,
+    occurredAt,
+    operationId,
+    postimageEntities,
+    preimageEntities,
+    v: 1
+  };
+  if (!identityOperationLaw(canonical))
+    return failure2("identityOperation", "authority-violation");
+  return success2({
+    ...canonical,
+    postimageSha256: await sha256Text(canonicalKey2(postimageEntities)),
+    preimageSha256: await sha256Text(canonicalKey2(preimageEntities))
+  });
+}
+async function parseKnowledgeIdentityOperationV1(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "activitySha256",
+    "assignments",
+    "kind",
+    "occurredAt",
+    "operationId",
+    "operationSha256",
+    "postimageEntities",
+    "postimageSha256",
+    "preimageEntities",
+    "preimageSha256",
+    "v"
+  ]) || value["v"] !== 1) {
+    return failure2("identityOperation");
+  }
+  const operationSha256 = parseSha256Hex2(value["operationSha256"]);
+  const postimageSha256 = parseSha256Hex2(value["postimageSha256"]);
+  const preimageSha256 = parseSha256Hex2(value["preimageSha256"]);
+  const assignments = parseAssignments(value["assignments"]);
+  const postimageEntities = parseEntityArray(value["postimageEntities"]);
+  const preimageEntities = parseEntityArray(value["preimageEntities"]);
+  if (operationSha256 === null || postimageSha256 === null || preimageSha256 === null || assignments === null || postimageEntities === null || preimageEntities === null) {
+    return failure2("identityOperation");
+  }
+  const canonical = await canonicalIdentityInput({
+    activitySha256: value["activitySha256"],
+    assignments,
+    kind: value["kind"],
+    occurredAt: value["occurredAt"],
+    operationId: value["operationId"],
+    postimageEntities,
+    preimageEntities,
+    v: 1
+  });
+  if (!canonical.ok || canonical.value.preimageSha256 !== preimageSha256 || canonical.value.postimageSha256 !== postimageSha256) {
+    return failure2("preimageSha256", "digest-mismatch");
+  }
+  const expected = await sha256Text(canonicalKey2(canonical.value));
+  return expected === operationSha256 ? success2({ ...canonical.value, operationSha256 }) : failure2("operationSha256", "digest-mismatch");
+}
+function parseTypeMembershipInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "assertionSha256",
+    "concept",
+    "contextSha256",
+    "entityId",
+    "validDuring",
+    "v"
+  ]) || value["v"] !== 1) {
+    return failure2("typeMembership");
+  }
+  const assertionSha256 = parseSha256Hex2(value["assertionSha256"]);
+  const concept = parseKnowledgeSchemaRefV1(value["concept"]);
+  const contextSha256 = value["contextSha256"] === null ? null : parseSha256Hex2(value["contextSha256"]);
+  const entityId = parseKnowledgeEntityId(value["entityId"]);
+  let validDuring = null;
+  if (value["validDuring"] !== null) {
+    const interval = parseKnowledgeValueV1({
+      ...value["validDuring"],
+      kind: "interval"
+    });
+    if (!interval.ok || interval.value.kind !== "interval")
+      return failure2("validDuring");
+    validDuring = { end: interval.value.end, start: interval.value.start, v: 1 };
+  }
+  return assertionSha256 !== null && concept.ok && (value["contextSha256"] === null || contextSha256 !== null) && entityId !== null ? success2({
+    assertionSha256,
+    concept: concept.value,
+    contextSha256,
+    entityId,
+    validDuring,
+    v: 1
+  }) : failure2("typeMembership");
+}
+async function parseKnowledgeTypeMembershipV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "membershipSha256")) {
+    return failure2("typeMembership");
+  }
+  const membershipSha256 = parseSha256Hex2(value["membershipSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "membershipSha256"));
+  const parsed = parseTypeMembershipInput(input);
+  if (membershipSha256 === null || !parsed.ok)
+    return failure2("typeMembership");
+  const expected = await sha256Text(canonicalKey2(parsed.value));
+  return expected === membershipSha256 ? success2({ ...parsed.value, membershipSha256 }) : failure2("membershipSha256", "digest-mismatch");
+}
+function parseRightsDecisionInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "actorEntityId",
+    "allowedDisclosures",
+    "decidedAt",
+    "policySha256",
+    "purposes",
+    "subjectSha256",
+    "v"
+  ]) || value["v"] !== 1 || !Array.isArray(value["allowedDisclosures"]) || !Array.isArray(value["purposes"]))
+    return failure2("rightsDecision");
+  const actorEntityId = parseKnowledgeEntityId(value["actorEntityId"]);
+  const allowedDisclosures = value["allowedDisclosures"].filter((item) => SPONGE_KNOWLEDGE_DISCLOSURES_V1.some((candidate) => candidate === item));
+  const decidedAt = parseCanonicalInstantV12(value["decidedAt"]);
+  const policySha256 = parseSha256Hex2(value["policySha256"]);
+  const purposes = value["purposes"].map((purpose) => safeCode3(purpose));
+  const subjectSha256 = parseSha256Hex2(value["subjectSha256"]);
+  return actorEntityId !== null && allowedDisclosures.length === value["allowedDisclosures"].length && allowedDisclosures.includes("private") && orderedUnique2(allowedDisclosures, (item) => item) && decidedAt !== null && policySha256 !== null && purposes.length > 0 && purposes.every((purpose) => purpose !== null) && orderedUnique2(purposes, (item) => item) && subjectSha256 !== null ? success2({
+    actorEntityId,
+    allowedDisclosures,
+    decidedAt,
+    policySha256,
+    purposes,
+    subjectSha256,
+    v: 1
+  }) : failure2("rightsDecision");
+}
+async function parseKnowledgeRightsDecisionV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "decisionSha256")) {
+    return failure2("rightsDecision");
+  }
+  const decisionSha256 = parseSha256Hex2(value["decisionSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "decisionSha256"));
+  const parsed = parseRightsDecisionInput(input);
+  if (decisionSha256 === null || !parsed.ok)
+    return failure2("rightsDecision");
+  const expected = await sha256Text(canonicalKey2(parsed.value));
+  return expected === decisionSha256 ? success2({ ...parsed.value, decisionSha256 }) : failure2("decisionSha256", "digest-mismatch");
+}
+function parseReviewDecisionInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "decidedAt",
+    "outcome",
+    "policySha256",
+    "purpose",
+    "reviewerEntityId",
+    "subjectKind",
+    "subjectSha256",
+    "supersedesDecisionSha256",
+    "v"
+  ]) || value["v"] !== 1) {
+    return failure2("reviewDecision");
+  }
+  const decidedAt = parseCanonicalInstantV12(value["decidedAt"]);
+  const outcome = value["outcome"];
+  const policySha256 = parseSha256Hex2(value["policySha256"]);
+  const purpose = safeCode3(value["purpose"]);
+  const reviewerEntityId = parseKnowledgeEntityId(value["reviewerEntityId"]);
+  const subjectKind = SPONGE_KNOWLEDGE_REVIEW_SUBJECT_KINDS_V1.find((candidate) => candidate === value["subjectKind"]);
+  const subjectSha256 = parseSha256Hex2(value["subjectSha256"]);
+  const supersedesDecisionSha256 = value["supersedesDecisionSha256"] === null ? null : parseSha256Hex2(value["supersedesDecisionSha256"]);
+  return decidedAt !== null && (outcome === "accept" || outcome === "reject" || outcome === "request-changes" || outcome === "withdraw") && policySha256 !== null && purpose !== null && reviewerEntityId !== null && subjectKind !== undefined && subjectSha256 !== null && (value["supersedesDecisionSha256"] === null || supersedesDecisionSha256 !== null) ? success2({
+    decidedAt,
+    outcome,
+    policySha256,
+    purpose,
+    reviewerEntityId,
+    subjectKind,
+    subjectSha256,
+    supersedesDecisionSha256,
+    v: 1
+  }) : failure2("reviewDecision");
+}
+async function parseKnowledgeReviewDecisionV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "decisionSha256")) {
+    return failure2("reviewDecision");
+  }
+  const decisionSha256 = parseSha256Hex2(value["decisionSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "decisionSha256"));
+  const parsed = parseReviewDecisionInput(input);
+  if (decisionSha256 === null || !parsed.ok)
+    return failure2("reviewDecision");
+  const expected = await sha256Text(canonicalKey2(parsed.value));
+  return expected === decisionSha256 ? success2({ ...parsed.value, decisionSha256 }) : failure2("decisionSha256", "digest-mismatch");
+}
+function parseCardinality(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, ["maximum", "minimum", "v"]) || value["v"] !== 1)
+    return null;
+  const maximum = value["maximum"] === null ? null : positiveInteger2(value["maximum"], true);
+  const minimum = positiveInteger2(value["minimum"], true);
+  return minimum !== null && (value["maximum"] === null || maximum !== null) && (maximum === null || minimum <= maximum) ? { maximum, minimum, v: 1 } : null;
+}
+function parseShapeRules(value) {
+  if (!Array.isArray(value) || value.length > 1024)
+    return null;
+  const rules = [];
+  for (const item of value) {
+    if (!isPlainRecord2(item) || !hasExactKeys2(item, [
+      "allowedDisclosures",
+      "cardinality",
+      "predicate",
+      "purpose",
+      "range",
+      "requiredEvidenceBearings",
+      "severity",
+      "v"
+    ]) || item["v"] !== 1 || !Array.isArray(item["allowedDisclosures"]) || !Array.isArray(item["requiredEvidenceBearings"]))
+      return null;
+    const allowedDisclosures = item["allowedDisclosures"].filter((disclosure) => SPONGE_KNOWLEDGE_DISCLOSURES_V1.some((candidate) => candidate === disclosure));
+    const cardinality = parseCardinality(item["cardinality"]);
+    const predicate = parseKnowledgeSchemaRefV1(item["predicate"]);
+    const purpose = safeCode3(item["purpose"]);
+    const range = parseKnowledgeValueRangeV1(item["range"]);
+    const requiredEvidenceBearings = item["requiredEvidenceBearings"].filter((bearing) => SPONGE_KNOWLEDGE_EVIDENCE_BEARINGS_V1.some((candidate) => candidate === bearing));
+    const severity = item["severity"];
+    if (allowedDisclosures.length === 0 || allowedDisclosures.length !== item["allowedDisclosures"].length || !orderedUnique2(allowedDisclosures, (disclosure) => disclosure) || cardinality === null || !predicate.ok || purpose === null || !range.ok || requiredEvidenceBearings.length !== item["requiredEvidenceBearings"].length || !orderedUnique2(requiredEvidenceBearings, (bearing) => bearing) || severity !== "error" && severity !== "warning")
+      return null;
+    rules.push({
+      allowedDisclosures,
+      cardinality,
+      predicate: predicate.value,
+      purpose,
+      range: range.value,
+      requiredEvidenceBearings,
+      severity,
+      v: 1
+    });
+  }
+  return orderedUnique2(rules, (rule) => canonicalKey2({
+    predicate: rule.predicate,
+    purpose: rule.purpose
+  })) ? rules : null;
+}
+function parseExecutableShapeInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "appliesToConcepts",
+    "closed",
+    "extends",
+    "maximumInheritanceDepth",
+    "rules",
+    "shape",
+    "v"
+  ]) || value["v"] !== 1) {
+    return failure2("shape");
+  }
+  const appliesToConcepts = parseRefArray(value["appliesToConcepts"]);
+  const closed = value["closed"];
+  const extended = parseRefArray(value["extends"]);
+  const maximumInheritanceDepth = positiveInteger2(value["maximumInheritanceDepth"]);
+  const rules = parseShapeRules(value["rules"]);
+  const shape = parseKnowledgeSchemaRefV1(value["shape"]);
+  return appliesToConcepts !== null && typeof closed === "boolean" && extended !== null && maximumInheritanceDepth !== null && maximumInheritanceDepth <= 64 && rules !== null && shape.ok && !extended.some((candidate) => sameRef(candidate, shape.value)) ? success2({
+    appliesToConcepts,
+    closed,
+    extends: extended,
+    maximumInheritanceDepth,
+    rules,
+    shape: shape.value,
+    v: 1
+  }) : failure2("shape");
+}
+async function createKnowledgeExecutableShapeV1(input) {
+  const parsed = parseExecutableShapeInput(input);
+  return parsed.ok ? success2({ ...parsed.value, shapeSha256: await sha256Text(canonicalKey2(parsed.value)) }) : parsed;
+}
+async function parseKnowledgeExecutableShapeV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "shapeSha256"))
+    return failure2("shape");
+  const shapeSha256 = parseSha256Hex2(value["shapeSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "shapeSha256"));
+  const parsed = parseExecutableShapeInput(input);
+  if (shapeSha256 === null || !parsed.ok)
+    return failure2("shape");
+  const expected = await sha256Text(canonicalKey2(parsed.value));
+  return expected === shapeSha256 ? success2({ ...parsed.value, shapeSha256 }) : failure2("shapeSha256", "digest-mismatch");
+}
+function parseGraphRecordRefs(value, maximum = 65536) {
+  if (!Array.isArray(value) || value.length > maximum)
+    return null;
+  const refs = [];
+  for (const item of value) {
+    if (!isPlainRecord2(item) || !hasExactKeys2(item, ["kind", "sha256", "v"]) || item["v"] !== 1)
+      return null;
+    const kind = SPONGE_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.find((candidate) => candidate === item["kind"]);
+    const sha256 = parseSha256Hex2(item["sha256"]);
+    if (kind === undefined || sha256 === null)
+      return null;
+    refs.push({ kind, sha256, v: 1 });
+  }
+  return orderedUnique2(refs) ? refs : null;
+}
+function parseInquiryEventInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "actorEntityId",
+    "inputRefs",
+    "inquiryId",
+    "kind",
+    "note",
+    "occurredAt",
+    "outputRefs",
+    "parentEventSha256",
+    "sequence",
+    "v"
+  ]) || value["v"] !== 1)
+    return failure2("inquiryEvent");
+  const actorEntityId = parseKnowledgeEntityId(value["actorEntityId"]);
+  const inputRefs = parseGraphRecordRefs(value["inputRefs"], 2048);
+  const inquiryId = parseKnowledgeInquiryId(value["inquiryId"]);
+  const kind = SPONGE_KNOWLEDGE_INQUIRY_EVENT_KINDS_V1.find((candidate) => candidate === value["kind"]);
+  const note = value["note"] === null ? null : boundedText3(value["note"]);
+  const occurredAt = parseCanonicalInstantV12(value["occurredAt"]);
+  const outputRefs = parseGraphRecordRefs(value["outputRefs"], 2048);
+  const parentEventSha256 = value["parentEventSha256"] === null ? null : parseSha256Hex2(value["parentEventSha256"]);
+  const sequence = positiveInteger2(value["sequence"]);
+  return actorEntityId !== null && inputRefs !== null && inquiryId !== null && kind !== undefined && (value["note"] === null || note !== null) && occurredAt !== null && outputRefs !== null && (value["parentEventSha256"] === null || parentEventSha256 !== null) && sequence !== null && sequence === 1 === (parentEventSha256 === null) && (note !== null || inputRefs.length > 0 || outputRefs.length > 0) ? success2({
+    actorEntityId,
+    inputRefs,
+    inquiryId,
+    kind,
+    note,
+    occurredAt,
+    outputRefs,
+    parentEventSha256,
+    sequence,
+    v: 1
+  }) : failure2("inquiryEvent");
+}
+async function parseKnowledgeInquiryEventV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "eventSha256")) {
+    return failure2("inquiryEvent");
+  }
+  const eventSha256 = parseSha256Hex2(value["eventSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "eventSha256"));
+  const parsed = parseInquiryEventInput(input);
+  if (eventSha256 === null || !parsed.ok)
+    return failure2("inquiryEvent");
+  const expected = await sha256Text(canonicalKey2(parsed.value));
+  return expected === eventSha256 ? success2({ ...parsed.value, eventSha256 }) : failure2("eventSha256", "digest-mismatch");
+}
+function parseManifestInput(value) {
+  if (!isPlainRecord2(value) || !hasExactKeys2(value, [
+    "activitySha256s",
+    "assertionSha256s",
+    "candidateSha256",
+    "canonicalOutputSha256",
+    "contextSha256s",
+    "editionId",
+    "evidenceSha256s",
+    "generationReceiptSha256",
+    "humanReviewReceiptSha256",
+    "identityReceiptSha256",
+    "inputGraphRevisionSha256",
+    "purpose",
+    "reviewDecisionSha256s",
+    "rightsDecisionSha256s",
+    "rightsReceiptSha256",
+    "schemaRevisionSha256s",
+    "statementSha256s",
+    "v",
+    "viewSpecSha256"
+  ]) || value["v"] !== 1)
+    return failure2("dependencyManifest");
+  const activitySha256s = parseShaArray2(value["activitySha256s"]);
+  const assertionSha256s = parseShaArray2(value["assertionSha256s"]);
+  const candidateSha256 = parseSha256Hex2(value["candidateSha256"]);
+  const canonicalOutputSha256 = parseSha256Hex2(value["canonicalOutputSha256"]);
+  const contextSha256s = parseShaArray2(value["contextSha256s"]);
+  const editionId = parseKnowledgeEditionId(value["editionId"]);
+  const evidenceSha256s = parseShaArray2(value["evidenceSha256s"]);
+  const generationReceiptSha256 = value["generationReceiptSha256"] === null ? null : parseSha256Hex2(value["generationReceiptSha256"]);
+  const inputGraphRevisionSha256 = parseSha256Hex2(value["inputGraphRevisionSha256"]);
+  const humanReviewReceiptSha256 = parseSha256Hex2(value["humanReviewReceiptSha256"]);
+  const identityReceiptSha256 = parseSha256Hex2(value["identityReceiptSha256"]);
+  const reviewDecisionSha256s = parseShaArray2(value["reviewDecisionSha256s"]);
+  const rightsDecisionSha256s = parseShaArray2(value["rightsDecisionSha256s"]);
+  const rightsReceiptSha256 = parseSha256Hex2(value["rightsReceiptSha256"]);
+  const schemaRevisionSha256s = parseShaArray2(value["schemaRevisionSha256s"]);
+  const statementSha256s = parseShaArray2(value["statementSha256s"]);
+  const viewSpecSha256 = parseSha256Hex2(value["viewSpecSha256"]);
+  return activitySha256s !== null && assertionSha256s !== null && candidateSha256 !== null && canonicalOutputSha256 !== null && contextSha256s !== null && editionId !== null && evidenceSha256s !== null && (value["generationReceiptSha256"] === null || generationReceiptSha256 !== null) && inputGraphRevisionSha256 !== null && humanReviewReceiptSha256 !== null && identityReceiptSha256 !== null && value["purpose"] === "public-encyclopedia" && reviewDecisionSha256s !== null && reviewDecisionSha256s.length > 0 && rightsDecisionSha256s !== null && rightsDecisionSha256s.length > 0 && rightsReceiptSha256 !== null && schemaRevisionSha256s !== null && schemaRevisionSha256s.length > 0 && statementSha256s !== null && viewSpecSha256 !== null ? success2({
+    activitySha256s,
+    assertionSha256s,
+    candidateSha256,
+    canonicalOutputSha256,
+    contextSha256s,
+    editionId,
+    evidenceSha256s,
+    generationReceiptSha256,
+    humanReviewReceiptSha256,
+    identityReceiptSha256,
+    inputGraphRevisionSha256,
+    purpose: "public-encyclopedia",
+    reviewDecisionSha256s,
+    rightsDecisionSha256s,
+    rightsReceiptSha256,
+    schemaRevisionSha256s,
+    statementSha256s,
+    v: 1,
+    viewSpecSha256
+  }) : failure2("dependencyManifest");
+}
+async function parseKnowledgeEditionDependencyManifestV1(value) {
+  if (!isPlainRecord2(value) || !Object.hasOwn(value, "manifestSha256")) {
+    return failure2("dependencyManifest");
+  }
+  const manifestSha256 = parseSha256Hex2(value["manifestSha256"]);
+  const input = Object.fromEntries(Object.entries(value).filter(([key]) => key !== "manifestSha256"));
+  const parsed = parseManifestInput(input);
+  if (manifestSha256 === null || !parsed.ok)
+    return failure2("dependencyManifest");
+  const expected = await sha256Text(canonicalKey2(parsed.value));
+  return expected === manifestSha256 ? success2({ ...parsed.value, manifestSha256 }) : failure2("manifestSha256", "digest-mismatch");
+}
+function parsedGraphRecord(kind, recordSha256, value) {
+  return success2({ kind, recordSha256, value, v: 1 });
+}
+async function parseKnowledgeGraphRecordV12(kind, value) {
+  switch (kind) {
+    case "activity": {
+      const parsed = await parseKnowledgeActivityV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.activitySha256, parsed.value);
+    }
+    case "assertion": {
+      const parsed = await parseKnowledgeAssertionV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.assertionSha256, parsed.value);
+    }
+    case "context": {
+      const parsed = await parseKnowledgeContextV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.contextSha256, parsed.value);
+    }
+    case "dependency-manifest": {
+      const parsed = await parseKnowledgeEditionDependencyManifestV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.manifestSha256, parsed.value);
+    }
+    case "edition": {
+      const parsed = await parseKnowledgeEditionV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.editionSha256, parsed.value);
+    }
+    case "entity": {
+      const parsed = parseKnowledgeEntityV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      const recordSha256 = await sha256Text(canonicalKey2(parsed.value));
+      return parsedGraphRecord(kind, recordSha256, parsed.value);
+    }
+    case "evidence": {
+      const parsed = await parseKnowledgeEvidenceLinkV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.evidenceSha256, parsed.value);
+    }
+    case "identity-operation": {
+      const parsed = await parseKnowledgeIdentityOperationV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.operationSha256, parsed.value);
+    }
+    case "inquiry": {
+      const parsed = await parseKnowledgeInquiryV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.inquirySha256, parsed.value);
+    }
+    case "inquiry-event": {
+      const parsed = await parseKnowledgeInquiryEventV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.eventSha256, parsed.value);
+    }
+    case "review-decision": {
+      const parsed = await parseKnowledgeReviewDecisionV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.decisionSha256, parsed.value);
+    }
+    case "rights-decision": {
+      const parsed = await parseKnowledgeRightsDecisionV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.decisionSha256, parsed.value);
+    }
+    case "schema": {
+      const parsed = await parseKnowledgeSchemaRevisionV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.revisionSha256, parsed.value);
+    }
+    case "shape": {
+      const parsed = await parseKnowledgeExecutableShapeV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.shapeSha256, parsed.value);
+    }
+    case "statement": {
+      const parsed = await parseKnowledgeStatementV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.statementSha256, parsed.value);
+    }
+    case "type-membership": {
+      const parsed = await parseKnowledgeTypeMembershipV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.membershipSha256, parsed.value);
+    }
+    case "view": {
+      const parsed = await parseKnowledgeViewSpecV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.viewSpecSha256, parsed.value);
+    }
+    case "vocabulary": {
+      const parsed = await parseKnowledgeVocabularyRevisionV1(value);
+      if (!parsed.ok)
+        return failure2(parsed.error.field, parsed.error.code);
+      return parsedGraphRecord(kind, parsed.value.revisionSha256, parsed.value);
+    }
+    default: {
+      const exhaustive = kind;
+      return failure2(`recordKind:${String(exhaustive)}`);
+    }
+  }
+}
+function callerRecordKey(value) {
+  return typeof value === "string" && value.length <= 512 && /^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$/u.test(value) ? value : null;
+}
+function knowledgeGraphRecordKeyV1(kind, value, requiredCallerRecordKey) {
+  const explicit = callerRecordKey(requiredCallerRecordKey);
+  switch (kind) {
+    case "activity":
+    case "context":
+    case "review-decision":
+    case "rights-decision":
+    case "statement":
+    case "type-membership":
+    case "view":
+      return explicit === null ? failure2("recordKey") : success2(`${kind}:${explicit}`);
+    case "assertion":
+      return success2(`assertion:${value.assertionId}`);
+    case "dependency-manifest":
+      return success2(`dependency-manifest:${value.editionId}`);
+    case "edition":
+      return success2(`edition:${value.editionId}`);
+    case "entity":
+      return success2(`entity:${value.entityId}`);
+    case "evidence":
+      return success2(`evidence:${value.evidenceId}`);
+    case "identity-operation":
+      return success2(`identity-operation:${value.operationId}`);
+    case "inquiry":
+      return success2(`inquiry:${value.inquiryId}`);
+    case "inquiry-event": {
+      const event = value;
+      return success2(`inquiry-event:${event.inquiryId}:${String(event.sequence)}`);
+    }
+    case "schema": {
+      const identity = value.identity;
+      return success2(`schema:${identity.namespace}:${identity.code}:${String(identity.revision)}`);
+    }
+    case "shape": {
+      const ref = value.shape;
+      return success2(`shape:${ref.namespace}:${ref.code}:${String(ref.revision)}`);
+    }
+    case "vocabulary": {
+      const vocabulary = value;
+      return success2(`vocabulary:${vocabulary.namespace}:${String(vocabulary.revision)}`);
+    }
+    default: {
+      const exhaustive = kind;
+      return failure2(`recordKind:${String(exhaustive)}`);
+    }
+  }
+}
+var KNOWLEDGE_VALUE_KINDS_V1, SPONGE_KNOWLEDGE_IDENTITY_OPERATION_KINDS_V1, SPONGE_KNOWLEDGE_DISCLOSURES_V1, SPONGE_KNOWLEDGE_REVIEW_SUBJECT_KINDS_V1, SPONGE_KNOWLEDGE_GRAPH_RECORD_KINDS_V1, SPONGE_KNOWLEDGE_INQUIRY_EVENT_KINDS_V1, SPONGE_KNOWLEDGE_CALLER_KEY_RECORD_KINDS_V1;
+var init_knowledge_ontology_contract_v1 = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_ontology_v1();
+  KNOWLEDGE_VALUE_KINDS_V1 = [
+    "boolean",
+    "decimal",
+    "duration",
+    "entity",
+    "extension",
+    "geometry",
+    "identifier",
+    "integer",
+    "interval",
+    "list",
+    "media",
+    "quantity",
+    "recurrence",
+    "set",
+    "string",
+    "text",
+    "time",
+    "uri"
+  ];
+  SPONGE_KNOWLEDGE_IDENTITY_OPERATION_KINDS_V1 = [
+    "create",
+    "merge",
+    "quarantine",
+    "rekey",
+    "split",
+    "tombstone"
+  ];
+  SPONGE_KNOWLEDGE_DISCLOSURES_V1 = [
+    "export",
+    "model",
+    "private",
+    "public",
+    "search",
+    "shared"
+  ];
+  SPONGE_KNOWLEDGE_REVIEW_SUBJECT_KINDS_V1 = [
+    "activity",
+    "assertion",
+    "context",
+    "entity",
+    "evidence",
+    "identity-operation",
+    "inquiry",
+    "inquiry-event",
+    "schema",
+    "shape",
+    "statement",
+    "synthesis-candidate",
+    "type-membership",
+    "view",
+    "vocabulary"
+  ];
+  SPONGE_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 = [
+    "activity",
+    "assertion",
+    "context",
+    "dependency-manifest",
+    "edition",
+    "entity",
+    "evidence",
+    "identity-operation",
+    "inquiry",
+    "inquiry-event",
+    "review-decision",
+    "rights-decision",
+    "schema",
+    "shape",
+    "statement",
+    "type-membership",
+    "view",
+    "vocabulary"
+  ];
+  SPONGE_KNOWLEDGE_INQUIRY_EVENT_KINDS_V1 = [
+    "abandoned",
+    "evidence-added",
+    "gap-identified",
+    "paused",
+    "plan-proposed",
+    "question-refined",
+    "resolved",
+    "resumed",
+    "reviewed",
+    "source-added",
+    "statement-proposed"
+  ];
+  SPONGE_KNOWLEDGE_CALLER_KEY_RECORD_KINDS_V1 = [
+    "activity",
+    "context",
+    "review-decision",
+    "rights-decision",
+    "statement",
+    "type-membership",
+    "view"
+  ];
+});
+
+// src/research/knowledge-core-v1.ts
+function label(text) {
+  return [{ language: "en", text, v: 1 }];
+}
+function unwrap(result, field) {
+  if (!result.ok) {
+    throw new Error(`Invalid Sponge core ${field}: ${result.error.field}.`);
+  }
+  return result.value;
+}
+function conceptRef(concepts, code) {
+  const concept = concepts.get(code);
+  if (concept === undefined)
+    throw new Error(`Missing Sponge core concept: ${code}.`);
+  return concept.ref;
+}
+function spongeCoreKnowledgeCatalogV1() {
+  catalogPromise ??= buildSpongeCoreKnowledgeCatalogV1();
+  return catalogPromise;
+}
+async function buildSpongeCoreKnowledgeCatalogV1() {
+  const canonicalizerSha256 = await sha256Text("sponge.knowledge.canonical-json.v1");
+  const recordSchemaSha256 = await sha256Text("sponge.knowledge.graph-record-envelope.v1");
+  const vocabulary = unwrap(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256,
+    labels: label("Sponge core knowledge vocabulary"),
+    namespace: "sponge.core",
+    ownerEntityId: coreOwnerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "public",
+    v: 1
+  }), "vocabulary");
+  const concepts = [];
+  const conceptsByCode = new Map;
+  for (const [code, definition] of conceptDefinitions) {
+    const broader = broaderByConcept[code];
+    const concept = unwrap(await createKnowledgeSchemaRevisionV1({
+      broader: broader === null ? [] : [conceptRef(conceptsByCode, broader)],
+      definitions: label(definition),
+      identity: { code, namespace: "sponge.core", revision: 1, v: 1 },
+      kind: "concept",
+      labels: label(code.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" ")),
+      previousRevisionSha256: null,
+      reviewDecisionSha256: null,
+      v: 1,
+      vocabularySha256: vocabulary.revisionSha256
+    }), `concept:${code}`);
+    if (concept.kind !== "concept")
+      throw new Error(`Invalid concept kind: ${code}.`);
+    concepts.push(concept);
+    conceptsByCode.set(code, concept);
+  }
+  const predicates = [];
+  for (const definition of predicateDefinitions) {
+    const predicate = unwrap(await createKnowledgeSchemaRevisionV1({
+      definitions: label(definition.definition),
+      domainConcepts: [conceptRef(conceptsByCode, definition.domain)],
+      identity: {
+        code: definition.code,
+        namespace: "sponge.core",
+        revision: 1,
+        v: 1
+      },
+      inversePredicate: null,
+      kind: "predicate",
+      labels: label(definition.label),
+      previousRevisionSha256: null,
+      qualifierPredicates: [],
+      range: definition.range,
+      reviewDecisionSha256: null,
+      v: 1,
+      vocabularySha256: vocabulary.revisionSha256
+    }), `predicate:${definition.code}`);
+    if (predicate.kind !== "predicate") {
+      throw new Error(`Invalid predicate kind: ${definition.code}.`);
+    }
+    predicates.push(predicate);
+  }
+  const rightsPolicy = {
+    defaultDisclosure: "private",
+    humanReviewRequiredFor: ["identity", "public-encyclopedia", "schema"],
+    purposes: ["public-encyclopedia"],
+    publicRequiresEvidence: true,
+    v: 1
+  };
+  const rightsPolicyJson = {
+    defaultDisclosure: rightsPolicy.defaultDisclosure,
+    humanReviewRequiredFor: [...rightsPolicy.humanReviewRequiredFor],
+    publicRequiresEvidence: rightsPolicy.publicRequiresEvidence,
+    purposes: [...rightsPolicy.purposes],
+    v: rightsPolicy.v
+  };
+  const rightsPolicySha256 = await sha256Text(canonicalJson2(rightsPolicyJson));
+  const schemas = [...concepts, ...predicates].sort((left, right) => {
+    const leftKey = `${left.identity.namespace}:${left.identity.code}:${left.kind}`;
+    const rightKey = `${right.identity.namespace}:${right.identity.code}:${right.kind}`;
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+  const vocabularySet = {
+    canonicalizerSha256,
+    rightsPolicySha256,
+    schemaRevisionSha256s: schemas.map((schema) => schema.revisionSha256),
+    v: 1,
+    vocabularyRevisionSha256s: [vocabulary.revisionSha256]
+  };
+  const vocabularySetSha256 = await sha256Text(canonicalJson2(vocabularySet));
+  return {
+    canonicalizerSha256,
+    concepts,
+    predicates,
+    recordSchemaSha256,
+    rightsPolicy,
+    rightsPolicySha256,
+    schemas,
+    v: 1,
+    vocabulary,
+    vocabularySetSha256
+  };
+}
+var coreOwnerEntityId, conceptDefinitions, broaderByConcept, anyRange, entityRange, textRange, stringRange, timeRange, uriRange, predicateDefinitions, catalogPromise;
+var init_knowledge_core_v1 = __esm(() => {
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_ontology_v1();
+  init_integrity_domain();
+  coreOwnerEntityId = (() => {
+    const parsed = parseKnowledgeEntityId(`kent_${"0".repeat(24)}`);
+    if (parsed === null)
+      throw new Error("Invalid Sponge core owner identity.");
+    return parsed;
+  })();
+  conceptDefinitions = [
+    ["entity", "Anything with a stable identity that can be referred to across contexts."],
+    ["agent", "An entity capable of action, intention, or attributed responsibility."],
+    ["account", "A provider-neutral online identity used by an agent or organization."],
+    ["artifact", "A material or digital object produced, modified, or used by agents."],
+    ["concept", "An abstract subject used to classify, compare, or explain entities."],
+    ["event", "An occurrence situated in time and optionally in place."],
+    ["information-resource", "An entity whose content can carry information across contexts."],
+    ["inquiry", "A durable human question and its evolving investigation."],
+    ["organization", "An agent formed by people, roles, or institutions acting collectively."],
+    ["person", "A human agent represented without assuming a single name, role, or account."],
+    ["place", "A spatial entity at any scale, from a locality to a region or celestial body."],
+    ["process", "An ordered or continuous course of activity that changes state over time."],
+    ["source", "An information resource that can be cited as evidence."],
+    ["work", "An intellectual or creative entity distinct from any one expression or copy."]
+  ];
+  broaderByConcept = Object.freeze({
+    account: "entity",
+    agent: "entity",
+    artifact: "entity",
+    concept: "entity",
+    entity: null,
+    event: "entity",
+    "information-resource": "entity",
+    inquiry: "entity",
+    organization: "agent",
+    person: "agent",
+    place: "entity",
+    process: "entity",
+    source: "information-resource",
+    work: "information-resource"
+  });
+  anyRange = { kind: "any", v: 1 };
+  entityRange = { kind: "value-kinds", v: 1, valueKinds: ["entity"] };
+  textRange = {
+    kind: "text",
+    languages: null,
+    maximumBytes: 65536,
+    v: 1
+  };
+  stringRange = { kind: "value-kinds", v: 1, valueKinds: ["string"] };
+  timeRange = { kind: "value-kinds", v: 1, valueKinds: ["time"] };
+  uriRange = { kind: "value-kinds", v: 1, valueKinds: ["uri"] };
+  predicateDefinitions = [
+    { code: "about", definition: "Relates an information resource to the entity it concerns.", domain: "information-resource", label: "About", range: entityRange },
+    { code: "authored-by", definition: "Relates a work or source to an agent responsible for authorship.", domain: "information-resource", label: "Authored by", range: entityRange },
+    { code: "cites", definition: "Relates an information resource to a source it explicitly references.", domain: "information-resource", label: "Cites", range: entityRange },
+    { code: "created-by", definition: "Relates an entity to the agent responsible for its creation.", domain: "entity", label: "Created by", range: entityRange },
+    { code: "derived-from", definition: "Relates a value or entity to the prior entity from which it was derived.", domain: "entity", label: "Derived from", range: entityRange },
+    { code: "description", definition: "A purpose-bound textual account of an entity.", domain: "entity", label: "Description", range: textRange },
+    { code: "end-time", definition: "The time at which an event or process ends.", domain: "entity", label: "End time", range: timeRange },
+    { code: "identifier", definition: "A URI that identifies or locates an entity in an external namespace.", domain: "entity", label: "Identifier", range: uriRange },
+    { code: "located-in", definition: "Relates an entity to a place that spatially contains or situates it.", domain: "entity", label: "Located in", range: entityRange },
+    { code: "name", definition: "A name used for an entity in a language and context.", domain: "entity", label: "Name", range: textRange },
+    { code: "object", definition: "A deliberately open relation used only when no more precise predicate is available.", domain: "entity", label: "Object", range: anyRange },
+    { code: "part-of", definition: "Relates an entity to a larger entity of which it is a constituent.", domain: "entity", label: "Part of", range: entityRange },
+    { code: "published-date", definition: "The date on which an information resource was published, as an ISO 8601 date lexeme reported by its publisher or provider.", domain: "information-resource", label: "Published date", range: stringRange },
+    { code: "related-to", definition: "A weak symmetric association whose more precise meaning is not yet known.", domain: "entity", label: "Related to", range: entityRange },
+    { code: "same-as", definition: "Asserts that two identity anchors denote the same entity under a reviewed policy.", domain: "entity", label: "Same as", range: entityRange },
+    { code: "source-type", definition: "The kind of information resource a source is, as reported by its provider, such as an article, paper, or report.", domain: "source", label: "Source type", range: stringRange },
+    { code: "start-time", definition: "The time at which an event or process begins.", domain: "entity", label: "Start time", range: timeRange },
+    { code: "title", definition: "The title an information resource gives itself or receives from its publisher.", domain: "information-resource", label: "Title", range: textRange }
+  ];
+});
+
+// src/research/knowledge-declarative-json.ts
+function knowledgeDeclarativeJson(value, maximumBytes = 2097152, options = {}) {
+  let nodes = 0;
+  let bytes = 0;
+  function reserve(count) {
+    bytes += count;
+    return bytes <= maximumBytes;
+  }
+  function copy(item, depth) {
+    if (++nodes > (options.maxNodes ?? 1e5) || depth > (options.maxDepth ?? 24))
+      return;
+    if (item === null || typeof item === "boolean")
+      return reserve(item === null ? 4 : item ? 4 : 5) ? item : undefined;
+    if (typeof item === "string") {
+      return item.length <= maximumBytes && reserve(utf8ByteLength2(JSON.stringify(item))) && (options.preserveStrings === true || item.normalize("NFC") === item && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\ud800-\udfff]/u.test(item)) ? item : undefined;
+    }
+    if (typeof item === "number")
+      return Number.isFinite(item) && reserve(String(item).length) ? item : undefined;
+    if (Array.isArray(item)) {
+      if (item.length > 8192 || Reflect.ownKeys(item).length !== item.length + 1 || !reserve(2 + Math.max(0, item.length - 1)))
+        return;
+      const result2 = [];
+      for (let index = 0;index < item.length; index++) {
+        const descriptor = Object.getOwnPropertyDescriptor(item, String(index));
+        if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable)
+          return;
+        const child = copy(descriptor.value, depth + 1);
+        if (child === undefined)
+          return;
+        result2.push(child);
+      }
+      return result2;
+    }
+    if (!isPlainRecord2(item))
+      return;
+    const keys = Object.keys(item);
+    if (!hasExactDataKeys(item, keys) || !reserve(2 + Math.max(0, keys.length - 1)))
+      return;
+    const result = Object.create(null);
+    for (const key of keys) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype" || key.length > maximumBytes || !reserve(utf8ByteLength2(JSON.stringify(key)) + 1))
+        return;
+      const child = copy(item[key], depth + 1);
+      if (child === undefined)
+        return;
+      result[key] = child;
+    }
+    return result;
+  }
+  try {
+    const result = copy(value, 0);
+    return result !== undefined && utf8ByteLength2(canonicalJson2(result)) <= maximumBytes ? result : undefined;
+  } catch {
+    return;
+  }
+}
+function freezeKnowledgeDeclaration(value) {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value))
+      freezeKnowledgeDeclaration(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+var init_knowledge_declarative_json = __esm(() => {
+  init_integrity_domain();
+});
+
+// src/research/knowledge-vocabulary-pack-v1.ts
+function failure3(field, code = "invalid-input") {
+  return { ok: false, error: { code, field } };
+}
+function success3(value) {
+  return { ok: true, value: freezeKnowledgeDeclaration(value) };
+}
+function key(value) {
+  return canonicalJson2(value);
+}
+function code(value) {
+  return typeof value === "string" && value.length <= 128 && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value);
+}
+function text(value, maximum = 16384) {
+  return typeof value === "string" && value.length > 0 && value.length <= maximum;
+}
+function revision(value) {
+  return Number.isSafeInteger(value) && Number(value) > 0;
+}
+function ordered(items, identity) {
+  return items.every((item, index) => index === 0 || identity(items[index - 1]) < identity(item));
+}
+function pins(value) {
+  if (!Array.isArray(value) || value.length > 64)
+    return null;
+  const parsed = [];
+  for (const pin of value) {
+    if (!isPlainRecord2(pin) || !hasExactDataKeys(pin, ["manifestSha256", "packId", "revision", "v"]) || pin["v"] !== 1 || !code(pin["packId"]) || !revision(pin["revision"]))
+      return null;
+    const manifestSha256 = parseSha256Hex2(pin["manifestSha256"]);
+    if (manifestSha256 === null)
+      return null;
+    parsed.push({ manifestSha256, packId: pin["packId"], revision: pin["revision"], v: 1 });
+  }
+  return ordered(parsed, (pin) => pin.packId) ? parsed : null;
+}
+function refs(value) {
+  if (!Array.isArray(value) || value.length > 256)
+    return null;
+  const parsed = [];
+  for (const ref of value) {
+    const result = parseKnowledgeSchemaRefV1(ref);
+    if (!result.ok)
+      return null;
+    parsed.push(result.value);
+  }
+  return ordered(parsed, key) ? parsed : null;
+}
+function knowledgeVocabularyPackPinV1(pack) {
+  return freezeKnowledgeDeclaration({ manifestSha256: pack.manifestSha256, packId: pack.packId, revision: pack.revision, v: 1 });
+}
+async function parseManifestInput2(value) {
+  if (!isPlainRecord2(value) || !hasExactDataKeys(value, manifestKeys) || value["v"] !== 1 || !code(value["packId"]) || !revision(value["revision"]) || !text(value["migrationNotes"]))
+    return failure3("pack");
+  const canonicalizerSha256 = parseSha256Hex2(value["canonicalizerSha256"]);
+  const previousManifestSha256 = value["previousManifestSha256"] === null ? null : parseSha256Hex2(value["previousManifestSha256"]);
+  const dependencies = pins(value["dependencies"]);
+  if (canonicalizerSha256 === null || dependencies === null || value["previousManifestSha256"] !== null && previousManifestSha256 === null || value["revision"] === 1 !== (previousManifestSha256 === null) || dependencies.some((pin) => pin.packId === value["packId"]))
+    return failure3("pack.dependencies");
+  const vocabulary = await parseKnowledgeVocabularyRevisionV1(value["vocabulary"]);
+  if (!vocabulary.ok)
+    return failure3("pack.vocabulary", vocabulary.error.code);
+  if (vocabulary.value.namespace !== value["packId"] || vocabulary.value.revision !== value["revision"] || vocabulary.value.canonicalizerSha256 !== canonicalizerSha256)
+    return failure3("pack.namespace", "authority-violation");
+  if (!Array.isArray(value["schemas"]) || value["schemas"].length > 512 || !Array.isArray(value["shapes"]) || value["shapes"].length > 128 || !Array.isArray(value["sources"]) || value["sources"].length > 64 || !Array.isArray(value["examples"]) || value["examples"].length > 64 || !Array.isArray(value["queries"]) || value["queries"].length > 64 || !Array.isArray(value["supportedCodecs"]) || value["supportedCodecs"].length > 4)
+    return failure3("pack.bounds", "limit-exceeded");
+  const schemas = [];
+  for (const schema of value["schemas"]) {
+    const result = await parseKnowledgeSchemaRevisionV1(schema);
+    if (!result.ok)
+      return failure3("pack.schemas", result.error.code);
+    if (result.value.identity.namespace !== value["packId"] || result.value.vocabularySha256 !== vocabulary.value.revisionSha256)
+      return failure3("pack.schemas.namespace", "authority-violation");
+    schemas.push(result.value);
+  }
+  if (!ordered(schemas, (schema) => schema.identity.code))
+    return failure3("pack.schemas", "noncanonical-input");
+  const shapes = [];
+  for (const shape of value["shapes"]) {
+    const result = await parseKnowledgeExecutableShapeV1(shape);
+    if (!result.ok)
+      return failure3("pack.shapes", result.error.code);
+    if (result.value.shape.namespace !== value["packId"])
+      return failure3("pack.shapes.namespace", "authority-violation");
+    shapes.push(result.value);
+  }
+  if (!ordered(shapes, (shape) => shape.shape.code))
+    return failure3("pack.shapes", "noncanonical-input");
+  const sources = [];
+  for (const source of value["sources"]) {
+    if (!isPlainRecord2(source) || !hasExactDataKeys(source, ["contentSha256", "license", "revision", "uri", "v"]) || source["v"] !== 1 || !text(source["uri"], 2048) || !/^(?:https?:\/\/|urn:)/u.test(source["uri"]) || !text(source["license"], 256) || !text(source["revision"], 256))
+      return failure3("pack.sources");
+    const contentSha256 = parseSha256Hex2(source["contentSha256"]);
+    if (contentSha256 === null)
+      return failure3("pack.sources");
+    sources.push({ contentSha256, license: source["license"], revision: source["revision"], uri: source["uri"], v: 1 });
+  }
+  if (!ordered(sources, key))
+    return failure3("pack.sources", "noncanonical-input");
+  const supportedCodecs = [];
+  for (const codec of value["supportedCodecs"]) {
+    const admitted = SPONGE_KNOWLEDGE_PACK_CODECS_V1.find((item) => item === codec);
+    if (admitted === undefined)
+      return failure3("pack.supportedCodecs");
+    supportedCodecs.push(admitted);
+  }
+  if (!ordered(supportedCodecs, (item) => item))
+    return failure3("pack.supportedCodecs", "noncanonical-input");
+  const examples = [];
+  for (const example of value["examples"]) {
+    if (!isPlainRecord2(example) || !hasExactDataKeys(example, ["description", "id", "object", "predicate", "subjectConcept", "v"]) || example["v"] !== 1 || !code(example["id"]) || !text(example["description"]))
+      return failure3("pack.examples");
+    const predicate = parseKnowledgeSchemaRefV1(example["predicate"]);
+    const subjectConcept = parseKnowledgeSchemaRefV1(example["subjectConcept"]);
+    const object = parseKnowledgeValueV1(example["object"]);
+    if (!predicate.ok || !subjectConcept.ok || !object.ok || !(await verifyKnowledgeValueV1(object.value)).ok)
+      return failure3("pack.examples");
+    examples.push({ description: example["description"], id: example["id"], object: object.value, predicate: predicate.value, subjectConcept: subjectConcept.value, v: 1 });
+  }
+  if (!ordered(examples, (item) => item.id))
+    return failure3("pack.examples", "noncanonical-input");
+  const queries = [];
+  for (const query of value["queries"]) {
+    if (!isPlainRecord2(query) || !hasExactDataKeys(query, ["description", "id", "predicates", "v"]) || query["v"] !== 1 || !code(query["id"]) || !text(query["description"]))
+      return failure3("pack.queries");
+    const predicates = refs(query["predicates"]);
+    if (predicates === null || predicates.length === 0)
+      return failure3("pack.queries.predicates");
+    queries.push({ description: query["description"], id: query["id"], predicates, v: 1 });
+  }
+  if (!ordered(queries, (item) => item.id))
+    return failure3("pack.queries", "noncanonical-input");
+  const display = value["display"];
+  if (!isPlainRecord2(display) || !hasExactDataKeys(display, ["labelPredicates", "v"]) || display["v"] !== 1)
+    return failure3("pack.display");
+  const labelPredicates = refs(display["labelPredicates"]);
+  if (labelPredicates === null)
+    return failure3("pack.display");
+  return success3({ canonicalizerSha256, dependencies, display: { labelPredicates, v: 1 }, examples, migrationNotes: value["migrationNotes"], packId: value["packId"], previousManifestSha256, queries, revision: value["revision"], schemas, shapes, sources, supportedCodecs, v: 1, vocabulary: vocabulary.value });
+}
+async function createKnowledgeVocabularyPackManifestV1(value) {
+  const input = knowledgeDeclarativeJson(value);
+  const parsed = await parseManifestInput2(input);
+  return parsed.ok ? success3({ ...parsed.value, manifestSha256: await sha256Text(key(parsed.value)) }) : parsed;
+}
+async function parseKnowledgeVocabularyPackManifestV1(value) {
+  const input = knowledgeDeclarativeJson(value);
+  if (!isPlainRecord2(input) || !hasExactDataKeys(input, [...manifestKeys, "manifestSha256"]))
+    return failure3("pack");
+  const { manifestSha256, ...body } = input;
+  const parsed = await createKnowledgeVocabularyPackManifestV1(body);
+  return parsed.ok && manifestSha256 !== parsed.value.manifestSha256 ? failure3("manifestSha256", "digest-mismatch") : parsed;
+}
+async function createKnowledgeVocabularyPackLockV1(value) {
+  const input = knowledgeDeclarativeJson(value, 65536);
+  if (!isPlainRecord2(input) || !hasExactDataKeys(input, ["packs", "roots", "v"]) || input["v"] !== 1)
+    return failure3("lock");
+  const packs = pins(input["packs"]);
+  const roots = pins(input["roots"]);
+  if (packs === null || roots === null || roots.length === 0 || roots.some((root) => !packs.some((pin) => key(pin) === key(root))))
+    return failure3("lock.pins");
+  const body = { packs, roots, v: 1 };
+  return success3({ ...body, lockSha256: await sha256Text(key(body)) });
+}
+async function resolveKnowledgeVocabularyPacksV1(input) {
+  const rootJson = knowledgeDeclarativeJson(input.roots, 65536);
+  const roots = pins(rootJson);
+  if (roots === null || roots.length === 0 || !Array.isArray(input.manifests) || input.manifests.length > 64)
+    return failure3("packs.bounds", "limit-exceeded");
+  const byId = new Map;
+  for (const manifest of input.manifests) {
+    const parsed = await parseKnowledgeVocabularyPackManifestV1(manifest);
+    if (!parsed.ok)
+      return parsed;
+    if (byId.has(parsed.value.packId))
+      return failure3("packs.namespace", "authority-violation");
+    byId.set(parsed.value.packId, parsed.value);
+  }
+  const visiting = new Set;
+  const visited = new Set;
+  const packs = [];
+  function visit(pin) {
+    const pack = byId.get(pin.packId);
+    if (pack === undefined)
+      return failure3("packs.dependency", "dependency-missing");
+    if (key(knowledgeVocabularyPackPinV1(pack)) !== key(pin))
+      return failure3("packs.dependency", "digest-mismatch");
+    if (visiting.has(pack.packId))
+      return failure3("packs.dependencies", "cycle-detected");
+    if (visited.has(pack.packId))
+      return { ok: true, value: true };
+    visiting.add(pack.packId);
+    for (const dependency of pack.dependencies) {
+      const result = visit(dependency);
+      if (!result.ok)
+        return result;
+      if (byId.get(dependency.packId)?.canonicalizerSha256 !== pack.canonicalizerSha256)
+        return failure3("packs.canonicalizer", "digest-mismatch");
+    }
+    visiting.delete(pack.packId);
+    visited.add(pack.packId);
+    packs.push(pack);
+    return { ok: true, value: true };
+  }
+  for (const root of roots) {
+    const result = visit(root);
+    if (!result.ok)
+      return result;
+  }
+  for (const pack of packs) {
+    let include = function(current) {
+      if (allowedPacks.has(current.packId))
+        return;
+      allowedPacks.add(current.packId);
+      for (const schema of current.schemas)
+        allowed.set(key(schema.ref), schema);
+      for (const shape of current.shapes)
+        allowedShapes.set(key(shape.shape), shape);
+      for (const dependency of current.dependencies)
+        include(byId.get(dependency.packId));
+    }, inspect = function(value) {
+      if (Array.isArray(value))
+        return value.every(inspect);
+      if (!isPlainRecord2(value))
+        return true;
+      if (hasExactDataKeys(value, ["code", "namespace", "revision", "schemaSha256", "v"]))
+        return allowed.has(key(value));
+      return Object.values(value).every(inspect);
+    };
+    const allowed = new Map;
+    const allowedShapes = new Map;
+    const allowedPacks = new Set;
+    include(pack);
+    if (!inspect([pack.schemas, pack.shapes, pack.examples, pack.queries, pack.display]))
+      return failure3("packs.schema-reference", "dependency-missing");
+    const hasKind = (ref, kind) => allowed.get(key(ref))?.kind === kind;
+    for (const schema of pack.schemas) {
+      if (schema.kind === "concept" && !schema.broader.every((ref) => hasKind(ref, "concept")))
+        return failure3("packs.broader");
+      if (schema.kind === "predicate" && (!schema.domainConcepts.every((ref) => hasKind(ref, "concept")) || !schema.qualifierPredicates.every((ref) => hasKind(ref, "predicate")) || schema.inversePredicate !== null && !hasKind(schema.inversePredicate, "predicate") || schema.range.kind === "entity-concepts" && !schema.range.concepts.every((ref) => hasKind(ref, "concept")) || schema.range.kind === "numeric" && schema.range.unit !== null && !hasKind(schema.range.unit, "unit")))
+        return failure3("packs.predicate");
+    }
+    for (const shape of pack.shapes) {
+      let validateInheritance = function(current, depth) {
+        const identity = key(current.shape);
+        if (ancestry.has(identity))
+          return failure3("packs.shape-inheritance", "cycle-detected");
+        if (depth > shape.maximumInheritanceDepth || completed.size >= 256)
+          return failure3("packs.shape-inheritance", "limit-exceeded");
+        if (completed.has(identity))
+          return { ok: true, value: true };
+        ancestry.add(identity);
+        for (const ref of current.extends) {
+          const parent = allowedShapes.get(key(ref));
+          if (parent === undefined)
+            return failure3("packs.shape-inheritance", "dependency-missing");
+          const result = validateInheritance(parent, depth + 1);
+          if (!result.ok)
+            return result;
+        }
+        ancestry.delete(identity);
+        completed.add(identity);
+        return { ok: true, value: true };
+      };
+      if (!shape.appliesToConcepts.every((ref) => hasKind(ref, "concept")) || !shape.rules.every((rule) => hasKind(rule.predicate, "predicate")))
+        return failure3("packs.shape");
+      const ancestry = new Set;
+      const completed = new Set;
+      const inheritance = validateInheritance(shape, 0);
+      if (!inheritance.ok)
+        return inheritance;
+    }
+    if (!pack.examples.every((example) => hasKind(example.subjectConcept, "concept") && hasKind(example.predicate, "predicate")) || !pack.queries.every((query) => query.predicates.every((ref) => hasKind(ref, "predicate"))) || !pack.display.labelPredicates.every((ref) => hasKind(ref, "predicate")))
+      return failure3("packs.declarations");
+  }
+  const lock = await createKnowledgeVocabularyPackLockV1({ packs: packs.map(knowledgeVocabularyPackPinV1).sort((left, right) => left.packId < right.packId ? -1 : 1), roots, v: 1 });
+  return lock.ok ? success3({ lock: lock.value, packs }) : lock;
+}
+var SPONGE_KNOWLEDGE_PACK_CODECS_V1, manifestKeys;
+var init_knowledge_vocabulary_pack_v1 = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_ontology_v1();
+  SPONGE_KNOWLEDGE_PACK_CODECS_V1 = [
+    "globe-coordinate",
+    "language-text",
+    "missing-value",
+    "wikibase-time"
+  ];
+  manifestKeys = ["canonicalizerSha256", "dependencies", "display", "examples", "migrationNotes", "packId", "previousManifestSha256", "queries", "revision", "schemas", "shapes", "sources", "supportedCodecs", "v", "vocabulary"];
+});
+
+// src/research/knowledge-reference-catalog.ts
+function unwrap2(result) {
+  if (!result.ok)
+    throw new Error(`Invalid builtin knowledge pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels(value) {
+  return [{ language: "en", text: value, v: 1 }];
+}
+function title(value) {
+  return value.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ");
+}
+function sortSchemas(schemas) {
+  return [...schemas].sort((left, right) => left.identity.code < right.identity.code ? -1 : 1);
+}
+function mustSchema(schemas, code2) {
+  const schema = schemas.find((item) => item.identity.code === code2);
+  if (schema === undefined)
+    throw new Error(`Missing builtin schema: ${code2}.`);
+  return schema;
+}
+function spongeKnowledgeReferenceCatalog() {
+  referencePromise ??= buildReferenceCatalog();
+  return referencePromise;
+}
+async function buildReferenceCatalog() {
+  const core = await spongeCoreKnowledgeCatalogV1();
+  const ownerEntityId = core.vocabulary.ownerEntityId;
+  const base = {
+    canonicalizerSha256: core.canonicalizerSha256,
+    display: { labelPredicates: [mustSchema(core.schemas, "name").ref], v: 1 },
+    examples: [],
+    migrationNotes: "Initial additive application profile. Existing records retain their meanings; installation and publication require separate authorization.",
+    previousManifestSha256: null,
+    queries: [],
+    revision: 1,
+    shapes: [],
+    sources: [],
+    supportedCodecs: [],
+    v: 1
+  };
+  const corePack = unwrap2(await createKnowledgeVocabularyPackManifestV1({ ...base, dependencies: [], packId: "sponge.core", schemas: sortSchemas(core.schemas), vocabulary: core.vocabulary }));
+  const referenceVocabulary = unwrap2(await createKnowledgeVocabularyRevisionV1({ canonicalizerSha256: core.canonicalizerSha256, labels: labels("Sponge source value preservation"), namespace: "sponge.reference", ownerEntityId, previousRevisionSha256: null, revision: 1, state: "private", v: 1 }));
+  const referenceSchemas = [];
+  for (const codec of SPONGE_KNOWLEDGE_PACK_CODECS_V1) {
+    referenceSchemas.push(unwrap2(await createKnowledgeSchemaRevisionV1({ broader: [mustSchema(core.schemas, "information-resource").ref], definitions: labels(`A bounded ${codec} source-value preservation codec. Its data does not imply normalized truth, schema review or publication authority.`), identity: { code: codec, namespace: "sponge.reference", revision: 1, v: 1 }, kind: "concept", labels: labels(title(codec)), previousRevisionSha256: null, reviewDecisionSha256: null, v: 1, vocabularySha256: referenceVocabulary.revisionSha256 })));
+  }
+  for (const [code2, description] of [
+    ["gregorian-calendar", "The proleptic Gregorian civil calendar for explicitly normalized time values. Referencing it does not normalize a retained source calendar."],
+    ["language-system", "An identified language or language variety under an explicit naming scheme, distinct from text written in it."],
+    ["population", "An identified population to which a scoped claim applies, distinct from an estimate about that population."]
+  ]) {
+    referenceSchemas.push(unwrap2(await createKnowledgeSchemaRevisionV1({ broader: [mustSchema(core.schemas, "concept").ref], definitions: labels(description), identity: { code: code2, namespace: "sponge.reference", revision: 1, v: 1 }, kind: "concept", labels: labels(title(code2)), previousRevisionSha256: null, reviewDecisionSha256: null, v: 1, vocabularySha256: referenceVocabulary.revisionSha256 })));
+  }
+  const entityContext = (concept) => ({ concepts: [concept.ref], kind: "entity-concepts", v: 1 });
+  const contextDefinitions = [
+    ["at-time", "The explicitly stated time of this claim or observation, without dating every similar claim.", { kind: "value-kinds", valueKinds: ["time"], v: 1 }],
+    ["valid-during", "The explicitly stated interval during which this claim applies.", { kind: "value-kinds", valueKinds: ["interval"], v: 1 }],
+    ["place-context", "The identified place under which this claim applies, distinct from the subject's intrinsic location.", entityContext(mustSchema(core.schemas, "place"))],
+    ["language-context", "The identified language or variety under which this claim or interpretation applies.", entityContext(mustSchema(referenceSchemas, "language-system"))],
+    ["method-context", "The identified procedure or interpretive method under which this claim was made.", entityContext(mustSchema(core.schemas, "information-resource"))],
+    ["population-context", "The identified population bounding this claim; it does not generalize the claim beyond that population.", entityContext(mustSchema(referenceSchemas, "population"))],
+    ["source-context", "The attributed source under which this claim is reported, without treating attribution as verified evidence.", entityContext(mustSchema(core.schemas, "source"))]
+  ];
+  for (const [code2, description, range] of contextDefinitions) {
+    const predicate = unwrap2(await createKnowledgeSchemaRevisionV1({ definitions: labels(description), domainConcepts: [mustSchema(core.schemas, "entity").ref], identity: { code: code2, namespace: "sponge.reference", revision: 1, v: 1 }, inversePredicate: null, kind: "predicate", labels: labels(title(code2)), previousRevisionSha256: null, qualifierPredicates: [], range, reviewDecisionSha256: null, v: 1, vocabularySha256: referenceVocabulary.revisionSha256 }));
+    if (predicate.kind !== "predicate")
+      throw new Error("Expected context predicate.");
+    referenceSchemas.push(predicate);
+  }
+  const referencePack = unwrap2(await createKnowledgeVocabularyPackManifestV1({ ...base, dependencies: [knowledgeVocabularyPackPinV1(corePack)], packId: "sponge.reference", schemas: sortSchemas(referenceSchemas), supportedCodecs: SPONGE_KNOWLEDGE_PACK_CODECS_V1, sources: [{ contentSha256: await sha256Text(canonicalJson2(referenceSchemas)), license: "MIT", revision: "1", uri: "urn:sponge:application-profile:reference", v: 1 }], vocabulary: referenceVocabulary }));
+  return freezeKnowledgeDeclaration({ corePack, referencePack });
+}
+var referencePromise;
+var init_knowledge_reference_catalog = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_core_v1();
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-domain-catalog.ts
+function unwrap3(result) {
+  if (!result.ok)
+    throw new Error(`Invalid builtin knowledge pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels2(value) {
+  return [{ language: "en", text: value, v: 1 }];
+}
+function title2(value) {
+  return value.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ");
+}
+function sortSchemas2(schemas) {
+  return [...schemas].sort((left, right) => left.identity.code < right.identity.code ? -1 : 1);
+}
+function mustSchema2(schemas, code2) {
+  const schema = schemas.find((item) => item.identity.code === code2);
+  if (schema === undefined)
+    throw new Error(`Missing builtin schema: ${code2}.`);
+  return schema;
+}
+function spongeKnowledgeDomainCatalog() {
+  catalogPromise2 ??= buildCatalog();
+  return catalogPromise2;
+}
+async function buildCatalog() {
+  const core = await spongeCoreKnowledgeCatalogV1();
+  const ownerEntityId = core.vocabulary.ownerEntityId;
+  const base = {
+    canonicalizerSha256: core.canonicalizerSha256,
+    display: { labelPredicates: [mustSchema2(core.schemas, "name").ref], v: 1 },
+    examples: [],
+    migrationNotes: "Initial additive application profile. Existing records retain their meanings; installation and publication require separate authorization.",
+    previousManifestSha256: null,
+    queries: [],
+    revision: 1,
+    shapes: [],
+    sources: [],
+    supportedCodecs: [],
+    v: 1
+  };
+  const { corePack, referencePack } = await spongeKnowledgeReferenceCatalog();
+  const qualifierPredicates = referencePack.schemas.filter((schema) => schema.kind === "predicate").map((predicate) => predicate.ref).sort((left, right) => canonicalJson2(left) < canonicalJson2(right) ? -1 : 1);
+  const packs = [corePack, referencePack];
+  for (const definition of definitions) {
+    const namespace = `sponge.${definition.id}`;
+    const vocabulary = unwrap3(await createKnowledgeVocabularyRevisionV1({ canonicalizerSha256: core.canonicalizerSha256, labels: labels2(`Sponge ${title2(definition.id)} vocabulary`), namespace, ownerEntityId, previousRevisionSha256: null, revision: 1, state: "private", v: 1 }));
+    const concepts = [];
+    const predicates = [];
+    for (const [code2, description, broader] of definition.concepts) {
+      const concept = unwrap3(await createKnowledgeSchemaRevisionV1({ broader: [mustSchema2(core.schemas, broader).ref], definitions: labels2(description), identity: { code: code2, namespace, revision: 1, v: 1 }, kind: "concept", labels: labels2(title2(code2)), previousRevisionSha256: null, reviewDecisionSha256: null, v: 1, vocabularySha256: vocabulary.revisionSha256 }));
+      if (concept.kind !== "concept")
+        throw new Error("Expected concept.");
+      concepts.push(concept);
+    }
+    for (const [code2, description, domain, valueKind] of definition.predicates) {
+      const predicate = unwrap3(await createKnowledgeSchemaRevisionV1({ definitions: labels2(description), domainConcepts: [mustSchema2(concepts, domain).ref], identity: { code: code2, namespace, revision: 1, v: 1 }, inversePredicate: null, kind: "predicate", labels: labels2(title2(code2)), previousRevisionSha256: null, qualifierPredicates, range: { kind: "value-kinds", v: 1, valueKinds: [valueKind] }, reviewDecisionSha256: null, v: 1, vocabularySha256: vocabulary.revisionSha256 }));
+      if (predicate.kind !== "predicate")
+        throw new Error("Expected predicate.");
+      predicates.push(predicate);
+    }
+    const primary = predicates[0];
+    if (primary === undefined)
+      throw new Error("Missing profile predicate.");
+    const shape = unwrap3(await createKnowledgeExecutableShapeV1({ appliesToConcepts: primary.domainConcepts, closed: false, extends: [], maximumInheritanceDepth: 1, rules: [{ allowedDisclosures: ["private"], cardinality: { maximum: null, minimum: 1, v: 1 }, predicate: primary.ref, purpose: "private-research", range: primary.range, requiredEvidenceBearings: [], severity: "error", v: 1 }], shape: primary.domainConcepts[0], v: 1 }));
+    const entityId = parseKnowledgeEntityId(`kent_${"e".repeat(24)}`);
+    if (entityId === null)
+      throw new Error("Invalid example identity.");
+    const object = { entityId, kind: "entity", v: 1 };
+    const sourceSha256 = await sha256Text(canonicalJson2(definition));
+    packs.push(unwrap3(await createKnowledgeVocabularyPackManifestV1({ ...base, dependencies: [knowledgeVocabularyPackPinV1(corePack), knowledgeVocabularyPackPinV1(referencePack)], examples: [{ description: `Synthetic structural example: ${definition.question} The example identity makes no real-world factual assertion.`, id: "first-relation", object, predicate: primary.ref, subjectConcept: primary.domainConcepts[0], v: 1 }], packId: namespace, queries: [{ description: definition.question, id: "first-question", predicates: predicates.map((predicate) => predicate.ref).sort((left, right) => canonicalJson2(left) < canonicalJson2(right) ? -1 : 1), v: 1 }], schemas: sortSchemas2([...concepts, ...predicates]), shapes: [shape], sources: [{ contentSha256: sourceSha256, license: "MIT", revision: "1", uri: `urn:sponge:application-profile:${definition.id}`, v: 1 }], vocabulary })));
+  }
+  packs.sort((left, right) => left.packId < right.packId ? -1 : 1);
+  const resolved = unwrap3(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots: packs.filter((pack) => SPONGE_KNOWLEDGE_DOMAIN_PACK_IDS.includes(pack.packId)).map(knowledgeVocabularyPackPinV1) }));
+  return freezeKnowledgeDeclaration({ corePack, lock: resolved.lock, packs, referencePack, schemas: packs.flatMap((pack) => pack.schemas), vocabularies: packs.map((pack) => pack.vocabulary) });
+}
+var definitions, SPONGE_KNOWLEDGE_DOMAIN_PACK_IDS, catalogPromise2;
+var init_knowledge_domain_catalog = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_core_v1();
+  init_knowledge_reference_catalog();
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_ontology_v1();
+  init_knowledge_vocabulary_pack_v1();
+  definitions = [
+    { id: "language", question: "Which forms and contextual meanings belong to this lexeme?", concepts: [
+      ["lexeme", "A lexical entry, distinct from its written forms and contextual senses.", "information-resource"],
+      ["form", "A written or spoken realization of a lexical entry.", "information-resource"],
+      ["sense", "One contextual meaning associated with a lexical entry.", "concept"],
+      ["text-occurrence", "A particular usage at a locator in a retained text.", "entity"]
+    ], predicates: [
+      ["has-form", "Connects a lexical entry to one of its realizations.", "lexeme", "entity"],
+      ["has-sense", "Connects a lexical entry to one of its contextual meanings.", "lexeme", "entity"],
+      ["translation-of-sense", "Relates contextual meanings under attributed translation evidence.", "sense", "entity"],
+      ["attested-in", "Identifies a retained usage that attests a lexical entry.", "lexeme", "entity"]
+    ] },
+    { id: "culture", question: "Which depictions and naming explanations refer to this motif?", concepts: [
+      ["motif", "A recurring cultural subject whose interpretations may differ.", "concept"],
+      ["fictional-entity", "An identity situated in a fictional narrative or setting.", "entity"],
+      ["depiction", "A particular representation of a subject in an artifact.", "artifact"],
+      ["reference-occurrence", "An attributed cultural reference with a particular source location.", "entity"]
+    ], predicates: [
+      ["depicts", "Identifies the subject represented by a depiction.", "depiction", "entity"],
+      ["alludes-to", "Records an attributed indirect reference, distinct from depicted identity.", "reference-occurrence", "entity"],
+      ["named-after", "Records a naming explanation requiring its own attributed evidence.", "reference-occurrence", "entity"],
+      ["interpreted-as", "Relates a reference to an attributed interpretation.", "reference-occurrence", "entity"]
+    ] },
+    { id: "natural-world", question: "How was this occurrence classified and observed?", concepts: [
+      ["physical-occurrence", "A particular natural occurrence, distinct from its classification.", "event"],
+      ["classification-scheme", "A versioned navigational scheme for natural entities and features.", "concept"],
+      ["taxon", "A classification unit under an identified biological scheme.", "concept"],
+      ["observation", "An attributed observation of a feature under stated conditions.", "event"],
+      ["feature", "An observable characteristic distinguished by a classification scheme.", "concept"]
+    ], predicates: [
+      ["classified-under", "Assigns an occurrence to a class under an explicit scheme.", "physical-occurrence", "entity"],
+      ["observes", "Identifies the particular occurrence an observation concerns.", "observation", "entity"],
+      ["observed-at", "Locates an observation without implying the location of every similar occurrence.", "observation", "entity"],
+      ["has-feature", "Records an attributed feature of an occurrence.", "physical-occurrence", "entity"]
+    ] },
+    { id: "body", question: "Which experiences, structures and population estimates bear on this phenomenon?", concepts: [
+      ["bodily-phenomenon", "A bodily phenomenon independent of any proposed explanation.", "concept"],
+      ["anatomical-structure", "A structure identified under an anatomical description.", "entity"],
+      ["experience-report", "A person's attributed report, distinct from physiological verification.", "information-resource"],
+      ["study-population", "The sampled population to which an estimate applies.", "entity"],
+      ["mechanism-hypothesis", "A proposed physiological explanation requiring evidence.", "concept"]
+    ], predicates: [
+      ["involves-structure", "Relates a phenomenon to a proposed or observed anatomical structure.", "bodily-phenomenon", "entity"],
+      ["reports-experience", "Identifies the experience described by an attributed report.", "experience-report", "entity"],
+      ["estimates-prevalence", "Records a numeric estimate scoped to its study population.", "study-population", "decimal"],
+      ["proposes-mechanism", "Connects a phenomenon to a distinct explanatory hypothesis.", "bodily-phenomenon", "entity"]
+    ] },
+    { id: "research", question: "What was tested, by which method, and what corrections followed?", concepts: [
+      ["publication-version", "One version of a research work, with its own source history.", "source"],
+      ["study", "A particular investigation with method and population boundaries.", "process"],
+      ["sample", "Material or participants selected under an identified sampling procedure.", "entity"],
+      ["method", "A specified procedure for producing or assessing observations.", "information-resource"],
+      ["finding", "An attributed research result, distinct from an acceptance decision.", "information-resource"],
+      ["correction", "A source-issued correction or retraction notice about a publication version.", "source"]
+    ], predicates: [
+      ["tests", "Identifies the hypothesis or object a study investigates.", "study", "entity"],
+      ["uses-method", "Pins the method under which the study was conducted.", "study", "entity"],
+      ["produces-finding", "Relates a study to an attributed finding.", "study", "entity"],
+      ["supersedes", "Identifies the exact publication version addressed by a correction.", "correction", "entity"]
+    ] },
+    { id: "substances", question: "Which batch and sample support this assay and dated offer?", concepts: [
+      ["molecular-identity", "A chemical identity including relevant sequence, structure and modification distinctions.", "concept"],
+      ["product", "A marketed substance formulation distinct from its physical batches.", "artifact"],
+      ["batch", "An identified physical production batch of a product.", "artifact"],
+      ["sample", "A particular sample taken from identified material.", "artifact"],
+      ["assay", "An analytical activity on a particular sample under a method.", "process"],
+      ["offer", "A dated seller offer with its own product, price and territory conditions.", "information-resource"]
+    ], predicates: [
+      ["sample-of", "Connects a tested sample to the material from which it came.", "sample", "entity"],
+      ["batch-of", "Connects an identified batch to a product formulation.", "batch", "entity"],
+      ["assays", "Identifies the exact sample tested by an assay.", "assay", "entity"],
+      ["offered-by", "Identifies the seller of a dated offer without conferring trust.", "offer", "entity"]
+    ] },
+    { id: "organizations", question: "Which roles, transactions and completion claims define this history?", concepts: [
+      ["legal-entity", "A legal organizational identity under an identified jurisdiction.", "organization"],
+      ["brand", "A commercial identity distinct from its legal owner and products.", "concept"],
+      ["role-assignment", "An agent's role in an organization during stated conditions or dates.", "entity"],
+      ["transaction", "An economic transaction distinct from announcements about it.", "event"],
+      ["announcement", "An attributed public announcement about a proposed or completed event.", "information-resource"],
+      ["completion", "A reported completion event with separately attributable evidence.", "event"]
+    ], predicates: [
+      ["operates", "Relates a legal entity to a product or brand it operates.", "legal-entity", "entity"],
+      ["held-by", "Identifies the agent occupying a dated role assignment.", "role-assignment", "entity"],
+      ["announces", "Identifies an event mentioned by an announcement without asserting completion.", "announcement", "entity"],
+      ["completes", "Identifies the transaction a reported completion concerns.", "completion", "entity"]
+    ] },
+    { id: "editorial", question: "Which stories report this event and why were they placed prominently?", concepts: [
+      ["event-series", "A collection of related events under a stated organizing basis.", "entity"],
+      ["article", "A particular editorial source distinct from its reported events.", "source"],
+      ["story-cluster", "A navigational grouping of reports under an explicit grouping policy.", "concept"],
+      ["edition", "A dated editorial selection distinct from graph acceptance or publication authority.", "work"],
+      ["placement", "An article's location in one editorial edition.", "entity"],
+      ["ranking-assessment", "An attributed assessment explaining editorial prominence.", "information-resource"]
+    ], predicates: [
+      ["reports-on", "Identifies an event discussed in an article.", "article", "entity"],
+      ["contains-placement", "Connects an edition to one of its placements.", "edition", "entity"],
+      ["ranks-under", "Connects a placement to the assessment that explains its prominence.", "placement", "entity"],
+      ["updates", "Identifies an earlier article that a report updates.", "article", "entity"]
+    ] },
+    { id: "software", question: "Which protocol and configuration make these evaluation results comparable?", concepts: [
+      ["repository", "A software source repository distinct from its commits and releases.", "information-resource"],
+      ["release", "An identified release of software or a model.", "artifact"],
+      ["model-version", "An exact model version distinct from a marketing family name.", "artifact"],
+      ["configuration", "A pinned runtime and tool configuration.", "information-resource"],
+      ["dataset-version", "An identified dataset revision with its own split and provenance.", "artifact"],
+      ["benchmark-protocol", "A specified evaluation protocol with scope and metric definitions.", "information-resource"],
+      ["run", "One observed execution under a configuration and protocol.", "process"],
+      ["measurement", "A measured result with method, units and conditions supplied separately.", "information-resource"]
+    ], predicates: [
+      ["evaluated-under", "Pins the benchmark protocol for one run.", "run", "entity"],
+      ["uses-configuration", "Pins the runtime configuration for one run.", "run", "entity"],
+      ["uses-dataset", "Pins the dataset version for one run.", "run", "entity"],
+      ["produces", "Connects a run to a measured result or output artifact.", "run", "entity"]
+    ] },
+    { id: "music", question: "Which work, performance and recording produced this released track?", concepts: [
+      ["musical-work", "A composition distinct from arrangements, performances and recordings.", "work"],
+      ["arrangement", "An arrangement of a musical work.", "work"],
+      ["performance", "One performance of a work or arrangement.", "event"],
+      ["recording", "An audio recording identity distinct from its release placements.", "artifact"],
+      ["release", "An issued music release containing tracks.", "artifact"],
+      ["track", "A recording's placement on a particular release.", "entity"],
+      ["similarity-assessment", "A dated similarity assessment under a stated listening or computational method.", "information-resource"]
+    ], predicates: [
+      ["performs", "Identifies the work or arrangement performed.", "performance", "entity"],
+      ["records", "Identifies the performance captured by a recording.", "recording", "entity"],
+      ["appears-on", "Identifies the release containing a track.", "track", "entity"],
+      ["similar-under", "Identifies a method-specific comparison without asserting influence or rights.", "similarity-assessment", "entity"]
+    ] },
+    { id: "people", question: "Which dated source records support this profile within its authorized purpose?", concepts: [
+      ["public-profile-document", "An attributed public profile source, distinct from the person it describes.", "source"],
+      ["source-contact-record", "A source-owned contact record whose sensitive payload needs a deletable retention store.", "information-resource"],
+      ["interaction", "An interaction with separately governed access and retention.", "event"],
+      ["relationship-account", "An attributed account of a relationship, distinct from intrinsic personal properties.", "information-resource"],
+      ["profile-projection", "A dated, scoped selection of profile knowledge and uncertainty.", "information-resource"]
+    ], predicates: [
+      ["describes-person", "Identifies the person a profile source describes without merging source identities.", "public-profile-document", "entity"],
+      ["derived-from-record", "Identifies a source record used by a purpose-bound profile projection.", "profile-projection", "entity"],
+      ["involves-person", "Identifies a participant under the interaction's authorization boundary.", "interaction", "entity"],
+      ["accounts-for", "Identifies a relationship described by an attributed account.", "relationship-account", "entity"]
+    ] },
+    { id: "finance", question: "Which instrument, listing and backtest assumptions define this comparison?", concepts: [
+      ["issuer", "An entity issuing a financial instrument.", "organization"],
+      ["instrument", "A financial instrument distinct from its exchange listings.", "entity"],
+      ["listing", "An instrument's listing at a venue under dated conditions.", "entity"],
+      ["ticker-assignment", "A dated ticker assignment to a listing, without assuming global permanence.", "entity"],
+      ["strategy-version", "A specified strategy hypothesis distinct from future outcome claims.", "information-resource"],
+      ["backtest-run", "A historical simulation under identified data, period, costs and assumptions.", "process"]
+    ], predicates: [
+      ["issued-by", "Identifies the issuer of an instrument.", "instrument", "entity"],
+      ["lists-instrument", "Identifies the instrument associated with a venue listing.", "listing", "entity"],
+      ["tests-strategy", "Pins the strategy version tested by a historical run.", "backtest-run", "entity"],
+      ["uses-dataset", "Pins the data artifact used by a backtest.", "backtest-run", "entity"]
+    ] },
+    { id: "formal-systems", question: "Which rule, initial state and proof artifact support this result?", concepts: [
+      ["conjecture", "A formal claim whose proof status is attributed separately.", "concept"],
+      ["proof-artifact", "An inspectable proof artifact under a specified formal system.", "artifact"],
+      ["rule-set-version", "An identified set of transition rules.", "information-resource"],
+      ["initial-state", "An exact initial state of a formal or artificial-life system.", "artifact"],
+      ["simulation", "An execution under rules, topology, initial state and seed.", "process"],
+      ["state-snapshot", "A recorded state at a particular simulation tick.", "artifact"]
+    ], predicates: [
+      ["instantiates", "Pins the rule-set version used by a simulation.", "simulation", "entity"],
+      ["starts-from", "Pins a simulation's initial state.", "simulation", "entity"],
+      ["observed-at-tick", "Records the exact discrete tick associated with a state snapshot.", "state-snapshot", "integer"],
+      ["has-proof", "Connects a formal claim to a proof artifact without asserting unchecked validity.", "conjecture", "entity"]
+    ] },
+    { id: "agent-work", question: "Which attempts and checks produced a resumable verified outcome?", concepts: [
+      ["goal", "A desired outcome distinct from the actions intended to achieve it.", "concept"],
+      ["task", "A bounded unit of work associated with a goal.", "entity"],
+      ["skill-version", "A pinned reusable instruction or workflow artifact.", "information-resource"],
+      ["trajectory", "An observable execution record without private chain-of-thought requirements.", "information-resource"],
+      ["attempt", "One execution attempt with inputs, observations and completion state.", "process"],
+      ["check-result", "An observed validation result tied to an exact output and validator.", "information-resource"]
+    ], predicates: [
+      ["uses-skill", "Pins a skill version used during an attempt.", "attempt", "entity"],
+      ["attempts", "Identifies the task an execution attempt addresses.", "attempt", "entity"],
+      ["produces", "Identifies an output artifact produced by an attempt.", "attempt", "entity"],
+      ["validated-by", "Connects an attempt to an observed check result without inferring universal correctness.", "attempt", "entity"]
+    ] }
+  ];
+  SPONGE_KNOWLEDGE_DOMAIN_PACK_IDS = Object.freeze(definitions.map((definition) => `sponge.${definition.id}`));
+});
+
+// src/research/knowledge-proposal-v3.ts
+function key2(value) {
+  return typeof value === "string" && value.length <= 96 && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value);
+}
+function canonical(value) {
+  return canonicalJson2(value);
+}
+function ref(value) {
+  const parsed = parseKnowledgeSchemaRefV1(value);
+  return parsed.ok ? parsed.value : null;
+}
+function refs2(value) {
+  if (!Array.isArray(value) || value.length > 256)
+    return null;
+  const parsed = value.map(ref);
+  if (parsed.some((item) => item === null))
+    return null;
+  const sorted = parsed.sort((a, b) => canonical(a) < canonical(b) ? -1 : 1);
+  return new Set(sorted.map(canonical)).size === sorted.length ? sorted : null;
+}
+function entityReference(value) {
+  if (!isPlainRecord2(value))
+    return null;
+  if (value["kind"] === "key" && hasExactDataKeys(value, ["kind", "key"]) && key2(value["key"])) {
+    return { kind: "key", key: value["key"] };
+  }
+  if (value["kind"] === "existing" && hasExactDataKeys(value, ["kind", "entityId"])) {
+    const entityId = parseKnowledgeEntityId(value["entityId"]);
+    if (entityId !== null)
+      return { kind: "existing", entityId };
+  }
+  return null;
+}
+function draftValue(value, depth = 0) {
+  if (depth > 16 || !isPlainRecord2(value))
+    return null;
+  if (value["kind"] === "entity-key" && hasExactDataKeys(value, ["kind", "entityKey"]) && key2(value["entityKey"])) {
+    return { kind: "entity-key", entityKey: value["entityKey"] };
+  }
+  if ((value["kind"] === "list" || value["kind"] === "set") && hasExactDataKeys(value, ["kind", "values", "v"]) && value["v"] === 1 && Array.isArray(value["values"]) && value["values"].length <= 256) {
+    const values = value["values"].map((item) => draftValue(item, depth + 1));
+    if (values.some((item) => item === null))
+      return null;
+    const parsed2 = values;
+    if (value["kind"] === "set") {
+      parsed2.sort((a, b) => canonical(a) < canonical(b) ? -1 : 1);
+      if (new Set(parsed2.map(canonical)).size !== parsed2.length)
+        return null;
+    }
+    return { kind: value["kind"], values: parsed2, v: 1 };
+  }
+  const parsed = parseKnowledgeValueV1(value);
+  return parsed.ok ? parsed.value : null;
+}
+function dimensions(value) {
+  if (!Array.isArray(value) || value.length > 64)
+    return null;
+  const parsed = [];
+  for (const item of value) {
+    if (!isPlainRecord2(item) || !hasExactDataKeys(item, ["predicate", "value"]))
+      return null;
+    const predicate = ref(item["predicate"]);
+    const child = draftValue(item["value"]);
+    if (predicate === null || child === null)
+      return null;
+    parsed.push({ predicate, value: child });
+  }
+  parsed.sort((a, b) => canonical(a) < canonical(b) ? -1 : 1);
+  return new Set(parsed.map(canonical)).size === parsed.length ? parsed : null;
+}
+function parseSpongeKnowledgeProposalDraftV3(foreign) {
+  const value = knowledgeDeclarativeJson(foreign, 256 * 1024);
+  if (!isPlainRecord2(value) || !hasExactDataKeys(value, ["v", "entities", "facts", "contexts", "evidence", "vocabularyDependencies"]) || value["v"] !== 3 || !Array.isArray(value["entities"]) || value["entities"].length > 32 || !Array.isArray(value["facts"]) || value["facts"].length > 128 || !Array.isArray(value["contexts"]) || value["contexts"].length > 32 || !Array.isArray(value["evidence"]) || value["evidence"].length > 128)
+    return null;
+  const entities = [];
+  for (const item of value["entities"]) {
+    if (!isPlainRecord2(item) || !key2(item["key"]))
+      return null;
+    if (item["kind"] === "existing" && hasExactDataKeys(item, ["key", "kind", "entityId"])) {
+      const entityId = parseKnowledgeEntityId(item["entityId"]);
+      if (entityId === null)
+        return null;
+      entities.push({ key: item["key"], kind: "existing", entityId });
+    } else if (item["kind"] === "new" && hasExactDataKeys(item, ["key", "kind", "concepts", "name"]) && isPlainRecord2(item["name"]) && hasExactDataKeys(item["name"], ["language", "text"])) {
+      const concepts = refs2(item["concepts"]);
+      const name = parseKnowledgeValueV1({ kind: "text", v: 1, ...item["name"] });
+      if (concepts === null || concepts.length === 0 || concepts.length > 16 || !name.ok || name.value.kind !== "text")
+        return null;
+      entities.push({
+        key: item["key"],
+        kind: "new",
+        concepts,
+        name: { language: name.value.language, text: name.value.text }
+      });
+    } else
+      return null;
+  }
+  const facts = [];
+  for (const item of value["facts"]) {
+    if (!isPlainRecord2(item) || !hasExactDataKeys(item, ["key", "subject", "predicate", "object", "qualifiers", "contextKey", "stance"]) || !key2(item["key"]))
+      return null;
+    const subject = entityReference(item["subject"]);
+    const predicate = ref(item["predicate"]);
+    const object = draftValue(item["object"]);
+    const qualifiers = dimensions(item["qualifiers"]);
+    const stance = SPONGE_KNOWLEDGE_ASSERTION_STANCES_V1.find((candidate) => candidate === item["stance"]);
+    if (subject === null || predicate === null || object === null || qualifiers === null || stance === undefined || !(item["contextKey"] === null || key2(item["contextKey"])))
+      return null;
+    facts.push({ key: item["key"], subject, predicate, object, qualifiers, contextKey: item["contextKey"], stance });
+  }
+  const contexts = [];
+  for (const item of value["contexts"]) {
+    if (!isPlainRecord2(item) || !hasExactDataKeys(item, ["key", "scenario", "dimensions"]) || !key2(item["key"]))
+      return null;
+    const scenario = SPONGE_KNOWLEDGE_SCENARIOS_V1.find((candidate) => candidate === item["scenario"]);
+    const parsed = dimensions(item["dimensions"]);
+    if (scenario === undefined || parsed === null)
+      return null;
+    contexts.push({ key: item["key"], scenario, dimensions: parsed });
+  }
+  const evidence = [];
+  for (const item of value["evidence"]) {
+    if (!isPlainRecord2(item) || !hasExactDataKeys(item, ["key", "factKey", "source", "bearing", "selector", "attribution"]) || !key2(item["key"]) || !key2(item["factKey"]) || !(item["selector"] === null || typeof item["selector"] === "string" && item["selector"].length > 0 && item["selector"].length <= 4096) || !isPlainRecord2(item["attribution"]) || !hasExactDataKeys(item["attribution"], ["kind", "sourceUri"]) || item["attribution"]["kind"] !== "agent-supplied")
+      return null;
+    const source = entityReference(item["source"]);
+    const bearing = SPONGE_KNOWLEDGE_EVIDENCE_BEARINGS_V1.find((candidate) => candidate === item["bearing"]);
+    const sourceUri = item["attribution"]["sourceUri"];
+    if (source === null || bearing === undefined || !(sourceUri === null || typeof sourceUri === "string"))
+      return null;
+    if (sourceUri !== null && !parseKnowledgeValueV1({ kind: "uri", uri: sourceUri, v: 1 }).ok)
+      return null;
+    evidence.push({
+      key: item["key"],
+      factKey: item["factKey"],
+      source,
+      bearing,
+      selector: item["selector"],
+      attribution: { kind: "agent-supplied", sourceUri }
+    });
+  }
+  const vocabularyDependencies = refs2(value["vocabularyDependencies"]);
+  if (vocabularyDependencies === null || facts.length + entities.length + contexts.length + evidence.length === 0)
+    return null;
+  const all = [...entities, ...facts, ...contexts, ...evidence];
+  if (new Set(all.map((item) => item.key)).size !== all.length)
+    return null;
+  const entityKeys = new Set(entities.map((item) => item.key));
+  const contextKeys = new Set(contexts.map((item) => item.key));
+  const factKeys = new Set(facts.map((item) => item.key));
+  const validReference = (item) => item.kind === "existing" || entityKeys.has(item.key);
+  const validValue = (item) => item.kind === "entity-key" ? entityKeys.has(item.entityKey) : item.kind === "list" || item.kind === "set" ? item.values.every(validValue) : true;
+  if (facts.some((item) => !validReference(item.subject) || !validValue(item.object) || item.qualifiers.some((dimension) => !validValue(dimension.value)) || item.contextKey !== null && !contextKeys.has(item.contextKey)) || contexts.some((item) => item.dimensions.some((dimension) => !validValue(dimension.value))) || evidence.some((item) => !validReference(item.source) || !factKeys.has(item.factKey)))
+    return null;
+  const sortKeys = (items) => items.sort((a, b) => a.key < b.key ? -1 : 1);
+  return freezeKnowledgeDeclaration({
+    v: 3,
+    entities: sortKeys(entities),
+    facts: sortKeys(facts),
+    contexts: sortKeys(contexts),
+    evidence: sortKeys(evidence),
+    vocabularyDependencies
+  });
+}
+var init_knowledge_proposal_v3 = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_v1();
+});
+
+// src/research/knowledge-wikidata-import-v1.ts
+function failure4(field, code2 = "invalid-input") {
+  return { ok: false, error: { code: code2, field, retryable: false } };
+}
+function asJson3(value) {
+  return value;
+}
+function boundedText4(value, max = 256) {
+  return typeof value === "string" && value.length > 0 && utf8ByteLength2(value) <= max && value.normalize("NFC") === value && !/[\u0000-\u001f\u007f-\u009f\ud800-\udfff]/u.test(value);
+}
+function isKnowledgeWikidataEntityIdV1(value) {
+  return typeof value === "string" && /^(?:Q[1-9][0-9]*|P[1-9][0-9]*|L[1-9][0-9]*(?:-[FS][1-9][0-9]*)?)$/u.test(value) && value.length <= 64;
+}
+function propertyId(value) {
+  return isKnowledgeWikidataEntityIdV1(value) && value.startsWith("P");
+}
+function properties(value) {
+  if (!Array.isArray(value) || value.length > 256 || !value.every(propertyId) || new Set(value).size !== value.length)
+    return null;
+  return [...value].sort();
+}
+function parseCoverage(value) {
+  if (!isPlainRecord2(value))
+    return null;
+  if (value["kind"] === "complete-entity" && hasExactDataKeys(value, ["kind"])) {
+    return { kind: "complete-entity" };
+  }
+  if (value["kind"] === "selected-properties" && hasExactDataKeys(value, ["kind", "properties"])) {
+    const selected = properties(value["properties"]);
+    return selected === null ? null : { kind: "selected-properties", properties: selected };
+  }
+  if (value["kind"] === "partial" && hasExactDataKeys(value, ["kind", "reason"]) && boundedText4(value["reason"]))
+    return { kind: "partial", reason: value["reason"] };
+  return null;
+}
+function parseCapture(value) {
+  if (!isPlainRecord2(value) || !hasExactDataKeys(value, ["requestedId", "resolvedId", "sourceUri", "capturedAt", "body", "redirects", "coverage"]) || !isKnowledgeWikidataEntityIdV1(value["requestedId"]) || !isKnowledgeWikidataEntityIdV1(value["resolvedId"]) || !boundedText4(value["sourceUri"], 4096) || parseCanonicalInstantV12(value["capturedAt"]) === null || typeof value["body"] !== "string" || !Array.isArray(value["redirects"]) || value["redirects"].length > 16)
+    return null;
+  let url;
+  try {
+    url = new URL(value["sourceUri"]);
+  } catch {
+    return null;
+  }
+  if (url.origin !== "https://www.wikidata.org" || url.username || url.password || url.hash || !(url.pathname === "/w/api.php" || /^\/wiki\/Special:EntityData\/(?:Q|P|L)[1-9][0-9]*(?:-[FS][1-9][0-9]*)?\.json$/u.test(url.pathname)))
+    return null;
+  const redirects = [];
+  let last = value["requestedId"];
+  const seen = new Set([last]);
+  for (const redirect of value["redirects"]) {
+    if (!isPlainRecord2(redirect) || !hasExactDataKeys(redirect, ["from", "to"]) || redirect["from"] !== last || !isKnowledgeWikidataEntityIdV1(redirect["to"]) || seen.has(redirect["to"]))
+      return null;
+    redirects.push({ from: last, to: redirect["to"] });
+    last = redirect["to"];
+    seen.add(last);
+  }
+  const coverage = parseCoverage(value["coverage"]);
+  if (last !== value["resolvedId"] || coverage === null)
+    return null;
+  return {
+    requestedId: value["requestedId"],
+    resolvedId: value["resolvedId"],
+    sourceUri: value["sourceUri"],
+    capturedAt: value["capturedAt"],
+    body: value["body"],
+    redirects,
+    coverage
+  };
+}
+function parseKnowledgeWikidataImportInputV1(value) {
+  value = knowledgeDeclarativeJson(value, 2 * KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1.maxSourceBytes, { preserveStrings: true, maxDepth: 12 });
+  if (!isPlainRecord2(value) || !hasExactDataKeys(value, Object.hasOwn(value, "bounds") ? ["v", "captures", "properties", "mappingVersion", "bounds"] : ["v", "captures", "properties", "mappingVersion"]) || value["v"] !== 1 || !boundedText4(value["mappingVersion"]) || !Array.isArray(value["captures"]) || value["captures"].length === 0 || value["captures"].length > KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1.maxEntities)
+    return null;
+  const selected = properties(value["properties"]);
+  const captures = value["captures"].map(parseCapture);
+  if (selected === null || captures.some((capture) => capture === null))
+    return null;
+  let bounds = KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1;
+  if (Object.hasOwn(value, "bounds")) {
+    const candidate = value["bounds"];
+    if (!isPlainRecord2(candidate) || !hasExactDataKeys(candidate, Object.keys(bounds)))
+      return null;
+    for (const [key3, maximum] of Object.entries(bounds)) {
+      const item = candidate[key3];
+      if (typeof item !== "number" || !Number.isSafeInteger(item) || item < 1 || item > maximum)
+        return null;
+    }
+    bounds = {
+      maxEntities: candidate["maxEntities"],
+      maxStatements: candidate["maxStatements"],
+      maxRecords: candidate["maxRecords"],
+      maxSourceBytes: candidate["maxSourceBytes"]
+    };
+  }
+  return {
+    v: 1,
+    captures,
+    properties: selected,
+    mappingVersion: value["mappingVersion"],
+    bounds
+  };
+}
+function parseEntity2(body, resolvedId) {
+  let foreign;
+  try {
+    foreign = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  const parsed = parseJsonValue(foreign, { maxDepth: 48, maxNodes: 250000 });
+  if (!parsed.ok || !isJsonRecord(parsed.value))
+    return null;
+  const root = parsed.value;
+  const entity = isJsonRecord(root["entities"]) ? root["entities"][resolvedId] : root;
+  if (!isJsonRecord(entity) || entity["id"] !== resolvedId || typeof entity["lastrevid"] !== "number" || !Number.isSafeInteger(entity["lastrevid"]) || entity["lastrevid"] < 1 || !(entity["type"] === "item" && resolvedId.startsWith("Q") || entity["type"] === "property" && resolvedId.startsWith("P") || entity["type"] === "lexeme" && /^L[1-9][0-9]*$/u.test(resolvedId)))
+    return null;
+  return entity;
+}
+function decimal(value) {
+  return typeof value === "string" && value.length <= 1024 && /^[+-]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/u.test(value);
+}
+function finiteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+function entityValue(value) {
+  if (!isJsonRecord(value))
+    return false;
+  const id = value["id"];
+  const kind = value["entity-type"];
+  const numericId = value["numeric-id"];
+  if (id !== undefined) {
+    if (!isKnowledgeWikidataEntityIdV1(id))
+      return false;
+    const expected = id.startsWith("Q") ? "item" : id.startsWith("P") ? "property" : id.includes("-F") ? "form" : id.includes("-S") ? "sense" : "lexeme";
+    if (kind !== expected)
+      return false;
+    return numericId === undefined || typeof numericId === "number" && Number.isSafeInteger(numericId) && numericId > 0 && !id.includes("-") && id.slice(1) === String(numericId);
+  }
+  return (kind === "item" || kind === "property" || kind === "lexeme") && typeof numericId === "number" && Number.isSafeInteger(numericId) && numericId > 0;
+}
+function supportedDatavalue(datatype, datavalue) {
+  const value = datavalue["value"];
+  if (value === undefined)
+    return false;
+  const type = datavalue["type"];
+  if (["wikibase-item", "wikibase-property", "wikibase-lexeme", "wikibase-form", "wikibase-sense"].includes(datatype)) {
+    return type === "wikibase-entityid" && entityValue(value) && isJsonRecord(value) && datatype === `wikibase-${String(value["entity-type"])}`;
+  }
+  if (["string", "external-id", "url", "commonsMedia", "math", "musical-notation", "geo-shape", "tabular-data"].includes(datatype)) {
+    return type === "string" && typeof value === "string";
+  }
+  if (!isJsonRecord(value))
+    return ["quantity", "time", "globe-coordinate", "monolingualtext"].includes(datatype) ? false : null;
+  if (datatype === "monolingualtext")
+    return type === "monolingualtext" && typeof value["language"] === "string" && typeof value["text"] === "string";
+  if (datatype === "quantity")
+    return type === "quantity" && decimal(value["amount"]) && typeof value["unit"] === "string" && (value["lowerBound"] === undefined || value["lowerBound"] === null || decimal(value["lowerBound"])) && (value["upperBound"] === undefined || value["upperBound"] === null || decimal(value["upperBound"]));
+  if (datatype === "time")
+    return type === "time" && typeof value["time"] === "string" && /^[+-][0-9]{4,16}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/u.test(value["time"]) && typeof value["calendarmodel"] === "string" && ["timezone", "before", "after", "precision"].every((key3) => Number.isSafeInteger(value[key3])) && value["before"] >= 0 && value["after"] >= 0 && value["precision"] >= 0 && value["precision"] <= 14;
+  if (datatype === "globe-coordinate")
+    return type === "globecoordinate" && finiteNumber(value["latitude"]) && finiteNumber(value["longitude"]) && Math.abs(value["latitude"]) <= 90 && Math.abs(value["longitude"]) <= 180 && (value["altitude"] === null || finiteNumber(value["altitude"])) && (value["precision"] === null || finiteNumber(value["precision"]) && value["precision"] >= 0) && typeof value["globe"] === "string";
+  return null;
+}
+function preserveValue(raw, selector, captureSha256) {
+  const state = raw["snaktype"];
+  if ((state === "somevalue" || state === "novalue") && raw["datavalue"] === undefined) {
+    return { kind: "absence", state, captureSha256, occurrence: selector };
+  }
+  const datatype = typeof raw["datatype"] === "string" ? raw["datatype"] : null;
+  const datavalue = raw["datavalue"];
+  const supported = datatype !== null && isJsonRecord(datavalue) ? supportedDatavalue(datatype, datavalue) : false;
+  if (state === "value" && datatype !== null && datavalue !== undefined && supported === true) {
+    return { kind: "typed-source-value", datatype, datavalue };
+  }
+  return {
+    kind: "unsupported",
+    reason: supported === null ? "unknown-datatype" : "invalid-datavalue",
+    datatype,
+    raw
+  };
+}
+function extract(entity, captureSha256, selected) {
+  const metadata = [];
+  const groups = [];
+  let invalidMetadata = 0;
+  function addMetadata(entityId, path, raw) {
+    metadata.push({ kind: "metadata", captureSha256, selector: { kind: "metadata", entityId, path }, raw });
+  }
+  function visit(record, path, entityId) {
+    const terms = ["labels", "descriptions", "aliases", "sitelinks", "lemmas", "representations", "glosses"];
+    for (const field of terms) {
+      const values = record[field];
+      if (values === undefined)
+        continue;
+      if (!isJsonRecord(values)) {
+        invalidMetadata += 1;
+        continue;
+      }
+      for (const language of Object.keys(values).sort()) {
+        const item = values[language];
+        if (item === undefined)
+          continue;
+        if (field === "aliases") {
+          if (!Array.isArray(item)) {
+            invalidMetadata += 1;
+            continue;
+          }
+          item.forEach((alias, index) => {
+            addMetadata(entityId, [...path, field, language, index], alias);
+          });
+        } else
+          addMetadata(entityId, [...path, field, language], item);
+      }
+    }
+    for (const field of ["language", "lexicalCategory", "grammaticalFeatures", "datatype"]) {
+      if (record[field] !== undefined)
+        addMetadata(entityId, [...path, field], record[field]);
+    }
+    const claims = record["claims"];
+    if (claims !== undefined) {
+      if (!isJsonRecord(claims))
+        invalidMetadata += 1;
+      else
+        for (const id of Object.keys(claims).sort()) {
+          if (propertyId(id) && claims[id] !== undefined)
+            groups.push({ entityId, propertyId: id, raw: claims[id] });
+          else
+            invalidMetadata += 1;
+        }
+    }
+    for (const id of selected) {
+      if (!groups.some((group) => group.entityId === entityId && group.propertyId === id)) {
+        groups.push({ entityId, propertyId: id, raw: claims === undefined || isJsonRecord(claims) ? [] : null });
+      }
+    }
+    for (const field of ["forms", "senses"]) {
+      const members = record[field];
+      if (members === undefined)
+        continue;
+      if (!Array.isArray(members)) {
+        invalidMetadata += 1;
+        continue;
+      }
+      const seen = new Set;
+      members.forEach((member, index) => {
+        if (!isJsonRecord(member) || !isKnowledgeWikidataEntityIdV1(member["id"]) || !member["id"].startsWith(`${entityId}-${field === "forms" ? "F" : "S"}`) || seen.has(member["id"])) {
+          invalidMetadata += 1;
+          return;
+        }
+        seen.add(member["id"]);
+        addMetadata(member["id"], [...path, field, index, "id"], member["id"]);
+        visit(member, [...path, field, index], member["id"]);
+      });
+    }
+  }
+  visit(entity, [], entity["id"]);
+  return { metadata, groups, invalidMetadata };
+}
+function groupRecords(group, captureSha256) {
+  if (!Array.isArray(group.raw))
+    return null;
+  const result = [];
+  const ids = new Set;
+  for (let statementIndex = 0;statementIndex < group.raw.length; statementIndex += 1) {
+    let addSnak = function(raw, location) {
+      if (!isJsonRecord(raw) || !propertyId(raw["property"]) || !["value", "somevalue", "novalue"].includes(String(raw["snaktype"])))
+        return false;
+      const selector = { ...base, location };
+      result.push({ kind: "snak", captureSha256, raw, selector, value: preserveValue(raw, selector, captureSha256) });
+      return true;
+    };
+    const statement = group.raw[statementIndex];
+    if (!isJsonRecord(statement) || statement["type"] !== "statement" || !boundedText4(statement["id"], 256) || !statement["id"].startsWith(`${group.entityId}$`) || ids.has(statement["id"]) || !isJsonRecord(statement["mainsnak"]) || statement["mainsnak"]["property"] !== group.propertyId || !["normal", "preferred", "deprecated"].includes(String(statement["rank"])))
+      return null;
+    ids.add(statement["id"]);
+    const base = {
+      kind: "statement",
+      entityId: group.entityId,
+      propertyId: group.propertyId,
+      statementId: statement["id"],
+      statementIndex
+    };
+    result.push({
+      kind: "statement",
+      captureSha256,
+      raw: statement,
+      selector: { ...base, location: { kind: "statement" } },
+      rank: statement["rank"]
+    });
+    if (!addSnak(statement["mainsnak"], { kind: "main" }))
+      return null;
+    const qualifiers = statement["qualifiers"];
+    if (qualifiers !== undefined) {
+      if (!isJsonRecord(qualifiers))
+        return null;
+      for (const id of Object.keys(qualifiers).sort()) {
+        const snaks = qualifiers[id];
+        if (!propertyId(id) || !Array.isArray(snaks))
+          return null;
+        for (let snakIndex = 0;snakIndex < snaks.length; snakIndex += 1) {
+          const snak = snaks[snakIndex];
+          if (!isJsonRecord(snak) || snak["property"] !== id || !addSnak(snak, { kind: "qualifier", propertyId: id, snakIndex }))
+            return null;
+        }
+      }
+    }
+    const references = statement["references"];
+    if (references !== undefined) {
+      if (!Array.isArray(references))
+        return null;
+      for (let referenceIndex = 0;referenceIndex < references.length; referenceIndex += 1) {
+        const reference = references[referenceIndex];
+        if (!isJsonRecord(reference) || !isJsonRecord(reference["snaks"]) || !(reference["hash"] === undefined || typeof reference["hash"] === "string"))
+          return null;
+        for (const id of Object.keys(reference["snaks"]).sort()) {
+          const snaks = reference["snaks"][id];
+          if (!propertyId(id) || !Array.isArray(snaks))
+            return null;
+          for (let snakIndex = 0;snakIndex < snaks.length; snakIndex += 1) {
+            const snak = snaks[snakIndex];
+            if (!isJsonRecord(snak) || snak["property"] !== id || !addSnak(snak, {
+              kind: "reference",
+              referenceIndex,
+              referenceHash: typeof reference["hash"] === "string" ? reference["hash"] : null,
+              propertyId: id,
+              snakIndex
+            }))
+              return null;
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+async function createKnowledgeWikidataImportPreviewV1(foreign) {
+  const input = parseKnowledgeWikidataImportInputV1(foreign);
+  if (input === null)
+    return failure4("input");
+  if (input.captures.some((capture) => capture.body.length > KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1.maxSourceBytes) || input.captures.reduce((sum, capture) => sum + utf8ByteLength2(capture.body), 0) > KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1.maxSourceBytes)
+    return failure4("captures.body", "input-bound");
+  const bounds = input.bounds ?? KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1;
+  const sources = [];
+  const records = [];
+  const coverage = [];
+  const omissions = [];
+  const retry = new Set;
+  let sourceBytes = 0;
+  let statements = 0;
+  const seenCaptures = new Set;
+  for (let captureIndex = 0;captureIndex < input.captures.length; captureIndex += 1) {
+    const capture = input.captures[captureIndex];
+    const bytes = utf8ByteLength2(capture.body);
+    const omit = (entityId, propertyId2, reason, count) => {
+      omissions.push({ captureIndex, entityId, propertyId: propertyId2, reason, count });
+      if (reason !== "property-not-selected" && reason !== "invalid-metadata" && reason !== "invalid-statement-group")
+        retry.add(captureIndex);
+    };
+    if (sources.length >= bounds.maxEntities || sourceBytes + bytes > bounds.maxSourceBytes) {
+      omit(capture.resolvedId, null, sources.length >= bounds.maxEntities ? "entity-bound" : "source-byte-bound", 1);
+      continue;
+    }
+    const entity = parseEntity2(capture.body, capture.resolvedId);
+    if (entity === null)
+      return failure4(`captures.${captureIndex}.body`, "invalid-source");
+    if (entity["claims"] !== undefined && !isJsonRecord(entity["claims"])) {
+      return failure4(`captures.${captureIndex}.body.claims`, "invalid-source");
+    }
+    const captureSha256 = await sha256Text(capture.body);
+    const captureKey = `${capture.requestedId}:${capture.resolvedId}:${captureSha256}`;
+    if (seenCaptures.has(captureKey))
+      return failure4(`captures.${captureIndex}`, "invalid-source");
+    seenCaptures.add(captureKey);
+    const source = {
+      ...capture,
+      captureSha256,
+      sourceBytes: bytes,
+      revision: entity["lastrevid"],
+      serialization: "wikibase-json-v1",
+      provenanceStatus: "caller-asserted",
+      license: {
+        id: "CC0-1.0",
+        scope: "wikidata-structured-data-only",
+        uri: "https://creativecommons.org/publicdomain/zero/1.0/"
+      }
+    };
+    sources.push(source);
+    sourceBytes += bytes;
+    const extracted = extract(entity, captureSha256, input.properties);
+    if (extracted.invalidMetadata > 0)
+      omit(capture.resolvedId, null, "invalid-metadata", extracted.invalidMetadata);
+    if (records.length + extracted.metadata.length <= bounds.maxRecords)
+      records.push(...extracted.metadata);
+    else
+      omit(capture.resolvedId, null, "record-bound", extracted.metadata.length);
+    for (const group of extracted.groups) {
+      const observedStatements = Array.isArray(group.raw) ? group.raw.length : 0;
+      if (!input.properties.includes(group.propertyId)) {
+        omit(group.entityId, group.propertyId, "property-not-selected", observedStatements);
+        continue;
+      }
+      const groupValues = groupRecords(group, captureSha256);
+      let retainedStatements = 0;
+      let retained = false;
+      if (groupValues === null)
+        omit(group.entityId, group.propertyId, "invalid-statement-group", observedStatements);
+      else if (statements + observedStatements > bounds.maxStatements)
+        omit(group.entityId, group.propertyId, "statement-bound", observedStatements);
+      else if (records.length + groupValues.length > bounds.maxRecords)
+        omit(group.entityId, group.propertyId, "record-bound", groupValues.length);
+      else {
+        records.push(...groupValues);
+        retainedStatements = observedStatements;
+        retained = true;
+        statements += observedStatements;
+      }
+      const assertedComplete = capture.coverage.kind === "complete-entity" || capture.coverage.kind === "selected-properties" && capture.coverage.properties.includes(group.propertyId);
+      coverage.push({
+        captureSha256,
+        entityId: group.entityId,
+        propertyId: group.propertyId,
+        observedStatements,
+        retainedStatements,
+        status: retained && assertedComplete ? "complete-in-asserted-source" : "incomplete",
+        sourceCoverage: "caller-asserted",
+        definitiveAnswer: false
+      });
+    }
+  }
+  const mappingCandidates = records.flatMap((record) => {
+    if (record.kind !== "snak" || record.selector.kind !== "statement")
+      return [];
+    const property = record.selector.location.kind === "qualifier" || record.selector.location.kind === "reference" ? record.selector.location.propertyId : record.selector.propertyId;
+    return [{
+      captureSha256: record.captureSha256,
+      selector: record.selector,
+      propertyId: property,
+      status: record.value.kind === "unsupported" ? "unsupported-value" : "requires-property-mapping",
+      value: record.value,
+      normalization: "none",
+      eligibleForAdmission: false,
+      diagnostics: record.value.kind === "unsupported" ? ["unsupported-source-value"] : [
+        "property-mapping-required",
+        ...record.value.kind === "typed-source-value" && record.value.datatype === "time" ? ["time-normalization-unsupported"] : [],
+        ...record.value.kind === "typed-source-value" && record.value.datatype === "globe-coordinate" ? ["coordinate-normalization-unsupported"] : [],
+        ...record.value.kind === "typed-source-value" && record.value.datatype === "quantity" ? ["quantity-unit-mapping-required"] : []
+      ]
+    }];
+  });
+  const payload = {
+    v: 1,
+    kind: "wikidata-import-preview",
+    provider: "wikidata",
+    importerVersion: KNOWLEDGE_WIKIDATA_IMPORTER_V1,
+    mappingVersion: input.mappingVersion,
+    status: "unadmitted",
+    disclosure: "private",
+    identityResolution: "candidate-only",
+    properties: input.properties,
+    bounds,
+    sources,
+    identityCandidates: sources.map((source) => ({
+      requestedId: source.requestedId,
+      resolvedId: source.resolvedId,
+      revision: source.revision,
+      captureSha256: source.captureSha256,
+      redirects: source.redirects,
+      localIdentity: null
+    })),
+    records,
+    mappingCandidates,
+    coverage,
+    omissions,
+    cursor: retry.size === 0 ? null : { kind: "retry-with-selection", captureIndices: [...retry] }
+  };
+  return { ok: true, value: { ...payload, previewSha256: await sha256Text(canonicalJson2(asJson3(payload))) } };
+}
+var KNOWLEDGE_WIKIDATA_IMPORTER_V1 = "sponge.wikidata-json-import.v1", KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1;
+var init_knowledge_wikidata_import_v1 = __esm(() => {
+  init_integrity_domain();
+  init_integrity_domain();
+  init_knowledge_declarative_json();
+  KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1 = Object.freeze({
+    maxEntities: 100,
+    maxStatements: 1000,
+    maxRecords: 4096,
+    maxSourceBytes: 8 * 1024 * 1024
+  });
+});
+
+// src/research/research-packet.ts
+function json(value) {
+  return canonicalJson2(value);
+}
+function fail(message) {
+  throw new TypeError(`Invalid research packet: ${message}`);
+}
+function ohResearchRecordKeyV1(kind, sourceSha256, sourceBindingSha256) {
+  if (!SPONGE_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.includes(kind) || parseSha256Hex2(sourceSha256) === null || parseSha256Hex2(sourceBindingSha256) === null)
+    fail("record key");
+  return `research.v1/${sourceBindingSha256}/${kind}/${sourceSha256}`;
+}
+function references(source) {
+  const value = source.value;
+  const result = [];
+  const add = (candidate, expectedKind = null) => {
+    if (candidate === null || candidate === undefined)
+      return;
+    const sha256 = parseSha256Hex2(candidate);
+    if (sha256 === null)
+      fail("dependency digest");
+    if (sha256 !== source.recordSha256)
+      result.push({ sha256, expectedKind });
+  };
+  const many = (candidate, expectedKind = null) => {
+    if (!Array.isArray(candidate))
+      fail("dependency list");
+    for (const item of candidate)
+      add(item, expectedKind);
+  };
+  switch (source.kind) {
+    case "activity":
+      many(value["inputSha256s"]);
+      many(value["outputSha256s"]);
+      break;
+    case "assertion":
+      add(value["statementSha256"], "statement");
+      add(value["provenanceActivitySha256"], "activity");
+      add(value["reviewActivitySha256"], "activity");
+      add(value["contextSha256"], "context");
+      break;
+    case "dependency-manifest":
+      for (const [field, kind] of [
+        ["activitySha256s", "activity"],
+        ["assertionSha256s", "assertion"],
+        ["contextSha256s", "context"],
+        ["evidenceSha256s", "evidence"],
+        ["reviewDecisionSha256s", "review-decision"],
+        ["rightsDecisionSha256s", "rights-decision"],
+        ["schemaRevisionSha256s", "schema"],
+        ["statementSha256s", "statement"]
+      ])
+        many(value[field], kind);
+      add(value["viewSpecSha256"], "view");
+      break;
+    case "edition":
+      add(value["dependencyManifestSha256"], "dependency-manifest");
+      add(value["reviewDecisionSha256"], "review-decision");
+      break;
+    case "evidence":
+      add(value["assertionSha256"], "assertion");
+      add(value["provenanceActivitySha256"], "activity");
+      break;
+    case "identity-operation":
+      add(value["activitySha256"], "activity");
+      break;
+    case "inquiry":
+      add(value["contextSha256"], "context");
+      break;
+    case "inquiry-event":
+      add(value["parentEventSha256"], "inquiry-event");
+      for (const ref2 of [...value["inputRefs"], ...value["outputRefs"]]) {
+        if (isPlainRecord2(ref2))
+          add(ref2["sha256"], ref2["kind"]);
+      }
+      break;
+    case "review-decision":
+      if (value["subjectKind"] !== "synthesis-candidate")
+        add(value["subjectSha256"], value["subjectKind"]);
+      add(value["supersedesDecisionSha256"], "review-decision");
+      break;
+    case "rights-decision":
+      add(value["subjectSha256"]);
+      break;
+    case "schema":
+      add(value["previousRevisionSha256"], "schema");
+      add(value["reviewDecisionSha256"], "review-decision");
+      add(value["vocabularySha256"], "vocabulary");
+      add(value["mappingActivitySha256"], "activity");
+      break;
+    case "type-membership":
+      add(value["assertionSha256"], "assertion");
+      add(value["contextSha256"], "context");
+      break;
+    case "vocabulary":
+      add(value["previousRevisionSha256"], "vocabulary");
+      break;
+    case "view":
+      many(value["includedContextSha256s"], "context");
+      many(value["excludedContextSha256s"], "context");
+      break;
+    case "context":
+    case "entity":
+    case "shape":
+    case "statement":
+      break;
+  }
+  function visit(item) {
+    if (Array.isArray(item)) {
+      for (const child of item)
+        visit(child);
+      return;
+    }
+    if (!isPlainRecord2(item))
+      return;
+    if (hasExactDataKeys(item, ["code", "namespace", "revision", "schemaSha256", "v"])) {
+      const sha256 = parseSha256Hex2(item["schemaSha256"]);
+      if (sha256 === null)
+        fail("schema reference");
+      if (sha256 !== source.recordSha256)
+        result.push({ sha256, expectedKind: "schema", schemaRef: item });
+      return;
+    }
+    for (const child of Object.values(item))
+      visit(child);
+  }
+  visit(source.value);
+  if (result.length > OH_RESEARCH_PACKET_LIMITS_V1.dependenciesPerRecord)
+    fail("dependency bound");
+  return result;
+}
+async function prepareOhResearchPacketV1(foreign) {
+  const input = knowledgeDeclarativeJson(foreign, OH_RESEARCH_PACKET_LIMITS_V1.sourceBytes, { maxDepth: 64, maxNodes: 500000 });
+  if (!isPlainRecord2(input) || !hasExactDataKeys(input, ["records"]) || !Array.isArray(input["records"]) || input["records"].length < 1 || input["records"].length > OH_RESEARCH_PACKET_LIMITS_V1.records)
+    fail("input bounds");
+  const sources = [];
+  const bySha = new Map;
+  for (const candidate of input["records"]) {
+    if (!isPlainRecord2(candidate))
+      fail("source record");
+    const hasCallerKey = Object.hasOwn(candidate, "callerRecordKey");
+    if (!hasExactDataKeys(candidate, hasCallerKey ? ["callerRecordKey", "kind", "value"] : ["kind", "value"]))
+      fail("source keys");
+    const kind = SPONGE_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.find((kind2) => kind2 === candidate["kind"]);
+    if (kind === undefined || hasCallerKey !== callerKinds.has(kind))
+      fail("source kind or caller key");
+    const parsed = await parseKnowledgeGraphRecordV12(kind, candidate["value"]);
+    if (!parsed.ok || json(parsed.value.value) !== json(candidate["value"]))
+      fail("source codec or canonical bytes");
+    const key3 = knowledgeGraphRecordKeyV1(kind, parsed.value.value, candidate["callerRecordKey"]);
+    if (!key3.ok)
+      fail("source logical key");
+    const source = {
+      kind,
+      recordKey: key3.value,
+      recordSha256: parsed.value.recordSha256,
+      value: parsed.value.value
+    };
+    if (bySha.has(source.recordSha256))
+      fail("duplicate source digest");
+    bySha.set(source.recordSha256, source);
+    sources.push(source);
+  }
+  const bindings = sources.map(({ kind, recordKey: recordKey2, recordSha256 }) => ({ kind, recordKey: recordKey2, recordSha256 })).sort((a, b) => json(a) < json(b) ? -1 : 1);
+  const sourceBindingSha256 = await sha256Text(json({ profile: OH_RESEARCH_PACKET_PROFILE_V1, bindings, v: 1 }));
+  const keys = new Map;
+  for (const source of sources)
+    keys.set(source.recordSha256, ohResearchRecordKeyV1(source.kind, source.recordSha256, sourceBindingSha256));
+  const records = [];
+  for (const source of sources) {
+    const dependencies = new Set;
+    for (const ref2 of references(source)) {
+      const target = bySha.get(ref2.sha256);
+      if (target === undefined)
+        fail(`missing dependency ${ref2.sha256}`);
+      if (ref2.expectedKind !== null && target.kind !== ref2.expectedKind)
+        fail("dependency kind");
+      if (ref2.schemaRef !== undefined && (!isPlainRecord2(target.value) || json(target.value["ref"]) !== json(ref2.schemaRef)))
+        fail("exact schema reference");
+      dependencies.add(keys.get(target.recordSha256));
+    }
+    const value = { profile: OH_RESEARCH_PACKET_PROFILE_V1, source, v: 1 };
+    if (utf8ByteLength2(json(value)) > OH_RESEARCH_PACKET_LIMITS_V1.recordBytes)
+      fail("record bytes");
+    const payload2 = {
+      dependencies: [...dependencies].sort(),
+      key: keys.get(source.recordSha256),
+      kind: source.kind,
+      v: 1,
+      value
+    };
+    records.push({ ...payload2, recordSha256: await sha256Text(json(payload2)) });
+  }
+  records.sort((a, b) => a.key < b.key ? -1 : 1);
+  const payload = {
+    profile: OH_RESEARCH_PACKET_PROFILE_V1,
+    dependencyPolicy: "explicit-source-digests-and-schema-refs.v1",
+    authority: "unasserted",
+    sourceBindingSha256,
+    records,
+    v: 1
+  };
+  const packet = { ...payload, packetSha256: await sha256Text(json(payload)) };
+  if (utf8ByteLength2(json(packet)) > OH_RESEARCH_PACKET_LIMITS_V1.packetBytes)
+    fail("packet bytes");
+  const canonicalPacket = JSON.parse(json(packet));
+  freezeKnowledgeDeclaration(canonicalPacket);
+  prepared.add(canonicalPacket);
+  return canonicalPacket;
+}
+async function verifyOhResearchPacketV1(foreign) {
+  try {
+    const packet = knowledgeDeclarativeJson(foreign, OH_RESEARCH_PACKET_LIMITS_V1.packetBytes, { maxDepth: 72, maxNodes: 750000 });
+    if (!isPlainRecord2(packet) || !hasExactDataKeys(packet, ["authority", "dependencyPolicy", "packetSha256", "profile", "sourceBindingSha256", "records", "v"]) || !Array.isArray(packet["records"]) || packet["records"].length > OH_RESEARCH_PACKET_LIMITS_V1.records)
+      return null;
+    const records = packet["records"].map((record) => {
+      if (!isPlainRecord2(record) || !isPlainRecord2(record["value"]))
+        fail("envelope");
+      const value = record["value"];
+      if (!hasExactDataKeys(value, ["profile", "source", "v"]) || !isPlainRecord2(value["source"]))
+        fail("source wrapper");
+      const source = value["source"];
+      if (!hasExactDataKeys(source, ["kind", "recordKey", "recordSha256", "value"]))
+        fail("source envelope");
+      const kind = source["kind"];
+      return { kind, value: source["value"], ...callerKinds.has(kind) ? { callerRecordKey: typeof source["recordKey"] === "string" ? source["recordKey"].slice(String(source["kind"]).length + 1) : undefined } : {} };
+    });
+    const expected = await prepareOhResearchPacketV1({ records });
+    return json(expected) === json(packet) ? expected : null;
+  } catch {
+    return null;
+  }
+}
+var OH_RESEARCH_PACKET_PROFILE_V1 = "oh.research-packet.v1", OH_RESEARCH_PACKET_LIMITS_V1, prepared, callerKinds;
+var init_research_packet = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  OH_RESEARCH_PACKET_LIMITS_V1 = Object.freeze({
+    records: 1024,
+    sourceBytes: 8 * 1024 * 1024,
+    packetBytes: 16 * 1024 * 1024,
+    recordBytes: 1024 * 1024,
+    dependenciesPerRecord: 4096
+  });
+  prepared = new WeakSet;
+  callerKinds = new Set(SPONGE_KNOWLEDGE_CALLER_KEY_RECORD_KINDS_V1);
+});
+
+// src/research-cli.ts
+var exports_research_cli = {};
+__export(exports_research_cli, {
+  runOhResearchCli: () => runOhResearchCli
+});
+import { constants } from "fs";
+import { open } from "fs/promises";
+async function readInput(path) {
+  if (path.length === 0 || path.length > 4096 || path.includes("\x00")) {
+    throw new TypeError("Research input path is invalid.");
+  }
+  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const limit = OH_RESEARCH_PACKET_LIMITS_V1.packetBytes;
+    const info = await handle.stat();
+    if (!info.isFile() || info.size > limit)
+      throw new RangeError("Research input must be a bounded regular file.");
+    const buffer = Buffer.alloc(limit + 1);
+    let length = 0;
+    while (length < buffer.length) {
+      const read = await handle.read(buffer, length, buffer.length - length, null);
+      if (read.bytesRead === 0)
+        break;
+      length += read.bytesRead;
+    }
+    if (length > limit)
+      throw new RangeError("Research input exceeds its byte limit.");
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, length)));
+  } finally {
+    await handle.close();
+  }
+}
+async function runOhResearchCli(arguments_) {
+  const command = arguments_[0];
+  let output;
+  if (command === "catalog" && arguments_.length === 1) {
+    output = await spongeKnowledgeDomainCatalog();
+  } else {
+    if (!["validate-draft", "wikidata-preview", "prepare-packet", "verify-packet"].includes(command ?? "") || arguments_.length !== 3 || arguments_[1] !== "--file") {
+      throw new TypeError("Use research catalog or research validate-draft|wikidata-preview|prepare-packet|verify-packet --file PATH.");
+    }
+    const input = await readInput(arguments_[2]);
+    if (command === "validate-draft")
+      output = parseSpongeKnowledgeProposalDraftV3(input);
+    if (command === "prepare-packet")
+      output = await prepareOhResearchPacketV1(input);
+    if (command === "verify-packet")
+      output = await verifyOhResearchPacketV1(input);
+    if (command === "wikidata-preview") {
+      const preview = await createKnowledgeWikidataImportPreviewV1(input);
+      if (!preview.ok)
+        throw new TypeError("Invalid Wikidata capture request.");
+      output = preview.value;
+    }
+    if (output === null || output === undefined)
+      throw new TypeError("Invalid research input.");
+  }
+  const text2 = canonicalJson2(output);
+  if (Buffer.byteLength(text2) > OH_RESEARCH_PACKET_LIMITS_V1.packetBytes) {
+    throw new RangeError("Research output exceeds its byte limit.");
+  }
+  process.stdout.write(`${text2}
+`);
+  return 0;
+}
+var init_research_cli = __esm(() => {
+  init_knowledge_domain_catalog();
+  init_knowledge_proposal_v3();
+  init_knowledge_wikidata_import_v1();
+  init_research_packet();
+});
+
 // src/store.ts
 function emptyOhHeadV1() {
   return {
@@ -1912,8 +6072,8 @@ function replayOhOperationsV1(spaceId, values, maximumRecords = OH_GRAPH_LIMITS_
     if (records.size > maximumRecords)
       throw new RangeError("Operation replay exceeds its record bound.");
     verifyDependencies(records);
-    const refs = sortedRecords(records.values()).map(knowledgeGraphRecordRefV1);
-    const recordsSha256 = canonicalSha256(refs);
+    const refs3 = sortedRecords(records.values()).map(knowledgeGraphRecordRefV1);
+    const recordsSha256 = canonicalSha256(refs3);
     const graphRevisionSha256 = graphRevisionSha256V1({
       changes: operation.changes,
       operationId: operation.operationId,
@@ -1953,16 +6113,16 @@ function closureRecords(available, roots, maximumRecords, maximumBytes = OH_DEPE
   const pending = [...roots];
   let selectedBytes = 0;
   while (pending.length > 0) {
-    const key = pending.pop();
-    if (selected.has(key))
+    const key3 = pending.pop();
+    if (selected.has(key3))
       continue;
-    const record = available.get(key);
+    const record = available.get(key3);
     if (record === undefined)
-      throw new OhDependencyError(`Dependency closure record ${key} is missing.`);
+      throw new OhDependencyError(`Dependency closure record ${key3} is missing.`);
     selectedBytes += Buffer.byteLength(canonicalJson(record), "utf8") + 1;
     if (selectedBytes > maximumBytes)
       throw new RangeError("Dependency closure exceeds its canonical byte bound.");
-    selected.set(key, record);
+    selected.set(key3, record);
     if (selected.size > maximumRecords)
       throw new RangeError("Dependency closure exceeds its record bound.");
     pending.push(...record.dependencies);
@@ -2083,10 +6243,10 @@ class OhSemanticBundleIngressV1 {
         throw new TypeError("Invalid semantic bundle tombstone.");
       changes.push({ key: item.key, kind: "tombstone", priorSha256, v: 1 });
     }
-    const canonical = canonicalKnowledgeGraphChangesV1(changes);
+    const canonical2 = canonicalKnowledgeGraphChangesV1(changes);
     return await this.#store.commit({
       actorId,
-      changes: canonical,
+      changes: canonical2,
       expectedHead: {
         generation: expected.generation,
         operationSha256: expected.operationSha256
@@ -2296,22 +6456,22 @@ function extractSearchText(value, maximumBytes = 1024 * 1024) {
       return;
     if (typeof candidate === "string") {
       const remaining = maximumBytes - bytes;
-      const text = Buffer.from(candidate, "utf8").subarray(0, remaining).toString("utf8");
-      if (text.length > 0) {
-        parts.push(text);
-        bytes += Buffer.byteLength(text, "utf8") + 1;
+      const text2 = Buffer.from(candidate, "utf8").subarray(0, remaining).toString("utf8");
+      if (text2.length > 0) {
+        parts.push(text2);
+        bytes += Buffer.byteLength(text2, "utf8") + 1;
       }
     } else if (typeof candidate === "number" || typeof candidate === "boolean") {
-      const text = String(candidate);
-      parts.push(text);
-      bytes += text.length + 1;
+      const text2 = String(candidate);
+      parts.push(text2);
+      bytes += text2.length + 1;
     } else if (Array.isArray(candidate)) {
       for (const item of candidate)
         visit(item, depth + 1);
     } else if (candidate !== null) {
-      for (const [key, item] of Object.entries(candidate)) {
-        parts.push(key);
-        bytes += key.length + 1;
+      for (const [key3, item] of Object.entries(candidate)) {
+        parts.push(key3);
+        bytes += key3.length + 1;
         visit(item, depth + 1);
       }
     }
@@ -2467,8 +6627,8 @@ class OhSqliteStore {
           throw new OhDependencyError(`Missing dependency ${dependency} for ${record.key}.`);
       }
     }
-    const refs = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map(knowledgeGraphRecordRefV1);
-    const recordsSha256 = canonicalSha256(refs);
+    const refs3 = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map(knowledgeGraphRecordRefV1);
+    const recordsSha256 = canonicalSha256(refs3);
     const graphRevisionSha256 = graphRevisionSha256V1({
       changes,
       operationId,
@@ -2530,8 +6690,8 @@ class OhSqliteStore {
       operation_json, instant) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(operation.operationSha256, this.spaceId, operation.sequence, operation.operationId, operation.parentOperationSha256, operation.graphRevisionSha256, operation.recordsSha256, canonicalJson(operation), operation.instant);
     const changedKeys = operation.changes.map((change) => change.kind === "put" ? change.record.key : change.key);
     const deleteDependencies = this.database.query("DELETE FROM oh_dependencies WHERE space_id = ? AND record_key = ?");
-    for (const key of changedKeys)
-      deleteDependencies.run(this.spaceId, key);
+    for (const key3 of changedKeys)
+      deleteDependencies.run(this.spaceId, key3);
     const insertOperationRecord = this.database.query(`INSERT INTO oh_operation_records(
       operation_sha256, ordinal, record_key, change_kind, record_sha256) VALUES (?, ?, ?, ?, ?)`);
     const upsertRecord = this.database.query(`INSERT INTO oh_records(space_id, record_key, kind,
@@ -2547,19 +6707,19 @@ class OhSqliteStore {
       record_sha256 = excluded.record_sha256, text = excluded.text`);
     const insertFts = this.database.query("INSERT INTO oh_search_fts(space_id, record_key, text) VALUES (?, ?, ?)");
     for (const [ordinal, change] of operation.changes.entries()) {
-      const key = change.kind === "put" ? change.record.key : change.key;
+      const key3 = change.kind === "put" ? change.record.key : change.key;
       const digest = change.kind === "put" ? change.record.recordSha256 : change.priorSha256;
-      insertOperationRecord.run(operation.operationSha256, ordinal, key, change.kind, digest);
-      deleteFts.run(this.spaceId, key);
-      deleteSearch.run(this.spaceId, key);
+      insertOperationRecord.run(operation.operationSha256, ordinal, key3, change.kind, digest);
+      deleteFts.run(this.spaceId, key3);
+      deleteSearch.run(this.spaceId, key3);
       if (change.kind === "put") {
         const recordJson = canonicalJson(change.record);
-        upsertRecord.run(this.spaceId, key, change.record.kind, change.record.recordSha256, recordJson, operation.operationSha256, operation.sequence);
-        const text = `${key} ${change.record.kind} ${extractSearchText(change.record.value)}`;
-        upsertSearch.run(this.spaceId, key, change.record.recordSha256, text);
-        insertFts.run(this.spaceId, key, text);
+        upsertRecord.run(this.spaceId, key3, change.record.kind, change.record.recordSha256, recordJson, operation.operationSha256, operation.sequence);
+        const text2 = `${key3} ${change.record.kind} ${extractSearchText(change.record.value)}`;
+        upsertSearch.run(this.spaceId, key3, change.record.recordSha256, text2);
+        insertFts.run(this.spaceId, key3, text2);
       } else
-        deleteRecord.run(this.spaceId, key);
+        deleteRecord.run(this.spaceId, key3);
     }
     const insertDependency = this.database.query("INSERT INTO oh_dependencies(space_id, record_key, dependency_key) VALUES (?, ?, ?)");
     for (const change of operation.changes) {
@@ -2826,9 +6986,9 @@ class OhSqliteStore {
       snapshot
     });
   }
-  get(key) {
+  get(key3) {
     this.#assertOpen();
-    const parsedKey = safeCode(key, 512);
+    const parsedKey = safeCode(key3, 512);
     if (parsedKey === null)
       throw new TypeError("Invalid record key.");
     const row = this.database.query("SELECT record_json FROM oh_records WHERE space_id = ? AND record_key = ?").get(this.spaceId, parsedKey);
@@ -2971,8 +7131,8 @@ class OhSqliteStore {
         if (record.dependencies.some((dependency) => !records.has(dependency)))
           throw new OhIntegrityError("Replay has a missing dependency.");
       }
-      const refs = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map(knowledgeGraphRecordRefV1);
-      const recordsSha256 = canonicalSha256(refs);
+      const refs3 = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map(knowledgeGraphRecordRefV1);
+      const recordsSha256 = canonicalSha256(refs3);
       const graphRevisionSha256 = graphRevisionSha256V1({
         changes: operation.changes,
         operationId: operation.operationId,
@@ -3016,7 +7176,7 @@ class OhSqliteStore {
     if (canonicalJson(storedSearchDocuments) !== canonicalJson(expectedSearchDocuments)) {
       throw new OhIntegrityError("Materialized search documents do not match operation replay.");
     }
-    const expectedSearchFts = expectedSearchDocuments.map(({ record_key, text }) => ({ record_key, text }));
+    const expectedSearchFts = expectedSearchDocuments.map(({ record_key, text: text2 }) => ({ record_key, text: text2 }));
     const storedSearchFts = this.database.query(`SELECT record_key, text FROM oh_search_fts
       WHERE space_id = ? ORDER BY record_key, text, rowid`).all(this.spaceId);
     if (canonicalJson(storedSearchFts) !== canonicalJson(expectedSearchFts)) {
@@ -3613,8 +7773,8 @@ function compareBoth(self, that) {
         const keysSelf = Object.keys(self);
         const keysThat = Object.keys(that);
         if (keysSelf.length === keysThat.length) {
-          for (const key of keysSelf) {
-            if (!((key in that) && compareBoth(self[key], that[key]))) {
+          for (const key3 of keysSelf) {
+            if (!((key3 in that) && compareBoth(self[key3], that[key3]))) {
               return structuralRegionState.tester ? structuralRegionState.tester(self, that) : false;
             }
           }
@@ -3795,8 +7955,8 @@ var init_effectable = __esm(() => {
       if (selfKeys.length !== thatKeys.length) {
         return false;
       }
-      for (const key of selfKeys) {
-        if (!((key in that) && equals(this[key], that[key]))) {
+      for (const key3 of selfKeys) {
+        if (!((key3 in that) && equals(this[key3], that[key3]))) {
           return false;
         }
       }
@@ -4081,12 +8241,12 @@ var TypeId3, none2 = () => none, some2, isOption2, isNone2, isSome2, match2, toR
     return some2(out2);
   }
   const out = {};
-  for (const key of Object.keys(input)) {
-    const o = input[key];
+  for (const key3 of Object.keys(input)) {
+    const o = input[key3];
     if (isNone2(o)) {
       return none2();
     }
-    out[key] = o.value;
+    out[key3] = o.value;
   }
   return some2(out);
 }, zipWith, ap, reduceCompact, toArray = (self) => isNone2(self) ? [] : [self.value], partitionMap, filterMap, filter, getEquivalence = (isEquivalent) => make((x, y) => isNone2(x) ? isNone2(y) : isNone2(y) ? false : isEquivalent(x.value, y.value)), getOrder = (O) => make2((self, that) => isSome2(self) ? isSome2(that) ? O(self.value, that.value) : 1 : -1), lift2 = (f) => dual(2, (self, that) => zipWith(self, that, f)), liftPredicate, containsWith = (isEquivalent) => dual(2, (self, a) => isNone2(self) ? false : isEquivalent(self.value, a)), _equivalence, contains, exists, bindTo2, let_2, bind2, Do, adapter2, gen = (...args) => {
@@ -4784,12 +8944,12 @@ function arraySpliceIn(mutate, at, v, arr) {
 // node_modules/effect/dist/esm/internal/hashMap/node.js
 class EmptyNode {
   _tag = "EmptyNode";
-  modify(edit, _shift, f, hash2, key, size) {
+  modify(edit, _shift, f, hash2, key3, size) {
     const v = f(none2());
     if (isNone2(v))
       return new EmptyNode;
     ++size.value;
-    return new LeafNode(edit, hash2, key, v);
+    return new LeafNode(edit, hash2, key3, v);
   }
 }
 function isEmptyNode(a) {
@@ -4808,14 +8968,14 @@ class LeafNode {
   key;
   value;
   _tag = "LeafNode";
-  constructor(edit, hash2, key, value) {
+  constructor(edit, hash2, key3, value) {
     this.edit = edit;
     this.hash = hash2;
-    this.key = key;
+    this.key = key3;
     this.value = value;
   }
-  modify(edit, shift, f, hash2, key, size) {
-    if (equals(key, this.key)) {
+  modify(edit, shift, f, hash2, key3, size) {
+    if (equals(key3, this.key)) {
       const v2 = f(this.value);
       if (v2 === this.value)
         return this;
@@ -4827,13 +8987,13 @@ class LeafNode {
         this.value = v2;
         return this;
       }
-      return new LeafNode(edit, hash2, key, v2);
+      return new LeafNode(edit, hash2, key3, v2);
     }
     const v = f(none2());
     if (isNone2(v))
       return this;
     ++size.value;
-    return mergeLeaves(edit, shift, this.hash, this, hash2, new LeafNode(edit, hash2, key, v));
+    return mergeLeaves(edit, shift, this.hash, this, hash2, new LeafNode(edit, hash2, key3, v));
   }
 }
 
@@ -4847,10 +9007,10 @@ class CollisionNode {
     this.hash = hash2;
     this.children = children;
   }
-  modify(edit, shift, f, hash2, key, size) {
+  modify(edit, shift, f, hash2, key3, size) {
     if (hash2 === this.hash) {
       const canEdit = canEditNode(this, edit);
-      const list = this.updateCollisionList(canEdit, edit, this.hash, this.children, f, key, size);
+      const list = this.updateCollisionList(canEdit, edit, this.hash, this.children, f, key3, size);
       if (list === this.children)
         return this;
       return list.length > 1 ? new CollisionNode(edit, this.hash, list) : list[0];
@@ -4859,13 +9019,13 @@ class CollisionNode {
     if (isNone2(v))
       return this;
     ++size.value;
-    return mergeLeaves(edit, shift, this.hash, this, hash2, new LeafNode(edit, hash2, key, v));
+    return mergeLeaves(edit, shift, this.hash, this, hash2, new LeafNode(edit, hash2, key3, v));
   }
-  updateCollisionList(mutate, edit, hash2, list, f, key, size) {
+  updateCollisionList(mutate, edit, hash2, list, f, key3, size) {
     const len = list.length;
     for (let i = 0;i < len; ++i) {
       const child = list[i];
-      if ("key" in child && equals(key, child.key)) {
+      if ("key" in child && equals(key3, child.key)) {
         const value = child.value;
         const newValue2 = f(value);
         if (newValue2 === value)
@@ -4874,14 +9034,14 @@ class CollisionNode {
           --size.value;
           return arraySpliceOut(mutate, i, list);
         }
-        return arrayUpdate(mutate, i, new LeafNode(edit, hash2, key, newValue2), list);
+        return arrayUpdate(mutate, i, new LeafNode(edit, hash2, key3, newValue2), list);
       }
     }
     const newValue = f(none2());
     if (isNone2(newValue))
       return list;
     ++size.value;
-    return arrayUpdate(mutate, len, new LeafNode(edit, hash2, key, newValue), list);
+    return arrayUpdate(mutate, len, new LeafNode(edit, hash2, key3, newValue), list);
   }
 }
 
@@ -4895,7 +9055,7 @@ class IndexedNode {
     this.mask = mask;
     this.children = children;
   }
-  modify(edit, shift, f, hash2, key, size) {
+  modify(edit, shift, f, hash2, key3, size) {
     const mask = this.mask;
     const children = this.children;
     const frag = hashFragment(shift, hash2);
@@ -4904,13 +9064,13 @@ class IndexedNode {
     const exists2 = mask & bit;
     const canEdit = canEditNode(this, edit);
     if (!exists2) {
-      const _newChild = new EmptyNode().modify(edit, shift + SIZE, f, hash2, key, size);
+      const _newChild = new EmptyNode().modify(edit, shift + SIZE, f, hash2, key3, size);
       if (!_newChild)
         return this;
       return children.length >= MAX_INDEX_NODE ? expand(edit, frag, _newChild, mask, children) : new IndexedNode(edit, mask | bit, arraySpliceIn(canEdit, indx, _newChild, children));
     }
     const current = children[indx];
-    const child = current.modify(edit, shift + SIZE, f, hash2, key, size);
+    const child = current.modify(edit, shift + SIZE, f, hash2, key3, size);
     if (current === child)
       return this;
     let bitmap = mask;
@@ -4945,12 +9105,12 @@ class ArrayNode {
     this.size = size;
     this.children = children;
   }
-  modify(edit, shift, f, hash2, key, size) {
+  modify(edit, shift, f, hash2, key3, size) {
     let count = this.size;
     const children = this.children;
     const frag = hashFragment(shift, hash2);
     const child = children[frag];
-    const newChild = (child || new EmptyNode).modify(edit, shift + SIZE, f, hash2, key, size);
+    const newChild = (child || new EmptyNode).modify(edit, shift + SIZE, f, hash2, key3, size);
     if (child === newChild)
       return this;
     const canEdit = canEditNode(this, edit);
@@ -5083,7 +9243,7 @@ var HashMapSymbolKey = "effect/HashMap", HashMapTypeId, HashMapProto, makeImpl =
     set(map3, entry[0], entry[1]);
   }
   return endMutation(map3);
-}, isHashMap = (u) => hasProperty(u, HashMapTypeId), isEmpty2 = (self) => self && isEmptyNode(self._root), get3, getHash, has, set, setTree, keys = (self) => new HashMapIterator(self, (key) => key), size = (self) => self._size, beginMutation = (self) => makeImpl(true, self._edit + 1, self._root, self._size), endMutation = (self) => {
+}, isHashMap = (u) => hasProperty(u, HashMapTypeId), isEmpty2 = (self) => self && isEmptyNode(self._root), get3, getHash, has, set, setTree, keys = (self) => new HashMapIterator(self, (key3) => key3), size = (self) => self._size, beginMutation = (self) => makeImpl(true, self._edit + 1, self._root, self._size), endMutation = (self) => {
   self._editable = false;
   return self;
 }, mutate, modifyAt, modifyHash, remove2, map3, forEach, reduce2;
@@ -5175,21 +9335,21 @@ var init_hashMap = __esm(() => {
     }
   };
   _empty2 = /* @__PURE__ */ makeImpl(false, 0, /* @__PURE__ */ new EmptyNode, 0);
-  get3 = /* @__PURE__ */ dual(2, (self, key) => getHash(self, key, hash(key)));
-  getHash = /* @__PURE__ */ dual(3, (self, key, hash2) => {
+  get3 = /* @__PURE__ */ dual(2, (self, key3) => getHash(self, key3, hash(key3)));
+  getHash = /* @__PURE__ */ dual(3, (self, key3, hash2) => {
     let node = self._root;
     let shift = 0;
     while (true) {
       switch (node._tag) {
         case "LeafNode": {
-          return equals(key, node.key) ? node.value : none2();
+          return equals(key3, node.key) ? node.value : none2();
         }
         case "CollisionNode": {
           if (hash2 === node.hash) {
             const children = node.children;
             for (let i = 0, len = children.length;i < len; ++i) {
               const child = children[i];
-              if ("key" in child && equals(key, child.key)) {
+              if ("key" in child && equals(key3, child.key)) {
                 return child.value;
               }
             }
@@ -5219,8 +9379,8 @@ var init_hashMap = __esm(() => {
       }
     }
   });
-  has = /* @__PURE__ */ dual(2, (self, key) => isSome2(getHash(self, key, hash(key))));
-  set = /* @__PURE__ */ dual(3, (self, key, value) => modifyAt(self, key, () => some2(value)));
+  has = /* @__PURE__ */ dual(2, (self, key3) => isSome2(getHash(self, key3, hash(key3))));
+  set = /* @__PURE__ */ dual(3, (self, key3, value) => modifyAt(self, key3, () => some2(value)));
   setTree = /* @__PURE__ */ dual(3, (self, newRoot, newSize) => {
     if (self._editable) {
       self._root = newRoot;
@@ -5234,17 +9394,17 @@ var init_hashMap = __esm(() => {
     f(transient);
     return endMutation(transient);
   });
-  modifyAt = /* @__PURE__ */ dual(3, (self, key, f) => modifyHash(self, key, hash(key), f));
-  modifyHash = /* @__PURE__ */ dual(4, (self, key, hash2, f) => {
+  modifyAt = /* @__PURE__ */ dual(3, (self, key3, f) => modifyHash(self, key3, hash(key3), f));
+  modifyHash = /* @__PURE__ */ dual(4, (self, key3, hash2, f) => {
     const size2 = {
       value: self._size
     };
-    const newRoot = self._root.modify(self._editable ? self._edit : NaN, 0, f, hash2, key, size2);
+    const newRoot = self._root.modify(self._editable ? self._edit : NaN, 0, f, hash2, key3, size2);
     return pipe(self, setTree(newRoot, size2.value));
   });
-  remove2 = /* @__PURE__ */ dual(2, (self, key) => modifyAt(self, key, none2));
-  map3 = /* @__PURE__ */ dual(2, (self, f) => reduce2(self, empty3(), (map4, value, key) => set(map4, key, f(value, key))));
-  forEach = /* @__PURE__ */ dual(2, (self, f) => reduce2(self, undefined, (_, value, key) => f(value, key)));
+  remove2 = /* @__PURE__ */ dual(2, (self, key3) => modifyAt(self, key3, none2));
+  map3 = /* @__PURE__ */ dual(2, (self, f) => reduce2(self, empty3(), (map4, value, key3) => set(map4, key3, f(value, key3))));
+  forEach = /* @__PURE__ */ dual(2, (self, f) => reduce2(self, undefined, (_, value, key3) => f(value, key3)));
   reduce2 = /* @__PURE__ */ dual(3, (self, zero, f) => {
     const root = self._root;
     if (root._tag === "LeafNode") {
@@ -5396,7 +9556,7 @@ var init_HashSet = __esm(() => {
 var OP_DIE = "Die", OP_EMPTY = "Empty", OP_FAIL = "Fail", OP_INTERRUPT = "Interrupt", OP_PARALLEL = "Parallel", OP_SEQUENTIAL = "Sequential";
 
 // node_modules/effect/dist/esm/internal/cause.js
-var CauseSymbolKey = "effect/Cause", CauseTypeId, variance, proto, empty6, fail = (error) => {
+var CauseSymbolKey = "effect/Cause", CauseTypeId, variance, proto, empty6, fail2 = (error) => {
   const o = Object.create(proto);
   o._tag = OP_FAIL;
   o.error = error;
@@ -5454,7 +9614,7 @@ var CauseSymbolKey = "effect/Cause", CauseTypeId, variance, proto, empty6, fail 
   }
 }, dieOption = (self) => find(self, (cause) => cause._tag === OP_DIE ? some2(cause.defect) : none2()), flipCauseOption = (self) => match3(self, {
   onEmpty: some2(empty6),
-  onFail: map(fail),
+  onFail: map(fail2),
   onDie: (defect) => some2(die(defect)),
   onInterrupt: (fiberId) => some2(interrupt(fiberId)),
   onSequential: mergeWith(sequential),
@@ -5468,14 +9628,14 @@ var CauseSymbolKey = "effect/Cause", CauseTypeId, variance, proto, empty6, fail 
   onParallel: mergeWith(parallel)
 }), keepDefectsAndElectFailures = (self) => match3(self, {
   onEmpty: none2(),
-  onFail: (failure) => some2(die(failure)),
+  onFail: (failure5) => some2(die(failure5)),
   onDie: (defect) => some2(die(defect)),
   onInterrupt: () => none2(),
   onSequential: mergeWith(sequential),
   onParallel: mergeWith(parallel)
 }), linearize = (self) => match3(self, {
   onEmpty: empty5(),
-  onFail: (error) => make7(fail(error)),
+  onFail: (error) => make7(fail2(error)),
   onDie: (defect) => make7(die(defect)),
   onInterrupt: (fiberId) => make7(interrupt(fiberId)),
   onSequential: (leftSet, rightSet) => flatMap4(leftSet, (leftCause) => map5(rightSet, (rightCause) => sequential(leftCause, rightCause))),
@@ -5599,7 +9759,7 @@ var CauseSymbolKey = "effect/Cause", CauseTypeId, variance, proto, empty6, fail 
   throw new Error(getBugErrorMessage("Cause.evaluateCauseLoop"));
 }, SizeCauseReducer, IsInterruptedOnlyCauseReducer, FilterCauseReducer = (predicate) => ({
   emptyCase: () => empty6,
-  failCase: (_, error) => fail(error),
+  failCase: (_, error) => fail2(error),
   dieCase: (_, defect) => die(defect),
   interruptCase: (_, fiberId) => interrupt(fiberId),
   sequentialCase: (_, left3, right3) => {
@@ -5670,9 +9830,9 @@ ${prefix}}`;
     if (spanSymbol in originalError) {
       error.span = originalError[spanSymbol];
     }
-    Object.keys(originalError).forEach((key) => {
-      if (!(key in error)) {
-        error[key] = originalError[key];
+    Object.keys(originalError).forEach((key3) => {
+      if (!(key3 in error)) {
+        error[key3] = originalError[key3];
       }
     });
   }
@@ -5826,7 +9986,7 @@ var init_cause = __esm(() => {
   })();
   stripSomeDefects = /* @__PURE__ */ dual(2, (self, pf) => match3(self, {
     onEmpty: some2(empty6),
-    onFail: (error) => some2(fail(error)),
+    onFail: (error) => some2(fail2(error)),
     onDie: (defect) => {
       const option = pf(defect);
       return isSome2(option) ? none2() : some2(die(defect));
@@ -5836,7 +9996,7 @@ var init_cause = __esm(() => {
     onParallel: mergeWith(parallel)
   }));
   as2 = /* @__PURE__ */ dual(2, (self, error) => map6(self, () => error));
-  map6 = /* @__PURE__ */ dual(2, (self, f) => flatMap5(self, (e) => fail(f(e))));
+  map6 = /* @__PURE__ */ dual(2, (self, f) => flatMap5(self, (e) => fail2(f(e))));
   flatMap5 = /* @__PURE__ */ dual(2, (self, f) => match3(self, {
     onEmpty: empty6,
     onFail: (error) => f(error),
@@ -6021,7 +10181,7 @@ var init_cause = __esm(() => {
 });
 
 // node_modules/effect/dist/esm/internal/context.js
-var TagTypeId, ReferenceTypeId, STMSymbolKey = "effect/STM", STMTypeId, TagProto, ReferenceProto, makeGenericTag = (key) => {
+var TagTypeId, ReferenceTypeId, STMSymbolKey = "effect/STM", STMTypeId, TagProto, ReferenceProto, makeGenericTag = (key3) => {
   const limit = Error.stackTraceLimit;
   Error.stackTraceLimit = 2;
   const creationError = new Error;
@@ -6032,7 +10192,7 @@ var TagTypeId, ReferenceTypeId, STMSymbolKey = "effect/STM", STMTypeId, TagProto
       return creationError.stack;
     }
   });
-  tag.key = key;
+  tag.key = key3;
   return tag;
 }, Tag = (id) => () => {
   const limit = Error.stackTraceLimit;
@@ -6099,8 +10259,8 @@ var TagTypeId, ReferenceTypeId, STMSymbolKey = "effect/STM", STMTypeId, TagProto
 }, unsafeGet3, get4, getOrElse2, getOption, merge2, mergeAll = (...ctxs) => {
   const map7 = new Map;
   for (let i = 0;i < ctxs.length; i++) {
-    ctxs[i].unsafeMap.forEach((value, key) => {
-      map7.set(key, value);
+    ctxs[i].unsafeMap.forEach((value, key3) => {
+      map7.set(key3, value);
     });
   }
   return makeContext(map7);
@@ -6557,9 +10717,9 @@ var init_Duration = __esm(() => {
 
 // node_modules/effect/dist/esm/MutableRef.js
 var TypeId7, MutableRefProto, make11 = (value) => {
-  const ref = Object.create(MutableRefProto);
-  ref.current = value;
-  return ref;
+  const ref2 = Object.create(MutableRefProto);
+  ref2.current = value;
+  return ref2;
 }, compareAndSet, get6 = (self) => self.current, set2;
 var init_MutableRef = __esm(() => {
   init_Equal();
@@ -6944,18 +11104,18 @@ var ContextPatchTypeId, PatchProto, EmptyProto, _empty5, empty11 = () => _empty5
   o.first = first;
   o.second = second;
   return o;
-}, AddServiceProto, makeAddService = (key, service) => {
+}, AddServiceProto, makeAddService = (key3, service) => {
   const o = Object.create(AddServiceProto);
-  o.key = key;
+  o.key = key3;
   o.service = service;
   return o;
-}, RemoveServiceProto, makeRemoveService = (key) => {
+}, RemoveServiceProto, makeRemoveService = (key3) => {
   const o = Object.create(RemoveServiceProto);
-  o.key = key;
+  o.key = key3;
   return o;
-}, UpdateServiceProto, makeUpdateService = (key, update) => {
+}, UpdateServiceProto, makeUpdateService = (key3, update) => {
   const o = Object.create(UpdateServiceProto);
-  o.key = key;
+  o.key = key3;
   o.update = update;
   return o;
 }, diff = (oldValue, newValue) => {
@@ -7475,10 +11635,10 @@ var empty16, par = (self, that) => ({
     return cons(sequentialCollectionCombine(sequential2.head, parallelCollectionToSequentialCollection(parallel2)), sequential2.tail);
   }
   return cons(parallelCollectionToSequentialCollection(parallel2), sequential2);
-}, EntryTypeId, EntryImpl, blockedRequestVariance, makeEntry = (options) => new EntryImpl(options.request, options.result, options.listeners, options.ownerId, options.state), RequestBlockParallelTypeId, parallelVariance, ParallelImpl, parallelCollectionEmpty = () => new ParallelImpl(empty9()), parallelCollectionAdd = (self, blockedRequest) => new ParallelImpl(modifyAt2(self.map, blockedRequest.dataSource, (_) => orElseSome(map(_, append2(blockedRequest.blockedRequest)), () => of2(blockedRequest.blockedRequest)))), parallelCollectionCombine = (self, that) => new ParallelImpl(reduce6(self.map, that.map, (map8, value, key) => set3(map8, key, match2(get7(map8, key), {
+}, EntryTypeId, EntryImpl, blockedRequestVariance, makeEntry = (options) => new EntryImpl(options.request, options.result, options.listeners, options.ownerId, options.state), RequestBlockParallelTypeId, parallelVariance, ParallelImpl, parallelCollectionEmpty = () => new ParallelImpl(empty9()), parallelCollectionAdd = (self, blockedRequest) => new ParallelImpl(modifyAt2(self.map, blockedRequest.dataSource, (_) => orElseSome(map(_, append2(blockedRequest.blockedRequest)), () => of2(blockedRequest.blockedRequest)))), parallelCollectionCombine = (self, that) => new ParallelImpl(reduce6(self.map, that.map, (map8, value, key3) => set3(map8, key3, match2(get7(map8, key3), {
   onNone: () => value,
   onSome: (other) => appendAll2(value, other)
-})))), parallelCollectionIsEmpty = (self) => isEmpty4(self.map), parallelCollectionKeys = (self) => Array.from(keys2(self.map)), parallelCollectionToSequentialCollection = (self) => sequentialCollectionMake(map7(self.map, (x) => of2(x))), SequentialCollectionTypeId, sequentialVariance, SequentialImpl, sequentialCollectionMake = (map8) => new SequentialImpl(map8), sequentialCollectionCombine = (self, that) => new SequentialImpl(reduce6(that.map, self.map, (map8, value, key) => set3(map8, key, match2(get7(map8, key), {
+})))), parallelCollectionIsEmpty = (self) => isEmpty4(self.map), parallelCollectionKeys = (self) => Array.from(keys2(self.map)), parallelCollectionToSequentialCollection = (self) => sequentialCollectionMake(map7(self.map, (x) => of2(x))), SequentialCollectionTypeId, sequentialVariance, SequentialImpl, sequentialCollectionMake = (map8) => new SequentialImpl(map8), sequentialCollectionCombine = (self, that) => new SequentialImpl(reduce6(that.map, self.map, (map8, value, key3) => set3(map8, key3, match2(get7(map8, key3), {
   onNone: () => empty2(),
   onSome: (a) => appendAll2(a, value)
 })))), sequentialCollectionKeys = (self) => Array.from(keys2(self.map)), sequentialCollectionToChunk = (self) => Array.from(self.map);
@@ -7710,7 +11870,7 @@ var blocked = (blockedRequests, _continue) => {
 }), exit = (self) => matchCause(self, {
   onFailure: exitFailCause,
   onSuccess: exitSucceed
-}), fail2 = (error) => isObject(error) && !(spanSymbol in error) ? withFiberRuntime((fiber) => failCause(fail(capture(error, currentSpanFromFiber(fiber))))) : failCause(fail(error)), failSync = (evaluate) => flatMap7(sync(evaluate), fail2), failCause = (cause) => {
+}), fail3 = (error) => isObject(error) && !(spanSymbol in error) ? withFiberRuntime((fiber) => failCause(fail2(capture(error, currentSpanFromFiber(fiber))))) : failCause(fail2(error)), failSync = (evaluate) => flatMap7(sync(evaluate), fail3), failCause = (cause) => {
   const effect = new EffectPrimitiveFailure(OP_FAILURE);
   effect.effect_instruction_i0 = cause;
   return effect;
@@ -7720,7 +11880,7 @@ var blocked = (blockedRequests, _continue) => {
   return effect;
 }, flatten5 = (self) => flatMap7(self, identity), flip = (self) => matchEffect(self, {
   onFailure: succeed,
-  onSuccess: fail2
+  onSuccess: fail3
 }), matchCause, matchCauseEffect, matchEffect, forEachSequential, forEachSequentialDiscard, if_, interrupt2, interruptWith = (fiberId2) => failCause(interrupt(fiberId2)), interruptible2 = (self) => {
   const effect = new EffectPrimitive(OP_UPDATE_RUNTIME_FLAGS);
   effect.effect_instruction_i0 = enable3(Interruption);
@@ -7853,7 +12013,7 @@ var blocked = (blockedRequests, _continue) => {
     case OP_SUCCESS:
       return none2();
   }
-}, exitCollectAll = (exits, options) => exitCollectAllInternal(exits, options?.parallel ? parallel : sequential), exitDie = (defect) => exitFailCause(die(defect)), exitExists, exitFail = (error) => exitFailCause(fail(error)), exitFailCause = (cause) => {
+}, exitCollectAll = (exits, options) => exitCollectAllInternal(exits, options?.parallel ? parallel : sequential), exitDie = (defect) => exitFailCause(die(defect)), exitExists, exitFail = (error) => exitFailCause(fail2(error)), exitFailCause = (cause) => {
   const effect = new EffectPrimitiveFailure(OP_FAILURE);
   effect.effect_instruction_i0 = cause;
   return effect;
@@ -8126,7 +12286,7 @@ var init_core = __esm(() => {
       return b;
     } else if (isPromiseLike(b)) {
       return unsafeAsync((resume) => {
-        b.then((a2) => resume(succeed(a2)), (e) => resume(fail2(new UnknownException(e, "An unknown error occurred in Effect.andThen"))));
+        b.then((a2) => resume(succeed(a2)), (e) => resume(fail3(new UnknownException(e, "An unknown error occurred in Effect.andThen"))));
       });
     }
     return succeed(b);
@@ -8210,8 +12370,8 @@ var init_core = __esm(() => {
         onSuccess: () => result
       });
     },
-    onSuccess: (success) => {
-      const result = exitSucceed(success);
+    onSuccess: (success4) => {
+      const result = exitSucceed(success4);
       return zipRight2(cleanup(result), result);
     }
   })));
@@ -8232,7 +12392,7 @@ var init_core = __esm(() => {
       return as3(b, a);
     } else if (isPromiseLike(b)) {
       return unsafeAsync((resume) => {
-        b.then((_) => resume(succeed(a)), (e) => resume(fail2(new UnknownException(e, "An unknown error occurred in Effect.tap"))));
+        b.then((_) => resume(succeed(a)), (e) => resume(fail3(new UnknownException(e, "An unknown error occurred in Effect.tap"))));
       });
     }
     return succeed(a);
@@ -8408,7 +12568,7 @@ var init_core = __esm(() => {
 
     class YieldableError2 extends globalThis.Error {
       commit() {
-        return fail2(this);
+        return fail3(this);
       }
       toJSON() {
         const obj = {
@@ -8427,7 +12587,7 @@ ${this.stack.split(`
 `).slice(1).join(`
 `)}` : this.toString();
         } else if ("Bun" in globalThis) {
-          return pretty(fail(this), {
+          return pretty(fail2(this), {
             renderErrorCause: true
           });
         }
@@ -8672,7 +12832,7 @@ ${this.stack.split(`
   filterEffectOrElse = /* @__PURE__ */ dual(2, (self, options) => flatMap7(self, (a) => flatMap7(options.predicate(a), (pass) => pass ? succeed(a) : options.orElse(a))));
   filterEffectOrFail = /* @__PURE__ */ dual(2, (self, options) => filterEffectOrElse(self, {
     predicate: options.predicate,
-    orElse: (a) => fail2(options.orFailWith(a))
+    orElse: (a) => fail3(options.orFailWith(a))
   }));
   NoopSpanProto = {
     _tag: "Span",
@@ -8744,7 +12904,7 @@ __export(exports_Cause, {
   failures: () => failures2,
   failureOrCause: () => failureOrCause2,
   failureOption: () => failureOption2,
-  fail: () => fail3,
+  fail: () => fail4,
   empty: () => empty17,
   dieOption: () => dieOption2,
   die: () => die3,
@@ -8770,7 +12930,7 @@ __export(exports_Cause, {
   ExceededCapacityException: () => ExceededCapacityException2,
   CauseTypeId: () => CauseTypeId2
 });
-var CauseTypeId2, RuntimeExceptionTypeId2, InterruptedExceptionTypeId2, IllegalArgumentExceptionTypeId2, NoSuchElementExceptionTypeId2, InvalidPubSubCapacityExceptionTypeId2, ExceededCapacityExceptionTypeId2, TimeoutExceptionTypeId2, UnknownExceptionTypeId2, YieldableError2, empty17, fail3, die3, interrupt3, parallel2, sequential2, isCause2, isEmptyType2, isFailType2, isDieType2, isInterruptType2, isSequentialType2, isParallelType2, size5, isEmpty6, isFailure2, isDie2, isInterrupted2, isInterruptedOnly2, failures2, defects2, interruptors2, failureOption2, failureOrCause2, flipCauseOption2, dieOption2, interruptOption2, keepDefects2, linearize2, stripFailures2, stripSomeDefects2, as4, map9, flatMap8, andThen5, flatten6, contains4, squash, squashWith, find2, filter6, match5, reduce8, reduceWithContext2, InterruptedException2, isInterruptedException2, IllegalArgumentException2, isIllegalArgumentException2, NoSuchElementException2, isNoSuchElementException2, RuntimeException2, isRuntimeException2, TimeoutException2, isTimeoutException2, UnknownException2, isUnknownException2, ExceededCapacityException2, isExceededCapacityException2, pretty2, prettyErrors2, originalError;
+var CauseTypeId2, RuntimeExceptionTypeId2, InterruptedExceptionTypeId2, IllegalArgumentExceptionTypeId2, NoSuchElementExceptionTypeId2, InvalidPubSubCapacityExceptionTypeId2, ExceededCapacityExceptionTypeId2, TimeoutExceptionTypeId2, UnknownExceptionTypeId2, YieldableError2, empty17, fail4, die3, interrupt3, parallel2, sequential2, isCause2, isEmptyType2, isFailType2, isDieType2, isInterruptType2, isSequentialType2, isParallelType2, size5, isEmpty6, isFailure2, isDie2, isInterrupted2, isInterruptedOnly2, failures2, defects2, interruptors2, failureOption2, failureOrCause2, flipCauseOption2, dieOption2, interruptOption2, keepDefects2, linearize2, stripFailures2, stripSomeDefects2, as4, map9, flatMap8, andThen5, flatten6, contains4, squash, squashWith, find2, filter6, match5, reduce8, reduceWithContext2, InterruptedException2, isInterruptedException2, IllegalArgumentException2, isIllegalArgumentException2, NoSuchElementException2, isNoSuchElementException2, RuntimeException2, isRuntimeException2, TimeoutException2, isTimeoutException2, UnknownException2, isUnknownException2, ExceededCapacityException2, isExceededCapacityException2, pretty2, prettyErrors2, originalError;
 var init_Cause = __esm(() => {
   init_cause();
   init_core();
@@ -8785,7 +12945,7 @@ var init_Cause = __esm(() => {
   UnknownExceptionTypeId2 = UnknownExceptionTypeId;
   YieldableError2 = YieldableError;
   empty17 = empty6;
-  fail3 = fail;
+  fail4 = fail2;
   die3 = die;
   interrupt3 = interrupt;
   parallel2 = parallel;
@@ -9216,7 +13376,7 @@ var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigPro
   enumerateChildren: options.enumerateChildren
 }), fromFlat = (flat) => make20({
   load: (config) => flatMap7(fromFlatLoop(flat, empty(), config, false), (chunk) => match2(head(chunk), {
-    onNone: () => fail2(MissingData(empty(), `Expected a single value having structure: ${config}`)),
+    onNone: () => fail3(MissingData(empty(), `Expected a single value having structure: ${config}`)),
     onSome: succeed
   })),
   flattened: flat
@@ -9285,14 +13445,14 @@ var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigPro
       return suspend(() => fromFlatLoop(flat, prefix, op.config, split));
     }
     case OP_FAIL2: {
-      return fail2(MissingData(prefix, op.message));
+      return fail3(MissingData(prefix, op.message));
     }
     case OP_FALLBACK: {
       return pipe(suspend(() => fromFlatLoop(flat, prefix, op.first, split)), catchAll((error1) => {
         if (op.condition(error1)) {
-          return pipe(fromFlatLoop(flat, prefix, op.second, split), catchAll((error2) => fail2(Or(error1, error2))));
+          return pipe(fromFlatLoop(flat, prefix, op.second, split), catchAll((error2) => fail3(Or(error1, error2))));
         }
-        return fail2(error1);
+        return fail3(error1);
       }));
     }
     case OP_LAZY: {
@@ -9308,7 +13468,7 @@ var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigPro
       return pipe(patch5(prefix, flat.patch), flatMap7((prefix2) => pipe(flat.load(prefix2, op, split), flatMap7((values3) => {
         if (values3.length === 0) {
           const name = pipe(last(prefix2), getOrElse(() => "<n/a>"));
-          return fail2(MissingData([], `Expected ${op.description} with name ${name}`));
+          return fail3(MissingData([], `Expected ${op.description} with name ${name}`));
         }
         return succeed(values3);
       }))));
@@ -9332,7 +13492,7 @@ var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigPro
     }
     case OP_HASHMAP: {
       return suspend(() => pipe(patch5(prefix, flat.patch), flatMap7((prefix2) => pipe(flat.enumerateChildren(prefix2), flatMap7((keys3) => {
-        return pipe(keys3, forEachSequential((key) => fromFlatLoop(flat, concat(prefix2, of(key)), op.valueConfig, split)), map8((matrix) => {
+        return pipe(keys3, forEachSequential((key3) => fromFlatLoop(flat, concat(prefix2, of(key3)), op.valueConfig, split)), map8((matrix) => {
           if (matrix.length === 0) {
             return of(empty9());
           }
@@ -9343,35 +13503,35 @@ var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigPro
     case OP_ZIP_WITH: {
       return suspend(() => pipe(fromFlatLoop(flat, prefix, op.left, split), either2, flatMap7((left3) => pipe(fromFlatLoop(flat, prefix, op.right, split), either2, flatMap7((right3) => {
         if (isLeft2(left3) && isLeft2(right3)) {
-          return fail2(And(left3.left, right3.left));
+          return fail3(And(left3.left, right3.left));
         }
         if (isLeft2(left3) && isRight2(right3)) {
-          return fail2(left3.left);
+          return fail3(left3.left);
         }
         if (isRight2(left3) && isLeft2(right3)) {
-          return fail2(right3.left);
+          return fail3(right3.left);
         }
         if (isRight2(left3) && isRight2(right3)) {
           const path = pipe(prefix, join("."));
-          const fail4 = fromFlatLoopFail(prefix, path);
-          const [lefts, rights] = extend(fail4, fail4, pipe(left3.right, map2(right2)), pipe(right3.right, map2(right2)));
+          const fail5 = fromFlatLoopFail(prefix, path);
+          const [lefts, rights] = extend(fail5, fail5, pipe(left3.right, map2(right2)), pipe(right3.right, map2(right2)));
           return pipe(lefts, zip(rights), forEachSequential(([left4, right4]) => pipe(zip2(left4, right4), map8(([left5, right5]) => op.zip(left5, right5)))));
         }
         throw new Error("BUG: ConfigProvider.fromFlatLoop - please report an issue at https://github.com/Effect-TS/effect/issues");
       })))));
     }
   }
-}, fromFlatLoopFail = (prefix, path) => (index) => left2(MissingData(prefix, `The element at index ${index} in a sequence at path "${path}" was missing`)), splitPathString = (text, delim) => {
-  const split = text.split(new RegExp(`\\s*${escape(delim)}\\s*`));
+}, fromFlatLoopFail = (prefix, path) => (index) => left2(MissingData(prefix, `The element at index ${index} in a sequence at path "${path}" was missing`)), splitPathString = (text2, delim) => {
+  const split = text2.split(new RegExp(`\\s*${escape(delim)}\\s*`));
   return split;
-}, parsePrimitive = (text, path, primitive, delimiter, split) => {
+}, parsePrimitive = (text2, path, primitive, delimiter, split) => {
   if (!split) {
-    return pipe(primitive.parse(text), mapBoth({
+    return pipe(primitive.parse(text2), mapBoth({
       onFailure: prefixed(path),
       onSuccess: of
     }));
   }
-  return pipe(splitPathString(text, delimiter), forEachSequential((char) => primitive.parse(char.trim())), mapError(prefixed(path)));
+  return pipe(splitPathString(text2, delimiter), forEachSequential((char) => primitive.parse(char.trim())), mapError(prefixed(path)));
 }, transpose = (array3) => {
   return Object.keys(array3[0]).map((column) => array3.map((row) => row[column]));
 }, indicesFrom = (quotedIndices) => pipe(forEachSequential(quotedIndices, parseQuotedIndex), mapBoth({
@@ -9433,14 +13593,14 @@ var init_console = __esm(() => {
     clear: /* @__PURE__ */ sync(() => {
       console.clear();
     }),
-    count(label) {
+    count(label2) {
       return sync(() => {
-        console.count(label);
+        console.count(label2);
       });
     },
-    countReset(label) {
+    countReset(label2) {
       return sync(() => {
-        console.countReset(label);
+        console.countReset(label2);
       });
     },
     debug(...args) {
@@ -9479,20 +13639,20 @@ var init_console = __esm(() => {
         console.log(...args);
       });
     },
-    table(tabularData, properties) {
+    table(tabularData, properties2) {
       return sync(() => {
-        console.table(tabularData, properties);
+        console.table(tabularData, properties2);
       });
     },
-    time(label) {
-      return sync(() => console.time(label));
+    time(label2) {
+      return sync(() => console.time(label2));
     },
-    timeEnd(label) {
-      return sync(() => console.timeEnd(label));
+    timeEnd(label2) {
+      return sync(() => console.timeEnd(label2));
     },
-    timeLog(label, ...args) {
+    timeLog(label2, ...args) {
       return sync(() => {
-        console.timeLog(label, ...args);
+        console.timeLog(label2, ...args);
       });
     },
     trace(...args) {
@@ -9659,8 +13819,8 @@ class NativeSpan {
       startTime: this.status.startTime
     };
   }
-  attribute(key, value) {
-    this.attributes.set(key, value);
+  attribute(key3, value) {
+    this.attributes.set(key3, value);
   }
   event(name, startTime, attributes) {
     this.events.push([name, startTime, attributes ?? {}]);
@@ -9797,7 +13957,7 @@ function empty19() {
   return unsafeMake5(new Map);
 }
 var FiberRefsSym, FiberRefsImpl, findAncestor = (_ref, _parentStack, _childStack, _childModified = false) => {
-  const ref = _ref;
+  const ref2 = _ref;
   let parentStack = _parentStack;
   let childStack = _childStack;
   let childModified = _childModified;
@@ -9825,7 +13985,7 @@ var FiberRefsSym, FiberRefsImpl, findAncestor = (_ref, _parentStack, _childStack
         }
       }
     } else {
-      ret = [ref.initial, true];
+      ret = [ref2.initial, true];
     }
   }
   return ret;
@@ -10375,8 +14535,8 @@ var init_Micro = __esm(() => {
       this.interruptible = interruptible3;
       this[MicroFiberTypeId] = fiberVariance;
     }
-    getRef(ref) {
-      return unsafeGetReference(this.context, ref);
+    getRef(ref2) {
+      return unsafeGetReference(this.context, ref2);
     }
     addObserver(cb) {
       if (this._exit) {
@@ -10656,9 +14816,9 @@ var init_ref = __esm(() => {
     }
     [RefTypeId] = refVariance;
     [TypeId11] = TypeId11;
-    constructor(ref) {
+    constructor(ref2) {
       super();
-      this.ref = ref;
+      this.ref = ref2;
       this.get = sync(() => get6(this.ref));
     }
     get;
@@ -10864,12 +15024,12 @@ var init_Clock = __esm(() => {
 });
 
 // node_modules/effect/dist/esm/internal/logSpan.js
-var make25 = (label, startTime) => ({
-  label,
+var make25 = (label2, startTime) => ({
+  label: label2,
   startTime
-}), formatLabel = (key) => key.replace(/[\s="]/g, "_"), render = (now) => (self) => {
-  const label = formatLabel(self.label);
-  return `${label}=${now - self.startTime}ms`;
+}), formatLabel = (key3) => key3.replace(/[\s="]/g, "_"), render = (now) => (self) => {
+  const label2 = formatLabel(self.label);
+  return `${label2}=${now - self.startTime}ms`;
 };
 
 // node_modules/effect/dist/esm/LogSpan.js
@@ -10886,8 +15046,8 @@ var init_Tracer = __esm(() => {
 });
 
 // node_modules/effect/dist/esm/internal/metric/label.js
-var MetricLabelSymbolKey = "effect/MetricLabel", MetricLabelTypeId, MetricLabelImpl, make27 = (key, value) => {
-  return new MetricLabelImpl(key, value);
+var MetricLabelSymbolKey = "effect/MetricLabel", MetricLabelTypeId, MetricLabelImpl, make27 = (key3, value) => {
+  return new MetricLabelImpl(key3, value);
 }, isMetricLabel = (u) => hasProperty(u, MetricLabelTypeId);
 var init_label = __esm(() => {
   init_Equal();
@@ -10900,8 +15060,8 @@ var init_label = __esm(() => {
     value;
     [MetricLabelTypeId] = MetricLabelTypeId;
     _hash;
-    constructor(key, value) {
-      this.key = key;
+    constructor(key3, value) {
+      this.key = key3;
       this.value = value;
       this._hash = string(MetricLabelSymbolKey + this.key + this.value);
     }
@@ -10931,7 +15091,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     try {
       return succeed(internalCall(evaluate2));
     } catch (error) {
-      return fail2(onFailure ? internalCall(() => onFailure(error)) : new UnknownException(error, "An unknown error occurred in Effect.try"));
+      return fail3(onFailure ? internalCall(() => onFailure(error)) : new UnknownException(error, "An unknown error occurred in Effect.try"));
     }
   });
 }, _catch, catchAllDefect, catchSomeCause, catchSomeDefect, catchTag, catchTags, cause = (self) => matchCause(self, {
@@ -10941,7 +15101,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
   id: state.id(),
   status,
   interruptors: interruptors(state.getFiberRef(currentInterruptedCause))
-})), allowInterrupt, descriptor, diffFiberRefs = (self) => summarized(self, fiberRefs2, diff5), diffFiberRefsAndRuntimeFlags = (self) => summarized(self, zip2(fiberRefs2, runtimeFlags), ([refs, flags], [refsNew, flagsNew]) => [diff5(refs, refsNew), diff4(flags, flagsNew)]), Do2, bind3, bindTo3, let_3, dropUntil, dropWhile, contextWith = (f) => map8(context(), f), eventually = (self) => orElse2(self, () => flatMap7(yieldNow(), () => eventually(self))), filterMap4, filterOrDie, filterOrDieMessage, filterOrElse, liftPredicate2, filterOrFail, findFirst3, findLoop = (iterator, index, f, value) => flatMap7(f(value, index), (result) => {
+})), allowInterrupt, descriptor, diffFiberRefs = (self) => summarized(self, fiberRefs2, diff5), diffFiberRefsAndRuntimeFlags = (self) => summarized(self, zip2(fiberRefs2, runtimeFlags), ([refs3, flags], [refsNew, flagsNew]) => [diff5(refs3, refsNew), diff4(flags, flagsNew)]), Do2, bind3, bindTo3, let_3, dropUntil, dropWhile, contextWith = (f) => map8(context(), f), eventually = (self) => orElse2(self, () => flatMap7(yieldNow(), () => eventually(self))), filterMap4, filterOrDie, filterOrDieMessage, filterOrElse, liftPredicate2, filterOrFail, findFirst3, findLoop = (iterator, index, f, value) => flatMap7(f(value, index), (result) => {
   if (result) {
     return succeed(some2(value));
   }
@@ -10966,7 +15126,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
   const iterator = as5[Symbol.iterator]();
   const next = iterator.next();
   if (next.done) {
-    return fail2(new NoSuchElementException);
+    return fail3(new NoSuchElementException);
   }
   return succeed(next.value);
 }), ignore = (self) => match9(self, {
@@ -11016,15 +15176,15 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     case "None":
       return void_2;
     case "Some":
-      return fail2(new NoSuchElementException);
+      return fail3(new NoSuchElementException);
   }
-}), once = (self) => map8(make24(true), (ref) => asVoid2(whenEffect(self, getAndSet2(ref, false)))), option = (self) => matchEffect(self, {
+}), once = (self) => map8(make24(true), (ref2) => asVoid2(whenEffect(self, getAndSet2(ref2, false)))), option = (self) => matchEffect(self, {
   onFailure: () => succeed(none2()),
   onSuccess: (a) => succeed(some2(a))
 }), orElseFail, orElseSucceed, parallelErrors = (self) => matchCauseEffect(self, {
   onFailure: (cause2) => {
     const errors = fromIterable2(failures(cause2));
-    return errors.length === 0 ? failCause(cause2) : fail2(errors);
+    return errors.length === 0 ? failCause(cause2) : fail3(errors);
   },
   onSuccess: succeed
 }), patchFiberRefs = (patch8) => updateFiberRefs((fiberId2, fiberRefs3) => pipe(patch8, patch6(fiberId2, fiberRefs3))), promise = (evaluate2) => evaluate2.length >= 1 ? async_((resolve, signal) => {
@@ -11046,7 +15206,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
   }
   return succeed(state);
 }, repeatN, repeatNLoop = (self, n) => flatMap7(self, (a) => n <= 0 ? succeed(a) : zipRight2(yieldNow(), repeatNLoop(self, n - 1))), sandbox = (self) => matchCauseEffect(self, {
-  onFailure: fail2,
+  onFailure: fail3,
   onSuccess: succeed
 }), setFiberRefs = (fiberRefs3) => suspend(() => setAll2(fiberRefs3)), sleep3, succeedNone, succeedSome = (value) => succeed(some2(value)), summarized, tagMetrics, labelMetrics, takeUntil, takeWhile, tapBoth, tapDefect, tapError, tapErrorTag, tapErrorCause, timed = (self) => timedWith(self, currentTimeNanos2), timedWith, tracerWith3, tracer, tryPromise = (arg) => {
   let evaluate2;
@@ -11057,21 +15217,21 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     evaluate2 = arg.try;
     catcher = arg.catch;
   }
-  const fail4 = (e) => catcher ? failSync(() => catcher(e)) : fail2(new UnknownException(e, "An unknown error occurred in Effect.tryPromise"));
+  const fail5 = (e) => catcher ? failSync(() => catcher(e)) : fail3(new UnknownException(e, "An unknown error occurred in Effect.tryPromise"));
   if (evaluate2.length >= 1) {
     return async_((resolve, signal) => {
       try {
-        evaluate2(signal).then((a) => resolve(succeed(a)), (e) => resolve(fail4(e)));
+        evaluate2(signal).then((a) => resolve(succeed(a)), (e) => resolve(fail5(e)));
       } catch (e) {
-        resolve(fail4(e));
+        resolve(fail5(e));
       }
     });
   }
   return async_((resolve) => {
     try {
-      evaluate2().then((a) => resolve(succeed(a)), (e) => resolve(fail4(e)));
+      evaluate2().then((a) => resolve(succeed(a)), (e) => resolve(fail5(e)));
     } catch (e) {
-      resolve(fail4(e));
+      resolve(fail5(e));
     }
   });
 }, tryMap, tryMapPromise, unless, unlessEffect, unsandbox = (self) => mapErrorCause(self, flatten3), updateFiberRefs = (f) => withFiberRuntime((state) => {
@@ -11094,8 +15254,8 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     if (typeof args2[0] === "string") {
       span2.attribute(args2[0], args2[1]);
     } else {
-      for (const key in args2[0]) {
-        span2.attribute(key, args2[0][key]);
+      for (const key3 in args2[0]) {
+        span2.attribute(key3, args2[0][key3]);
       }
     }
   })));
@@ -11129,7 +15289,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     const links = linksFromEnv._tag === "Some" ? options.links !== undefined ? [...toReadonlyArray(linksFromEnv.value), ...options.links ?? []] : toReadonlyArray(linksFromEnv.value) : options.links ?? empty();
     span2 = tracer2.span(name, parent, options.context ?? empty8(), links, timingEnabled ? clock2.unsafeCurrentTimeNanos() : bigint02, options.kind ?? "internal", options);
     if (annotationsFromEnv._tag === "Some") {
-      forEach3(annotationsFromEnv.value, (value, key) => span2.attribute(key, value));
+      forEach3(annotationsFromEnv.value, (value, key3) => span2.attribute(key3, value));
     }
     if (options.attributes !== undefined) {
       Object.entries(options.attributes).forEach(([k, v]) => span2.attribute(k, v));
@@ -11196,7 +15356,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
       captureStackTrace
     });
   });
-}, fromNullable2 = (value) => value == null ? fail2(new NoSuchElementException) : succeed(value), optionFromOptional = (self) => catchAll(map8(self, some2), (error) => isNoSuchElementException(error) ? succeedNone : fail2(error));
+}, fromNullable2 = (value) => value == null ? fail3(new NoSuchElementException) : succeed(value), optionFromOptional = (self) => catchAll(map8(self, some2), (error) => isNoSuchElementException(error) ? succeedNone : fail3(error));
 var init_core_effect = __esm(() => {
   init_Array();
   init_Chunk();
@@ -11226,13 +15386,13 @@ var init_core_effect = __esm(() => {
   init_tracer();
   annotateLogs = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     const args2 = arguments;
-    return fiberRefLocallyWith(args2[0], currentLogAnnotations, typeof args2[1] === "string" ? set3(args2[1], args2[2]) : (annotations) => Object.entries(args2[1]).reduce((acc, [key, value]) => set3(acc, key, value), annotations));
+    return fiberRefLocallyWith(args2[0], currentLogAnnotations, typeof args2[1] === "string" ? set3(args2[1], args2[2]) : (annotations) => Object.entries(args2[1]).reduce((acc, [key3, value]) => set3(acc, key3, value), annotations));
   });
   _catch = /* @__PURE__ */ dual(3, (self, tag, options) => catchAll(self, (e) => {
     if (hasProperty(e, tag) && e[tag] === options.failure) {
       return options.onFailure(e);
     }
-    return fail2(e);
+    return fail3(e);
   }));
   catchAllDefect = /* @__PURE__ */ dual(2, (self, f) => catchAllCause(self, (cause) => {
     const option = find(cause, (_) => isDieType(_) ? some2(_) : none2());
@@ -11347,8 +15507,8 @@ var init_core_effect = __esm(() => {
   filterOrDie = /* @__PURE__ */ dual(3, (self, predicate, orDieWith2) => filterOrElse(self, predicate, (a) => dieSync(() => orDieWith2(a))));
   filterOrDieMessage = /* @__PURE__ */ dual(3, (self, predicate, message) => filterOrElse(self, predicate, () => dieMessage(message)));
   filterOrElse = /* @__PURE__ */ dual(3, (self, predicate, orElse3) => flatMap7(self, (a) => predicate(a) ? succeed(a) : orElse3(a)));
-  liftPredicate2 = /* @__PURE__ */ dual(3, (self, predicate, orFailWith) => suspend(() => predicate(self) ? succeed(self) : fail2(orFailWith(self))));
-  filterOrFail = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), (self, predicate, orFailWith) => filterOrElse(self, predicate, (a) => orFailWith === undefined ? fail2(new NoSuchElementException) : failSync(() => orFailWith(a))));
+  liftPredicate2 = /* @__PURE__ */ dual(3, (self, predicate, orFailWith) => suspend(() => predicate(self) ? succeed(self) : fail3(orFailWith(self))));
+  filterOrFail = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), (self, predicate, orFailWith) => filterOrElse(self, predicate, (a) => orFailWith === undefined ? fail3(new NoSuchElementException) : failSync(() => orFailWith(a))));
   findFirst3 = /* @__PURE__ */ dual(2, (elements, predicate) => suspend(() => {
     const iterator = elements[Symbol.iterator]();
     const next = iterator.next();
@@ -11371,7 +15531,7 @@ var init_core_effect = __esm(() => {
   logWarning = /* @__PURE__ */ logWithLevel(Warning);
   logError = /* @__PURE__ */ logWithLevel(Error2);
   logFatal = /* @__PURE__ */ logWithLevel(Fatal);
-  withLogSpan = /* @__PURE__ */ dual(2, (effect, label) => flatMap7(currentTimeMillis2, (now) => fiberRefLocallyWith(effect, currentLogSpan, prepend3(make26(label, now)))));
+  withLogSpan = /* @__PURE__ */ dual(2, (effect, label2) => flatMap7(currentTimeMillis2, (now) => fiberRefLocallyWith(effect, currentLogSpan, prepend3(make26(label2, now)))));
   logAnnotations = /* @__PURE__ */ fiberRefGet(currentLogAnnotations);
   mapAccum2 = /* @__PURE__ */ dual(3, (elements, initial, f) => suspend(() => {
     const iterator = elements[Symbol.iterator]();
@@ -11408,7 +15568,7 @@ var init_core_effect = __esm(() => {
   tagMetrics = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     return labelMetrics(arguments[0], typeof arguments[1] === "string" ? [make27(arguments[1], arguments[2])] : Object.entries(arguments[1]).map(([k, v]) => make27(k, v)));
   });
-  labelMetrics = /* @__PURE__ */ dual(2, (self, labels) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels)));
+  labelMetrics = /* @__PURE__ */ dual(2, (self, labels3) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels3)));
   takeUntil = /* @__PURE__ */ dual(2, (elements, predicate) => suspend(() => {
     const iterator = elements[Symbol.iterator]();
     const builder = [];
@@ -11505,20 +15665,20 @@ var init_core_effect = __esm(() => {
   updateService = /* @__PURE__ */ dual(3, (self, tag, f) => mapInputContext(self, (context2) => add4(context2, tag, f(unsafeGet4(context2, tag)))));
   when = /* @__PURE__ */ dual(2, (self, condition) => suspend(() => condition() ? map8(self, some2) : succeed(none2())));
   whenFiberRef = /* @__PURE__ */ dual(3, (self, fiberRef, predicate) => flatMap7(fiberRefGet(fiberRef), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
-  whenRef = /* @__PURE__ */ dual(3, (self, ref, predicate) => flatMap7(get11(ref), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
+  whenRef = /* @__PURE__ */ dual(3, (self, ref2, predicate) => flatMap7(get11(ref2), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
   withMetric = /* @__PURE__ */ dual(2, (self, metric) => metric(self));
   annotateSpans = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     const args2 = arguments;
-    return fiberRefLocallyWith(args2[0], currentTracerSpanAnnotations, typeof args2[1] === "string" ? set3(args2[1], args2[2]) : (annotations) => Object.entries(args2[1]).reduce((acc, [key, value]) => set3(acc, key, value), annotations));
+    return fiberRefLocallyWith(args2[0], currentTracerSpanAnnotations, typeof args2[1] === "string" ? set3(args2[1], args2[2]) : (annotations) => Object.entries(args2[1]).reduce((acc, [key3, value]) => set3(acc, key3, value), annotations));
   });
   currentParentSpan = /* @__PURE__ */ serviceOptional(spanTag);
   currentSpan = /* @__PURE__ */ flatMap7(/* @__PURE__ */ context(), (context2) => {
     const span2 = context2.unsafeMap.get(spanTag.key);
-    return span2 !== undefined && span2._tag === "Span" ? succeed(span2) : fail2(new NoSuchElementException);
+    return span2 !== undefined && span2._tag === "Span" ? succeed(span2) : fail3(new NoSuchElementException);
   });
   currentPropagatedSpan = /* @__PURE__ */ flatMap7(/* @__PURE__ */ context(), (context2) => {
     const span2 = filterDisablePropagation(getOption2(context2, spanTag));
-    return span2._tag === "Some" && span2.value._tag === "Span" ? succeed(span2.value) : fail2(new NoSuchElementException);
+    return span2._tag === "Some" && span2.value._tag === "Span" ? succeed(span2.value) : fail3(new NoSuchElementException);
   });
   linkSpans = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), (self, span2, attributes) => fiberRefLocallyWith(self, currentTracerSpanLinks, append2({
     _tag: "SpanLink",
@@ -11563,7 +15723,7 @@ __export(exports_Exit, {
   flatMapEffect: () => flatMapEffect,
   flatMap: () => flatMap10,
   failCause: () => failCause3,
-  fail: () => fail4,
+  fail: () => fail5,
   exists: () => exists2,
   die: () => die4,
   causeOption: () => causeOption,
@@ -11571,7 +15731,7 @@ __export(exports_Exit, {
   as: () => as5,
   all: () => all2
 });
-var isExit, isFailure4, isSuccess2, isInterrupted3, as5, asVoid3, causeOption, all2, die4, exists2, fail4, failCause3, flatMap10, flatMapEffect, flatten7, forEachEffect, fromEither, fromOption2, getOrElse5, interrupt5, map10, mapBoth2, mapError2, mapErrorCause2, match10, matchEffect2, succeed3, void_4, zip3, zipLeft3, zipRight3, zipPar, zipParLeft, zipParRight, zipWith4;
+var isExit, isFailure4, isSuccess2, isInterrupted3, as5, asVoid3, causeOption, all2, die4, exists2, fail5, failCause3, flatMap10, flatMapEffect, flatten7, forEachEffect, fromEither, fromOption2, getOrElse5, interrupt5, map10, mapBoth2, mapError2, mapErrorCause2, match10, matchEffect2, succeed3, void_4, zip3, zipLeft3, zipRight3, zipPar, zipParLeft, zipParRight, zipWith4;
 var init_Exit = __esm(() => {
   init_core();
   isExit = exitIsExit;
@@ -11584,7 +15744,7 @@ var init_Exit = __esm(() => {
   all2 = exitCollectAll;
   die4 = exitDie;
   exists2 = exitExists;
-  fail4 = exitFail;
+  fail5 = exitFail;
   failCause3 = exitFailCause;
   flatMap10 = exitFlatMap;
   flatMapEffect = exitFlatMapEffect;
@@ -11732,8 +15892,8 @@ var LoggerSymbolKey = "effect/Logger", LoggerTypeId, loggerVariance, makeLogger 
   spans
 }) => {
   const formatValue = (value) => value.match(textOnly) ? value : quoteValue(value);
-  const format4 = (label, value) => `${formatLabel(label)}=${formatValue(value)}`;
-  const append3 = (label, value) => " " + format4(label, value);
+  const format4 = (label2, value) => `${formatLabel(label2)}=${formatValue(value)}`;
+  const append3 = (label2, value) => " " + format4(label2, value);
   let out = format4("timestamp", date.toISOString());
   out += append3("level", logLevel.label);
   out += append3("fiber", threadName(fiberId2));
@@ -11749,8 +15909,8 @@ var LoggerSymbolKey = "effect/Logger", LoggerTypeId, loggerVariance, makeLogger 
   for (const span2 of spans) {
     out += " " + render(date.getTime())(span2);
   }
-  for (const [label, value] of annotations) {
-    out += append3(label, toStringUnknown(value, whitespace));
+  for (const [label2, value] of annotations) {
+    out += append3(label2, toStringUnknown(value, whitespace));
   }
   return out;
 }, escapeDoubleQuotes = (s) => `"${s.replace(/\\([\s\S])|(")/g, "\\$1$2")}"`, stringLogger, colors, logLevelColors, hasProcessStdout, processStdoutIsTTY, hasProcessStdoutOrDeno;
@@ -11970,9 +16130,9 @@ var TypeId12, MutableHashMapProto, MutableHashMapIterator, empty22 = () => {
   self.buckets = new Map;
   self.bucketsSize = 0;
   return self;
-}, get12, getFromBucket = (self, bucket, key, remove5 = false) => {
+}, get12, getFromBucket = (self, bucket, key3, remove5 = false) => {
   for (let i = 0, len = bucket.length;i < len; i++) {
-    if (key[symbol2](bucket[i][0])) {
+    if (key3[symbol2](bucket[i][0])) {
       const value = bucket[i][1];
       if (remove5) {
         bucket.splice(i, 1);
@@ -11982,9 +16142,9 @@ var TypeId12, MutableHashMapProto, MutableHashMapIterator, empty22 = () => {
     }
   }
   return none2();
-}, has4, set5, removeFromBucket = (self, bucket, key) => {
+}, has4, set5, removeFromBucket = (self, bucket, key3) => {
   for (let i = 0, len = bucket.length;i < len; i++) {
-    if (key[symbol2](bucket[i][0])) {
+    if (key3[symbol2](bucket[i][0])) {
       bucket.splice(i, 1);
       self.bucketsSize--;
       return;
@@ -12045,46 +16205,46 @@ var init_MutableHashMap = __esm(() => {
       return new MutableHashMapIterator(this.self);
     }
   };
-  get12 = /* @__PURE__ */ dual(2, (self, key) => {
-    if (isEqual(key) === false) {
-      return self.referential.has(key) ? some2(self.referential.get(key)) : none2();
+  get12 = /* @__PURE__ */ dual(2, (self, key3) => {
+    if (isEqual(key3) === false) {
+      return self.referential.has(key3) ? some2(self.referential.get(key3)) : none2();
     }
-    const hash2 = key[symbol]();
+    const hash2 = key3[symbol]();
     const bucket = self.buckets.get(hash2);
     if (bucket === undefined) {
       return none2();
     }
-    return getFromBucket(self, bucket, key);
+    return getFromBucket(self, bucket, key3);
   });
-  has4 = /* @__PURE__ */ dual(2, (self, key) => isSome2(get12(self, key)));
-  set5 = /* @__PURE__ */ dual(3, (self, key, value) => {
-    if (isEqual(key) === false) {
-      self.referential.set(key, value);
+  has4 = /* @__PURE__ */ dual(2, (self, key3) => isSome2(get12(self, key3)));
+  set5 = /* @__PURE__ */ dual(3, (self, key3, value) => {
+    if (isEqual(key3) === false) {
+      self.referential.set(key3, value);
       return self;
     }
-    const hash2 = key[symbol]();
+    const hash2 = key3[symbol]();
     const bucket = self.buckets.get(hash2);
     if (bucket === undefined) {
-      self.buckets.set(hash2, [[key, value]]);
+      self.buckets.set(hash2, [[key3, value]]);
       self.bucketsSize++;
       return self;
     }
-    removeFromBucket(self, bucket, key);
-    bucket.push([key, value]);
+    removeFromBucket(self, bucket, key3);
+    bucket.push([key3, value]);
     self.bucketsSize++;
     return self;
   });
-  remove5 = /* @__PURE__ */ dual(2, (self, key) => {
-    if (isEqual(key) === false) {
-      self.referential.delete(key);
+  remove5 = /* @__PURE__ */ dual(2, (self, key3) => {
+    if (isEqual(key3) === false) {
+      self.referential.delete(key3);
       return self;
     }
-    const hash2 = key[symbol]();
+    const hash2 = key3[symbol]();
     const bucket = self.buckets.get(hash2);
     if (bucket === undefined) {
       return self;
     }
-    removeFromBucket(self, bucket, key);
+    removeFromBucket(self, bucket, key3);
     if (bucket.length === 0) {
       self.buckets.delete(hash2);
     }
@@ -12226,9 +16386,9 @@ var MetricHookSymbolKey = "effect/MetricHook", MetricHookTypeId, metricHookVaria
     return pipeArguments(this, arguments);
   },
   ...options
-}), bigint03, counter4 = (key) => {
-  let sum = key.keyType.bigint ? bigint03 : 0;
-  const canUpdate = key.keyType.incremental ? key.keyType.bigint ? (value) => value >= bigint03 : (value) => value >= 0 : (_value) => true;
+}), bigint03, counter4 = (key3) => {
+  let sum = key3.keyType.bigint ? bigint03 : 0;
+  const canUpdate = key3.keyType.incremental ? key3.keyType.bigint ? (value) => value >= bigint03 : (value) => value >= 0 : (_value) => true;
   const update4 = (value) => {
     if (canUpdate(value)) {
       sum = sum + value;
@@ -12239,9 +16399,9 @@ var MetricHookSymbolKey = "effect/MetricHook", MetricHookTypeId, metricHookVaria
     update: update4,
     modify: update4
   });
-}, frequency3 = (key) => {
+}, frequency3 = (key3) => {
   const values3 = new Map;
-  for (const word of key.keyType.preregisteredWords) {
+  for (const word of key3.keyType.preregisteredWords) {
     values3.set(word, 0);
   }
   const update4 = (word) => {
@@ -12264,8 +16424,8 @@ var MetricHookSymbolKey = "effect/MetricHook", MetricHookTypeId, metricHookVaria
       value = value + v;
     }
   });
-}, histogram4 = (key) => {
-  const bounds = key.keyType.boundaries.values;
+}, histogram4 = (key3) => {
+  const bounds = key3.keyType.boundaries.values;
   const size7 = bounds.length;
   const values3 = new Uint32Array(size7 + 1);
   const boundaries = new Float64Array(size7);
@@ -12327,13 +16487,13 @@ var MetricHookSymbolKey = "effect/MetricHook", MetricHookTypeId, metricHookVaria
     update: update4,
     modify: update4
   });
-}, summary3 = (key) => {
+}, summary3 = (key3) => {
   const {
     error,
     maxAge,
     maxSize,
     quantiles
-  } = key.keyType;
+  } = key3.keyType;
   const sortedQuantiles = pipe(quantiles, sort(Order));
   const values3 = allocate(maxSize);
   let head4 = 0;
@@ -12549,84 +16709,84 @@ var init_registry = __esm(() => {
     map = /* @__PURE__ */ empty22();
     snapshot() {
       const result = [];
-      for (const [key, hook] of this.map) {
-        result.push(unsafeMake8(key, hook.get()));
+      for (const [key3, hook] of this.map) {
+        result.push(unsafeMake8(key3, hook.get()));
       }
       return result;
     }
-    get(key) {
-      const hook = pipe(this.map, get12(key), getOrUndefined);
+    get(key3) {
+      const hook = pipe(this.map, get12(key3), getOrUndefined);
       if (hook == null) {
-        if (isCounterKey(key.keyType)) {
-          return this.getCounter(key);
+        if (isCounterKey(key3.keyType)) {
+          return this.getCounter(key3);
         }
-        if (isGaugeKey(key.keyType)) {
-          return this.getGauge(key);
+        if (isGaugeKey(key3.keyType)) {
+          return this.getGauge(key3);
         }
-        if (isFrequencyKey(key.keyType)) {
-          return this.getFrequency(key);
+        if (isFrequencyKey(key3.keyType)) {
+          return this.getFrequency(key3);
         }
-        if (isHistogramKey(key.keyType)) {
-          return this.getHistogram(key);
+        if (isHistogramKey(key3.keyType)) {
+          return this.getHistogram(key3);
         }
-        if (isSummaryKey(key.keyType)) {
-          return this.getSummary(key);
+        if (isSummaryKey(key3.keyType)) {
+          return this.getSummary(key3);
         }
         throw new Error("BUG: MetricRegistry.get - unknown MetricKeyType - please report an issue at https://github.com/Effect-TS/effect/issues");
       } else {
         return hook;
       }
     }
-    getCounter(key) {
-      let value = pipe(this.map, get12(key), getOrUndefined);
+    getCounter(key3) {
+      let value = pipe(this.map, get12(key3), getOrUndefined);
       if (value == null) {
-        const counter5 = counter4(key);
-        if (!pipe(this.map, has4(key))) {
-          pipe(this.map, set5(key, counter5));
+        const counter5 = counter4(key3);
+        if (!pipe(this.map, has4(key3))) {
+          pipe(this.map, set5(key3, counter5));
         }
         value = counter5;
       }
       return value;
     }
-    getFrequency(key) {
-      let value = pipe(this.map, get12(key), getOrUndefined);
+    getFrequency(key3) {
+      let value = pipe(this.map, get12(key3), getOrUndefined);
       if (value == null) {
-        const frequency4 = frequency3(key);
-        if (!pipe(this.map, has4(key))) {
-          pipe(this.map, set5(key, frequency4));
+        const frequency4 = frequency3(key3);
+        if (!pipe(this.map, has4(key3))) {
+          pipe(this.map, set5(key3, frequency4));
         }
         value = frequency4;
       }
       return value;
     }
-    getGauge(key) {
-      let value = pipe(this.map, get12(key), getOrUndefined);
+    getGauge(key3) {
+      let value = pipe(this.map, get12(key3), getOrUndefined);
       if (value == null) {
-        const gauge4 = gauge3(key, key.keyType.bigint ? BigInt(0) : 0);
-        if (!pipe(this.map, has4(key))) {
-          pipe(this.map, set5(key, gauge4));
+        const gauge4 = gauge3(key3, key3.keyType.bigint ? BigInt(0) : 0);
+        if (!pipe(this.map, has4(key3))) {
+          pipe(this.map, set5(key3, gauge4));
         }
         value = gauge4;
       }
       return value;
     }
-    getHistogram(key) {
-      let value = pipe(this.map, get12(key), getOrUndefined);
+    getHistogram(key3) {
+      let value = pipe(this.map, get12(key3), getOrUndefined);
       if (value == null) {
-        const histogram5 = histogram4(key);
-        if (!pipe(this.map, has4(key))) {
-          pipe(this.map, set5(key, histogram5));
+        const histogram5 = histogram4(key3);
+        if (!pipe(this.map, has4(key3))) {
+          pipe(this.map, set5(key3, histogram5));
         }
         value = histogram5;
       }
       return value;
     }
-    getSummary(key) {
-      let value = pipe(this.map, get12(key), getOrUndefined);
+    getSummary(key3) {
+      let value = pipe(this.map, get12(key3), getOrUndefined);
       if (value == null) {
-        const summary4 = summary3(key);
-        if (!pipe(this.map, has4(key))) {
-          pipe(this.map, set5(key, summary4));
+        const summary4 = summary3(key3);
+        if (!pipe(this.map, has4(key3))) {
+          pipe(this.map, set5(key3, summary4));
         }
         value = summary4;
       }
@@ -12652,7 +16812,7 @@ var MetricSymbolKey = "effect/Metric", MetricTypeId, metricVariance, globalMetri
     }
   });
   return metric;
-}, counter5 = (name, options) => fromMetricKey(counter2(name, options)), fromMetricKey = (key) => {
+}, counter5 = (name, options) => fromMetricKey(counter2(name, options)), fromMetricKey = (key3) => {
   let untaggedHook;
   const hookCache = new WeakMap;
   const hook = (extraTags) => {
@@ -12660,18 +16820,18 @@ var MetricSymbolKey = "effect/Metric", MetricTypeId, metricVariance, globalMetri
       if (untaggedHook !== undefined) {
         return untaggedHook;
       }
-      untaggedHook = globalMetricRegistry.get(key);
+      untaggedHook = globalMetricRegistry.get(key3);
       return untaggedHook;
     }
     let hook2 = hookCache.get(extraTags);
     if (hook2 !== undefined) {
       return hook2;
     }
-    hook2 = globalMetricRegistry.get(taggedWithLabels(key, extraTags));
+    hook2 = globalMetricRegistry.get(taggedWithLabels(key3, extraTags));
     hookCache.set(extraTags, hook2);
     return hook2;
   };
-  return make30(key.keyType, (input, extraTags) => hook(extraTags).update(input), (extraTags) => hook(extraTags).get(), (input, extraTags) => hook(extraTags).modify(input));
+  return make30(key3.keyType, (input, extraTags) => hook(extraTags).update(input), (extraTags) => hook(extraTags).get(), (input, extraTags) => hook(extraTags).modify(input));
 }, histogram5 = (name, boundaries, description) => fromMetricKey(histogram2(name, boundaries, description)), tagged, taggedWithLabels2, update4;
 var init_metric = __esm(() => {
   init_Array();
@@ -12688,7 +16848,7 @@ var init_metric = __esm(() => {
     _Out: (_) => _
   };
   globalMetricRegistry = /* @__PURE__ */ globalValue(/* @__PURE__ */ Symbol.for("effect/Metric/globalMetricRegistry"), () => make29());
-  tagged = /* @__PURE__ */ dual(3, (self, key, value) => taggedWithLabels2(self, [make27(key, value)]));
+  tagged = /* @__PURE__ */ dual(3, (self, key3, value) => taggedWithLabels2(self, [make27(key3, value)]));
   taggedWithLabels2 = /* @__PURE__ */ dual(2, (self, extraTags) => {
     return make30(self.keyType, (input, extraTags1) => self.unsafeUpdate(input, union(extraTags, extraTags1)), (extraTags1) => self.unsafeValue(union(extraTags, extraTags1)), (input, extraTags1) => self.unsafeModify(input, union(extraTags, extraTags1)));
   });
@@ -13004,8 +17164,8 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
   const entries2 = Object.entries(arguments[0]);
   return fiberRefLocallyScopedWith(currentLogAnnotations, mutate3((annotations) => {
     for (let i = 0;i < entries2.length; i++) {
-      const [key, value] = entries2[i];
-      set3(annotations, key, value);
+      const [key3, value] = entries2[i];
+      set3(annotations, key3, value);
     }
     return annotations;
   }));
@@ -13071,7 +17231,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
       }
     }
     if (errored) {
-      return reconcile._tag === "Some" ? fail2(reconcile.value(errors)) : fail2(errors);
+      return reconcile._tag === "Some" ? fail3(reconcile.value(errors)) : fail3(errors);
     } else if (options?.discard) {
       return void_2;
     }
@@ -13372,7 +17532,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
         return flatMap7(scopeFork(scope, sequential4), (inner) => scopeExtend(self, inner));
     }
   }
-})), tagMetricsScoped = (key, value) => labelMetricsScoped([make27(key, value)]), labelMetricsScoped = (labels) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
+})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels3) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels3)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
   if (update5 === empty15) {
     return void_2;
   }
@@ -14124,10 +18284,10 @@ var init_fiberRuntime = __esm(() => {
       return sync(() => unsafeGet4(this.currentContext, op));
     }
     ["Left"](op) {
-      return fail2(op.left);
+      return fail3(op.left);
     }
     ["None"](_) {
-      return fail2(new NoSuchElementException);
+      return fail3(new NoSuchElementException);
     }
     ["Right"](op) {
       return exitSucceed(op.right);
@@ -14148,7 +18308,7 @@ var init_fiberRuntime = __esm(() => {
               return resume2(exitFailCause(interrupt(none4)));
             }
             case "Fail": {
-              return resume2(fail2(exit2.cause.error));
+              return resume2(fail3(exit2.cause.error));
             }
             case "Die": {
               return resume2(die2(exit2.cause.defect));
@@ -14230,7 +18390,7 @@ var init_fiberRuntime = __esm(() => {
       return internalCall(() => op.effect_instruction_i0(this, running2(this.currentRuntimeFlags)));
     }
     ["Blocked"](op) {
-      const refs = this.getFiberRefs();
+      const refs3 = this.getFiberRefs();
       const flags = this.currentRuntimeFlags;
       if (this._steps.length > 0) {
         const frames = [];
@@ -14242,7 +18402,7 @@ var init_fiberRuntime = __esm(() => {
         }
         this.setFiberRefs(snap.refs);
         this.currentRuntimeFlags = snap.flags;
-        const patchRefs = diff6(snap.refs, refs);
+        const patchRefs = diff6(snap.refs, refs3);
         const patchFlags = diff4(snap.flags, flags);
         return exitSucceed(blocked(op.effect_instruction_i0, withFiberRuntime((newFiber) => {
           while (frames.length > 0) {
@@ -14390,8 +18550,8 @@ var init_fiberRuntime = __esm(() => {
     }
     const clockService = unsafeGet4(getOrDefault(context2, currentServices), clockTag);
     const attributes = {};
-    for (const [key, value] of annotations) {
-      attributes[key] = value;
+    for (const [key3, value] of annotations) {
+      attributes[key3] = value;
     }
     attributes["effect.fiberId"] = threadName2(fiberId2);
     attributes["effect.logLevel"] = logLevel.label;
@@ -14417,10 +18577,10 @@ var init_fiberRuntime = __esm(() => {
   acquireReleaseInterruptible = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), (acquire, release) => ensuring(acquire, addFinalizer((exit2) => release(exit2))));
   _existsParFound = /* @__PURE__ */ Symbol.for("effect/Effect/existsPar/found");
   exists3 = /* @__PURE__ */ dual((args2) => isIterable(args2[0]) && !isEffect(args2[0]), (elements, predicate, options) => matchSimple(options?.concurrency, () => suspend(() => existsLoop(elements[Symbol.iterator](), 0, predicate)), () => matchEffect(forEach4(elements, (a, i) => if_(predicate(a, i), {
-    onTrue: () => fail2(_existsParFound),
+    onTrue: () => fail3(_existsParFound),
     onFalse: () => void_2
   }), options), {
-    onFailure: (e) => e === _existsParFound ? succeed(true) : fail2(e),
+    onFailure: (e) => e === _existsParFound ? succeed(true) : fail3(e),
     onSuccess: () => succeed(false)
   })));
   filter7 = /* @__PURE__ */ dual((args2) => isIterable(args2[0]) && !isEffect(args2[0]), (elements, predicate, options) => {
@@ -14453,7 +18613,7 @@ var init_fiberRuntime = __esm(() => {
     concurrency: options?.concurrency,
     batching: options?.batching,
     concurrentFinalizers: options?.concurrentFinalizers
-  }), ([es, bs]) => isNonEmptyArray2(es) ? fail2(es) : options?.discard ? void_2 : succeed(bs)));
+  }), ([es, bs]) => isNonEmptyArray2(es) ? fail3(es) : options?.discard ? void_2 : succeed(bs)));
   reduceEffect = /* @__PURE__ */ dual((args2) => isIterable(args2[0]) && !isEffect(args2[0]), (elements, zero2, f, options) => matchSimple(options?.concurrency, () => fromIterable2(elements).reduce((acc, a, i) => zipWith3(acc, a, (acc2, a2) => f(acc2, a2, i)), zero2), () => suspend(() => pipe(mergeAll3([zero2, ...elements], none2(), (acc, elem, i) => {
     switch (acc._tag) {
       case "None": {
@@ -14513,12 +18673,12 @@ var init_fiberRuntime = __esm(() => {
           newScope.state = this.state;
           return newScope;
         }
-        const key = {};
+        const key3 = {};
         const fin = (exit2) => newScope.close(exit2);
-        this.state.finalizers.set(key, fin);
+        this.state.finalizers.set(key3, fin);
         scopeUnsafeAddFinalizer(newScope, (_) => sync(() => {
           if (this.state._tag === "Open") {
-            this.state.finalizers.delete(key);
+            this.state.finalizers.delete(key3);
           }
         }));
         return newScope;
@@ -14834,7 +18994,7 @@ class Semaphore {
     return ensuring(restore(asSome(self)), this.release(n));
   }));
 }
-var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (permits) => sync(() => unsafeMakeSemaphore(permits)), Latch, unsafeMakeLatch = (open) => new Latch(open ?? false), makeLatch = (open) => sync(() => unsafeMakeLatch(open)), awaitAllChildren = (self) => ensuringChildren(self, fiberAwaitAll), cached2, cachedInvalidateWithTTL, computeCachedValue = (self, timeToLive, start3) => {
+var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (permits) => sync(() => unsafeMakeSemaphore(permits)), Latch, unsafeMakeLatch = (open2) => new Latch(open2 ?? false), makeLatch = (open2) => sync(() => unsafeMakeLatch(open2)), awaitAllChildren = (self) => ensuringChildren(self, fiberAwaitAll), cached2, cachedInvalidateWithTTL, computeCachedValue = (self, timeToLive, start3) => {
   const timeToLiveMillis = toMillis(decode(timeToLive));
   return pipe(deferredMake(), tap2((deferred) => intoDeferred(self, deferred)), map8((deferred) => some2([start3 + timeToLiveMillis, deferred])));
 }, getCachedValue = (self, timeToLive, cache) => uninterruptibleMask((restore) => pipe(clockWith3((clock2) => clock2.currentTimeMillis), flatMap7((time) => updateSomeAndGetEffectSynchronized(cache, (option2) => {
@@ -14848,7 +19008,7 @@ var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (
     }
   }
 })), flatMap7((option2) => isNone2(option2) ? dieMessage("BUG: Effect.cachedInvalidate - please report an issue at https://github.com/Effect-TS/effect/issues") : restore(deferredAwait(option2.value[1]))))), invalidateCache = (cache) => set4(cache, none2()), ensuringChild, ensuringChildren, forkAll, forkIn, forkScoped = (self) => scopeWith((scope2) => forkIn(self, scope2)), fromFiber = (fiber) => join2(fiber), fromFiberEffect = (fiber) => suspend(() => flatMap7(fiber, join2)), memoKeySymbol, Key, cachedFunction = (f, eq) => {
-  return pipe(sync(() => empty22()), flatMap7(makeSynchronized), map8((ref) => (a) => pipe(ref.modifyEffect((map11) => {
+  return pipe(sync(() => empty22()), flatMap7(makeSynchronized), map8((ref2) => (a) => pipe(ref2.modifyEffect((map11) => {
     const result = pipe(map11, get12(new Key(a, eq)));
     if (isNone2(result)) {
       return pipe(deferredMake(), tap2((deferred) => pipe(diffFiberRefs(f(a)), intoDeferred(deferred), fork)), map8((deferred) => [deferred, pipe(map11, set5(new Key(a, eq), deferred))]));
@@ -14856,9 +19016,9 @@ var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (
     return succeed([result.value, map11]);
   }), flatMap7(deferredAwait), flatMap7(([patch9, b]) => pipe(patchFiberRefs(patch9), as3(b))))));
 }, raceFirst, supervised, timeout, timeoutFail, timeoutFailCause, timeoutOption, timeoutTo, SynchronizedSymbolKey = "effect/Ref/SynchronizedRef", SynchronizedTypeId, synchronizedVariance, SynchronizedImpl, makeSynchronized = (value) => sync(() => unsafeMakeSynchronized(value)), unsafeMakeSynchronized = (value) => {
-  const ref = unsafeMake6(value);
+  const ref2 = unsafeMake6(value);
   const sem = unsafeMakeSemaphore(1);
-  return new SynchronizedImpl(ref, sem.withPermits(1));
+  return new SynchronizedImpl(ref2, sem.withPermits(1));
 }, updateSomeAndGetEffectSynchronized, bindAll;
 var init_circular = __esm(() => {
   init_Duration();
@@ -14959,12 +19119,12 @@ var init_circular = __esm(() => {
     const fiber = unsafeFork(self, parent, parentStatus.runtimeFlags, globalScope);
     if (scopeImpl.state._tag === "Open") {
       const finalizer = () => fiberIdWith((fiberId2) => equals(fiberId2, fiber.id()) ? void_2 : asVoid2(interruptFiber(fiber)));
-      const key = {};
-      scopeImpl.state.finalizers.set(key, finalizer);
+      const key3 = {};
+      scopeImpl.state.finalizers.set(key3, finalizer);
       fiber.addObserver(() => {
         if (scopeImpl.state._tag === "Closed")
           return;
-        scopeImpl.state.finalizers.delete(key);
+        scopeImpl.state.finalizers.delete(key3);
       });
     } else {
       fiber.unsafeInterruptAsFork(parent.id());
@@ -15056,9 +19216,9 @@ var init_circular = __esm(() => {
     [SynchronizedTypeId] = synchronizedVariance;
     [RefTypeId] = refVariance;
     [TypeId11] = TypeId11;
-    constructor(ref, withLock) {
+    constructor(ref2, withLock) {
       super();
-      this.ref = ref;
+      this.ref = ref2;
       this.withLock = withLock;
       this.get = get10(this.ref);
     }
@@ -15412,7 +19572,7 @@ var LayerSymbolKey = "effect/Layer", LayerTypeId, layerVariance, proto3, MemoMap
   extendScope2._op_layer = OP_EXTEND_SCOPE;
   extendScope2.layer = self;
   return extendScope2;
-}, fail5 = (error) => failCause4(fail3(error)), failSync2 = (evaluate2) => failCauseSync2(() => fail3(evaluate2())), failCause4 = (cause2) => fromEffectContext(failCause(cause2)), failCauseSync2 = (evaluate2) => fromEffectContext(failCauseSync(evaluate2)), flatMap11, flatten8, fresh = (self) => {
+}, fail6 = (error) => failCause4(fail4(error)), failSync2 = (evaluate2) => failCauseSync2(() => fail4(evaluate2())), failCause4 = (cause2) => fromEffectContext(failCause(cause2)), failCauseSync2 = (evaluate2) => fromEffectContext(failCauseSync(evaluate2)), flatMap11, flatten8, fresh = (self) => {
   const fresh2 = Object.create(proto3);
   fresh2._op_layer = OP_FRESH;
   fresh2.layer = self;
@@ -15453,7 +19613,7 @@ var LayerSymbolKey = "effect/Layer", LayerTypeId, layerVariance, proto3, MemoMap
 }, orDie2 = (self) => catchAll2(self, (defect) => die5(defect)), orElse3, passthrough = (self) => merge6(context2(), self), project, retry, retryLoop = (self, schedule, stateTag, state) => {
   return pipe(self, catchAll2((error) => pipe(retryUpdate(schedule, stateTag, error, state), flatMap11((env) => fresh(retryLoop(self, schedule, stateTag, pipe(env, get5(stateTag)).state))))));
 }, retryUpdate = (schedule, stateTag, error, state) => {
-  return fromEffect2(stateTag, pipe(currentTimeMillis2, flatMap7((now) => pipe(schedule.step(now, error, state), flatMap7(([state2, _, decision]) => isDone4(decision) ? fail2(error) : pipe(sleep2(millis(start2(decision.intervals) - now)), as3({
+  return fromEffect2(stateTag, pipe(currentTimeMillis2, flatMap7((now) => pipe(schedule.step(now, error, state), flatMap7(([state2, _, decision]) => isDone4(decision) ? fail3(error) : pipe(sleep2(millis(start2(decision.intervals) - now)), as3({
     state: state2
   })))))));
 }, scoped, scopedDiscard = (effect) => scopedContext(pipe(effect, as3(empty8()))), scopedContext = (effect) => {
@@ -15529,8 +19689,8 @@ var init_layer = __esm(() => {
   MemoMapImpl = class MemoMapImpl {
     ref;
     [MemoMapTypeId];
-    constructor(ref) {
-      this.ref = ref;
+    constructor(ref2) {
+      this.ref = ref2;
       this[MemoMapTypeId] = MemoMapTypeId;
     }
     getOrElseMemoize(layer, scope2) {
@@ -15564,7 +19724,7 @@ var init_layer = __esm(() => {
       }), flatten5);
     }
   };
-  makeMemoMap = /* @__PURE__ */ suspend(() => map8(makeSynchronized(new Map), (ref) => new MemoMapImpl(ref)));
+  makeMemoMap = /* @__PURE__ */ suspend(() => map8(makeSynchronized(new Map), (ref2) => new MemoMapImpl(ref2)));
   buildWithScope = /* @__PURE__ */ dual(2, (self, scope2) => flatMap7(makeMemoMap, (memoMap) => buildWithMemoMap(self, memoMap, scope2)));
   buildWithMemoMap = /* @__PURE__ */ dual(3, (self, memoMap, scope2) => flatMap7(makeBuilder(self, scope2), (run) => provideService(run(memoMap), CurrentMemoMap, memoMap)));
   catchAll2 = /* @__PURE__ */ dual(2, (self, onFailure) => match11(self, {
@@ -15576,7 +19736,7 @@ var init_layer = __esm(() => {
     onSuccess: succeedContext
   }));
   flatMap11 = /* @__PURE__ */ dual(2, (self, f) => match11(self, {
-    onFailure: fail5,
+    onFailure: fail6,
     onSuccess: f
   }));
   flatten8 = /* @__PURE__ */ dual(2, (self, tag) => flatMap11(self, get5(tag)));
@@ -15586,7 +19746,7 @@ var init_layer = __esm(() => {
     const effect = tagFirst ? b : a;
     return fromEffectContext(map8(effect, (service) => make9(tag, service)));
   });
-  fiberRefLocally2 = /* @__PURE__ */ dual(3, (self, ref, value) => locallyEffect(self, fiberRefLocally(ref, value)));
+  fiberRefLocally2 = /* @__PURE__ */ dual(3, (self, ref2, value) => locallyEffect(self, fiberRefLocally(ref2, value)));
   locallyEffect = /* @__PURE__ */ dual(2, (self, f) => {
     const locally = Object.create(proto3);
     locally._op_layer = "Locally";
@@ -15594,7 +19754,7 @@ var init_layer = __esm(() => {
     locally.f = f;
     return locally;
   });
-  fiberRefLocallyWith2 = /* @__PURE__ */ dual(3, (self, ref, value) => locallyEffect(self, fiberRefLocallyWith(ref, value)));
+  fiberRefLocallyWith2 = /* @__PURE__ */ dual(3, (self, ref2, value) => locallyEffect(self, fiberRefLocallyWith(ref2, value)));
   map11 = /* @__PURE__ */ dual(2, (self, f) => flatMap11(self, (context3) => succeedContext(f(context3))));
   mapError3 = /* @__PURE__ */ dual(2, (self, f) => catchAll2(self, (error) => failSync2(() => f(error))));
   matchCause2 = /* @__PURE__ */ dual(2, (self, {
@@ -15655,7 +19815,7 @@ var init_layer = __esm(() => {
     return fromEffectContext(sync(() => make9(tag, evaluate2())));
   });
   tap3 = /* @__PURE__ */ dual(2, (self, f) => flatMap11(self, (context3) => fromEffectContext(as3(f(context3), context3))));
-  tapError2 = /* @__PURE__ */ dual(2, (self, f) => catchAll2(self, (e) => fromEffectContext(flatMap7(f(e), () => fail2(e)))));
+  tapError2 = /* @__PURE__ */ dual(2, (self, f) => catchAll2(self, (e) => fromEffectContext(flatMap7(f(e), () => fail3(e)))));
   tapErrorCause2 = /* @__PURE__ */ dual(2, (self, f) => catchAllCause2(self, (cause2) => fromEffectContext(flatMap7(f(cause2), () => failCause(cause2)))));
   toRuntimeWithMemoMap = /* @__PURE__ */ dual(2, (self, memoMap) => flatMap7(scopeWith((scope3) => buildWithMemoMap(self, memoMap, scope3)), (context3) => pipe(runtime2(), provideContext(context3))));
   provide = /* @__PURE__ */ dual(2, (self, that) => suspend2(() => {
@@ -15700,11 +19860,11 @@ var init_layer = __esm(() => {
   }));
   annotateLogs2 = /* @__PURE__ */ dual((args2) => isLayer(args2[0]), function() {
     const args2 = arguments;
-    return fiberRefLocallyWith2(args2[0], currentLogAnnotations, typeof args2[1] === "string" ? set3(args2[1], args2[2]) : (annotations) => Object.entries(args2[1]).reduce((acc, [key, value]) => set3(acc, key, value), annotations));
+    return fiberRefLocallyWith2(args2[0], currentLogAnnotations, typeof args2[1] === "string" ? set3(args2[1], args2[2]) : (annotations) => Object.entries(args2[1]).reduce((acc, [key3, value]) => set3(acc, key3, value), annotations));
   });
   annotateSpans2 = /* @__PURE__ */ dual((args2) => isLayer(args2[0]), function() {
     const args2 = arguments;
-    return fiberRefLocallyWith2(args2[0], currentTracerSpanAnnotations, typeof args2[1] === "string" ? set3(args2[1], args2[2]) : (annotations) => Object.entries(args2[1]).reduce((acc, [key, value]) => set3(acc, key, value), annotations));
+    return fiberRefLocallyWith2(args2[0], currentTracerSpanAnnotations, typeof args2[1] === "string" ? set3(args2[1], args2[2]) : (annotations) => Object.entries(args2[1]).reduce((acc, [key3, value]) => set3(acc, key3, value), annotations));
   });
   withParentSpan2 = /* @__PURE__ */ dual(2, (self, span2) => provide(self, succeedContext(make9(spanTag, span2))));
   provideSomeLayer = /* @__PURE__ */ dual(2, (self, layer) => scopedWith((scope3) => flatMap7(buildWithScope(layer, scope3), (context3) => provideSomeContext(self, context3))));
@@ -15780,7 +19940,7 @@ var ScheduleSymbolKey = "effect/Schedule", ScheduleTypeId, isSchedule = (u) => h
   elapsed: millis(now - prev.start),
   elapsedSincePrevious: millis(now - prev.now),
   start: prev.start
-}), ScheduleDriverImpl, makeWithState = (initial, step3) => new ScheduleImpl(initial, step3), asVoid4 = (self) => map12(self, constVoid), check, checkEffect, driver = (self) => pipe(make23([none2(), self.initial]), map8((ref) => new ScheduleDriverImpl(self, ref))), intersect5, intersectWith, intersectWithLoop = (self, that, input, lState, out, lInterval, rState, out2, rInterval, f) => {
+}), ScheduleDriverImpl, makeWithState = (initial, step3) => new ScheduleImpl(initial, step3), asVoid4 = (self) => map12(self, constVoid), check, checkEffect, driver = (self) => pipe(make23([none2(), self.initial]), map8((ref2) => new ScheduleDriverImpl(self, ref2))), intersect5, intersectWith, intersectWithLoop = (self, that, input, lState, out, lInterval, rState, out2, rInterval, f) => {
   const combined = f(lInterval, rInterval);
   if (isNonEmpty4(combined)) {
     return succeed([[lState, rState], [out, out2], _continue2(combined)]);
@@ -15801,7 +19961,7 @@ var ScheduleSymbolKey = "effect/Schedule", ScheduleTypeId, isSchedule = (u) => h
   });
 }, map12, mapEffect, passthrough2 = (self) => makeWithState(self.initial, (now, input, state) => pipe(self.step(now, input, state), map8(([state2, _, decision]) => [state2, input, decision]))), recurs = (n) => whileOutput(forever2, (out) => out < n), unfold2 = (initial, f) => makeWithState(initial, (now, _, state) => sync(() => [f(state), state, continueWith2(after2(now))])), untilInputEffect, whileInputEffect, whileOutput, ScheduleDefectTypeId, ScheduleDefect, isScheduleDefect = (u) => hasProperty(u, ScheduleDefectTypeId), scheduleDefectWrap = (self) => catchAll(self, (e) => die2(new ScheduleDefect(e))), scheduleDefectRefailCause = (cause2) => match2(find(cause2, (_) => isDieType(_) && isScheduleDefect(_.defect) ? some2(_.defect) : none2()), {
   onNone: () => cause2,
-  onSome: (error) => fail(error.error)
+  onSome: (error) => fail2(error.error)
 }), scheduleDefectRefail = (effect) => catchAllCause(effect, (cause2) => failCause(scheduleDefectRefailCause(cause2))), repeat_Effect, repeat_combined, repeatOrElse_Effect, repeatOrElseEffectLoop = (self, driver2, orElse4, value) => matchEffect(driver2.next(value), {
   onFailure: () => orDie(driver2.last),
   onSuccess: (b) => matchEffect(self, {
@@ -15890,9 +20050,9 @@ var init_schedule = __esm(() => {
     schedule;
     ref;
     [ScheduleDriverTypeId] = scheduleDriverVariance;
-    constructor(schedule, ref) {
+    constructor(schedule, ref2) {
       this.schedule = schedule;
-      this.ref = ref;
+      this.ref = ref2;
     }
     get state() {
       return map8(get10(this.ref), (tuple) => tuple[1]);
@@ -15917,7 +20077,7 @@ var init_schedule = __esm(() => {
       return pipe(map8(get10(this.ref), (tuple) => tuple[1]), flatMap7((state) => pipe(currentTimeMillis2, flatMap7((now) => pipe(suspend(() => this.schedule.step(now, input, state)), flatMap7(([state2, out, decision]) => {
         const setState = set4(this.ref, [some2(out), state2]);
         if (isDone4(decision)) {
-          return setState.pipe(zipRight2(fail2(none2())));
+          return setState.pipe(zipRight2(fail3(none2())));
         }
         const millis2 = start2(decision.intervals) - now;
         if (millis2 <= 0) {
@@ -15956,7 +20116,7 @@ var init_schedule = __esm(() => {
       this[ScheduleDefectTypeId] = ScheduleDefectTypeId;
     }
   };
-  repeat_Effect = /* @__PURE__ */ dual(2, (self, schedule) => repeatOrElse_Effect(self, schedule, (e, _) => fail2(e)));
+  repeat_Effect = /* @__PURE__ */ dual(2, (self, schedule) => repeatOrElse_Effect(self, schedule, (e, _) => fail3(e)));
   repeat_combined = /* @__PURE__ */ dual(2, (self, options) => {
     if (isSchedule(options)) {
       return repeat_Effect(self, options);
@@ -15983,7 +20143,7 @@ var init_schedule = __esm(() => {
     onFailure: (error) => orElse4(error, none2()),
     onSuccess: (value) => repeatOrElseEffectLoop(provideServiceEffect(self, CurrentIterationMetadata, get10(driver2.iterationMeta)), driver2, (error, option2) => provideServiceEffect(orElse4(error, option2), CurrentIterationMetadata, get10(driver2.iterationMeta)), value)
   })));
-  retry_Effect = /* @__PURE__ */ dual(2, (self, policy) => retryOrElse_Effect(self, policy, (e, _) => fail2(e)));
+  retry_Effect = /* @__PURE__ */ dual(2, (self, policy) => retryOrElse_Effect(self, policy, (e, _) => fail3(e)));
   retry_combined = /* @__PURE__ */ dual(2, (self, options) => {
     if (isSchedule(options)) {
       return retry_Effect(self, options);
@@ -16219,16 +20379,16 @@ var init_MutableQueue = __esm(() => {
 class KeySetImpl {
   head = undefined;
   tail = undefined;
-  add(key) {
-    if (key !== this.tail) {
+  add(key3) {
+    if (key3 !== this.tail) {
       if (this.tail === undefined) {
-        this.head = key;
-        this.tail = key;
+        this.head = key3;
+        this.tail = key3;
       } else {
-        const previous = key.previous;
-        const next = key.next;
+        const previous = key3.previous;
+        const next = key3.next;
         if (next !== undefined) {
-          key.next = undefined;
+          key3.next = undefined;
           if (previous !== undefined) {
             previous.next = next;
             next.previous = previous;
@@ -16237,18 +20397,18 @@ class KeySetImpl {
             this.head.previous = undefined;
           }
         }
-        this.tail.next = key;
-        key.previous = this.tail;
-        this.tail = key;
+        this.tail.next = key3;
+        key3.previous = this.tail;
+        this.tail = key3;
       }
     }
   }
   remove() {
-    const key = this.head;
-    if (key !== undefined) {
-      const next = key.next;
+    const key3 = this.head;
+    if (key3 !== undefined) {
+      const next = key3.next;
       if (next !== undefined) {
-        key.next = undefined;
+        key3.next = undefined;
         this.head = next;
         this.head.previous = undefined;
       } else {
@@ -16256,18 +20416,18 @@ class KeySetImpl {
         this.tail = undefined;
       }
     }
-    return key;
+    return key3;
   }
 }
-var complete2 = (key, exit2, entryStats, timeToLiveMillis) => struct({
+var complete2 = (key3, exit2, entryStats, timeToLiveMillis) => struct({
   _tag: "Complete",
-  key,
+  key: key3,
   exit: exit2,
   entryStats,
   timeToLiveMillis
-}), pending2 = (key, deferred) => struct({
+}), pending2 = (key3, deferred) => struct({
   _tag: "Pending",
-  key,
+  key: key3,
   deferred
 }), refreshing = (deferred, complete3) => struct({
   _tag: "Refreshing",
@@ -16349,8 +20509,8 @@ var init_cache = __esm(() => {
       this.timeToLive = timeToLive;
       this.cacheState = initialCacheState();
     }
-    get(key) {
-      return map8(this.getEither(key), merge);
+    get(key3) {
+      return map8(this.getEither(key3), merge);
     }
     get cacheStats() {
       return sync(() => makeCacheStats({
@@ -16359,10 +20519,10 @@ var init_cache = __esm(() => {
         size: size6(this.cacheState.map)
       }));
     }
-    getOption(key) {
-      return suspend(() => match2(get12(this.cacheState.map, key), {
+    getOption(key3) {
+      return suspend(() => match2(get12(this.cacheState.map, key3), {
         onNone: () => {
-          const mapKey = makeMapKey(key);
+          const mapKey = makeMapKey(key3);
           this.trackAccess(mapKey);
           this.trackMiss();
           return succeed(none2());
@@ -16370,10 +20530,10 @@ var init_cache = __esm(() => {
         onSome: (value) => this.resolveMapValue(value)
       }));
     }
-    getOptionComplete(key) {
-      return suspend(() => match2(get12(this.cacheState.map, key), {
+    getOptionComplete(key3) {
+      return suspend(() => match2(get12(this.cacheState.map, key3), {
         onNone: () => {
-          const mapKey = makeMapKey(key);
+          const mapKey = makeMapKey(key3);
           this.trackAccess(mapKey);
           this.trackMiss();
           return succeed(none2());
@@ -16381,12 +20541,12 @@ var init_cache = __esm(() => {
         onSome: (value) => this.resolveMapValue(value, true)
       }));
     }
-    contains(key) {
-      return sync(() => has4(this.cacheState.map, key));
+    contains(key3) {
+      return sync(() => has4(this.cacheState.map, key3));
     }
-    entryStats(key) {
+    entryStats(key3) {
       return sync(() => {
-        const option2 = get12(this.cacheState.map, key);
+        const option2 = get12(this.cacheState.map, key3);
         if (isSome2(option2)) {
           switch (option2.value._tag) {
             case "Complete": {
@@ -16405,9 +20565,9 @@ var init_cache = __esm(() => {
         return none2();
       });
     }
-    getEither(key) {
+    getEither(key3) {
       return suspend(() => {
-        const k = key;
+        const k = key3;
         let mapKey = undefined;
         let deferred = undefined;
         let value = getOrUndefined(get12(this.cacheState.map, k));
@@ -16423,27 +20583,27 @@ var init_cache = __esm(() => {
         if (value === undefined) {
           this.trackAccess(mapKey);
           this.trackMiss();
-          return map8(this.lookupValueOf(key, deferred), right2);
+          return map8(this.lookupValueOf(key3, deferred), right2);
         } else {
           return flatMap7(this.resolveMapValue(value), match2({
-            onNone: () => this.getEither(key),
+            onNone: () => this.getEither(key3),
             onSome: (value2) => succeed(left2(value2))
           }));
         }
       });
     }
-    invalidate(key) {
+    invalidate(key3) {
       return sync(() => {
-        remove5(this.cacheState.map, key);
+        remove5(this.cacheState.map, key3);
       });
     }
-    invalidateWhen(key, when2) {
+    invalidateWhen(key3, when2) {
       return sync(() => {
-        const value = get12(this.cacheState.map, key);
+        const value = get12(this.cacheState.map, key3);
         if (isSome2(value) && value.value._tag === "Complete") {
           if (value.value.exit._tag === "Success") {
             if (when2(value.value.exit.value)) {
-              remove5(this.cacheState.map, key);
+              remove5(this.cacheState.map, key3);
             }
           }
         }
@@ -16454,9 +20614,9 @@ var init_cache = __esm(() => {
         this.cacheState.map = empty22();
       });
     }
-    refresh(key) {
+    refresh(key3) {
       return clockWith3((clock2) => suspend(() => {
-        const k = key;
+        const k = key3;
         const deferred = unsafeMake4(this.fiberId);
         let value = getOrUndefined(get12(this.cacheState.map, k));
         if (value === undefined) {
@@ -16467,7 +20627,7 @@ var init_cache = __esm(() => {
           }
         }
         if (value === undefined) {
-          return asVoid2(this.lookupValueOf(key, deferred));
+          return asVoid2(this.lookupValueOf(key3, deferred));
         } else {
           switch (value._tag) {
             case "Complete": {
@@ -16476,9 +20636,9 @@ var init_cache = __esm(() => {
                 if (equals(found, value)) {
                   remove5(this.cacheState.map, k);
                 }
-                return asVoid2(this.get(key));
+                return asVoid2(this.get(key3));
               }
-              return pipe(this.lookupValueOf(key, deferred), when(() => {
+              return pipe(this.lookupValueOf(key3, deferred), when(() => {
                 const current = getOrUndefined(get12(this.cacheState.map, k));
                 if (equals(current, value)) {
                   const mapValue = refreshing(deferred, value);
@@ -16498,10 +20658,10 @@ var init_cache = __esm(() => {
         }
       }));
     }
-    set(key, value) {
+    set(key3, value) {
       return clockWith3((clock2) => sync(() => {
         const now = clock2.unsafeCurrentTimeMillis();
-        const k = key;
+        const k = key3;
         const lookupResult = succeed3(value);
         const mapValue = complete2(makeMapKey(k), lookupResult, makeEntryStats(now), now + toMillis(decode(this.timeToLive(lookupResult))));
         set5(this.cacheState.map, k, mapValue);
@@ -16585,25 +20745,25 @@ var init_cache = __esm(() => {
     trackMiss() {
       this.cacheState.misses = this.cacheState.misses + 1;
     }
-    trackAccess(key) {
-      offer(this.cacheState.accesses, key);
+    trackAccess(key3) {
+      offer(this.cacheState.accesses, key3);
       if (compareAndSet(this.cacheState.updating, false, true)) {
         let loop2 = true;
         while (loop2) {
-          const key2 = poll(this.cacheState.accesses, EmptyMutableQueue);
-          if (key2 === EmptyMutableQueue) {
+          const key4 = poll(this.cacheState.accesses, EmptyMutableQueue);
+          if (key4 === EmptyMutableQueue) {
             loop2 = false;
           } else {
-            this.cacheState.keys.add(key2);
+            this.cacheState.keys.add(key4);
           }
         }
         let size9 = size6(this.cacheState.map);
         loop2 = size9 > this.capacity;
         while (loop2) {
-          const key2 = this.cacheState.keys.remove();
-          if (key2 !== undefined) {
-            if (has4(this.cacheState.map, key2.current)) {
-              remove5(this.cacheState.map, key2.current);
+          const key4 = this.cacheState.keys.remove();
+          if (key4 !== undefined) {
+            if (has4(this.cacheState.map, key4.current)) {
+              remove5(this.cacheState.map, key4.current);
               size9 = size9 - 1;
               loop2 = size9 > this.capacity;
             }
@@ -16619,15 +20779,15 @@ var init_cache = __esm(() => {
     }
     lookupValueOf(input, deferred) {
       return clockWith3((clock2) => suspend(() => {
-        const key = input;
+        const key3 = input;
         return pipe(this.lookup(input), provideContext(this.context), exit, flatMap7((exit2) => {
           const now = clock2.unsafeCurrentTimeMillis();
           const stats = makeEntryStats(now);
-          const value = complete2(makeMapKey(key), exit2, stats, now + toMillis(decode(this.timeToLive(exit2))));
-          set5(this.cacheState.map, key, value);
+          const value = complete2(makeMapKey(key3), exit2, stats, now + toMillis(decode(this.timeToLive(exit2))));
+          set5(this.cacheState.map, key3, value);
           return zipRight2(done2(deferred, exit2), exit2);
         }), onInterrupt(() => zipRight2(interrupt4(deferred), sync(() => {
-          remove5(this.cacheState.map, key);
+          remove5(this.cacheState.map, key3);
         }))));
       }));
     }
@@ -16672,15 +20832,15 @@ var currentCache, currentCacheEnabled, fromRequest = (request, dataSource) => fl
     }
     const listeners = new Listeners;
     listeners.increment();
-    return flatMap7(deferredMake(), (ref) => ensuring(blocked(single(ds, makeEntry({
+    return flatMap7(deferredMake(), (ref2) => ensuring(blocked(single(ds, makeEntry({
       request: proxy,
-      result: ref,
+      result: ref2,
       listeners,
       ownerId: id,
       state: {
         completed: false
       }
-    })), deferredAwait(ref)), sync(() => listeners.decrement())));
+    })), deferredAwait(ref2)), sync(() => listeners.decrement())));
   });
 })), cacheRequest = (request, result) => {
   return fiberRefGetWith(currentCacheEnabled, (cacheEnabled) => {
@@ -16975,7 +21135,7 @@ __export(exports_Effect, {
   failSync: () => failSync3,
   failCauseSync: () => failCauseSync3,
   failCause: () => failCause6,
-  fail: () => fail7,
+  fail: () => fail8,
   exit: () => exit2,
   exists: () => exists4,
   every: () => every5,
@@ -17116,7 +21276,7 @@ ${endStackCall}`;
   };
   return withSpan3(effect, options.spanName, opts);
 }
-var EffectTypeId3, isEffect2, cachedWithTTL, cachedInvalidateWithTTL2, cached3, cachedFunction2, once3, all4, allWith2, allSuccesses2, dropUntil2, dropWhile2, takeUntil2, takeWhile2, every5, exists4, filter8, filterMap5, findFirst4, forEach5, head4, mergeAll5, partition4, reduce10, reduceWhile2, reduceRight3, reduceEffect2, replicate2, replicateEffect2, validateAll2, validateFirst2, async, asyncEffect2, custom2, withFiberRuntime2, fail7, failSync3, failCause6, failCauseSync3, die6, dieMessage2, dieSync3, gen3, never2, none9, promise2, succeed6, succeedNone2, succeedSome2, suspend3, sync3, _void, yieldNow4, _catch2, catchAll3, catchAllCause3, catchAllDefect2, catchIf2, catchSome2, catchSomeCause2, catchSomeDefect2, catchTag2, catchTags2, cause2, eventually2, ignore2, ignoreLogged2, parallelErrors2, sandbox2, retry2, withExecutionPlan2, retryOrElse, try_2, tryMap2, tryMapPromise2, tryPromise2, unsandbox2, allowInterrupt2, checkInterruptible2, disconnect2, interrupt6, interruptWith2, interruptible4, interruptibleMask2, onInterrupt2, uninterruptible2, uninterruptibleMask3, liftPredicate3, as6, asSome2, asSomeError2, asVoid5, flip2, flipWith2, map13, mapAccum3, mapBoth3, mapError4, mapErrorCause3, merge7, negate2, acquireRelease2, acquireReleaseInterruptible2, acquireUseRelease2, addFinalizer2, ensuring2, onError2, onExit3, parallelFinalizers2, sequentialFinalizers2, finalizersMask2, scope3, scopeWith2, scopedWith2, scoped2, using2, withEarlyRelease2, awaitAllChildren2, daemonChildren2, descriptor2, descriptorWith2, diffFiberRefs2, ensuringChild2, ensuringChildren2, fiberId2, fiberIdWith2, fork3, forkDaemon2, forkAll2, forkIn2, forkScoped2, forkWithErrorHandler2, fromFiber2, fromFiberEffect2, supervised2, transplant2, withConcurrency2, withScheduler2, withSchedulingPriority2, withMaxOpsBeforeYield2, clock2, clockWith4, withClockScoped2, withClock2, console3, consoleWith2, withConsoleScoped2, withConsole2, delay2, sleep4, timed2, timedWith2, timeout2, timeoutOption2, timeoutFail2, timeoutFailCause2, timeoutTo2, configProviderWith2, withConfigProvider2, withConfigProviderScoped2, context3, contextWith2, contextWithEffect2, mapInputContext2, provide2, provideService2, provideServiceEffect2, serviceFunction2, serviceFunctionEffect2, serviceFunctions2, serviceConstants2, serviceMembers2, serviceOption2, serviceOptional2, updateService2, Do3, bind4, bindAll2, bindTo4, let_4, option2, either3, exit2, intoDeferred2, if_2, filterOrDie2, filterOrDieMessage2, filterOrElse2, filterOrFail2, filterEffectOrElse2, filterEffectOrFail2, unless2, unlessEffect2, when2, whenEffect2, whenFiberRef2, whenRef2, flatMap12, andThen6, flatten9, race2, raceAll2, raceFirst2, raceWith2, summarized2, tap4, tapBoth2, tapDefect2, tapError3, tapErrorTag2, tapErrorCause3, forever3, iterate2, loop2, repeat, repeatN2, repeatOrElse, schedule, scheduleForked2, scheduleFrom, whileLoop2, getFiberRefs, inheritFiberRefs2, locally, locallyWith, locallyScoped, locallyScopedWith, patchFiberRefs2, setFiberRefs2, updateFiberRefs2, isFailure5, isSuccess3, match12, matchCause3, matchCauseEffect3, matchEffect3, log2, logWithLevel2 = (level, ...message) => logWithLevel(level)(...message), logTrace2, logDebug2, logInfo2, logWarning2, logError2, logFatal2, withLogSpan2, annotateLogs3, annotateLogsScoped2, logAnnotations2, withUnhandledErrorLogLevel2, whenLogLevel2, orDie3, orDieWith2, orElse4, orElseFail2, orElseSucceed2, firstSuccessOf2, random3, randomWith2, withRandom2, withRandomFixed, withRandomScoped2, runtime3, getRuntimeFlags, patchRuntimeFlags, withRuntimeFlagsPatch, withRuntimeFlagsPatchScoped, tagMetrics2, labelMetrics2, tagMetricsScoped2, labelMetricsScoped2, metricLabels2, withMetric2, unsafeMakeSemaphore2, makeSemaphore2, unsafeMakeLatch2, makeLatch2, runFork2, runCallback, runPromise, runPromiseExit, runSync, runSyncExit, validate2, validateWith2, zip5, zipLeft4, zipRight4, zipWith6, ap2, blocked2, runRequestBlock2, step3, request, cacheRequestResult, withRequestBatching2, withRequestCaching2, withRequestCache2, tracer2, tracerWith4, withTracer2, withTracerScoped2, withTracerEnabled2, withTracerTiming2, annotateSpans3, annotateCurrentSpan2, currentSpan2, currentPropagatedSpan2, currentParentSpan2, spanAnnotations2, spanLinks2, linkSpans2, linkSpanCurrent2, makeSpan2, makeSpanScoped2, useSpan2, withSpan3, functionWithSpan2, withSpanScoped2, withParentSpan3, fromNullable3, optionFromOptional2, transposeOption = (self) => {
+var EffectTypeId3, isEffect2, cachedWithTTL, cachedInvalidateWithTTL2, cached3, cachedFunction2, once3, all4, allWith2, allSuccesses2, dropUntil2, dropWhile2, takeUntil2, takeWhile2, every5, exists4, filter8, filterMap5, findFirst4, forEach5, head4, mergeAll5, partition4, reduce10, reduceWhile2, reduceRight3, reduceEffect2, replicate2, replicateEffect2, validateAll2, validateFirst2, async, asyncEffect2, custom2, withFiberRuntime2, fail8, failSync3, failCause6, failCauseSync3, die6, dieMessage2, dieSync3, gen3, never2, none9, promise2, succeed6, succeedNone2, succeedSome2, suspend3, sync3, _void, yieldNow4, _catch2, catchAll3, catchAllCause3, catchAllDefect2, catchIf2, catchSome2, catchSomeCause2, catchSomeDefect2, catchTag2, catchTags2, cause2, eventually2, ignore2, ignoreLogged2, parallelErrors2, sandbox2, retry2, withExecutionPlan2, retryOrElse, try_2, tryMap2, tryMapPromise2, tryPromise2, unsandbox2, allowInterrupt2, checkInterruptible2, disconnect2, interrupt6, interruptWith2, interruptible4, interruptibleMask2, onInterrupt2, uninterruptible2, uninterruptibleMask3, liftPredicate3, as6, asSome2, asSomeError2, asVoid5, flip2, flipWith2, map13, mapAccum3, mapBoth3, mapError4, mapErrorCause3, merge7, negate2, acquireRelease2, acquireReleaseInterruptible2, acquireUseRelease2, addFinalizer2, ensuring2, onError2, onExit3, parallelFinalizers2, sequentialFinalizers2, finalizersMask2, scope3, scopeWith2, scopedWith2, scoped2, using2, withEarlyRelease2, awaitAllChildren2, daemonChildren2, descriptor2, descriptorWith2, diffFiberRefs2, ensuringChild2, ensuringChildren2, fiberId2, fiberIdWith2, fork3, forkDaemon2, forkAll2, forkIn2, forkScoped2, forkWithErrorHandler2, fromFiber2, fromFiberEffect2, supervised2, transplant2, withConcurrency2, withScheduler2, withSchedulingPriority2, withMaxOpsBeforeYield2, clock2, clockWith4, withClockScoped2, withClock2, console3, consoleWith2, withConsoleScoped2, withConsole2, delay2, sleep4, timed2, timedWith2, timeout2, timeoutOption2, timeoutFail2, timeoutFailCause2, timeoutTo2, configProviderWith2, withConfigProvider2, withConfigProviderScoped2, context3, contextWith2, contextWithEffect2, mapInputContext2, provide2, provideService2, provideServiceEffect2, serviceFunction2, serviceFunctionEffect2, serviceFunctions2, serviceConstants2, serviceMembers2, serviceOption2, serviceOptional2, updateService2, Do3, bind4, bindAll2, bindTo4, let_4, option2, either3, exit2, intoDeferred2, if_2, filterOrDie2, filterOrDieMessage2, filterOrElse2, filterOrFail2, filterEffectOrElse2, filterEffectOrFail2, unless2, unlessEffect2, when2, whenEffect2, whenFiberRef2, whenRef2, flatMap12, andThen6, flatten9, race2, raceAll2, raceFirst2, raceWith2, summarized2, tap4, tapBoth2, tapDefect2, tapError3, tapErrorTag2, tapErrorCause3, forever3, iterate2, loop2, repeat, repeatN2, repeatOrElse, schedule, scheduleForked2, scheduleFrom, whileLoop2, getFiberRefs, inheritFiberRefs2, locally, locallyWith, locallyScoped, locallyScopedWith, patchFiberRefs2, setFiberRefs2, updateFiberRefs2, isFailure5, isSuccess3, match12, matchCause3, matchCauseEffect3, matchEffect3, log2, logWithLevel2 = (level, ...message) => logWithLevel(level)(...message), logTrace2, logDebug2, logInfo2, logWarning2, logError2, logFatal2, withLogSpan2, annotateLogs3, annotateLogsScoped2, logAnnotations2, withUnhandledErrorLogLevel2, whenLogLevel2, orDie3, orDieWith2, orElse4, orElseFail2, orElseSucceed2, firstSuccessOf2, random3, randomWith2, withRandom2, withRandomFixed, withRandomScoped2, runtime3, getRuntimeFlags, patchRuntimeFlags, withRuntimeFlagsPatch, withRuntimeFlagsPatchScoped, tagMetrics2, labelMetrics2, tagMetricsScoped2, labelMetricsScoped2, metricLabels2, withMetric2, unsafeMakeSemaphore2, makeSemaphore2, unsafeMakeLatch2, makeLatch2, runFork2, runCallback, runPromise, runPromiseExit, runSync, runSyncExit, validate2, validateWith2, zip5, zipLeft4, zipRight4, zipWith6, ap2, blocked2, runRequestBlock2, step3, request, cacheRequestResult, withRequestBatching2, withRequestCaching2, withRequestCache2, tracer2, tracerWith4, withTracer2, withTracerScoped2, withTracerEnabled2, withTracerTiming2, annotateSpans3, annotateCurrentSpan2, currentSpan2, currentPropagatedSpan2, currentParentSpan2, spanAnnotations2, spanLinks2, linkSpans2, linkSpanCurrent2, makeSpan2, makeSpanScoped2, useSpan2, withSpan3, functionWithSpan2, withSpanScoped2, withParentSpan3, fromNullable3, optionFromOptional2, transposeOption = (self) => {
   return isNone(self) ? succeedNone2 : map13(self.value, some);
 }, transposeMapOption, makeTagProxy = (TagClass) => {
   const cache = new Map;
@@ -17372,7 +21532,7 @@ var init_Effect = __esm(() => {
   asyncEffect2 = asyncEffect;
   custom2 = custom;
   withFiberRuntime2 = withFiberRuntime;
-  fail7 = fail2;
+  fail8 = fail3;
   failSync3 = failSync;
   failCause6 = failCause;
   failCauseSync3 = failCauseSync;
@@ -17743,7 +21903,7 @@ __export(exports_Layer, {
   failSync: () => failSync4,
   failCauseSync: () => failCauseSync4,
   failCause: () => failCause7,
-  fail: () => fail8,
+  fail: () => fail9,
   extendScope: () => extendScope2,
   ensureSuccessType: () => ensureSuccessType2,
   ensureRequirementsType: () => ensureRequirementsType2,
@@ -17767,7 +21927,7 @@ __export(exports_Layer, {
   LayerTypeId: () => LayerTypeId2,
   CurrentMemoMap: () => CurrentMemoMap2
 });
-var LayerTypeId2, MemoMapTypeId2, CurrentMemoMap2, isLayer2, isFresh2, annotateLogs4, annotateSpans4, build2, buildWithScope2, catchAll4, catchAllCause4, context4, die7, dieSync4, discard2, effect, effectDiscard, effectContext, empty29, extendScope2, fail8, failSync4, failCause7, failCauseSync4, flatMap13, flatten10, fresh2, mock2, fromFunction2, launch2, map14, mapError5, match13, matchCause4, memoize3, merge8, mergeAll6, orDie4, orElse5, passthrough3, project2, locallyEffect2, locally2, locallyWith2, locallyScoped2, fiberRefLocallyScopedWith3, retry3, scope4, scoped3, scopedDiscard2, scopedContext2, service2, succeed7, succeedContext2, suspend4, sync4, syncContext2, tap5, tapError4, tapErrorCause4, toRuntime2, toRuntimeWithMemoMap2, provide3, provideMerge2, zipWith7, unwrapEffect2, unwrapScoped2, setClock = (clock3) => scopedDiscard2(fiberRefLocallyScopedWith(currentServices, add4(clockTag, clock3))), setConfigProvider2, parentSpan2, setRandom = (random4) => scopedDiscard2(fiberRefLocallyScopedWith(currentServices, add4(randomTag, random4))), setRequestBatching = (requestBatching) => scopedDiscard2(fiberRefLocallyScoped(currentRequestBatching, requestBatching)), setRequestCaching = (requestCaching) => scopedDiscard2(fiberRefLocallyScoped(currentCacheEnabled, requestCaching)), setRequestCache = (cache) => scopedDiscard2(isEffect(cache) ? flatMap7(cache, (x) => fiberRefLocallyScoped(currentCache, x)) : fiberRefLocallyScoped(currentCache, cache)), setScheduler = (scheduler) => scopedDiscard2(fiberRefLocallyScoped(currentScheduler, scheduler)), span3, setTracer2, setTracerEnabled = (enabled2) => scopedDiscard2(fiberRefLocallyScoped(currentTracerEnabled, enabled2)), setTracerTiming = (enabled2) => scopedDiscard2(fiberRefLocallyScoped(currentTracerTimingEnabled, enabled2)), setUnhandledErrorLogLevel = (level) => scopedDiscard2(fiberRefLocallyScoped(currentUnhandledErrorLogLevel, level)), setVersionMismatchErrorLogLevel = (level) => scopedDiscard2(fiberRefLocallyScoped(currentVersionMismatchErrorLogLevel, level)), withSpan4, withParentSpan4, makeMemoMap2, buildWithMemoMap2, updateService3, ensureSuccessType2 = () => (layer) => layer, ensureErrorType2 = () => (layer) => layer, ensureRequirementsType2 = () => (layer) => layer;
+var LayerTypeId2, MemoMapTypeId2, CurrentMemoMap2, isLayer2, isFresh2, annotateLogs4, annotateSpans4, build2, buildWithScope2, catchAll4, catchAllCause4, context4, die7, dieSync4, discard2, effect, effectDiscard, effectContext, empty29, extendScope2, fail9, failSync4, failCause7, failCauseSync4, flatMap13, flatten10, fresh2, mock2, fromFunction2, launch2, map14, mapError5, match13, matchCause4, memoize3, merge8, mergeAll6, orDie4, orElse5, passthrough3, project2, locallyEffect2, locally2, locallyWith2, locallyScoped2, fiberRefLocallyScopedWith3, retry3, scope4, scoped3, scopedDiscard2, scopedContext2, service2, succeed7, succeedContext2, suspend4, sync4, syncContext2, tap5, tapError4, tapErrorCause4, toRuntime2, toRuntimeWithMemoMap2, provide3, provideMerge2, zipWith7, unwrapEffect2, unwrapScoped2, setClock = (clock3) => scopedDiscard2(fiberRefLocallyScopedWith(currentServices, add4(clockTag, clock3))), setConfigProvider2, parentSpan2, setRandom = (random4) => scopedDiscard2(fiberRefLocallyScopedWith(currentServices, add4(randomTag, random4))), setRequestBatching = (requestBatching) => scopedDiscard2(fiberRefLocallyScoped(currentRequestBatching, requestBatching)), setRequestCaching = (requestCaching) => scopedDiscard2(fiberRefLocallyScoped(currentCacheEnabled, requestCaching)), setRequestCache = (cache) => scopedDiscard2(isEffect(cache) ? flatMap7(cache, (x) => fiberRefLocallyScoped(currentCache, x)) : fiberRefLocallyScoped(currentCache, cache)), setScheduler = (scheduler) => scopedDiscard2(fiberRefLocallyScoped(currentScheduler, scheduler)), span3, setTracer2, setTracerEnabled = (enabled2) => scopedDiscard2(fiberRefLocallyScoped(currentTracerEnabled, enabled2)), setTracerTiming = (enabled2) => scopedDiscard2(fiberRefLocallyScoped(currentTracerTimingEnabled, enabled2)), setUnhandledErrorLogLevel = (level) => scopedDiscard2(fiberRefLocallyScoped(currentUnhandledErrorLogLevel, level)), setVersionMismatchErrorLogLevel = (level) => scopedDiscard2(fiberRefLocallyScoped(currentVersionMismatchErrorLogLevel, level)), withSpan4, withParentSpan4, makeMemoMap2, buildWithMemoMap2, updateService3, ensureSuccessType2 = () => (layer) => layer, ensureErrorType2 = () => (layer) => layer, ensureRequirementsType2 = () => (layer) => layer;
 var init_Layer = __esm(() => {
   init_Context();
   init_Function();
@@ -17800,7 +21960,7 @@ var init_Layer = __esm(() => {
   effectContext = fromEffectContext;
   empty29 = empty27;
   extendScope2 = extendScope;
-  fail8 = fail5;
+  fail9 = fail6;
   failSync4 = failSync2;
   failCause7 = failCause4;
   failCauseSync4 = failCauseSync2;
@@ -18099,8 +22259,8 @@ class Oh {
       operationId: input.operationId ?? opaqueId("op_")
     });
   }
-  get(key) {
-    return this.store.get(key);
+  get(key3) {
+    return this.store.get(key3);
   }
   list(options) {
     return this.store.list(options);
@@ -18164,7 +22324,7 @@ init_recall();
 init_migrations();
 init_sync_model();
 import { lstat, readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.4.3";
+var OH_PACKAGE_VERSION = "0.5.0";
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",
@@ -18241,10 +22401,10 @@ function assertPositionals(parsed, minimum, maximum = minimum) {
     throw new TypeError(`This command needs ${minimum === maximum ? String(minimum) : `${minimum} through ${maximum}`} positional argument${maximum === 1 ? "" : "s"}.`);
   }
 }
-function parsedSafeCode(value, label, maximum = 128) {
+function parsedSafeCode(value, label2, maximum = 128) {
   const parsed = safeCode(value, maximum);
   if (parsed === null)
-    throw new TypeError(`${label} is invalid.`);
+    throw new TypeError(`${label2} is invalid.`);
   return parsed;
 }
 function validateCommon(parsed) {
@@ -18321,7 +22481,7 @@ async function validateInvocation(command, parsed) {
     ]);
     assertPositionals(parsed, 0);
     validateMutation(parsed);
-    const key = parsedSafeCode(one(parsed, "key"), "--key", 512);
+    const key3 = parsedSafeCode(one(parsed, "key"), "--key", 512);
     const kind = one(parsed, "kind");
     const inline = one(parsed, "json");
     const file = one(parsed, "file");
@@ -18330,7 +22490,7 @@ async function validateInvocation(command, parsed) {
     }
     const dependencies = (parsed.options.get("depends-on") ?? []).map((dependency) => parsedSafeCode(dependency, "--depends-on", 512)).sort();
     const value = JSON.parse(inline ?? await readFile(file, "utf8"));
-    putRecord = createKnowledgeGraphRecordV1({ dependencies, key, kind, v: 1, value });
+    putRecord = createKnowledgeGraphRecordV1({ dependencies, key: key3, kind, v: 1, value });
   } else if (command === "tombstone") {
     assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, ...MUTATION_OPTIONS]);
     assertPositionals(parsed, 1);
@@ -18393,10 +22553,13 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
+  oh research catalog
+  oh research validate-draft|wikidata-preview|prepare-packet|verify-packet --file PATH
   oh contract
   oh version
 
-Global options: --db PATH (default .oh/oh.sqlite), --space ID (default default)
+Research commands are offline and do not open a database.
+Store options: --db PATH (default .oh/oh.sqlite), --space ID (default default)
 Mutation options: --actor ID, --operation ID, --expected-generation N
 `;
 async function runOhCli(arguments_) {
@@ -18413,6 +22576,10 @@ async function runOhCli(arguments_) {
     process.stdout.write(`${OH_PACKAGE_VERSION}
 `);
     return 0;
+  }
+  if (command === "research") {
+    const { runOhResearchCli: runOhResearchCli2 } = await Promise.resolve().then(() => (init_research_cli(), exports_research_cli));
+    return runOhResearchCli2(arguments_.slice(1));
   }
   const parsed = parseArguments(arguments_.slice(1));
   const validated = await validateInvocation(command, parsed);
@@ -18446,17 +22613,17 @@ async function runOhCli(arguments_) {
       return 0;
     }
     if (command === "tombstone") {
-      const key = parsed.positionals[0];
-      if (key === undefined || parsed.positionals.length !== 1)
+      const key3 = parsed.positionals[0];
+      if (key3 === undefined || parsed.positionals.length !== 1)
         throw new TypeError("tombstone needs one record key.");
       const head5 = oh.head();
       const expectedGeneration = integer(one(parsed, "expected-generation"), "expected-generation");
-      const record = oh.get(key);
+      const record = oh.get(key3);
       if (record === null)
         return 3;
       const operation = oh.store.commit({
         actorId: one(parsed, "actor", "agent.local"),
-        changes: [{ key, kind: "tombstone", priorSha256: record.recordSha256, v: 1 }],
+        changes: [{ key: key3, kind: "tombstone", priorSha256: record.recordSha256, v: 1 }],
         expectedHead: { generation: expectedGeneration ?? head5.generation, operationSha256: head5.operationSha256 },
         operationId: one(parsed, "operation") ?? opaqueId("op_")
       });
@@ -18464,10 +22631,10 @@ async function runOhCli(arguments_) {
       return 0;
     }
     if (command === "get") {
-      const key = parsed.positionals[0];
-      if (key === undefined || parsed.positionals.length !== 1)
+      const key3 = parsed.positionals[0];
+      if (key3 === undefined || parsed.positionals.length !== 1)
         throw new TypeError("get needs one record key.");
-      const record = oh.get(key);
+      const record = oh.get(key3);
       if (record === null)
         return 3;
       print(record);
@@ -18548,8 +22715,8 @@ async function runOhCli(arguments_) {
   }
 }
 if (import.meta.main) {
-  runOhCli(process.argv.slice(2)).then((code) => {
-    process.exitCode = code;
+  runOhCli(process.argv.slice(2)).then((code2) => {
+    process.exitCode = code2;
   }).catch((error) => {
     process.stderr.write(`oh: ${error instanceof Error ? error.message : String(error)}
 `);

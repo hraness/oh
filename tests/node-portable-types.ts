@@ -24,6 +24,14 @@ import {
   createOhMemoryPageRecordV1,
   type OhMemoryPageValueV1,
 } from "@hraness/oh/memory-page";
+import {
+  prepareOhResearchPacketV1,
+  type OhResearchPacketV1,
+} from "@hraness/oh/research";
+import {
+  createOhResearchPacketCodecRegistryV1,
+  type OhResearchCommitInputV1,
+} from "@hraness/oh/research-store";
 
 // Compile-only consumer fixture for the portable public entrypoints. The Node
 // runtime exercise lives in node-portable.mjs; this catches declaration drift.
@@ -52,3 +60,8 @@ export type PortableSemanticAuthority = OhSemanticAuthorityRefV1;
 export const portableMemoryPageFactory: typeof createOhMemoryPageRecordV1 =
   createOhMemoryPageRecordV1;
 export type PortableMemoryPage = OhMemoryPageValueV1;
+export type PortableResearchPacket = OhResearchPacketV1;
+export type PortableResearchCommit = OhResearchCommitInputV1;
+export async function portableResearchCodecs(input: unknown) {
+  return createOhResearchPacketCodecRegistryV1(await prepareOhResearchPacketV1(input));
+}

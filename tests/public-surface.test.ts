@@ -28,6 +28,7 @@ const markdownFiles = [
   "AGENTS.md",
   "docs/publishing.md",
   "spec/README.md",
+  "spec/research-v1/README.md",
   "spec/v1/canonical-json.md",
   "spec/v1/ontology.md",
   "spec/v1/schema-evolution.md",
@@ -60,6 +61,7 @@ const schemaFiles = [
   "spec/v1/projection-identity.schema.json",
   "spec/v1/projection-result.schema.json",
   "spec/v1/memory-page.schema.json",
+  "spec/research-v1/packet.schema.json",
 ] as const;
 
 const publicSourceEntries = [
@@ -174,9 +176,9 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.4.3");
+    expect(packageJson.version).toBe("0.5.0");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.4.3"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.5.0"');
     expect(publishedRelease).toEqual({
       version: "0.4.3",
       verificationRun: "https://github.com/hraness/oh/actions/runs/34162220675",
@@ -185,7 +187,7 @@ describe("public identity and documentation", () => {
     expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.4.3`");
     expect(readme).toContain("https://github.com/hraness/oh/actions/runs/34162220675");
     expect(skill).toContain("https://github.com/hraness/oh/actions/runs/34162220675");
-    expect(readme).not.toContain("This source tree prepares version");
+    expect(readme).toContain("This source tree prepares version `0.5.0`");
     expect(skill).not.toContain("until the next release completes publication");
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");

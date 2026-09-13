@@ -1,0 +1,94 @@
+{
+  "$id": "https://oh.computer/spec/research-v1/packet.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Structure only. Conformance also requires async source codec validation, exact source binding, canonical ordering, complete typed dependency closure, source and envelope hashes, packet hash and byte/node limits. Transported authority is unasserted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "authority",
+    "dependencyPolicy",
+    "packetSha256",
+    "sourceBindingSha256",
+    "profile",
+    "records",
+    "v"
+  ],
+  "properties": {
+    "authority": {
+      "const": "unasserted"
+    },
+    "dependencyPolicy": {
+      "const": "explicit-source-digests-and-schema-refs.v1"
+    },
+    "packetSha256": {
+      "$ref": "../v1/record.schema.json#/$defs/sha256"
+    },
+    "sourceBindingSha256": {
+      "$ref": "../v1/record.schema.json#/$defs/sha256"
+    },
+    "profile": {
+      "const": "oh.research-packet.v1"
+    },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "allOf": [
+          {
+            "$ref": "../v1/record.schema.json"
+          },
+          {
+            "properties": {
+              "value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "profile",
+                  "source",
+                  "v"
+                ],
+                "properties": {
+                  "profile": {
+                    "const": "oh.research-packet.v1"
+                  },
+                  "source": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "recordKey",
+                      "recordSha256",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "$ref": "../v1/record.schema.json#/properties/kind"
+                      },
+                      "recordKey": {
+                        "type": "string",
+                        "maxLength": 544
+                      },
+                      "recordSha256": {
+                        "$ref": "../v1/record.schema.json#/$defs/sha256"
+                      },
+                      "value": {
+                        "$ref": "../v1/record.schema.json#/$defs/jsonValue"
+                      }
+                    }
+                  },
+                  "v": {
+                    "const": 1
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "v": {
+      "const": 1
+    }
+  }
+}
