@@ -10,7 +10,7 @@ import { renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
 import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
-export const OH_PACKAGE_VERSION = "0.5.1" as const;
+export const OH_PACKAGE_VERSION = "0.6.0" as const;
 
 type ParsedArguments = { options: Map<string, string[]>; positionals: string[] };
 type ValidatedInvocation = Readonly<{
@@ -235,8 +235,8 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
-  oh research catalog
-  oh research validate-draft|wikidata-preview|prepare-packet|verify-packet --file PATH
+  oh research catalog|catalog-v2|wikidata-mappings
+  oh research validate-draft|wikidata-preview|wikidata-mapping-preview|prepare-packet|verify-packet --file PATH
   oh contract
   oh version
 

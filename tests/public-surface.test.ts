@@ -177,18 +177,22 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.5.1");
+    expect(packageJson.version).toBe("0.6.0");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.5.1"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.6.0"');
     expect(publishedRelease).toEqual({
       version: "0.5.0",
       verificationRun: "https://github.com/hraness/oh/actions/runs/34745154295",
     });
     expect(readme).toContain("installation instructions below use `0.5.0`");
     expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.5.0`");
+    expect(skill).toContain("For an existing installation, use its installed CLI");
+    expect(skill).toContain("oh research catalog-v2");
+    expect(skill).toContain("oh research wikidata-mappings");
+    expect(skill).toContain("wikidata-mapping-preview --file PATH");
     expect(readme).toContain("https://github.com/hraness/oh/actions/runs/34745154295");
     expect(skill).toContain("https://github.com/hraness/oh/actions/runs/34745154295");
-    expect(readme).toContain("This source tree prepares version `0.5.1`");
+    expect(readme).toContain("This source tree prepares version `0.6.0`");
     expect(skill).not.toContain("until the next release completes publication");
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");

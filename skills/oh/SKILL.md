@@ -30,6 +30,8 @@ oh --help
 oh version
 ```
 
+For an existing installation, use its installed CLI and matching versioned
+specifications. The following publication receipt is for a fresh installation.
 Use the verified public CLI `@hraness/oh@0.5.0`. Its identical tarball and
 checksum are mirrored by the immutable GitHub Release `v0.5.0`.
 [Public release verification](https://github.com/hraness/oh/actions/runs/34745154295).
@@ -271,6 +273,21 @@ Version 0.5.0 introduces offline `oh research catalog`, `validate-draft`,
 except `catalog` require `--file PATH` and read a bounded JSON file; they open
 no database and perform no network calls. The catalog describes available
 packs, not installation in the selected host.
+
+With version 0.6.0 or newer, `oh research catalog-v2` returns the current qualified
+profiles and historical packs; `oh research wikidata-mappings` returns pinned
+source-attribution mappings. These two commands also need no file. Send a V2
+capture request with `properties: "all-present"` to `wikidata-preview --file PATH`
+to retain unfamiliar properties under their original identities. Use
+`wikidata-mapping-preview --file PATH` with the original request to inspect
+mapping candidates and explicit gaps. These are offline, unadmitted previews.
+
+Keep exact historical schema references readable when installing a newer pack.
+Select new references from the current installed lock, preserve predecessor
+declarations, and verify source previews against the original capture bytes.
+The coverage specification at `https://oh.computer/spec/research-v1/coverage-v2.md`
+distinguishes property inventory, datatype preservation and local semantic checks.
+None establishes universal class coverage, identity equality or claim acceptance.
 
 For typed research, use `@hraness/oh/research` to compile a proposal against
 the host's trusted, permitted schema and identity context. Compilation creates

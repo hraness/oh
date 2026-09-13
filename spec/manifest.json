@@ -61,7 +61,8 @@
     {
       "id": "oh.research-packet.v1",
       "manifest": "./research-v1/manifest.json",
-      "specification": "./research-v1/README.md"
+      "specification": "./research-v1/README.md",
+      "coverage": "./research-v1/coverage-v2.json"
     }
   ]
 }

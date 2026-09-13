@@ -68,8 +68,8 @@ not a claim about a real study.
 
 ## Install and first run
 
-This source tree prepares version `0.5.1`, adding a compact introduction to
-interactive root help. Published installation commands
+This source tree prepares version `0.6.0`, adding qualified research profiles,
+Wikidata preservation and a compact introduction to interactive root help. Published installation commands
 remain on the verified release below until the new package completes publication.
 
 The installation instructions below use `0.5.0`, the
@@ -827,3 +827,9 @@ public contract to independent hosts. A host supplies authorization, installed
 vocabularies, review and publication policy. See the
 [research profile](spec/research-v1/README.md) for the exact boundary, limits
 and source-to-store workflow.
+
+Source version 0.6.0 adds `oh research catalog-v2`, qualified domain revisions,
+explicit units and identity schemes, and an all-present Wikidata importer.
+The [coverage guide](spec/research-v1/coverage-v2.md) explains source preservation,
+typed relation checks, historical compatibility and the pinned property inventory.
+Installation links above remain tied to the last verified publication.
