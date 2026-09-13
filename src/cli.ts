@@ -234,8 +234,8 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
-  oh research catalog
-  oh research validate-draft|wikidata-preview|prepare-packet|verify-packet --file PATH
+  oh research catalog|catalog-v2|wikidata-mappings
+  oh research validate-draft|wikidata-preview|wikidata-mapping-preview|prepare-packet|verify-packet --file PATH
   oh contract
   oh version
 

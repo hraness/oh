@@ -183,3 +183,10 @@ commands validate or prepare artifacts; they do not install packs or accept
 proposals. See the [profile manifest](manifest.json), [packet schema](packet.schema.json)
 and colocated `src/research/*.test.ts` conformance tests for exact limits,
 source preservation, malformed inputs and round-trip evidence.
+
+## Qualified profiles and Wikidata coverage
+
+Package 0.6.0 adds a separate qualified catalog and V2 source-preserving
+Wikidata importer while retaining this original packet and catalog contract.
+See [coverage and qualified profiles](coverage-v2.md) for the pinned inventory,
+units, relationship constraints and explicit installation lineage.

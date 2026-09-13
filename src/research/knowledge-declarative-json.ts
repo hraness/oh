@@ -4,7 +4,9 @@ import { hasExactDataKeys, isPlainRecord } from "./unknown";
 
 /** Copy bounded JSON data without invoking accessors or user-defined serialization. */
 export function knowledgeDeclarativeJson(value: unknown, maximumBytes = 2_097_152,
-  options: Readonly<{ preserveStrings?: boolean; maxDepth?: number; maxNodes?: number }> = {},
+  options: Readonly<{ preserveStrings?: boolean; maxDepth?: number; maxNodes?: number;
+    /** Raw JSON evidence may contain these keys. Copies always have a null prototype. Default remains strict. */
+    preserveObjectKeys?: boolean; maxArrayItems?: number }> = {},
 ): JsonValue | undefined {
   let nodes = 0;
   let bytes = 0;
@@ -19,7 +21,7 @@ export function knowledgeDeclarativeJson(value: unknown, maximumBytes = 2_097_15
     }
     if (typeof item === "number") return Number.isFinite(item) && reserve(String(item).length) ? item : undefined;
     if (Array.isArray(item)) {
-      if (item.length > 8_192 || Reflect.ownKeys(item).length !== item.length + 1
+      if (item.length > (options.maxArrayItems ?? 8_192) || Reflect.ownKeys(item).length !== item.length + 1
         || !reserve(2 + Math.max(0, item.length - 1))) return undefined;
       const result: JsonValue[] = [];
       for (let index = 0; index < item.length; index++) {
@@ -36,7 +38,7 @@ export function knowledgeDeclarativeJson(value: unknown, maximumBytes = 2_097_15
     if (!hasExactDataKeys(item, keys) || !reserve(2 + Math.max(0, keys.length - 1))) return undefined;
     const result: Record<string, JsonValue> = Object.create(null) as Record<string, JsonValue>;
     for (const key of keys) {
-      if (key === "__proto__" || key === "constructor" || key === "prototype"
+      if (options.preserveObjectKeys !== true && (key === "__proto__" || key === "constructor" || key === "prototype")
         || key.length > maximumBytes || !reserve(utf8ByteLength(JSON.stringify(key)) + 1)) return undefined;
       const child = copy(item[key], depth + 1);
       if (child === undefined) return undefined;

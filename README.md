@@ -823,3 +823,9 @@ public contract to independent hosts. A host supplies authorization, installed
 vocabularies, review and publication policy. See the
 [research profile](spec/research-v1/README.md) for the exact boundary, limits
 and source-to-store workflow.
+
+Source version 0.6.0 adds `oh research catalog-v2`, qualified domain revisions,
+explicit units and identity schemes, and an all-present Wikidata importer.
+The [coverage guide](spec/research-v1/coverage-v2.md) explains source preservation,
+typed relation checks, historical compatibility and the pinned property inventory.
+Installation links above remain tied to the last verified publication.

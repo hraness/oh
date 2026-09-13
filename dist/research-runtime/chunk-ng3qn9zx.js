@@ -3181,7 +3181,7 @@ function knowledgeDeclarativeJson(value, maximumBytes = 2097152, options = {}) {
     if (typeof item === "number")
       return Number.isFinite(item) && reserve(String(item).length) ? item : undefined;
     if (Array.isArray(item)) {
-      if (item.length > 8192 || Reflect.ownKeys(item).length !== item.length + 1 || !reserve(2 + Math.max(0, item.length - 1)))
+      if (item.length > (options.maxArrayItems ?? 8192) || Reflect.ownKeys(item).length !== item.length + 1 || !reserve(2 + Math.max(0, item.length - 1)))
         return;
       const result2 = [];
       for (let index = 0;index < item.length; index++) {
@@ -3202,7 +3202,7 @@ function knowledgeDeclarativeJson(value, maximumBytes = 2097152, options = {}) {
       return;
     const result = Object.create(null);
     for (const key of keys) {
-      if (key === "__proto__" || key === "constructor" || key === "prototype" || key.length > maximumBytes || !reserve(utf8ByteLength(JSON.stringify(key)) + 1))
+      if (options.preserveObjectKeys !== true && (key === "__proto__" || key === "constructor" || key === "prototype") || key.length > maximumBytes || !reserve(utf8ByteLength(JSON.stringify(key)) + 1))
         return;
       const child = copy(item[key], depth + 1);
       if (child === undefined)
