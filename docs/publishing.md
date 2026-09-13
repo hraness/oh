@@ -154,6 +154,12 @@ immutable GitHub Release when npm remains absent. Repair the control on reviewed
 weaken provenance, manually publish the npm half of a GitHub-only release, or
 publish different bytes under the failed tag.
 
+GitHub rejected creation of `v0.6.0` under its `immutable_release_tag` creation
+protection. The tag and release endpoints both returned 404; those responses do
+not make a previously protected name reusable. No 0.6.0 release workflow ran.
+Leave that name and its protection intact. Version `0.6.1` carries the reviewed
+research-profile changes through the unchanged release workflow.
+
 Every positive workflow attempt is an eligible recovery attempt for the same
 reviewed annotated tag, commit, and ID-bound artifact bytes. Before npm, a
 read-only gate records its explicit run ID and attempt and treats the version as

@@ -29,3 +29,20 @@ test("hostile arrays, objects and serialization hooks never execute through the 
   expect(knowledgeDeclarativeJson([[[1]]], 256, { maxDepth: 1 })).toBeUndefined();
   expect(knowledgeDeclarativeJson([1, 2, 3], 256, { maxNodes: 2 })).toBeUndefined();
 });
+
+
+test("raw evidence opt-in preserves JSON keys in null-prototype copies without enabling callbacks", () => {
+  const raw: unknown = JSON.parse('{"__proto__":{"polluted":true},"constructor":"retained","prototype":[] }');
+  expect(knowledgeDeclarativeJson(raw)).toBeUndefined();
+  const copied = knowledgeDeclarativeJson(raw, 1024, { preserveObjectKeys: true });
+  expect<unknown>(copied).toEqual(raw);
+  expect(Object.getPrototypeOf(copied)).toBeNull();
+  expect(Object.prototype).not.toHaveProperty("polluted");
+  let executed = false;
+  const hostile = Object.defineProperty({}, "constructor", { enumerable: true, get() { executed = true; return "x"; } });
+  expect(knowledgeDeclarativeJson(hostile, 1024, { preserveObjectKeys: true })).toBeUndefined();
+  expect(executed).toBe(false);
+  const wide = Array(8193).fill(0);
+  expect(knowledgeDeclarativeJson(wide)).toBeUndefined();
+  expect(knowledgeDeclarativeJson(wide, 100000, { maxArrayItems: 8193 })).toEqual(wide);
+});

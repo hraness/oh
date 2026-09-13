@@ -15,4 +15,7 @@ export * from "./research/knowledge-proposal-compiler-v3";
 export * from "./research/knowledge-wikidata-import-v1";
 export * from "./research/record-input";
 export * from "./research/research-packet";
+export * from "./research/knowledge-wikidata-import-v2";
+export * from "./research/knowledge-domain-catalog-v2";
+export * from "./research/knowledge-wikidata-mappings-v1";
 //# sourceMappingURL=research.d.ts.map

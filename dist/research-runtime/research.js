@@ -105,7 +105,7 @@ import {
   verifyKnowledgeSchemaEvolutionV1,
   verifyKnowledgeValueV1,
   verifyOhResearchPacketV1
-} from "./chunk-yq058vjx.js";
+} from "./chunk-ng3qn9zx.js";
 // src/research/knowledge-core-v1.ts
 var coreOwnerEntityId = (() => {
   const parsed = parseKnowledgeEntityId(`kent_${"0".repeat(24)}`);
@@ -2232,8 +2232,1097 @@ async function verifyKnowledgeWikidataImportPreviewV1(foreign, input) {
   }
   return rebuilt;
 }
+// src/research/knowledge-wikidata-import-v2.ts
+var KNOWLEDGE_WIKIDATA_IMPORTER_V2 = "sponge.wikidata-json-import.v2";
+var KNOWLEDGE_WIKIDATA_DATATYPES_V2 = Object.freeze([
+  "commonsMedia",
+  "entity-schema",
+  "external-id",
+  "geo-shape",
+  "globe-coordinate",
+  "math",
+  "monolingualtext",
+  "musical-notation",
+  "quantity",
+  "string",
+  "tabular-data",
+  "time",
+  "url",
+  "wikibase-form",
+  "wikibase-item",
+  "wikibase-lexeme",
+  "wikibase-property",
+  "wikibase-sense"
+]);
+function knowledgeWikidataDatatypeSupportV2(datatype) {
+  return KNOWLEDGE_WIKIDATA_DATATYPES_V2.some((known) => known === datatype) ? "typed-source-value" : "opaque-source-value";
+}
+var KNOWLEDGE_WIKIDATA_PROPERTY_GROUP_LIMIT_V2 = 4096;
+var KNOWLEDGE_WIKIDATA_PREVIEW_LIMITS_V2 = Object.freeze({
+  maxBytes: 64 * 1024 * 1024,
+  maxDepth: 64,
+  maxNodes: 1e6,
+  maxArrayItems: 250000
+});
+function boundedKnowledgeWikidataPreviewJsonV2(value) {
+  return knowledgeDeclarativeJson(value, KNOWLEDGE_WIKIDATA_PREVIEW_LIMITS_V2.maxBytes, { ...KNOWLEDGE_WIKIDATA_PREVIEW_LIMITS_V2, preserveStrings: true, preserveObjectKeys: true });
+}
+var KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2 = Object.freeze({
+  maxEntities: 100,
+  maxStatements: 1000,
+  maxRecords: 4096,
+  maxSourceBytes: 8 * 1024 * 1024
+});
+function failure4(field, code2 = "invalid-input") {
+  return { ok: false, error: { code: code2, field, retryable: false } };
+}
+function asJson2(value) {
+  return value;
+}
+function boundedText2(value, max = 256) {
+  return typeof value === "string" && value.length > 0 && utf8ByteLength(value) <= max && value.normalize("NFC") === value && !/[\u0000-\u001f\u007f-\u009f\ud800-\udfff]/u.test(value);
+}
+function isKnowledgeWikidataEntityIdV2(value) {
+  return typeof value === "string" && /^(?:Q[1-9][0-9]*|P[1-9][0-9]*|E[1-9][0-9]*|L[1-9][0-9]*(?:-[FS][1-9][0-9]*)?)$/u.test(value) && value.length <= 64;
+}
+function propertyId2(value) {
+  return isKnowledgeWikidataEntityIdV2(value) && value.startsWith("P");
+}
+function properties2(value) {
+  if (!Array.isArray(value) || value.length > 256 || !value.every(propertyId2) || new Set(value).size !== value.length)
+    return null;
+  return [...value].sort();
+}
+function parseCoverage2(value) {
+  if (!isPlainRecord(value))
+    return null;
+  if (value["kind"] === "complete-entity" && hasExactDataKeys(value, ["kind"])) {
+    return { kind: "complete-entity" };
+  }
+  if (value["kind"] === "selected-properties" && hasExactDataKeys(value, ["kind", "properties"])) {
+    const selected = properties2(value["properties"]);
+    return selected === null ? null : { kind: "selected-properties", properties: selected };
+  }
+  if (value["kind"] === "partial" && hasExactDataKeys(value, ["kind", "reason"]) && boundedText2(value["reason"]))
+    return { kind: "partial", reason: value["reason"] };
+  return null;
+}
+function parseCapture2(value) {
+  if (!isPlainRecord(value) || !hasExactDataKeys(value, ["requestedId", "resolvedId", "sourceUri", "capturedAt", "body", "redirects", "coverage"]) || !isKnowledgeWikidataEntityIdV2(value["requestedId"]) || !isKnowledgeWikidataEntityIdV2(value["resolvedId"]) || !boundedText2(value["sourceUri"], 4096) || parseCanonicalInstantV1(value["capturedAt"]) === null || typeof value["body"] !== "string" || !Array.isArray(value["redirects"]) || value["redirects"].length > 16)
+    return null;
+  let url;
+  try {
+    url = new URL(value["sourceUri"]);
+  } catch {
+    return null;
+  }
+  if (url.origin !== "https://www.wikidata.org" || url.username || url.password || url.hash || !(url.pathname === "/w/api.php" || /^\/wiki\/Special:EntityData\/(?:Q|P|L)[1-9][0-9]*(?:-[FS][1-9][0-9]*)?\.json$/u.test(url.pathname)))
+    return null;
+  const redirects = [];
+  let last = value["requestedId"];
+  const seen = new Set([last]);
+  for (const redirect of value["redirects"]) {
+    if (!isPlainRecord(redirect) || !hasExactDataKeys(redirect, ["from", "to"]) || redirect["from"] !== last || !isKnowledgeWikidataEntityIdV2(redirect["to"]) || seen.has(redirect["to"]))
+      return null;
+    redirects.push({ from: last, to: redirect["to"] });
+    last = redirect["to"];
+    seen.add(last);
+  }
+  const coverage = parseCoverage2(value["coverage"]);
+  if (last !== value["resolvedId"] || coverage === null)
+    return null;
+  return {
+    requestedId: value["requestedId"],
+    resolvedId: value["resolvedId"],
+    sourceUri: value["sourceUri"],
+    capturedAt: value["capturedAt"],
+    body: value["body"],
+    redirects,
+    coverage
+  };
+}
+function parseKnowledgeWikidataImportInputV2(value) {
+  value = knowledgeDeclarativeJson(value, 2 * KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2.maxSourceBytes, { preserveStrings: true, maxDepth: 12 });
+  if (!isPlainRecord(value) || !hasExactDataKeys(value, Object.hasOwn(value, "bounds") ? ["v", "captures", "properties", "mappingVersion", "bounds"] : ["v", "captures", "properties", "mappingVersion"]) || value["v"] !== 2 || !boundedText2(value["mappingVersion"]) || !Array.isArray(value["captures"]) || value["captures"].length === 0 || value["captures"].length > KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2.maxEntities)
+    return null;
+  const selected = value["properties"] === "all-present" ? "all-present" : properties2(value["properties"]);
+  const captures = value["captures"].map(parseCapture2);
+  if (selected === null || captures.some((capture) => capture === null))
+    return null;
+  let bounds = KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2;
+  if (Object.hasOwn(value, "bounds")) {
+    const candidate = value["bounds"];
+    if (!isPlainRecord(candidate) || !hasExactDataKeys(candidate, Object.keys(bounds)))
+      return null;
+    for (const [key3, maximum] of Object.entries(bounds)) {
+      const item = candidate[key3];
+      if (typeof item !== "number" || !Number.isSafeInteger(item) || item < 1 || item > maximum)
+        return null;
+    }
+    bounds = {
+      maxEntities: candidate["maxEntities"],
+      maxStatements: candidate["maxStatements"],
+      maxRecords: candidate["maxRecords"],
+      maxSourceBytes: candidate["maxSourceBytes"]
+    };
+  }
+  return {
+    v: 2,
+    captures,
+    properties: selected,
+    mappingVersion: value["mappingVersion"],
+    bounds
+  };
+}
+function parseEntity2(body, resolvedId) {
+  let foreign;
+  try {
+    foreign = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  const parsed = parseJsonValue(foreign, { maxDepth: 48, maxNodes: 250000 });
+  if (!parsed.ok || !isJsonRecord(parsed.value))
+    return null;
+  const root = parsed.value;
+  const entity = isJsonRecord(root["entities"]) ? root["entities"][resolvedId] : root;
+  if (!isJsonRecord(entity) || entity["id"] !== resolvedId || typeof entity["lastrevid"] !== "number" || !Number.isSafeInteger(entity["lastrevid"]) || entity["lastrevid"] < 1 || !(entity["type"] === "item" && resolvedId.startsWith("Q") || entity["type"] === "property" && resolvedId.startsWith("P") || entity["type"] === "lexeme" && /^L[1-9][0-9]*$/u.test(resolvedId)))
+    return null;
+  return entity;
+}
+function decimal2(value) {
+  return typeof value === "string" && value.length <= 1024 && /^[+-]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/u.test(value);
+}
+function finiteNumber2(value) {
+  return typeof value === "number" && Number.isFinite(value);
+}
+function entityValue2(value) {
+  if (!isJsonRecord(value))
+    return false;
+  const id = value["id"];
+  const kind = value["entity-type"];
+  const numericId = value["numeric-id"];
+  if (id !== undefined) {
+    if (!isKnowledgeWikidataEntityIdV2(id))
+      return false;
+    const expected = id.startsWith("Q") ? "item" : id.startsWith("P") ? "property" : id.startsWith("E") ? "entity-schema" : id.includes("-F") ? "form" : id.includes("-S") ? "sense" : "lexeme";
+    if (kind !== expected)
+      return false;
+    return numericId === undefined || typeof numericId === "number" && Number.isSafeInteger(numericId) && numericId > 0 && !id.includes("-") && id.slice(1) === String(numericId);
+  }
+  return (kind === "item" || kind === "property" || kind === "lexeme" || kind === "entity-schema") && typeof numericId === "number" && Number.isSafeInteger(numericId) && numericId > 0;
+}
+function supportedDatavalue2(datatype, datavalue) {
+  const value = datavalue["value"];
+  if (value === undefined)
+    return false;
+  const type = datavalue["type"];
+  if (["wikibase-item", "wikibase-property", "wikibase-lexeme", "wikibase-form", "wikibase-sense", "entity-schema"].includes(datatype)) {
+    return type === "wikibase-entityid" && entityValue2(value) && isJsonRecord(value) && (datatype === "entity-schema" ? value["entity-type"] === "entity-schema" : datatype === `wikibase-${String(value["entity-type"])}`);
+  }
+  if (["string", "external-id", "url", "commonsMedia", "math", "musical-notation", "geo-shape", "tabular-data"].includes(datatype)) {
+    return type === "string" && typeof value === "string";
+  }
+  if (!isJsonRecord(value))
+    return ["quantity", "time", "globe-coordinate", "monolingualtext"].includes(datatype) ? false : null;
+  if (datatype === "monolingualtext")
+    return type === "monolingualtext" && typeof value["language"] === "string" && typeof value["text"] === "string";
+  if (datatype === "quantity")
+    return type === "quantity" && decimal2(value["amount"]) && typeof value["unit"] === "string" && (value["lowerBound"] === undefined || value["lowerBound"] === null || decimal2(value["lowerBound"])) && (value["upperBound"] === undefined || value["upperBound"] === null || decimal2(value["upperBound"]));
+  if (datatype === "time")
+    return type === "time" && typeof value["time"] === "string" && /^[+-][0-9]{4,16}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/u.test(value["time"]) && typeof value["calendarmodel"] === "string" && ["timezone", "before", "after", "precision"].every((key3) => Number.isSafeInteger(value[key3])) && value["before"] >= 0 && value["after"] >= 0 && value["precision"] >= 0 && value["precision"] <= 14;
+  if (datatype === "globe-coordinate")
+    return type === "globecoordinate" && finiteNumber2(value["latitude"]) && finiteNumber2(value["longitude"]) && Math.abs(value["latitude"]) <= 90 && Math.abs(value["longitude"]) <= 180 && (value["altitude"] === null || finiteNumber2(value["altitude"])) && (value["precision"] === null || finiteNumber2(value["precision"]) && value["precision"] >= 0) && typeof value["globe"] === "string";
+  return null;
+}
+function preserveValue2(raw, selector, captureSha256) {
+  const state = raw["snaktype"];
+  if ((state === "somevalue" || state === "novalue") && raw["datavalue"] === undefined) {
+    return { kind: "absence", state, captureSha256, occurrence: selector };
+  }
+  const datatype = typeof raw["datatype"] === "string" ? raw["datatype"] : null;
+  const datavalue = raw["datavalue"];
+  const supported = datatype !== null && isJsonRecord(datavalue) ? supportedDatavalue2(datatype, datavalue) : false;
+  if (state === "value" && datatype !== null && datavalue !== undefined && supported === true) {
+    return { kind: "typed-source-value", datatype, datavalue };
+  }
+  return {
+    kind: "unsupported",
+    reason: supported === null ? "unknown-datatype" : "invalid-datavalue",
+    datatype,
+    raw
+  };
+}
+
+class PropertyGroupBoundError extends Error {
+}
+function extract2(entity, captureSha256, selected, maximumGroups) {
+  const metadata = [];
+  const groups = [];
+  let invalidMetadata = 0;
+  function addGroup(group) {
+    if (groups.length >= maximumGroups)
+      throw new PropertyGroupBoundError;
+    groups.push(group);
+  }
+  function addMetadata(entityId, path, raw) {
+    metadata.push({ kind: "metadata", captureSha256, selector: { kind: "metadata", entityId, path }, raw });
+  }
+  function visit(record, path, entityId) {
+    const terms = ["labels", "descriptions", "aliases", "sitelinks", "lemmas", "representations", "glosses"];
+    for (const field of terms) {
+      const values = record[field];
+      if (values === undefined)
+        continue;
+      if (!isJsonRecord(values)) {
+        invalidMetadata += 1;
+        continue;
+      }
+      for (const language of Object.keys(values).sort()) {
+        const item = values[language];
+        if (item === undefined)
+          continue;
+        if (field === "aliases") {
+          if (!Array.isArray(item)) {
+            invalidMetadata += 1;
+            continue;
+          }
+          item.forEach((alias, index) => {
+            addMetadata(entityId, [...path, field, language, index], alias);
+          });
+        } else
+          addMetadata(entityId, [...path, field, language], item);
+      }
+    }
+    for (const field of ["language", "lexicalCategory", "grammaticalFeatures", "datatype"]) {
+      if (record[field] !== undefined)
+        addMetadata(entityId, [...path, field], record[field]);
+    }
+    const claims = record["claims"];
+    const presentProperties = new Set;
+    if (claims !== undefined) {
+      if (!isJsonRecord(claims))
+        invalidMetadata += 1;
+      else
+        for (const id of Object.keys(claims).sort()) {
+          if (propertyId2(id) && claims[id] !== undefined) {
+            addGroup({ entityId, propertyId: id, raw: claims[id] });
+            presentProperties.add(id);
+          } else
+            invalidMetadata += 1;
+        }
+    }
+    for (const id of selected === "all-present" ? [] : selected) {
+      if (!presentProperties.has(id)) {
+        addGroup({ entityId, propertyId: id, raw: claims === undefined || isJsonRecord(claims) ? [] : null });
+      }
+    }
+    for (const field of ["forms", "senses"]) {
+      const members = record[field];
+      if (members === undefined)
+        continue;
+      if (!Array.isArray(members)) {
+        invalidMetadata += 1;
+        continue;
+      }
+      const seen = new Set;
+      members.forEach((member, index) => {
+        if (!isJsonRecord(member) || !isKnowledgeWikidataEntityIdV2(member["id"]) || !member["id"].startsWith(`${entityId}-${field === "forms" ? "F" : "S"}`) || seen.has(member["id"])) {
+          invalidMetadata += 1;
+          return;
+        }
+        seen.add(member["id"]);
+        addMetadata(member["id"], [...path, field, index, "id"], member["id"]);
+        visit(member, [...path, field, index], member["id"]);
+      });
+    }
+  }
+  visit(entity, [], entity["id"]);
+  return { metadata, groups, invalidMetadata };
+}
+function groupRecords2(group, captureSha256) {
+  if (!Array.isArray(group.raw))
+    return null;
+  const result = [];
+  const ids = new Set;
+  for (let statementIndex = 0;statementIndex < group.raw.length; statementIndex += 1) {
+    let addSnak = function(raw, location) {
+      if (!isJsonRecord(raw) || !propertyId2(raw["property"]) || !["value", "somevalue", "novalue"].includes(String(raw["snaktype"])))
+        return false;
+      const selector = { ...base, location };
+      result.push({ kind: "snak", captureSha256, raw, selector, value: preserveValue2(raw, selector, captureSha256) });
+      return true;
+    };
+    const statement = group.raw[statementIndex];
+    if (!isJsonRecord(statement) || statement["type"] !== "statement" || !boundedText2(statement["id"], 256) || statement["id"].slice(0, group.entityId.length + 1).toUpperCase() !== `${group.entityId}$` || ids.has(statement["id"]) || !isJsonRecord(statement["mainsnak"]) || statement["mainsnak"]["property"] !== group.propertyId || !["normal", "preferred", "deprecated"].includes(String(statement["rank"])))
+      return null;
+    ids.add(statement["id"]);
+    const base = {
+      kind: "statement",
+      entityId: group.entityId,
+      propertyId: group.propertyId,
+      statementId: statement["id"],
+      statementIndex
+    };
+    result.push({
+      kind: "statement",
+      captureSha256,
+      raw: statement,
+      selector: { ...base, location: { kind: "statement" } },
+      rank: statement["rank"]
+    });
+    if (!addSnak(statement["mainsnak"], { kind: "main" }))
+      return null;
+    const qualifiers = statement["qualifiers"];
+    if (qualifiers !== undefined) {
+      if (!isJsonRecord(qualifiers))
+        return null;
+      for (const id of Object.keys(qualifiers).sort()) {
+        const snaks = qualifiers[id];
+        if (!propertyId2(id) || !Array.isArray(snaks))
+          return null;
+        for (let snakIndex = 0;snakIndex < snaks.length; snakIndex += 1) {
+          const snak = snaks[snakIndex];
+          if (!isJsonRecord(snak) || snak["property"] !== id || !addSnak(snak, { kind: "qualifier", propertyId: id, snakIndex }))
+            return null;
+        }
+      }
+    }
+    const references = statement["references"];
+    if (references !== undefined) {
+      if (!Array.isArray(references))
+        return null;
+      for (let referenceIndex = 0;referenceIndex < references.length; referenceIndex += 1) {
+        const reference = references[referenceIndex];
+        if (!isJsonRecord(reference) || !isJsonRecord(reference["snaks"]) || !(reference["hash"] === undefined || typeof reference["hash"] === "string"))
+          return null;
+        for (const id of Object.keys(reference["snaks"]).sort()) {
+          const snaks = reference["snaks"][id];
+          if (!propertyId2(id) || !Array.isArray(snaks))
+            return null;
+          for (let snakIndex = 0;snakIndex < snaks.length; snakIndex += 1) {
+            const snak = snaks[snakIndex];
+            if (!isJsonRecord(snak) || snak["property"] !== id || !addSnak(snak, {
+              kind: "reference",
+              referenceIndex,
+              referenceHash: typeof reference["hash"] === "string" ? reference["hash"] : null,
+              propertyId: id,
+              snakIndex
+            }))
+              return null;
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+async function createKnowledgeWikidataImportPreviewV2(foreign) {
+  const input = parseKnowledgeWikidataImportInputV2(foreign);
+  if (input === null)
+    return failure4("input");
+  if (input.captures.some((capture) => capture.body.length > KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2.maxSourceBytes) || input.captures.reduce((sum, capture) => sum + utf8ByteLength(capture.body), 0) > KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2.maxSourceBytes)
+    return failure4("captures.body", "input-bound");
+  const bounds = input.bounds ?? KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2;
+  const sources = [];
+  const records = [];
+  const coverage = [];
+  const omissions = [];
+  const retry = new Set;
+  let sourceBytes = 0;
+  let statements = 0;
+  let propertyGroups = 0;
+  const seenCaptures = new Set;
+  for (let captureIndex = 0;captureIndex < input.captures.length; captureIndex += 1) {
+    const capture = input.captures[captureIndex];
+    const bytes = utf8ByteLength(capture.body);
+    const omit = (entityId, propertyId3, reason, count) => {
+      omissions.push({ captureIndex, entityId, propertyId: propertyId3, reason, count });
+      if (reason !== "property-not-selected" && reason !== "invalid-metadata" && reason !== "invalid-statement-group")
+        retry.add(captureIndex);
+    };
+    if (sources.length >= bounds.maxEntities || sourceBytes + bytes > bounds.maxSourceBytes) {
+      omit(capture.resolvedId, null, sources.length >= bounds.maxEntities ? "entity-bound" : "source-byte-bound", 1);
+      continue;
+    }
+    const entity = parseEntity2(capture.body, capture.resolvedId);
+    if (entity === null)
+      return failure4(`captures.${captureIndex}.body`, "invalid-source");
+    if (entity["claims"] !== undefined && !isJsonRecord(entity["claims"])) {
+      return failure4(`captures.${captureIndex}.body.claims`, "invalid-source");
+    }
+    const captureSha256 = await sha256Text(capture.body);
+    const captureKey = `${capture.requestedId}:${capture.resolvedId}:${captureSha256}`;
+    if (seenCaptures.has(captureKey))
+      return failure4(`captures.${captureIndex}`, "invalid-source");
+    seenCaptures.add(captureKey);
+    const source = {
+      ...capture,
+      captureSha256,
+      sourceBytes: bytes,
+      revision: entity["lastrevid"],
+      serialization: "wikibase-json-v1",
+      provenanceStatus: "caller-asserted",
+      license: {
+        id: "CC0-1.0",
+        scope: "wikidata-structured-data-only",
+        uri: "https://creativecommons.org/publicdomain/zero/1.0/"
+      }
+    };
+    sources.push(source);
+    sourceBytes += bytes;
+    let extracted;
+    try {
+      extracted = extract2(entity, captureSha256, input.properties, KNOWLEDGE_WIKIDATA_PROPERTY_GROUP_LIMIT_V2 - propertyGroups);
+    } catch (error) {
+      if (error instanceof PropertyGroupBoundError)
+        return failure4(`captures.${captureIndex}.property-groups`, "input-bound");
+      throw error;
+    }
+    propertyGroups += extracted.groups.length;
+    if (extracted.invalidMetadata > 0)
+      omit(capture.resolvedId, null, "invalid-metadata", extracted.invalidMetadata);
+    if (records.length + extracted.metadata.length <= bounds.maxRecords)
+      records.push(...extracted.metadata);
+    else
+      omit(capture.resolvedId, null, "record-bound", extracted.metadata.length);
+    for (const group of extracted.groups) {
+      const observedStatements = Array.isArray(group.raw) ? group.raw.length : 0;
+      if (input.properties !== "all-present" && !input.properties.includes(group.propertyId)) {
+        omit(group.entityId, group.propertyId, "property-not-selected", observedStatements);
+        continue;
+      }
+      const groupValues = groupRecords2(group, captureSha256);
+      let retainedStatements = 0;
+      let retained = false;
+      if (groupValues === null)
+        omit(group.entityId, group.propertyId, "invalid-statement-group", observedStatements);
+      else if (statements + observedStatements > bounds.maxStatements)
+        omit(group.entityId, group.propertyId, "statement-bound", observedStatements);
+      else if (records.length + groupValues.length > bounds.maxRecords)
+        omit(group.entityId, group.propertyId, "record-bound", groupValues.length);
+      else {
+        records.push(...groupValues);
+        retainedStatements = observedStatements;
+        retained = true;
+        statements += observedStatements;
+      }
+      const assertedComplete = capture.coverage.kind === "complete-entity" || capture.coverage.kind === "selected-properties" && capture.coverage.properties.includes(group.propertyId);
+      coverage.push({
+        captureSha256,
+        entityId: group.entityId,
+        propertyId: group.propertyId,
+        observedStatements,
+        retainedStatements,
+        status: retained && assertedComplete ? "complete-in-asserted-source" : "incomplete",
+        sourceCoverage: "caller-asserted",
+        definitiveAnswer: false
+      });
+    }
+  }
+  const mappingCandidates = records.flatMap((record) => {
+    if (record.kind !== "snak" || record.selector.kind !== "statement")
+      return [];
+    const property = record.selector.location.kind === "qualifier" || record.selector.location.kind === "reference" ? record.selector.location.propertyId : record.selector.propertyId;
+    return [{
+      captureSha256: record.captureSha256,
+      selector: record.selector,
+      propertyId: property,
+      status: record.value.kind === "unsupported" ? "unsupported-value" : "requires-property-mapping",
+      value: record.value,
+      normalization: "none",
+      eligibleForAdmission: false,
+      diagnostics: record.value.kind === "unsupported" ? ["unsupported-source-value"] : [
+        "property-mapping-required",
+        ...record.value.kind === "typed-source-value" && record.value.datatype === "time" ? ["time-normalization-unsupported"] : [],
+        ...record.value.kind === "typed-source-value" && record.value.datatype === "globe-coordinate" ? ["coordinate-normalization-unsupported"] : [],
+        ...record.value.kind === "typed-source-value" && record.value.datatype === "quantity" ? ["quantity-unit-mapping-required"] : []
+      ]
+    }];
+  });
+  const sourceAssertions = records.flatMap((record) => {
+    if (record.kind !== "statement" || record.selector.kind !== "statement")
+      return [];
+    return [{
+      subject: { entityId: record.selector.entityId, uri: `http://www.wikidata.org/entity/${record.selector.entityId}` },
+      predicate: { propertyId: record.selector.propertyId, uri: `http://www.wikidata.org/entity/${record.selector.propertyId}` },
+      captureSha256: record.captureSha256,
+      selector: record.selector,
+      rank: record.rank,
+      rawStatement: record.raw,
+      interpretation: "source-asserted",
+      eligibleForAdmission: false
+    }];
+  });
+  const payload = {
+    v: 2,
+    kind: "wikidata-import-preview",
+    provider: "wikidata",
+    importerVersion: KNOWLEDGE_WIKIDATA_IMPORTER_V2,
+    mappingVersion: input.mappingVersion,
+    status: "unadmitted",
+    disclosure: "private",
+    identityResolution: "candidate-only",
+    properties: input.properties,
+    bounds,
+    sources,
+    identityCandidates: sources.map((source) => ({
+      requestedId: source.requestedId,
+      resolvedId: source.resolvedId,
+      revision: source.revision,
+      captureSha256: source.captureSha256,
+      redirects: source.redirects,
+      localIdentity: null
+    })),
+    records,
+    mappingCandidates,
+    sourceAssertions,
+    coverage,
+    omissions,
+    cursor: retry.size === 0 ? null : { kind: "retry-with-selection", captureIndices: [...retry] }
+  };
+  if (boundedKnowledgeWikidataPreviewJsonV2({ ...payload, previewSha256: "0".repeat(64) }) === undefined) {
+    return failure4("preview", "input-bound");
+  }
+  return { ok: true, value: { ...payload, previewSha256: await sha256Text(canonicalJson(asJson2(payload))) } };
+}
+function canonicalKnowledgeWikidataImportPreviewV2(value) {
+  return canonicalJson(asJson2(value));
+}
+async function verifyKnowledgeWikidataImportPreviewV2(foreign, input) {
+  const rebuilt = await createKnowledgeWikidataImportPreviewV2(input);
+  if (!rebuilt.ok)
+    return rebuilt;
+  const parsed = boundedKnowledgeWikidataPreviewJsonV2(foreign);
+  if (parsed === undefined || canonicalJson(parsed) !== canonicalKnowledgeWikidataImportPreviewV2(rebuilt.value)) {
+    return failure4("preview", "integrity-mismatch");
+  }
+  return rebuilt;
+}
+// src/research/knowledge-domain-catalog-v2.ts
+var qualifiedRanges = {
+  language: {
+    "has-form": { concepts: ["form"] },
+    "has-sense": { concepts: ["sense"] },
+    "translation-of-sense": { concepts: ["sense"] },
+    "attested-in": { concepts: ["text-occurrence"] }
+  },
+  culture: {
+    depicts: { concepts: ["core:entity"], note: "Depictions can represent physical, fictional or abstract subjects; the open subject family is intentional." },
+    "alludes-to": { concepts: ["core:entity"], note: "An allusion may concern an entity from any domain; attribution does not imply identity." },
+    "named-after": { concepts: ["core:entity"], note: "A naming explanation may refer to a person, place, event, motif or other entity." },
+    "interpreted-as": { concepts: ["core:concept"] }
+  },
+  "natural-world": {
+    "classified-under": { concepts: ["natural-class", "taxon"] },
+    observes: { concepts: ["physical-occurrence"] },
+    "observed-at": { concepts: ["core:place"] },
+    "has-feature": { concepts: ["feature"] }
+  },
+  body: {
+    "involves-structure": { concepts: ["anatomical-structure"] },
+    "reports-experience": { concepts: ["bodily-phenomenon"] },
+    "proposes-mechanism": { concepts: ["mechanism-hypothesis"] }
+  },
+  research: {
+    tests: { concepts: ["core:entity"], note: "Studies may investigate a hypothesis, intervention, material or other identified object; the investigation target remains broad." },
+    "uses-method": { concepts: ["method"] },
+    "produces-finding": { concepts: ["finding"] },
+    supersedes: { concepts: ["publication-version"] }
+  },
+  substances: {
+    "sample-of": { concepts: ["batch", "material"] },
+    "batch-of": { concepts: ["product"] },
+    assays: { concepts: ["sample"] },
+    "offered-by": { concepts: ["core:agent"] }
+  },
+  organizations: {
+    operates: { concepts: ["brand", "core:artifact", "core:process"], note: "Operated products and services may be artifacts or processes; brands retain their separate identity." },
+    "held-by": { concepts: ["core:agent"] },
+    announces: { concepts: ["core:event"] },
+    completes: { concepts: ["transaction"] }
+  },
+  editorial: {
+    "reports-on": { concepts: ["core:event", "event-series"] },
+    "contains-placement": { concepts: ["placement"] },
+    "ranks-under": { concepts: ["ranking-assessment"] },
+    updates: { concepts: ["article"] }
+  },
+  software: {
+    "evaluated-under": { concepts: ["benchmark-protocol"] },
+    "uses-configuration": { concepts: ["configuration"] },
+    "uses-dataset": { concepts: ["dataset-version"] },
+    produces: { concepts: ["measurement", "core:artifact"], note: "A run can produce a measured result or an output artifact; this relation alone does not establish comparability." }
+  },
+  music: {
+    performs: { concepts: ["musical-work", "arrangement"] },
+    records: { concepts: ["performance"] },
+    "appears-on": { concepts: ["release"] },
+    "similar-under": {
+      concepts: ["musical-work", "arrangement", "performance", "recording", "release", "track"],
+      note: "The object is a musical subject participating in the assessment; its comparison method and other subjects are supplied separately."
+    }
+  },
+  people: {
+    "describes-person": { concepts: ["core:person"] },
+    "derived-from-record": { concepts: ["source-contact-record", "public-profile-document"] },
+    "involves-person": { concepts: ["core:person"] },
+    "accounts-for": { concepts: ["relationship"] }
+  },
+  finance: {
+    "issued-by": { concepts: ["issuer"] },
+    "lists-instrument": { concepts: ["instrument"] },
+    "tests-strategy": { concepts: ["strategy-version"] },
+    "uses-dataset": { concepts: ["core:artifact"], note: "The data artifact can come from any installed domain; split, date, costs and assumptions remain separate context." }
+  },
+  "formal-systems": {
+    instantiates: { concepts: ["rule-set-version"] },
+    "starts-from": { concepts: ["initial-state"] },
+    "has-proof": { concepts: ["proof-artifact"] }
+  },
+  "agent-work": {
+    "uses-skill": { concepts: ["skill-version"] },
+    attempts: { concepts: ["task"] },
+    produces: { concepts: ["core:artifact", "core:information-resource"], note: "Attempts can produce physical or digital artifacts and information resources; production does not imply validation." },
+    "validated-by": { concepts: ["check-result"] }
+  }
+};
+var additionalConcepts = {
+  "natural-world": [["natural-class", "A natural classification category, distinct from the scheme that defines it and an occurrence classified under it.", "concept"]],
+  substances: [["material", "Identified physical material from which a sample is taken, including material without a marketed product or production batch.", "entity"]],
+  people: [["relationship", "An identified relationship among people or organizations, with dates, source accounts and access governed separately.", "entity"]]
+};
+var foundationConcepts = [
+  ["contextual-entity", "An entity considered under an optional research profile; the profile does not require complete descriptions or mutually exclusive types.", "entity"],
+  ["measurement", "An attributed measurement record whose subject, quantity, method and conditions are stated independently.", "information-resource"],
+  ["julian-calendar", "The proleptic Julian calendar for an explicitly normalized time value; declaring the calendar does not convert source date lexemes.", "concept"],
+  ["wgs84-geographic-crs", "A local descriptor for WGS 84 geographic coordinates ordered longitude then latitude in decimal degrees, with optional height in meters. It does not normalize an arbitrary source globe.", "concept"],
+  ["earth-globe", "A descriptor identifying Earth as the globe of a source coordinate claim, distinct from a coordinate reference system or a coordinate conversion.", "concept"],
+  ["wikidata-item", "The Wikidata item identifier scheme for Q identifiers. Its use preserves source identity and does not merge a local entity.", "concept"],
+  ["wikidata-property", "The Wikidata property identifier scheme for P identifiers. Identifying a property does not approve a mapping to a local predicate.", "concept"],
+  ["wikidata-lexeme", "The Wikidata lexeme identifier scheme for L identifiers, distinct from forms and senses.", "concept"],
+  ["wikidata-form", "The Wikidata form identifier scheme for L-F identifiers, distinct from the lexical entry and its senses.", "concept"],
+  ["wikidata-sense", "The Wikidata sense identifier scheme for L-S identifiers, distinct from the lexical entry and its forms.", "concept"],
+  ["wikidata-entity-schema", "The Wikidata EntitySchema identifier scheme for E identifiers; a referenced schema is not an accepted local validation policy.", "concept"],
+  ["wikidata-statement", "The Wikidata statement identifier scheme for source statement GUIDs; the source revision and capture remain separate provenance.", "concept"],
+  ["doi", "The DOI identifier scheme for registered digital object identifiers. Equality of supplied strings is not independent validation of registration or identity.", "concept"],
+  ["orcid", "The ORCID identifier scheme for researcher identifiers. A supplied identifier is not proof of account control or of a person's identity.", "concept"]
+];
+var foundationUnits = [
+  ["meter", "length", "m", "1", "0", "The meter as the local base length unit."],
+  ["second", "time", "s", "1", "0", "The second as the local base duration unit; calendar periods are not fixed durations."],
+  ["kilogram", "mass", "kg", "1", "0", "The kilogram as the local base mass unit."],
+  ["gram", "mass", "g", "0.001", "0", "A gram, one thousandth of the local kilogram base unit."],
+  ["milligram", "mass", "mg", "0.000001", "0", "A milligram, one millionth of the local kilogram base unit."],
+  ["kelvin", "temperature", "K", "1", "0", "The kelvin as the local base unit for thermodynamic temperature."],
+  ["celsius", "temperature", "°C", "1", "273.15", "A Celsius temperature has a local kelvin value 273.15 greater; temperature differences need a separately stated quantity kind."],
+  ["dimensionless", "dimensionless", "1", "1", "0", "A dimensionless ratio expressed as a fraction; its numerator and denominator meanings remain contextual."],
+  ["percent", "dimensionless", "%", "0.01", "0", "One percent is one hundredth of a dimensionless ratio; the population and denominator remain contextual."],
+  ["count", "count", "count", "1", "0", "A count of explicitly identified units or events; the counted population is stated separately and is not an arbitrary ratio."]
+];
+var SPONGE_KNOWLEDGE_DOMAIN_RANGE_NOTES_V2 = freezeKnowledgeDeclaration(Object.fromEntries(Object.entries(qualifiedRanges).flatMap(([domain, predicates]) => Object.entries(predicates).filter(([, range]) => range.note !== undefined).map(([code2, range]) => [`sponge.${domain}/${code2}`, range.note]))));
+function canonical3(value) {
+  return canonicalJson(value);
+}
+function unwrap4(result) {
+  if (!result.ok)
+    throw new Error(`Invalid qualified knowledge pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels3(value) {
+  return [{ language: "en", text: value, v: 1 }];
+}
+function title3(value) {
+  return value.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ");
+}
+function sortedRefs(refs3) {
+  return [...refs3].sort((left, right) => canonical3(left) < canonical3(right) ? -1 : 1);
+}
+function sortedSchemas(schemas) {
+  return [...schemas].sort((left, right) => left.identity.code < right.identity.code ? -1 : 1);
+}
+function requiredSchema(schemas, code2) {
+  const schema = schemas.find((item) => item.identity.code === code2);
+  if (schema === undefined)
+    throw new Error(`Missing qualified schema ${code2}.`);
+  return schema;
+}
+function entityRange2(refs3) {
+  return { concepts: sortedRefs(refs3), kind: "entity-concepts", v: 1 };
+}
+function valueRange(...valueKinds) {
+  return { kind: "value-kinds", valueKinds: [...valueKinds].sort(), v: 1 };
+}
+function schemaInput(previous) {
+  return {
+    definitions: previous.definitions,
+    identity: { ...previous.identity, revision: 2 },
+    labels: previous.labels,
+    previousRevisionSha256: previous.revisionSha256,
+    reviewDecisionSha256: null,
+    v: 1
+  };
+}
+async function executableShapes(predicates, shapeForConcept = (ref2) => ref2) {
+  const subjects = new Map;
+  for (const predicate of predicates)
+    for (const concept of predicate.domainConcepts)
+      subjects.set(canonical3(concept), concept);
+  const shapes = [];
+  for (const concept of subjects.values()) {
+    const rules = predicates.filter((predicate) => predicate.domainConcepts.some((ref2) => canonical3(ref2) === canonical3(concept))).map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    }));
+    rules.sort((left, right) => canonical3({ predicate: left.predicate, purpose: left.purpose }) < canonical3({ predicate: right.predicate, purpose: right.purpose }) ? -1 : 1);
+    shapes.push(unwrap4(await createKnowledgeExecutableShapeV1({
+      appliesToConcepts: [concept],
+      closed: false,
+      extends: [],
+      maximumInheritanceDepth: 1,
+      rules,
+      shape: shapeForConcept(concept),
+      v: 1
+    })));
+  }
+  return shapes.sort((left, right) => left.shape.code < right.shape.code ? -1 : 1);
+}
+async function buildFoundation(legacy) {
+  const core = legacy.corePack;
+  const reference = legacy.referencePack;
+  const vocabulary = unwrap4(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels3("Sponge qualified research foundation"),
+    namespace: "sponge.foundation",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const schemas = [];
+  const base = (code2, definition) => ({
+    definitions: labels3(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels3(title3(code2)),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  for (const [code2, definition, broader] of foundationConcepts)
+    schemas.push(unwrap4(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "concept",
+      broader: [requiredSchema(core.schemas, broader).ref]
+    })));
+  for (const [code2, dimension, symbol, scale, offset, definition] of foundationUnits)
+    schemas.push(unwrap4(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, `${definition} This original local descriptor neither performs conversion nor qualifies a source unit mapping.`),
+      kind: "unit",
+      dimension,
+      symbol,
+      scale,
+      offset
+    })));
+  const coreRef = (code2) => requiredSchema(core.schemas, code2).ref;
+  const localRef = (code2) => requiredSchema(schemas, code2).ref;
+  const contexts = [
+    ["globe-context", "The identified celestial body bounding this coordinate claim; this does not select or transform a coordinate system.", entityRange2([coreRef("place")])],
+    ["retrieved-at", "The explicitly recorded retrieval time of the supporting capture, distinct from the time the reported event occurred.", valueRange("time")],
+    ["scope-context", "An identified scope, classification scheme or denominator definition for this claim.", entityRange2([coreRef("concept")])],
+    ["source-property", "The original property identifier for this source claim, retained independently of a local predicate mapping.", valueRange("identifier")],
+    [
+      "source-rank",
+      "The source statement rank, retained as source metadata without converting preferred rank into accepted truth.",
+      { kind: "enum", values: ["deprecated", "normal", "preferred"].map((value) => ({ kind: "string", value, v: 1 })), v: 1 }
+    ],
+    ["source-statement", "The original source statement identifier; capture identity and source revision are retained independently.", valueRange("identifier")],
+    ["version-context", "The exact version entity under which a claim applies, without asserting identity with other versions.", entityRange2([coreRef("entity")])]
+  ];
+  for (const [code2, definition, range] of contexts)
+    schemas.push(unwrap4(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: [coreRef("entity")],
+      inversePredicate: null,
+      qualifierPredicates: [],
+      range
+    })));
+  const qualifiers = sortedRefs([...reference.schemas, ...schemas].filter((schema) => schema.kind === "predicate").map((schema) => schema.ref));
+  const definitions2 = [
+    ["external-identifier", "An identifier under an explicitly named scheme. Source identity is retained without approving entity equivalence or a schema mapping.", coreRef("entity"), valueRange("identifier")],
+    ["measurement-of", "The identified subject of one measurement. Any domain may supply the subject; units and method do not generalize its result.", localRef("measurement"), entityRange2([coreRef("entity")])],
+    ["measurement-method", "The identified measurement procedure or protocol used for this result.", localRef("measurement"), entityRange2([coreRef("information-resource")])],
+    ["measured-at", "The explicitly normalized time associated with this measurement, retaining its declared calendar and precision.", localRef("measurement"), valueRange("time")],
+    ["normalized-quantity", "A quantity under an exact local unit descriptor, with bounds or uncertainty where known. Normalization requires separately attributable evidence.", localRef("measurement"), valueRange("quantity")],
+    ["normalized-time", "A time explicitly normalized under the declared calendar, certainty and precision. Retained source time lexemes remain separate.", coreRef("entity"), valueRange("time")],
+    ["normalized-location", "A geometry explicitly normalized under its declared coordinate reference system. A source globe claim alone does not justify this geometry.", coreRef("entity"), valueRange("geometry")],
+    ["version-of", "Relates a version to the continuing entity it versions under attributed identity evidence. It does not assert same-as, succession or automatic equivalence.", coreRef("entity"), entityRange2([coreRef("entity")])],
+    ["source-asserted-instance-of", "Retains a source's direct instance-of claim between identified entities. It neither creates a local type membership nor permits transitive instance inference.", coreRef("entity"), entityRange2([coreRef("entity")])],
+    ["source-asserted-subclass-of", "Retains a source's subclass-of claim between identified class entities. It does not establish a local broader relation or imply an instance-of claim.", coreRef("entity"), entityRange2([coreRef("entity")])],
+    ["source-asserted-part-of", "Retains a source's constituent relation between identified entities. It remains distinct from classification, instance membership and entity equivalence.", coreRef("entity"), entityRange2([coreRef("entity")])]
+  ];
+  for (const [code2, definition, domain, range] of definitions2)
+    schemas.push(unwrap4(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: [domain],
+      inversePredicate: null,
+      qualifierPredicates: qualifiers,
+      range
+    })));
+  const predicates = schemas.filter((schema) => schema.kind === "predicate");
+  const shapes = await executableShapes(predicates, (ref2) => ref2.namespace === "sponge.core" ? localRef("contextual-entity") : ref2);
+  return unwrap4(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: [core, reference].map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive local descriptors and optional structural rules. No upstream mapping, coordinate or unit conversion, complete description, source truth, publication or identity authority is implied. Monetary quantities require explicit currency and valuation context; no currency conversion is defined.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    queries: [{ description: "Which source identities, versions, units and explicit contexts qualify this research claim?", id: "qualified-context", predicates: sortedRefs(predicates.map((predicate) => predicate.ref)), v: 1 }],
+    revision: 1,
+    schemas: sortedSchemas(schemas),
+    shapes,
+    sources: [{
+      contentSha256: await sha256Text(canonical3({ foundationConcepts, foundationUnits, schemas })),
+      license: "MIT",
+      revision: "1",
+      uri: "urn:sponge:application-profile:foundation",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+}
+var catalogPromise3;
+function spongeKnowledgeDomainCatalogV2() {
+  catalogPromise3 ??= buildCatalog2();
+  return catalogPromise3;
+}
+async function buildCatalog2() {
+  const legacy = await spongeKnowledgeDomainCatalog();
+  const foundationPack = await buildFoundation(legacy);
+  const { corePack, referencePack } = legacy;
+  const qualifiers = sortedRefs([...referencePack.schemas, ...foundationPack.schemas].filter((schema) => schema.kind === "predicate" && schema.qualifierPredicates.length === 0).map((schema) => schema.ref));
+  const packs = [corePack, referencePack, foundationPack];
+  for (const previous of legacy.packs.filter((pack) => SPONGE_KNOWLEDGE_DOMAIN_PACK_IDS.includes(pack.packId))) {
+    const domain = previous.packId.slice("sponge.".length);
+    const vocabulary = unwrap4(await createKnowledgeVocabularyRevisionV1({
+      canonicalizerSha256: previous.canonicalizerSha256,
+      labels: previous.vocabulary.labels,
+      namespace: previous.packId,
+      ownerEntityId: previous.vocabulary.ownerEntityId,
+      previousRevisionSha256: previous.vocabulary.revisionSha256,
+      revision: 2,
+      state: "private",
+      v: 1
+    }));
+    const concepts = [];
+    for (const schema of previous.schemas.filter((item) => item.kind === "concept")) {
+      const concept = unwrap4(await createKnowledgeSchemaRevisionV1({
+        ...schemaInput(schema),
+        broader: schema.broader,
+        kind: "concept",
+        vocabularySha256: vocabulary.revisionSha256
+      }));
+      if (concept.kind !== "concept")
+        throw new Error("Expected qualified concept.");
+      concepts.push(concept);
+    }
+    for (const [code2, definition, broader] of additionalConcepts[domain] ?? []) {
+      const concept = unwrap4(await createKnowledgeSchemaRevisionV1({
+        broader: [requiredSchema(corePack.schemas, broader).ref],
+        definitions: labels3(definition),
+        identity: { code: code2, namespace: previous.packId, revision: 1, v: 1 },
+        kind: "concept",
+        labels: labels3(title3(code2)),
+        previousRevisionSha256: null,
+        reviewDecisionSha256: null,
+        vocabularySha256: vocabulary.revisionSha256,
+        v: 1
+      }));
+      if (concept.kind !== "concept")
+        throw new Error("Expected additional concept.");
+      concepts.push(concept);
+    }
+    const localRef = (code2) => requiredSchema(concepts, code2).ref;
+    const predicates = [];
+    for (const schema of previous.schemas.filter((item) => item.kind === "predicate")) {
+      const qualification = qualifiedRanges[domain]?.[schema.identity.code];
+      const entityPredicate = schema.range.kind === "value-kinds" && schema.range.valueKinds.includes("entity");
+      if (entityPredicate && qualification === undefined)
+        throw new Error(`Unqualified entity relation ${previous.packId}/${schema.identity.code}.`);
+      const range = qualification === undefined ? schema.range : entityRange2(qualification.concepts.map((code2) => code2.startsWith("core:") ? requiredSchema(corePack.schemas, code2.slice(5)).ref : localRef(code2)));
+      const predicate = unwrap4(await createKnowledgeSchemaRevisionV1({
+        ...schemaInput(schema),
+        definitions: qualification?.note === undefined ? schema.definitions : labels3(`${schema.definitions[0]?.text} ${qualification.note}`),
+        domainConcepts: sortedRefs(schema.domainConcepts.map((ref2) => localRef(ref2.code))),
+        inversePredicate: null,
+        kind: "predicate",
+        qualifierPredicates: qualifiers,
+        range,
+        vocabularySha256: vocabulary.revisionSha256
+      }));
+      if (predicate.kind !== "predicate")
+        throw new Error("Expected qualified predicate.");
+      predicates.push(predicate);
+    }
+    const exampleEntityId = parseKnowledgeEntityId(`kent_${"e".repeat(24)}`);
+    if (exampleEntityId === null)
+      throw new Error("Invalid structural example identity.");
+    const examples = predicates.map((predicate) => {
+      const object = predicate.range.kind === "entity-concepts" ? { entityId: exampleEntityId, kind: "entity", v: 1 } : { kind: predicate.identity.code === "observed-at-tick" ? "integer" : "decimal", value: "1", v: 1 };
+      return {
+        description: `Synthetic structural example for ${predicate.identity.code}; the referenced entity must independently have an allowed range concept. No real-world claim or completeness is asserted.`,
+        id: predicate.identity.code,
+        object,
+        predicate: predicate.ref,
+        subjectConcept: predicate.domainConcepts[0],
+        v: 1
+      };
+    });
+    const schemas = sortedSchemas([...concepts, ...predicates]);
+    packs.push(unwrap4(await createKnowledgeVocabularyPackManifestV1({
+      canonicalizerSha256: previous.canonicalizerSha256,
+      dependencies: [corePack, foundationPack, referencePack].map(knowledgeVocabularyPackPinV1),
+      display: previous.display,
+      examples,
+      migrationNotes: "Revision 2 qualifies relation ranges and adds optional contextual shapes. Revision 1 records and digests remain unchanged; a new revision does not retype existing entities, rewrite accepted statements, or grant publication or identity authority. Multiple compatible types are allowed; absent optional relations do not establish completeness.",
+      packId: previous.packId,
+      previousManifestSha256: previous.manifestSha256,
+      queries: previous.queries.map((query) => ({ ...query, predicates: sortedRefs(predicates.map((predicate) => predicate.ref)) })),
+      revision: 2,
+      schemas,
+      shapes: await executableShapes(predicates),
+      sources: [{
+        contentSha256: await sha256Text(canonical3({ qualification: qualifiedRanges[domain], schemas })),
+        license: "MIT",
+        revision: "2",
+        uri: `urn:sponge:application-profile:${domain}`,
+        v: 1
+      }],
+      supportedCodecs: [],
+      v: 1,
+      vocabulary
+    })));
+  }
+  packs.sort((left, right) => left.packId < right.packId ? -1 : 1);
+  const resolved = unwrap4(await resolveKnowledgeVocabularyPacksV1({
+    manifests: packs,
+    roots: packs.filter((pack) => SPONGE_KNOWLEDGE_DOMAIN_PACK_IDS.includes(pack.packId)).map(knowledgeVocabularyPackPinV1)
+  }));
+  return freezeKnowledgeDeclaration({
+    corePack,
+    foundationPack,
+    historicalPacks: legacy.packs,
+    lock: resolved.lock,
+    packs,
+    referencePack,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
+// src/research/knowledge-wikidata-mappings-v1.ts
+var KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V1 = "sponge.wikidata-source-mappings.v1";
+var reviewedProperties = [
+  ["P31", 2544460086, "789d22e92cffde51227efdc235a56c0a73cd07905f78b92d4b3707dcaa57920c", "source-asserted-instance-of"],
+  ["P279", 2544822399, "a9bd8764254319bbf8af70a8d55d068c8e06df0408658735e029871627ff375e", "source-asserted-subclass-of"],
+  ["P361", 2544660587, "4ed5238812e042dcbb8b5c4cd38a80d78945289e760a85554d2d47b8a20dcd4f", "source-asserted-part-of"]
+];
+var catalogPromise4;
+function spongeKnowledgeWikidataMappingCatalogV1() {
+  catalogPromise4 ??= (async () => {
+    const catalog = await spongeKnowledgeDomainCatalogV2();
+    const mappings = reviewedProperties.map(([propertyId3, revision2, captureSha256, code2]) => {
+      const predicate = catalog.foundationPack.schemas.find((schema) => schema.kind === "predicate" && schema.identity.code === code2);
+      if (predicate === undefined)
+        throw new Error("Missing source-attribution predicate.");
+      return {
+        source: { propertyId: propertyId3, datatype: "wikibase-item", revision: revision2, captureSha256 },
+        target: predicate.ref,
+        relation: "source-attribution",
+        localMembershipInference: false,
+        identityMerge: false,
+        v: 1
+      };
+    });
+    const body = { v: 1, mappingVersion: KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V1, mappings };
+    return freezeKnowledgeDeclaration({ ...body, catalogSha256: await sha256Text(canonicalJson(body)) });
+  })();
+  return catalogPromise4;
+}
+async function createKnowledgeWikidataMappingPreviewV1(input) {
+  const source = await createKnowledgeWikidataImportPreviewV2(input);
+  if (!source.ok)
+    return source;
+  const catalog = await spongeKnowledgeWikidataMappingCatalogV1();
+  const candidates = [];
+  const gaps = [];
+  for (const assertion of source.value.sourceAssertions) {
+    const mapping = catalog.mappings.find((item) => item.source.propertyId === assertion.predicate.propertyId);
+    if (mapping === undefined) {
+      gaps.push({ source: assertion, reason: "property-not-mapped" });
+      continue;
+    }
+    const raw = assertion.rawStatement;
+    const main = isJsonRecord(raw) && isJsonRecord(raw["mainsnak"]) ? raw["mainsnak"] : null;
+    const preserved = source.value.mappingCandidates.find((candidate) => candidate.captureSha256 === assertion.captureSha256 && candidate.selector.kind === "statement" && candidate.selector.statementId === assertion.selector.statementId && candidate.selector.entityId === assertion.selector.entityId && candidate.selector.propertyId === assertion.selector.propertyId && candidate.selector.statementIndex === assertion.selector.statementIndex && candidate.selector.location.kind === "main");
+    const data = main !== null && isJsonRecord(main["datavalue"]) ? main["datavalue"] : null;
+    const value = data !== null && isJsonRecord(data["value"]) ? data["value"] : null;
+    const id = value === null ? undefined : value["id"] ?? (typeof value["numeric-id"] === "number" ? `Q${value["numeric-id"]}` : undefined);
+    if (preserved?.value.kind !== "typed-source-value" || preserved.value.datatype !== mapping.source.datatype || typeof id !== "string" || !/^Q[1-9][0-9]*$/u.test(id)) {
+      gaps.push({ source: assertion, reason: "source-value-not-an-item" });
+      continue;
+    }
+    candidates.push({
+      source: assertion,
+      mapping,
+      object: { entityId: id, uri: `http://www.wikidata.org/entity/${id}` },
+      status: "requires-local-identity-and-proposal-review",
+      normalization: "none",
+      eligibleForAdmission: false
+    });
+  }
+  const body = {
+    v: 1,
+    sourcePreviewSha256: source.value.previewSha256,
+    mappingCatalogSha256: catalog.catalogSha256,
+    candidates,
+    gaps,
+    scope: "retained-main-statements"
+  };
+  if (boundedKnowledgeWikidataPreviewJsonV2({ ...body, previewSha256: "0".repeat(64) }) === undefined) {
+    return { ok: false, error: { code: "input-bound", field: "mapping-preview", retryable: false } };
+  }
+  return { ok: true, value: freezeKnowledgeDeclaration({
+    ...body,
+    previewSha256: await sha256Text(canonicalJson(body))
+  }) };
+}
+async function verifyKnowledgeWikidataMappingPreviewV1(foreign, input) {
+  const rebuilt = await createKnowledgeWikidataMappingPreviewV1(input);
+  if (!rebuilt.ok)
+    return rebuilt;
+  const parsed = boundedKnowledgeWikidataPreviewJsonV2(foreign);
+  if (parsed === undefined || canonicalJson(parsed) !== canonicalJson(rebuilt.value)) {
+    return { ok: false, error: { code: "integrity-mismatch", field: "mapping-preview", retryable: false } };
+  }
+  return rebuilt;
+}
 export {
   verifyOhResearchPacketV1,
+  verifyKnowledgeWikidataMappingPreviewV1,
+  verifyKnowledgeWikidataImportPreviewV2,
   verifyKnowledgeWikidataImportPreviewV1,
   verifyKnowledgeVocabularyPackLockV1,
   verifyKnowledgeValueV1,
@@ -2242,7 +3331,9 @@ export {
   verifyKnowledgeEditionDependencyCompletenessV1,
   utf8ByteLength,
   traverseKnowledgeGraphV1,
+  spongeKnowledgeWikidataMappingCatalogV1,
   spongeKnowledgeReferenceCatalog,
+  spongeKnowledgeDomainCatalogV2,
   spongeKnowledgeDomainCatalog,
   spongeCoreKnowledgeCatalogV1,
   sha256Text,
@@ -2254,6 +3345,7 @@ export {
   parseSpongeKnowledgeProposalDraftV3,
   parseSpongeKnowledgeProposalBundleV2,
   parseSha256Hex,
+  parseKnowledgeWikidataImportInputV2,
   parseKnowledgeWikidataImportInputV1,
   parseKnowledgeVocabularyRevisionV1,
   parseKnowledgeVocabularyPackManifestV1,
@@ -2294,6 +3386,7 @@ export {
   parseJsonValue,
   parseCanonicalInstantV1,
   ohResearchRecordKeyV1,
+  knowledgeWikidataDatatypeSupportV2,
   knowledgeVocabularyPackPinV1,
   knowledgeInquiryTransitionNoteV1,
   knowledgeInquiryTransitionEventKindV1,
@@ -2301,6 +3394,7 @@ export {
   knowledgeDomainSchemaByRef,
   knowledgeDeclarativeJson,
   isPreparedOhResearchPacketV1,
+  isKnowledgeWikidataEntityIdV2,
   isKnowledgeWikidataEntityIdV1,
   isKnowledgeLanguageTagV1,
   graphRevisionRetainsEvidenceV1,
@@ -2308,6 +3402,8 @@ export {
   evaluateKnowledgeShapeV1,
   effectiveKnowledgeRightsV1,
   effectiveKnowledgeReviewV1,
+  createKnowledgeWikidataMappingPreviewV1,
+  createKnowledgeWikidataImportPreviewV2,
   createKnowledgeWikidataImportPreviewV1,
   createKnowledgeVocabularyRevisionV1,
   createKnowledgeVocabularyPackManifestV1,
@@ -2336,8 +3432,10 @@ export {
   createKnowledgeActivityV1,
   compileSpongeKnowledgeProposalV3,
   compareUtf16CodeUnits,
+  canonicalKnowledgeWikidataImportPreviewV2,
   canonicalKnowledgeWikidataImportPreviewV1,
   canonicalJson,
+  boundedKnowledgeWikidataPreviewJsonV2,
   SPONGE_SHA256_HEX_PATTERN,
   SPONGE_KNOWLEDGE_SCENARIOS_V1,
   SPONGE_KNOWLEDGE_REVIEW_SUBJECT_KINDS_V1,
@@ -2350,6 +3448,7 @@ export {
   SPONGE_KNOWLEDGE_GRAPH_RECORD_KINDS_V1,
   SPONGE_KNOWLEDGE_EVIDENCE_BEARINGS_V1,
   SPONGE_KNOWLEDGE_ENTITY_STATES_V1,
+  SPONGE_KNOWLEDGE_DOMAIN_RANGE_NOTES_V2,
   SPONGE_KNOWLEDGE_DOMAIN_PACK_IDS,
   SPONGE_KNOWLEDGE_DISCLOSURES_V1,
   SPONGE_KNOWLEDGE_CALLER_KEY_RECORD_KINDS_V1,
@@ -2362,6 +3461,12 @@ export {
   SPONGE_AGENT_CORE_CONCEPT_CODES_V2,
   OH_RESEARCH_PACKET_PROFILE_V1,
   OH_RESEARCH_PACKET_LIMITS_V1,
+  KNOWLEDGE_WIKIDATA_PROPERTY_GROUP_LIMIT_V2,
+  KNOWLEDGE_WIKIDATA_PREVIEW_LIMITS_V2,
+  KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V1,
+  KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2,
   KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1,
-  KNOWLEDGE_WIKIDATA_IMPORTER_V1
+  KNOWLEDGE_WIKIDATA_IMPORTER_V2,
+  KNOWLEDGE_WIKIDATA_IMPORTER_V1,
+  KNOWLEDGE_WIKIDATA_DATATYPES_V2
 };

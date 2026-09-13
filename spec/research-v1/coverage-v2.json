@@ -1,0 +1,41 @@
+{
+  "v": 2,
+  "profile": "oh.research-coverage.v2",
+  "minimumPackageVersion": "0.6.1",
+  "specification": "./coverage-v2.md",
+  "legacyManifest": "./manifest.json",
+  "packetContract": "oh.research-packet.v1",
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV2",
+    "packs": 17,
+    "schemas": 227,
+    "shapes": 40,
+    "units": 10,
+    "lockSha256": "7cf05faa31b5e790cc5a2de00efd6776a25d54cfc676a524e173022775f1c81f"
+  },
+  "wikidata": {
+    "importerVersion": "sponge.wikidata-json-import.v2",
+    "datatypes": 18,
+    "selection": [
+      "explicit-properties",
+      "all-present"
+    ],
+    "inventory": "./wikidata/2026-09-13/inventory.json",
+    "coverage": "./wikidata/2026-09-13/preservation-coverage.json",
+    "mappingCatalogSha256": "faee779d4eb1d6a95f62447fd3add431958a4f637eed6e4037bf0388f5d79427",
+    "mappedProperties": [
+      "P31",
+      "P279",
+      "P361"
+    ],
+    "semanticCompleteness": "not-claimed",
+    "authority": "unadmitted",
+    "propertyGroupLimit": 4096,
+    "previewLimits": {
+      "maxBytes": 67108864,
+      "maxNodes": 1000000,
+      "maxDepth": 64,
+      "maxArrayItems": 250000
+    }
+  }
+}
