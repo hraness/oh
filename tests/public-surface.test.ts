@@ -192,7 +192,7 @@ describe("public identity and documentation", () => {
     expect(skill).toContain("wikidata-mapping-preview --file PATH");
     expect(readme).toContain("https://github.com/hraness/oh/actions/runs/34745154295");
     expect(skill).toContain("https://github.com/hraness/oh/actions/runs/34745154295");
-    expect(readme).not.toContain("This source tree prepares version");
+    expect(readme).toContain("This source tree prepares version `0.6.0`");
     expect(skill).not.toContain("until the next release completes publication");
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { terminalIntro } from "./cli-intro";
 import { lstat, readFile } from "node:fs/promises";
 
 import { canonicalJson, opaqueId, parseCanonicalInstantV1, safeCode, type JsonValue } from "./canonical";
@@ -248,6 +249,7 @@ export async function runOhCli(arguments_: readonly string[]): Promise<number> {
   const command = arguments_[0];
   if (command === undefined || command === "help" || command === "--help") {
     if (arguments_.length > 1) throw new TypeError("help does not accept arguments or options.");
+    process.stdout.write(terminalIntro({ isTTY: process.stdout.isTTY, columns: process.stdout.columns, term: process.env.TERM }));
     process.stdout.write(HELP);
     return 0;
   }

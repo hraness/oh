@@ -23405,6 +23405,19 @@ var init_sdk = __esm(() => {
   init_recall();
 });
 
+// src/cli-intro.ts
+function terminalIntro(terminal) {
+  if (terminal.isTTY !== true || terminal.term === "dumb" || (terminal.columns ?? 80) < 48)
+    return "";
+  return `  .----.
+ / .--. \\   oh
+| |    | |   Local memory for your agents.
+ \\ '--' /
+  '----'
+
+`;
+}
+
 // src/cli.ts
 init_canonical();
 init_contract();
@@ -23656,6 +23669,7 @@ async function runOhCli(arguments_) {
   if (command === undefined || command === "help" || command === "--help") {
     if (arguments_.length > 1)
       throw new TypeError("help does not accept arguments or options.");
+    process.stdout.write(terminalIntro({ isTTY: process.stdout.isTTY, columns: process.stdout.columns, term: process.env.TERM }));
     process.stdout.write(HELP);
     return 0;
   }

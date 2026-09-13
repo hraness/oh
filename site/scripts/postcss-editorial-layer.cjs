@@ -4,9 +4,9 @@ const path = require("node:path");
 const { createHash } = require("node:crypto");
 
 const preset = path.resolve(__dirname, "../vendor/hraness-marketing/product-marketing-preset.css");
-const presetSha256 = "e1474dbfa5dcb17e840ecd48e2b767e88e808a1f6124cd9bb8fe720e1076a4a7";
+const presetSha256 = "221fd555f9c9c15e26fc8d7d8ad3a536e3dfb138df699b449adb9c45919e66cb";
 const material = path.resolve(__dirname, "../vendor/hraness-lantern/lantern-material.css");
-const materialSha256 = "484db814a12cfc54f1f13b580e16c1d1931ca780d8f1932ff0d4828494fe71fe";
+const materialSha256 = "003034ac332f392a16950495ad4967a1ba78c61eda8035aa914cd4da18a70f1e";
 
 // Next's CSS loader does not retain an @import layer() qualifier. Relocate only
 // these verified snapshots' layers in the build AST, keeping immutable bytes,
