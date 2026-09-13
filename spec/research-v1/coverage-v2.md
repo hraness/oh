@@ -8,7 +8,7 @@ research answer is complete or true.
 
 ## Preserve unfamiliar properties
 
-With package version 0.6.0, pass a V2 capture request to
+With package version 0.6.1, pass a V2 capture request to
 `createKnowledgeWikidataImportPreviewV2` or `oh research wikidata-preview`:
 
 ```json
