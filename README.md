@@ -68,7 +68,8 @@ not a claim about a real study.
 
 ## Install and first run
 
-This source tree prepares version `0.5.0`. Published installation commands
+This source tree prepares version `0.5.1`, adding a compact introduction to
+interactive root help. Published installation commands
 remain on the verified release below until the new package completes publication.
 
 The installation instructions below use `0.4.3`, the

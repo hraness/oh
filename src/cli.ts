@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { terminalIntro } from "./cli-intro";
 import { lstat, readFile } from "node:fs/promises";
 
 import { canonicalJson, opaqueId, parseCanonicalInstantV1, safeCode, type JsonValue } from "./canonical";
@@ -9,7 +10,7 @@ import { renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
 import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
-export const OH_PACKAGE_VERSION = "0.5.0" as const;
+export const OH_PACKAGE_VERSION = "0.5.1" as const;
 
 type ParsedArguments = { options: Map<string, string[]>; positionals: string[] };
 type ValidatedInvocation = Readonly<{
@@ -248,6 +249,7 @@ export async function runOhCli(arguments_: readonly string[]): Promise<number> {
   const command = arguments_[0];
   if (command === undefined || command === "help" || command === "--help") {
     if (arguments_.length > 1) throw new TypeError("help does not accept arguments or options.");
+    process.stdout.write(terminalIntro({ isTTY: process.stdout.isTTY, columns: process.stdout.columns, term: process.env.TERM }));
     process.stdout.write(HELP);
     return 0;
   }
