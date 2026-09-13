@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { log } from "node:console";
 import { mkdir } from "node:fs/promises";
@@ -55,6 +56,30 @@ async function stopServer(server) {
 
 function closeTo(actual, expected, label) {
   assert.ok(Math.abs(Number.parseFloat(actual) - expected) < 0.15, `${label}: ${actual}, expected ${expected}px`);
+}
+
+
+// Immutable design-kit v0.8.0 assets, checked independently of the current build.
+async function assertWallAssets(context, background, origin) {
+  const expected = [
+    ['grain', 152319, 'b40c33a0e382c8e9d0518b4720321b5c262a929c28d40a190a902d07acd06553'],
+    ['cells', 17102, 'be9b12eefeae91772f024ed24ccda5be6173fb626921374b7e5270c298611b01'],
+  ];
+  const urls = [...background.matchAll(/url\("([^"]+)"\)/gu)].map(match => new URL(match[1], origin));
+  assert.equal(urls.length, expected.length);
+  const result = [];
+  for (const [index, url] of urls.entries()) {
+    const [name, size, sha256] = expected[index];
+    assert.equal(url.origin, origin); assert.equal(url.search, ''); assert.equal(url.hash, '');
+    assert.match(url.pathname, new RegExp(`^/_next/static/media/${name}\\.[a-f0-9]+\\.svg$`, 'u'));
+    const response = await context.request.get(url.href, { timeout: 5000, maxRedirects: 0 });
+    assert.equal(response.status(), 200);
+    const bytes = await response.body();
+    assert.equal(bytes.length, size);
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), sha256);
+    result.push({ name, path: url.pathname, bytes: size, sha256 });
+  }
+  return result;
 }
 
 const server = startServer();
@@ -180,10 +205,11 @@ try {
             assert.ok(metrics.layers.some((layer) => layer.startsWith("oh-marketing")), "Editorial override layer missing");
             assert.equal(metrics.material, true);
             assert.ok(metrics.layers.includes("oh-material"), "Lantern override layer missing");
-            assert.equal((metrics.field.backgroundImage.match(/repeating-linear-gradient\(/gu) ?? []).length, 2);
+            assert.equal((metrics.field.backgroundImage.match(/gradient\(/gu) ?? []).length, 2);
             assert.equal((metrics.field.backgroundImage.match(/radial-gradient\(/gu) ?? []).length, 1);
-            assert.doesNotMatch(metrics.field.backgroundImage, /url\(/u, "Lantern wall has no texture assets");
-            assert.equal(metrics.field.backgroundSize, "auto, auto, auto, auto", "Canonical wall layers must not inherit editorial texture tiling");
+            assert.doesNotMatch(metrics.field.backgroundImage, /repeating-linear-gradient\(/u);
+            assert.equal(metrics.field.backgroundSize, `64px 64px, ${mobile ? 576 : 768}px ${mobile ? 576 : 768}px, 100% 100%, 100% 100%`);
+            metrics.textures = await assertWallAssets(context, metrics.field.backgroundImage, origin);
             assert.equal(metrics.pane.backgroundColor, colorScheme === "light" ? "rgb(255, 254, 250)" : "rgb(29, 26, 24)", "Opaque Paper reading pane");
             assert.equal(metrics.pane.color, colorScheme === "light" ? "rgb(28, 25, 23)" : "rgb(245, 242, 237)", "Paired reading ink");
             assert.equal(metrics.pane.borderTopStyle, "solid");
