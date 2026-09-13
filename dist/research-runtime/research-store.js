@@ -8,7 +8,7 @@ import {
   knowledgeDeclarativeJson,
   prepareOhResearchPacketV1,
   verifyOhResearchPacketV1
-} from "./chunk-h91mb1fb.js";
+} from "./chunk-yq058vjx.js";
 
 // src/canonical.ts
 import { createHash, randomBytes } from "node:crypto";

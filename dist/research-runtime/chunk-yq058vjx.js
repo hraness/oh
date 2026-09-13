@@ -401,7 +401,7 @@ function canonicalUri(value) {
     return null;
   try {
     const uri = new URL(value);
-    return uri.username === "" && uri.password === "" && uri.protocol !== "javascript:" && uri.protocol !== "data:" && uri.protocol !== "file:" && uri.href === value ? value : null;
+    return uri.username === "" && uri.password === "" && uri.protocol !== "javascript:" && uri.protocol !== "data:" && uri.protocol !== "vbscript:" && uri.protocol !== "file:" && uri.href === value ? value : null;
   } catch {
     return null;
   }

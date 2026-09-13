@@ -556,6 +556,7 @@ function canonicalUri(value: unknown): string | null {
     const uri = new URL(value);
     return uri.username === "" && uri.password === ""
         && uri.protocol !== "javascript:" && uri.protocol !== "data:"
+        && uri.protocol !== "vbscript:"
         && uri.protocol !== "file:" && uri.href === value
       ? value
       : null;

@@ -105,7 +105,7 @@ import {
   verifyKnowledgeSchemaEvolutionV1,
   verifyKnowledgeValueV1,
   verifyOhResearchPacketV1
-} from "./chunk-h91mb1fb.js";
+} from "./chunk-yq058vjx.js";
 // src/research/knowledge-core-v1.ts
 var coreOwnerEntityId = (() => {
   const parsed = parseKnowledgeEntityId(`kent_${"0".repeat(24)}`);

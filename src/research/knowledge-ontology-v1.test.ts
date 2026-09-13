@@ -469,3 +469,51 @@ describe("curiosity-led views and immutable editions", () => {
     if (release.ok) expect(await parseKnowledgeEditionReleaseV1(release.value)).toEqual(release);
   });
 });
+
+describe("URI admission", () => {
+  test("rejects executable and local schemes through values, nested values and statements", async () => {
+    for (const uri of ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>", "file:///tmp/source",
+      "vbscript:msgbox(1)", "VBScript:msgbox(1)", " vbscript:msgbox(1)", "vb\tscript:msgbox(1)",
+      "https://user:password@example.org/"]) {
+      const value = { kind: "uri", uri, v: 1 } as const;
+      expect(parseKnowledgeValueV1(value).ok).toBe(false);
+      expect((await verifyKnowledgeValueV1(value)).ok).toBe(false);
+      expect(parseKnowledgeValueV1({ kind: "list", values: [value], v: 1 }).ok).toBe(false);
+      expect(parseKnowledgeValueV1({ kind: "set", values: [value], v: 1 }).ok).toBe(false);
+      expect((await createKnowledgeStatementV1({ subject: entity("a"), predicate: schema("identifier", "b"),
+        object: value, qualifiers: [], v: 1 })).ok).toBe(false);
+      expect((await createKnowledgeContextV1({ scenario: "actual",
+        dimensions: [{ predicate: schema("identifier", "b"), value, v: 1 }], v: 1 })).ok).toBe(false);
+    }
+    // Exact bytes accepted before the admission repair remain stored bytes;
+    // revalidation fails instead of changing their canonical content or digest.
+    const historical = { object: { kind: "uri", uri: "vbscript:msgbox(1)", v: 1 },
+      predicate: schema("identifier", "b"), qualifiers: [], subject: entity("a"), v: 1,
+      statementSha256: "b357d67cb44c7a4c3eec389cd43b646488c6b141f3f940ba24979f6ef4aca652" };
+    const original = JSON.stringify(historical);
+    expect((await parseKnowledgeStatementV1(historical)).ok).toBe(false);
+    expect(JSON.stringify(historical)).toBe(original);
+  });
+
+  test("preserves benign canonical URI bytes and their pre-repair statement digests", async () => {
+    const fixtures = [
+      ["https://example.org/reference?x=1#part", "d81808c484aeac3263edcfcd5334ba1ce13e2251b8aa12dab9115c0192c5d050"],
+      ["http://example.org/", "a61cc71344a1071d459b1f356675f3c2d7d6a04e44c59a7ae1cdc57dd04c9354"],
+      ["urn:doi:10.1000/example", "16e6fc308bad775cd30ab676f7d7cb4ef04a84f3578cb5bf10f7c064bfb14442"],
+      ["mailto:person@example.org", "7ad98d02a2ba16c7c3492ac1e26dd16a48cdb036e0905a0bfe47f731b155d181"],
+      ["ftp://example.org/reference", "149cc3f2a8253220db9989ce536add89040b0beb8ed003b5ba8f589fbf574676"],
+      ["ipfs:bafyexample", "a7204306e94f1959e539782250184da52cc3f06df704021322ab5ddff64e51a9"],
+    ] as const;
+    for (const [uri, sha256] of fixtures) {
+      const value = { kind: "uri", uri, v: 1 } as const;
+      expect(parseKnowledgeValueV1(value)).toEqual({ ok: true, value });
+      const statement = await createKnowledgeStatementV1({ subject: entity("a"), predicate: schema("identifier", "b"),
+        object: value, qualifiers: [], v: 1 });
+      expect(statement.ok).toBe(true);
+      if (!statement.ok) continue;
+      expect(String(statement.value.statementSha256)).toBe(sha256);
+      expect(statement.value.object).toEqual(value);
+      expect(await parseKnowledgeStatementV1(statement.value)).toEqual(statement);
+    }
+  });
+});

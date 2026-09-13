@@ -31,6 +31,15 @@ verification is required. `canonicalJson` and `sha256Text` in this entry point
 implement the source preimages with Web Crypto. The portable module has no
 required runtime dependencies or access to a host's credentials.
 
+URI admission rejects the executable `javascript:`, `data:` and `vbscript:`
+schemes and local `file:` references. Values must also have no URL credentials
+and already match their canonical URL serialization. The initial research
+profile security repair adds the missing `vbscript:` rejection; it changes
+neither canonical digest preimages nor accepted benign URI bytes. A previously
+stored record containing such a URI remains unchanged and fails revalidation.
+Other URI schemes can represent identifiers; parsing a URI does not authorize
+navigation, execution or source acquisition.
+
 ## Select vocabularies
 
 `spongeKnowledgeDomainCatalog()` returns a core pack, a reference pack and
