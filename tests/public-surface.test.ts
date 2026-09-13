@@ -28,6 +28,7 @@ const markdownFiles = [
   "AGENTS.md",
   "docs/publishing.md",
   "spec/README.md",
+  "spec/research-v1/README.md",
   "spec/v1/canonical-json.md",
   "spec/v1/ontology.md",
   "spec/v1/schema-evolution.md",
@@ -60,6 +61,7 @@ const schemaFiles = [
   "spec/v1/projection-identity.schema.json",
   "spec/v1/projection-result.schema.json",
   "spec/v1/memory-page.schema.json",
+  "spec/research-v1/packet.schema.json",
 ] as const;
 
 const publicSourceEntries = [
@@ -92,11 +94,12 @@ const privateProvenancePatterns = [
 
 // One-way hashes let the public tree reject unpublished identifiers without
 // reproducing those identifiers in source or test output.
+// The research profile intentionally publishes the source namespace "sponge"
+// and purpose "public-encyclopedia". Their wire bytes remain stable; these two
+// now-public identifiers are no longer classified as unpublished provenance.
 const prohibitedPublicIdentifierSha256 = new Set([
-  "46248ac689828800502186d8753cc5717c5c2b47712e8158705a510dc892f00b",
   "763268b8dbdcf327570527acbf826901b855f9bb1921e7d92b3b69a3d69052b6",
   "8bdc3c22e340202bfd1c2dd177012ba9ebc208a7437740eb8a835a225f41bcf2",
-  "d71b1bd8a7c2fe43ea18caecde71fa88662f0394ade77253c5df4967b29c855e",
   "91ed2ef15eee7102873d33d852cae9a195eff25e758269de6457723b1d8dc29a",
   "b58a1778c90889520d25f664dd029108a700c3be64aedcdc72b67d283128cefc",
 ]);
@@ -174,9 +177,9 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.4.3");
+    expect(packageJson.version).toBe("0.5.0");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.4.3"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.5.0"');
     expect(publishedRelease).toEqual({
       version: "0.4.3",
       verificationRun: "https://github.com/hraness/oh/actions/runs/34162220675",
@@ -185,7 +188,7 @@ describe("public identity and documentation", () => {
     expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.4.3`");
     expect(readme).toContain("https://github.com/hraness/oh/actions/runs/34162220675");
     expect(skill).toContain("https://github.com/hraness/oh/actions/runs/34162220675");
-    expect(readme).not.toContain("This source tree prepares version");
+    expect(readme).toContain("This source tree prepares version `0.5.0`");
     expect(skill).not.toContain("until the next release completes publication");
     expect(packageJson.description).toBe(tagline);
     expect(packageJson.homepage).toBe("https://oh.computer");
@@ -345,6 +348,8 @@ describe("versioned public contract", () => {
       "./memory-page",
       "./package.json",
       "./projection",
+      "./research",
+      "./research-store",
       "./sdk",
       "./semantic",
       "./semantic-cloud",

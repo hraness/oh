@@ -1,6 +1,6 @@
 {
   "name": "@hraness/oh",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "open-source tools for agentic research",
   "type": "module",
   "license": "MIT",
@@ -84,7 +84,15 @@
       "types": "./dist/memory.d.ts",
       "import": "./dist/memory.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./research": {
+      "types": "./dist/research.d.ts",
+      "import": "./dist/research-runtime/research.js"
+    },
+    "./research-store": {
+      "types": "./dist/research-store.d.ts",
+      "import": "./dist/research-runtime/research-store.js"
+    }
   },
   "files": [
     "dist",
@@ -116,19 +124,21 @@
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run build:js && bun run build:portable && bun run build:types",
     "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/cli.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
-    "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog",
+    "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun run build:research",
     "build:types": "tsc -p tsconfig.build.json",
-    "check": "bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:package",
+    "check": "bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:research-package && bun run test:package",
     "test:node": "node ./tests/node-portable.mjs",
     "test:types:node": "tsc -p tsconfig.node-portable.json --noEmit",
     "test:package": "bun run ./scripts/package-smoke.ts",
+    "test:research-package": "bun run ./scripts/test-research-package.ts",
     "release:preflight": "bun run ./scripts/check-release-provider-preflight.ts",
     "test": "bun test ./src ./tests ./site/tests/source.test.ts",
     "test:node-projection": "node --test ./scripts/projection-node.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
     "check:effect": "bun run ./scripts/check-effect-architecture.ts && bun test ./scripts/effect-architecture.test.ts",
-    "bench:lab:profile": "bun scripts/benchmarks/lab-reader-profile-run.ts"
+    "bench:lab:profile": "bun scripts/benchmarks/lab-reader-profile-run.ts",
+    "build:research": "bun run ./scripts/build-research.ts"
   },
   "devDependencies": {
     "@suss/datalog": "0.20.0",

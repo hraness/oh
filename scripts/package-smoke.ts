@@ -246,7 +246,7 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     await run([
       process.execPath,
       "-e",
-      "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory']) await import(p)",
+      "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
     ], consumer);
     await writeFile(join(consumer, "operation-size-identity.mjs"), `
 import { Database } from "bun:sqlite";
@@ -388,8 +388,30 @@ if (copied instanceof OhOperationSizeError || isOhOperationSizeError(copied)) {
       "node",
       "--input-type=module",
       "-e",
-      "for (const p of ['@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory']) await import(p)",
+      "for (const p of ['@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
     ], consumer);
+    await writeFile(join(consumer, "research-profile.mjs"), `
+import assert from "node:assert/strict";
+import * as research from "@hraness/oh/research";
+import { createOhResearchPacketCodecRegistryV1 } from "@hraness/oh/research-store";
+const entity = { entityId: "kent_aaaaaaaaaaaaaaaaaaaaaaaa", identityOperationId: "identity.packed-fixture",
+  identityRevision: 1, redirectEntityId: null, state: "active", v: 1 };
+const source = await research.parseKnowledgeGraphRecordV1("entity", entity);
+assert.equal(source.ok, true);
+const packet = await research.prepareOhResearchPacketV1({ records: [{ kind: "entity", value: entity }] });
+assert.equal(packet.authority, "unasserted");
+assert.equal(packet.records[0].value.source.recordSha256, source.value.recordSha256);
+assert.notEqual(packet.records[0].recordSha256, source.value.recordSha256);
+assert.deepEqual(createOhResearchPacketCodecRegistryV1(packet).parseRequired("entity", packet.records[0].value), packet.records[0].value);
+const copy = structuredClone(packet);
+assert.throws(() => createOhResearchPacketCodecRegistryV1(copy), /Prepare or verify/);
+const verified = await research.verifyOhResearchPacketV1(copy);
+assert.notEqual(verified, null);
+assert.equal(createOhResearchPacketCodecRegistryV1(verified).sealed, true);
+copy.records[0].value.source.value.identityRevision = 2;
+assert.equal(await research.verifyOhResearchPacketV1(copy), null);
+`, { mode: 0o600 });
+    await run(["node", "./research-profile.mjs"], consumer);
     console.log(`Verified packed ${PACKAGE_NAME}@${String(manifest.version)} without private artifacts.`);
   } finally {
     await rm(work, { force: true, recursive: true });

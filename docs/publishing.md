@@ -5,8 +5,19 @@ of bytes, not a rebuild performed independently by each registry.
 
 Before releasing, enable immutable GitHub Releases and configure npm trusted
 publishing for repository `hraness/oh`, workflow `.github/workflows/release.yml`,
-GitHub Environment `npm-release`, and package `@hraness/oh`.
+and package `@hraness/oh`, with permission to run `npm publish`. The publication
+job must use the protected GitHub Environment `npm-release`, and verified
+release provenance must identify that environment.
 Do not add a long-lived npm token or publish from a developer machine.
+
+npm's separate [Environment name condition is optional](https://docs.npmjs.com/trusted-publishers/#for-github-actions).
+The existing publisher names this repository and workflow, permits direct
+publishing, and leaves that npm condition unset. It can remain in use with the
+release workflow unchanged. npm therefore matches the repository and workflow
+without an additional environment restriction; GitHub's environment protections
+and the release verifier's exact `npm-release` provenance checks remain
+mandatory. Populating the optional npm condition is additional narrowing and
+does not need to precede a routine release through this existing publisher.
 
 Keep an active no-bypass ruleset named `Immutable version tags`, scoped exactly
 to `refs/tags/v*`. It allows creation, blocks updates and deletions, contains no
@@ -39,8 +50,8 @@ npm may also initialize `latest` to the only published version when first
 creating the coordinate. Do not explicitly target `latest` for `v0.2.3`; the
 first OIDC stable release must replace that bootstrap alias with its exact bytes.
 
-After the coordinate exists, configure the permanent publisher with a current
-npm client:
+After the coordinate exists, configure a new publisher with a current npm
+client. For new setup, also restrict npm's optional environment condition:
 
 ```sh
 npm trust github @hraness/oh --repo hraness/oh --file release.yml --environment npm-release --allow-publish --yes

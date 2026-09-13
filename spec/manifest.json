@@ -56,5 +56,12 @@
       "status": "current",
       "v": 1
     }
+  ],
+  "optionalProfiles": [
+    {
+      "id": "oh.research-packet.v1",
+      "manifest": "./research-v1/manifest.json",
+      "specification": "./research-v1/README.md"
+    }
   ]
 }

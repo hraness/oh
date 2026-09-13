@@ -1,0 +1,1 @@
+{"version":3,"file":"record-input.d.ts","sourceRoot":"","sources":["../../src/research/record-input.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,0BAA0B,EAAE,MAAM,kCAAkC,CAAC;AAEnF,8EAA8E;AAC9E,MAAM,MAAM,oCAAoC,GAAG,QAAQ,CAAC;IAC1D,eAAe,CAAC,EAAE,MAAM,CAAC;IACzB,IAAI,EAAE,0BAA0B,CAAC;IACjC,KAAK,EAAE,OAAO,CAAC;CAChB,CAAC,CAAC"}

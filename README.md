@@ -68,6 +68,9 @@ not a claim about a real study.
 
 ## Install and first run
 
+This source tree prepares version `0.5.0`. Published installation commands
+remain on the verified release below until the new package completes publication.
+
 The installation instructions below use `0.4.3`, the
 [verified public release](https://github.com/hraness/oh/actions/runs/34162220675).
 
@@ -809,3 +812,17 @@ migration. Report security issues through the private process in
 [SECURITY.md](SECURITY.md).
 
 Oh is available under the [MIT License](LICENSE).
+
+## Portable research profile
+
+Version 0.5.0 adds optional `@hraness/oh/research` and
+`@hraness/oh/research-store` entry points: typed values, 14 domain vocabularies,
+source-preserving proposal compilation, offline Wikidata capture verification
+and checked research packet storage. Start with `oh research catalog`; it
+prints the available definitions without opening a database.
+
+The profile preserves source identities and digests while exposing the same
+public contract to independent hosts. A host supplies authorization, installed
+vocabularies, review and publication policy. See the
+[research profile](spec/research-v1/README.md) for the exact boundary, limits
+and source-to-store workflow.

@@ -1,0 +1,28 @@
+{
+  "profile": "oh.research-packet.v1",
+  "sourceNamespaces": "sponge.*",
+  "authority": "unasserted",
+  "minimumPackageVersion": "0.5.0",
+  "entrypoints": {
+    "portable": "@hraness/oh/research",
+    "store": "@hraness/oh/research-store"
+  },
+  "specification": "./README.md",
+  "packetSchema": "./packet.schema.json",
+  "sourceBindingPolicy": "complete-snapshot-identities.v1",
+  "dependencyPolicy": "explicit-source-digests-and-schema-refs.v1",
+  "catalog": {
+    "license": "MIT",
+    "domainPacks": 14,
+    "schemaDefinitions": 182,
+    "lockSha256": "2d5fe02a59b7fcb15dc9a88bb7e04e0dafa97c9b439c592d65bfb612123e0113"
+  },
+  "limits": {
+    "records": 1024,
+    "sourceBytes": 8388608,
+    "packetBytes": 16777216,
+    "recordBytes": 1048576,
+    "dependenciesPerRecord": 4096
+  },
+  "v": 1
+}
