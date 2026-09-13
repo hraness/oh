@@ -1,7 +1,7 @@
 {
   "v": 2,
   "profile": "oh.research-coverage.v2",
-  "minimumPackageVersion": "0.6.0",
+  "minimumPackageVersion": "0.6.1",
   "specification": "./coverage-v2.md",
   "legacyManifest": "./manifest.json",
   "packetContract": "oh.research-packet.v1",

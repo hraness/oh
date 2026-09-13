@@ -274,7 +274,7 @@ except `catalog` require `--file PATH` and read a bounded JSON file; they open
 no database and perform no network calls. The catalog describes available
 packs, not installation in the selected host.
 
-With version 0.6.0 or newer, `oh research catalog-v2` returns the current qualified
+With version 0.6.1 or newer, `oh research catalog-v2` returns the current qualified
 profiles and historical packs; `oh research wikidata-mappings` returns pinned
 source-attribution mappings. These two commands also need no file. Send a V2
 capture request with `properties: "all-present"` to `wikidata-preview --file PATH`
