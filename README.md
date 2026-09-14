@@ -806,6 +806,25 @@ The complete gate type-checks the package, runs the complete test suite,
 rebuilds the committed `dist/` entrypoints, and must leave tracked files
 unchanged.
 
+## Who builds on Oh
+
+Oh is the shared record and memory kernel behind other Hraness tools. Each
+consumer pins an immutable release and upgrades independently:
+
+- [Wordcell](https://wordcell.io)
+  ([source](https://github.com/hraness/wordcell)) keeps an authored Markdown
+  vault as its only authoritative store and embeds Oh as the derived graph
+  authority. An explicit `wordcell graph rebuild` writes a disposable,
+  gitignored `.wordcell/oh.sqlite` projection behind an engine-neutral port,
+  and no query or rebuild writes back into notes.
+- [Sponge](https://sponge.computer) runs the store, libSQL authority,
+  projection, and memory-host surfaces as the server-side agent
+  working-memory layer of its research workspace.
+
+The same engine serves both roles because the roles differ: Wordcell derives
+a replaceable projection from files that are already the record; Sponge keeps
+host-owned working records whose authority is the store itself.
+
 ## Contribute
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing a wire contract or
