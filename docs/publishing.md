@@ -160,6 +160,12 @@ not make a previously protected name reusable. No 0.6.0 release workflow ran.
 Leave that name and its protection intact. Version `0.6.1` carries the reviewed
 research-profile changes through the unchanged release workflow.
 
+GitHub likewise rejected creation of `v0.7.0` under its immutable release-tag
+creation protection (rule suite `4056944341`). No release workflow ran and the
+public tag, release and npm version are absent. Preserve the protected name;
+version `0.7.1` carries the reviewed source-relationship additions through the
+same workflow without changing their schema, catalog or preview digests.
+
 Every positive workflow attempt is an eligible recovery attempt for the same
 reviewed annotated tag, commit, and ID-bound artifact bytes. Before npm, a
 read-only gate records its explicit run ID and attempt and treats the version as

@@ -304,7 +304,7 @@ at `https://oh.computer/spec/research-v1/README.md` for packet verification, cap
 Wikidata revisions, limits and the requirement for separately deletable
 personal payload storage.
 
-With version 0.7.0 or newer, use `oh research catalog-v3` for the additional
+With version 0.7.1 or newer, use `oh research catalog-v3` for the additional
 `sponge.source-relations` pack. `oh research wikidata-mappings-v2` lists fifteen
 pinned mappings, and `oh research wikidata-mapping-preview-v2 --file PATH` uses
 them with the same V2 capture input. Earlier command variants keep their exact
