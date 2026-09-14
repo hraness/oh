@@ -1,6 +1,6 @@
 # Source relationships
 
-Package 0.7.0 adds twelve reviewed, source-attributed relationships in the
+Package 0.7.1 adds twelve reviewed, source-attributed relationships in the
 optional `sponge.source-relations` revision-1 pack. The open research package
 owns these definitions and their verification; Sponge can install and review
 them in its workbench. No Sponge account or hosted agent is required to use

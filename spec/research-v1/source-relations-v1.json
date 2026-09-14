@@ -1,7 +1,7 @@
 {
   "v": 1,
   "profile": "oh.research-source-relations.v1",
-  "minimumPackageVersion": "0.7.0",
+  "minimumPackageVersion": "0.7.1",
   "specification": "./source-relations-v1.md",
   "previousCoverage": "./coverage-v2.json",
   "packetContract": "oh.research-packet.v1",

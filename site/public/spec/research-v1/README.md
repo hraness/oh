@@ -191,5 +191,5 @@ Wikidata importer while retaining this original packet and catalog contract.
 See [coverage and qualified profiles](coverage-v2.md) for the pinned inventory,
 units, relationship constraints and explicit installation lineage.
 
-Package 0.7.0 adds [source relationships](source-relations-v1.md) through a new
+Package 0.7.1 adds [source relationships](source-relations-v1.md) through a new
 catalog and mapping version. It preserves every previous pack and preview.
