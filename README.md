@@ -833,3 +833,9 @@ explicit units and identity schemes, and an all-present Wikidata importer.
 The [coverage guide](spec/research-v1/coverage-v2.md) explains source preservation,
 typed relation checks, historical compatibility and the pinned property inventory.
 Installation links above remain tied to the last verified publication.
+
+Source version 0.7.0 adds `oh research catalog-v3`, a separate source-relations
+pack and `wikidata-mappings-v2` / `wikidata-mapping-preview-v2` commands. The
+[relationship guide](spec/research-v1/source-relations-v1.md) lists twelve added
+source attributions and their limits. Earlier catalog and mapping versions
+remain unchanged; installation availability above is separately verified.

@@ -3319,8 +3319,270 @@ async function verifyKnowledgeWikidataMappingPreviewV1(foreign, input) {
   }
   return rebuilt;
 }
+// src/research/knowledge-source-relations.ts
+var reviewedSourceRelations = [
+  [
+    "P527",
+    2544660189,
+    "e9374ff970896dfef5e706054d269be2e20dc7600c7e01275791c15b9262da51",
+    "has-part",
+    "The source states that this entity has the identified part. No inverse claim or transitive composition is inferred."
+  ],
+  [
+    "P50",
+    2528636255,
+    "60d1b0837173d401a3ed0fcb9769691e3a62e3f7307167595b43f8bd0e133cfa",
+    "author",
+    "The source attributes authorship of this written work to the identified entity. Authorship remains distinct from a generic creator attribution and does not establish ownership or rights."
+  ],
+  [
+    "P170",
+    2534300026,
+    "522ab3639a5487087e8479abf4c310cf3e5f0cd19dded0dec5435ec001c93e63",
+    "creator",
+    "The source attributes creation of this work or object to the identified entity. It does not establish ownership, rights, employment or authorship of a written work."
+  ],
+  [
+    "P921",
+    2537871557,
+    "9b89c62a2b15c46724e6f21c88c8672c36665f421150a42704dc1108916b4d19",
+    "main-subject",
+    "The source identifies a primary topic of this work or communication. A topic relation does not establish that the work supports a claim about that topic."
+  ],
+  [
+    "P144",
+    2544603547,
+    "6491923b1a2a232b2a304b2d10587b0d56ebdf85f31b38cb8e28cf7af5ec65cf",
+    "based-on",
+    "The source identifies a work or input used as a basis for this entity. No equivalence, endorsement, identity or causal proof follows."
+  ],
+  [
+    "P629",
+    2537669859,
+    "5df98fe0198569e121f82be1203c8d8ba3262ee2e52147f7ed0d4673450f2740",
+    "version-edition-or-translation-of",
+    "The source states that this entity is a version, edition or translation of the identified entity. The union is retained without choosing one alternative, equating identities or narrowing it to a local version-of claim."
+  ],
+  [
+    "P407",
+    2544572361,
+    "72be35a6524dd893406c7d8b4a585e397c2d7c3f0e6e14f11b6c5894a1d6bfc6",
+    "language-of-work-or-name",
+    "The source associates this work or name with an identified language. It does not establish a person's spoken language, a lexical sense or a translation between senses."
+  ],
+  [
+    "P136",
+    2544600023,
+    "6bf5951fe86505a3fdeeaee23cb52e482ddd799eeff7878908a27c566fec7590",
+    "genre",
+    "The source assigns this work or artist a genre or field of creative work. This attribution neither creates local concept membership nor substitutes a topic relation."
+  ],
+  [
+    "P175",
+    2542419149,
+    "426d54d7ea13be9941cc2a65a9bcf92853ccdd2a7fe09071ed6631ef06d5cbcc",
+    "performer",
+    "The source associates this role or musical work with an identified performer. Its direction is work or role to performer; it does not create a performance, recording or the local music/performs relation."
+  ],
+  [
+    "P414",
+    2503386869,
+    "f52af3ce24b2313cb2d6f565faab9a2b184061dc25265ecd7bae46af0145af63",
+    "stock-exchange",
+    "The source identifies an exchange on which this company is traded. It does not create instrument, listing or ticker identities or establish current tradability."
+  ],
+  [
+    "P703",
+    2511372721,
+    "e6ed9c7ac12e7be27bbf989ac69986fcf16e7a27c2e2dc2c690719d7188dbc56",
+    "found-in-taxon",
+    "The source reports that this item can be found in the identified taxon. This is not an assay, prevalence estimate, efficacy result, safety assessment or vendor qualification."
+  ],
+  [
+    "P277",
+    2527096569,
+    "19d54b17eddb66f0fc6662853c1f5160946ff468775672640ea452174327d3c1",
+    "programmed-in",
+    "The source identifies a programming language used to develop this software. It does not establish a deployed runtime, dependency, execution configuration or benchmark result."
+  ]
+];
+
+// src/research/knowledge-domain-catalog-v3.ts
+var labels4 = (text2) => [{ language: "en", text: text2, v: 1 }];
+function required2(result) {
+  if (!result.ok)
+    throw new Error(`Invalid source-relations pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+var catalogPromise5;
+function spongeKnowledgeDomainCatalogV3() {
+  catalogPromise5 ??= buildCatalog3();
+  return catalogPromise5;
+}
+async function buildCatalog3() {
+  const previous = await spongeKnowledgeDomainCatalogV2();
+  const { corePack, referencePack, foundationPack } = previous;
+  const entity = corePack.schemas.find((schema) => schema.kind === "concept" && schema.identity.code === "entity");
+  if (entity === undefined)
+    throw new Error("Missing core entity concept.");
+  const vocabulary = required2(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: corePack.canonicalizerSha256,
+    labels: labels4("Sponge source relationships"),
+    namespace: "sponge.source-relations",
+    ownerEntityId: corePack.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const qualifierPredicates = [...referencePack.schemas, ...foundationPack.schemas].filter((schema) => schema.kind === "predicate" && schema.qualifierPredicates.length === 0).map((schema) => schema.ref).sort((a, b) => canonicalJson(a) < canonicalJson(b) ? -1 : 1);
+  const schemas = await Promise.all(reviewedSourceRelations.map(async ([, , , suffix, definition]) => required2(await createKnowledgeSchemaRevisionV1({
+    definitions: labels4(`${definition} Source attribution does not infer local membership or identity; capture, rank, qualifiers and references remain separate evidence.`),
+    identity: { code: `source-asserted-${suffix}`, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels4(`Source asserted ${suffix.replaceAll("-", " ")}`),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1,
+    kind: "predicate",
+    domainConcepts: [entity.ref],
+    inversePredicate: null,
+    qualifierPredicates,
+    range: { concepts: [entity.ref], kind: "entity-concepts", v: 1 }
+  }))));
+  schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
+  const sourceRelationsPack = required2(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: corePack.canonicalizerSha256,
+    dependencies: [corePack, foundationPack, referencePack].map(knowledgeVocabularyPackPinV1),
+    display: corePack.display,
+    examples: [],
+    migrationNotes: "Additive source relationships. Existing pack revisions, local records and historical previews remain unchanged. Explicit installation and proposal review are required; no source claim implies truth, classification, identity equality, publication rights or a complete description.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas,
+    shapes: [],
+    queries: [{
+      description: "Which relationships does the retained source state, with which qualifiers and references?",
+      id: "source-relationships",
+      predicates: schemas.map((schema) => schema.ref),
+      v: 1
+    }],
+    sources: reviewedSourceRelations.map(([property, revision2, contentSha256]) => ({
+      contentSha256,
+      license: "CC0-1.0",
+      revision: String(revision2),
+      uri: `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${property}&format=json&maxlag=5`,
+      v: 1
+    })).sort((a, b) => canonicalJson(a) < canonicalJson(b) ? -1 : 1),
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+  const packs = [...previous.packs, sourceRelationsPack].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(sourceRelationsPack)].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const resolved = required2(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots }));
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    sourceRelationsPack,
+    lock: resolved.lock,
+    packs,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
+// src/research/knowledge-wikidata-mappings-v2.ts
+var KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V2 = "sponge.wikidata-source-mappings.v2";
+var catalogPromise6;
+function spongeKnowledgeWikidataMappingCatalogV2() {
+  catalogPromise6 ??= (async () => {
+    const [legacy, catalog] = await Promise.all([spongeKnowledgeWikidataMappingCatalogV1(), spongeKnowledgeDomainCatalogV3()]);
+    const mappings = legacy.mappings.map((mapping) => ({ ...mapping, v: 2 }));
+    for (const [propertyId3, revision2, captureSha256, suffix] of reviewedSourceRelations) {
+      const predicate = catalog.sourceRelationsPack.schemas.find((schema) => schema.kind === "predicate" && schema.identity.code === `source-asserted-${suffix}`);
+      if (predicate === undefined)
+        throw new Error("Missing reviewed source relationship.");
+      mappings.push({
+        source: { propertyId: propertyId3, datatype: "wikibase-item", revision: revision2, captureSha256 },
+        target: predicate.ref,
+        relation: "source-attribution",
+        localMembershipInference: false,
+        identityMerge: false,
+        v: 2
+      });
+    }
+    const body = { v: 2, mappingVersion: KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V2, mappings };
+    return freezeKnowledgeDeclaration({ ...body, catalogSha256: await sha256Text(canonicalJson(body)) });
+  })();
+  return catalogPromise6;
+}
+function occurrenceKey(capture, entity, property, statement, index) {
+  return JSON.stringify([capture, entity, property, statement, index]);
+}
+async function createKnowledgeWikidataMappingPreviewV2(input) {
+  const source = await createKnowledgeWikidataImportPreviewV2(input);
+  if (!source.ok)
+    return source;
+  const catalog = await spongeKnowledgeWikidataMappingCatalogV2();
+  const mappings = new Map(catalog.mappings.map((mapping) => [mapping.source.propertyId, mapping]));
+  const mainValues = new Map(source.value.mappingCandidates.flatMap((candidate) => {
+    const selector = candidate.selector;
+    return selector.kind === "statement" && selector.location.kind === "main" ? [[occurrenceKey(candidate.captureSha256, selector.entityId, selector.propertyId, selector.statementId, selector.statementIndex), candidate.value]] : [];
+  }));
+  const candidates = [];
+  const gaps = [];
+  for (const assertion of source.value.sourceAssertions) {
+    const mapping = mappings.get(assertion.predicate.propertyId);
+    if (mapping === undefined) {
+      gaps.push({ source: assertion, reason: "property-not-mapped" });
+      continue;
+    }
+    const { selector } = assertion;
+    const preserved = mainValues.get(occurrenceKey(assertion.captureSha256, selector.entityId, selector.propertyId, selector.statementId, selector.statementIndex));
+    const raw = assertion.rawStatement;
+    const main = isJsonRecord(raw) && isJsonRecord(raw["mainsnak"]) ? raw["mainsnak"] : null;
+    const data = main !== null && isJsonRecord(main["datavalue"]) ? main["datavalue"] : null;
+    const value = data !== null && isJsonRecord(data["value"]) ? data["value"] : null;
+    const id = value === null ? undefined : value["id"] ?? (typeof value["numeric-id"] === "number" ? `Q${value["numeric-id"]}` : undefined);
+    if (preserved?.kind !== "typed-source-value" || preserved.datatype !== mapping.source.datatype || typeof id !== "string" || !/^Q[1-9][0-9]*$/u.test(id)) {
+      gaps.push({ source: assertion, reason: "source-value-not-an-item" });
+      continue;
+    }
+    candidates.push({
+      source: assertion,
+      mapping,
+      object: { entityId: id, uri: `http://www.wikidata.org/entity/${id}` },
+      status: "requires-local-identity-and-proposal-review",
+      normalization: "none",
+      eligibleForAdmission: false
+    });
+  }
+  const body = {
+    v: 2,
+    sourcePreviewSha256: source.value.previewSha256,
+    mappingCatalogSha256: catalog.catalogSha256,
+    candidates,
+    gaps,
+    scope: "retained-main-statements"
+  };
+  if (boundedKnowledgeWikidataPreviewJsonV2({ ...body, previewSha256: "0".repeat(64) }) === undefined) {
+    return { ok: false, error: { code: "input-bound", field: "mapping-preview", retryable: false } };
+  }
+  return { ok: true, value: freezeKnowledgeDeclaration({ ...body, previewSha256: await sha256Text(canonicalJson(body)) }) };
+}
+async function verifyKnowledgeWikidataMappingPreviewV2(foreign, input) {
+  const rebuilt = await createKnowledgeWikidataMappingPreviewV2(input);
+  if (!rebuilt.ok)
+    return rebuilt;
+  const parsed = boundedKnowledgeWikidataPreviewJsonV2(foreign);
+  if (parsed === undefined || canonicalJson(parsed) !== canonicalJson(rebuilt.value)) {
+    return { ok: false, error: { code: "integrity-mismatch", field: "mapping-preview", retryable: false } };
+  }
+  return rebuilt;
+}
 export {
   verifyOhResearchPacketV1,
+  verifyKnowledgeWikidataMappingPreviewV2,
   verifyKnowledgeWikidataMappingPreviewV1,
   verifyKnowledgeWikidataImportPreviewV2,
   verifyKnowledgeWikidataImportPreviewV1,
@@ -3331,8 +3593,10 @@ export {
   verifyKnowledgeEditionDependencyCompletenessV1,
   utf8ByteLength,
   traverseKnowledgeGraphV1,
+  spongeKnowledgeWikidataMappingCatalogV2,
   spongeKnowledgeWikidataMappingCatalogV1,
   spongeKnowledgeReferenceCatalog,
+  spongeKnowledgeDomainCatalogV3,
   spongeKnowledgeDomainCatalogV2,
   spongeKnowledgeDomainCatalog,
   spongeCoreKnowledgeCatalogV1,
@@ -3402,6 +3666,7 @@ export {
   evaluateKnowledgeShapeV1,
   effectiveKnowledgeRightsV1,
   effectiveKnowledgeReviewV1,
+  createKnowledgeWikidataMappingPreviewV2,
   createKnowledgeWikidataMappingPreviewV1,
   createKnowledgeWikidataImportPreviewV2,
   createKnowledgeWikidataImportPreviewV1,
@@ -3463,6 +3728,7 @@ export {
   OH_RESEARCH_PACKET_LIMITS_V1,
   KNOWLEDGE_WIKIDATA_PROPERTY_GROUP_LIMIT_V2,
   KNOWLEDGE_WIKIDATA_PREVIEW_LIMITS_V2,
+  KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V2,
   KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V1,
   KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2,
   KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V1,
