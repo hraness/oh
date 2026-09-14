@@ -18,3 +18,5 @@ export * from "./research/research-packet";
 export * from "./research/knowledge-wikidata-import-v2";
 export * from "./research/knowledge-domain-catalog-v2";
 export * from "./research/knowledge-wikidata-mappings-v1";
+export * from "./research/knowledge-domain-catalog-v3";
+export * from "./research/knowledge-wikidata-mappings-v2";

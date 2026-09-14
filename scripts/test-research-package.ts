@@ -43,6 +43,18 @@ globalThis.researchProbe = (async () => {
   if (packet.authority !== "unasserted" || packet.records[0].value.source.recordSha256 !== source.value.recordSha256
     || packet.records[0].recordSha256 === source.value.recordSha256) throw new Error("Browser preparation changed source identity.");
   if (await research.verifyOhResearchPacketV1(JSON.parse(JSON.stringify(packet))) === null) throw new Error("Browser packet verification failed.");
+  const catalog = await research.spongeKnowledgeDomainCatalogV3();
+  const mappings = await research.spongeKnowledgeWikidataMappingCatalogV2();
+  if (catalog.packs.length !== 18 || mappings.mappings.length !== 15) throw new Error("Missing source relationships in built browser export.");
+  const input = { v: 2, properties: "all-present", mappingVersion: "browser-probe", captures: [{
+    requestedId: "Q1", resolvedId: "Q1", sourceUri: "https://www.wikidata.org/w/api.php", redirects: [],
+    capturedAt: "2026-09-13T00:00:00.000Z", coverage: { kind: "complete-entity" },
+    body: JSON.stringify({ type: "item", id: "Q1", lastrevid: 1, claims: { P175: [{ id: "Q1$performer", type: "statement", rank: "normal",
+      mainsnak: { property: "P175", datatype: "wikibase-item", snaktype: "value", datavalue: { type: "wikibase-entityid", value: { id: "Q5", "entity-type": "item", "numeric-id": 5 } } } }] } }) }] };
+  const preview = await research.createKnowledgeWikidataMappingPreviewV2(input);
+  if (!preview.ok || preview.value.candidates.length !== 1 || !(await research.verifyKnowledgeWikidataMappingPreviewV2(JSON.parse(JSON.stringify(preview.value)), input)).ok) {
+    throw new Error("Source relationship preview did not round-trip using Web APIs only.");
+  }
   return true;
 })();
 `);
@@ -54,7 +66,7 @@ import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
-const context = { crypto: webcrypto, TextEncoder, TextDecoder };
+const context = { crypto: webcrypto, TextEncoder, TextDecoder, URL };
 runInNewContext(await readFile(new URL("./probe.js", import.meta.url), "utf8"), context, { timeout: 5000 });
 assert.equal(await context.researchProbe, true);
 `);

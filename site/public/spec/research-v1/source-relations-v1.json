@@ -1,0 +1,27 @@
+{
+  "v": 1,
+  "profile": "oh.research-source-relations.v1",
+  "minimumPackageVersion": "0.7.0",
+  "specification": "./source-relations-v1.md",
+  "previousCoverage": "./coverage-v2.json",
+  "packetContract": "oh.research-packet.v1",
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV3",
+    "packs": 18,
+    "schemas": 239,
+    "shapes": 40,
+    "units": 10,
+    "lockSha256": "6a2515000d907916b0a0db1f0995b636168b80274cb43127b888c837ad0feccf",
+    "additionalPack": "sponge.source-relations",
+    "additionalPackRevision": 1
+  },
+  "wikidata": {
+    "importerVersion": "sponge.wikidata-json-import.v2",
+    "mappingVersion": "sponge.wikidata-source-mappings.v2",
+    "mappingCatalogSha256": "826d2a56557f8d9f3e2dc2d846e50a002f6d8d191ef1b8b8d9c5972206241b56",
+    "mappedProperties": ["P31", "P279", "P361", "P527", "P50", "P170", "P921", "P144", "P629", "P407", "P136", "P175", "P414", "P703", "P277"],
+    "sourceCorpus": "./wikidata/2026-09-13/sources.jsonl.gz",
+    "semanticCompleteness": "not-claimed",
+    "authority": "unadmitted"
+  }
+}

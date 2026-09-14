@@ -274,7 +274,7 @@ except `catalog` require `--file PATH` and read a bounded JSON file; they open
 no database and perform no network calls. The catalog describes available
 packs, not installation in the selected host.
 
-With version 0.6.1 or newer, `oh research catalog-v2` returns the current qualified
+With version 0.6.1 or newer, `oh research catalog-v2` returns the qualified
 profiles and historical packs; `oh research wikidata-mappings` returns pinned
 source-attribution mappings. These two commands also need no file. Send a V2
 capture request with `properties: "all-present"` to `wikidata-preview --file PATH`
@@ -303,3 +303,13 @@ consumer is required to operate Oh. See the versioned research specification
 at `https://oh.computer/spec/research-v1/README.md` for packet verification, captured
 Wikidata revisions, limits and the requirement for separately deletable
 personal payload storage.
+
+With version 0.7.0 or newer, use `oh research catalog-v3` for the additional
+`sponge.source-relations` pack. `oh research wikidata-mappings-v2` lists fifteen
+pinned mappings, and `oh research wikidata-mapping-preview-v2 --file PATH` uses
+them with the same V2 capture input. Earlier command variants keep their exact
+outputs. Read the source preview alongside mapping candidates: a missing or
+omitted property is not a negative claim, and preferred rank is not truth.
+See `https://oh.computer/spec/research-v1/source-relations-v1.md` for the exact
+relationships and counterexamples. These features require that installed
+version; the verified installation baseline above remains separate.

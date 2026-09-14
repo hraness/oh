@@ -1,4 +1,6 @@
 import { createKnowledgeWikidataMappingPreviewV1, spongeKnowledgeWikidataMappingCatalogV1 } from "./research/knowledge-wikidata-mappings-v1";
+import { createKnowledgeWikidataMappingPreviewV2, spongeKnowledgeWikidataMappingCatalogV2 } from "./research/knowledge-wikidata-mappings-v2";
+import { spongeKnowledgeDomainCatalogV3 } from "./research/knowledge-domain-catalog-v3";
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { canonicalJson, type JsonValue } from "./research/document-domain";
@@ -36,20 +38,23 @@ async function readInput(path: string): Promise<unknown> {
 export async function runOhResearchCli(arguments_: readonly string[]): Promise<number> {
   const command = arguments_[0];
   let output: unknown;
-  if ((command === "catalog" || command === "catalog-v2" || command === "wikidata-mappings") && arguments_.length === 1) {
-    output = command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1()
+  if (["catalog", "catalog-v2", "catalog-v3", "wikidata-mappings", "wikidata-mappings-v2"].includes(command ?? "") && arguments_.length === 1) {
+    output = command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3()
+      : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2()
+      : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1()
       : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
   } else {
-    if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "prepare-packet", "verify-packet"].includes(command ?? "")
+    if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"].includes(command ?? "")
       || arguments_.length !== 3 || arguments_[1] !== "--file") {
-      throw new TypeError("Use research catalog|catalog-v2|wikidata-mappings or research validate-draft|wikidata-preview|wikidata-mapping-preview|prepare-packet|verify-packet --file PATH.");
+      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|wikidata-mappings|wikidata-mappings-v2 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
     }
     const input = await readInput(arguments_[2] as string);
     if (command === "validate-draft") output = parseSpongeKnowledgeProposalDraftV3(input);
     if (command === "prepare-packet") output = await prepareOhResearchPacketV1(input);
     if (command === "verify-packet") output = await verifyOhResearchPacketV1(input);
-    if (command === "wikidata-mapping-preview") {
-      const preview = await createKnowledgeWikidataMappingPreviewV1(input);
+    if (command === "wikidata-mapping-preview" || command === "wikidata-mapping-preview-v2") {
+      const preview = command === "wikidata-mapping-preview-v2"
+        ? await createKnowledgeWikidataMappingPreviewV2(input) : await createKnowledgeWikidataMappingPreviewV1(input);
       if (!preview.ok) throw new TypeError("Invalid Wikidata mapping request.");
       output = preview.value;
     }
