@@ -32,9 +32,9 @@ oh version
 
 For an existing installation, use its installed CLI and matching versioned
 specifications. The following publication receipt is for a fresh installation.
-Use the verified public CLI `@hraness/oh@0.7.1`. Its identical tarball and
-checksum are mirrored by the immutable GitHub Release `v0.7.1`.
-[Public release verification](https://github.com/hraness/oh/actions/runs/34795228051).
+Use the verified public CLI `@hraness/oh@0.8.1`. Its identical tarball and
+checksum are mirrored by the immutable GitHub Release `v0.8.1`.
+[Public release verification](https://github.com/hraness/oh/actions/runs/34917688708).
 It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
