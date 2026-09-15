@@ -1,0 +1,10 @@
+import { type SpongeKnowledgeDomainCatalogV3 } from "./knowledge-domain-catalog-v3";
+import { type KnowledgeValueKindV1 } from "./knowledge-ontology-contract-v1";
+import { type KnowledgeVocabularyPackManifestV1 } from "./knowledge-vocabulary-pack-v1";
+export declare const SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1: readonly [readonly ["identity-claim", "An attributed claim that an identifier or description refers to an entity; it never merges identities automatically."], readonly ["identity-scheme", "A named identifier scheme or authority whose syntax, scope and resolution policy are stated separately."], readonly ["temporal-record", "A temporal record with independently stated boundaries, calendar, precision and uncertainty."], readonly ["location-record", "A location record with independently stated geometry, globe, coordinate reference system and accuracy."], readonly ["evidence-bundle", "A bounded bundle of evidence items assembled for one claim, with completeness and authority left explicit."], readonly ["evidence-item", "One source, observation, document or capture that can support or qualify a claim."], readonly ["value-record", "A typed value with optional unit, bounds, language and interpretation context."], readonly ["provenance-activity", "An activity that generated, transformed, reviewed or published a record; actor and time remain separate."]];
+type PredicateSpec = readonly [string, string, string, "entity" | KnowledgeValueKindV1, (readonly string[] | undefined)?];
+export declare const SPONGE_IDENTITY_CONTEXT_PREDICATES_V1: readonly PredicateSpec[];
+export declare function buildSpongeIdentityContextPackV1(catalog: SpongeKnowledgeDomainCatalogV3): Promise<KnowledgeVocabularyPackManifestV1>;
+export declare function spongeIdentityContextPackV1(): Promise<KnowledgeVocabularyPackManifestV1>;
+export {};
+//# sourceMappingURL=knowledge-identity-context-pack.d.ts.map

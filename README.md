@@ -860,3 +860,12 @@ pack and `wikidata-mappings-v2` / `wikidata-mapping-preview-v2` commands. The
 [relationship guide](spec/research-v1/source-relations-v1.md) lists twelve added
 source attributions and their limits. Earlier catalog and mapping versions
 remain unchanged; installation availability above is separately verified.
+
+Source version 0.8.0 adds `oh research catalog-v4` for identity and context
+records, `oh research catalog-v5` for an additive `sponge.bridge-relations`
+pack, and `wikidata-mappings-v3` for source-pinned preservation of additional
+high-value properties. The bridge pack defines fourteen explicit cross-domain joins (offers,
+assays, editorial placements, event series, music, finance, simulations, agent
+work, profiles, organizations and language). The [bridge relation guide](spec/research-v1/bridge-relations-v1.md)
+describes the open ranges and review boundary. Catalog-v3 and earlier pack
+identities remain unchanged.

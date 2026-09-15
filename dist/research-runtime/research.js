@@ -3580,6 +3580,368 @@ async function verifyKnowledgeWikidataMappingPreviewV2(foreign, input) {
   }
   return rebuilt;
 }
+// src/research/knowledge-identity-context-pack.ts
+var SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1 = [
+  ["identity-claim", "An attributed claim that an identifier or description refers to an entity; it never merges identities automatically."],
+  ["identity-scheme", "A named identifier scheme or authority whose syntax, scope and resolution policy are stated separately."],
+  ["temporal-record", "A temporal record with independently stated boundaries, calendar, precision and uncertainty."],
+  ["location-record", "A location record with independently stated geometry, globe, coordinate reference system and accuracy."],
+  ["evidence-bundle", "A bounded bundle of evidence items assembled for one claim, with completeness and authority left explicit."],
+  ["evidence-item", "One source, observation, document or capture that can support or qualify a claim."],
+  ["value-record", "A typed value with optional unit, bounds, language and interpretation context."],
+  ["provenance-activity", "An activity that generated, transformed, reviewed or published a record; actor and time remain separate."]
+];
+var SPONGE_IDENTITY_CONTEXT_PREDICATES_V1 = [
+  ["claims-identity-of", "The entity a claim proposes as the referent of an identifier or description.", "identity-claim", "entity", ["entity"]],
+  ["uses-scheme", "The identifier scheme used by this claim or identifier.", "identity-claim", "entity", ["identity-scheme"]],
+  ["has-identifier", "The literal identifier supplied by this claim; equality does not prove identity.", "identity-claim", "identifier"],
+  ["identity-confidence", "An explicitly attributed confidence value for this claim, with scale and calibration stated separately.", "identity-claim", "decimal"],
+  ["scheme-namespace", "The namespace or prefix assigned by an identifier scheme.", "identity-scheme", "string"],
+  ["scheme-resolver", "A resolver endpoint or procedure for an identifier scheme.", "identity-scheme", "string"],
+  ["has-start", "The lower temporal boundary of this record, retaining precision and uncertainty.", "temporal-record", "time"],
+  ["has-end", "The upper temporal boundary of this record, retaining precision and uncertainty.", "temporal-record", "time"],
+  ["has-interval", "An interval value for this record when both boundaries are represented together.", "temporal-record", "interval"],
+  ["uses-calendar", "The calendar or temporal reference system used to interpret the record.", "temporal-record", "entity", ["entity"]],
+  ["time-precision", "The stated precision of the temporal value, distinct from certainty or measurement accuracy.", "temporal-record", "decimal"],
+  ["has-geometry", "The geometry attached to this location record; coordinate interpretation remains explicit.", "location-record", "geometry"],
+  ["has-globe", "The celestial body or globe bounding this location claim.", "location-record", "entity", ["entity"]],
+  ["uses-crs", "The coordinate reference system used by the geometry.", "location-record", "entity", ["entity"]],
+  ["location-accuracy", "The stated spatial accuracy or uncertainty of this record.", "location-record", "quantity"],
+  ["supports-claim", "A claim supported by this evidence bundle or item; support is not truth or completeness.", "evidence-bundle", "entity", ["identity-claim"]],
+  ["contains-evidence", "An evidence item contained in this bundle.", "evidence-bundle", "entity", ["evidence-item"]],
+  ["has-evidence-item", "A source, observation, document or capture represented as an evidence item.", "evidence-bundle", "entity", ["evidence-item"]],
+  ["evidence-source", "The source entity for this evidence item.", "evidence-item", "entity", ["entity"]],
+  ["captured-at", "The retrieval or capture time of this evidence item, distinct from event time.", "evidence-item", "time"],
+  ["evidence-excerpt", "A bounded excerpt or locator retained for auditability; it is not the complete source.", "evidence-item", "string"],
+  ["value-kind", "The declared kind or interpretation family for this value record.", "value-record", "entity", ["entity"]],
+  ["value-unit", "The unit descriptor for a quantity value; no conversion runs implicitly.", "value-record", "entity", ["entity"]],
+  ["value-lower-bound", "The lower bound of a value range or uncertainty interval.", "value-record", "quantity"],
+  ["value-upper-bound", "The upper bound of a value range or uncertainty interval.", "value-record", "quantity"],
+  ["value-language", "The language context for a textual value.", "value-record", "string"],
+  ["activity-actor", "The agent that performed or sponsored this provenance activity.", "provenance-activity", "entity", ["entity"]],
+  ["activity-input", "An input entity consumed by this provenance activity.", "provenance-activity", "entity", ["entity"]],
+  ["activity-output", "An output entity produced by this provenance activity.", "provenance-activity", "entity", ["entity"]],
+  ["activity-time", "The time at which this provenance activity occurred.", "provenance-activity", "time"],
+  ["activity-purpose", "The stated purpose of this provenance activity.", "provenance-activity", "string"]
+];
+function canonical4(value) {
+  return canonicalJson(value);
+}
+function required3(result) {
+  if (!result.ok)
+    throw new Error(`Invalid identity-context pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels5(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function title4(code2) {
+  return code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ");
+}
+function schemaByCode(schemas, code2) {
+  const schema = schemas.find((item) => item.identity.code === code2);
+  if (schema === undefined)
+    throw new Error(`Missing identity-context schema ${code2}.`);
+  return schema;
+}
+function range(kind, concepts = []) {
+  return kind === "entity" ? { concepts, kind: "entity-concepts", v: 1 } : { kind: "value-kinds", valueKinds: [kind], v: 1 };
+}
+async function buildSpongeIdentityContextPackV1(catalog) {
+  const core = catalog.corePack;
+  const foundation = catalog.foundationPack;
+  const reference = catalog.referencePack;
+  const vocabulary = required3(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels5("Sponge identity and context records"),
+    namespace: "sponge.identity-context",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const coreEntity = schemaByCode(core.schemas, "entity").ref;
+  const concepts = [];
+  for (const [code2, definition] of SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1)
+    concepts.push(required3(await createKnowledgeSchemaRevisionV1({
+      definitions: labels5(`${definition} Multiple compatible descriptions may coexist; absence does not establish completeness.`),
+      identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+      labels: labels5(title4(code2)),
+      previousRevisionSha256: null,
+      reviewDecisionSha256: null,
+      vocabularySha256: vocabulary.revisionSha256,
+      v: 1,
+      kind: "concept",
+      broader: [coreEntity]
+    })));
+  const local = (code2) => schemaByCode(concepts, code2).ref;
+  const qualifierPredicates = [...reference.schemas, ...foundation.schemas].filter((schema) => schema.kind === "predicate" && schema.qualifierPredicates.length === 0).map((schema) => schema.ref).sort((a, b) => canonical4(a) < canonical4(b) ? -1 : 1);
+  const predicates = [];
+  for (const [code2, definition, domain, kind, target] of SPONGE_IDENTITY_CONTEXT_PREDICATES_V1) {
+    const common = {
+      definitions: labels5(`${definition} This relation is descriptive and source-scoped; it does not grant identity, truth, access or publication authority.`),
+      identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+      labels: labels5(title4(code2)),
+      previousRevisionSha256: null,
+      reviewDecisionSha256: null,
+      vocabularySha256: vocabulary.revisionSha256,
+      v: 1,
+      kind: "predicate",
+      domainConcepts: [local(domain)],
+      inversePredicate: null,
+      qualifierPredicates
+    };
+    const valueRange2 = kind === "entity" ? range("entity", target?.[0] === "entity" ? [coreEntity] : [local(target?.[0] ?? "entity")]) : range(kind);
+    predicates.push(required3(await createKnowledgeSchemaRevisionV1({ ...common, range: valueRange2 })));
+  }
+  const schemas = [...concepts, ...predicates].sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
+  const shapes = [];
+  for (const concept of concepts) {
+    const rules = predicates.filter((predicate) => predicate.domainConcepts.some((ref2) => canonical4(ref2) === canonical4(concept.ref))).map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical4(a.predicate) < canonical4(b.predicate) ? -1 : 1);
+    shapes.push(required3(await createKnowledgeExecutableShapeV1({
+      appliesToConcepts: [concept.ref],
+      closed: false,
+      extends: [],
+      maximumInheritanceDepth: 1,
+      rules,
+      shape: concept.ref,
+      v: 1
+    })));
+  }
+  const sourceContent = { concepts: SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1, predicates: SPONGE_IDENTITY_CONTEXT_PREDICATES_V1 };
+  return required3(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: [core, foundation, reference].map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive open-world identity, time, location, evidence, value and provenance records. Existing pack revisions and source assertions remain unchanged. No identifier equality, identity merge, truth, completeness, unit conversion, coordinate conversion, access right or publication authority is implied; every assertion still requires its own source and review policy.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    queries: [{ description: "Which identity, temporal, spatial, evidence, value and provenance context qualifies this record?", id: "identity-context", predicates: predicates.map((predicate) => predicate.ref).sort((a, b) => canonical4(a) < canonical4(b) ? -1 : 1), v: 1 }],
+    revision: 1,
+    schemas,
+    shapes: shapes.sort((a, b) => a.shape.code < b.shape.code ? -1 : 1),
+    sources: [{ contentSha256: await sha256Text(canonical4(sourceContent)), license: "MIT", revision: "1", uri: "urn:sponge:application-profile:identity-context", v: 1 }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+}
+var packPromise;
+function spongeIdentityContextPackV1() {
+  packPromise ??= spongeKnowledgeDomainCatalogV3().then(buildSpongeIdentityContextPackV1);
+  return packPromise;
+}
+// src/research/knowledge-domain-catalog-v4.ts
+function required4(result) {
+  if (!result.ok)
+    throw new Error(`Invalid identity-context catalog: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+var catalogPromise7;
+function spongeKnowledgeDomainCatalogV4() {
+  catalogPromise7 ??= buildCatalog4();
+  return catalogPromise7;
+}
+async function buildCatalog4() {
+  const previous = await spongeKnowledgeDomainCatalogV3();
+  const identityContextPack = await buildSpongeIdentityContextPackV1(previous);
+  const packs = [...previous.packs, identityContextPack].sort((left, right) => left.packId < right.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(identityContextPack)].sort((left, right) => left.packId < right.packId ? -1 : 1);
+  const resolved = required4(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots }));
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    identityContextPack,
+    lock: resolved.lock,
+    packs,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
+// src/research/knowledge-wikidata-mappings-v3.ts
+var KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3 = "sponge.wikidata-source-mappings.v3";
+var preservedPropertySeeds = [
+  ["P18", "commonsMedia", 2544849962, "3578a06f58a93fe03365c13796937abf523bbdf201a6b796d65b592a7d721a29", 113, "Wikimedia Commons media value; preserve the source filename and statement evidence without downloading or asserting image identity."],
+  ["P625", "globe-coordinate", 2543217378, "da8946438c4a23ac67470d5b16392ad23d1166b961a49a5f68217a11ec953a81", 110, "Source coordinate value with globe, precision and altitude fields; coordinate transformation requires separately attributed CRS evidence."],
+  ["P2048", "quantity", 2541797879, "b73d48ce2f566839f8d1ed10a4cfef353af3d8961f45cb9964f0e57f8371a7fd", 53, "Quantity amount and unit URI are preserved exactly; no unit conversion or physical interpretation is inferred."],
+  ["P348", "string", 2529955773, "13ffee0dc4e2ba339e221cdead4f59243db1d8de15effdcf000a3ddec51ce9e9", 42, "Software version identifier string; ordering, release status and product identity require independent evidence."],
+  ["P356", "external-id", 2534351107, "aea71547eb4b8c3aad1e1d282a25c1c90f0cb330e616826bc4e2007139fad732", 109, "DOI-like external identifier under Wikidata's declared scheme; equality is not independent registration or work identity validation."],
+  ["P571", "time", 2544428534, "2a7207cffe85d0bb3bcc7d25d46ed142df9a2546015a9f34060cf7820aabf8cb", 63, "Inception time value retains calendar, precision and bounds; event semantics and normalization remain source-attributed."],
+  ["P577", "time", 2541377778, "01a95ac61dff81a5aa5b76991b090c613b680d726a5baea3213cd86fc17a728b", 57, "Publication time value retains calendar, precision and bounds; it does not establish first publication or availability."],
+  ["P580", "time", 2542144440, "fe4c2aa2b8bdf4daa3a63ee3d270b6216d0359b14bce7ab52288c3972c645acd", 38, "Start time value retains calendar, precision and bounds; interval interpretation requires the statement's context."],
+  ["P582", "time", 2539557394, "8608275b10d9602f80e35b58f0cf1f52091ceccc482dbc6ca863dc43be56f864", 39, "End time value retains calendar, precision and bounds; open-ended and qualifier semantics remain explicit source evidence."],
+  ["P747", "wikibase-item", 2538203952, "b380ad582059a3661961d457ad917ce610e279e0e7aa7d296d8d1fdeddf164c6", 31, "Version, edition or translation item value; preserve the union stated by the source without selecting one interpretation or merging identities."],
+  ["P155", "wikibase-item", 2541952638, "bd70fbdf99f4fbb397ef2692fe09bf7a1e1f33bd31695aae4cc90ccefe8b0742", 31, "Follows item value; direction is preserved as source data without inferring succession, causality or completeness."],
+  ["P156", "wikibase-item", 2542982584, "3356d1767903e4420a4436d5fef7a5f36c0632a4055a5408ae07fcffc62ebe79", 29, "Followed-by item value; direction is preserved as source data without inferring succession, causality or completeness."],
+  ["P231", "external-id", 2526658296, "724acc9042783ad276ef7ff80caea2b6d29a614c7d391bff11aa8827df9f655c", 34, "CAS Registry Number external identifier; preserve the supplied scheme value without chemical identity or vendor validation."],
+  ["P249", "string", 2468222488, "a368f245fb1c6631514b77e1366bc25b3e825c7233395ec458d28447ec53e516", 35, "Ticker symbol string; exchange, instrument, issuer and current tradability require independent evidence."],
+  ["P274", "string", 2501848610, "2a99492143ff904fab9ce407417ca84df4b75a600034678cec2c09675da35625", 22, "Chemical formula string; preserve source notation without parsing or asserting molecular identity."],
+  ["P854", "url", 2534299498, "a5a6afa9b3faa8390233ef58e08d3f1e3c8d9735e7db1371b22e33e40eb71caa", 30, "Reference URL string; preserve the cited locator without fetching it or asserting current availability."]
+];
+var catalogPromise8;
+function spongeKnowledgeWikidataMappingCatalogV3() {
+  catalogPromise8 ??= (async () => {
+    const v2 = await spongeKnowledgeWikidataMappingCatalogV2();
+    const preservedProperties = preservedPropertySeeds.map(([propertyId3, datatype, revision2, captureSha256, observedStatements, rationale]) => ({
+      source: { propertyId: propertyId3, datatype, revision: revision2, captureSha256 },
+      coverage: "preserved-only",
+      target: null,
+      observedStatements,
+      rationale,
+      v: 3
+    }));
+    const body = {
+      v: 3,
+      mappingVersion: KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3,
+      reviewedMappings: v2.mappings,
+      preservedProperties
+    };
+    return freezeKnowledgeDeclaration({
+      ...body,
+      catalogSha256: await sha256Text(canonicalJson(body))
+    });
+  })();
+  return catalogPromise8;
+}
+var KNOWLEDGE_WIKIDATA_PRESERVED_PROPERTY_IDS_V3 = Object.freeze(preservedPropertySeeds.map(([propertyId3]) => propertyId3));
+// src/research/knowledge-bridge-relations.ts
+var bridgeRelationDefinitions = [
+  ["offer-for-product", "Offer for product", "The offer is for the identified product; this does not establish availability, authenticity, or a current price."],
+  ["offer-has-price", "Offer has price", "The offer states the identified price record; currency, interval, tax, and effective dates remain separate context."],
+  ["assay-uses-method", "Assay uses method", "The assay uses the identified method; this does not establish that the method is valid, suitable, or reproducible."],
+  ["assay-produces-result", "Assay produces result", "The assay reports the identified result; this does not establish efficacy, significance, or safety."],
+  ["placement-in-article", "Placement in article", "The placement occurs in the identified article or edition; position, prominence, and publication state remain separate."],
+  ["series-has-member-event", "Series has member event", "The event series includes the identified event; membership does not establish chronology or completeness."],
+  ["track-has-recording", "Track has recording", "The track is realized by the identified recording; this does not establish release, performer, or rights ownership."],
+  ["listing-at-venue", "Listing at venue", "The listing is associated with the identified venue or place; this does not establish current operation or access."],
+  ["snapshot-of-simulation", "Snapshot of simulation", "The snapshot was produced by or belongs to the identified simulation; tick, state, and provenance remain separate."],
+  ["trajectory-has-attempt", "Trajectory has attempt", "The trajectory contains the identified task attempt; this does not establish success, causality, or completeness."],
+  ["task-pursues-goal", "Task pursues goal", "The task pursues the identified goal; this does not establish that the goal was achieved or authorized."],
+  ["profile-for-account", "Profile for account", "The profile document or projection is associated with the identified account; association does not prove account control or person identity."],
+  ["role-assignment-at-organization", "Role assignment at organization", "The role assignment concerns the identified organization; this does not establish employment, authority, or current status."],
+  ["lexeme-in-language-system", "Lexeme in language system", "The lexeme is associated with the identified language system; this does not normalize spelling, script, dialect, or sense."]
+];
+// src/research/knowledge-domain-catalog-v5.ts
+var labels6 = (text2) => [{ language: "en", text: text2, v: 1 }];
+function required5(result) {
+  if (!result.ok)
+    throw new Error(`Invalid bridge-relations pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function canonical5(value) {
+  return canonicalJson(value);
+}
+function sortedRefs2(refs3) {
+  return [...refs3].sort((a, b) => canonical5(a) < canonical5(b) ? -1 : 1);
+}
+function schema(pack, packId, code2) {
+  const found = pack.packs.find((item) => item.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+  if (found === undefined)
+    throw new Error(`Missing bridge schema ${packId}/${code2}.`);
+  return found;
+}
+function ref2(pack, packId, code2) {
+  return schema(pack, packId, code2).ref;
+}
+var relationEndpoints = [
+  ["offer-for-product", "sponge.substances", "offer", [["sponge.substances", "product"]]],
+  ["offer-has-price", "sponge.substances", "offer", [["sponge.bridge-relations", "price"]]],
+  ["assay-uses-method", "sponge.substances", "assay", [["sponge.research", "method"]]],
+  ["assay-produces-result", "sponge.substances", "assay", [["sponge.research", "finding"]]],
+  ["placement-in-article", "sponge.editorial", "placement", [["sponge.editorial", "article"], ["sponge.editorial", "edition"]]],
+  ["series-has-member-event", "sponge.editorial", "event-series", [["sponge.core", "event"]]],
+  ["track-has-recording", "sponge.music", "track", [["sponge.music", "recording"]]],
+  ["listing-at-venue", "sponge.finance", "listing", [["sponge.core", "place"]]],
+  ["snapshot-of-simulation", "sponge.formal-systems", "state-snapshot", [["sponge.formal-systems", "simulation"]]],
+  ["trajectory-has-attempt", "sponge.agent-work", "trajectory", [["sponge.agent-work", "attempt"]]],
+  ["task-pursues-goal", "sponge.agent-work", "task", [["sponge.agent-work", "goal"]]],
+  ["profile-for-account", "sponge.people", "profile-projection", [["sponge.core", "account"]]],
+  ["role-assignment-at-organization", "sponge.organizations", "role-assignment", [["sponge.core", "organization"]]],
+  ["lexeme-in-language-system", "sponge.language", "lexeme", [["sponge.reference", "language-system"]]]
+];
+var catalogPromise9;
+function spongeKnowledgeDomainCatalogV5() {
+  catalogPromise9 ??= buildCatalog5();
+  return catalogPromise9;
+}
+async function buildCatalog5() {
+  const previous = await spongeKnowledgeDomainCatalogV4();
+  const core = previous.corePack;
+  const vocabulary = required5(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels6("Sponge cross-domain bridge relations"),
+    namespace: "sponge.bridge-relations",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels6(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels6(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const price = required5(await createKnowledgeSchemaRevisionV1({
+    ...base("price", "A stated monetary amount or price record associated with an offer. Currency, tax, interval and effective dates are separate context."),
+    kind: "concept",
+    broader: [ref2(previous, "sponge.core", "information-resource")]
+  }));
+  const localConcepts = new Map([["price", price.ref]]);
+  const qualifierPredicates = previous.referencePack.schemas.filter((item) => item.kind === "predicate").map((item) => item.ref);
+  const schemas = [price];
+  for (const [code2, , description] of bridgeRelationDefinitions) {
+    const endpoint = relationEndpoints.find((item) => item[0] === code2);
+    if (endpoint === undefined)
+      throw new Error(`Missing bridge endpoint ${code2}.`);
+    const [, domainPack, domainCode, ranges] = endpoint;
+    const rangeRefs = ranges.map(([packId, rangeCode]) => packId === vocabulary.namespace ? localConcepts.get(rangeCode) : ref2(previous, packId, rangeCode));
+    schemas.push(required5(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, description),
+      kind: "predicate",
+      domainConcepts: [ref2(previous, domainPack, domainCode)],
+      inversePredicate: null,
+      qualifierPredicates: sortedRefs2(qualifierPredicates),
+      range: { concepts: sortedRefs2(rangeRefs), kind: "entity-concepts", v: 1 }
+    })));
+  }
+  schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
+  const bridgeRelationsPack = required5(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: previous.packs.map(knowledgeVocabularyPackPinV1).sort((a, b) => a.packId < b.packId ? -1 : 1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive bridge predicates for cross-domain navigation. Existing pack revisions and historical catalogs remain unchanged. Ranges remain open to preserve source distinctions; installation and proposal review are required.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas,
+    shapes: [],
+    queries: [{ description: "Which explicit cross-domain bridge relations connect a record to its adjacent research object?", id: "bridge-relations", predicates: schemas.filter((item) => item.kind === "predicate").map((item) => item.ref), v: 1 }],
+    sources: [{ contentSha256: "f6f87dc67e668fe458115d8dec3f44023c35c3c3cce0f676f2a1de7169325aa3", license: "MIT", revision: "2026-09-14", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/bridge-relations-v1.md", v: 1 }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+  const packs = [...previous.packs, bridgeRelationsPack].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(bridgeRelationsPack)].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const resolved = required5(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots }));
+  return freezeKnowledgeDeclaration({ ...previous, bridgeRelationsPack, lock: resolved.lock, packs, schemas: packs.flatMap((pack) => pack.schemas), vocabularies: packs.map((pack) => pack.vocabulary) });
+}
 export {
   verifyOhResearchPacketV1,
   verifyKnowledgeWikidataMappingPreviewV2,
@@ -3593,12 +3955,16 @@ export {
   verifyKnowledgeEditionDependencyCompletenessV1,
   utf8ByteLength,
   traverseKnowledgeGraphV1,
+  spongeKnowledgeWikidataMappingCatalogV3,
   spongeKnowledgeWikidataMappingCatalogV2,
   spongeKnowledgeWikidataMappingCatalogV1,
   spongeKnowledgeReferenceCatalog,
+  spongeKnowledgeDomainCatalogV5,
+  spongeKnowledgeDomainCatalogV4,
   spongeKnowledgeDomainCatalogV3,
   spongeKnowledgeDomainCatalogV2,
   spongeKnowledgeDomainCatalog,
+  spongeIdentityContextPackV1,
   spongeCoreKnowledgeCatalogV1,
   sha256Text,
   sha256Hex,
@@ -3700,6 +4066,8 @@ export {
   canonicalKnowledgeWikidataImportPreviewV2,
   canonicalKnowledgeWikidataImportPreviewV1,
   canonicalJson,
+  buildSpongeIdentityContextPackV1,
+  bridgeRelationDefinitions,
   boundedKnowledgeWikidataPreviewJsonV2,
   SPONGE_SHA256_HEX_PATTERN,
   SPONGE_KNOWLEDGE_SCENARIOS_V1,
@@ -3720,6 +4088,8 @@ export {
   SPONGE_KNOWLEDGE_ASSERTION_STATES_V1,
   SPONGE_KNOWLEDGE_ASSERTION_STANCES_V1,
   SPONGE_KNOWLEDGE_ACTIVITY_KINDS_V1,
+  SPONGE_IDENTITY_CONTEXT_PREDICATES_V1,
+  SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1,
   SPONGE_CANONICAL_INSTANT_PATTERN,
   SPONGE_AGENT_PROPOSABLE_KNOWLEDGE_KINDS_V2,
   SPONGE_AGENT_CORE_PREDICATE_CODES_V2,
@@ -3728,6 +4098,8 @@ export {
   OH_RESEARCH_PACKET_LIMITS_V1,
   KNOWLEDGE_WIKIDATA_PROPERTY_GROUP_LIMIT_V2,
   KNOWLEDGE_WIKIDATA_PREVIEW_LIMITS_V2,
+  KNOWLEDGE_WIKIDATA_PRESERVED_PROPERTY_IDS_V3,
+  KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3,
   KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V2,
   KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V1,
   KNOWLEDGE_WIKIDATA_IMPORT_LIMITS_V2,
