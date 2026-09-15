@@ -8,7 +8,7 @@ describe("independent ontology depth catalog v6", () => {
     const [previous, catalog] = await Promise.all([spongeKnowledgeDomainCatalogV5(), spongeKnowledgeDomainCatalogV6()]);
     expect(String(previous.lock.lockSha256)).toBe("ad2f239537cd14021102a12c7e870c1a27fb695e4a51c123f6a7d28bbca0a2bd");
     expect(catalog.historicalPacks).toEqual(previous.historicalPacks);
-    expect(catalog.packs.filter(pack => previous.packs.some(old => old.packId === pack.packId))).toEqual(previous.packs);
+    expect(catalog.packs.filter(pack => previous.packs.some(old => old.packId === pack.packId))).toEqual([...previous.packs]);
     expect(catalog.packs).toHaveLength(23);
     expect(String(catalog.lock.lockSha256)).toBe("bbe7945e131128390b872d0fa05428f0ada30912d97ce61ca224b424bec93c1f");
     expect(catalog.lock.lockSha256).not.toBe(previous.lock.lockSha256);
