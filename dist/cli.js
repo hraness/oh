@@ -6259,25 +6259,412 @@ var init_knowledge_wikidata_mappings_v2 = __esm(() => {
   init_knowledge_wikidata_mappings_v1();
 });
 
+// src/research/knowledge-wikidata-mappings-v3.ts
+function spongeKnowledgeWikidataMappingCatalogV3() {
+  catalogPromise7 ??= (async () => {
+    const v2 = await spongeKnowledgeWikidataMappingCatalogV2();
+    const preservedProperties = preservedPropertySeeds.map(([propertyId2, datatype, revision2, captureSha256, observedStatements, rationale]) => ({
+      source: { propertyId: propertyId2, datatype, revision: revision2, captureSha256 },
+      coverage: "preserved-only",
+      target: null,
+      observedStatements,
+      rationale,
+      v: 3
+    }));
+    const body = {
+      v: 3,
+      mappingVersion: KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3,
+      reviewedMappings: v2.mappings,
+      preservedProperties
+    };
+    return freezeKnowledgeDeclaration({
+      ...body,
+      catalogSha256: await sha256Text(canonicalJson2(body))
+    });
+  })();
+  return catalogPromise7;
+}
+var KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3 = "sponge.wikidata-source-mappings.v3", preservedPropertySeeds, catalogPromise7, KNOWLEDGE_WIKIDATA_PRESERVED_PROPERTY_IDS_V3;
+var init_knowledge_wikidata_mappings_v3 = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_declarative_json();
+  init_knowledge_wikidata_mappings_v2();
+  preservedPropertySeeds = [
+    ["P18", "commonsMedia", 2544849962, "3578a06f58a93fe03365c13796937abf523bbdf201a6b796d65b592a7d721a29", 113, "Wikimedia Commons media value; preserve the source filename and statement evidence without downloading or asserting image identity."],
+    ["P625", "globe-coordinate", 2543217378, "da8946438c4a23ac67470d5b16392ad23d1166b961a49a5f68217a11ec953a81", 110, "Source coordinate value with globe, precision and altitude fields; coordinate transformation requires separately attributed CRS evidence."],
+    ["P2048", "quantity", 2541797879, "b73d48ce2f566839f8d1ed10a4cfef353af3d8961f45cb9964f0e57f8371a7fd", 53, "Quantity amount and unit URI are preserved exactly; no unit conversion or physical interpretation is inferred."],
+    ["P348", "string", 2529955773, "13ffee0dc4e2ba339e221cdead4f59243db1d8de15effdcf000a3ddec51ce9e9", 42, "Software version identifier string; ordering, release status and product identity require independent evidence."],
+    ["P356", "external-id", 2534351107, "aea71547eb4b8c3aad1e1d282a25c1c90f0cb330e616826bc4e2007139fad732", 109, "DOI-like external identifier under Wikidata's declared scheme; equality is not independent registration or work identity validation."],
+    ["P571", "time", 2544428534, "2a7207cffe85d0bb3bcc7d25d46ed142df9a2546015a9f34060cf7820aabf8cb", 63, "Inception time value retains calendar, precision and bounds; event semantics and normalization remain source-attributed."],
+    ["P577", "time", 2541377778, "01a95ac61dff81a5aa5b76991b090c613b680d726a5baea3213cd86fc17a728b", 57, "Publication time value retains calendar, precision and bounds; it does not establish first publication or availability."],
+    ["P580", "time", 2542144440, "fe4c2aa2b8bdf4daa3a63ee3d270b6216d0359b14bce7ab52288c3972c645acd", 38, "Start time value retains calendar, precision and bounds; interval interpretation requires the statement's context."],
+    ["P582", "time", 2539557394, "8608275b10d9602f80e35b58f0cf1f52091ceccc482dbc6ca863dc43be56f864", 39, "End time value retains calendar, precision and bounds; open-ended and qualifier semantics remain explicit source evidence."],
+    ["P747", "wikibase-item", 2538203952, "b380ad582059a3661961d457ad917ce610e279e0e7aa7d296d8d1fdeddf164c6", 31, "Version, edition or translation item value; preserve the union stated by the source without selecting one interpretation or merging identities."],
+    ["P155", "wikibase-item", 2541952638, "bd70fbdf99f4fbb397ef2692fe09bf7a1e1f33bd31695aae4cc90ccefe8b0742", 31, "Follows item value; direction is preserved as source data without inferring succession, causality or completeness."],
+    ["P156", "wikibase-item", 2542982584, "3356d1767903e4420a4436d5fef7a5f36c0632a4055a5408ae07fcffc62ebe79", 29, "Followed-by item value; direction is preserved as source data without inferring succession, causality or completeness."],
+    ["P231", "external-id", 2526658296, "724acc9042783ad276ef7ff80caea2b6d29a614c7d391bff11aa8827df9f655c", 34, "CAS Registry Number external identifier; preserve the supplied scheme value without chemical identity or vendor validation."],
+    ["P249", "string", 2468222488, "a368f245fb1c6631514b77e1366bc25b3e825c7233395ec458d28447ec53e516", 35, "Ticker symbol string; exchange, instrument, issuer and current tradability require independent evidence."],
+    ["P274", "string", 2501848610, "2a99492143ff904fab9ce407417ca84df4b75a600034678cec2c09675da35625", 22, "Chemical formula string; preserve source notation without parsing or asserting molecular identity."],
+    ["P854", "url", 2534299498, "a5a6afa9b3faa8390233ef58e08d3f1e3c8d9735e7db1371b22e33e40eb71caa", 30, "Reference URL string; preserve the cited locator without fetching it or asserting current availability."]
+  ];
+  KNOWLEDGE_WIKIDATA_PRESERVED_PROPERTY_IDS_V3 = Object.freeze(preservedPropertySeeds.map(([propertyId2]) => propertyId2));
+});
+
+// src/research/knowledge-identity-context-pack.ts
+function canonical2(value) {
+  return canonicalJson2(value);
+}
+function required2(result) {
+  if (!result.ok)
+    throw new Error(`Invalid identity-context pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels5(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function title4(code2) {
+  return code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ");
+}
+function schemaByCode(schemas, code2) {
+  const schema = schemas.find((item) => item.identity.code === code2);
+  if (schema === undefined)
+    throw new Error(`Missing identity-context schema ${code2}.`);
+  return schema;
+}
+function range(kind, concepts = []) {
+  return kind === "entity" ? { concepts, kind: "entity-concepts", v: 1 } : { kind: "value-kinds", valueKinds: [kind], v: 1 };
+}
+async function buildSpongeIdentityContextPackV1(catalog) {
+  const core = catalog.corePack;
+  const foundation = catalog.foundationPack;
+  const reference = catalog.referencePack;
+  const vocabulary = required2(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels5("Sponge identity and context records"),
+    namespace: "sponge.identity-context",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const coreEntity = schemaByCode(core.schemas, "entity").ref;
+  const concepts = [];
+  for (const [code2, definition] of SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1)
+    concepts.push(required2(await createKnowledgeSchemaRevisionV1({
+      definitions: labels5(`${definition} Multiple compatible descriptions may coexist; absence does not establish completeness.`),
+      identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+      labels: labels5(title4(code2)),
+      previousRevisionSha256: null,
+      reviewDecisionSha256: null,
+      vocabularySha256: vocabulary.revisionSha256,
+      v: 1,
+      kind: "concept",
+      broader: [coreEntity]
+    })));
+  const local = (code2) => schemaByCode(concepts, code2).ref;
+  const qualifierPredicates = [...reference.schemas, ...foundation.schemas].filter((schema) => schema.kind === "predicate" && schema.qualifierPredicates.length === 0).map((schema) => schema.ref).sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
+  const predicates = [];
+  for (const [code2, definition, domain, kind, target] of SPONGE_IDENTITY_CONTEXT_PREDICATES_V1) {
+    const common = {
+      definitions: labels5(`${definition} This relation is descriptive and source-scoped; it does not grant identity, truth, access or publication authority.`),
+      identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+      labels: labels5(title4(code2)),
+      previousRevisionSha256: null,
+      reviewDecisionSha256: null,
+      vocabularySha256: vocabulary.revisionSha256,
+      v: 1,
+      kind: "predicate",
+      domainConcepts: [local(domain)],
+      inversePredicate: null,
+      qualifierPredicates
+    };
+    const valueRange2 = kind === "entity" ? range("entity", target?.[0] === "entity" ? [coreEntity] : [local(target?.[0] ?? "entity")]) : range(kind);
+    predicates.push(required2(await createKnowledgeSchemaRevisionV1({ ...common, range: valueRange2 })));
+  }
+  const schemas = [...concepts, ...predicates].sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
+  const shapes = [];
+  for (const concept of concepts) {
+    const rules = predicates.filter((predicate) => predicate.domainConcepts.some((ref) => canonical2(ref) === canonical2(concept.ref))).map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical2(a.predicate) < canonical2(b.predicate) ? -1 : 1);
+    shapes.push(required2(await createKnowledgeExecutableShapeV1({
+      appliesToConcepts: [concept.ref],
+      closed: false,
+      extends: [],
+      maximumInheritanceDepth: 1,
+      rules,
+      shape: concept.ref,
+      v: 1
+    })));
+  }
+  const sourceContent = { concepts: SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1, predicates: SPONGE_IDENTITY_CONTEXT_PREDICATES_V1 };
+  return required2(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: [core, foundation, reference].map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive open-world identity, time, location, evidence, value and provenance records. Existing pack revisions and source assertions remain unchanged. No identifier equality, identity merge, truth, completeness, unit conversion, coordinate conversion, access right or publication authority is implied; every assertion still requires its own source and review policy.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    queries: [{ description: "Which identity, temporal, spatial, evidence, value and provenance context qualifies this record?", id: "identity-context", predicates: predicates.map((predicate) => predicate.ref).sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1), v: 1 }],
+    revision: 1,
+    schemas,
+    shapes: shapes.sort((a, b) => a.shape.code < b.shape.code ? -1 : 1),
+    sources: [{ contentSha256: await sha256Text(canonical2(sourceContent)), license: "MIT", revision: "1", uri: "urn:sponge:application-profile:identity-context", v: 1 }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+}
+var SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1, SPONGE_IDENTITY_CONTEXT_PREDICATES_V1;
+var init_knowledge_identity_context_pack = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+  SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1 = [
+    ["identity-claim", "An attributed claim that an identifier or description refers to an entity; it never merges identities automatically."],
+    ["identity-scheme", "A named identifier scheme or authority whose syntax, scope and resolution policy are stated separately."],
+    ["temporal-record", "A temporal record with independently stated boundaries, calendar, precision and uncertainty."],
+    ["location-record", "A location record with independently stated geometry, globe, coordinate reference system and accuracy."],
+    ["evidence-bundle", "A bounded bundle of evidence items assembled for one claim, with completeness and authority left explicit."],
+    ["evidence-item", "One source, observation, document or capture that can support or qualify a claim."],
+    ["value-record", "A typed value with optional unit, bounds, language and interpretation context."],
+    ["provenance-activity", "An activity that generated, transformed, reviewed or published a record; actor and time remain separate."]
+  ];
+  SPONGE_IDENTITY_CONTEXT_PREDICATES_V1 = [
+    ["claims-identity-of", "The entity a claim proposes as the referent of an identifier or description.", "identity-claim", "entity", ["entity"]],
+    ["uses-scheme", "The identifier scheme used by this claim or identifier.", "identity-claim", "entity", ["identity-scheme"]],
+    ["has-identifier", "The literal identifier supplied by this claim; equality does not prove identity.", "identity-claim", "identifier"],
+    ["identity-confidence", "An explicitly attributed confidence value for this claim, with scale and calibration stated separately.", "identity-claim", "decimal"],
+    ["scheme-namespace", "The namespace or prefix assigned by an identifier scheme.", "identity-scheme", "string"],
+    ["scheme-resolver", "A resolver endpoint or procedure for an identifier scheme.", "identity-scheme", "string"],
+    ["has-start", "The lower temporal boundary of this record, retaining precision and uncertainty.", "temporal-record", "time"],
+    ["has-end", "The upper temporal boundary of this record, retaining precision and uncertainty.", "temporal-record", "time"],
+    ["has-interval", "An interval value for this record when both boundaries are represented together.", "temporal-record", "interval"],
+    ["uses-calendar", "The calendar or temporal reference system used to interpret the record.", "temporal-record", "entity", ["entity"]],
+    ["time-precision", "The stated precision of the temporal value, distinct from certainty or measurement accuracy.", "temporal-record", "decimal"],
+    ["has-geometry", "The geometry attached to this location record; coordinate interpretation remains explicit.", "location-record", "geometry"],
+    ["has-globe", "The celestial body or globe bounding this location claim.", "location-record", "entity", ["entity"]],
+    ["uses-crs", "The coordinate reference system used by the geometry.", "location-record", "entity", ["entity"]],
+    ["location-accuracy", "The stated spatial accuracy or uncertainty of this record.", "location-record", "quantity"],
+    ["supports-claim", "A claim supported by this evidence bundle or item; support is not truth or completeness.", "evidence-bundle", "entity", ["identity-claim"]],
+    ["contains-evidence", "An evidence item contained in this bundle.", "evidence-bundle", "entity", ["evidence-item"]],
+    ["has-evidence-item", "A source, observation, document or capture represented as an evidence item.", "evidence-bundle", "entity", ["evidence-item"]],
+    ["evidence-source", "The source entity for this evidence item.", "evidence-item", "entity", ["entity"]],
+    ["captured-at", "The retrieval or capture time of this evidence item, distinct from event time.", "evidence-item", "time"],
+    ["evidence-excerpt", "A bounded excerpt or locator retained for auditability; it is not the complete source.", "evidence-item", "string"],
+    ["value-kind", "The declared kind or interpretation family for this value record.", "value-record", "entity", ["entity"]],
+    ["value-unit", "The unit descriptor for a quantity value; no conversion runs implicitly.", "value-record", "entity", ["entity"]],
+    ["value-lower-bound", "The lower bound of a value range or uncertainty interval.", "value-record", "quantity"],
+    ["value-upper-bound", "The upper bound of a value range or uncertainty interval.", "value-record", "quantity"],
+    ["value-language", "The language context for a textual value.", "value-record", "string"],
+    ["activity-actor", "The agent that performed or sponsored this provenance activity.", "provenance-activity", "entity", ["entity"]],
+    ["activity-input", "An input entity consumed by this provenance activity.", "provenance-activity", "entity", ["entity"]],
+    ["activity-output", "An output entity produced by this provenance activity.", "provenance-activity", "entity", ["entity"]],
+    ["activity-time", "The time at which this provenance activity occurred.", "provenance-activity", "time"],
+    ["activity-purpose", "The stated purpose of this provenance activity.", "provenance-activity", "string"]
+  ];
+});
+
+// src/research/knowledge-domain-catalog-v4.ts
+function required3(result) {
+  if (!result.ok)
+    throw new Error(`Invalid identity-context catalog: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function spongeKnowledgeDomainCatalogV4() {
+  catalogPromise8 ??= buildCatalog4();
+  return catalogPromise8;
+}
+async function buildCatalog4() {
+  const previous = await spongeKnowledgeDomainCatalogV3();
+  const identityContextPack = await buildSpongeIdentityContextPackV1(previous);
+  const packs = [...previous.packs, identityContextPack].sort((left, right) => left.packId < right.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(identityContextPack)].sort((left, right) => left.packId < right.packId ? -1 : 1);
+  const resolved = required3(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots }));
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    identityContextPack,
+    lock: resolved.lock,
+    packs,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
+var catalogPromise8;
+var init_knowledge_domain_catalog_v4 = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_domain_catalog_v3();
+  init_knowledge_identity_context_pack();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-bridge-relations.ts
+var bridgeRelationDefinitions;
+var init_knowledge_bridge_relations = __esm(() => {
+  bridgeRelationDefinitions = [
+    ["offer-for-product", "Offer for product", "The offer is for the identified product; this does not establish availability, authenticity, or a current price."],
+    ["offer-has-price", "Offer has price", "The offer states the identified price record; currency, interval, tax, and effective dates remain separate context."],
+    ["assay-uses-method", "Assay uses method", "The assay uses the identified method; this does not establish that the method is valid, suitable, or reproducible."],
+    ["assay-produces-result", "Assay produces result", "The assay reports the identified result; this does not establish efficacy, significance, or safety."],
+    ["placement-in-article", "Placement in article", "The placement occurs in the identified article or edition; position, prominence, and publication state remain separate."],
+    ["series-has-member-event", "Series has member event", "The event series includes the identified event; membership does not establish chronology or completeness."],
+    ["track-has-recording", "Track has recording", "The track is realized by the identified recording; this does not establish release, performer, or rights ownership."],
+    ["listing-at-venue", "Listing at venue", "The listing is associated with the identified venue or place; this does not establish current operation or access."],
+    ["snapshot-of-simulation", "Snapshot of simulation", "The snapshot was produced by or belongs to the identified simulation; tick, state, and provenance remain separate."],
+    ["trajectory-has-attempt", "Trajectory has attempt", "The trajectory contains the identified task attempt; this does not establish success, causality, or completeness."],
+    ["task-pursues-goal", "Task pursues goal", "The task pursues the identified goal; this does not establish that the goal was achieved or authorized."],
+    ["profile-for-account", "Profile for account", "The profile document or projection is associated with the identified account; association does not prove account control or person identity."],
+    ["role-assignment-at-organization", "Role assignment at organization", "The role assignment concerns the identified organization; this does not establish employment, authority, or current status."],
+    ["lexeme-in-language-system", "Lexeme in language system", "The lexeme is associated with the identified language system; this does not normalize spelling, script, dialect, or sense."]
+  ];
+});
+
+// src/research/knowledge-domain-catalog-v5.ts
+function required4(result) {
+  if (!result.ok)
+    throw new Error(`Invalid bridge-relations pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function canonical3(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs2(refs2) {
+  return [...refs2].sort((a, b) => canonical3(a) < canonical3(b) ? -1 : 1);
+}
+function schema(pack, packId, code2) {
+  const found = pack.packs.find((item) => item.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+  if (found === undefined)
+    throw new Error(`Missing bridge schema ${packId}/${code2}.`);
+  return found;
+}
+function ref(pack, packId, code2) {
+  return schema(pack, packId, code2).ref;
+}
+function spongeKnowledgeDomainCatalogV5() {
+  catalogPromise9 ??= buildCatalog5();
+  return catalogPromise9;
+}
+async function buildCatalog5() {
+  const previous = await spongeKnowledgeDomainCatalogV4();
+  const core = previous.corePack;
+  const vocabulary = required4(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels6("Sponge cross-domain bridge relations"),
+    namespace: "sponge.bridge-relations",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels6(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels6(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const price = required4(await createKnowledgeSchemaRevisionV1({
+    ...base("price", "A stated monetary amount or price record associated with an offer. Currency, tax, interval and effective dates are separate context."),
+    kind: "concept",
+    broader: [ref(previous, "sponge.core", "information-resource")]
+  }));
+  const localConcepts = new Map([["price", price.ref]]);
+  const qualifierPredicates = previous.referencePack.schemas.filter((item) => item.kind === "predicate").map((item) => item.ref);
+  const schemas = [price];
+  for (const [code2, , description] of bridgeRelationDefinitions) {
+    const endpoint = relationEndpoints.find((item) => item[0] === code2);
+    if (endpoint === undefined)
+      throw new Error(`Missing bridge endpoint ${code2}.`);
+    const [, domainPack, domainCode, ranges] = endpoint;
+    const rangeRefs = ranges.map(([packId, rangeCode]) => packId === vocabulary.namespace ? localConcepts.get(rangeCode) : ref(previous, packId, rangeCode));
+    schemas.push(required4(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, description),
+      kind: "predicate",
+      domainConcepts: [ref(previous, domainPack, domainCode)],
+      inversePredicate: null,
+      qualifierPredicates: sortedRefs2(qualifierPredicates),
+      range: { concepts: sortedRefs2(rangeRefs), kind: "entity-concepts", v: 1 }
+    })));
+  }
+  schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
+  const bridgeRelationsPack = required4(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: previous.packs.map(knowledgeVocabularyPackPinV1).sort((a, b) => a.packId < b.packId ? -1 : 1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive bridge predicates for cross-domain navigation. Existing pack revisions and historical catalogs remain unchanged. Ranges remain open to preserve source distinctions; installation and proposal review are required.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas,
+    shapes: [],
+    queries: [{ description: "Which explicit cross-domain bridge relations connect a record to its adjacent research object?", id: "bridge-relations", predicates: schemas.filter((item) => item.kind === "predicate").map((item) => item.ref), v: 1 }],
+    sources: [{ contentSha256: "f6f87dc67e668fe458115d8dec3f44023c35c3c3cce0f676f2a1de7169325aa3", license: "MIT", revision: "2026-09-14", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/bridge-relations-v1.md", v: 1 }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+  const packs = [...previous.packs, bridgeRelationsPack].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(bridgeRelationsPack)].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const resolved = required4(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots }));
+  return freezeKnowledgeDeclaration({ ...previous, bridgeRelationsPack, lock: resolved.lock, packs, schemas: packs.flatMap((pack) => pack.schemas), vocabularies: packs.map((pack) => pack.vocabulary) });
+}
+var labels6 = (text2) => [{ language: "en", text: text2, v: 1 }], relationEndpoints, catalogPromise9;
+var init_knowledge_domain_catalog_v5 = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_domain_catalog_v4();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+  init_knowledge_bridge_relations();
+  relationEndpoints = [
+    ["offer-for-product", "sponge.substances", "offer", [["sponge.substances", "product"]]],
+    ["offer-has-price", "sponge.substances", "offer", [["sponge.bridge-relations", "price"]]],
+    ["assay-uses-method", "sponge.substances", "assay", [["sponge.research", "method"]]],
+    ["assay-produces-result", "sponge.substances", "assay", [["sponge.research", "finding"]]],
+    ["placement-in-article", "sponge.editorial", "placement", [["sponge.editorial", "article"], ["sponge.editorial", "edition"]]],
+    ["series-has-member-event", "sponge.editorial", "event-series", [["sponge.core", "event"]]],
+    ["track-has-recording", "sponge.music", "track", [["sponge.music", "recording"]]],
+    ["listing-at-venue", "sponge.finance", "listing", [["sponge.core", "place"]]],
+    ["snapshot-of-simulation", "sponge.formal-systems", "state-snapshot", [["sponge.formal-systems", "simulation"]]],
+    ["trajectory-has-attempt", "sponge.agent-work", "trajectory", [["sponge.agent-work", "attempt"]]],
+    ["task-pursues-goal", "sponge.agent-work", "task", [["sponge.agent-work", "goal"]]],
+    ["profile-for-account", "sponge.people", "profile-projection", [["sponge.core", "account"]]],
+    ["role-assignment-at-organization", "sponge.organizations", "role-assignment", [["sponge.core", "organization"]]],
+    ["lexeme-in-language-system", "sponge.language", "lexeme", [["sponge.reference", "language-system"]]]
+  ];
+});
+
 // src/research/knowledge-proposal-v3.ts
 function key2(value) {
   return typeof value === "string" && value.length <= 96 && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value);
 }
-function canonical2(value) {
+function canonical4(value) {
   return canonicalJson2(value);
 }
-function ref(value) {
+function ref2(value) {
   const parsed = parseKnowledgeSchemaRefV1(value);
   return parsed.ok ? parsed.value : null;
 }
 function refs2(value) {
   if (!Array.isArray(value) || value.length > 256)
     return null;
-  const parsed = value.map(ref);
+  const parsed = value.map(ref2);
   if (parsed.some((item) => item === null))
     return null;
-  const sorted = parsed.sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
-  return new Set(sorted.map(canonical2)).size === sorted.length ? sorted : null;
+  const sorted = parsed.sort((a, b) => canonical4(a) < canonical4(b) ? -1 : 1);
+  return new Set(sorted.map(canonical4)).size === sorted.length ? sorted : null;
 }
 function entityReference(value) {
   if (!isPlainRecord2(value))
@@ -6304,8 +6691,8 @@ function draftValue(value, depth = 0) {
       return null;
     const parsed2 = values;
     if (value["kind"] === "set") {
-      parsed2.sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
-      if (new Set(parsed2.map(canonical2)).size !== parsed2.length)
+      parsed2.sort((a, b) => canonical4(a) < canonical4(b) ? -1 : 1);
+      if (new Set(parsed2.map(canonical4)).size !== parsed2.length)
         return null;
     }
     return { kind: value["kind"], values: parsed2, v: 1 };
@@ -6320,14 +6707,14 @@ function dimensions(value) {
   for (const item of value) {
     if (!isPlainRecord2(item) || !hasExactDataKeys(item, ["predicate", "value"]))
       return null;
-    const predicate = ref(item["predicate"]);
+    const predicate = ref2(item["predicate"]);
     const child = draftValue(item["value"]);
     if (predicate === null || child === null)
       return null;
     parsed.push({ predicate, value: child });
   }
-  parsed.sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
-  return new Set(parsed.map(canonical2)).size === parsed.length ? parsed : null;
+  parsed.sort((a, b) => canonical4(a) < canonical4(b) ? -1 : 1);
+  return new Set(parsed.map(canonical4)).size === parsed.length ? parsed : null;
 }
 function parseSpongeKnowledgeProposalDraftV3(foreign) {
   const value = knowledgeDeclarativeJson(foreign, 256 * 1024);
@@ -6361,7 +6748,7 @@ function parseSpongeKnowledgeProposalDraftV3(foreign) {
     if (!isPlainRecord2(item) || !hasExactDataKeys(item, ["key", "subject", "predicate", "object", "qualifiers", "contextKey", "stance"]) || !key2(item["key"]))
       return null;
     const subject = entityReference(item["subject"]);
-    const predicate = ref(item["predicate"]);
+    const predicate = ref2(item["predicate"]);
     const object = draftValue(item["object"]);
     const qualifiers = dimensions(item["qualifiers"]);
     const stance = SPONGE_KNOWLEDGE_ASSERTION_STANCES_V1.find((candidate) => candidate === item["stance"]);
@@ -6988,9 +7375,9 @@ function references(source) {
       break;
     case "inquiry-event":
       add(value["parentEventSha256"], "inquiry-event");
-      for (const ref2 of [...value["inputRefs"], ...value["outputRefs"]]) {
-        if (isPlainRecord2(ref2))
-          add(ref2["sha256"], ref2["kind"]);
+      for (const ref3 of [...value["inputRefs"], ...value["outputRefs"]]) {
+        if (isPlainRecord2(ref3))
+          add(ref3["sha256"], ref3["kind"]);
       }
       break;
     case "review-decision":
@@ -7088,13 +7475,13 @@ async function prepareOhResearchPacketV1(foreign) {
   const records = [];
   for (const source of sources) {
     const dependencies = new Set;
-    for (const ref2 of references(source)) {
-      const target = bySha.get(ref2.sha256);
+    for (const ref3 of references(source)) {
+      const target = bySha.get(ref3.sha256);
       if (target === undefined)
-        fail(`missing dependency ${ref2.sha256}`);
-      if (ref2.expectedKind !== null && target.kind !== ref2.expectedKind)
+        fail(`missing dependency ${ref3.sha256}`);
+      if (ref3.expectedKind !== null && target.kind !== ref3.expectedKind)
         fail("dependency kind");
-      if (ref2.schemaRef !== undefined && (!isPlainRecord2(target.value) || json(target.value["ref"]) !== json(ref2.schemaRef)))
+      if (ref3.schemaRef !== undefined && (!isPlainRecord2(target.value) || json(target.value["ref"]) !== json(ref3.schemaRef)))
         fail("exact schema reference");
       dependencies.add(keys.get(target.recordSha256));
     }
@@ -7201,11 +7588,11 @@ async function readInput(path) {
 async function runOhResearchCli(arguments_) {
   const command = arguments_[0];
   let output;
-  if (["catalog", "catalog-v2", "catalog-v3", "wikidata-mappings", "wikidata-mappings-v2"].includes(command ?? "") && arguments_.length === 1) {
-    output = command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
+  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
+    output = command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
   } else {
     if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"].includes(command ?? "") || arguments_.length !== 3 || arguments_[1] !== "--file") {
-      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|wikidata-mappings|wikidata-mappings-v2 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
+      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
     }
     const input = await readInput(arguments_[2]);
     if (command === "validate-draft")
@@ -7240,7 +7627,10 @@ async function runOhResearchCli(arguments_) {
 var init_research_cli = __esm(() => {
   init_knowledge_wikidata_mappings_v1();
   init_knowledge_wikidata_mappings_v2();
+  init_knowledge_wikidata_mappings_v3();
   init_knowledge_domain_catalog_v3();
+  init_knowledge_domain_catalog_v4();
+  init_knowledge_domain_catalog_v5();
   init_knowledge_domain_catalog_v2();
   init_knowledge_wikidata_import_v2();
   init_knowledge_domain_catalog();
@@ -7603,10 +7993,10 @@ class OhSemanticBundleIngressV1 {
         throw new TypeError("Invalid semantic bundle tombstone.");
       changes.push({ key: item.key, kind: "tombstone", priorSha256, v: 1 });
     }
-    const canonical3 = canonicalKnowledgeGraphChangesV1(changes);
+    const canonical5 = canonicalKnowledgeGraphChangesV1(changes);
     return await this.#store.commit({
       actorId,
-      changes: canonical3,
+      changes: canonical5,
       expectedHead: {
         generation: expected.generation,
         operationSha256: expected.operationSha256
@@ -8647,7 +9037,7 @@ var init_store2 = __esm(() => {
   EMPTY_RECORDS_SHA2562 = canonicalSha256([]);
 });
 
-// node_modules/effect/dist/esm/Function.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Function.js
 function pipe(a, ab, bc, cd, de, ef, fg, gh, hi) {
   switch (arguments.length) {
     case 1:
@@ -8746,7 +9136,7 @@ var init_Function = __esm(() => {
   constVoid = constUndefined;
 });
 
-// node_modules/effect/dist/esm/Equivalence.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Equivalence.js
 var make = (isEquivalent) => (self, that) => self === that || isEquivalent(self, that), mapInput, array = (item) => make((self, that) => {
   if (self.length !== that.length) {
     return false;
@@ -8764,7 +9154,7 @@ var init_Equivalence = __esm(() => {
   mapInput = /* @__PURE__ */ dual(2, (self, f) => make((x, y) => self(f(x), f(y))));
 });
 
-// node_modules/effect/dist/esm/internal/doNotation.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/doNotation.js
 var let_ = (map) => dual(3, (self, name, f) => map(self, (a) => ({
   ...a,
   [name]: f(a)
@@ -8778,7 +9168,7 @@ var init_doNotation = __esm(() => {
   init_Function();
 });
 
-// node_modules/effect/dist/esm/GlobalValue.js
+// ../agent-identity-context/node_modules/effect/dist/esm/GlobalValue.js
 var globalStoreId = `effect/GlobalValue`, globalStore, globalValue = (id, compute) => {
   if (!globalStore) {
     globalThis[globalStoreId] ??= new Map;
@@ -8790,7 +9180,7 @@ var globalStoreId = `effect/GlobalValue`, globalStore, globalValue = (id, comput
   return globalStore.get(id);
 };
 
-// node_modules/effect/dist/esm/Predicate.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Predicate.js
 var isString = (input) => typeof input === "string", isNumber = (input) => typeof input === "number", isBigInt = (input) => typeof input === "bigint", isFunction2, isRecordOrArray = (input) => typeof input === "object" && input !== null, isObject = (input) => isRecordOrArray(input) || isFunction2(input), hasProperty, isTagged, isNullable = (input) => input === null || input === undefined, isIterable = (input) => typeof input === "string" || hasProperty(input, Symbol.iterator), isPromiseLike = (input) => hasProperty(input, "then") && isFunction2(input.then);
 var init_Predicate = __esm(() => {
   init_Function();
@@ -8799,10 +9189,10 @@ var init_Predicate = __esm(() => {
   isTagged = /* @__PURE__ */ dual(2, (self, tag) => hasProperty(self, "_tag") && self["_tag"] === tag);
 });
 
-// node_modules/effect/dist/esm/internal/errors.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/errors.js
 var getBugErrorMessage = (message) => `BUG: ${message} - please report an issue at https://github.com/Effect-TS/effect/issues`;
 
-// node_modules/effect/dist/esm/Utils.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Utils.js
 class PCGRandom {
   _state;
   constructor(seedHi, seedLo, incHi, incLo) {
@@ -8987,7 +9377,7 @@ var init_Utils = __esm(() => {
   genConstructor = function* () {}.constructor;
 });
 
-// node_modules/effect/dist/esm/Hash.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Hash.js
 var randomHashCache, symbol, hash = (self) => {
   if (structuralRegionState.enabled === true) {
     return 0;
@@ -9091,7 +9481,7 @@ var init_Hash = __esm(() => {
   symbol = /* @__PURE__ */ Symbol.for("effect/Hash");
 });
 
-// node_modules/effect/dist/esm/Equal.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Equal.js
 function equals() {
   if (arguments.length === 1) {
     return (self) => compareBoth(self, arguments[0]);
@@ -9154,7 +9544,7 @@ var init_Equal = __esm(() => {
   symbol2 = /* @__PURE__ */ Symbol.for("effect/Equal");
 });
 
-// node_modules/effect/dist/esm/Inspectable.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Inspectable.js
 var NodeInspectSymbol, toJSON = (x) => {
   try {
     if (hasProperty(x, "toJSON") && isFunction2(x["toJSON"]) && x["toJSON"].length === 0) {
@@ -9214,7 +9604,7 @@ var init_Inspectable = __esm(() => {
   }));
 });
 
-// node_modules/effect/dist/esm/Pipeable.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Pipeable.js
 var pipeArguments = (self, args) => {
   switch (args.length) {
     case 0:
@@ -9248,13 +9638,13 @@ var pipeArguments = (self, args) => {
 };
 var init_Pipeable = () => {};
 
-// node_modules/effect/dist/esm/internal/opCodes/effect.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/opCodes/effect.js
 var OP_ASYNC = "Async", OP_COMMIT = "Commit", OP_FAILURE = "Failure", OP_ON_FAILURE = "OnFailure", OP_ON_SUCCESS = "OnSuccess", OP_ON_SUCCESS_AND_FAILURE = "OnSuccessAndFailure", OP_SUCCESS = "Success", OP_SYNC = "Sync", OP_TAG = "Tag", OP_UPDATE_RUNTIME_FLAGS = "UpdateRuntimeFlags", OP_WHILE = "While", OP_ITERATOR = "Iterator", OP_WITH_RUNTIME = "WithRuntime", OP_YIELD = "Yield", OP_REVERT_FLAGS = "RevertFlags";
 
-// node_modules/effect/dist/esm/internal/version.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/version.js
 var moduleVersion = "3.22.1", getCurrentVersion = () => moduleVersion;
 
-// node_modules/effect/dist/esm/internal/effectable.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/effectable.js
 var EffectTypeId, StreamTypeId, SinkTypeId, ChannelTypeId, effectVariance, sinkVariance, channelVariance, EffectPrototype, StructuralPrototype, CommitPrototype, StructuralCommitPrototype, Base;
 var init_effectable = __esm(() => {
   init_Equal();
@@ -9338,7 +9728,7 @@ var init_effectable = __esm(() => {
   }();
 });
 
-// node_modules/effect/dist/esm/internal/option.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/option.js
 var TypeId, CommonProto, SomeProto, NoneHash, NoneProto, isOption = (input) => hasProperty(input, TypeId), isNone = (fa) => fa._tag === "None", isSome = (fa) => fa._tag === "Some", none, some = (value) => {
   const a = Object.create(SomeProto);
   a.value = value;
@@ -9400,7 +9790,7 @@ var init_option = __esm(() => {
   none = /* @__PURE__ */ Object.create(NoneProto);
 });
 
-// node_modules/effect/dist/esm/internal/either.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/either.js
 var TypeId2, CommonProto2, RightProto, LeftProto, isEither = (input) => hasProperty(input, TypeId2), isLeft = (ma) => ma._tag === "Left", isRight = (ma) => ma._tag === "Right", left = (left2) => {
   const a = Object.create(LeftProto);
   a.left = left2;
@@ -9466,7 +9856,7 @@ var init_either = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/Either.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Either.js
 var right2, left2, isLeft2, isRight2, match, merge;
 var init_Either = __esm(() => {
   init_Function();
@@ -9485,10 +9875,10 @@ var init_Either = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/array.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/array.js
 var isNonEmptyArray = (self) => self.length > 0;
 
-// node_modules/effect/dist/esm/Order.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Order.js
 var make2 = (compare) => (self, that) => self === that ? 0 : compare(self, that), number2, mapInput2, greaterThan = (O) => dual(2, (self, that) => O(self, that) === 1);
 var init_Order = __esm(() => {
   init_Function();
@@ -9496,7 +9886,7 @@ var init_Order = __esm(() => {
   mapInput2 = /* @__PURE__ */ dual(2, (self, f) => make2((b1, b2) => self(f(b1), f(b2))));
 });
 
-// node_modules/effect/dist/esm/Option.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Option.js
 var exports_Option = {};
 __export(exports_Option, {
   zipWith: () => zipWith,
@@ -9708,11 +10098,11 @@ var init_Option = __esm(() => {
   adapter2 = /* @__PURE__ */ adapter();
 });
 
-// node_modules/effect/dist/esm/Tuple.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Tuple.js
 var make3 = (...elements) => elements;
 var init_Tuple = () => {};
 
-// node_modules/effect/dist/esm/Array.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Array.js
 var allocate = (n) => new Array(n), makeBy, fromIterable2 = (collection) => Array.isArray(collection) ? collection : Array.from(collection), ensure = (self) => Array.isArray(self) ? self : [self], prepend, append, appendAll, isEmptyArray = (self) => self.length === 0, isEmptyReadonlyArray, isNonEmptyArray2, isNonEmptyReadonlyArray, isOutOfBounds = (i, as2) => i < 0 || i >= as2.length, clamp = (i, as2) => Math.floor(Math.min(Math.max(0, i), as2.length)), get, unsafeGet, head, headNonEmpty, last = (self) => isNonEmptyReadonlyArray(self) ? some2(lastNonEmpty(self)) : none2(), lastNonEmpty = (self) => self[self.length - 1], tailNonEmpty = (self) => self.slice(1), spanIndex = (self, predicate) => {
   let i = 0;
   for (const a of self) {
@@ -9881,7 +10271,7 @@ var init_Array = __esm(() => {
   join = /* @__PURE__ */ dual(2, (self, sep) => fromIterable2(self).join(sep));
 });
 
-// node_modules/effect/dist/esm/Chunk.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Chunk.js
 function copy2(src, srcPos, dest, destPos, len) {
   for (let i = srcPos;i < Math.min(src.length, srcPos + len); i++) {
     dest[destPos + i - srcPos] = src[i];
@@ -10213,7 +10603,7 @@ var init_Chunk = __esm(() => {
   headNonEmpty2 = unsafeHead;
 });
 
-// node_modules/effect/dist/esm/internal/hashMap/config.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/hashMap/config.js
 var SIZE = 5, BUCKET_SIZE, MASK, MAX_INDEX_NODE, MIN_ARRAY_NODE;
 var init_config = __esm(() => {
   BUCKET_SIZE = /* @__PURE__ */ Math.pow(2, SIZE);
@@ -10222,7 +10612,7 @@ var init_config = __esm(() => {
   MIN_ARRAY_NODE = BUCKET_SIZE / 4;
 });
 
-// node_modules/effect/dist/esm/internal/hashMap/bitwise.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/hashMap/bitwise.js
 function popcount(x) {
   x -= x >> 1 & 1431655765;
   x = (x & 858993459) + (x >> 2 & 858993459);
@@ -10244,13 +10634,13 @@ var init_bitwise = __esm(() => {
   init_config();
 });
 
-// node_modules/effect/dist/esm/internal/stack.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/stack.js
 var make5 = (value, previous) => ({
   value,
   previous
 });
 
-// node_modules/effect/dist/esm/internal/hashMap/array.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/hashMap/array.js
 function arrayUpdate(mutate, at, v, arr) {
   let out = arr;
   if (!mutate) {
@@ -10301,7 +10691,7 @@ function arraySpliceIn(mutate, at, v, arr) {
   return out;
 }
 
-// node_modules/effect/dist/esm/internal/hashMap/node.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/hashMap/node.js
 class EmptyNode {
   _tag = "EmptyNode";
   modify(edit, _shift, f, hash2, key3, size) {
@@ -10560,7 +10950,7 @@ var init_node = __esm(() => {
   init_config();
 });
 
-// node_modules/effect/dist/esm/internal/hashMap.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/hashMap.js
 var HashMapSymbolKey = "effect/HashMap", HashMapTypeId, HashMapProto, makeImpl = (editable, edit, root, size) => {
   const map3 = Object.create(HashMapProto);
   map3._editable = editable;
@@ -10793,7 +11183,7 @@ var init_hashMap = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/hashSet.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/hashSet.js
 var HashSetSymbolKey = "effect/HashSet", HashSetTypeId, HashSetProto, makeImpl2 = (keyMap) => {
   const set2 = Object.create(HashSetProto);
   set2._keyMap = keyMap;
@@ -10894,7 +11284,7 @@ var init_hashSet = __esm(() => {
   reduce3 = /* @__PURE__ */ dual(3, (self, zero, f) => reduce2(self._keyMap, zero, (z, _, a) => f(z, a)));
 });
 
-// node_modules/effect/dist/esm/HashSet.js
+// ../agent-identity-context/node_modules/effect/dist/esm/HashSet.js
 var empty5, fromIterable6, make7, has3, size3, add2, remove4, difference3, union3, map5, flatMap4, reduce4;
 var init_HashSet = __esm(() => {
   init_hashSet();
@@ -10912,10 +11302,10 @@ var init_HashSet = __esm(() => {
   reduce4 = reduce3;
 });
 
-// node_modules/effect/dist/esm/internal/opCodes/cause.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/opCodes/cause.js
 var OP_DIE = "Die", OP_EMPTY = "Empty", OP_FAIL = "Fail", OP_INTERRUPT = "Interrupt", OP_PARALLEL = "Parallel", OP_SEQUENTIAL = "Sequential";
 
-// node_modules/effect/dist/esm/internal/cause.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/cause.js
 var CauseSymbolKey = "effect/Cause", CauseTypeId, variance, proto, empty6, fail2 = (error) => {
   const o = Object.create(proto);
   o._tag = OP_FAIL;
@@ -11540,7 +11930,7 @@ var init_cause = __esm(() => {
   spanSymbol = /* @__PURE__ */ Symbol.for("effect/SpanAnnotation");
 });
 
-// node_modules/effect/dist/esm/internal/context.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/context.js
 var TagTypeId, ReferenceTypeId, STMSymbolKey = "effect/STM", STMTypeId, TagProto, ReferenceProto, makeGenericTag = (key3) => {
   const limit = Error.stackTraceLimit;
   Error.stackTraceLimit = 2;
@@ -11758,7 +12148,7 @@ var init_context = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/Context.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Context.js
 var exports_Context = {};
 __export(exports_Context, {
   unsafeMake: () => unsafeMake,
@@ -11807,7 +12197,7 @@ var init_Context = __esm(() => {
   Reference2 = Reference;
 });
 
-// node_modules/effect/dist/esm/Duration.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Duration.js
 var TypeId6, bigint0, bigint24, bigint60, bigint1e3, bigint1e6, bigint1e9, DURATION_REGEX, decode = (input) => {
   if (isDuration(input)) {
     return input;
@@ -12075,11 +12465,11 @@ var init_Duration = __esm(() => {
   equals2 = /* @__PURE__ */ dual(2, (self, that) => Equivalence(decode(self), decode(that)));
 });
 
-// node_modules/effect/dist/esm/MutableRef.js
+// ../agent-identity-context/node_modules/effect/dist/esm/MutableRef.js
 var TypeId7, MutableRefProto, make11 = (value) => {
-  const ref2 = Object.create(MutableRefProto);
-  ref2.current = value;
-  return ref2;
+  const ref3 = Object.create(MutableRefProto);
+  ref3.current = value;
+  return ref3;
 }, compareAndSet, get6 = (self) => self.current, set2;
 var init_MutableRef = __esm(() => {
   init_Equal();
@@ -12118,7 +12508,7 @@ var init_MutableRef = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/fiberId.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/fiberId.js
 var FiberIdSymbolKey = "effect/FiberId", FiberIdTypeId, OP_NONE = "None", OP_RUNTIME = "Runtime", OP_COMPOSITE = "Composite", emptyHash, None, Runtime, Composite, none3, isFiberId = (self) => hasProperty(self, FiberIdTypeId), combine2, ids = (self) => {
   switch (self._tag) {
     case OP_NONE: {
@@ -12247,7 +12637,7 @@ var init_fiberId = __esm(() => {
   _fiberCounter = /* @__PURE__ */ globalValue(/* @__PURE__ */ Symbol.for("effect/Fiber/Id/_fiberCounter"), () => make11(0));
 });
 
-// node_modules/effect/dist/esm/FiberId.js
+// ../agent-identity-context/node_modules/effect/dist/esm/FiberId.js
 var none4, combine3, ids2, threadName2, unsafeMake3;
 var init_FiberId = __esm(() => {
   init_fiberId();
@@ -12258,7 +12648,7 @@ var init_FiberId = __esm(() => {
   unsafeMake3 = unsafeMake2;
 });
 
-// node_modules/effect/dist/esm/HashMap.js
+// ../agent-identity-context/node_modules/effect/dist/esm/HashMap.js
 var empty9, fromIterable7, isEmpty4, get7, set3, keys2, mutate3, modifyAt2, map7, forEach3, reduce6;
 var init_HashMap = __esm(() => {
   init_hashMap();
@@ -12275,7 +12665,7 @@ var init_HashMap = __esm(() => {
   reduce6 = reduce2;
 });
 
-// node_modules/effect/dist/esm/List.js
+// ../agent-identity-context/node_modules/effect/dist/esm/List.js
 var TypeId8, toArray2 = (self) => fromIterable2(self), getEquivalence4 = (isEquivalent) => mapInput(getEquivalence2(isEquivalent), toArray2), _equivalence4, ConsProto, makeCons = (head3, tail) => {
   const cons = Object.create(ConsProto);
   cons.head = head3;
@@ -12426,7 +12816,7 @@ var init_List = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/data.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/data.js
 var ArrayProto, Structural, struct = (as3) => Object.assign(Object.create(StructuralPrototype), as3);
 var init_data = __esm(() => {
   init_Equal();
@@ -12455,7 +12845,7 @@ var init_data = __esm(() => {
   }();
 });
 
-// node_modules/effect/dist/esm/internal/differ/contextPatch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/differ/contextPatch.js
 function variance2(a) {
   return a;
 }
@@ -12583,7 +12973,7 @@ var init_contextPatch = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/differ/hashSetPatch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/differ/hashSetPatch.js
 function variance3(a) {
   return a;
 }
@@ -12670,7 +13060,7 @@ var init_hashSetPatch = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/differ/readonlyArrayPatch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/differ/readonlyArrayPatch.js
 function variance4(a) {
   return a;
 }
@@ -12785,7 +13175,7 @@ var init_readonlyArrayPatch = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/differ.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/differ.js
 var DifferTypeId, DifferProto, make14 = (params) => {
   const differ = Object.create(DifferProto);
   differ.empty = params.empty;
@@ -12850,7 +13240,7 @@ var init_differ = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/runtimeFlagsPatch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/runtimeFlagsPatch.js
 var BIT_MASK = 255, BIT_SHIFT = 8, active = (patch4) => patch4 & BIT_MASK, enabled = (patch4) => patch4 >> BIT_SHIFT & BIT_MASK, make15 = (active2, enabled2) => (active2 & BIT_MASK) + ((enabled2 & active2 & BIT_MASK) << BIT_SHIFT), empty14, enable = (flag) => make15(flag, flag), disable = (flag) => make15(flag, 0), exclude, andThen3, invert = (n) => ~n >>> 0 & BIT_MASK;
 var init_runtimeFlagsPatch = __esm(() => {
   init_Function();
@@ -12859,7 +13249,7 @@ var init_runtimeFlagsPatch = __esm(() => {
   andThen3 = /* @__PURE__ */ dual(2, (self, that) => self | that);
 });
 
-// node_modules/effect/dist/esm/internal/runtimeFlags.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/runtimeFlags.js
 var None2 = 0, Interruption, OpSupervision, RuntimeMetrics, WindDown, CooperativeYielding, cooperativeYielding = (self) => isEnabled(self, CooperativeYielding), disable2, enable2, interruptible = (self) => interruption(self) && !windDown(self), interruption = (self) => isEnabled(self, Interruption), isEnabled, make16 = (...flags) => flags.reduce((a, b) => a | b, 0), none5, runtimeMetrics = (self) => isEnabled(self, RuntimeMetrics), windDown = (self) => isEnabled(self, WindDown), diff4, patch4, differ;
 var init_runtimeFlags = __esm(() => {
   init_Function();
@@ -12884,7 +13274,7 @@ var init_runtimeFlags = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/RuntimeFlagsPatch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/RuntimeFlagsPatch.js
 var empty15, enable3, disable3, exclude2;
 var init_RuntimeFlagsPatch = __esm(() => {
   init_runtimeFlagsPatch();
@@ -12894,7 +13284,7 @@ var init_RuntimeFlagsPatch = __esm(() => {
   exclude2 = exclude;
 });
 
-// node_modules/effect/dist/esm/internal/blockedRequests.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/blockedRequests.js
 var empty16, par = (self, that) => ({
   _tag: "Par",
   left: self,
@@ -13054,10 +13444,10 @@ var init_blockedRequests = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/opCodes/deferred.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/opCodes/deferred.js
 var OP_STATE_PENDING = "Pending", OP_STATE_DONE = "Done";
 
-// node_modules/effect/dist/esm/internal/deferred.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/deferred.js
 var DeferredSymbolKey = "effect/Deferred", DeferredTypeId, deferredVariance, pending = (joiners) => {
   return {
     _tag: OP_STATE_PENDING,
@@ -13077,7 +13467,7 @@ var init_deferred = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/singleShotGen.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/singleShotGen.js
 var SingleShotGen2;
 var init_singleShotGen = __esm(() => {
   SingleShotGen2 = class SingleShotGen2 {
@@ -13110,7 +13500,7 @@ var init_singleShotGen = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/core.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/core.js
 class RevertFlags {
   patch;
   op;
@@ -14215,7 +14605,7 @@ ${this.stack.split(`
   };
 });
 
-// node_modules/effect/dist/esm/Cause.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Cause.js
 var exports_Cause = {};
 __export(exports_Cause, {
   stripSomeDefects: () => stripSomeDefects2,
@@ -14367,7 +14757,7 @@ var init_Cause = __esm(() => {
   originalError = originalInstance;
 });
 
-// node_modules/effect/dist/esm/Deferred.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Deferred.js
 var _await, done2, interrupt4, unsafeMake4;
 var init_Deferred = __esm(() => {
   init_core();
@@ -14377,7 +14767,7 @@ var init_Deferred = __esm(() => {
   unsafeMake4 = deferredUnsafeMake;
 });
 
-// node_modules/effect/dist/esm/internal/clock.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/clock.js
 var ClockSymbolKey = "effect/Clock", ClockTypeId, clockTag, MAX_TIMER_MILLIS, globalClockScheduler, performanceNowNanos, processOrPerformanceNow, ClockImpl, make18 = () => new ClockImpl;
 var init_clock = __esm(() => {
   init_Context();
@@ -14447,21 +14837,21 @@ var init_clock = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/Number.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Number.js
 var Order;
 var init_Number = __esm(() => {
   init_Order();
   Order = number2;
 });
 
-// node_modules/effect/dist/esm/RegExp.js
+// ../agent-identity-context/node_modules/effect/dist/esm/RegExp.js
 var escape = (string2) => string2.replace(/[/\\^$*+?.()|[\]{}]/g, "\\$&");
 var init_RegExp = () => {};
 
-// node_modules/effect/dist/esm/internal/opCodes/configError.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/opCodes/configError.js
 var OP_AND = "And", OP_OR = "Or", OP_INVALID_DATA = "InvalidData", OP_MISSING_DATA = "MissingData", OP_SOURCE_UNAVAILABLE = "SourceUnavailable", OP_UNSUPPORTED = "Unsupported";
 
-// node_modules/effect/dist/esm/internal/configError.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/configError.js
 var ConfigErrorSymbolKey = "effect/ConfigError", ConfigErrorTypeId, proto2, And = (self, that) => {
   const error = Object.create(proto2);
   error._op = OP_AND;
@@ -14667,7 +15057,7 @@ var init_configError = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/configProvider/pathPatch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/configProvider/pathPatch.js
 var empty18, patch5;
 var init_pathPatch = __esm(() => {
   init_Array();
@@ -14719,10 +15109,10 @@ var init_pathPatch = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/opCodes/config.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/opCodes/config.js
 var OP_CONSTANT = "Constant", OP_FAIL2 = "Fail", OP_FALLBACK = "Fallback", OP_DESCRIBED = "Described", OP_LAZY = "Lazy", OP_MAP_OR_FAIL = "MapOrFail", OP_NESTED = "Nested", OP_PRIMITIVE = "Primitive", OP_REDACTED = "Redacted", OP_SEQUENCE = "Sequence", OP_HASHMAP = "HashMap", OP_ZIP_WITH = "ZipWith";
 
-// node_modules/effect/dist/esm/internal/configProvider.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/configProvider.js
 var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigProvider", ConfigProviderTypeId, configProviderTag, FlatConfigProviderSymbolKey = "effect/ConfigProviderFlat", FlatConfigProviderTypeId, make20 = (options) => ({
   [ConfigProviderTypeId]: ConfigProviderTypeId,
   pipe() {
@@ -14936,7 +15326,7 @@ var init_configProvider = __esm(() => {
   QUOTED_INDEX_REGEX = /^(\[(\d+)\])$/;
 });
 
-// node_modules/effect/dist/esm/internal/defaultServices/console.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/defaultServices/console.js
 var TypeId9, consoleTag, defaultConsole;
 var init_console = __esm(() => {
   init_Context();
@@ -15029,7 +15419,7 @@ var init_console = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/random.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/random.js
 var RandomSymbolKey = "effect/Random", RandomTypeId, randomTag, RandomImpl, shuffleWith = (elements, nextIntBounded) => {
   return suspend(() => pipe(sync(() => Array.from(elements)), flatMap7((buffer) => {
     const numbers = [];
@@ -15141,7 +15531,7 @@ var init_random = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/tracer.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/tracer.js
 class NativeSpan {
   name;
   parent;
@@ -15246,7 +15636,7 @@ var init_tracer = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/defaultServices.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/defaultServices.js
 var liveServices, currentServices, sleep = (duration) => {
   const decodedDuration = decode(duration);
   return clockWith((clock) => clock.sleep(decodedDuration));
@@ -15271,11 +15661,11 @@ var init_defaultServices = __esm(() => {
   withTracer = /* @__PURE__ */ dual(2, (effect, value) => fiberRefLocallyWith(currentServices, add4(tracerTag, value))(effect));
 });
 
-// node_modules/effect/dist/esm/Boolean.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Boolean.js
 var not = (self) => !self;
 var init_Boolean = () => {};
 
-// node_modules/effect/dist/esm/Effectable.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Effectable.js
 var EffectPrototype2, CommitPrototype2, Base2, Class;
 var init_Effectable = __esm(() => {
   init_effectable();
@@ -15286,7 +15676,7 @@ var init_Effectable = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/executionStrategy.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/executionStrategy.js
 var OP_SEQUENTIAL2 = "Sequential", OP_PARALLEL2 = "Parallel", OP_PARALLEL_N = "ParallelN", sequential3, parallel3, parallelN = (parallelism) => ({
   _tag: OP_PARALLEL_N,
   parallelism
@@ -15300,7 +15690,7 @@ var init_executionStrategy = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/ExecutionStrategy.js
+// ../agent-identity-context/node_modules/effect/dist/esm/ExecutionStrategy.js
 var sequential4, parallel4, parallelN2;
 var init_ExecutionStrategy = __esm(() => {
   init_executionStrategy();
@@ -15309,7 +15699,7 @@ var init_ExecutionStrategy = __esm(() => {
   parallelN2 = parallelN;
 });
 
-// node_modules/effect/dist/esm/internal/fiberRefs.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/fiberRefs.js
 function unsafeMake5(fiberRefLocals) {
   return new FiberRefsImpl(fiberRefLocals);
 }
@@ -15317,7 +15707,7 @@ function empty19() {
   return unsafeMake5(new Map);
 }
 var FiberRefsSym, FiberRefsImpl, findAncestor = (_ref, _parentStack, _childStack, _childModified = false) => {
-  const ref2 = _ref;
+  const ref3 = _ref;
   let parentStack = _parentStack;
   let childStack = _childStack;
   let childModified = _childModified;
@@ -15345,7 +15735,7 @@ var FiberRefsSym, FiberRefsImpl, findAncestor = (_ref, _parentStack, _childStack
         }
       }
     } else {
-      ret = [ref2.initial, true];
+      ret = [ref3.initial, true];
     }
   }
   return ret;
@@ -15483,7 +15873,7 @@ var init_fiberRefs = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/FiberRefs.js
+// ../agent-identity-context/node_modules/effect/dist/esm/FiberRefs.js
 var get9, getOrDefault2, joinAs2, setAll2, updateManyAs2, empty20;
 var init_FiberRefs = __esm(() => {
   init_fiberRefs();
@@ -15495,7 +15885,7 @@ var init_FiberRefs = __esm(() => {
   empty20 = empty19;
 });
 
-// node_modules/effect/dist/esm/internal/fiberRefs/patch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/fiberRefs/patch.js
 var OP_EMPTY2 = "Empty", OP_ADD = "Add", OP_REMOVE = "Remove", OP_UPDATE = "Update", OP_AND_THEN = "AndThen", empty21, diff5 = (oldValue, newValue) => {
   const missingLocals = new Map(oldValue.locals);
   let patch6 = empty21;
@@ -15586,7 +15976,7 @@ var init_patch = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/FiberRefsPatch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/FiberRefsPatch.js
 var diff6, patch7;
 var init_FiberRefsPatch = __esm(() => {
   init_patch();
@@ -15594,7 +15984,7 @@ var init_FiberRefsPatch = __esm(() => {
   patch7 = patch6;
 });
 
-// node_modules/effect/dist/esm/internal/fiberStatus.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/fiberStatus.js
 var FiberStatusSymbolKey = "effect/FiberStatus", FiberStatusTypeId, OP_DONE = "Done", OP_RUNNING = "Running", OP_SUSPENDED = "Suspended", DoneHash, Done, Running, Suspended, done3, running = (runtimeFlags2) => new Running(runtimeFlags2), suspended = (runtimeFlags2, blockingOn) => new Suspended(runtimeFlags2, blockingOn), isFiberStatus = (u) => hasProperty(u, FiberStatusTypeId), isDone = (self) => self._tag === OP_DONE;
 var init_fiberStatus = __esm(() => {
   init_Equal();
@@ -15646,7 +16036,7 @@ var init_fiberStatus = __esm(() => {
   done3 = /* @__PURE__ */ new Done;
 });
 
-// node_modules/effect/dist/esm/FiberStatus.js
+// ../agent-identity-context/node_modules/effect/dist/esm/FiberStatus.js
 var done4, running2, suspended2, isDone2;
 var init_FiberStatus = __esm(() => {
   init_fiberStatus();
@@ -15656,7 +16046,7 @@ var init_FiberStatus = __esm(() => {
   isDone2 = isDone;
 });
 
-// node_modules/effect/dist/esm/LogLevel.js
+// ../agent-identity-context/node_modules/effect/dist/esm/LogLevel.js
 var All, Fatal, Error2, Warning, Info, Debug, Trace, None3, Order2, greaterThan2, fromLiteral = (literal) => {
   switch (literal) {
     case "All":
@@ -15694,7 +16084,7 @@ var init_LogLevel = __esm(() => {
   greaterThan2 = /* @__PURE__ */ greaterThan(Order2);
 });
 
-// node_modules/effect/dist/esm/Micro.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Micro.js
 function defaultEvaluate(_fiber) {
   return exitDie2(`Micro.evaluate: Not implemented`);
 }
@@ -15895,8 +16285,8 @@ var init_Micro = __esm(() => {
       this.interruptible = interruptible3;
       this[MicroFiberTypeId] = fiberVariance;
     }
-    getRef(ref2) {
-      return unsafeGetReference(this.context, ref2);
+    getRef(ref3) {
+      return unsafeGetReference(this.context, ref3);
     }
     addObserver(cb) {
       if (this._exit) {
@@ -16144,7 +16534,7 @@ var init_Micro = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/Readable.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Readable.js
 var TypeId11, Proto;
 var init_Readable = __esm(() => {
   init_Pipeable();
@@ -16157,7 +16547,7 @@ var init_Readable = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/ref.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/ref.js
 var RefTypeId, refVariance, RefImpl, unsafeMake6 = (value) => new RefImpl(make11(value)), make23 = (value) => sync(() => unsafeMake6(value)), get10 = (self) => self.get, set4, getAndSet, modify3, update2;
 var init_ref = __esm(() => {
   init_Effectable();
@@ -16176,9 +16566,9 @@ var init_ref = __esm(() => {
     }
     [RefTypeId] = refVariance;
     [TypeId11] = TypeId11;
-    constructor(ref2) {
+    constructor(ref3) {
       super();
-      this.ref = ref2;
+      this.ref = ref3;
       this.get = sync(() => get6(this.ref));
     }
     get;
@@ -16199,7 +16589,7 @@ var init_ref = __esm(() => {
   update2 = /* @__PURE__ */ dual(2, (self, f) => self.modify((a) => [undefined, f(a)]));
 });
 
-// node_modules/effect/dist/esm/Ref.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Ref.js
 var make24, get11, getAndSet2, update3;
 var init_Ref = __esm(() => {
   init_ref();
@@ -16209,7 +16599,7 @@ var init_Ref = __esm(() => {
   update3 = update2;
 });
 
-// node_modules/effect/dist/esm/Scheduler.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Scheduler.js
 class SchedulerRunner {
   scheduleDrain;
   running = false;
@@ -16336,14 +16726,14 @@ var init_Scheduler = __esm(() => {
   withScheduler = /* @__PURE__ */ dual(2, (self, scheduler) => fiberRefLocally(self, currentScheduler, scheduler));
 });
 
-// node_modules/effect/dist/esm/internal/completedRequestMap.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/completedRequestMap.js
 var currentRequestMap;
 var init_completedRequestMap = __esm(() => {
   init_core();
   currentRequestMap = /* @__PURE__ */ globalValue(/* @__PURE__ */ Symbol.for("effect/FiberRef/currentRequestMap"), () => fiberRefUnsafeMake(new Map));
 });
 
-// node_modules/effect/dist/esm/internal/concurrency.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/concurrency.js
 var match8 = (concurrency, sequential5, unbounded, bounded2) => {
   switch (concurrency) {
     case undefined:
@@ -16371,7 +16761,7 @@ var init_concurrency = __esm(() => {
   init_core();
 });
 
-// node_modules/effect/dist/esm/Clock.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Clock.js
 var sleep2, currentTimeMillis2, currentTimeNanos2, clockWith2, Clock;
 var init_Clock = __esm(() => {
   init_clock();
@@ -16383,7 +16773,7 @@ var init_Clock = __esm(() => {
   Clock = clockTag;
 });
 
-// node_modules/effect/dist/esm/internal/logSpan.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/logSpan.js
 var make25 = (label2, startTime) => ({
   label: label2,
   startTime
@@ -16392,20 +16782,20 @@ var make25 = (label2, startTime) => ({
   return `${label2}=${now - self.startTime}ms`;
 };
 
-// node_modules/effect/dist/esm/LogSpan.js
+// ../agent-identity-context/node_modules/effect/dist/esm/LogSpan.js
 var make26;
 var init_LogSpan = __esm(() => {
   make26 = make25;
 });
 
-// node_modules/effect/dist/esm/Tracer.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Tracer.js
 var tracerWith2;
 var init_Tracer = __esm(() => {
   init_defaultServices();
   tracerWith2 = tracerWith;
 });
 
-// node_modules/effect/dist/esm/internal/metric/label.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric/label.js
 var MetricLabelSymbolKey = "effect/MetricLabel", MetricLabelTypeId, MetricLabelImpl, make27 = (key3, value) => {
   return new MetricLabelImpl(key3, value);
 }, isMetricLabel = (u) => hasProperty(u, MetricLabelTypeId);
@@ -16437,7 +16827,7 @@ var init_label = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/core-effect.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/core-effect.js
 var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => mapError(self, some2), try_ = (arg) => {
   let evaluate2;
   let onFailure = undefined;
@@ -16538,7 +16928,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     case "Some":
       return fail3(new NoSuchElementException);
   }
-}), once = (self) => map8(make24(true), (ref2) => asVoid2(whenEffect(self, getAndSet2(ref2, false)))), option = (self) => matchEffect(self, {
+}), once = (self) => map8(make24(true), (ref3) => asVoid2(whenEffect(self, getAndSet2(ref3, false)))), option = (self) => matchEffect(self, {
   onFailure: () => succeed(none2()),
   onSuccess: (a) => succeed(some2(a))
 }), orElseFail, orElseSucceed, parallelErrors = (self) => matchCauseEffect(self, {
@@ -16928,7 +17318,7 @@ var init_core_effect = __esm(() => {
   tagMetrics = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     return labelMetrics(arguments[0], typeof arguments[1] === "string" ? [make27(arguments[1], arguments[2])] : Object.entries(arguments[1]).map(([k, v]) => make27(k, v)));
   });
-  labelMetrics = /* @__PURE__ */ dual(2, (self, labels5) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels5)));
+  labelMetrics = /* @__PURE__ */ dual(2, (self, labels7) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels7)));
   takeUntil = /* @__PURE__ */ dual(2, (elements, predicate) => suspend(() => {
     const iterator = elements[Symbol.iterator]();
     const builder = [];
@@ -17025,7 +17415,7 @@ var init_core_effect = __esm(() => {
   updateService = /* @__PURE__ */ dual(3, (self, tag, f) => mapInputContext(self, (context2) => add4(context2, tag, f(unsafeGet4(context2, tag)))));
   when = /* @__PURE__ */ dual(2, (self, condition) => suspend(() => condition() ? map8(self, some2) : succeed(none2())));
   whenFiberRef = /* @__PURE__ */ dual(3, (self, fiberRef, predicate) => flatMap7(fiberRefGet(fiberRef), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
-  whenRef = /* @__PURE__ */ dual(3, (self, ref2, predicate) => flatMap7(get11(ref2), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
+  whenRef = /* @__PURE__ */ dual(3, (self, ref3, predicate) => flatMap7(get11(ref3), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
   withMetric = /* @__PURE__ */ dual(2, (self, metric) => metric(self));
   annotateSpans = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     const args2 = arguments;
@@ -17052,7 +17442,7 @@ var init_core_effect = __esm(() => {
   withParentSpan = /* @__PURE__ */ dual(2, (self, span2) => provideService(self, spanTag, span2));
 });
 
-// node_modules/effect/dist/esm/Exit.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Exit.js
 var exports_Exit = {};
 __export(exports_Exit, {
   zipWith: () => zipWith4,
@@ -17131,7 +17521,7 @@ var init_Exit = __esm(() => {
   zipWith4 = exitZipWith;
 });
 
-// node_modules/effect/dist/esm/internal/fiberMessage.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/fiberMessage.js
 var OP_INTERRUPT_SIGNAL = "InterruptSignal", OP_STATEFUL = "Stateful", OP_RESUME = "Resume", OP_YIELD_NOW = "YieldNow", interruptSignal = (cause2) => ({
   _tag: OP_INTERRUPT_SIGNAL,
   cause: cause2
@@ -17145,7 +17535,7 @@ var OP_INTERRUPT_SIGNAL = "InterruptSignal", OP_STATEFUL = "Stateful", OP_RESUME
   _tag: OP_YIELD_NOW
 });
 
-// node_modules/effect/dist/esm/internal/fiberScope.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/fiberScope.js
 var FiberScopeSymbolKey = "effect/FiberScope", FiberScopeTypeId, Global, Local, unsafeMake7 = (fiber) => {
   return new Local(fiber.id(), fiber);
 }, globalScope;
@@ -17183,7 +17573,7 @@ var init_fiberScope = __esm(() => {
   globalScope = /* @__PURE__ */ globalValue(/* @__PURE__ */ Symbol.for("effect/FiberScope/Global"), () => new Global);
 });
 
-// node_modules/effect/dist/esm/internal/fiber.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/fiber.js
 var FiberSymbolKey = "effect/Fiber", FiberTypeId, fiberVariance2, fiberProto, RuntimeFiberSymbolKey = "effect/Fiber", RuntimeFiberTypeId, isRuntimeFiber = (self) => (RuntimeFiberTypeId in self), _await2 = (self) => self.await, inheritAll = (self) => self.inheritAll, interruptAllAs, interruptAsFork, join2 = (self) => zipLeft2(flatten5(self.await), self.inheritAll), _never, currentFiberURI = "effect/FiberCurrent";
 var init_fiber = __esm(() => {
   init_FiberId();
@@ -17235,7 +17625,7 @@ var init_fiber = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/logger.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/logger.js
 var LoggerSymbolKey = "effect/Logger", LoggerTypeId, loggerVariance, makeLogger = (log2) => ({
   [LoggerTypeId]: loggerVariance,
   log: log2,
@@ -17322,7 +17712,7 @@ var init_logger = __esm(() => {
   hasProcessStdoutOrDeno = hasProcessStdout || "Deno" in globalThis;
 });
 
-// node_modules/effect/dist/esm/internal/metric/boundaries.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric/boundaries.js
 var MetricBoundariesSymbolKey = "effect/MetricBoundaries", MetricBoundariesTypeId, MetricBoundariesImpl, isMetricBoundaries = (u) => hasProperty(u, MetricBoundariesTypeId), fromIterable8 = (iterable) => {
   const values3 = pipe(iterable, appendAll(of2(Number.POSITIVE_INFINITY)), dedupe);
   return new MetricBoundariesImpl(values3);
@@ -17356,7 +17746,7 @@ var init_boundaries = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/metric/keyType.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric/keyType.js
 var MetricKeyTypeSymbolKey = "effect/MetricKeyType", MetricKeyTypeTypeId, CounterKeyTypeSymbolKey = "effect/MetricKeyType/Counter", CounterKeyTypeTypeId, FrequencyKeyTypeSymbolKey = "effect/MetricKeyType/Frequency", FrequencyKeyTypeTypeId, GaugeKeyTypeSymbolKey = "effect/MetricKeyType/Gauge", GaugeKeyTypeTypeId, HistogramKeyTypeSymbolKey = "effect/MetricKeyType/Histogram", HistogramKeyTypeTypeId, SummaryKeyTypeSymbolKey = "effect/MetricKeyType/Summary", SummaryKeyTypeTypeId, metricKeyTypeVariance, CounterKeyType, HistogramKeyType, counter = (options) => new CounterKeyType(options?.incremental ?? false, options?.bigint ?? false), histogram = (boundaries) => {
   return new HistogramKeyType(boundaries);
 }, isCounterKey = (u) => hasProperty(u, CounterKeyTypeTypeId), isFrequencyKey = (u) => hasProperty(u, FrequencyKeyTypeTypeId), isGaugeKey = (u) => hasProperty(u, GaugeKeyTypeTypeId), isHistogramKey = (u) => hasProperty(u, HistogramKeyTypeTypeId), isSummaryKey = (u) => hasProperty(u, SummaryKeyTypeTypeId);
@@ -17418,7 +17808,7 @@ var init_keyType = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/metric/key.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric/key.js
 var MetricKeySymbolKey = "effect/MetricKey", MetricKeyTypeId, metricKeyVariance, arrayEquivilence, MetricKeyImpl, isMetricKey = (u) => hasProperty(u, MetricKeyTypeId), counter2 = (name, options) => new MetricKeyImpl(name, counter(options), fromNullable(options?.description)), histogram2 = (name, boundaries, description) => new MetricKeyImpl(name, histogram(boundaries), fromNullable(description)), taggedWithLabels;
 var init_key = __esm(() => {
   init_Array();
@@ -17461,7 +17851,7 @@ var init_key = __esm(() => {
   taggedWithLabels = /* @__PURE__ */ dual(2, (self, extraTags) => extraTags.length === 0 ? self : new MetricKeyImpl(self.name, self.keyType, self.description, union(self.tags, extraTags)));
 });
 
-// node_modules/effect/dist/esm/MutableHashMap.js
+// ../agent-identity-context/node_modules/effect/dist/esm/MutableHashMap.js
 class BucketIterator {
   backing;
   constructor(backing) {
@@ -17612,7 +18002,7 @@ var init_MutableHashMap = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/metric/state.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric/state.js
 var MetricStateSymbolKey = "effect/MetricState", MetricStateTypeId, CounterStateSymbolKey = "effect/MetricState/Counter", CounterStateTypeId, FrequencyStateSymbolKey = "effect/MetricState/Frequency", FrequencyStateTypeId, GaugeStateSymbolKey = "effect/MetricState/Gauge", GaugeStateTypeId, HistogramStateSymbolKey = "effect/MetricState/Histogram", HistogramStateTypeId, SummaryStateSymbolKey = "effect/MetricState/Summary", SummaryStateTypeId, metricStateVariance, CounterState, arrayEquals, FrequencyState, GaugeState, HistogramState, SummaryState, counter3 = (count) => new CounterState(count), frequency2 = (occurrences) => {
   return new FrequencyState(occurrences);
 }, gauge2 = (count) => new GaugeState(count), histogram3 = (options) => new HistogramState(options.buckets, options.count, options.min, options.max, options.sum), summary2 = (options) => new SummaryState(options.error, options.quantiles, options.count, options.min, options.max, options.sum), isCounterState = (u) => hasProperty(u, CounterStateTypeId), isFrequencyState = (u) => hasProperty(u, FrequencyStateTypeId), isGaugeState = (u) => hasProperty(u, GaugeStateTypeId), isHistogramState = (u) => hasProperty(u, HistogramStateTypeId), isSummaryState = (u) => hasProperty(u, SummaryStateTypeId);
@@ -17739,7 +18129,7 @@ var init_state = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/metric/hook.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric/hook.js
 var MetricHookSymbolKey = "effect/MetricHook", MetricHookTypeId, metricHookVariance, make28 = (options) => ({
   [MetricHookTypeId]: metricHookVariance,
   pipe() {
@@ -18033,7 +18423,7 @@ var init_hook = __esm(() => {
   bigint03 = /* @__PURE__ */ BigInt(0);
 });
 
-// node_modules/effect/dist/esm/internal/metric/pair.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric/pair.js
 var MetricPairSymbolKey = "effect/MetricPair", MetricPairTypeId, metricPairVariance, unsafeMake8 = (metricKey, metricState) => {
   return {
     [MetricPairTypeId]: metricPairVariance,
@@ -18052,7 +18442,7 @@ var init_pair = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/metric/registry.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric/registry.js
 var MetricRegistrySymbolKey = "effect/MetricRegistry", MetricRegistryTypeId, MetricRegistryImpl, make29 = () => {
   return new MetricRegistryImpl;
 };
@@ -18155,7 +18545,7 @@ var init_registry = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/metric.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/metric.js
 var MetricSymbolKey = "effect/Metric", MetricTypeId, metricVariance, globalMetricRegistry, make30 = function(keyType, unsafeUpdate, unsafeValue, unsafeModify) {
   const metric = Object.assign((effect) => tap2(effect, (a) => update4(metric, a)), {
     [MetricTypeId]: metricVariance,
@@ -18215,7 +18605,7 @@ var init_metric = __esm(() => {
   update4 = /* @__PURE__ */ dual(2, (self, input) => fiberRefGetWith(currentMetricLabels, (tags) => sync(() => self.unsafeUpdate(input, tags))));
 });
 
-// node_modules/effect/dist/esm/internal/request.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/request.js
 class Listeners {
   count = 0;
   observers = /* @__PURE__ */ new Set;
@@ -18262,7 +18652,7 @@ var init_request = __esm(() => {
   })));
 });
 
-// node_modules/effect/dist/esm/internal/supervisor.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/supervisor.js
 var SupervisorSymbolKey = "effect/Supervisor", SupervisorTypeId, supervisorVariance, ProxySupervisor, Zip, isZip = (self) => hasProperty(self, SupervisorTypeId) && isTagged(self, "Zip"), Track, Const, unsafeTrack = () => {
   return new Track;
 }, track, fromEffect = (effect) => {
@@ -18401,14 +18791,14 @@ var init_supervisor = __esm(() => {
   none8 = /* @__PURE__ */ globalValue("effect/Supervisor/none", () => fromEffect(void_2));
 });
 
-// node_modules/effect/dist/esm/Differ.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Differ.js
 var make31;
 var init_Differ = __esm(() => {
   init_differ();
   make31 = make14;
 });
 
-// node_modules/effect/dist/esm/internal/supervisor/patch.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/supervisor/patch.js
 var OP_EMPTY3 = "Empty", OP_ADD_SUPERVISOR = "AddSupervisor", OP_REMOVE_SUPERVISOR = "RemoveSupervisor", OP_AND_THEN2 = "AndThen", empty23, combine8 = (self, that) => {
   return {
     _tag: OP_AND_THEN2,
@@ -18498,7 +18888,7 @@ var init_patch2 = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/fiberRuntime.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/fiberRuntime.js
 var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, EvaluationSignalContinue = "Continue", EvaluationSignalDone = "Done", EvaluationSignalYieldNow = "Yield", runtimeFiberVariance, absurd = (_) => {
   throw new Error(`BUG: FiberRuntime - ${toStringUnknown(_)} - please report an issue at https://github.com/Effect-TS/effect/issues`);
 }, YieldedOp, yieldedOpChannel, contOpSuccess, drainQueueWhileRunningTable, runBlockedRequests = (self) => forEachSequentialDiscard(flatten4(self), (requestsByRequestResolver) => forEachConcurrentDiscard(sequentialCollectionToChunk(requestsByRequestResolver), ([dataSource, sequential5]) => {
@@ -18892,7 +19282,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
         return flatMap7(scopeFork(scope, sequential4), (inner) => scopeExtend(self, inner));
     }
   }
-})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels5) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels5)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
+})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels7) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels7)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
   if (update5 === empty15) {
     return void_2;
   }
@@ -20133,7 +20523,7 @@ var init_fiberRuntime = __esm(() => {
   })));
 });
 
-// node_modules/effect/dist/esm/internal/schedule/interval.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/schedule/interval.js
 var IntervalSymbolKey = "effect/ScheduleInterval", IntervalTypeId, empty24, make32 = (startMillis, endMillis) => {
   if (startMillis > endMillis) {
     return empty24;
@@ -20177,7 +20567,7 @@ var init_interval = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/ScheduleInterval.js
+// ../agent-identity-context/node_modules/effect/dist/esm/ScheduleInterval.js
 var empty25, lessThan3, isEmpty8, intersect2, after2;
 var init_ScheduleInterval = __esm(() => {
   init_interval();
@@ -20188,7 +20578,7 @@ var init_ScheduleInterval = __esm(() => {
   after2 = after;
 });
 
-// node_modules/effect/dist/esm/internal/schedule/intervals.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/schedule/intervals.js
 var IntervalsSymbolKey = "effect/ScheduleIntervals", IntervalsTypeId, make34 = (intervals) => {
   return {
     [IntervalsTypeId]: IntervalsTypeId,
@@ -20226,7 +20616,7 @@ var init_intervals = __esm(() => {
   lessThan4 = /* @__PURE__ */ dual(2, (self, that) => start(self) < start(that));
 });
 
-// node_modules/effect/dist/esm/ScheduleIntervals.js
+// ../agent-identity-context/node_modules/effect/dist/esm/ScheduleIntervals.js
 var make35, intersect4, start2, end2, lessThan5, isNonEmpty4;
 var init_ScheduleIntervals = __esm(() => {
   init_intervals();
@@ -20238,7 +20628,7 @@ var init_ScheduleIntervals = __esm(() => {
   isNonEmpty4 = isNonEmpty3;
 });
 
-// node_modules/effect/dist/esm/internal/schedule/decision.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/schedule/decision.js
 var OP_CONTINUE = "Continue", OP_DONE2 = "Done", _continue = (intervals) => {
   return {
     _tag: OP_CONTINUE,
@@ -20262,7 +20652,7 @@ var init_decision = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/ScheduleDecision.js
+// ../agent-identity-context/node_modules/effect/dist/esm/ScheduleDecision.js
 var _continue2, continueWith2, done6, isContinue2, isDone4;
 var init_ScheduleDecision = __esm(() => {
   init_decision();
@@ -20273,7 +20663,7 @@ var init_ScheduleDecision = __esm(() => {
   isDone4 = isDone3;
 });
 
-// node_modules/effect/dist/esm/Scope.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Scope.js
 var Scope, close, fork2;
 var init_Scope = __esm(() => {
   init_core();
@@ -20283,7 +20673,7 @@ var init_Scope = __esm(() => {
   fork2 = scopeFork;
 });
 
-// node_modules/effect/dist/esm/internal/effect/circular.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/effect/circular.js
 class Semaphore {
   permits;
   waiters = /* @__PURE__ */ new Set;
@@ -20368,7 +20758,7 @@ var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (
     }
   }
 })), flatMap7((option2) => isNone2(option2) ? dieMessage("BUG: Effect.cachedInvalidate - please report an issue at https://github.com/Effect-TS/effect/issues") : restore(deferredAwait(option2.value[1]))))), invalidateCache = (cache) => set4(cache, none2()), ensuringChild, ensuringChildren, forkAll, forkIn, forkScoped = (self) => scopeWith((scope2) => forkIn(self, scope2)), fromFiber = (fiber) => join2(fiber), fromFiberEffect = (fiber) => suspend(() => flatMap7(fiber, join2)), memoKeySymbol, Key, cachedFunction = (f, eq) => {
-  return pipe(sync(() => empty22()), flatMap7(makeSynchronized), map8((ref2) => (a) => pipe(ref2.modifyEffect((map11) => {
+  return pipe(sync(() => empty22()), flatMap7(makeSynchronized), map8((ref3) => (a) => pipe(ref3.modifyEffect((map11) => {
     const result = pipe(map11, get12(new Key(a, eq)));
     if (isNone2(result)) {
       return pipe(deferredMake(), tap2((deferred) => pipe(diffFiberRefs(f(a)), intoDeferred(deferred), fork)), map8((deferred) => [deferred, pipe(map11, set5(new Key(a, eq), deferred))]));
@@ -20376,9 +20766,9 @@ var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (
     return succeed([result.value, map11]);
   }), flatMap7(deferredAwait), flatMap7(([patch9, b]) => pipe(patchFiberRefs(patch9), as3(b))))));
 }, raceFirst, supervised, timeout, timeoutFail, timeoutFailCause, timeoutOption, timeoutTo, SynchronizedSymbolKey = "effect/Ref/SynchronizedRef", SynchronizedTypeId, synchronizedVariance, SynchronizedImpl, makeSynchronized = (value) => sync(() => unsafeMakeSynchronized(value)), unsafeMakeSynchronized = (value) => {
-  const ref2 = unsafeMake6(value);
+  const ref3 = unsafeMake6(value);
   const sem = unsafeMakeSemaphore(1);
-  return new SynchronizedImpl(ref2, sem.withPermits(1));
+  return new SynchronizedImpl(ref3, sem.withPermits(1));
 }, updateSomeAndGetEffectSynchronized, bindAll;
 var init_circular = __esm(() => {
   init_Duration();
@@ -20576,9 +20966,9 @@ var init_circular = __esm(() => {
     [SynchronizedTypeId] = synchronizedVariance;
     [RefTypeId] = refVariance;
     [TypeId11] = TypeId11;
-    constructor(ref2, withLock) {
+    constructor(ref3, withLock) {
       super();
-      this.ref = ref2;
+      this.ref = ref3;
       this.withLock = withLock;
       this.get = get10(this.ref);
     }
@@ -20607,23 +20997,23 @@ var init_circular = __esm(() => {
   bindAll = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), (self, f, options) => flatMap7(self, (a) => all3(f(a), options).pipe(map8((record) => Object.assign({}, a, record)))));
 });
 
-// node_modules/effect/dist/esm/internal/managedRuntime/circular.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/managedRuntime/circular.js
 var TypeId13;
 var init_circular2 = __esm(() => {
   TypeId13 = /* @__PURE__ */ Symbol.for("effect/ManagedRuntime");
 });
 
-// node_modules/effect/dist/esm/internal/opCodes/layer.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/opCodes/layer.js
 var OP_EXTEND_SCOPE = "ExtendScope", OP_FOLD = "Fold", OP_FRESH = "Fresh", OP_FROM_EFFECT = "FromEffect", OP_SCOPED = "Scoped", OP_SUSPEND = "Suspend", OP_PROVIDE = "Provide", OP_PROVIDE_MERGE = "ProvideMerge", OP_MERGE_ALL = "MergeAll", OP_ZIP_WITH2 = "ZipWith";
 
-// node_modules/effect/dist/esm/Fiber.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Fiber.js
 var interruptAs;
 var init_Fiber = __esm(() => {
   init_core();
   interruptAs = interruptAsFiber;
 });
 
-// node_modules/effect/dist/esm/internal/runtime.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/runtime.js
 class RuntimeImpl {
   context;
   runtimeFlags;
@@ -20856,14 +21246,14 @@ var init_runtime2 = __esm(() => {
   unsafeRunSyncExitEffect = /* @__PURE__ */ unsafeRunSyncExit(defaultRuntime);
 });
 
-// node_modules/effect/dist/esm/internal/synchronizedRef.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/synchronizedRef.js
 var modifyEffect;
 var init_synchronizedRef = __esm(() => {
   init_Function();
   modifyEffect = /* @__PURE__ */ dual(2, (self, f) => self.modifyEffect(f));
 });
 
-// node_modules/effect/dist/esm/internal/layer.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/layer.js
 function fromEffectContext(effect) {
   const fromEffect3 = Object.create(proto3);
   fromEffect3._op_layer = OP_FROM_EFFECT;
@@ -21049,8 +21439,8 @@ var init_layer = __esm(() => {
   MemoMapImpl = class MemoMapImpl {
     ref;
     [MemoMapTypeId];
-    constructor(ref2) {
-      this.ref = ref2;
+    constructor(ref3) {
+      this.ref = ref3;
       this[MemoMapTypeId] = MemoMapTypeId;
     }
     getOrElseMemoize(layer, scope2) {
@@ -21084,7 +21474,7 @@ var init_layer = __esm(() => {
       }), flatten5);
     }
   };
-  makeMemoMap = /* @__PURE__ */ suspend(() => map8(makeSynchronized(new Map), (ref2) => new MemoMapImpl(ref2)));
+  makeMemoMap = /* @__PURE__ */ suspend(() => map8(makeSynchronized(new Map), (ref3) => new MemoMapImpl(ref3)));
   buildWithScope = /* @__PURE__ */ dual(2, (self, scope2) => flatMap7(makeMemoMap, (memoMap) => buildWithMemoMap(self, memoMap, scope2)));
   buildWithMemoMap = /* @__PURE__ */ dual(3, (self, memoMap, scope2) => flatMap7(makeBuilder(self, scope2), (run) => provideService(run(memoMap), CurrentMemoMap, memoMap)));
   catchAll2 = /* @__PURE__ */ dual(2, (self, onFailure) => match11(self, {
@@ -21106,7 +21496,7 @@ var init_layer = __esm(() => {
     const effect = tagFirst ? b : a;
     return fromEffectContext(map8(effect, (service) => make9(tag, service)));
   });
-  fiberRefLocally2 = /* @__PURE__ */ dual(3, (self, ref2, value) => locallyEffect(self, fiberRefLocally(ref2, value)));
+  fiberRefLocally2 = /* @__PURE__ */ dual(3, (self, ref3, value) => locallyEffect(self, fiberRefLocally(ref3, value)));
   locallyEffect = /* @__PURE__ */ dual(2, (self, f) => {
     const locally = Object.create(proto3);
     locally._op_layer = "Locally";
@@ -21114,7 +21504,7 @@ var init_layer = __esm(() => {
     locally.f = f;
     return locally;
   });
-  fiberRefLocallyWith2 = /* @__PURE__ */ dual(3, (self, ref2, value) => locallyEffect(self, fiberRefLocallyWith(ref2, value)));
+  fiberRefLocallyWith2 = /* @__PURE__ */ dual(3, (self, ref3, value) => locallyEffect(self, fiberRefLocallyWith(ref3, value)));
   map11 = /* @__PURE__ */ dual(2, (self, f) => flatMap11(self, (context3) => succeedContext(f(context3))));
   mapError3 = /* @__PURE__ */ dual(2, (self, f) => catchAll2(self, (error) => failSync2(() => f(error))));
   matchCause2 = /* @__PURE__ */ dual(2, (self, {
@@ -21263,7 +21653,7 @@ var init_layer = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/console.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/console.js
 var console2, consoleWith = (f) => fiberRefGetWith(currentServices, (services) => f(get5(services, consoleTag))), withConsole, withConsoleScoped = (console3) => fiberRefLocallyScopedWith(currentServices, add4(consoleTag, console3));
 var init_console2 = __esm(() => {
   init_Context();
@@ -21276,14 +21666,14 @@ var init_console2 = __esm(() => {
   withConsole = /* @__PURE__ */ dual(2, (effect, value) => fiberRefLocallyWith(effect, currentServices, add4(consoleTag, value)));
 });
 
-// node_modules/effect/dist/esm/Random.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Random.js
 var fixed2;
 var init_Random = __esm(() => {
   init_random();
   fixed2 = fixed;
 });
 
-// node_modules/effect/dist/esm/internal/schedule.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/schedule.js
 var ScheduleSymbolKey = "effect/Schedule", ScheduleTypeId, isSchedule = (u) => hasProperty(u, ScheduleTypeId), ScheduleDriverSymbolKey = "effect/ScheduleDriver", ScheduleDriverTypeId, defaultIterationMetadata, CurrentIterationMetadata, scheduleVariance, scheduleDriverVariance, ScheduleImpl, updateInfo = (iterationMetaRef, now, input, output) => update2(iterationMetaRef, (prev) => prev.recurrence === 0 ? {
   now,
   input,
@@ -21300,7 +21690,7 @@ var ScheduleSymbolKey = "effect/Schedule", ScheduleTypeId, isSchedule = (u) => h
   elapsed: millis(now - prev.start),
   elapsedSincePrevious: millis(now - prev.now),
   start: prev.start
-}), ScheduleDriverImpl, makeWithState = (initial, step3) => new ScheduleImpl(initial, step3), asVoid4 = (self) => map12(self, constVoid), check, checkEffect, driver = (self) => pipe(make23([none2(), self.initial]), map8((ref2) => new ScheduleDriverImpl(self, ref2))), intersect5, intersectWith, intersectWithLoop = (self, that, input, lState, out, lInterval, rState, out2, rInterval, f) => {
+}), ScheduleDriverImpl, makeWithState = (initial, step3) => new ScheduleImpl(initial, step3), asVoid4 = (self) => map12(self, constVoid), check, checkEffect, driver = (self) => pipe(make23([none2(), self.initial]), map8((ref3) => new ScheduleDriverImpl(self, ref3))), intersect5, intersectWith, intersectWithLoop = (self, that, input, lState, out, lInterval, rState, out2, rInterval, f) => {
   const combined = f(lInterval, rInterval);
   if (isNonEmpty4(combined)) {
     return succeed([[lState, rState], [out, out2], _continue2(combined)]);
@@ -21410,9 +21800,9 @@ var init_schedule = __esm(() => {
     schedule;
     ref;
     [ScheduleDriverTypeId] = scheduleDriverVariance;
-    constructor(schedule, ref2) {
+    constructor(schedule, ref3) {
       this.schedule = schedule;
-      this.ref = ref2;
+      this.ref = ref3;
     }
     get state() {
       return map8(get10(this.ref), (tuple) => tuple[1]);
@@ -21518,7 +21908,7 @@ var init_schedule = __esm(() => {
   scheduleForked = /* @__PURE__ */ dual(2, (self, schedule) => forkScoped(schedule_Effect(self, schedule)));
 });
 
-// node_modules/effect/dist/esm/internal/executionPlan.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/executionPlan.js
 var withExecutionPlan, scheduleFromStep = (step3, first) => {
   if (!first) {
     return fromRetryOptions({
@@ -21573,7 +21963,7 @@ var init_executionPlan = __esm(() => {
   }));
 });
 
-// node_modules/effect/dist/esm/MutableList.js
+// ../agent-identity-context/node_modules/effect/dist/esm/MutableList.js
 var TypeId14, MutableListProto, makeNode = (value) => ({
   value,
   removed: false,
@@ -21684,7 +22074,7 @@ var init_MutableList = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/MutableQueue.js
+// ../agent-identity-context/node_modules/effect/dist/esm/MutableQueue.js
 var TypeId15, EmptyMutableQueue, MutableQueueProto, make37 = (capacity) => {
   const queue = Object.create(MutableQueueProto);
   queue.queue = empty28();
@@ -21735,7 +22125,7 @@ var init_MutableQueue = __esm(() => {
   });
 });
 
-// node_modules/effect/dist/esm/internal/cache.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/cache.js
 class KeySetImpl {
   head = undefined;
   tail = undefined;
@@ -22154,7 +22544,7 @@ var init_cache = __esm(() => {
   };
 });
 
-// node_modules/effect/dist/esm/internal/query.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/query.js
 var currentCache, currentCacheEnabled, fromRequest = (request, dataSource) => flatMap7(isEffect(dataSource) ? dataSource : succeed(dataSource), (ds) => fiberIdWith((id) => {
   const proxy = new Proxy(request, {});
   return fiberRefGetWith(currentCacheEnabled, (cacheEnabled) => {
@@ -22192,15 +22582,15 @@ var currentCache, currentCacheEnabled, fromRequest = (request, dataSource) => fl
     }
     const listeners = new Listeners;
     listeners.increment();
-    return flatMap7(deferredMake(), (ref2) => ensuring(blocked(single(ds, makeEntry({
+    return flatMap7(deferredMake(), (ref3) => ensuring(blocked(single(ds, makeEntry({
       request: proxy,
-      result: ref2,
+      result: ref3,
       listeners,
       ownerId: id,
       state: {
         completed: false
       }
-    })), deferredAwait(ref2)), sync(() => listeners.decrement())));
+    })), deferredAwait(ref3)), sync(() => listeners.decrement())));
   });
 })), cacheRequest = (request, result) => {
   return fiberRefGetWith(currentCacheEnabled, (cacheEnabled) => {
@@ -22236,14 +22626,14 @@ var init_query = __esm(() => {
   withRequestCache = /* @__PURE__ */ dual(2, (self, cache) => fiberRefLocally(self, currentCache, cache));
 });
 
-// node_modules/effect/dist/esm/Request.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Request.js
 var isRequest2;
 var init_Request = __esm(() => {
   init_request();
   isRequest2 = isRequest;
 });
 
-// node_modules/effect/dist/esm/Effect.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Effect.js
 var exports_Effect = {};
 __export(exports_Effect, {
   zipWith: () => zipWith6,
@@ -23181,7 +23571,7 @@ var init_Effect = __esm(() => {
   fnUntraced2 = fnUntraced;
 });
 
-// node_modules/effect/dist/esm/internal/layer/circular.js
+// ../agent-identity-context/node_modules/effect/dist/esm/internal/layer/circular.js
 var setConfigProvider = (configProvider) => scopedDiscard(withConfigProviderScoped(configProvider)), parentSpan = (span2) => succeedContext(make9(spanTag, span2)), span2 = (name, options) => {
   options = addSpanStackTrace(options);
   return scoped(spanTag, options?.onEnd ? tap2(makeSpanScoped(name, options), (span3) => addFinalizer((exit3) => options.onEnd(span3, exit3))) : makeSpanScoped(name, options));
@@ -23194,7 +23584,7 @@ var init_circular3 = __esm(() => {
   init_tracer();
 });
 
-// node_modules/effect/dist/esm/Layer.js
+// ../agent-identity-context/node_modules/effect/dist/esm/Layer.js
 var exports_Layer = {};
 __export(exports_Layer, {
   zipWith: () => zipWith7,
@@ -23378,7 +23768,7 @@ var init_Layer = __esm(() => {
   updateService3 = /* @__PURE__ */ dual(3, (layer, tag, f) => provide3(layer, map14(context4(), (c) => add4(c, tag, f(unsafeGet4(c, tag))))));
 });
 
-// node_modules/effect/dist/esm/index.js
+// ../agent-identity-context/node_modules/effect/dist/esm/index.js
 var init_esm = __esm(() => {
   init_Cause();
   init_Context();
@@ -23926,7 +24316,7 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
-  oh research catalog|catalog-v2|catalog-v3|wikidata-mappings|wikidata-mappings-v2
+  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
   oh research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH
   oh contract
   oh version
