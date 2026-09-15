@@ -67,3 +67,18 @@ test("offline CLI exposes the additive V6 catalog without opening a store", asyn
   expect(catalog.lock.roots).toHaveLength(20);
   expect(existsSync(join(dir, ".oh"))).toBe(false);
 });
+
+
+test("offline CLI exposes explicit participation roles without changing the V6 command", async () => {
+  const dir = await root();
+  const result = await run(dir, "catalog-v7");
+  expect(result.code).toBe(0);
+  expect(result.stderr).toBe("");
+  const catalog = JSON.parse(result.stdout);
+  expect(catalog.packs).toHaveLength(24);
+  expect(catalog.schemas).toHaveLength(341);
+  expect(catalog.participationRolesPack.packId).toBe("sponge.participation-roles");
+  expect(catalog.participationRolesPack.schemas).toHaveLength(5);
+  expect(catalog.lock.roots).toHaveLength(21);
+  expect(existsSync(join(dir, ".oh"))).toBe(false);
+});

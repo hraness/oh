@@ -29,4 +29,6 @@ export * from "./research/knowledge-domain-catalog-v6";
 export * from "./research/knowledge-measurement-results";
 export * from "./research/knowledge-monetary-values";
 export * from "./research/knowledge-content-occurrences";
+export * from "./research/knowledge-participation-roles";
+export * from "./research/knowledge-domain-catalog-v7";
 //# sourceMappingURL=research.d.ts.map

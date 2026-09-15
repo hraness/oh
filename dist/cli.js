@@ -7181,11 +7181,188 @@ var init_knowledge_domain_catalog_v6 = __esm(() => {
   init_knowledge_vocabulary_pack_v1();
 });
 
+// src/research/knowledge-participation-roles.ts
+function required8(result) {
+  if (!result.ok)
+    throw new Error(`Invalid participation-roles pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels10(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical7(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs6(refs3) {
+  return [...refs3].sort((a, b) => canonical7(a) < canonical7(b) ? -1 : 1);
+}
+async function createSpongeParticipationRolesPackV1(previous) {
+  const dependencyIds2 = ["sponge.bridge-relations", "sponge.core", "sponge.foundation", "sponge.organizations", "sponge.reference"];
+  const dependencies = dependencyIds2.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing participation-roles dependency ${packId}.`);
+    return pack;
+  });
+  const ref2 = (packId, code2) => {
+    const schema2 = dependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing participation-roles schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required8(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels10("Sponge participation and roles"),
+    namespace: "sponge.participation-roles",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels10(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels10(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const participation = required8(await createKnowledgeSchemaRevisionV1({
+    ...base("participation", "One source-scoped participation or credit, with its participant, exact focal subject, role and dates stated separately. It does not imply employment, legal authority, ownership or completeness."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "entity")]
+  }));
+  const role = required8(await createKnowledgeSchemaRevisionV1({
+    ...base("role-descriptor", "An identified capacity attributed to a participant or organization assignment. Its name and interpretation remain source-scoped; equal labels do not establish equivalent roles or authority."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "concept")]
+  }));
+  const qualifiers = sortedRefs6(dependencies.filter((pack) => pack.packId === "sponge.reference" || pack.packId === "sponge.foundation").flatMap((pack) => pack.schemas).filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref));
+  const predicates = [];
+  const add = async (code2, definition, domains, target) => {
+    const predicate = required8(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: sortedRefs6(domains),
+      inversePredicate: null,
+      qualifierPredicates: qualifiers,
+      range: { concepts: [target], kind: "entity-concepts", v: 1 }
+    }));
+    if (predicate.kind !== "predicate")
+      throw new Error(`Expected participation-roles predicate ${code2}.`);
+    predicates.push(predicate);
+    return predicate;
+  };
+  await add("participant", "The agent named as the participant in this particular participation or credit. Attribution does not establish account control, identity equivalence or employment.", [participation.ref], ref2("sponge.core", "agent"));
+  await add("participation-in", "The exact focal entity named by this participation, including an event, process, work, recording, edition or organization. The entity range is deliberately broad; no participation transfers to another subject, version or containing work.", [participation.ref], ref2("sponge.core", "entity"));
+  const assignedRole = await add("assigned-role", "The stated capacity attributed to this participation or existing organization role assignment. Dates, subject, source and contrary claims remain separate; the role alone grants no rights or authority.", [participation.ref, ref2("sponge.organizations", "role-assignment")], role.ref);
+  const shape = required8(await createKnowledgeExecutableShapeV1({
+    appliesToConcepts: [participation.ref],
+    closed: false,
+    extends: [],
+    maximumInheritanceDepth: 1,
+    rules: predicates.map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate === assignedRole ? predicate.range : { kind: "value-kinds", valueKinds: ["entity"], v: 1 },
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical7(a.predicate) < canonical7(b.predicate) ? -1 : 1),
+    shape: participation.ref,
+    v: 1
+  }));
+  const contextRefs = [
+    ref2("sponge.reference", "valid-during"),
+    ref2("sponge.reference", "source-context"),
+    ref2("sponge.foundation", "version-context"),
+    ref2("sponge.foundation", "version-of"),
+    ref2("sponge.core", "name")
+  ];
+  const schemas = [participation, role, ...predicates];
+  return freezeKnowledgeDeclaration(required8(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: dependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive participation and role descriptions. Existing V1\u2013V6 declarations, organization assignments, assertion semantics and historical locks remain unchanged. Partial records and multiple source-scoped claims are allowed. No identity merge, inherited credit, employment, ownership, completion, current-role selection, context-aware conformance, source verification or publication authority is implied.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: [shape],
+    queries: [
+      {
+        description: "Declarative join guidance, not an executable query: follow held-by and role-assignment-at-organization from each organization assignment, then assigned-role; retain that assignment's validity, source and version qualifiers and explicitly stated source version-of links. Return separate assignments rather than infer one current role.",
+        id: "dated-organization-roles",
+        predicates: sortedRefs6([assignedRole.ref, ref2("sponge.organizations", "held-by"), ref2("sponge.bridge-relations", "role-assignment-at-organization"), ...contextRefs]),
+        v: 1
+      },
+      {
+        description: "Declarative join guidance, not an executable query: reverse participant from an agent, then follow participation-in and assigned-role with validity, source and version qualifiers and explicit version-of links. Return the exact credited subject without transferring the credit to other recordings, editions or works.",
+        id: "scoped-credits",
+        predicates: sortedRefs6([...predicates.map((predicate) => predicate.ref), ...contextRefs]),
+        v: 1
+      }
+    ],
+    sources: [{
+      contentSha256: "be3d0200f1a0fd906ad1a32d5f31443127d0374726a080ccaddd2bedcea000ab",
+      license: "MIT",
+      revision: "2026-09-15",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/participation-roles-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+var init_knowledge_participation_roles = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-domain-catalog-v7.ts
+function spongeKnowledgeDomainCatalogV7() {
+  catalogPromise11 ??= buildCatalog7();
+  return catalogPromise11;
+}
+async function buildCatalog7() {
+  const previous = await spongeKnowledgeDomainCatalogV6();
+  const participationRolesPack = await createSpongeParticipationRolesPackV1(previous);
+  const packs = [...previous.packs, participationRolesPack].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(participationRolesPack)].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const resolved = await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots });
+  if (!resolved.ok)
+    throw new Error(`Invalid participation catalog: ${resolved.error.field}:${resolved.error.code}.`);
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    participationRolesPack,
+    lock: resolved.value.lock,
+    packs,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
+var catalogPromise11;
+var init_knowledge_domain_catalog_v7 = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_domain_catalog_v6();
+  init_knowledge_participation_roles();
+  init_knowledge_vocabulary_pack_v1();
+});
+
 // src/research/knowledge-proposal-v3.ts
 function key2(value) {
   return typeof value === "string" && value.length <= 96 && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value);
 }
-function canonical7(value) {
+function canonical8(value) {
   return canonicalJson2(value);
 }
 function ref2(value) {
@@ -7198,8 +7375,8 @@ function refs3(value) {
   const parsed = value.map(ref2);
   if (parsed.some((item) => item === null))
     return null;
-  const sorted = parsed.sort((a, b) => canonical7(a) < canonical7(b) ? -1 : 1);
-  return new Set(sorted.map(canonical7)).size === sorted.length ? sorted : null;
+  const sorted = parsed.sort((a, b) => canonical8(a) < canonical8(b) ? -1 : 1);
+  return new Set(sorted.map(canonical8)).size === sorted.length ? sorted : null;
 }
 function entityReference(value) {
   if (!isPlainRecord2(value))
@@ -7226,8 +7403,8 @@ function draftValue(value, depth = 0) {
       return null;
     const parsed2 = values;
     if (value["kind"] === "set") {
-      parsed2.sort((a, b) => canonical7(a) < canonical7(b) ? -1 : 1);
-      if (new Set(parsed2.map(canonical7)).size !== parsed2.length)
+      parsed2.sort((a, b) => canonical8(a) < canonical8(b) ? -1 : 1);
+      if (new Set(parsed2.map(canonical8)).size !== parsed2.length)
         return null;
     }
     return { kind: value["kind"], values: parsed2, v: 1 };
@@ -7248,8 +7425,8 @@ function dimensions(value) {
       return null;
     parsed.push({ predicate, value: child });
   }
-  parsed.sort((a, b) => canonical7(a) < canonical7(b) ? -1 : 1);
-  return new Set(parsed.map(canonical7)).size === parsed.length ? parsed : null;
+  parsed.sort((a, b) => canonical8(a) < canonical8(b) ? -1 : 1);
+  return new Set(parsed.map(canonical8)).size === parsed.length ? parsed : null;
 }
 function parseSpongeKnowledgeProposalDraftV3(foreign) {
   const value = knowledgeDeclarativeJson(foreign, 256 * 1024);
@@ -8123,11 +8300,11 @@ async function readInput(path) {
 async function runOhResearchCli(arguments_) {
   const command = arguments_[0];
   let output;
-  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
-    output = command === "catalog-v6" ? await spongeKnowledgeDomainCatalogV6() : command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
+  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
+    output = command === "catalog-v7" ? await spongeKnowledgeDomainCatalogV7() : command === "catalog-v6" ? await spongeKnowledgeDomainCatalogV6() : command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
   } else {
     if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"].includes(command ?? "") || arguments_.length !== 3 || arguments_[1] !== "--file") {
-      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
+      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
     }
     const input = await readInput(arguments_[2]);
     if (command === "validate-draft")
@@ -8167,6 +8344,7 @@ var init_research_cli = __esm(() => {
   init_knowledge_domain_catalog_v4();
   init_knowledge_domain_catalog_v5();
   init_knowledge_domain_catalog_v6();
+  init_knowledge_domain_catalog_v7();
   init_knowledge_domain_catalog_v2();
   init_knowledge_wikidata_import_v2();
   init_knowledge_domain_catalog();
@@ -8529,10 +8707,10 @@ class OhSemanticBundleIngressV1 {
         throw new TypeError("Invalid semantic bundle tombstone.");
       changes.push({ key: item.key, kind: "tombstone", priorSha256, v: 1 });
     }
-    const canonical8 = canonicalKnowledgeGraphChangesV1(changes);
+    const canonical9 = canonicalKnowledgeGraphChangesV1(changes);
     return await this.#store.commit({
       actorId,
-      changes: canonical8,
+      changes: canonical9,
       expectedHead: {
         generation: expected.generation,
         operationSha256: expected.operationSha256
@@ -17854,7 +18032,7 @@ var init_core_effect = __esm(() => {
   tagMetrics = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     return labelMetrics(arguments[0], typeof arguments[1] === "string" ? [make27(arguments[1], arguments[2])] : Object.entries(arguments[1]).map(([k, v]) => make27(k, v)));
   });
-  labelMetrics = /* @__PURE__ */ dual(2, (self, labels10) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels10)));
+  labelMetrics = /* @__PURE__ */ dual(2, (self, labels11) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels11)));
   takeUntil = /* @__PURE__ */ dual(2, (elements, predicate) => suspend(() => {
     const iterator = elements[Symbol.iterator]();
     const builder = [];
@@ -19818,7 +19996,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
         return flatMap7(scopeFork(scope, sequential4), (inner) => scopeExtend(self, inner));
     }
   }
-})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels10) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels10)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
+})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels11) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels11)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
   if (update5 === empty15) {
     return void_2;
   }
@@ -24623,7 +24801,7 @@ init_recall();
 init_migrations();
 init_sync_model();
 import { lstat, readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.9.0";
+var OH_PACKAGE_VERSION = "0.10.0";
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",
@@ -24852,7 +25030,7 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
-  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
+  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
   oh research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH
   oh contract
   oh version

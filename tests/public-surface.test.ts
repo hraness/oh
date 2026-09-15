@@ -177,9 +177,9 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.9.0");
+    expect(packageJson.version).toBe("0.10.0");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.9.0"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.10.0"');
     expect(publishedRelease).toEqual({
       version: "0.9.0",
       verificationRun: "https://github.com/hraness/oh/actions/runs/34925268279",

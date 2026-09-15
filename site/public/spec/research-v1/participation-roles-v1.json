@@ -1,0 +1,18 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV7",
+    "additionalPack": "sponge.participation-roles",
+    "additionalPackRevision": 1
+  },
+  "builder": "createSpongeParticipationRolesPackV1",
+  "previousCatalogFactory": "spongeKnowledgeDomainCatalogV6",
+  "concepts": ["participation", "role-descriptor"],
+  "relations": ["assigned-role", "participant", "participation-in"],
+  "directDependencies": [
+    "sponge.bridge-relations", "sponge.core", "sponge.foundation", "sponge.organizations", "sponge.reference"
+  ],
+  "queryKind": "declarative-predicate-inventory",
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

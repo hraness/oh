@@ -179,7 +179,7 @@ The CLI opens no database and performs no network calls for these commands:
 
 ```sh
 oh research catalog
-oh research catalog-v6
+oh research catalog-v7
 oh research validate-draft --file proposal.json
 oh research wikidata-preview --file captures.json
 oh research prepare-packet --file source-records.json
@@ -214,3 +214,10 @@ and [content occurrences](content-occurrences-v1.md). Each pack defines explicit
 query paths and preserves absent context. Resolve its full dependency lock
 before compiling claims. All earlier catalogs, schema digests and Wikidata
 mapping versions remain unchanged.
+
+
+Package 0.10.0 adds `catalog-v7` with [participation roles](participation-roles-v1.md)
+for dated organization assignments and contributions to exact events, works,
+recordings or editions. Role descriptions and focal identities are explicit;
+source evidence and temporal context remain separate. Manifest queries are
+declarative guidance and do not execute joins. Catalogs V1–V6 remain unchanged.
