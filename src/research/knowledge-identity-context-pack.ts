@@ -85,12 +85,11 @@ export async function buildSpongeIdentityContextPackV1(catalog: SpongeKnowledgeD
     previousRevisionSha256: null, revision: 1, state: "private", v: 1,
   }));
   const coreEntity = schemaByCode(core.schemas, "entity").ref;
-  const foundationConcept = schemaByCode(foundation.schemas, "contextual-entity").ref;
   const concepts: KnowledgeSchemaRevisionV1[] = [];
   for (const [code, definition] of SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1) concepts.push(required(await createKnowledgeSchemaRevisionV1({
     definitions: labels(`${definition} Multiple compatible descriptions may coexist; absence does not establish completeness.`),
     identity: { code, namespace: vocabulary.namespace, revision: 1, v: 1 }, labels: labels(title(code)), previousRevisionSha256: null,
-    reviewDecisionSha256: null, vocabularySha256: vocabulary.revisionSha256, v: 1, kind: "concept", broader: [foundationConcept],
+    reviewDecisionSha256: null, vocabularySha256: vocabulary.revisionSha256, v: 1, kind: "concept", broader: [coreEntity],
   })));
   const local = (code: string) => schemaByCode(concepts, code).ref;
   const qualifierPredicates = [...reference.schemas, ...foundation.schemas].filter(schema => schema.kind === "predicate" && schema.qualifierPredicates.length === 0).map(schema => schema.ref).sort((a, b) => canonical(a) < canonical(b) ? -1 : 1);
