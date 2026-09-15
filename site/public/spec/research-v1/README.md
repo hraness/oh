@@ -62,6 +62,13 @@ navigation, execution or source acquisition.
 | `sponge.formal-systems` | Computation, formal systems and artificial life |
 | `sponge.agent-work` | Tasks, attempts, artifacts, checks and skills |
 
+`spongeKnowledgeDomainCatalogV4()` adds the optional `sponge.identity-context`
+pack without changing V1–V3 bytes. It supplies reusable identity, identifier
+scheme, temporal, spatial, evidence, typed value and provenance records. See
+[identity-context-v1.md](./identity-context-v1.md). The pack remains open-world:
+relations never merge identities or imply truth, completeness, conversion,
+access or publication authority.
+
 The original definitions and manifests are MIT licensed. These packs are a
 curated starting vocabulary. They do not contain a copy of Wikipedia or
 Wikidata, and they do not assert complete coverage of any domain. Imported
@@ -193,3 +200,9 @@ units, relationship constraints and explicit installation lineage.
 
 Package 0.7.1 adds [source relationships](source-relations-v1.md) through a new
 catalog and mapping version. It preserves every previous pack and preview.
+
+Package 0.8.0 adds [cross-domain bridge relations](bridge-relations-v1.md)
+through catalog-v5, following the identity/context pack in catalog-v4. It also
+adds the source-pinned `wikidata-mappings-v3` catalog. These additive changes
+preserve every prior catalog and make fourteen high-value joins explicit
+without asserting semantic completeness.

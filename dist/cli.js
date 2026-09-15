@@ -6259,25 +6259,412 @@ var init_knowledge_wikidata_mappings_v2 = __esm(() => {
   init_knowledge_wikidata_mappings_v1();
 });
 
+// src/research/knowledge-wikidata-mappings-v3.ts
+function spongeKnowledgeWikidataMappingCatalogV3() {
+  catalogPromise7 ??= (async () => {
+    const v2 = await spongeKnowledgeWikidataMappingCatalogV2();
+    const preservedProperties = preservedPropertySeeds.map(([propertyId2, datatype, revision2, captureSha256, observedStatements, rationale]) => ({
+      source: { propertyId: propertyId2, datatype, revision: revision2, captureSha256 },
+      coverage: "preserved-only",
+      target: null,
+      observedStatements,
+      rationale,
+      v: 3
+    }));
+    const body = {
+      v: 3,
+      mappingVersion: KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3,
+      reviewedMappings: v2.mappings,
+      preservedProperties
+    };
+    return freezeKnowledgeDeclaration({
+      ...body,
+      catalogSha256: await sha256Text(canonicalJson2(body))
+    });
+  })();
+  return catalogPromise7;
+}
+var KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3 = "sponge.wikidata-source-mappings.v3", preservedPropertySeeds, catalogPromise7, KNOWLEDGE_WIKIDATA_PRESERVED_PROPERTY_IDS_V3;
+var init_knowledge_wikidata_mappings_v3 = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_declarative_json();
+  init_knowledge_wikidata_mappings_v2();
+  preservedPropertySeeds = [
+    ["P18", "commonsMedia", 2544849962, "3578a06f58a93fe03365c13796937abf523bbdf201a6b796d65b592a7d721a29", 113, "Wikimedia Commons media value; preserve the source filename and statement evidence without downloading or asserting image identity."],
+    ["P625", "globe-coordinate", 2543217378, "da8946438c4a23ac67470d5b16392ad23d1166b961a49a5f68217a11ec953a81", 110, "Source coordinate value with globe, precision and altitude fields; coordinate transformation requires separately attributed CRS evidence."],
+    ["P2048", "quantity", 2541797879, "b73d48ce2f566839f8d1ed10a4cfef353af3d8961f45cb9964f0e57f8371a7fd", 53, "Quantity amount and unit URI are preserved exactly; no unit conversion or physical interpretation is inferred."],
+    ["P348", "string", 2529955773, "13ffee0dc4e2ba339e221cdead4f59243db1d8de15effdcf000a3ddec51ce9e9", 42, "Software version identifier string; ordering, release status and product identity require independent evidence."],
+    ["P356", "external-id", 2534351107, "aea71547eb4b8c3aad1e1d282a25c1c90f0cb330e616826bc4e2007139fad732", 109, "DOI-like external identifier under Wikidata's declared scheme; equality is not independent registration or work identity validation."],
+    ["P571", "time", 2544428534, "2a7207cffe85d0bb3bcc7d25d46ed142df9a2546015a9f34060cf7820aabf8cb", 63, "Inception time value retains calendar, precision and bounds; event semantics and normalization remain source-attributed."],
+    ["P577", "time", 2541377778, "01a95ac61dff81a5aa5b76991b090c613b680d726a5baea3213cd86fc17a728b", 57, "Publication time value retains calendar, precision and bounds; it does not establish first publication or availability."],
+    ["P580", "time", 2542144440, "fe4c2aa2b8bdf4daa3a63ee3d270b6216d0359b14bce7ab52288c3972c645acd", 38, "Start time value retains calendar, precision and bounds; interval interpretation requires the statement's context."],
+    ["P582", "time", 2539557394, "8608275b10d9602f80e35b58f0cf1f52091ceccc482dbc6ca863dc43be56f864", 39, "End time value retains calendar, precision and bounds; open-ended and qualifier semantics remain explicit source evidence."],
+    ["P747", "wikibase-item", 2538203952, "b380ad582059a3661961d457ad917ce610e279e0e7aa7d296d8d1fdeddf164c6", 31, "Version, edition or translation item value; preserve the union stated by the source without selecting one interpretation or merging identities."],
+    ["P155", "wikibase-item", 2541952638, "bd70fbdf99f4fbb397ef2692fe09bf7a1e1f33bd31695aae4cc90ccefe8b0742", 31, "Follows item value; direction is preserved as source data without inferring succession, causality or completeness."],
+    ["P156", "wikibase-item", 2542982584, "3356d1767903e4420a4436d5fef7a5f36c0632a4055a5408ae07fcffc62ebe79", 29, "Followed-by item value; direction is preserved as source data without inferring succession, causality or completeness."],
+    ["P231", "external-id", 2526658296, "724acc9042783ad276ef7ff80caea2b6d29a614c7d391bff11aa8827df9f655c", 34, "CAS Registry Number external identifier; preserve the supplied scheme value without chemical identity or vendor validation."],
+    ["P249", "string", 2468222488, "a368f245fb1c6631514b77e1366bc25b3e825c7233395ec458d28447ec53e516", 35, "Ticker symbol string; exchange, instrument, issuer and current tradability require independent evidence."],
+    ["P274", "string", 2501848610, "2a99492143ff904fab9ce407417ca84df4b75a600034678cec2c09675da35625", 22, "Chemical formula string; preserve source notation without parsing or asserting molecular identity."],
+    ["P854", "url", 2534299498, "a5a6afa9b3faa8390233ef58e08d3f1e3c8d9735e7db1371b22e33e40eb71caa", 30, "Reference URL string; preserve the cited locator without fetching it or asserting current availability."]
+  ];
+  KNOWLEDGE_WIKIDATA_PRESERVED_PROPERTY_IDS_V3 = Object.freeze(preservedPropertySeeds.map(([propertyId2]) => propertyId2));
+});
+
+// src/research/knowledge-identity-context-pack.ts
+function canonical2(value) {
+  return canonicalJson2(value);
+}
+function required2(result) {
+  if (!result.ok)
+    throw new Error(`Invalid identity-context pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels5(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function title4(code2) {
+  return code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ");
+}
+function schemaByCode(schemas, code2) {
+  const schema = schemas.find((item) => item.identity.code === code2);
+  if (schema === undefined)
+    throw new Error(`Missing identity-context schema ${code2}.`);
+  return schema;
+}
+function range(kind, concepts = []) {
+  return kind === "entity" ? { concepts, kind: "entity-concepts", v: 1 } : { kind: "value-kinds", valueKinds: [kind], v: 1 };
+}
+async function buildSpongeIdentityContextPackV1(catalog) {
+  const core = catalog.corePack;
+  const foundation = catalog.foundationPack;
+  const reference = catalog.referencePack;
+  const vocabulary = required2(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels5("Sponge identity and context records"),
+    namespace: "sponge.identity-context",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const coreEntity = schemaByCode(core.schemas, "entity").ref;
+  const concepts = [];
+  for (const [code2, definition] of SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1)
+    concepts.push(required2(await createKnowledgeSchemaRevisionV1({
+      definitions: labels5(`${definition} Multiple compatible descriptions may coexist; absence does not establish completeness.`),
+      identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+      labels: labels5(title4(code2)),
+      previousRevisionSha256: null,
+      reviewDecisionSha256: null,
+      vocabularySha256: vocabulary.revisionSha256,
+      v: 1,
+      kind: "concept",
+      broader: [coreEntity]
+    })));
+  const local = (code2) => schemaByCode(concepts, code2).ref;
+  const qualifierPredicates = [...reference.schemas, ...foundation.schemas].filter((schema) => schema.kind === "predicate" && schema.qualifierPredicates.length === 0).map((schema) => schema.ref).sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
+  const predicates = [];
+  for (const [code2, definition, domain, kind, target] of SPONGE_IDENTITY_CONTEXT_PREDICATES_V1) {
+    const common = {
+      definitions: labels5(`${definition} This relation is descriptive and source-scoped; it does not grant identity, truth, access or publication authority.`),
+      identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+      labels: labels5(title4(code2)),
+      previousRevisionSha256: null,
+      reviewDecisionSha256: null,
+      vocabularySha256: vocabulary.revisionSha256,
+      v: 1,
+      kind: "predicate",
+      domainConcepts: [local(domain)],
+      inversePredicate: null,
+      qualifierPredicates
+    };
+    const valueRange2 = kind === "entity" ? range("entity", target?.[0] === "entity" ? [coreEntity] : [local(target?.[0] ?? "entity")]) : range(kind);
+    predicates.push(required2(await createKnowledgeSchemaRevisionV1({ ...common, range: valueRange2 })));
+  }
+  const schemas = [...concepts, ...predicates].sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
+  const shapes = [];
+  for (const concept of concepts) {
+    const rules = predicates.filter((predicate) => predicate.domainConcepts.some((ref) => canonical2(ref) === canonical2(concept.ref))).map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical2(a.predicate) < canonical2(b.predicate) ? -1 : 1);
+    shapes.push(required2(await createKnowledgeExecutableShapeV1({
+      appliesToConcepts: [concept.ref],
+      closed: false,
+      extends: [],
+      maximumInheritanceDepth: 1,
+      rules,
+      shape: concept.ref,
+      v: 1
+    })));
+  }
+  const sourceContent = { concepts: SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1, predicates: SPONGE_IDENTITY_CONTEXT_PREDICATES_V1 };
+  return required2(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: [core, foundation, reference].map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive open-world identity, time, location, evidence, value and provenance records. Existing pack revisions and source assertions remain unchanged. No identifier equality, identity merge, truth, completeness, unit conversion, coordinate conversion, access right or publication authority is implied; every assertion still requires its own source and review policy.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    queries: [{ description: "Which identity, temporal, spatial, evidence, value and provenance context qualifies this record?", id: "identity-context", predicates: predicates.map((predicate) => predicate.ref).sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1), v: 1 }],
+    revision: 1,
+    schemas,
+    shapes: shapes.sort((a, b) => a.shape.code < b.shape.code ? -1 : 1),
+    sources: [{ contentSha256: await sha256Text(canonical2(sourceContent)), license: "MIT", revision: "1", uri: "urn:sponge:application-profile:identity-context", v: 1 }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+}
+var SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1, SPONGE_IDENTITY_CONTEXT_PREDICATES_V1;
+var init_knowledge_identity_context_pack = __esm(() => {
+  init_integrity_domain();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+  SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1 = [
+    ["identity-claim", "An attributed claim that an identifier or description refers to an entity; it never merges identities automatically."],
+    ["identity-scheme", "A named identifier scheme or authority whose syntax, scope and resolution policy are stated separately."],
+    ["temporal-record", "A temporal record with independently stated boundaries, calendar, precision and uncertainty."],
+    ["location-record", "A location record with independently stated geometry, globe, coordinate reference system and accuracy."],
+    ["evidence-bundle", "A bounded bundle of evidence items assembled for one claim, with completeness and authority left explicit."],
+    ["evidence-item", "One source, observation, document or capture that can support or qualify a claim."],
+    ["value-record", "A typed value with optional unit, bounds, language and interpretation context."],
+    ["provenance-activity", "An activity that generated, transformed, reviewed or published a record; actor and time remain separate."]
+  ];
+  SPONGE_IDENTITY_CONTEXT_PREDICATES_V1 = [
+    ["claims-identity-of", "The entity a claim proposes as the referent of an identifier or description.", "identity-claim", "entity", ["entity"]],
+    ["uses-scheme", "The identifier scheme used by this claim or identifier.", "identity-claim", "entity", ["identity-scheme"]],
+    ["has-identifier", "The literal identifier supplied by this claim; equality does not prove identity.", "identity-claim", "identifier"],
+    ["identity-confidence", "An explicitly attributed confidence value for this claim, with scale and calibration stated separately.", "identity-claim", "decimal"],
+    ["scheme-namespace", "The namespace or prefix assigned by an identifier scheme.", "identity-scheme", "string"],
+    ["scheme-resolver", "A resolver endpoint or procedure for an identifier scheme.", "identity-scheme", "string"],
+    ["has-start", "The lower temporal boundary of this record, retaining precision and uncertainty.", "temporal-record", "time"],
+    ["has-end", "The upper temporal boundary of this record, retaining precision and uncertainty.", "temporal-record", "time"],
+    ["has-interval", "An interval value for this record when both boundaries are represented together.", "temporal-record", "interval"],
+    ["uses-calendar", "The calendar or temporal reference system used to interpret the record.", "temporal-record", "entity", ["entity"]],
+    ["time-precision", "The stated precision of the temporal value, distinct from certainty or measurement accuracy.", "temporal-record", "decimal"],
+    ["has-geometry", "The geometry attached to this location record; coordinate interpretation remains explicit.", "location-record", "geometry"],
+    ["has-globe", "The celestial body or globe bounding this location claim.", "location-record", "entity", ["entity"]],
+    ["uses-crs", "The coordinate reference system used by the geometry.", "location-record", "entity", ["entity"]],
+    ["location-accuracy", "The stated spatial accuracy or uncertainty of this record.", "location-record", "quantity"],
+    ["supports-claim", "A claim supported by this evidence bundle or item; support is not truth or completeness.", "evidence-bundle", "entity", ["identity-claim"]],
+    ["contains-evidence", "An evidence item contained in this bundle.", "evidence-bundle", "entity", ["evidence-item"]],
+    ["has-evidence-item", "A source, observation, document or capture represented as an evidence item.", "evidence-bundle", "entity", ["evidence-item"]],
+    ["evidence-source", "The source entity for this evidence item.", "evidence-item", "entity", ["entity"]],
+    ["captured-at", "The retrieval or capture time of this evidence item, distinct from event time.", "evidence-item", "time"],
+    ["evidence-excerpt", "A bounded excerpt or locator retained for auditability; it is not the complete source.", "evidence-item", "string"],
+    ["value-kind", "The declared kind or interpretation family for this value record.", "value-record", "entity", ["entity"]],
+    ["value-unit", "The unit descriptor for a quantity value; no conversion runs implicitly.", "value-record", "entity", ["entity"]],
+    ["value-lower-bound", "The lower bound of a value range or uncertainty interval.", "value-record", "quantity"],
+    ["value-upper-bound", "The upper bound of a value range or uncertainty interval.", "value-record", "quantity"],
+    ["value-language", "The language context for a textual value.", "value-record", "string"],
+    ["activity-actor", "The agent that performed or sponsored this provenance activity.", "provenance-activity", "entity", ["entity"]],
+    ["activity-input", "An input entity consumed by this provenance activity.", "provenance-activity", "entity", ["entity"]],
+    ["activity-output", "An output entity produced by this provenance activity.", "provenance-activity", "entity", ["entity"]],
+    ["activity-time", "The time at which this provenance activity occurred.", "provenance-activity", "time"],
+    ["activity-purpose", "The stated purpose of this provenance activity.", "provenance-activity", "string"]
+  ];
+});
+
+// src/research/knowledge-domain-catalog-v4.ts
+function required3(result) {
+  if (!result.ok)
+    throw new Error(`Invalid identity-context catalog: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function spongeKnowledgeDomainCatalogV4() {
+  catalogPromise8 ??= buildCatalog4();
+  return catalogPromise8;
+}
+async function buildCatalog4() {
+  const previous = await spongeKnowledgeDomainCatalogV3();
+  const identityContextPack = await buildSpongeIdentityContextPackV1(previous);
+  const packs = [...previous.packs, identityContextPack].sort((left, right) => left.packId < right.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(identityContextPack)].sort((left, right) => left.packId < right.packId ? -1 : 1);
+  const resolved = required3(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots }));
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    identityContextPack,
+    lock: resolved.lock,
+    packs,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
+var catalogPromise8;
+var init_knowledge_domain_catalog_v4 = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_domain_catalog_v3();
+  init_knowledge_identity_context_pack();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-bridge-relations.ts
+var bridgeRelationDefinitions;
+var init_knowledge_bridge_relations = __esm(() => {
+  bridgeRelationDefinitions = [
+    ["offer-for-product", "Offer for product", "The offer is for the identified product; this does not establish availability, authenticity, or a current price."],
+    ["offer-has-price", "Offer has price", "The offer states the identified price record; currency, interval, tax, and effective dates remain separate context."],
+    ["assay-uses-method", "Assay uses method", "The assay uses the identified method; this does not establish that the method is valid, suitable, or reproducible."],
+    ["assay-produces-result", "Assay produces result", "The assay reports the identified result; this does not establish efficacy, significance, or safety."],
+    ["placement-in-article", "Placement in article", "The placement occurs in the identified article or edition; position, prominence, and publication state remain separate."],
+    ["series-has-member-event", "Series has member event", "The event series includes the identified event; membership does not establish chronology or completeness."],
+    ["track-has-recording", "Track has recording", "The track is realized by the identified recording; this does not establish release, performer, or rights ownership."],
+    ["listing-at-venue", "Listing at venue", "The listing is associated with the identified venue or place; this does not establish current operation or access."],
+    ["snapshot-of-simulation", "Snapshot of simulation", "The snapshot was produced by or belongs to the identified simulation; tick, state, and provenance remain separate."],
+    ["trajectory-has-attempt", "Trajectory has attempt", "The trajectory contains the identified task attempt; this does not establish success, causality, or completeness."],
+    ["task-pursues-goal", "Task pursues goal", "The task pursues the identified goal; this does not establish that the goal was achieved or authorized."],
+    ["profile-for-account", "Profile for account", "The profile document or projection is associated with the identified account; association does not prove account control or person identity."],
+    ["role-assignment-at-organization", "Role assignment at organization", "The role assignment concerns the identified organization; this does not establish employment, authority, or current status."],
+    ["lexeme-in-language-system", "Lexeme in language system", "The lexeme is associated with the identified language system; this does not normalize spelling, script, dialect, or sense."]
+  ];
+});
+
+// src/research/knowledge-domain-catalog-v5.ts
+function required4(result) {
+  if (!result.ok)
+    throw new Error(`Invalid bridge-relations pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function canonical3(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs2(refs2) {
+  return [...refs2].sort((a, b) => canonical3(a) < canonical3(b) ? -1 : 1);
+}
+function schema(pack, packId, code2) {
+  const found = pack.packs.find((item) => item.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+  if (found === undefined)
+    throw new Error(`Missing bridge schema ${packId}/${code2}.`);
+  return found;
+}
+function ref(pack, packId, code2) {
+  return schema(pack, packId, code2).ref;
+}
+function spongeKnowledgeDomainCatalogV5() {
+  catalogPromise9 ??= buildCatalog5();
+  return catalogPromise9;
+}
+async function buildCatalog5() {
+  const previous = await spongeKnowledgeDomainCatalogV4();
+  const core = previous.corePack;
+  const vocabulary = required4(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels6("Sponge cross-domain bridge relations"),
+    namespace: "sponge.bridge-relations",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels6(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels6(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const price = required4(await createKnowledgeSchemaRevisionV1({
+    ...base("price", "A stated monetary amount or price record associated with an offer. Currency, tax, interval and effective dates are separate context."),
+    kind: "concept",
+    broader: [ref(previous, "sponge.core", "information-resource")]
+  }));
+  const localConcepts = new Map([["price", price.ref]]);
+  const qualifierPredicates = previous.referencePack.schemas.filter((item) => item.kind === "predicate").map((item) => item.ref);
+  const schemas = [price];
+  for (const [code2, , description] of bridgeRelationDefinitions) {
+    const endpoint = relationEndpoints.find((item) => item[0] === code2);
+    if (endpoint === undefined)
+      throw new Error(`Missing bridge endpoint ${code2}.`);
+    const [, domainPack, domainCode, ranges] = endpoint;
+    const rangeRefs = ranges.map(([packId, rangeCode]) => packId === vocabulary.namespace ? localConcepts.get(rangeCode) : ref(previous, packId, rangeCode));
+    schemas.push(required4(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, description),
+      kind: "predicate",
+      domainConcepts: [ref(previous, domainPack, domainCode)],
+      inversePredicate: null,
+      qualifierPredicates: sortedRefs2(qualifierPredicates),
+      range: { concepts: sortedRefs2(rangeRefs), kind: "entity-concepts", v: 1 }
+    })));
+  }
+  schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
+  const bridgeRelationsPack = required4(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: previous.packs.map(knowledgeVocabularyPackPinV1).sort((a, b) => a.packId < b.packId ? -1 : 1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive bridge predicates for cross-domain navigation. Existing pack revisions and historical catalogs remain unchanged. Ranges remain open to preserve source distinctions; installation and proposal review are required.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas,
+    shapes: [],
+    queries: [{ description: "Which explicit cross-domain bridge relations connect a record to its adjacent research object?", id: "bridge-relations", predicates: schemas.filter((item) => item.kind === "predicate").map((item) => item.ref), v: 1 }],
+    sources: [{ contentSha256: "f6f87dc67e668fe458115d8dec3f44023c35c3c3cce0f676f2a1de7169325aa3", license: "MIT", revision: "2026-09-14", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/bridge-relations-v1.md", v: 1 }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+  const packs = [...previous.packs, bridgeRelationsPack].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(bridgeRelationsPack)].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const resolved = required4(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots }));
+  return freezeKnowledgeDeclaration({ ...previous, bridgeRelationsPack, lock: resolved.lock, packs, schemas: packs.flatMap((pack) => pack.schemas), vocabularies: packs.map((pack) => pack.vocabulary) });
+}
+var labels6 = (text2) => [{ language: "en", text: text2, v: 1 }], relationEndpoints, catalogPromise9;
+var init_knowledge_domain_catalog_v5 = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_domain_catalog_v4();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+  init_knowledge_bridge_relations();
+  relationEndpoints = [
+    ["offer-for-product", "sponge.substances", "offer", [["sponge.substances", "product"]]],
+    ["offer-has-price", "sponge.substances", "offer", [["sponge.bridge-relations", "price"]]],
+    ["assay-uses-method", "sponge.substances", "assay", [["sponge.research", "method"]]],
+    ["assay-produces-result", "sponge.substances", "assay", [["sponge.research", "finding"]]],
+    ["placement-in-article", "sponge.editorial", "placement", [["sponge.editorial", "article"], ["sponge.editorial", "edition"]]],
+    ["series-has-member-event", "sponge.editorial", "event-series", [["sponge.core", "event"]]],
+    ["track-has-recording", "sponge.music", "track", [["sponge.music", "recording"]]],
+    ["listing-at-venue", "sponge.finance", "listing", [["sponge.core", "place"]]],
+    ["snapshot-of-simulation", "sponge.formal-systems", "state-snapshot", [["sponge.formal-systems", "simulation"]]],
+    ["trajectory-has-attempt", "sponge.agent-work", "trajectory", [["sponge.agent-work", "attempt"]]],
+    ["task-pursues-goal", "sponge.agent-work", "task", [["sponge.agent-work", "goal"]]],
+    ["profile-for-account", "sponge.people", "profile-projection", [["sponge.core", "account"]]],
+    ["role-assignment-at-organization", "sponge.organizations", "role-assignment", [["sponge.core", "organization"]]],
+    ["lexeme-in-language-system", "sponge.language", "lexeme", [["sponge.reference", "language-system"]]]
+  ];
+});
+
 // src/research/knowledge-proposal-v3.ts
 function key2(value) {
   return typeof value === "string" && value.length <= 96 && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value);
 }
-function canonical2(value) {
+function canonical4(value) {
   return canonicalJson2(value);
 }
-function ref(value) {
+function ref2(value) {
   const parsed = parseKnowledgeSchemaRefV1(value);
   return parsed.ok ? parsed.value : null;
 }
 function refs2(value) {
   if (!Array.isArray(value) || value.length > 256)
     return null;
-  const parsed = value.map(ref);
+  const parsed = value.map(ref2);
   if (parsed.some((item) => item === null))
     return null;
-  const sorted = parsed.sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
-  return new Set(sorted.map(canonical2)).size === sorted.length ? sorted : null;
+  const sorted = parsed.sort((a, b) => canonical4(a) < canonical4(b) ? -1 : 1);
+  return new Set(sorted.map(canonical4)).size === sorted.length ? sorted : null;
 }
 function entityReference(value) {
   if (!isPlainRecord2(value))
@@ -6304,8 +6691,8 @@ function draftValue(value, depth = 0) {
       return null;
     const parsed2 = values;
     if (value["kind"] === "set") {
-      parsed2.sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
-      if (new Set(parsed2.map(canonical2)).size !== parsed2.length)
+      parsed2.sort((a, b) => canonical4(a) < canonical4(b) ? -1 : 1);
+      if (new Set(parsed2.map(canonical4)).size !== parsed2.length)
         return null;
     }
     return { kind: value["kind"], values: parsed2, v: 1 };
@@ -6320,14 +6707,14 @@ function dimensions(value) {
   for (const item of value) {
     if (!isPlainRecord2(item) || !hasExactDataKeys(item, ["predicate", "value"]))
       return null;
-    const predicate = ref(item["predicate"]);
+    const predicate = ref2(item["predicate"]);
     const child = draftValue(item["value"]);
     if (predicate === null || child === null)
       return null;
     parsed.push({ predicate, value: child });
   }
-  parsed.sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
-  return new Set(parsed.map(canonical2)).size === parsed.length ? parsed : null;
+  parsed.sort((a, b) => canonical4(a) < canonical4(b) ? -1 : 1);
+  return new Set(parsed.map(canonical4)).size === parsed.length ? parsed : null;
 }
 function parseSpongeKnowledgeProposalDraftV3(foreign) {
   const value = knowledgeDeclarativeJson(foreign, 256 * 1024);
@@ -6361,7 +6748,7 @@ function parseSpongeKnowledgeProposalDraftV3(foreign) {
     if (!isPlainRecord2(item) || !hasExactDataKeys(item, ["key", "subject", "predicate", "object", "qualifiers", "contextKey", "stance"]) || !key2(item["key"]))
       return null;
     const subject = entityReference(item["subject"]);
-    const predicate = ref(item["predicate"]);
+    const predicate = ref2(item["predicate"]);
     const object = draftValue(item["object"]);
     const qualifiers = dimensions(item["qualifiers"]);
     const stance = SPONGE_KNOWLEDGE_ASSERTION_STANCES_V1.find((candidate) => candidate === item["stance"]);
@@ -6988,9 +7375,9 @@ function references(source) {
       break;
     case "inquiry-event":
       add(value["parentEventSha256"], "inquiry-event");
-      for (const ref2 of [...value["inputRefs"], ...value["outputRefs"]]) {
-        if (isPlainRecord2(ref2))
-          add(ref2["sha256"], ref2["kind"]);
+      for (const ref3 of [...value["inputRefs"], ...value["outputRefs"]]) {
+        if (isPlainRecord2(ref3))
+          add(ref3["sha256"], ref3["kind"]);
       }
       break;
     case "review-decision":
@@ -7088,13 +7475,13 @@ async function prepareOhResearchPacketV1(foreign) {
   const records = [];
   for (const source of sources) {
     const dependencies = new Set;
-    for (const ref2 of references(source)) {
-      const target = bySha.get(ref2.sha256);
+    for (const ref3 of references(source)) {
+      const target = bySha.get(ref3.sha256);
       if (target === undefined)
-        fail(`missing dependency ${ref2.sha256}`);
-      if (ref2.expectedKind !== null && target.kind !== ref2.expectedKind)
+        fail(`missing dependency ${ref3.sha256}`);
+      if (ref3.expectedKind !== null && target.kind !== ref3.expectedKind)
         fail("dependency kind");
-      if (ref2.schemaRef !== undefined && (!isPlainRecord2(target.value) || json(target.value["ref"]) !== json(ref2.schemaRef)))
+      if (ref3.schemaRef !== undefined && (!isPlainRecord2(target.value) || json(target.value["ref"]) !== json(ref3.schemaRef)))
         fail("exact schema reference");
       dependencies.add(keys.get(target.recordSha256));
     }
@@ -7201,11 +7588,11 @@ async function readInput(path) {
 async function runOhResearchCli(arguments_) {
   const command = arguments_[0];
   let output;
-  if (["catalog", "catalog-v2", "catalog-v3", "wikidata-mappings", "wikidata-mappings-v2"].includes(command ?? "") && arguments_.length === 1) {
-    output = command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
+  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
+    output = command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
   } else {
     if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"].includes(command ?? "") || arguments_.length !== 3 || arguments_[1] !== "--file") {
-      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|wikidata-mappings|wikidata-mappings-v2 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
+      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
     }
     const input = await readInput(arguments_[2]);
     if (command === "validate-draft")
@@ -7240,7 +7627,10 @@ async function runOhResearchCli(arguments_) {
 var init_research_cli = __esm(() => {
   init_knowledge_wikidata_mappings_v1();
   init_knowledge_wikidata_mappings_v2();
+  init_knowledge_wikidata_mappings_v3();
   init_knowledge_domain_catalog_v3();
+  init_knowledge_domain_catalog_v4();
+  init_knowledge_domain_catalog_v5();
   init_knowledge_domain_catalog_v2();
   init_knowledge_wikidata_import_v2();
   init_knowledge_domain_catalog();
@@ -7603,10 +7993,10 @@ class OhSemanticBundleIngressV1 {
         throw new TypeError("Invalid semantic bundle tombstone.");
       changes.push({ key: item.key, kind: "tombstone", priorSha256, v: 1 });
     }
-    const canonical3 = canonicalKnowledgeGraphChangesV1(changes);
+    const canonical5 = canonicalKnowledgeGraphChangesV1(changes);
     return await this.#store.commit({
       actorId,
-      changes: canonical3,
+      changes: canonical5,
       expectedHead: {
         generation: expected.generation,
         operationSha256: expected.operationSha256
@@ -12077,9 +12467,9 @@ var init_Duration = __esm(() => {
 
 // node_modules/effect/dist/esm/MutableRef.js
 var TypeId7, MutableRefProto, make11 = (value) => {
-  const ref2 = Object.create(MutableRefProto);
-  ref2.current = value;
-  return ref2;
+  const ref3 = Object.create(MutableRefProto);
+  ref3.current = value;
+  return ref3;
 }, compareAndSet, get6 = (self) => self.current, set2;
 var init_MutableRef = __esm(() => {
   init_Equal();
@@ -15317,7 +15707,7 @@ function empty19() {
   return unsafeMake5(new Map);
 }
 var FiberRefsSym, FiberRefsImpl, findAncestor = (_ref, _parentStack, _childStack, _childModified = false) => {
-  const ref2 = _ref;
+  const ref3 = _ref;
   let parentStack = _parentStack;
   let childStack = _childStack;
   let childModified = _childModified;
@@ -15345,7 +15735,7 @@ var FiberRefsSym, FiberRefsImpl, findAncestor = (_ref, _parentStack, _childStack
         }
       }
     } else {
-      ret = [ref2.initial, true];
+      ret = [ref3.initial, true];
     }
   }
   return ret;
@@ -15895,8 +16285,8 @@ var init_Micro = __esm(() => {
       this.interruptible = interruptible3;
       this[MicroFiberTypeId] = fiberVariance;
     }
-    getRef(ref2) {
-      return unsafeGetReference(this.context, ref2);
+    getRef(ref3) {
+      return unsafeGetReference(this.context, ref3);
     }
     addObserver(cb) {
       if (this._exit) {
@@ -16176,9 +16566,9 @@ var init_ref = __esm(() => {
     }
     [RefTypeId] = refVariance;
     [TypeId11] = TypeId11;
-    constructor(ref2) {
+    constructor(ref3) {
       super();
-      this.ref = ref2;
+      this.ref = ref3;
       this.get = sync(() => get6(this.ref));
     }
     get;
@@ -16538,7 +16928,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     case "Some":
       return fail3(new NoSuchElementException);
   }
-}), once = (self) => map8(make24(true), (ref2) => asVoid2(whenEffect(self, getAndSet2(ref2, false)))), option = (self) => matchEffect(self, {
+}), once = (self) => map8(make24(true), (ref3) => asVoid2(whenEffect(self, getAndSet2(ref3, false)))), option = (self) => matchEffect(self, {
   onFailure: () => succeed(none2()),
   onSuccess: (a) => succeed(some2(a))
 }), orElseFail, orElseSucceed, parallelErrors = (self) => matchCauseEffect(self, {
@@ -16928,7 +17318,7 @@ var init_core_effect = __esm(() => {
   tagMetrics = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     return labelMetrics(arguments[0], typeof arguments[1] === "string" ? [make27(arguments[1], arguments[2])] : Object.entries(arguments[1]).map(([k, v]) => make27(k, v)));
   });
-  labelMetrics = /* @__PURE__ */ dual(2, (self, labels5) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels5)));
+  labelMetrics = /* @__PURE__ */ dual(2, (self, labels7) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels7)));
   takeUntil = /* @__PURE__ */ dual(2, (elements, predicate) => suspend(() => {
     const iterator = elements[Symbol.iterator]();
     const builder = [];
@@ -17025,7 +17415,7 @@ var init_core_effect = __esm(() => {
   updateService = /* @__PURE__ */ dual(3, (self, tag, f) => mapInputContext(self, (context2) => add4(context2, tag, f(unsafeGet4(context2, tag)))));
   when = /* @__PURE__ */ dual(2, (self, condition) => suspend(() => condition() ? map8(self, some2) : succeed(none2())));
   whenFiberRef = /* @__PURE__ */ dual(3, (self, fiberRef, predicate) => flatMap7(fiberRefGet(fiberRef), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
-  whenRef = /* @__PURE__ */ dual(3, (self, ref2, predicate) => flatMap7(get11(ref2), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
+  whenRef = /* @__PURE__ */ dual(3, (self, ref3, predicate) => flatMap7(get11(ref3), (s) => predicate(s) ? map8(self, (a) => [s, some2(a)]) : succeed([s, none2()])));
   withMetric = /* @__PURE__ */ dual(2, (self, metric) => metric(self));
   annotateSpans = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     const args2 = arguments;
@@ -18892,7 +19282,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
         return flatMap7(scopeFork(scope, sequential4), (inner) => scopeExtend(self, inner));
     }
   }
-})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels5) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels5)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
+})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels7) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels7)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
   if (update5 === empty15) {
     return void_2;
   }
@@ -20368,7 +20758,7 @@ var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (
     }
   }
 })), flatMap7((option2) => isNone2(option2) ? dieMessage("BUG: Effect.cachedInvalidate - please report an issue at https://github.com/Effect-TS/effect/issues") : restore(deferredAwait(option2.value[1]))))), invalidateCache = (cache) => set4(cache, none2()), ensuringChild, ensuringChildren, forkAll, forkIn, forkScoped = (self) => scopeWith((scope2) => forkIn(self, scope2)), fromFiber = (fiber) => join2(fiber), fromFiberEffect = (fiber) => suspend(() => flatMap7(fiber, join2)), memoKeySymbol, Key, cachedFunction = (f, eq) => {
-  return pipe(sync(() => empty22()), flatMap7(makeSynchronized), map8((ref2) => (a) => pipe(ref2.modifyEffect((map11) => {
+  return pipe(sync(() => empty22()), flatMap7(makeSynchronized), map8((ref3) => (a) => pipe(ref3.modifyEffect((map11) => {
     const result = pipe(map11, get12(new Key(a, eq)));
     if (isNone2(result)) {
       return pipe(deferredMake(), tap2((deferred) => pipe(diffFiberRefs(f(a)), intoDeferred(deferred), fork)), map8((deferred) => [deferred, pipe(map11, set5(new Key(a, eq), deferred))]));
@@ -20376,9 +20766,9 @@ var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (
     return succeed([result.value, map11]);
   }), flatMap7(deferredAwait), flatMap7(([patch9, b]) => pipe(patchFiberRefs(patch9), as3(b))))));
 }, raceFirst, supervised, timeout, timeoutFail, timeoutFailCause, timeoutOption, timeoutTo, SynchronizedSymbolKey = "effect/Ref/SynchronizedRef", SynchronizedTypeId, synchronizedVariance, SynchronizedImpl, makeSynchronized = (value) => sync(() => unsafeMakeSynchronized(value)), unsafeMakeSynchronized = (value) => {
-  const ref2 = unsafeMake6(value);
+  const ref3 = unsafeMake6(value);
   const sem = unsafeMakeSemaphore(1);
-  return new SynchronizedImpl(ref2, sem.withPermits(1));
+  return new SynchronizedImpl(ref3, sem.withPermits(1));
 }, updateSomeAndGetEffectSynchronized, bindAll;
 var init_circular = __esm(() => {
   init_Duration();
@@ -20576,9 +20966,9 @@ var init_circular = __esm(() => {
     [SynchronizedTypeId] = synchronizedVariance;
     [RefTypeId] = refVariance;
     [TypeId11] = TypeId11;
-    constructor(ref2, withLock) {
+    constructor(ref3, withLock) {
       super();
-      this.ref = ref2;
+      this.ref = ref3;
       this.withLock = withLock;
       this.get = get10(this.ref);
     }
@@ -21049,8 +21439,8 @@ var init_layer = __esm(() => {
   MemoMapImpl = class MemoMapImpl {
     ref;
     [MemoMapTypeId];
-    constructor(ref2) {
-      this.ref = ref2;
+    constructor(ref3) {
+      this.ref = ref3;
       this[MemoMapTypeId] = MemoMapTypeId;
     }
     getOrElseMemoize(layer, scope2) {
@@ -21084,7 +21474,7 @@ var init_layer = __esm(() => {
       }), flatten5);
     }
   };
-  makeMemoMap = /* @__PURE__ */ suspend(() => map8(makeSynchronized(new Map), (ref2) => new MemoMapImpl(ref2)));
+  makeMemoMap = /* @__PURE__ */ suspend(() => map8(makeSynchronized(new Map), (ref3) => new MemoMapImpl(ref3)));
   buildWithScope = /* @__PURE__ */ dual(2, (self, scope2) => flatMap7(makeMemoMap, (memoMap) => buildWithMemoMap(self, memoMap, scope2)));
   buildWithMemoMap = /* @__PURE__ */ dual(3, (self, memoMap, scope2) => flatMap7(makeBuilder(self, scope2), (run) => provideService(run(memoMap), CurrentMemoMap, memoMap)));
   catchAll2 = /* @__PURE__ */ dual(2, (self, onFailure) => match11(self, {
@@ -21106,7 +21496,7 @@ var init_layer = __esm(() => {
     const effect = tagFirst ? b : a;
     return fromEffectContext(map8(effect, (service) => make9(tag, service)));
   });
-  fiberRefLocally2 = /* @__PURE__ */ dual(3, (self, ref2, value) => locallyEffect(self, fiberRefLocally(ref2, value)));
+  fiberRefLocally2 = /* @__PURE__ */ dual(3, (self, ref3, value) => locallyEffect(self, fiberRefLocally(ref3, value)));
   locallyEffect = /* @__PURE__ */ dual(2, (self, f) => {
     const locally = Object.create(proto3);
     locally._op_layer = "Locally";
@@ -21114,7 +21504,7 @@ var init_layer = __esm(() => {
     locally.f = f;
     return locally;
   });
-  fiberRefLocallyWith2 = /* @__PURE__ */ dual(3, (self, ref2, value) => locallyEffect(self, fiberRefLocallyWith(ref2, value)));
+  fiberRefLocallyWith2 = /* @__PURE__ */ dual(3, (self, ref3, value) => locallyEffect(self, fiberRefLocallyWith(ref3, value)));
   map11 = /* @__PURE__ */ dual(2, (self, f) => flatMap11(self, (context3) => succeedContext(f(context3))));
   mapError3 = /* @__PURE__ */ dual(2, (self, f) => catchAll2(self, (error) => failSync2(() => f(error))));
   matchCause2 = /* @__PURE__ */ dual(2, (self, {
@@ -21300,7 +21690,7 @@ var ScheduleSymbolKey = "effect/Schedule", ScheduleTypeId, isSchedule = (u) => h
   elapsed: millis(now - prev.start),
   elapsedSincePrevious: millis(now - prev.now),
   start: prev.start
-}), ScheduleDriverImpl, makeWithState = (initial, step3) => new ScheduleImpl(initial, step3), asVoid4 = (self) => map12(self, constVoid), check, checkEffect, driver = (self) => pipe(make23([none2(), self.initial]), map8((ref2) => new ScheduleDriverImpl(self, ref2))), intersect5, intersectWith, intersectWithLoop = (self, that, input, lState, out, lInterval, rState, out2, rInterval, f) => {
+}), ScheduleDriverImpl, makeWithState = (initial, step3) => new ScheduleImpl(initial, step3), asVoid4 = (self) => map12(self, constVoid), check, checkEffect, driver = (self) => pipe(make23([none2(), self.initial]), map8((ref3) => new ScheduleDriverImpl(self, ref3))), intersect5, intersectWith, intersectWithLoop = (self, that, input, lState, out, lInterval, rState, out2, rInterval, f) => {
   const combined = f(lInterval, rInterval);
   if (isNonEmpty4(combined)) {
     return succeed([[lState, rState], [out, out2], _continue2(combined)]);
@@ -21410,9 +21800,9 @@ var init_schedule = __esm(() => {
     schedule;
     ref;
     [ScheduleDriverTypeId] = scheduleDriverVariance;
-    constructor(schedule, ref2) {
+    constructor(schedule, ref3) {
       this.schedule = schedule;
-      this.ref = ref2;
+      this.ref = ref3;
     }
     get state() {
       return map8(get10(this.ref), (tuple) => tuple[1]);
@@ -22192,15 +22582,15 @@ var currentCache, currentCacheEnabled, fromRequest = (request, dataSource) => fl
     }
     const listeners = new Listeners;
     listeners.increment();
-    return flatMap7(deferredMake(), (ref2) => ensuring(blocked(single(ds, makeEntry({
+    return flatMap7(deferredMake(), (ref3) => ensuring(blocked(single(ds, makeEntry({
       request: proxy,
-      result: ref2,
+      result: ref3,
       listeners,
       ownerId: id,
       state: {
         completed: false
       }
-    })), deferredAwait(ref2)), sync(() => listeners.decrement())));
+    })), deferredAwait(ref3)), sync(() => listeners.decrement())));
   });
 })), cacheRequest = (request, result) => {
   return fiberRefGetWith(currentCacheEnabled, (cacheEnabled) => {
@@ -23926,7 +24316,7 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
-  oh research catalog|catalog-v2|catalog-v3|wikidata-mappings|wikidata-mappings-v2
+  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
   oh research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH
   oh contract
   oh version
