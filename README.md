@@ -879,3 +879,13 @@ retain an exact decimal amount, currency and quantity basis; a text or cultural
 occurrence can identify its containing source version. These explicit links
 preserve catalogs V1–V5 and do not infer comparability, current prices or
 cultural influence.
+
+
+Source version 0.10.0 adds `oh research catalog-v7` and the optional
+[participation roles profile](spec/research-v1/participation-roles-v1.md).
+A participation connects one agent, one exact focal entity and an attributed
+role. Existing organization role assignments can use the same role descriptors.
+Keep separate records for different dates, recording versions or editions,
+with their source evidence and context. Query guidance names relations to
+inspect; it does not execute joins or infer employment, ownership or rights.
+Catalogs V1–V6 retain their exact declarations and locks.

@@ -4463,6 +4463,170 @@ async function buildCatalog6() {
     vocabularies: packs.map((pack) => pack.vocabulary)
   });
 }
+// src/research/knowledge-participation-roles.ts
+function required9(result) {
+  if (!result.ok)
+    throw new Error(`Invalid participation-roles pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels10(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical9(value) {
+  return canonicalJson(value);
+}
+function sortedRefs6(refs4) {
+  return [...refs4].sort((a, b) => canonical9(a) < canonical9(b) ? -1 : 1);
+}
+async function createSpongeParticipationRolesPackV1(previous) {
+  const dependencyIds2 = ["sponge.bridge-relations", "sponge.core", "sponge.foundation", "sponge.organizations", "sponge.reference"];
+  const dependencies = dependencyIds2.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing participation-roles dependency ${packId}.`);
+    return pack;
+  });
+  const ref3 = (packId, code2) => {
+    const schema2 = dependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing participation-roles schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required9(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels10("Sponge participation and roles"),
+    namespace: "sponge.participation-roles",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels10(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels10(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const participation = required9(await createKnowledgeSchemaRevisionV1({
+    ...base("participation", "One source-scoped participation or credit, with its participant, exact focal subject, role and dates stated separately. It does not imply employment, legal authority, ownership or completeness."),
+    kind: "concept",
+    broader: [ref3("sponge.core", "entity")]
+  }));
+  const role = required9(await createKnowledgeSchemaRevisionV1({
+    ...base("role-descriptor", "An identified capacity attributed to a participant or organization assignment. Its name and interpretation remain source-scoped; equal labels do not establish equivalent roles or authority."),
+    kind: "concept",
+    broader: [ref3("sponge.core", "concept")]
+  }));
+  const qualifiers = sortedRefs6(dependencies.filter((pack) => pack.packId === "sponge.reference" || pack.packId === "sponge.foundation").flatMap((pack) => pack.schemas).filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref));
+  const predicates = [];
+  const add = async (code2, definition, domains, target) => {
+    const predicate = required9(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: sortedRefs6(domains),
+      inversePredicate: null,
+      qualifierPredicates: qualifiers,
+      range: { concepts: [target], kind: "entity-concepts", v: 1 }
+    }));
+    if (predicate.kind !== "predicate")
+      throw new Error(`Expected participation-roles predicate ${code2}.`);
+    predicates.push(predicate);
+    return predicate;
+  };
+  await add("participant", "The agent named as the participant in this particular participation or credit. Attribution does not establish account control, identity equivalence or employment.", [participation.ref], ref3("sponge.core", "agent"));
+  await add("participation-in", "The exact focal entity named by this participation, including an event, process, work, recording, edition or organization. The entity range is deliberately broad; no participation transfers to another subject, version or containing work.", [participation.ref], ref3("sponge.core", "entity"));
+  const assignedRole = await add("assigned-role", "The stated capacity attributed to this participation or existing organization role assignment. Dates, subject, source and contrary claims remain separate; the role alone grants no rights or authority.", [participation.ref, ref3("sponge.organizations", "role-assignment")], role.ref);
+  const shape = required9(await createKnowledgeExecutableShapeV1({
+    appliesToConcepts: [participation.ref],
+    closed: false,
+    extends: [],
+    maximumInheritanceDepth: 1,
+    rules: predicates.map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate === assignedRole ? predicate.range : { kind: "value-kinds", valueKinds: ["entity"], v: 1 },
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical9(a.predicate) < canonical9(b.predicate) ? -1 : 1),
+    shape: participation.ref,
+    v: 1
+  }));
+  const contextRefs = [
+    ref3("sponge.reference", "valid-during"),
+    ref3("sponge.reference", "source-context"),
+    ref3("sponge.foundation", "version-context"),
+    ref3("sponge.foundation", "version-of"),
+    ref3("sponge.core", "name")
+  ];
+  const schemas = [participation, role, ...predicates];
+  return freezeKnowledgeDeclaration(required9(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: dependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive participation and role descriptions. Existing V1–V6 declarations, organization assignments, assertion semantics and historical locks remain unchanged. Partial records and multiple source-scoped claims are allowed. No identity merge, inherited credit, employment, ownership, completion, current-role selection, context-aware conformance, source verification or publication authority is implied.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: [shape],
+    queries: [
+      {
+        description: "Declarative join guidance, not an executable query: follow held-by and role-assignment-at-organization from each organization assignment, then assigned-role; retain that assignment's validity, source and version qualifiers and explicitly stated source version-of links. Return separate assignments rather than infer one current role.",
+        id: "dated-organization-roles",
+        predicates: sortedRefs6([assignedRole.ref, ref3("sponge.organizations", "held-by"), ref3("sponge.bridge-relations", "role-assignment-at-organization"), ...contextRefs]),
+        v: 1
+      },
+      {
+        description: "Declarative join guidance, not an executable query: reverse participant from an agent, then follow participation-in and assigned-role with validity, source and version qualifiers and explicit version-of links. Return the exact credited subject without transferring the credit to other recordings, editions or works.",
+        id: "scoped-credits",
+        predicates: sortedRefs6([...predicates.map((predicate) => predicate.ref), ...contextRefs]),
+        v: 1
+      }
+    ],
+    sources: [{
+      contentSha256: "be3d0200f1a0fd906ad1a32d5f31443127d0374726a080ccaddd2bedcea000ab",
+      license: "MIT",
+      revision: "2026-09-15",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/participation-roles-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+// src/research/knowledge-domain-catalog-v7.ts
+var catalogPromise11;
+function spongeKnowledgeDomainCatalogV7() {
+  catalogPromise11 ??= buildCatalog7();
+  return catalogPromise11;
+}
+async function buildCatalog7() {
+  const previous = await spongeKnowledgeDomainCatalogV6();
+  const participationRolesPack = await createSpongeParticipationRolesPackV1(previous);
+  const packs = [...previous.packs, participationRolesPack].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, knowledgeVocabularyPackPinV1(participationRolesPack)].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const resolved = await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots });
+  if (!resolved.ok)
+    throw new Error(`Invalid participation catalog: ${resolved.error.field}:${resolved.error.code}.`);
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    participationRolesPack,
+    lock: resolved.value.lock,
+    packs,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
 export {
   verifyOhResearchPacketV1,
   verifyKnowledgeWikidataMappingPreviewV2,
@@ -4480,6 +4644,7 @@ export {
   spongeKnowledgeWikidataMappingCatalogV2,
   spongeKnowledgeWikidataMappingCatalogV1,
   spongeKnowledgeReferenceCatalog,
+  spongeKnowledgeDomainCatalogV7,
   spongeKnowledgeDomainCatalogV6,
   spongeKnowledgeDomainCatalogV5,
   spongeKnowledgeDomainCatalogV4,
@@ -4554,6 +4719,7 @@ export {
   evaluateKnowledgeShapeV1,
   effectiveKnowledgeRightsV1,
   effectiveKnowledgeReviewV1,
+  createSpongeParticipationRolesPackV1,
   createSpongeMonetaryValuesPackV1,
   createSpongeMeasurementResultsPackV1,
   createSpongeContentOccurrencesPackV1,

@@ -338,3 +338,13 @@ a retained source version and a source-native locator. Resolve each selected
 pack's full pinned dependency closure. Missing context stays unknown; these
 relations do not establish measurement comparability, current availability,
 vendor trust or cultural influence. Catalogs V1–V5 remain unchanged.
+
+
+With version 0.10.0 or newer, `oh research catalog-v7` adds
+`sponge.participation-roles`. Use separate participation records to connect an
+agent, the exact contribution subject and a source-attributed role. Assign the
+same role descriptors to organization role assignments when appropriate.
+Preserve distinct dates, recording versions, editions and contrary evidence.
+Resolve the exact dependency lock; listed query paths are declarative guidance,
+not executed results. A credit does not establish employment, ownership or
+execution permission. Catalogs V1–V6 remain available with unchanged identities.

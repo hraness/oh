@@ -67,6 +67,13 @@ globalThis.researchProbe = (async () => {
   }
   const latestResolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: latest.packs, roots: latest.lock.roots });
   if (!latestResolution.ok || latestResolution.value.lock.lockSha256 !== latest.lock.lockSha256) throw new Error("V6 catalog cannot resolve its complete dependency lock in the browser.");
+  const roles = await research.spongeKnowledgeDomainCatalogV7();
+  if (roles.packs.length !== latest.packs.length + 1 || roles.schemas.length !== 341
+    || roles.participationRolesPack.packId !== "sponge.participation-roles") {
+    throw new Error("Missing participation roles in the browser-only research export.");
+  }
+  const roleResolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: roles.packs, roots: roles.lock.roots });
+  if (!roleResolution.ok || roleResolution.value.lock.lockSha256 !== roles.lock.lockSha256) throw new Error("V7 role catalog dependency lock did not resolve.");
   const input = { v: 2, properties: "all-present", mappingVersion: "browser-probe", captures: [{
     requestedId: "Q1", resolvedId: "Q1", sourceUri: "https://www.wikidata.org/w/api.php", redirects: [],
     capturedAt: "2026-09-13T00:00:00.000Z", coverage: { kind: "complete-entity" },
