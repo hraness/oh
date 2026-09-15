@@ -4,7 +4,7 @@ import { freezeKnowledgeDeclaration } from "./knowledge-declarative-json";
 import { spongeKnowledgeWikidataMappingCatalogV2, type KnowledgeWikidataSourceMappingV2 } from "./knowledge-wikidata-mappings-v2";
 import { KNOWLEDGE_WIKIDATA_DATATYPES_V2 } from "./knowledge-wikidata-import-v2";
 
-/** Version 3 adds explicit, source-pinned coverage for high-value non-item properties.
+/** Version 3 adds explicit, source-pinned coverage for high-value properties beyond reviewed mappings.
  * These entries are preservation-only: they never invent a local predicate or normalize a literal. */
 export const KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3 = "sponge.wikidata-source-mappings.v3";
 export type KnowledgeWikidataPreservedPropertyV3 = Readonly<{
