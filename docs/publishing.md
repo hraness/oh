@@ -166,6 +166,12 @@ public tag, release and npm version are absent. Preserve the protected name;
 version `0.7.1` carries the reviewed source-relationship additions through the
 same workflow without changing their schema, catalog or preview digests.
 
+GitHub rejected creation of `v0.8.0` under the same immutable release-tag
+creation protection (rule suite `4072119912`). The tag and release endpoints
+returned 404, and no release workflow ran. Preserve the protected name;
+version `0.8.1` carries the reviewed ontology-depth changes through the same
+workflow without changing their ontology contracts or digests.
+
 Every positive workflow attempt is an eligible recovery attempt for the same
 reviewed annotated tag, commit, and ID-bound artifact bytes. Before npm, a
 read-only gate records its explicit run ID and attempt and treats the version as

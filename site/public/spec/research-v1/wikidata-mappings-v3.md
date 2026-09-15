@@ -1,6 +1,6 @@
 # Wikidata mapping catalog V3
 
-`oh.wikidata-source-mappings.v3` extends the reviewed item-valued mappings in V2 with a source-pinned preservation ledger for high-value literal, temporal, coordinate, media, identifier, and additional item-valued properties observed in the frozen 2026-09-13 corpus.
+`sponge.wikidata-source-mappings.v3` extends the reviewed item-valued mappings in V2 with a source-pinned preservation ledger for high-value literal, temporal, coordinate, media, identifier, and additional item-valued properties observed in the frozen 2026-09-13 corpus.
 
 Each `preservedProperties` entry records the Wikidata property ID, exact datatype, source revision and body digest, plus an observed statement count and a rationale. Its `coverage` is always `preserved-only` and `target` is always `null`. This is intentional: a raw DOI, coordinate, quantity, date, URL, media filename, ticker, chemical formula, or version string is addressable and queryable as source evidence, but is not silently normalized into a local predicate, identity, unit, CRS, or external authority.
 
