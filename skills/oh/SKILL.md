@@ -327,3 +327,14 @@ no local predicate target; use the existing source importer to retain it and
 do not treat it as a reviewed semantic mapping. V3 adds no new mapping-preview
 command. Inspect the installed schemas for each relation's domain, range and
 qualifiers; catalog availability does not install a pack or accept a claim.
+
+With version 0.9.0 or newer, `oh research catalog-v6` adds three independently
+selectable packs. Use `sponge.measurement-results` to connect each result to
+its measurement and, when supplied, its exact model version, metric and dataset
+split. Use `sponge.monetary-values` for exact decimal prices with currency and
+quantity basis, and separate dated financial quotes. Use
+`sponge.content-occurrences` for lexical and cultural occurrences tied to
+a retained source version and a source-native locator. Resolve each selected
+pack's full pinned dependency closure. Missing context stays unknown; these
+relations do not establish measurement comparability, current availability,
+vendor trust or cultural influence. Catalogs V1–V5 remain unchanged.

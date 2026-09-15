@@ -869,3 +869,13 @@ assays, editorial placements, event series, music, finance, simulations, agent
 work, profiles, organizations and language). The [bridge relation guide](spec/research-v1/bridge-relations-v1.md)
 describes the open ranges and review boundary. Catalog-v3 and earlier pack
 identities remain unchanged.
+
+Source version 0.9.0 adds `oh research catalog-v6` with three independently
+selectable profiles: [measurement results](spec/research-v1/measurement-results-v1.md),
+[monetary values and quotes](spec/research-v1/monetary-values-v1.md), and
+[content occurrences](spec/research-v1/content-occurrences-v1.md). A measurement
+can identify its model version, metric and dataset split; an offer price can
+retain an exact decimal amount, currency and quantity basis; a text or cultural
+occurrence can identify its containing source version. These explicit links
+preserve catalogs V1–V5 and do not infer comparability, current prices or
+cultural influence.

@@ -53,3 +53,17 @@ test("offline CLI rejects unknown options, oversized files and symlinks before p
   expect(existsSync(join(dir, "unexpected.sqlite"))).toBe(false);
   expect(existsSync(join(dir, ".oh"))).toBe(false);
 });
+
+test("offline CLI exposes the additive V6 catalog without opening a store", async () => {
+  const dir = await root();
+  const result = await run(dir, "catalog-v6");
+  expect(result.code).toBe(0);
+  expect(result.stderr).toBe("");
+  const catalog = JSON.parse(result.stdout);
+  expect(catalog.packs).toHaveLength(23);
+  expect(catalog.measurementResultsPack.packId).toBe("sponge.measurement-results");
+  expect(catalog.monetaryValuesPack.packId).toBe("sponge.monetary-values");
+  expect(catalog.contentOccurrencesPack.packId).toBe("sponge.content-occurrences");
+  expect(catalog.lock.roots).toHaveLength(20);
+  expect(existsSync(join(dir, ".oh"))).toBe(false);
+});
