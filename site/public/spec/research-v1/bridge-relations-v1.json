@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV4",
+    "additionalPack": "sponge.bridge-relations",
+    "additionalPackRevision": 1
+  },
+  "relations": [
+    "offer-for-product", "offer-has-price", "assay-uses-method", "assay-produces-result",
+    "placement-in-article", "series-has-member-event", "track-has-recording", "listing-at-venue",
+    "snapshot-of-simulation", "trajectory-has-attempt", "task-pursues-goal", "profile-for-account",
+    "role-assignment-at-organization", "lexeme-in-language-system"
+  ],
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}
