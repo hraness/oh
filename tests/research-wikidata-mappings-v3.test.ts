@@ -7,6 +7,9 @@ const directory = new URL("../spec/research-v1/wikidata/2026-09-13", import.meta
 
 test("V3 preserves a data-driven, source-pinned set of high-value non-item properties", async () => {
   const sources = await readWikidataInventorySourcesV1(directory);
+  const preservation = JSON.parse(await Bun.file(`${directory}/preservation-coverage.json`).text()) as {
+    corpus: readonly Readonly<{ id: string; observedStatements: number }>[];
+  };
   const catalog = await spongeKnowledgeWikidataMappingCatalogV3();
   expect(catalog.v).toBe(3);
   expect(catalog.mappingVersion).toBe(KNOWLEDGE_WIKIDATA_MAPPING_VERSION_V3);
@@ -21,6 +24,8 @@ test("V3 preserves a data-driven, source-pinned set of high-value non-item prope
     expect(mapping.target).toBeNull();
     expect(mapping.v).toBe(3);
     expect(mapping.observedStatements).toBeGreaterThan(0);
+    expect(preservation.corpus.find(item => item.id === mapping.source.propertyId)?.observedStatements)
+      .toBe(mapping.observedStatements);
     expect(mapping.rationale.length).toBeGreaterThan(20);
     const captured = sources.find(source => source.key === `entity-${mapping.source.propertyId}`);
     expect(captured?.bodySha256).toBe(mapping.source.captureSha256);
