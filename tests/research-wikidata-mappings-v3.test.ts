@@ -5,7 +5,7 @@ import { KNOWLEDGE_WIKIDATA_DATATYPES_V2 } from "../src/research/knowledge-wikid
 
 const directory = new URL("../spec/research-v1/wikidata/2026-09-13", import.meta.url).pathname;
 
-test("V3 preserves a data-driven, source-pinned set of high-value non-item properties", async () => {
+test("V3 preserves a data-driven, source-pinned set of high-value properties beyond reviewed mappings", async () => {
   const sources = await readWikidataInventorySourcesV1(directory);
   const preservation = JSON.parse(await Bun.file(`${directory}/preservation-coverage.json`).text()) as {
     corpus: readonly Readonly<{ id: string; observedStatements: number }>[];
