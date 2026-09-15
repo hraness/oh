@@ -68,14 +68,14 @@ not a claim about a real study.
 
 ## Install and first run
 
-Version `0.8.1` includes 20 packs and 293 schemas in catalog V5, with identity
-and context records and explicit cross-domain relationships. These selected
-profiles do not provide complete semantic coverage of Wikidata; preserved
-properties are not all mapped to local relations. Historical catalogs and
-definitions remain available.
+Version `0.9.0` includes 23 packs and 336 schemas in catalog V6, with measurement
+context, monetary values and quotes, and lexical and cultural occurrences tied
+to retained source versions. These selected profiles do not provide complete
+semantic coverage of Wikidata; preserved properties are not all mapped to local
+relations. Historical catalogs and definitions remain available.
 
-The installation instructions below use `0.8.1`, the
-[verified public release](https://github.com/hraness/oh/actions/runs/34917688708).
+The installation instructions below use `0.9.0`, the
+[verified public release](https://github.com/hraness/oh/actions/runs/34925268279).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
 CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
@@ -83,16 +83,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact verified public release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.8.1
+bun add --global @hraness/oh@0.9.0
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.8.1),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.9.0),
 including the mirrored
-[`hraness-oh-0.8.1.tgz`](https://github.com/hraness/oh/releases/download/v0.8.1/hraness-oh-0.8.1.tgz)
+[`hraness-oh-0.9.0.tgz`](https://github.com/hraness/oh/releases/download/v0.9.0/hraness-oh-0.9.0.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.8.1/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.9.0/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -150,7 +150,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.8.1"
+    "@hraness/oh": "0.9.0"
   }
 }
 ```
@@ -732,9 +732,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.8.1 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.8.1 Release at
-https://github.com/hraness/oh/releases/tag/v0.8.1. Verify the CLI with
+Install @hraness/oh@0.9.0 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.9.0 Release at
+https://github.com/hraness/oh/releases/tag/v0.9.0. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```
