@@ -314,7 +314,7 @@ See `https://oh.computer/spec/research-v1/source-relations-v1.md` for the exact
 relationships and counterexamples. These features require that installed
 version; the verified installation baseline above remains separate.
 
-With version 0.8.0 or newer, `oh research catalog-v4` adds
+With version 0.8.1 or newer, `oh research catalog-v4` adds
 `sponge.identity-context` for identity claims, time, location, evidence, values
 and provenance. `oh research catalog-v5` includes those records and
 `sponge.bridge-relations` for explicit cross-domain links such as a track's

@@ -201,7 +201,7 @@ units, relationship constraints and explicit installation lineage.
 Package 0.7.1 adds [source relationships](source-relations-v1.md) through a new
 catalog and mapping version. It preserves every previous pack and preview.
 
-Package 0.8.0 adds [cross-domain bridge relations](bridge-relations-v1.md)
+Package 0.8.1 adds [cross-domain bridge relations](bridge-relations-v1.md)
 through catalog-v5, following the identity/context pack in catalog-v4. It also
 adds the source-pinned `wikidata-mappings-v3` catalog. These additive changes
 preserve every prior catalog and make fourteen high-value joins explicit
