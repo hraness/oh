@@ -21,7 +21,10 @@ export const SPONGE_IDENTITY_CONTEXT_CONCEPTS_V1 = [
   ["provenance-activity", "An activity that generated, transformed, reviewed or published a record; actor and time remain separate."],
 ] as const;
 
-type PredicateSpec = readonly [string, string, string, "entity" | KnowledgeValueKindV1, (readonly string[] | undefined)?];
+type PredicateSpec = readonly [
+  code: string, definition: string, domain: string | readonly string[],
+  kind: "entity" | KnowledgeValueKindV1, target?: readonly string[],
+];
 export const SPONGE_IDENTITY_CONTEXT_PREDICATES_V1: readonly PredicateSpec[] = [
   ["claims-identity-of", "The entity a claim proposes as the referent of an identifier or description.", "identity-claim", "entity", ["entity"]],
   ["uses-scheme", "The identifier scheme used by this claim or identifier.", "identity-claim", "entity", ["identity-scheme"]],
@@ -38,7 +41,7 @@ export const SPONGE_IDENTITY_CONTEXT_PREDICATES_V1: readonly PredicateSpec[] = [
   ["has-globe", "The celestial body or globe bounding this location claim.", "location-record", "entity", ["entity"]],
   ["uses-crs", "The coordinate reference system used by the geometry.", "location-record", "entity", ["entity"]],
   ["location-accuracy", "The stated spatial accuracy or uncertainty of this record.", "location-record", "quantity"],
-  ["supports-claim", "A claim supported by this evidence bundle or item; support is not truth or completeness.", "evidence-bundle", "entity", ["identity-claim"]],
+  ["supports-claim", "A claim supported by this evidence bundle or item; support is not truth or completeness.", ["evidence-bundle", "evidence-item"], "entity", ["identity-claim"]],
   ["contains-evidence", "An evidence item contained in this bundle.", "evidence-bundle", "entity", ["evidence-item"]],
   ["has-evidence-item", "A source, observation, document or capture represented as an evidence item.", "evidence-bundle", "entity", ["evidence-item"]],
   ["evidence-source", "The source entity for this evidence item.", "evidence-item", "entity", ["entity"]],
@@ -98,11 +101,13 @@ export async function buildSpongeIdentityContextPackV1(catalog: SpongeKnowledgeD
     const common = { definitions: labels(`${definition} This relation is descriptive and source-scoped; it does not grant identity, truth, access or publication authority.`),
       identity: { code, namespace: vocabulary.namespace, revision: 1, v: 1 as const }, labels: labels(title(code)), previousRevisionSha256: null,
       reviewDecisionSha256: null, vocabularySha256: vocabulary.revisionSha256, v: 1 as const, kind: "predicate" as const,
-      domainConcepts: [local(domain)], inversePredicate: null, qualifierPredicates };
+      domainConcepts: refs(concepts, typeof domain === "string" ? [domain] : domain), inversePredicate: null, qualifierPredicates };
     const valueRange = kind === "entity"
       ? range("entity", target?.[0] === "entity" ? [coreEntity] : [local(target?.[0] ?? "entity")])
       : range(kind);
-    predicates.push(required(await createKnowledgeSchemaRevisionV1({ ...common, range: valueRange })) as KnowledgePredicateRevisionV1);
+    const predicate = required(await createKnowledgeSchemaRevisionV1({ ...common, range: valueRange }));
+    if (predicate.kind !== "predicate") throw new Error(`Expected identity-context predicate ${code}.`);
+    predicates.push(predicate);
   }
   const schemas = [...concepts, ...predicates].sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
   const shapes: KnowledgeExecutableShapeV1[] = [];

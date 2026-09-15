@@ -37,6 +37,10 @@ describe("identity-context vocabulary pack", () => {
     expect(predicate("has-identifier")?.range).toEqual({ kind: "value-kinds", valueKinds: ["identifier"], v: 1 });
     expect(predicate("activity-time")?.range).toEqual({ kind: "value-kinds", valueKinds: ["time"], v: 1 });
     expect(predicate("activity-actor")?.range).toEqual(expect.objectContaining({ kind: "entity-concepts" }));
+    expect(predicate("supports-claim")?.domainConcepts.map(ref => ref.code)).toEqual(["evidence-bundle", "evidence-item"]);
+    for (const code of ["evidence-bundle", "evidence-item"]) {
+      expect(pack.shapes.find(shape => shape.shape.code === code)?.rules.some(rule => rule.predicate.code === "supports-claim")).toBe(true);
+    }
     expect(pack.shapes.every(shape => shape.closed === false)).toBe(true);
   });
 });

@@ -46,6 +46,18 @@ globalThis.researchProbe = (async () => {
   const catalog = await research.spongeKnowledgeDomainCatalogV3();
   const mappings = await research.spongeKnowledgeWikidataMappingCatalogV2();
   if (catalog.packs.length !== 18 || mappings.mappings.length !== 15) throw new Error("Missing source relationships in built browser export.");
+  const deeper = await research.spongeKnowledgeDomainCatalogV5();
+  const preserved = await research.spongeKnowledgeWikidataMappingCatalogV3();
+  if (deeper.packs.length !== catalog.packs.length + 2
+    || deeper.identityContextPack.packId !== "sponge.identity-context"
+    || deeper.bridgeRelationsPack.packId !== "sponge.bridge-relations"
+    || preserved.reviewedMappings.length !== mappings.mappings.length
+    || preserved.preservedProperties.length !== 16
+    || preserved.preservedProperties.some(property => property.target !== null)) {
+    throw new Error("Missing ontology depth packs or preservation boundary in built browser export.");
+  }
+  const resolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: deeper.packs, roots: deeper.lock.roots });
+  if (!resolution.ok || resolution.value.lock.lockSha256 !== deeper.lock.lockSha256) throw new Error("Depth catalog cannot resolve its complete dependency lock in the browser.");
   const input = { v: 2, properties: "all-present", mappingVersion: "browser-probe", captures: [{
     requestedId: "Q1", resolvedId: "Q1", sourceUri: "https://www.wikidata.org/w/api.php", redirects: [],
     capturedAt: "2026-09-13T00:00:00.000Z", coverage: { kind: "complete-entity" },

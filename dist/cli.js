@@ -6331,6 +6331,9 @@ function schemaByCode(schemas, code2) {
     throw new Error(`Missing identity-context schema ${code2}.`);
   return schema;
 }
+function refs2(schemas, codes) {
+  return codes.map((code2) => schemaByCode(schemas, code2).ref).sort((a, b) => canonical2(a) < canonical2(b) ? -1 : 1);
+}
 function range(kind, concepts = []) {
   return kind === "entity" ? { concepts, kind: "entity-concepts", v: 1 } : { kind: "value-kinds", valueKinds: [kind], v: 1 };
 }
@@ -6375,12 +6378,15 @@ async function buildSpongeIdentityContextPackV1(catalog) {
       vocabularySha256: vocabulary.revisionSha256,
       v: 1,
       kind: "predicate",
-      domainConcepts: [local(domain)],
+      domainConcepts: refs2(concepts, typeof domain === "string" ? [domain] : domain),
       inversePredicate: null,
       qualifierPredicates
     };
     const valueRange2 = kind === "entity" ? range("entity", target?.[0] === "entity" ? [coreEntity] : [local(target?.[0] ?? "entity")]) : range(kind);
-    predicates.push(required2(await createKnowledgeSchemaRevisionV1({ ...common, range: valueRange2 })));
+    const predicate = required2(await createKnowledgeSchemaRevisionV1({ ...common, range: valueRange2 }));
+    if (predicate.kind !== "predicate")
+      throw new Error(`Expected identity-context predicate ${code2}.`);
+    predicates.push(predicate);
   }
   const schemas = [...concepts, ...predicates].sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
   const shapes = [];
@@ -6455,7 +6461,7 @@ var init_knowledge_identity_context_pack = __esm(() => {
     ["has-globe", "The celestial body or globe bounding this location claim.", "location-record", "entity", ["entity"]],
     ["uses-crs", "The coordinate reference system used by the geometry.", "location-record", "entity", ["entity"]],
     ["location-accuracy", "The stated spatial accuracy or uncertainty of this record.", "location-record", "quantity"],
-    ["supports-claim", "A claim supported by this evidence bundle or item; support is not truth or completeness.", "evidence-bundle", "entity", ["identity-claim"]],
+    ["supports-claim", "A claim supported by this evidence bundle or item; support is not truth or completeness.", ["evidence-bundle", "evidence-item"], "entity", ["identity-claim"]],
     ["contains-evidence", "An evidence item contained in this bundle.", "evidence-bundle", "entity", ["evidence-item"]],
     ["has-evidence-item", "A source, observation, document or capture represented as an evidence item.", "evidence-bundle", "entity", ["evidence-item"]],
     ["evidence-source", "The source entity for this evidence item.", "evidence-item", "entity", ["entity"]],
@@ -6518,7 +6524,7 @@ var init_knowledge_bridge_relations = __esm(() => {
     ["placement-in-article", "Placement in article", "The placement occurs in the identified article or edition; position, prominence, and publication state remain separate."],
     ["series-has-member-event", "Series has member event", "The event series includes the identified event; membership does not establish chronology or completeness."],
     ["track-has-recording", "Track has recording", "The track is realized by the identified recording; this does not establish release, performer, or rights ownership."],
-    ["listing-at-venue", "Listing at venue", "The listing is associated with the identified venue or place; this does not establish current operation or access."],
+    ["listing-at-venue", "Listing at venue", "The listing is associated with the identified trading venue place or organization operating the venue. The operator and place remain distinct identities; this does not establish current operation or access."],
     ["snapshot-of-simulation", "Snapshot of simulation", "The snapshot was produced by or belongs to the identified simulation; tick, state, and provenance remain separate."],
     ["trajectory-has-attempt", "Trajectory has attempt", "The trajectory contains the identified task attempt; this does not establish success, causality, or completeness."],
     ["task-pursues-goal", "Task pursues goal", "The task pursues the identified goal; this does not establish that the goal was achieved or authorized."],
@@ -6537,8 +6543,8 @@ function required4(result) {
 function canonical3(value) {
   return canonicalJson2(value);
 }
-function sortedRefs2(refs2) {
-  return [...refs2].sort((a, b) => canonical3(a) < canonical3(b) ? -1 : 1);
+function sortedRefs2(refs3) {
+  return [...refs3].sort((a, b) => canonical3(a) < canonical3(b) ? -1 : 1);
 }
 function schema(pack, packId, code2) {
   const found = pack.packs.find((item) => item.packId === packId)?.schemas.find((item) => item.identity.code === code2);
@@ -6587,12 +6593,19 @@ async function buildCatalog5() {
     const endpoint = relationEndpoints.find((item) => item[0] === code2);
     if (endpoint === undefined)
       throw new Error(`Missing bridge endpoint ${code2}.`);
-    const [, domainPack, domainCode, ranges] = endpoint;
-    const rangeRefs = ranges.map(([packId, rangeCode]) => packId === vocabulary.namespace ? localConcepts.get(rangeCode) : ref(previous, packId, rangeCode));
+    const [, domains, ranges] = endpoint;
+    const rangeRefs = ranges.map(([packId, rangeCode]) => {
+      if (packId !== vocabulary.namespace)
+        return ref(previous, packId, rangeCode);
+      const local = localConcepts.get(rangeCode);
+      if (local === undefined)
+        throw new Error(`Missing local bridge concept ${rangeCode}.`);
+      return local;
+    });
     schemas.push(required4(await createKnowledgeSchemaRevisionV1({
       ...base(code2, description),
       kind: "predicate",
-      domainConcepts: [ref(previous, domainPack, domainCode)],
+      domainConcepts: sortedRefs2(domains.map(([packId, domainCode]) => ref(previous, packId, domainCode))),
       inversePredicate: null,
       qualifierPredicates: sortedRefs2(qualifierPredicates),
       range: { concepts: sortedRefs2(rangeRefs), kind: "entity-concepts", v: 1 }
@@ -6611,7 +6624,7 @@ async function buildCatalog5() {
     schemas,
     shapes: [],
     queries: [{ description: "Which explicit cross-domain bridge relations connect a record to its adjacent research object?", id: "bridge-relations", predicates: schemas.filter((item) => item.kind === "predicate").map((item) => item.ref), v: 1 }],
-    sources: [{ contentSha256: "f6f87dc67e668fe458115d8dec3f44023c35c3c3cce0f676f2a1de7169325aa3", license: "MIT", revision: "2026-09-14", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/bridge-relations-v1.md", v: 1 }],
+    sources: [{ contentSha256: "724ae5c71003ad74dc900ded6eb277c9a235da19af9145ae18f9ebe1a26641a7", license: "MIT", revision: "2026-09-14", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/bridge-relations-v1.md", v: 1 }],
     supportedCodecs: [],
     v: 1,
     vocabulary
@@ -6629,20 +6642,20 @@ var init_knowledge_domain_catalog_v5 = __esm(() => {
   init_knowledge_vocabulary_pack_v1();
   init_knowledge_bridge_relations();
   relationEndpoints = [
-    ["offer-for-product", "sponge.substances", "offer", [["sponge.substances", "product"]]],
-    ["offer-has-price", "sponge.substances", "offer", [["sponge.bridge-relations", "price"]]],
-    ["assay-uses-method", "sponge.substances", "assay", [["sponge.research", "method"]]],
-    ["assay-produces-result", "sponge.substances", "assay", [["sponge.research", "finding"]]],
-    ["placement-in-article", "sponge.editorial", "placement", [["sponge.editorial", "article"], ["sponge.editorial", "edition"]]],
-    ["series-has-member-event", "sponge.editorial", "event-series", [["sponge.core", "event"]]],
-    ["track-has-recording", "sponge.music", "track", [["sponge.music", "recording"]]],
-    ["listing-at-venue", "sponge.finance", "listing", [["sponge.core", "place"]]],
-    ["snapshot-of-simulation", "sponge.formal-systems", "state-snapshot", [["sponge.formal-systems", "simulation"]]],
-    ["trajectory-has-attempt", "sponge.agent-work", "trajectory", [["sponge.agent-work", "attempt"]]],
-    ["task-pursues-goal", "sponge.agent-work", "task", [["sponge.agent-work", "goal"]]],
-    ["profile-for-account", "sponge.people", "profile-projection", [["sponge.core", "account"]]],
-    ["role-assignment-at-organization", "sponge.organizations", "role-assignment", [["sponge.core", "organization"]]],
-    ["lexeme-in-language-system", "sponge.language", "lexeme", [["sponge.reference", "language-system"]]]
+    ["offer-for-product", [["sponge.substances", "offer"]], [["sponge.substances", "product"]]],
+    ["offer-has-price", [["sponge.substances", "offer"]], [["sponge.bridge-relations", "price"]]],
+    ["assay-uses-method", [["sponge.substances", "assay"]], [["sponge.research", "method"]]],
+    ["assay-produces-result", [["sponge.substances", "assay"]], [["sponge.research", "finding"]]],
+    ["placement-in-article", [["sponge.editorial", "placement"]], [["sponge.editorial", "article"], ["sponge.editorial", "edition"]]],
+    ["series-has-member-event", [["sponge.editorial", "event-series"]], [["sponge.core", "event"]]],
+    ["track-has-recording", [["sponge.music", "track"]], [["sponge.music", "recording"]]],
+    ["listing-at-venue", [["sponge.finance", "listing"]], [["sponge.core", "organization"], ["sponge.core", "place"]]],
+    ["snapshot-of-simulation", [["sponge.formal-systems", "state-snapshot"]], [["sponge.formal-systems", "simulation"]]],
+    ["trajectory-has-attempt", [["sponge.agent-work", "trajectory"]], [["sponge.agent-work", "attempt"]]],
+    ["task-pursues-goal", [["sponge.agent-work", "task"]], [["sponge.agent-work", "goal"]]],
+    ["profile-for-account", [["sponge.people", "profile-projection"], ["sponge.people", "public-profile-document"]], [["sponge.core", "account"]]],
+    ["role-assignment-at-organization", [["sponge.organizations", "role-assignment"]], [["sponge.core", "organization"]]],
+    ["lexeme-in-language-system", [["sponge.language", "lexeme"]], [["sponge.reference", "language-system"]]]
   ];
 });
 
@@ -6657,7 +6670,7 @@ function ref2(value) {
   const parsed = parseKnowledgeSchemaRefV1(value);
   return parsed.ok ? parsed.value : null;
 }
-function refs2(value) {
+function refs3(value) {
   if (!Array.isArray(value) || value.length > 256)
     return null;
   const parsed = value.map(ref2);
@@ -6730,7 +6743,7 @@ function parseSpongeKnowledgeProposalDraftV3(foreign) {
         return null;
       entities.push({ key: item["key"], kind: "existing", entityId });
     } else if (item["kind"] === "new" && hasExactDataKeys(item, ["key", "kind", "concepts", "name"]) && isPlainRecord2(item["name"]) && hasExactDataKeys(item["name"], ["language", "text"])) {
-      const concepts = refs2(item["concepts"]);
+      const concepts = refs3(item["concepts"]);
       const name = parseKnowledgeValueV1({ kind: "text", v: 1, ...item["name"] });
       if (concepts === null || concepts.length === 0 || concepts.length > 16 || !name.ok || name.value.kind !== "text")
         return null;
@@ -6786,7 +6799,7 @@ function parseSpongeKnowledgeProposalDraftV3(foreign) {
       attribution: { kind: "agent-supplied", sourceUri }
     });
   }
-  const vocabularyDependencies = refs2(value["vocabularyDependencies"]);
+  const vocabularyDependencies = refs3(value["vocabularyDependencies"]);
   if (vocabularyDependencies === null || facts.length + entities.length + contexts.length + evidence.length === 0)
     return null;
   const all = [...entities, ...facts, ...contexts, ...evidence];
@@ -7822,8 +7835,8 @@ function replayOhOperationsV1(spaceId, values, maximumRecords = OH_GRAPH_LIMITS_
     if (records.size > maximumRecords)
       throw new RangeError("Operation replay exceeds its record bound.");
     verifyDependencies(records);
-    const refs3 = sortedRecords(records.values()).map(knowledgeGraphRecordRefV1);
-    const recordsSha256 = canonicalSha256(refs3);
+    const refs4 = sortedRecords(records.values()).map(knowledgeGraphRecordRefV1);
+    const recordsSha256 = canonicalSha256(refs4);
     const graphRevisionSha256 = graphRevisionSha256V1({
       changes: operation.changes,
       operationId: operation.operationId,
@@ -8377,8 +8390,8 @@ class OhSqliteStore {
           throw new OhDependencyError(`Missing dependency ${dependency} for ${record.key}.`);
       }
     }
-    const refs3 = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map(knowledgeGraphRecordRefV1);
-    const recordsSha256 = canonicalSha256(refs3);
+    const refs4 = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map(knowledgeGraphRecordRefV1);
+    const recordsSha256 = canonicalSha256(refs4);
     const graphRevisionSha256 = graphRevisionSha256V1({
       changes,
       operationId,
@@ -8881,8 +8894,8 @@ class OhSqliteStore {
         if (record.dependencies.some((dependency) => !records.has(dependency)))
           throw new OhIntegrityError("Replay has a missing dependency.");
       }
-      const refs3 = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map(knowledgeGraphRecordRefV1);
-      const recordsSha256 = canonicalSha256(refs3);
+      const refs4 = [...records.values()].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0).map(knowledgeGraphRecordRefV1);
+      const recordsSha256 = canonicalSha256(refs4);
       const graphRevisionSha256 = graphRevisionSha256V1({
         changes: operation.changes,
         operationId: operation.operationId,
@@ -16851,7 +16864,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
   id: state.id(),
   status,
   interruptors: interruptors(state.getFiberRef(currentInterruptedCause))
-})), allowInterrupt, descriptor, diffFiberRefs = (self) => summarized(self, fiberRefs2, diff5), diffFiberRefsAndRuntimeFlags = (self) => summarized(self, zip2(fiberRefs2, runtimeFlags), ([refs3, flags], [refsNew, flagsNew]) => [diff5(refs3, refsNew), diff4(flags, flagsNew)]), Do2, bind3, bindTo3, let_3, dropUntil, dropWhile, contextWith = (f) => map8(context(), f), eventually = (self) => orElse2(self, () => flatMap7(yieldNow(), () => eventually(self))), filterMap4, filterOrDie, filterOrDieMessage, filterOrElse, liftPredicate2, filterOrFail, findFirst3, findLoop = (iterator, index, f, value) => flatMap7(f(value, index), (result) => {
+})), allowInterrupt, descriptor, diffFiberRefs = (self) => summarized(self, fiberRefs2, diff5), diffFiberRefsAndRuntimeFlags = (self) => summarized(self, zip2(fiberRefs2, runtimeFlags), ([refs4, flags], [refsNew, flagsNew]) => [diff5(refs4, refsNew), diff4(flags, flagsNew)]), Do2, bind3, bindTo3, let_3, dropUntil, dropWhile, contextWith = (f) => map8(context(), f), eventually = (self) => orElse2(self, () => flatMap7(yieldNow(), () => eventually(self))), filterMap4, filterOrDie, filterOrDieMessage, filterOrElse, liftPredicate2, filterOrFail, findFirst3, findLoop = (iterator, index, f, value) => flatMap7(f(value, index), (result) => {
   if (result) {
     return succeed(some2(value));
   }
@@ -20140,7 +20153,7 @@ var init_fiberRuntime = __esm(() => {
       return internalCall(() => op.effect_instruction_i0(this, running2(this.currentRuntimeFlags)));
     }
     ["Blocked"](op) {
-      const refs3 = this.getFiberRefs();
+      const refs4 = this.getFiberRefs();
       const flags = this.currentRuntimeFlags;
       if (this._steps.length > 0) {
         const frames = [];
@@ -20152,7 +20165,7 @@ var init_fiberRuntime = __esm(() => {
         }
         this.setFiberRefs(snap.refs);
         this.currentRuntimeFlags = snap.flags;
-        const patchRefs = diff6(snap.refs, refs3);
+        const patchRefs = diff6(snap.refs, refs4);
         const patchFlags = diff4(snap.flags, flags);
         return exitSucceed(blocked(op.effect_instruction_i0, withFiberRuntime((newFiber) => {
           while (frames.length > 0) {

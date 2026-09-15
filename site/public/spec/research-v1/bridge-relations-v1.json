@@ -1,7 +1,7 @@
 {
   "v": 1,
   "catalog": {
-    "factory": "spongeKnowledgeDomainCatalogV4",
+    "factory": "spongeKnowledgeDomainCatalogV5",
     "additionalPack": "sponge.bridge-relations",
     "additionalPackRevision": 1
   },
