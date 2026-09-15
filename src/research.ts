@@ -22,3 +22,4 @@ export * from "./research/knowledge-domain-catalog-v3";
 export * from "./research/knowledge-wikidata-mappings-v2";
 export * from "./research/knowledge-identity-context-pack";
 export * from "./research/knowledge-domain-catalog-v4";
+export * from "./research/knowledge-wikidata-mappings-v3";
