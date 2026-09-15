@@ -68,14 +68,15 @@ not a claim about a real study.
 
 ## Install and first run
 
-Version `0.9.0` includes 23 packs and 336 schemas in catalog V6, with measurement
-context, monetary values and quotes, and lexical and cultural occurrences tied
-to retained source versions. These selected profiles do not provide complete
-semantic coverage of Wikidata; preserved properties are not all mapped to local
-relations. Historical catalogs and definitions remain available.
+Version `0.10.0` includes 24 packs and 341 schemas in catalog V7. It adds dated
+participation and role descriptions alongside measurement context, monetary
+values and quotes, and occurrences tied to retained source versions. These
+selected profiles do not provide complete semantic coverage of Wikidata;
+preserved properties are not all mapped to local relations. Historical catalogs
+and definitions remain available.
 
-The installation instructions below use `0.9.0`, the
-[verified public release](https://github.com/hraness/oh/actions/runs/34925268279).
+The installation instructions below use `0.10.0`, the
+[verified public release](https://github.com/hraness/oh/actions/runs/34983514610).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
 CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
@@ -83,16 +84,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact verified public release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.9.0
+bun add --global @hraness/oh@0.10.0
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.9.0),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.10.0),
 including the mirrored
-[`hraness-oh-0.9.0.tgz`](https://github.com/hraness/oh/releases/download/v0.9.0/hraness-oh-0.9.0.tgz)
+[`hraness-oh-0.10.0.tgz`](https://github.com/hraness/oh/releases/download/v0.10.0/hraness-oh-0.10.0.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.9.0/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.10.0/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -150,7 +151,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.9.0"
+    "@hraness/oh": "0.10.0"
   }
 }
 ```
@@ -732,9 +733,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.9.0 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.9.0 Release at
-https://github.com/hraness/oh/releases/tag/v0.9.0. Verify the CLI with
+Install @hraness/oh@0.10.0 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.10.0 Release at
+https://github.com/hraness/oh/releases/tag/v0.10.0. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```
@@ -880,12 +881,11 @@ occurrence can identify its containing source version. These explicit links
 preserve catalogs V1–V5 and do not infer comparability, current prices or
 cultural influence.
 
-
 Source version 0.10.0 adds `oh research catalog-v7` and the optional
-[participation roles profile](spec/research-v1/participation-roles-v1.md).
-A participation connects one agent, one exact focal entity and an attributed
-role. Existing organization role assignments can use the same role descriptors.
-Keep separate records for different dates, recording versions or editions,
-with their source evidence and context. Query guidance names relations to
-inspect; it does not execute joins or infer employment, ownership or rights.
+[participation roles profile](spec/research-v1/participation-roles-v1.md) for
+dated assignments and credits. Separate participation records keep an agent's
+role tied to the exact recording, edition or other credited subject, with its
+source evidence. Existing organization assignments can use the same role
+descriptors. Listed query paths are declarative guidance; they do not execute
+joins or infer employment, ownership or rights.
 Catalogs V1–V6 retain their exact declarations and locks.

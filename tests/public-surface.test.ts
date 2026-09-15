@@ -181,23 +181,25 @@ describe("public identity and documentation", () => {
     expect(sitePackageJson.version).toBe(packageJson.version);
     expect(cli).toContain('OH_PACKAGE_VERSION = "0.10.0"');
     expect(publishedRelease).toEqual({
-      version: "0.9.0",
-      verificationRun: "https://github.com/hraness/oh/actions/runs/34925268279",
+      version: "0.10.0",
+      verificationRun: "https://github.com/hraness/oh/actions/runs/34983514610",
     });
-    expect(readme).toContain("installation instructions below use `0.9.0`");
-    expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.9.0`");
+    expect(readme).toContain("installation instructions below use `0.10.0`");
+    expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.10.0`");
     expect(skill).toContain("For an existing installation, use its installed CLI");
     expect(readme).toContain("Source version 0.6.1 adds `oh research catalog-v2`");
     expect(skill).toContain("With version 0.6.1 or newer, `oh research catalog-v2`");
     expect(readme).toContain("Source version 0.8.1 adds `oh research catalog-v4`");
     expect(skill).toContain("With version 0.8.1 or newer, `oh research catalog-v4`");
-    expect(readme).toContain("336 schemas in catalog V6");
-    expect(readme).toContain("23 packs and 336 schemas");
+    expect(readme).toContain("Source version 0.9.0 adds `oh research catalog-v6`");
+    expect(skill).toContain("With version 0.9.0 or newer, `oh research catalog-v6`");
+    expect(readme).toContain("341 schemas in catalog V7");
+    expect(readme).toContain("24 packs and 341 schemas");
     expect(skill).toContain("oh research catalog-v2");
     expect(skill).toContain("oh research wikidata-mappings");
     expect(skill).toContain("wikidata-mapping-preview --file PATH");
-    expect(readme).toContain("https://github.com/hraness/oh/actions/runs/34925268279");
-    expect(skill).toContain("https://github.com/hraness/oh/actions/runs/34925268279");
+    expect(readme).toContain("https://github.com/hraness/oh/actions/runs/34983514610");
+    expect(skill).toContain("https://github.com/hraness/oh/actions/runs/34983514610");
     expect(readme).not.toContain("This source tree prepares version");
     expect(skill).not.toContain("until the next release completes publication");
     expect(packageJson.description).toBe(tagline);
@@ -213,14 +215,14 @@ describe("public identity and documentation", () => {
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
-    expect(readme).toContain("bun add --global @hraness/oh@0.9.0");
-    expect(readme).toContain('"@hraness/oh": "0.9.0"');
-    expect(readme).toContain("releases/download/v0.9.0/hraness-oh-0.9.0.tgz");
+    expect(readme).toContain("bun add --global @hraness/oh@0.10.0");
+    expect(readme).toContain('"@hraness/oh": "0.10.0"');
+    expect(readme).toContain("releases/download/v0.10.0/hraness-oh-0.10.0.tgz");
     expect(readme).not.toContain("@hraness/oh@0.4.3");
     expect(readme).not.toContain("releases/download/v0.4.3");
     expect(readme).not.toContain("github:hraness/oh#");
-    expect(skill).toContain("`@hraness/oh@0.9.0`");
-    expect(skill).toContain("immutable GitHub Release `v0.9.0`");
+    expect(skill).toContain("`@hraness/oh@0.10.0`");
+    expect(skill).toContain("immutable GitHub Release `v0.10.0`");
     expect(skill).not.toContain("@hraness/oh@0.4.3");
     expect(skill).toMatch(/^---\nname: oh\ndescription: .+\n---\n/u);
     expect(skill).not.toMatch(/TODO|TBD|example skill/iu);
