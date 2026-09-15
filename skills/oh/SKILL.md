@@ -32,9 +32,9 @@ oh version
 
 For an existing installation, use its installed CLI and matching versioned
 specifications. The following publication receipt is for a fresh installation.
-Use the verified public CLI `@hraness/oh@0.9.0`. Its identical tarball and
-checksum are mirrored by the immutable GitHub Release `v0.9.0`.
-[Public release verification](https://github.com/hraness/oh/actions/runs/34925268279).
+Use the verified public CLI `@hraness/oh@0.10.0`. Its identical tarball and
+checksum are mirrored by the immutable GitHub Release `v0.10.0`.
+[Public release verification](https://github.com/hraness/oh/actions/runs/34983514610).
 It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
@@ -339,12 +339,11 @@ pack's full pinned dependency closure. Missing context stays unknown; these
 relations do not establish measurement comparability, current availability,
 vendor trust or cultural influence. Catalogs V1–V5 remain unchanged.
 
-
 With version 0.10.0 or newer, `oh research catalog-v7` adds
-`sponge.participation-roles`. Use separate participation records to connect an
-agent, the exact contribution subject and a source-attributed role. Assign the
-same role descriptors to organization role assignments when appropriate.
-Preserve distinct dates, recording versions, editions and contrary evidence.
-Resolve the exact dependency lock; listed query paths are declarative guidance,
-not executed results. A credit does not establish employment, ownership or
-execution permission. Catalogs V1–V6 remain available with unchanged identities.
+`sponge.participation-roles`. Use `participant`, `participation-in` and
+`assigned-role` to describe a credit; the latter also accepts existing
+organization role assignments. Keep separate records for distinct dates,
+recordings or editions, with their source and contrary evidence. Resolve the
+exact dependency lock. Listed query paths are declarative guidance, not executed
+results; credits confer no employment, ownership or execution permission.
+Catalogs V1–V6 remain available with unchanged identities.
