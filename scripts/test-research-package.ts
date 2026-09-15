@@ -58,6 +58,15 @@ globalThis.researchProbe = (async () => {
   }
   const resolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: deeper.packs, roots: deeper.lock.roots });
   if (!resolution.ok || resolution.value.lock.lockSha256 !== deeper.lock.lockSha256) throw new Error("Depth catalog cannot resolve its complete dependency lock in the browser.");
+  const latest = await research.spongeKnowledgeDomainCatalogV6();
+  if (latest.packs.length !== deeper.packs.length + 3
+    || latest.measurementResultsPack.packId !== "sponge.measurement-results"
+    || latest.monetaryValuesPack.packId !== "sponge.monetary-values"
+    || latest.contentOccurrencesPack.packId !== "sponge.content-occurrences") {
+    throw new Error("Missing measurement, monetary or retained-content profiles in the built browser export.");
+  }
+  const latestResolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: latest.packs, roots: latest.lock.roots });
+  if (!latestResolution.ok || latestResolution.value.lock.lockSha256 !== latest.lock.lockSha256) throw new Error("V6 catalog cannot resolve its complete dependency lock in the browser.");
   const input = { v: 2, properties: "all-present", mappingVersion: "browser-probe", captures: [{
     requestedId: "Q1", resolvedId: "Q1", sourceUri: "https://www.wikidata.org/w/api.php", redirects: [],
     capturedAt: "2026-09-13T00:00:00.000Z", coverage: { kind: "complete-entity" },

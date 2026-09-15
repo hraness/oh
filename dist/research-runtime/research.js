@@ -3955,6 +3955,514 @@ async function buildCatalog5() {
   const resolved = required5(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots }));
   return freezeKnowledgeDeclaration({ ...previous, bridgeRelationsPack, lock: resolved.lock, packs, schemas: packs.flatMap((pack) => pack.schemas), vocabularies: packs.map((pack) => pack.vocabulary) });
 }
+// src/research/knowledge-content-occurrences.ts
+function required6(result) {
+  if (!result.ok)
+    throw new Error(`Invalid content-occurrences pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels7(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical6(value) {
+  return canonicalJson(value);
+}
+function sortedRefs3(refs4) {
+  return [...refs4].sort((a, b) => canonical6(a) < canonical6(b) ? -1 : 1);
+}
+async function createSpongeContentOccurrencesPackV1(previous) {
+  const dependencyIds = ["sponge.core", "sponge.culture", "sponge.foundation", "sponge.language", "sponge.reference"];
+  const dependencies = dependencyIds.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing content-occurrences dependency ${packId}.`);
+    return pack;
+  });
+  const ref3 = (packId, code2) => {
+    const schema2 = dependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing content-occurrences schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required6(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels7("Sponge content occurrences and lexical context"),
+    namespace: "sponge.content-occurrences",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels7(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels7(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const version = required6(await createKnowledgeSchemaRevisionV1({
+    ...base("retained-content-version", "One retained representation of a source, artifact or work, with an explicit digest-bearing media value and containing identity. Source verification and byte retention remain host responsibilities; a mutable URL or retrieval time is not a version."),
+    kind: "concept",
+    broader: [ref3("sponge.core", "source")]
+  }));
+  const occurrenceRefs = sortedRefs3([
+    ref3("sponge.language", "text-occurrence"),
+    ref3("sponge.culture", "reference-occurrence"),
+    ref3("sponge.culture", "depiction")
+  ]);
+  const predicates = [];
+  const add = async (code2, description, domains, range2, qualifierPredicates) => {
+    const result = required6(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, description),
+      kind: "predicate",
+      domainConcepts: sortedRefs3(domains),
+      inversePredicate: null,
+      qualifierPredicates: sortedRefs3(qualifierPredicates),
+      range: range2
+    }));
+    if (result.kind !== "predicate")
+      throw new Error(`Expected content-occurrences predicate ${code2}.`);
+    predicates.push(result);
+    return result;
+  };
+  const entityRange3 = (...concepts) => ({ concepts: sortedRefs3(concepts), kind: "entity-concepts", v: 1 });
+  const locator = await add("source-native-locator", "The source selector preserved verbatim, including its scheme, units and coordinate basis when supplied. As a qualifier on occurrence-in-version it belongs only to that retained version; no selector verification or precision is inferred.", occurrenceRefs, { kind: "value-kinds", valueKinds: ["string"], v: 1 }, []);
+  const qualifiers = sortedRefs3(dependencies.filter((pack) => pack.packId === "sponge.reference" || pack.packId === "sponge.foundation").flatMap((pack) => pack.schemas).filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref));
+  const text2 = ref3("sponge.language", "text-occurrence");
+  const form = ref3("sponge.language", "form");
+  const language = ref3("sponge.reference", "language-system");
+  await add("text-realizes-form", "The written or spoken form realized by this particular text occurrence under attributed evidence; matching spelling does not identify a lexeme or sense.", [text2], entityRange3(form), qualifiers);
+  await add("text-expresses-sense", "The contextual sense attributed to this text occurrence; alternate interpretations may coexist and remain source-scoped.", [text2], entityRange3(ref3("sponge.language", "sense")), qualifiers);
+  await add("text-in-language-system", "The language or variety attributed to this occurrence, independently of the form's language and permitting explicitly recorded multilingual use.", [text2], entityRange3(language), qualifiers);
+  await add("form-in-language-system", "The language or variety under which this lexical form is described; this does not normalize spelling, script or pronunciation.", [form], entityRange3(language), qualifiers);
+  await add("occurrence-in-version", "The retained content version containing this text occurrence, cultural reference or depiction. A source-native-locator qualifier binds its selector to this exact version; containment does not establish interpretation or influence.", occurrenceRefs, entityRange3(version.ref), [...qualifiers, locator.ref]);
+  const containing = await add("content-version-of", "The source, artifact or work whose representation was retained. The continuing identity remains distinct from its retained bytes and may have multiple versions.", [version.ref], entityRange3(ref3("sponge.core", "source"), ref3("sponge.core", "artifact"), ref3("sponge.core", "work")), qualifiers);
+  const content = await add("retained-content", "The existing media value naming the host-authorized retention source, exact source SHA-256 and media type, including textual content. Declaring this value does not verify bytes or grant retention or retrieval authority.", [version.ref], { kind: "value-kinds", valueKinds: ["media"], v: 1 }, qualifiers);
+  const shape = required6(await createKnowledgeExecutableShapeV1({
+    appliesToConcepts: [version.ref],
+    closed: false,
+    extends: [],
+    maximumInheritanceDepth: 1,
+    rules: [containing, content].map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: 1, minimum: 1, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate === containing ? { kind: "value-kinds", valueKinds: ["entity"], v: 1 } : predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical6(a.predicate) < canonical6(b.predicate) ? -1 : 1),
+    shape: version.ref,
+    v: 1
+  }));
+  return freezeKnowledgeDeclaration(required6(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: dependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive occurrence, form, sense, language and retained-content paths. Published packs and source records remain unchanged. Locators qualify exact occurrence/version statements. Missing context stays unknown; no automatic capture verification, translation equivalence, cultural influence, identity merge or publication authority is implied.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: [version, ...predicates].sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: [shape],
+    queries: [{
+      description: "Which form, contextual sense and language are attested by this occurrence, and which exact retained bytes and selector locate the text, allusion or depiction?",
+      id: "retained-occurrences",
+      predicates: sortedRefs3([
+        ...predicates.map((predicate) => predicate.ref),
+        ref3("sponge.culture", "alludes-to"),
+        ref3("sponge.culture", "depicts"),
+        ref3("sponge.core", "about"),
+        ref3("sponge.core", "authored-by"),
+        ref3("sponge.core", "cites"),
+        ref3("sponge.reference", "source-context"),
+        ref3("sponge.foundation", "version-context")
+      ]),
+      v: 1
+    }],
+    sources: [{
+      contentSha256: "a9264dbeba17f9675c92ac1a7e2b3b0f7412d3f61b35aae9ed135c9c235591a9",
+      license: "MIT",
+      revision: "2026-09-15",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/content-occurrences-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+
+// src/research/knowledge-measurement-results.ts
+var namespace = "sponge.measurement-results";
+var concepts = [
+  ["metric-definition", "An identified definition of the quantity or score being reported, including its population, denominator, aggregation and direction where stated. Different definitions remain distinct even when their labels match."],
+  ["dataset-split", "An identified selection within an exact dataset version. Its source-native selector, membership and intended use remain explicit; a shared split label does not prove identical examples or freedom from contamination."]
+];
+var definitions2 = [
+  ["software-result-measurement", "Connects a software result record to the foundation measurement that describes its quantity and context. The records retain separate identities; neither concept becomes a subtype of the other.", ["software/measurement"], ["foundation/measurement"]],
+  ["measurement-model-version", "Identifies the exact model version evaluated for this measurement. A family name, routing alias or another run's model is insufficient to establish this relation.", ["foundation/measurement"], ["software/model-version"]],
+  ["measurement-metric", "Identifies the metric definition used to interpret this measurement. Equal units or labels do not establish equal metrics or comparable results.", ["foundation/measurement"], ["measurement-results/metric-definition"]],
+  ["metric-definition-text", "Retains the attributed definition of a metric, including the stated denominator, aggregation, direction and evaluation scope. Omitted details remain unknown.", ["measurement-results/metric-definition"], "string"],
+  ["measurement-dataset-split", "Identifies the dataset selection used for this particular measurement; a run may report measurements from different selections.", ["foundation/measurement"], ["measurement-results/dataset-split"]],
+  ["split-of-dataset-version", "Pins the exact dataset version containing this selection. Split names do not identify a dataset version independently.", ["measurement-results/dataset-split"], ["software/dataset-version"]],
+  ["split-selector", "Retains a source-native split selector or membership description interpreted only within its exact dataset version. It does not assert complete membership, disjointness or absence of training leakage.", ["measurement-results/dataset-split"], "string"],
+  ["definition-evidence", "Connects a metric definition or dataset selection to its attributed evidence item or bundle. Evidence identity and source version remain separately inspectable.", ["measurement-results/metric-definition", "measurement-results/dataset-split"], ["identity-context/evidence-item", "identity-context/evidence-bundle"]],
+  ["observation-has-measurement", "Connects an observation to a measurement it reports; the observation, observed occurrence and measurement remain distinct records.", ["natural-world/observation"], ["foundation/measurement"]],
+  ["finding-has-measurement", "Connects a research finding to a measurement it reports. This does not establish clinical significance, validity, replication or a causal conclusion.", ["research/finding"], ["foundation/measurement"]],
+  ["backtest-has-measurement", "Connects a historical backtest to a measurement it reports under its stated data, period, costs and assumptions. This does not predict live performance or investment suitability.", ["finance/backtest-run"], ["foundation/measurement"]],
+  ["measurement-at-location", "Identifies the place associated with this measurement. Its role, coordinate reference and reference surface require their own context; it is not the location of every similar observation.", ["foundation/measurement"], ["core/place"]],
+  ["measurement-evidence", "Connects a measurement to its attributed evidence item or bundle. Support does not imply accuracy, authority or completeness.", ["foundation/measurement"], ["identity-context/evidence-item", "identity-context/evidence-bundle"]],
+  ["measurement-feature", "Identifies the natural feature quantified by this measurement, such as cloud-base altitude. A feature label alone does not supply a method or a reference surface.", ["foundation/measurement"], ["natural-world/feature"]]
+];
+var dependencyIds = ["sponge.core", "sponge.finance", "sponge.foundation", "sponge.identity-context", "sponge.natural-world", "sponge.reference", "sponge.research", "sponge.software"];
+var labels8 = (text2) => [{ language: "en", text: text2, v: 1 }];
+var title5 = (code2) => code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ");
+var canonical7 = (value) => canonicalJson(value);
+var sortedRefs4 = (refs4) => [...refs4].sort((a, b) => canonical7(a) < canonical7(b) ? -1 : 1);
+function required7(result) {
+  if (!result.ok)
+    throw new Error(`Invalid measurement-results pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+async function createSpongeMeasurementResultsPackV1(previous) {
+  const core = previous.corePack;
+  const schemas = [];
+  function ref3(identity) {
+    const [packCode, code2] = identity.split("/");
+    const packId = `sponge.${packCode}`;
+    const found = (packId === namespace ? schemas : previous.packs.find((pack) => pack.packId === packId)?.schemas)?.find((item) => item.identity.code === code2);
+    if (found === undefined)
+      throw new Error(`Missing measurement-results schema ${identity}.`);
+    return found.ref;
+  }
+  const vocabulary = required7(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels8("Sponge measurement results"),
+    namespace,
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels8(definition),
+    identity: { code: code2, namespace, revision: 1, v: 1 },
+    labels: labels8(title5(code2)),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  for (const [code2, definition] of concepts)
+    schemas.push(required7(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "concept",
+      broader: [ref3("core/information-resource")]
+    })));
+  const qualifierPredicates = sortedRefs4([...previous.referencePack.schemas, ...previous.foundationPack.schemas].filter((item) => item.kind === "predicate" && item.qualifierPredicates.length === 0).map((item) => item.ref));
+  for (const [code2, definition, domains, ranges] of definitions2) {
+    const range2 = ranges === "string" ? { kind: "value-kinds", valueKinds: ["string"], v: 1 } : { concepts: sortedRefs4(ranges.map(ref3)), kind: "entity-concepts", v: 1 };
+    schemas.push(required7(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: sortedRefs4(domains.map(ref3)),
+      inversePredicate: null,
+      qualifierPredicates,
+      range: range2
+    })));
+  }
+  const shapes = await Promise.all(concepts.map(async ([code2]) => {
+    const concept = ref3(`measurement-results/${code2}`);
+    const rules = schemas.filter((item) => item.kind === "predicate" && item.domainConcepts.some((domain) => canonical7(domain) === canonical7(concept))).map((item) => {
+      if (item.kind !== "predicate")
+        throw new Error("Expected measurement-results predicate.");
+      return {
+        allowedDisclosures: ["private"],
+        cardinality: { maximum: null, minimum: 0, v: 1 },
+        predicate: item.ref,
+        purpose: "private-research",
+        range: item.range,
+        requiredEvidenceBearings: [],
+        severity: "error",
+        v: 1
+      };
+    }).sort((a, b) => canonical7(a.predicate) < canonical7(b.predicate) ? -1 : 1);
+    return required7(await createKnowledgeExecutableShapeV1({
+      appliesToConcepts: [concept],
+      closed: false,
+      extends: [],
+      maximumInheritanceDepth: 1,
+      rules,
+      shape: concept,
+      v: 1
+    }));
+  }));
+  const query = (id, description, predicates) => ({ id, description, predicates: sortedRefs4(predicates.map(ref3)), v: 1 });
+  const contextPredicates = [
+    "foundation/measurement-of",
+    "foundation/measurement-method",
+    "foundation/measured-at",
+    "foundation/normalized-quantity",
+    "measurement-results/measurement-metric",
+    "measurement-results/metric-definition-text",
+    "measurement-results/definition-evidence",
+    "measurement-results/measurement-evidence",
+    "identity-context/contains-evidence",
+    "identity-context/evidence-source",
+    "identity-context/evidence-excerpt",
+    "identity-context/captured-at",
+    "foundation/version-context"
+  ];
+  return required7(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: dependencyIds.map((id) => {
+      const pack = previous.packs.find((item) => item.packId === id);
+      if (pack === undefined)
+        throw new Error(`Missing measurement-results dependency ${id}.`);
+      return knowledgeVocabularyPackPinV1(pack);
+    }),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive measurement joins reuse foundation quantities, methods and times. Software result records retain their existing types and identities. Metric, model, split, source, scope and method context are explicit; no conversion, comparability, leaderboard ranking, clinical conclusion, investment suitability or complete description is inferred. Installation and proposal review remain required.",
+    packId: namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    queries: [
+      query("benchmark-score", "Retrieve a run's software result, foundation quantity, exact model, metric definition, dataset split, protocol and retained evidence. Context joins describe the score; they do not prove comparability.", [
+        ...contextPredicates,
+        "software/produces",
+        "software/evaluated-under",
+        "software/uses-configuration",
+        "software/uses-dataset",
+        "measurement-results/software-result-measurement",
+        "measurement-results/measurement-model-version",
+        "measurement-results/measurement-dataset-split",
+        "measurement-results/split-of-dataset-version",
+        "measurement-results/split-selector"
+      ]),
+      query("cloud-observation", "Retrieve an observed cloud's feature quantity with units, measurement time, place, method, reference-surface context and retained evidence.", [
+        ...contextPredicates,
+        "natural-world/observes",
+        "natural-world/observed-at",
+        "measurement-results/observation-has-measurement",
+        "measurement-results/measurement-feature",
+        "measurement-results/measurement-at-location",
+        "foundation/scope-context",
+        "foundation/normalized-location"
+      ]),
+      query("research-and-backtest-results", "Retrieve the quantities reported by findings or backtests with independently stated metric, subject, method, time and evidence; preserve the study, strategy and dataset joins.", [
+        ...contextPredicates,
+        "research/produces-finding",
+        "research/uses-method",
+        "finance/tests-strategy",
+        "finance/uses-dataset",
+        "measurement-results/finding-has-measurement",
+        "measurement-results/backtest-has-measurement"
+      ])
+    ],
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: shapes.sort((a, b) => a.shape.code < b.shape.code ? -1 : 1),
+    sources: [{ contentSha256: "c0b54b80818fb916aeb9b9a4021dc3d1e8900837b08c2f147452afa24f82fc52", license: "MIT", revision: "2026-09-15", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/measurement-results-v1.md", v: 1 }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  }));
+}
+
+// src/research/knowledge-monetary-values.ts
+function required8(result) {
+  if (!result.ok)
+    throw new Error(`Invalid monetary-values pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function canonical8(value) {
+  return canonicalJson(value);
+}
+function labels9(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function title6(code2) {
+  return code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ");
+}
+function sortedRefs5(refs4) {
+  return [...refs4].sort((a, b) => canonical8(a) < canonical8(b) ? -1 : 1);
+}
+function valueRange2(kind) {
+  return { kind: "value-kinds", valueKinds: [kind], v: 1 };
+}
+function enumRange(values) {
+  return { kind: "enum", values: values.map((value) => ({ kind: "string", value, v: 1 })), v: 1 };
+}
+async function createSpongeMonetaryValuesPackV1(previous) {
+  const core = previous.corePack;
+  const vocabulary = required8(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels9("Sponge monetary values and quotes"),
+    namespace: "sponge.monetary-values",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const schemas = [];
+  const ref3 = (packId, code2) => {
+    const candidates = packId === vocabulary.namespace ? schemas : previous.packs.find((pack) => pack.packId === packId)?.schemas;
+    const found = candidates?.find((schema2) => schema2.identity.code === code2);
+    if (found === undefined)
+      throw new Error(`Missing monetary schema ${packId}/${code2}.`);
+    return found.ref;
+  };
+  const local = (code2) => ref3(vocabulary.namespace, code2);
+  const entityRange3 = (...refs4) => ({ concepts: sortedRefs5(refs4), kind: "entity-concepts", v: 1 });
+  const base = (code2, definition) => ({
+    definitions: labels9(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels9(title6(code2)),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  for (const [code2, broader, definition] of [
+    ["currency", "concept", "An explicitly identified monetary denomination or currency under a source-supported identity. It is not a physical unit, exchange-rate rule or assertion of identifier equivalence."],
+    ["financial-quote", "information-resource", "One attributed market quote for an identified financial listing, with quote kind, observation time, monetary value and denominator stated independently. It is distinct from an offer price or an execution."],
+    ["monetary-value", "information-resource", "A monetary value record whose exact decimal amount and identified currency are stated separately. Missing fields remain unknown; this record does not establish a price, valuation conclusion or conversion."],
+    ["quotation-basis", "information-resource", "The stated quantity and identified item or package underlying a price or quote. A retained package description does not establish independently measured contents or authorize unit-price arithmetic."]
+  ]) {
+    schemas.push(required8(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      broader: [ref3("sponge.core", broader)],
+      kind: "concept"
+    })));
+  }
+  const qualifiers = sortedRefs5([...previous.referencePack.schemas, ...previous.foundationPack.schemas].filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref));
+  const price = ref3("sponge.bridge-relations", "price");
+  const definitions3 = [
+    ["basis-description", "The source-stated, language-tagged package or denominator description. It does not assert composition, purity or normalized package equivalence.", local("quotation-basis"), valueRange2("text")],
+    ["basis-item", "The identified product or financial instrument whose quantity forms the quotation basis. It does not merge products, listings or instruments.", local("quotation-basis"), entityRange3(ref3("sponge.substances", "product"), ref3("sponge.finance", "instrument"))],
+    ["basis-quantity", "The stated denominator quantity under an exact unit descriptor. Counted items require a separately identified basis item or package description; no unit conversion or price arithmetic runs implicitly.", local("quotation-basis"), valueRange2("quantity")],
+    ["monetary-amount", "The exact canonical decimal amount, without floating-point rounding, currency inference or display formatting. Negative amounts are preserved when explicitly reported.", local("monetary-value"), valueRange2("decimal")],
+    ["monetary-currency", "The explicitly identified currency or monetary denomination of this amount; a symbol or matching number alone does not establish currency identity.", local("monetary-value"), entityRange3(local("currency"))],
+    ["price-basis", "The stated package or quantity basis for this offer-associated price. It does not establish purchasability or equivalent unit pricing.", price, entityRange3(local("quotation-basis"))],
+    ["price-has-monetary-value", "The monetary value stated by this offer-associated price record. A dated financial quote remains a separate record type.", price, entityRange3(local("monetary-value"))],
+    ["price-tax-treatment", "The explicitly reported tax treatment for this price in its source and jurisdiction context. Absence means unknown; mixed, exempt and not-applicable are positive source claims requiring their own detail.", price, enumRange(["excluded", "exempt", "included", "mixed", "not-applicable"])],
+    ["price-valid-during", "The source-stated effective interval of this offer price. Missing validity remains unknown; an open endpoint must be explicitly supported rather than inferred from a missing date.", price, valueRange2("interval")],
+    ["quote-at-time", "The source-stated market observation time for this quote, retaining its declared calendar, precision and uncertainty. Capture time remains separate.", local("financial-quote"), valueRange2("time")],
+    ["quote-basis", "The stated instrument quantity or denominator underlying this financial quote. It does not establish execution size, liquidity or a unit-price conversion.", local("financial-quote"), entityRange3(local("quotation-basis"))],
+    ["quote-for-listing", "The specific listing to which this quote applies. An instrument, issuer or venue alone does not identify the listing.", local("financial-quote"), entityRange3(ref3("sponge.finance", "listing"))],
+    ["quote-has-monetary-value", "The monetary value reported by this financial quote, independent of any offer-associated bridge price or executed transaction.", local("financial-quote"), entityRange3(local("monetary-value"))],
+    ["quote-kind", "The explicitly reported kind of this market quote. The bounded kinds do not equate bid, ask, last trade, indicative value, midpoint or settlement; unsupported source kinds must be preserved separately.", local("financial-quote"), enumRange(["ask", "bid", "indicative", "last", "mid", "settlement"])]
+  ];
+  const predicates = [];
+  for (const [code2, definition, domain, range2] of definitions3) {
+    const schema2 = required8(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: [domain],
+      inversePredicate: null,
+      qualifierPredicates: qualifiers,
+      range: range2
+    }));
+    if (schema2.kind !== "predicate")
+      throw new Error(`Expected monetary predicate ${code2}.`);
+    predicates.push(schema2);
+  }
+  schemas.push(...predicates);
+  schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1);
+  const shapes = [];
+  for (const code2 of ["financial-quote", "monetary-value", "quotation-basis"]) {
+    const subject = local(code2);
+    const rules = predicates.filter((predicate2) => predicate2.domainConcepts.some((domain) => canonical8(domain) === canonical8(subject))).map((predicate2) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: 0, v: 1 },
+      predicate: predicate2.ref,
+      purpose: "private-research",
+      range: predicate2.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical8(a.predicate) < canonical8(b.predicate) ? -1 : 1);
+    shapes.push(required8(await createKnowledgeExecutableShapeV1({
+      appliesToConcepts: [subject],
+      closed: false,
+      extends: [],
+      maximumInheritanceDepth: 1,
+      rules,
+      shape: subject,
+      v: 1
+    })));
+  }
+  const predicate = (code2) => local(code2);
+  const sourcePredicates = [ref3("sponge.reference", "source-context"), ref3("sponge.foundation", "version-context"), ref3("sponge.foundation", "retrieved-at")];
+  return freezeKnowledgeDeclaration(required8(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: [knowledgeVocabularyPackPinV1(previous.bridgeRelationsPack)],
+    display: core.display,
+    examples: [
+      { description: "Synthetic exact decimal amount, separate from its required comparison context and identified currency.", id: "exact-amount", object: { kind: "decimal", value: "125.75", v: 1 }, predicate: predicate("monetary-amount"), subjectConcept: local("monetary-value"), v: 1 },
+      { description: "Synthetic dated financial bid kind; the listing, time, value, basis and source remain independently stated.", id: "financial-bid", object: { kind: "string", value: "bid", v: 1 }, predicate: predicate("quote-kind"), subjectConcept: local("financial-quote"), v: 1 }
+    ],
+    migrationNotes: "Additive monetary values and dated financial quotes. Existing offer-associated bridge price and all V1–V5 declarations remain unchanged. Missing amount, currency, tax, validity and quote context remain unknown. No conversion, current availability, supplier trust, execution or investment suitability is inferred. The bridge dependency resolves all twenty V5 packs; host installation and proposal review remain required.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    queries: [
+      { description: "Which listing, instrument, venue, kind, observation time, exact amount, currency and denominator does the retained source version report for this financial quote?", id: "dated-financial-quote", predicates: sortedRefs5([...sourcePredicates, ref3("sponge.finance", "lists-instrument"), ref3("sponge.bridge-relations", "listing-at-venue"), ...["quote-for-listing", "quote-kind", "quote-at-time", "quote-has-monetary-value", "monetary-amount", "monetary-currency", "quote-basis", "basis-item", "basis-quantity", "basis-description"].map(predicate)]), v: 1 },
+      { description: "Which seller, product, exact amount, currency, package basis, validity and tax treatment does the retained source version state for this offer?", id: "offer-price-context", predicates: sortedRefs5([...sourcePredicates, ref3("sponge.substances", "offered-by"), ref3("sponge.bridge-relations", "offer-for-product"), ref3("sponge.bridge-relations", "offer-has-price"), ...["price-has-monetary-value", "monetary-amount", "monetary-currency", "price-basis", "basis-item", "basis-quantity", "basis-description", "price-valid-during", "price-tax-treatment"].map(predicate)]), v: 1 }
+    ],
+    revision: 1,
+    schemas,
+    shapes,
+    sources: [{ contentSha256: "00450658ba1df9d00beeb6041db4adfdf798c055359593eb7111e4d9344908db", license: "MIT", revision: "2026-09-15", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/monetary-values-v1.md", v: 1 }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+
+// src/research/knowledge-domain-catalog-v6.ts
+var SPONGE_KNOWLEDGE_EXTENSION_PACK_IDS_V6 = [
+  "sponge.measurement-results",
+  "sponge.monetary-values",
+  "sponge.content-occurrences"
+];
+var catalogPromise10;
+function spongeKnowledgeDomainCatalogV6() {
+  catalogPromise10 ??= buildCatalog6();
+  return catalogPromise10;
+}
+async function buildCatalog6() {
+  const previous = await spongeKnowledgeDomainCatalogV5();
+  const [measurementResultsPack, monetaryValuesPack, contentOccurrencesPack] = await Promise.all([
+    createSpongeMeasurementResultsPackV1(previous),
+    createSpongeMonetaryValuesPackV1(previous),
+    createSpongeContentOccurrencesPackV1(previous)
+  ]);
+  const extensions = [measurementResultsPack, monetaryValuesPack, contentOccurrencesPack];
+  const packs = [...previous.packs, ...extensions].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, ...extensions.map(knowledgeVocabularyPackPinV1)].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const resolved = await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots });
+  if (!resolved.ok)
+    throw new Error(`Invalid depth catalog: ${resolved.error.field}:${resolved.error.code}.`);
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    measurementResultsPack,
+    monetaryValuesPack,
+    contentOccurrencesPack,
+    lock: resolved.value.lock,
+    packs,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
 export {
   verifyOhResearchPacketV1,
   verifyKnowledgeWikidataMappingPreviewV2,
@@ -3972,6 +4480,7 @@ export {
   spongeKnowledgeWikidataMappingCatalogV2,
   spongeKnowledgeWikidataMappingCatalogV1,
   spongeKnowledgeReferenceCatalog,
+  spongeKnowledgeDomainCatalogV6,
   spongeKnowledgeDomainCatalogV5,
   spongeKnowledgeDomainCatalogV4,
   spongeKnowledgeDomainCatalogV3,
@@ -4045,6 +4554,9 @@ export {
   evaluateKnowledgeShapeV1,
   effectiveKnowledgeRightsV1,
   effectiveKnowledgeReviewV1,
+  createSpongeMonetaryValuesPackV1,
+  createSpongeMeasurementResultsPackV1,
+  createSpongeContentOccurrencesPackV1,
   createKnowledgeWikidataMappingPreviewV2,
   createKnowledgeWikidataMappingPreviewV1,
   createKnowledgeWikidataImportPreviewV2,
@@ -4092,6 +4604,7 @@ export {
   SPONGE_KNOWLEDGE_INQUIRY_EVENT_KINDS_V1,
   SPONGE_KNOWLEDGE_IDENTITY_OPERATION_KINDS_V1,
   SPONGE_KNOWLEDGE_GRAPH_RECORD_KINDS_V1,
+  SPONGE_KNOWLEDGE_EXTENSION_PACK_IDS_V6,
   SPONGE_KNOWLEDGE_EVIDENCE_BEARINGS_V1,
   SPONGE_KNOWLEDGE_ENTITY_STATES_V1,
   SPONGE_KNOWLEDGE_DOMAIN_RANGE_NOTES_V2,

@@ -25,3 +25,7 @@ export * from "./research/knowledge-domain-catalog-v4";
 export * from "./research/knowledge-wikidata-mappings-v3";
 export * from "./research/knowledge-bridge-relations";
 export * from "./research/knowledge-domain-catalog-v5";
+export * from "./research/knowledge-domain-catalog-v6";
+export * from "./research/knowledge-measurement-results";
+export * from "./research/knowledge-monetary-values";
+export * from "./research/knowledge-content-occurrences";

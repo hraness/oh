@@ -1,0 +1,21 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV6",
+    "builder": "createSpongeMeasurementResultsPackV1",
+    "baseFactory": "spongeKnowledgeDomainCatalogV5",
+    "additionalPack": "sponge.measurement-results",
+    "additionalPackRevision": 1
+  },
+  "concepts": ["dataset-split", "metric-definition"],
+  "relations": [
+    "backtest-has-measurement", "definition-evidence", "finding-has-measurement",
+    "measurement-at-location", "measurement-dataset-split", "measurement-evidence",
+    "measurement-feature", "measurement-metric", "measurement-model-version",
+    "metric-definition-text", "observation-has-measurement", "software-result-measurement",
+    "split-of-dataset-version", "split-selector"
+  ],
+  "queries": ["benchmark-score", "cloud-observation", "research-and-backtest-results"],
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

@@ -1,0 +1,19 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV6",
+    "additionalPack": "sponge.monetary-values",
+    "additionalPackRevision": 1
+  },
+  "builder": "createSpongeMonetaryValuesPackV1",
+  "concepts": ["currency", "financial-quote", "monetary-value", "quotation-basis"],
+  "relations": [
+    "basis-description", "basis-item", "basis-quantity", "monetary-amount",
+    "monetary-currency", "price-basis", "price-has-monetary-value",
+    "price-tax-treatment", "price-valid-during", "quote-at-time", "quote-basis",
+    "quote-for-listing", "quote-has-monetary-value", "quote-kind"
+  ],
+  "directDependencies": ["sponge.bridge-relations"],
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

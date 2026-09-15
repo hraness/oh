@@ -179,6 +179,7 @@ The CLI opens no database and performs no network calls for these commands:
 
 ```sh
 oh research catalog
+oh research catalog-v6
 oh research validate-draft --file proposal.json
 oh research wikidata-preview --file captures.json
 oh research prepare-packet --file source-records.json
@@ -206,3 +207,10 @@ through catalog-v5, following the identity/context pack in catalog-v4. It also
 adds the source-pinned `wikidata-mappings-v3` catalog. These additive changes
 preserve every prior catalog and make fourteen high-value joins explicit
 without asserting semantic completeness.
+
+Package 0.9.0 adds `catalog-v6` with independently selectable
+[measurement results](measurement-results-v1.md), [monetary values and quotes](monetary-values-v1.md),
+and [content occurrences](content-occurrences-v1.md). Each pack defines explicit
+query paths and preserves absent context. Resolve its full dependency lock
+before compiling claims. All earlier catalogs, schema digests and Wikidata
+mapping versions remain unchanged.
