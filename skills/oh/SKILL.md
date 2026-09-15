@@ -313,3 +313,17 @@ omitted property is not a negative claim, and preferred rank is not truth.
 See `https://oh.computer/spec/research-v1/source-relations-v1.md` for the exact
 relationships and counterexamples. These features require that installed
 version; the verified installation baseline above remains separate.
+
+With version 0.8.0 or newer, `oh research catalog-v4` adds
+`sponge.identity-context` for identity claims, time, location, evidence, values
+and provenance. `oh research catalog-v5` includes those records and
+`sponge.bridge-relations` for explicit cross-domain links such as a track's
+recording or an assay's method. Resolve the complete pinned dependency lock
+before compiling claims. These commands preserve catalogs V1–V3.
+
+`oh research wikidata-mappings-v3` lists the fifteen reviewed mappings separately
+from sixteen additional preserved-only properties. A preserved-only entry has
+no local predicate target; use the existing source importer to retain it and
+do not treat it as a reviewed semantic mapping. V3 adds no new mapping-preview
+command. Inspect the installed schemas for each relation's domain, range and
+qualifiers; catalog availability does not install a pack or accept a claim.

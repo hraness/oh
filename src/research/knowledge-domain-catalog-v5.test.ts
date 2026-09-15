@@ -3,6 +3,8 @@ import { spongeKnowledgeDomainCatalogV4 } from "./knowledge-domain-catalog-v4";
 import { spongeKnowledgeDomainCatalogV5 } from "./knowledge-domain-catalog-v5";
 import { bridgeRelationDefinitions } from "./knowledge-bridge-relations";
 import { parseKnowledgeGraphRecordV1 } from "./knowledge-ontology-contract-v1";
+import { readFile } from "node:fs/promises";
+import { sha256Text } from "./integrity-domain";
 
 const expected = new Map([
   ["offer-for-product", ["offer", "product"]],
@@ -12,7 +14,7 @@ const expected = new Map([
   ["placement-in-article", ["placement", "article", "edition"]],
   ["series-has-member-event", ["event-series", "event"]],
   ["track-has-recording", ["track", "recording"]],
-  ["listing-at-venue", ["listing", "place"]],
+  ["listing-at-venue", ["listing", "organization", "place"]],
   ["snapshot-of-simulation", ["state-snapshot", "simulation"]],
   ["trajectory-has-attempt", ["trajectory", "attempt"]],
   ["task-pursues-goal", ["task", "goal"]],
@@ -22,6 +24,18 @@ const expected = new Map([
 ]);
 
 describe("qualified bridge-relations catalog v5", () => {
+  test("machine discovery reaches the bridge pack and its source pin matches the published guide", async () => {
+    const guide = await readFile(new URL("../../spec/research-v1/bridge-relations-v1.md", import.meta.url), "utf8");
+    const discovery = JSON.parse(await readFile(new URL("../../spec/research-v1/bridge-relations-v1.json", import.meta.url), "utf8"));
+    const factories = { spongeKnowledgeDomainCatalogV4, spongeKnowledgeDomainCatalogV5 };
+    const factory = factories[discovery.catalog.factory as keyof typeof factories];
+    expect(typeof factory).toBe("function");
+    const pack = (await factory()).packs.find(item => item.packId === discovery.catalog.additionalPack);
+    expect(pack).toBeDefined();
+    expect(pack?.revision).toBe(discovery.catalog.additionalPackRevision);
+    expect(pack?.sources[0]?.contentSha256).toBe(await sha256Text(guide));
+    expect(pack?.schemas.filter(item => item.kind === "predicate").map(item => item.identity.code).sort()).toEqual(discovery.relations.toSorted());
+  });
   test("adds all requested cross-domain paths as open entity predicates", async () => {
     const catalog = await spongeKnowledgeDomainCatalogV5();
     const pack = catalog.bridgeRelationsPack;
@@ -37,6 +51,9 @@ describe("qualified bridge-relations catalog v5", () => {
       expect(predicate.range.kind === "entity-concepts" ? predicate.range.concepts.map(ref => ref.code).sort() : []).toEqual(endpoints.slice(1).sort());
     }
     expect(bridgeRelationDefinitions.map(item => item[0])).toEqual([...expected.keys()] as typeof bridgeRelationDefinitions[number][0][]);
+    const profile = pack.schemas.find(schema => schema.identity.code === "profile-for-account");
+    if (profile?.kind !== "predicate") throw new Error("Missing profile/account bridge.");
+    expect(profile.domainConcepts.map(ref => ref.code)).toEqual(["profile-projection", "public-profile-document"]);
   });
 
   test("leaves prior catalog identities and digests untouched", async () => {

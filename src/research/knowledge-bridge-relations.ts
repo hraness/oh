@@ -19,7 +19,7 @@ export const bridgeRelationDefinitions = [
   ["placement-in-article", "Placement in article", "The placement occurs in the identified article or edition; position, prominence, and publication state remain separate."],
   ["series-has-member-event", "Series has member event", "The event series includes the identified event; membership does not establish chronology or completeness."],
   ["track-has-recording", "Track has recording", "The track is realized by the identified recording; this does not establish release, performer, or rights ownership."],
-  ["listing-at-venue", "Listing at venue", "The listing is associated with the identified venue or place; this does not establish current operation or access."],
+  ["listing-at-venue", "Listing at venue", "The listing is associated with the identified trading venue place or organization operating the venue. The operator and place remain distinct identities; this does not establish current operation or access."],
   ["snapshot-of-simulation", "Snapshot of simulation", "The snapshot was produced by or belongs to the identified simulation; tick, state, and provenance remain separate."],
   ["trajectory-has-attempt", "Trajectory has attempt", "The trajectory contains the identified task attempt; this does not establish success, causality, or completeness."],
   ["task-pursues-goal", "Task pursues goal", "The task pursues the identified goal; this does not establish that the goal was achieved or authorized."],

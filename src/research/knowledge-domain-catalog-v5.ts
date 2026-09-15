@@ -28,22 +28,24 @@ function ref(pack: SpongeKnowledgeDomainCatalogV4, packId: string, code: string)
   return schema(pack, packId, code).ref;
 }
 
+type SchemaCode = readonly [packId: string, code: string];
+type RelationEndpoint = readonly [code: string, domains: readonly SchemaCode[], ranges: readonly SchemaCode[]];
 const relationEndpoints = [
-  ["offer-for-product", "sponge.substances", "offer", [["sponge.substances", "product"]]],
-  ["offer-has-price", "sponge.substances", "offer", [["sponge.bridge-relations", "price"]]],
-  ["assay-uses-method", "sponge.substances", "assay", [["sponge.research", "method"]]],
-  ["assay-produces-result", "sponge.substances", "assay", [["sponge.research", "finding"]]],
-  ["placement-in-article", "sponge.editorial", "placement", [["sponge.editorial", "article"], ["sponge.editorial", "edition"]]],
-  ["series-has-member-event", "sponge.editorial", "event-series", [["sponge.core", "event"]]],
-  ["track-has-recording", "sponge.music", "track", [["sponge.music", "recording"]]],
-  ["listing-at-venue", "sponge.finance", "listing", [["sponge.core", "place"]]],
-  ["snapshot-of-simulation", "sponge.formal-systems", "state-snapshot", [["sponge.formal-systems", "simulation"]]],
-  ["trajectory-has-attempt", "sponge.agent-work", "trajectory", [["sponge.agent-work", "attempt"]]],
-  ["task-pursues-goal", "sponge.agent-work", "task", [["sponge.agent-work", "goal"]]],
-  ["profile-for-account", "sponge.people", "profile-projection", [["sponge.core", "account"]]],
-  ["role-assignment-at-organization", "sponge.organizations", "role-assignment", [["sponge.core", "organization"]]],
-  ["lexeme-in-language-system", "sponge.language", "lexeme", [["sponge.reference", "language-system"]]],
-] as const;
+  ["offer-for-product", [["sponge.substances", "offer"]], [["sponge.substances", "product"]]],
+  ["offer-has-price", [["sponge.substances", "offer"]], [["sponge.bridge-relations", "price"]]],
+  ["assay-uses-method", [["sponge.substances", "assay"]], [["sponge.research", "method"]]],
+  ["assay-produces-result", [["sponge.substances", "assay"]], [["sponge.research", "finding"]]],
+  ["placement-in-article", [["sponge.editorial", "placement"]], [["sponge.editorial", "article"], ["sponge.editorial", "edition"]]],
+  ["series-has-member-event", [["sponge.editorial", "event-series"]], [["sponge.core", "event"]]],
+  ["track-has-recording", [["sponge.music", "track"]], [["sponge.music", "recording"]]],
+  ["listing-at-venue", [["sponge.finance", "listing"]], [["sponge.core", "organization"], ["sponge.core", "place"]]],
+  ["snapshot-of-simulation", [["sponge.formal-systems", "state-snapshot"]], [["sponge.formal-systems", "simulation"]]],
+  ["trajectory-has-attempt", [["sponge.agent-work", "trajectory"]], [["sponge.agent-work", "attempt"]]],
+  ["task-pursues-goal", [["sponge.agent-work", "task"]], [["sponge.agent-work", "goal"]]],
+  ["profile-for-account", [["sponge.people", "profile-projection"], ["sponge.people", "public-profile-document"]], [["sponge.core", "account"]]],
+  ["role-assignment-at-organization", [["sponge.organizations", "role-assignment"]], [["sponge.core", "organization"]]],
+  ["lexeme-in-language-system", [["sponge.language", "lexeme"]], [["sponge.reference", "language-system"]]],
+] as const satisfies readonly RelationEndpoint[];
 
 let catalogPromise: Promise<SpongeKnowledgeDomainCatalogV5> | undefined;
 /** Adds cross-domain bridge predicates without revising any published pack. */
@@ -76,10 +78,15 @@ async function buildCatalog(): Promise<SpongeKnowledgeDomainCatalogV5> {
   for (const [code, , description] of bridgeRelationDefinitions) {
     const endpoint = relationEndpoints.find(item => item[0] === code);
     if (endpoint === undefined) throw new Error(`Missing bridge endpoint ${code}.`);
-    const [, domainPack, domainCode, ranges] = endpoint;
-    const rangeRefs = ranges.map(([packId, rangeCode]) => packId === vocabulary.namespace ? (localConcepts.get(rangeCode) as KnowledgeSchemaRefV1) : ref(previous, packId, rangeCode));
+    const [, domains, ranges] = endpoint;
+    const rangeRefs = ranges.map(([packId, rangeCode]) => {
+      if (packId !== vocabulary.namespace) return ref(previous, packId, rangeCode);
+      const local = localConcepts.get(rangeCode);
+      if (local === undefined) throw new Error(`Missing local bridge concept ${rangeCode}.`);
+      return local;
+    });
     schemas.push(required(await createKnowledgeSchemaRevisionV1({
-      ...base(code, description), kind: "predicate", domainConcepts: [ref(previous, domainPack, domainCode)],
+      ...base(code, description), kind: "predicate", domainConcepts: sortedRefs(domains.map(([packId, domainCode]) => ref(previous, packId, domainCode))),
       inversePredicate: null, qualifierPredicates: sortedRefs(qualifierPredicates), range: { concepts: sortedRefs(rangeRefs), kind: "entity-concepts", v: 1 },
     })));
   }
@@ -91,7 +98,7 @@ async function buildCatalog(): Promise<SpongeKnowledgeDomainCatalogV5> {
     migrationNotes: "Additive bridge predicates for cross-domain navigation. Existing pack revisions and historical catalogs remain unchanged. Ranges remain open to preserve source distinctions; installation and proposal review are required.",
     packId: vocabulary.namespace, previousManifestSha256: null, revision: 1, schemas, shapes: [],
     queries: [{ description: "Which explicit cross-domain bridge relations connect a record to its adjacent research object?", id: "bridge-relations", predicates: schemas.filter(item => item.kind === "predicate").map(item => item.ref), v: 1 }],
-    sources: [{ contentSha256: "f6f87dc67e668fe458115d8dec3f44023c35c3c3cce0f676f2a1de7169325aa3", license: "MIT", revision: "2026-09-14", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/bridge-relations-v1.md", v: 1 }],
+    sources: [{ contentSha256: "724ae5c71003ad74dc900ded6eb277c9a235da19af9145ae18f9ebe1a26641a7", license: "MIT", revision: "2026-09-14", uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/bridge-relations-v1.md", v: 1 }],
     supportedCodecs: [], v: 1, vocabulary,
   }));
   const packs = [...previous.packs, bridgeRelationsPack].sort((a, b) => a.packId < b.packId ? -1 : 1);
