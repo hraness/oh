@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { HranessSiteFooter } from "@hraness/site-footer/react";
+import { ohSupportProfile } from "../../src/support-profile";
 import "./globals.css";
 
 const title = "Oh: a research graph your agents can inspect";
@@ -46,7 +48,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html data-hraness-theme="paper" lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <div className="network-footer">
+          <HranessSiteFooter placement="flow" mailingList={{ kind: "none" }} support={ohSupportProfile} />
+        </div>
+      </body>
     </html>
   );
 }

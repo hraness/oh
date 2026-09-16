@@ -75,7 +75,7 @@ describe("Oh site source contract", () => {
       version: "0.10.0",
       verificationRun: "https://github.com/hraness/oh/actions/runs/34983514610",
     });
-    expect(packageJson.version).toBe("0.10.0");
+    expect(packageJson.version).toBe("0.10.1");
     expect(home).toContain('import publishedRelease from "../published-release.json"');
     expect(home).toContain("const releaseVersion = publishedRelease.version;");
     expect(home).not.toContain("package.json");
@@ -124,6 +124,7 @@ describe("Oh site source contract", () => {
       '@import "../styles/vendor/hraness-paper/paper-theme.css";',
       '@import "../vendor/hraness-marketing/product-marketing-preset.css";',
       '@import "../vendor/hraness-lantern/lantern-material.css";',
+      '@import "@hraness/site-footer/styles.css";',
     ]);
     expect(paper).toContain('--font-text: "Nebula Sans"');
     expect(globals).toContain("font-family: var(--font-text)");

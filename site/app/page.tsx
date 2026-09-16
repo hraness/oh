@@ -450,14 +450,14 @@ oh verify`}</code></pre>
 
       <AskAiAboutThis className="ask-ai" url="https://oh.computer" />
 
-      <footer className="site-footer">
+      <div className="site-footer">
         <p>Oh is open source for researchers and the agents working beside them.</p>
         <nav aria-label="Project links">
           <a href="/spec">Ontology v1</a>
           <a href={repository}>hraness/oh</a>
           <a href="https://hraness.com/projects">Hraness projects</a>
         </nav>
-      </footer>
+      </div>
     </div>
   );
 }
