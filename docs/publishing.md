@@ -65,6 +65,12 @@ needed for account recovery.
 
 ## Stable releases
 
+The protected `v0.10.1` tag records a release attempt that stopped before
+dependency installation or any package publication. Its source version probe
+loaded the optional support dependency before the release runner had installed
+build inputs. Preserve that tag and leave it unpublished; the lazy-load repair
+is released as `v0.10.2`.
+
 Prepare the next stable version on `main`, including the matching compiled CLI
 version and documentation. After required review and checks pass, create a new
 annotated `v<version>` tag at a reviewed commit that remains an ancestor of

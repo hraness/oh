@@ -1,4 +1,4 @@
-import { maybeShowSupportInvitation, runSupportCommand, type SupportCommandOptions } from "@hraness/support-foundation/node";
+import type { SupportCommandOptions } from "@hraness/support-foundation/node";
 import { ohSupportProfile } from "./support-profile";
 
 /** Only the standalone executable changes its descendant audience. */
@@ -9,6 +9,7 @@ export function standaloneSupportEnvironment(): Readonly<Record<string, string |
 }
 
 export async function runOhSupportCommand(args: readonly string[], options: SupportCommandOptions): Promise<number> {
+  const { runSupportCommand } = await import("@hraness/support-foundation/node");
   const result = await runSupportCommand(ohSupportProfile, args, { gitEmail: false, ...options });
   if (result.stdout !== "") process.stdout.write(result.stdout);
   if (result.stderr !== "") process.stderr.write(result.stderr);
@@ -28,6 +29,7 @@ export function hasUsefulOhResult(args: readonly string[], exitCode: number): bo
 export async function showOhSupportInvitation(args: readonly string[], exitCode: number, options: SupportCommandOptions): Promise<void> {
   if (!hasUsefulOhResult(args, exitCode)) return;
   try {
+    const { maybeShowSupportInvitation } = await import("@hraness/support-foundation/node");
     await maybeShowSupportInvitation(ohSupportProfile, { usefulResult: true, gitEmail: false, ...options });
   } catch {
     // Optional support never changes a completed research command's result.

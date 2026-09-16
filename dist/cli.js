@@ -24780,7 +24780,23 @@ var init_sdk = __esm(() => {
   init_recall();
 });
 
+// src/support-profile.ts
+var ohSupportProfile;
+var init_support_profile = __esm(() => {
+  ohSupportProfile = {
+    id: "oh-computer",
+    name: "Oh",
+    valueProposition: "Support ongoing development of inspectable research records and memory tools for agents.",
+    updates: false
+  };
+});
+
 // node_modules/@hraness/support-foundation/dist/node.js
+var exports_node2 = {};
+__export(exports_node2, {
+  runSupportCommand: () => runSupportCommand,
+  maybeShowSupportInvitation: () => maybeShowSupportInvitation
+});
 import { randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { constants as constants2 } from "fs";
@@ -25313,17 +25329,6 @@ var init_node2 = __esm(() => {
   UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 });
 
-// src/support-profile.ts
-var ohSupportProfile;
-var init_support_profile = __esm(() => {
-  ohSupportProfile = {
-    id: "oh-computer",
-    name: "Oh",
-    valueProposition: "Support ongoing development of inspectable research records and memory tools for agents.",
-    updates: false
-  };
-});
-
 // src/support.ts
 var exports_support = {};
 __export(exports_support, {
@@ -25338,7 +25343,8 @@ function standaloneSupportEnvironment() {
   return original;
 }
 async function runOhSupportCommand(args2, options) {
-  const result = await runSupportCommand(ohSupportProfile, args2, { gitEmail: false, ...options });
+  const { runSupportCommand: runSupportCommand2 } = await Promise.resolve().then(() => (init_node2(), exports_node2));
+  const result = await runSupportCommand2(ohSupportProfile, args2, { gitEmail: false, ...options });
   if (result.stdout !== "")
     process.stdout.write(result.stdout);
   if (result.stderr !== "")
@@ -25358,12 +25364,12 @@ async function showOhSupportInvitation(args2, exitCode, options) {
   if (!hasUsefulOhResult(args2, exitCode))
     return;
   try {
-    await maybeShowSupportInvitation(ohSupportProfile, { usefulResult: true, gitEmail: false, ...options });
+    const { maybeShowSupportInvitation: maybeShowSupportInvitation2 } = await Promise.resolve().then(() => (init_node2(), exports_node2));
+    await maybeShowSupportInvitation2(ohSupportProfile, { usefulResult: true, gitEmail: false, ...options });
   } catch {}
 }
 var usefulCommands;
 var init_support = __esm(() => {
-  init_node2();
   init_support_profile();
   usefulCommands = new Set(["init", "put", "get", "list", "log", "search", "recall", "tombstone"]);
 });
@@ -25389,7 +25395,7 @@ init_recall();
 init_migrations();
 init_sync_model();
 import { lstat, readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.10.1";
+var OH_PACKAGE_VERSION = "0.10.2";
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",
