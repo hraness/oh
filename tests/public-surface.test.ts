@@ -97,11 +97,12 @@ const privateProvenancePatterns = [
 // The research profile intentionally publishes the source namespace "sponge"
 // and purpose "public-encyclopedia". Their wire bytes remain stable; these two
 // now-public identifiers are no longer classified as unpublished provenance.
+// Accounts also publishes the legacy Oh routing ID "oh-computer" in support
+// links; its exact product identity is covered by the support contract tests.
 const prohibitedPublicIdentifierSha256 = new Set([
   "763268b8dbdcf327570527acbf826901b855f9bb1921e7d92b3b69a3d69052b6",
   "8bdc3c22e340202bfd1c2dd177012ba9ebc208a7437740eb8a835a225f41bcf2",
   "91ed2ef15eee7102873d33d852cae9a195eff25e758269de6457723b1d8dc29a",
-  "b58a1778c90889520d25f664dd029108a700c3be64aedcdc72b67d283128cefc",
 ]);
 
 const sensitiveLiteralPatterns = [
@@ -177,9 +178,9 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.10.0");
+    expect(packageJson.version).toBe("0.10.1");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.10.0"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.10.1"');
     expect(publishedRelease).toEqual({
       version: "0.10.0",
       verificationRun: "https://github.com/hraness/oh/actions/runs/34983514610",
