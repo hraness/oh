@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "surfaces": {
+    "sqlite:oh_contracts": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_dependencies": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_migrations": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_operation_records": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_operations": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_records": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_search_documents": {
+      "kind": "derived",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      },
+      "source": "src/sqlite/migrations.ts"
+    },
+    "sqlite:oh_space_bindings": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_space_purges": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_spaces": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_sync_outbox": {
+      "kind": "authoritative",
+      "retention": "ephemeral",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    },
+    "sqlite:oh_sync_state": {
+      "kind": "authoritative",
+      "retention": "account",
+      "owner": "src/sqlite/migrations.ts",
+      "deletion": "src/sqlite/migrations.ts",
+      "budget": {
+        "rowsPerAccount": 100000,
+        "bytesPerAccountMonth": 52428800
+      }
+    }
+  },
+  "exempt": []
+}
