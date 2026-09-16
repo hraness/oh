@@ -1,4 +1,7 @@
 import { expect, test } from "bun:test";
+import { copyFileSync, mkdirSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { OH_PACKAGE_VERSION } from "./cli";
 import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -75,4 +78,41 @@ test("eligibility is restricted to successful useful operations", () => {
     expect(hasUsefulOhResult(args, 1)).toBe(false);
   }
   for (const args of [[], ["help"], ["version"], ["verify"], ["contract"], ["research", "catalog-v7"], ["research", "verify-packet"], ["support"]]) expect(hasUsefulOhResult(args, 0)).toBe(false);
+});
+
+
+test("cold source probes do not load the optional support dependency", async () => {
+  const f = await fixture();
+  try {
+    const sourceRoot = join(f.root, "cold-checkout");
+    function copySource(from: string, to: string): void {
+      mkdirSync(to, { recursive: true });
+      for (const entry of readdirSync(from, { withFileTypes: true })) {
+        if (entry.isDirectory()) copySource(join(from, entry.name), join(to, entry.name));
+        else if (entry.isFile()) copyFileSync(join(from, entry.name), join(to, entry.name));
+        else throw new Error("Cold source fixture must contain regular source files");
+      }
+    }
+    copySource(import.meta.dir, join(sourceRoot, "src"));
+    copyFileSync(resolve(import.meta.dir, "../package.json"), join(sourceRoot, "package.json"));
+    const coldEntry = join(sourceRoot, "src/cli.ts");
+    const runCold = (args: string[]) => spawnSync(process.execPath, ["--no-install", "--no-env-file", coldEntry, ...args], {
+      cwd: sourceRoot, encoding: "utf8", timeout: 5_000,
+      env: { HOME: f.root, XDG_STATE_HOME: join(f.root, "state"), PATH: process.env.PATH,
+        BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0", HRANESS_SUPPORT_EMAIL: "off" },
+    });
+    for (const args of [["--version"], ["version"], ["--help"], ["help"], ["contract"]]) {
+      const result = runCold(args);
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+      if (args[0] === "--version" || args[0] === "version") expect(result.stdout).toBe(`${OH_PACKAGE_VERSION}\n`);
+    }
+    const invalid = runCold(["--version", "extra"]);
+    expect(invalid.error).toBeUndefined();
+    expect(invalid.status).toBe(1);
+    expect(invalid.stderr).toContain("version does not accept arguments or options");
+    expect(await access(join(sourceRoot, "node_modules")).then(() => true, () => false)).toBe(false);
+    expect(await access(join(f.root, "state")).then(() => true, () => false)).toBe(false);
+  } finally { await f.cleanup(); }
 });

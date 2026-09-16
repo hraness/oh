@@ -1,4 +1,4 @@
-import { type SupportCommandOptions } from "@hraness/support-foundation/node";
+import type { SupportCommandOptions } from "@hraness/support-foundation/node";
 /** Only the standalone executable changes its descendant audience. */
 export declare function standaloneSupportEnvironment(): Readonly<Record<string, string | undefined>>;
 export declare function runOhSupportCommand(args: readonly string[], options: SupportCommandOptions): Promise<number>;
