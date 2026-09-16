@@ -4,6 +4,17 @@ import Home from "../app/page";
 import Specification from "../app/spec/page";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import publishedRelease from "../published-release.json";
+import RootLayout from "../app/layout";
+
+test("both public pages have one optional support footer and no product signup", () => {
+  for (const page of [<Home key="home" />, <Specification key="spec" />]) {
+    const html = renderToStaticMarkup(<RootLayout>{page}</RootLayout>);
+    expect(html.match(/<footer\b/gu)).toHaveLength(1);
+    expect(html).toContain("https://account.hraness.com/support?product=oh-computer&amp;source=web#support");
+    expect(html).not.toContain('type="email"');
+    expect(html).not.toContain("action=updates");
+  }
+});
 
 test("makes the illustrative citation readable while keeping historical output available", () => {
   const html = renderToStaticMarkup(<Home />);

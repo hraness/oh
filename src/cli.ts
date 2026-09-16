@@ -10,7 +10,7 @@ import { renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
 import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
-export const OH_PACKAGE_VERSION = "0.10.0" as const;
+export const OH_PACKAGE_VERSION = "0.10.1" as const;
 
 type ParsedArguments = { options: Map<string, string[]>; positionals: string[] };
 type ValidatedInvocation = Readonly<{
@@ -239,10 +239,17 @@ Usage:
   oh research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH
   oh contract
   oh version
+  oh support protocol --json
+  oh support offer --json
+  oh support status --json
+  oh support dismiss | snooze | enable
 
 Research commands are offline and do not open a database.
 Store options: --db PATH (default .oh/oh.sqlite), --space ID (default default)
 Mutation options: --actor ID, --operation ID, --expected-generation N
+Optional development support requires human approval in the browser. Features stay free.
+Agents: read the support protocol once at a useful task closeout; ordinary stdout stays unchanged.
+HRANESS_SUPPORT_AUDIENCE=agent|human|off; CI and off suppress incidental invitations.
 `;
 
 export async function runOhCli(arguments_: readonly string[]): Promise<number> {
@@ -364,7 +371,16 @@ export async function runOhCli(arguments_: readonly string[]): Promise<number> {
 }
 
 if (import.meta.main) {
-  runOhCli(process.argv.slice(2)).then((code) => { process.exitCode = code; }).catch((error) => {
+  const args = process.argv.slice(2);
+  const { runOhSupportCommand, showOhSupportInvitation, standaloneSupportEnvironment } = await import("./support");
+  const options = { env: standaloneSupportEnvironment(), command: [process.execPath, process.argv[1]!] };
+  const run = async () => {
+    if (args[0] === "support") return runOhSupportCommand(args.slice(1), options);
+    const code = await runOhCli(args);
+    await showOhSupportInvitation(args, code, options);
+    return code;
+  };
+  run().then((code) => { process.exitCode = code; }).catch((error) => {
     process.stderr.write(`oh: ${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
   });

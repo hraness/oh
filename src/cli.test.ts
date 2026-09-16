@@ -17,7 +17,7 @@ afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root,
 
 async function run(arguments_: readonly string[], cwd = REPOSITORY_ROOT): Promise<{ code: number; stderr: string; stdout: string }> {
   const process_ = Bun.spawn([process.execPath, CLI_PATH, ...arguments_], { cwd,
-    stderr: "pipe", stdout: "pipe" });
+    stderr: "pipe", stdout: "pipe", env: { ...process.env, HRANESS_SUPPORT_AUDIENCE: "off" } });
   const [code, stdout, stderr] = await Promise.all([process_.exited,
     new Response(process_.stdout).text(), new Response(process_.stderr).text()]);
   return { code, stderr, stdout };

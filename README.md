@@ -889,3 +889,22 @@ source evidence. Existing organization assignments can use the same role
 descriptors. Listed query paths are declarative guidance; they do not execute
 joins or infer employment, ownership or rights.
 Catalogs V1–V6 retain their exact declarations and locks.
+
+## Optional development support
+
+Source version 0.10.1 adds `oh support` for optional development support.
+The verified installation baseline above advances only after release checks
+pass. Oh remains free and does not require an account. There is no product
+newsletter or email lookup. The person reviews current terms and confirms any
+payment in their browser.
+
+After useful standalone work, the CLI may emit a throttled discovery record on
+stderr. Agents read `oh support protocol --json` once at task closeout and follow
+its delivery procedure. Ordinary command output and exit status stay unchanged;
+SDK calls, help, contract checks, verification and suppressed audiences stay
+quiet. The default audience is an agent, including in a pseudo-terminal.
+`HRANESS_SUPPORT_AUDIENCE=human` selects human terminal rendering explicitly;
+`HRANESS_SUPPORT_AUDIENCE=off` suppresses incidental invitations.
+
+`oh support dismiss`, `snooze`, `enable`, and `status --json` manage separate
+shared preferences. They never open or modify an Oh database.

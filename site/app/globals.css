@@ -4,6 +4,11 @@
 @import "../styles/vendor/hraness-paper/paper-theme.css";
 @import "../vendor/hraness-marketing/product-marketing-preset.css";
 @import "../vendor/hraness-lantern/lantern-material.css";
+@import "@hraness/site-footer/styles.css";
+
+@media (width < 47.5rem) {
+  .network-footer { padding-block-start: 2.5rem; }
+}
 
 /* The bounded PostCSS bridge emits the immutable editorial preset in the
  * oh-marketing layer and Lantern paint in oh-material. Paper and product-specific

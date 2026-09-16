@@ -195,6 +195,10 @@ export async function scanPackage(root: string): Promise<void> {
     }
     const source = await readFile(path, "utf8");
     if (packagePath.startsWith("dist/") && extension === ".js") {
+      const includesSupportRuntime = source.includes("hraness-support-protocol-v1");
+      if (includesSupportRuntime !== (packagePath === "dist/cli.js")) {
+        problems.push(`${packagePath} violates the standalone support runtime boundary`);
+      }
       // Check shipped bytes: sync is part of the root/SDK/CLI surface, while
       // pure store, SQLite codec, projection and page graphs stay independent.
       const includesEffectRuntime = source.includes("effect/Effect");
@@ -305,6 +309,15 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
       join(consumer, "node_modules", ".bin", "oh"), "--help",
     ], consumer, true);
     const version = await run([process.execPath, cli, "--version"], consumer, true);
+    const protocol = JSON.parse(await run([process.execPath, cli, "support", "protocol", "--json"], consumer, true)) as {
+      offer?: { product?: { id?: unknown }; actions?: { kind?: unknown }[] };
+      commands?: { protocol?: unknown };
+    };
+    if (protocol.offer?.product?.id !== "oh-computer"
+      || protocol.offer.actions?.map(action => action.kind).join() !== "support"
+      || JSON.stringify(protocol.commands?.protocol) !== JSON.stringify([process.execPath, cli, "support", "protocol", "--json"])) {
+      throw new Error("Packed standalone support protocol lost its product or executable identity.");
+    }
     if (
       !help.includes("Usage:\n  oh init")
       || installedBinHelp !== help
