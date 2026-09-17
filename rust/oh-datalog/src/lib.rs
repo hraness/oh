@@ -1079,4 +1079,160 @@ mod tests {
 
         assert!(matches!(result, Err(ProjectionError::WorkBudgetExceeded { .. })));
     }
+
+    #[test]
+    fn enforces_derived_tuple_limit() {
+        let mut facts = Vec::new();
+        for i in 0..5 {
+            let a = format!("n{i}");
+            let b = format!("n{}", i + 1);
+            facts.push(fact("edge", vec![a.as_str(), b.as_str()], vec![("s", "sha")]));
+        }
+        let dataset = dataset(facts);
+        let rules = rule_pack(vec![
+            rule(
+                "path-direct",
+                vec![literal("edge", vec![variable("x"), variable("y")])],
+                literal("path", vec![variable("x"), variable("y")]),
+            ),
+            rule(
+                "path-indirect",
+                vec![
+                    literal("edge", vec![variable("x"), variable("z")]),
+                    literal("path", vec![variable("z"), variable("y")]),
+                ],
+                literal("path", vec![variable("x"), variable("y")]),
+            ),
+        ]);
+        let query = query(
+            vec![literal("path", vec![variable("x"), variable("y")])],
+            vec!["x", "y"],
+        );
+
+        let result = evaluate_projection(
+            &dataset,
+            &rules,
+            &query,
+            OhProjectionEvaluationOptions {
+                maximum_derived_tuples: Some(5),
+                ..Default::default()
+            },
+        );
+
+        assert!(matches!(result, Err(ProjectionError::DerivedTupleLimitExceeded { .. })));
+    }
+
+    #[test]
+    fn enforces_round_limit() {
+        let mut facts = Vec::new();
+        for i in 0..5 {
+            let a = format!("n{i}");
+            let b = format!("n{}", i + 1);
+            facts.push(fact("edge", vec![a.as_str(), b.as_str()], vec![("s", "sha")]));
+        }
+        let dataset = dataset(facts);
+        let rules = rule_pack(vec![
+            rule(
+                "path-direct",
+                vec![literal("edge", vec![variable("x"), variable("y")])],
+                literal("path", vec![variable("x"), variable("y")]),
+            ),
+            rule(
+                "path-indirect",
+                vec![
+                    literal("edge", vec![variable("x"), variable("z")]),
+                    literal("path", vec![variable("z"), variable("y")]),
+                ],
+                literal("path", vec![variable("x"), variable("y")]),
+            ),
+        ]);
+        let query = query(
+            vec![literal("path", vec![variable("x"), variable("y")])],
+            vec!["x", "y"],
+        );
+
+        let result = evaluate_projection(
+            &dataset,
+            &rules,
+            &query,
+            OhProjectionEvaluationOptions {
+                maximum_rounds: Some(1),
+                ..Default::default()
+            },
+        );
+
+        assert!(matches!(result, Err(ProjectionError::RoundLimitExceeded { .. })));
+    }
+
+    #[test]
+    fn truncates_proofs_when_result_byte_budget_exceeded() {
+        let big = "x".repeat(1_000);
+        let dataset = dataset(vec![
+            fact("large", vec![big.as_str()], vec![("s", "sha")]),
+        ]);
+        let rules = rule_pack(vec![]);
+        let query = query(
+            vec![literal("large", vec![variable("x")])],
+            vec!["x"],
+        );
+
+        let result = evaluate_projection(
+            &dataset,
+            &rules,
+            &query,
+            OhProjectionEvaluationOptions {
+                maximum_result_bytes: Some(100),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert!(!result.output.rows.is_empty(), "row should still be returned");
+        assert!(result.output.rows[0].proofs_truncated, "proofs must be truncated");
+        assert!(result.output.rows[0].proofs.is_empty(), "truncated proofs must be empty");
+    }
+
+    #[test]
+    fn truncates_proofs_when_total_proof_node_budget_exceeded() {
+        let mut facts = Vec::new();
+        for i in 0..5 {
+            let a = format!("n{i}");
+            let b = format!("n{}", i + 1);
+            facts.push(fact("edge", vec![a.as_str(), b.as_str()], vec![("s", "sha")]));
+        }
+        let dataset = dataset(facts);
+        let rules = rule_pack(vec![
+            rule(
+                "path-direct",
+                vec![literal("edge", vec![variable("x"), variable("y")])],
+                literal("path", vec![variable("x"), variable("y")]),
+            ),
+            rule(
+                "path-indirect",
+                vec![
+                    literal("edge", vec![variable("x"), variable("z")]),
+                    literal("path", vec![variable("z"), variable("y")]),
+                ],
+                literal("path", vec![variable("x"), variable("y")]),
+            ),
+        ]);
+        let query = query(
+            vec![literal("path", vec![variable("x"), variable("y")])],
+            vec!["x", "y"],
+        );
+
+        let result = evaluate_projection(
+            &dataset,
+            &rules,
+            &query,
+            OhProjectionEvaluationOptions {
+                maximum_total_proof_nodes: Some(1),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert!(!result.output.rows.is_empty());
+        assert!(result.output.rows.iter().any(|r| r.proofs_truncated), "at least one row should have truncated proofs");
+    }
 }
