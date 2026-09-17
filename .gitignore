@@ -13,3 +13,4 @@ coverage/
 rust/target/
 rust/**/pkg/
 rust/**/*.node
+/dist/rust-artifacts/
