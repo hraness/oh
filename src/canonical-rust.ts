@@ -19,19 +19,30 @@ function decodeString(value: unknown): string {
   return value;
 }
 
-async function loadWasmModule(): Promise<WasmModule | null> {
+async function tryLoadWasm(moduleUrl: URL, wasmUrl: URL): Promise<WasmModule | null> {
   try {
-    // Dynamic import with a computed URL so TypeScript does not try to
-    // resolve the wasm-pack output at compile time (it lives outside `src/`).
-    const url = new URL("../rust/oh-canonical-wasm/pkg/oh_canonical_wasm.js", import.meta.url);
-    const wasm = (await import(url.href)) as WasmModule;
-    const wasmBinaryUrl = new URL("../rust/oh-canonical-wasm/pkg/oh_canonical_wasm_bg.wasm", import.meta.url);
-    const buffer = await Bun.file(wasmBinaryUrl).arrayBuffer();
+    const wasm = (await import(moduleUrl.href)) as WasmModule;
+    const buffer = await Bun.file(wasmUrl).arrayBuffer();
     wasm.initSync({ module: buffer });
     return wasm;
   } catch {
     return null;
   }
+}
+
+async function loadWasmModule(): Promise<WasmModule | null> {
+  // Prefer the packaged artifacts under dist/rust-artifacts/ when running from
+  // the built package; fall back to the source crate output in development.
+  return (
+    (await tryLoadWasm(
+      new URL("../rust-artifacts/oh-canonical-wasm/oh_canonical_wasm.js", import.meta.url),
+      new URL("../rust-artifacts/oh-canonical-wasm/oh_canonical_wasm_bg.wasm", import.meta.url),
+    )) ??
+    (await tryLoadWasm(
+      new URL("../rust/oh-canonical-wasm/pkg/oh_canonical_wasm.js", import.meta.url),
+      new URL("../rust/oh-canonical-wasm/pkg/oh_canonical_wasm_bg.wasm", import.meta.url),
+    ))
+  );
 }
 
 /** Load the Rust WASM canonical-JSON text engine, falling back to TS. */
