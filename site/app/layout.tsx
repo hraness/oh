@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     images: [{
       alt: "open-source tools for agentic research",
       height: 630,
-      url: "/og.png",
+      url: "/opengraph-image",
       width: 1200,
     }],
     siteName: "Oh",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title,
     description,
-    images: ["/og.png"],
+    images: ["/opengraph-image"],
   },
 };
 
