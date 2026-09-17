@@ -1,0 +1,22 @@
+[package]
+name = "oh-canonical"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Canonical JSON and digest primitives for Oh."
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+ryu = "1"
+
+[dev-dependencies]
+
+[lib]
+name = "oh_canonical"
+path = "src/lib.rs"

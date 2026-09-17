@@ -121,6 +121,22 @@
         "rowsPerAccount": 100000,
         "bytesPerAccountMonth": 52428800
       }
+    },
+    "rust:canonical-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-canonical/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 1048576
+      }
+    },
+    "rust:canonical-napi": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-canonical/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 2097152
+      }
     }
   },
   "exempt": []
