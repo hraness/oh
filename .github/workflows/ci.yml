@@ -136,8 +136,8 @@ jobs:
       - name: Test Rust workspace
         working-directory: rust
         run: cargo test --locked
-      - name: Build WASM artifact
-        run: bun run rust:build:wasm
+      - name: Build WASM artifacts
+        run: bun run rust:build:artifacts
 
   site:
     name: Site
