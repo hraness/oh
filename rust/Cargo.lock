@@ -373,6 +373,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "oh-sqlite"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "oh-sqlite-napi"
+version = "0.1.0"
+dependencies = [
+ "napi",
+ "napi-derive",
+ "oh-sqlite",
+ "serde_json",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

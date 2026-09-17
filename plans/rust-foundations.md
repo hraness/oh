@@ -164,8 +164,8 @@ replacement proves byte-exact parity through property tests.
 
 ## Phase 7: Shared SQLite snapshot / iMessage / Contacts reader
 
-- **Status:** Not started
-- **Depends on:** Phase 6
+- **Status:** In progress
+- **Depends on:** Phase 5
 - **Objective:** Move the filesystem-snapshot and read-only query isolation for
   iMessage and Contacts into Rust.
 - **Scope:** New crate `oh-sqlite` plus Textbutler integration for

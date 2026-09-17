@@ -153,6 +153,14 @@
       "budget": {
         "bytesPerArtifact": 4194304
       }
+    },
+    "rust:sqlite-napi": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-sqlite/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
     }
   },
   "exempt": []
