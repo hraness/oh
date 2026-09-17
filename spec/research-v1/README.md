@@ -151,8 +151,15 @@ A packet admits at most 1,024 source records, 8 MiB of source JSON, 16 MiB of
 packet JSON, 1 MiB per record and 4,096 dependencies per record. Storage commit
 also requires both the complete current and resulting snapshots to contain
 at most 8,192 records; a larger store or operation fails explicitly. These are admission bounds, not an assurance that any
-particular source collection fits. The receiving host remains responsible for
-identity selection, authenticated authority, current rights, and purpose.
+particular source collection fits. A corpus that outgrows the snapshot bound
+partitions by space or domain into separately committed packet snapshots whose
+records reference each other only through retained digests, never through
+unverified cross-snapshot keys; monitor and run ledgers from the
+research-operations vocabulary record each partition's admissions and
+rejections. A future packet or store V2 may relax the bound under a new
+versioned contract; V1 limits will not be silently raised. The receiving host
+remains responsible for identity selection, authenticated authority, current
+rights, and purpose.
 
 ## Host boundaries
 
@@ -180,6 +187,7 @@ The CLI opens no database and performs no network calls for these commands:
 ```sh
 oh research catalog
 oh research catalog-v7
+oh research catalog-v8
 oh research validate-draft --file proposal.json
 oh research wikidata-preview --file captures.json
 oh research prepare-packet --file source-records.json
@@ -221,3 +229,17 @@ for dated organization assignments and contributions to exact events, works,
 recordings or editions. Role descriptions and focal identities are explicit;
 source evidence and temporal context remain separate. Manifest queries are
 declarative guidance and do not execute joins. Catalogs V1–V6 remain unchanged.
+
+
+Package 0.11.0 adds `catalog-v8` with six research-evidence vocabularies:
+[named temporal roles](temporal-roles-v1.md) that qualify only predicates that
+declare them, [evidence grading](evidence-grading-v1.md) for strata, tier
+ladders, corroboration, verbatim binding, corrections and bounded absence
+findings, [ordered citation clusters](citation-v1.md) with locators, quotation
+selectors, intent and WEMI levels, [research operations](research-ops-v1.md)
+for monitors, run ledgers, rejections, review events and publication policies,
+[measured source scorecards](source-quality-v1.md) and [recorded source
+policies](source-policy-v1.md). Every pack is additive and attributed: grades
+are not review states, corroboration is not truth, a bounded null result is
+not nonexistence, and a policy record is not an authorization. Catalogs V1–V7
+remain unchanged.

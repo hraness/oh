@@ -1,0 +1,32 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV8",
+    "additionalPack": "sponge.citation",
+    "additionalPackRevision": 1
+  },
+  "builder": "createSpongeCitationPackV1",
+  "previousCatalogFactory": "spongeKnowledgeDomainCatalogV7",
+  "concepts": [
+    "citation-cluster",
+    "citation-intent-descriptor",
+    "wemi-level-descriptor"
+  ],
+  "relations": [
+    "citation-intent",
+    "citation-locator",
+    "citation-order",
+    "cited-from",
+    "cites-item",
+    "quotation-selector",
+    "wemi-level"
+  ],
+  "directDependencies": [
+    "sponge.core",
+    "sponge.foundation",
+    "sponge.reference"
+  ],
+  "queryKind": "declarative-predicate-inventory",
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

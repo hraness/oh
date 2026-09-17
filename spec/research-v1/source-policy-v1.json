@@ -1,0 +1,34 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV8",
+    "additionalPack": "sponge.source-policy",
+    "additionalPackRevision": 1
+  },
+  "builder": "createSpongeSourcePolicyPackV1",
+  "previousCatalogFactory": "spongeKnowledgeDomainCatalogV7",
+  "concepts": [
+    "capability-policy",
+    "policy-status-descriptor"
+  ],
+  "relations": [
+    "capability-features",
+    "capability-labels",
+    "capability-ml",
+    "capability-network",
+    "capability-storage",
+    "policy-for-source",
+    "policy-reason",
+    "policy-revision",
+    "policy-status",
+    "terms-reference"
+  ],
+  "directDependencies": [
+    "sponge.core",
+    "sponge.foundation",
+    "sponge.reference"
+  ],
+  "queryKind": "declarative-predicate-inventory",
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}
