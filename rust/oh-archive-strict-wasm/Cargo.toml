@@ -1,0 +1,16 @@
+[package]
+name = "oh-archive-strict-wasm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Raw-ABI WASM artifact for the strict oh-archive reader."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+oh-archive = { path = "../oh-archive" }
+serde_json.workspace = true

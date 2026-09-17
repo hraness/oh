@@ -13,6 +13,8 @@ use std::path::{Path, PathBuf};
 use zip::result::ZipError;
 use zip::ZipArchive;
 
+pub mod strict;
+
 /// Options controlling archive extraction.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtractOptions {

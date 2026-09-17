@@ -10,8 +10,10 @@ description = "WASM bindings for oh-archive."
 
 [dependencies]
 oh-archive = { path = "../oh-archive" }
-wasm-bindgen = "0.2"
+wasm-bindgen.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+js-sys = "0.3"
 
 [lib]
 crate-type = ["cdylib"]
