@@ -56,7 +56,7 @@ async function copyCargoWasm(crate: string, cargoTarget: string) {
   await writeFile(dest, bytes);
   const b64 = bytes.toString("base64");
   const sha = createHash("sha256").update(bytes).digest("hex");
-  const artifactPath = resolve(target, "artifact.ts");
+  const artifactPath = resolve(target, "artifact.js");
   const lines: string[] = [];
   for (let i = 0; i < b64.length; i += 120) {
     lines.push(`  "${b64.slice(i, i + 120)}"`);

@@ -98,7 +98,7 @@
       "import": "./dist/canonical-rust.js"
     },
     "./canonical-rust/raw-wasm": "./dist/rust-artifacts/oh-canonical-raw-wasm/oh_canonical_raw_wasm.wasm",
-    "./canonical-rust/artifact": "./dist/rust-artifacts/oh-canonical-raw-wasm/artifact.ts",
+    "./canonical-rust/artifact": "./dist/rust-artifacts/oh-canonical-raw-wasm/artifact.js",
     "./archive-wasm": "./dist/rust-artifacts/oh-archive-wasm/oh_archive_wasm.js",
     "./archive-strict-wasm": "./dist/rust-artifacts/oh-archive-strict-wasm/oh_archive_strict_wasm.wasm",
     "./datalog-wasm": "./dist/rust-artifacts/oh-datalog-wasm/oh_datalog_wasm.js"
