@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { hranessAttribution } from "@hraness/site-footer";
 import { renderToStaticMarkup } from "react-dom/server";
 import Home from "../app/page";
 import Specification from "../app/spec/page";
@@ -7,10 +6,17 @@ import citationRecord from "../public/examples/evidence-table-2.json";
 import publishedRelease from "../published-release.json";
 import RootLayout from "../app/layout";
 
-test("both public pages have one optional support footer and no product signup", () => {
+test("both public pages render the in-flow content footer above the shared footer", () => {
   for (const page of [<Home key="home" />, <Specification key="spec" />]) {
     const html = renderToStaticMarkup(<RootLayout>{page}</RootLayout>);
-    expect(html.match(/<footer\b/gu)).toHaveLength(1);
+    expect(html.match(/<footer\b/gu)).toHaveLength(2);
+    const contentFooter = html.indexOf('data-hraness-marketing="footer"');
+    const networkFooter = html.indexOf('data-slot="hraness-site-footer"');
+    expect(contentFooter).toBeGreaterThan(-1);
+    expect(networkFooter).toBeGreaterThan(contentFooter);
+    expect(html).toContain("hraness-marketing-footer__brand");
+    expect(html).toContain('class="brand-mark"');
+    expect(html).toContain("Oh is open source for researchers and the agents working beside them.");
     expect(html).toContain('id="hraness-site-footer"');
     expect(html).toContain("https://account.hraness.com/support?product=oh-computer&amp;source=web#support");
     expect(html).not.toContain('type="email"');
@@ -21,9 +27,8 @@ test("both public pages have one optional support footer and no product signup",
 test("both public pages attribute the site to Hraness through the shared footer only", () => {
   for (const page of [<Home key="home" />, <Specification key="spec" />]) {
     const html = renderToStaticMarkup(<RootLayout>{page}</RootLayout>);
-    expect(html.match(/data-slot="hraness-attribution"/gu)).toHaveLength(1);
-    expect(html).toContain(hranessAttribution.title);
-    expect(html).toContain(hranessAttribution.subtitle);
+    expect(html.match(/aria-label="Hraness home"/gu)).toHaveLength(1);
+    expect(html).toContain(">by Hraness</span>");
     expect(html).not.toContain("Ben Guo");
     expect(html).not.toContain("hraness-marketing-maker");
     expect(html).not.toContain('id="maker"');
