@@ -354,6 +354,12 @@ describe("versioned public contract", () => {
     const exports = packageJson.exports as Record<string, unknown>;
     expect(Object.keys(exports).sort()).toEqual([
       ".",
+      "./archive-strict-wasm",
+      "./archive-wasm",
+      "./canonical-rust",
+      "./canonical-rust/artifact",
+      "./canonical-rust/raw-wasm",
+      "./datalog-wasm",
       "./experimental/memory",
       "./experimental/projection-suss",
       "./libsql",
