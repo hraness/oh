@@ -599,3 +599,6 @@ a:focus-visible {
     scroll-behavior: auto;
   }
 }
+
+/* Decorative topic icons (agent-generated line art, public/icons/). */
+.oh-topic-icon { display: block; width: 40px; height: 40px; margin: 0 0 12px; }

@@ -21,6 +21,14 @@ import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
 import manifest from "../public/spec/manifest.json";
 
+function TopicIcon({ slug }: Readonly<{ slug: string }>) {
+  // Decorative local SVG; next/image cannot optimize vector sources.
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="oh-topic-icon" src={`/icons/${slug}.svg`} alt="" aria-hidden="true" width="40" height="40" loading="lazy" decoding="async" />
+  );
+}
+
 const currentVersion = manifest.versions.find((version) => version.id === manifest.current) ??
   (() => {
     throw new Error("The public specification manifest has no current version.");
@@ -70,31 +78,37 @@ const stats = [
 
 const researchObjects = [
   {
+    icon: "question",
     label: "Question",
     kind: "inquiry",
     summary: "Save what you are trying to find out, along with the investigation that follows.",
   },
   {
+    icon: "source",
     label: "Source",
     kind: "entity",
     summary: "Identify the paper, dataset, person, or system you are researching, even if its title or URL changes.",
   },
   {
+    icon: "capture",
     label: "Capture",
     kind: "edition",
     summary: "Keep track of the particular edition or extract you used, not just the source as it looks today.",
   },
   {
+    icon: "claim",
     label: "Claim",
     kind: "statement",
     summary: "Write down what is being claimed. Record who accepts it and the evidence for it separately.",
   },
   {
+    icon: "citation",
     label: "Citation",
     kind: "evidence",
     summary: "Point to a passage, table, or observation, and explain how it supports or challenges a claim.",
   },
   {
+    icon: "artifact",
     label: "Artifact",
     kind: "view",
     summary: "Build a brief or answer that keeps links to the records it draws on.",
@@ -278,9 +292,12 @@ export default function Home() {
               label: object.label,
               summary: object.summary,
               example: (
-                <p className="record-kind">
-                  Record kind <code>{object.kind}</code>
-                </p>
+                <>
+                  <TopicIcon slug={object.icon} />
+                  <p className="record-kind">
+                    Record kind <code>{object.kind}</code>
+                  </p>
+                </>
               ),
             }))}
             label=""
