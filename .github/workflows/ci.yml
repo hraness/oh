@@ -128,10 +128,13 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Check Rust workspace
+        working-directory: rust
         run: cargo check --locked
       - name: Lint Rust workspace
+        working-directory: rust
         run: cargo clippy -- -D warnings
       - name: Test Rust workspace
+        working-directory: rust
         run: cargo test --locked
       - name: Build WASM artifact
         run: bun run rust:build:wasm
