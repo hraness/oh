@@ -28,7 +28,11 @@ consumers and hardens the surface.
 
 ## Phase A: Ship Rust WASM artifacts in `@hraness/oh` releases
 
-- **Status:** In progress
+- **Status:** Completed
+- **Release:** `@hraness/oh@0.10.3` is published with provenance and ships
+  `dist/rust-artifacts/oh-canonical-wasm/`, `oh-canonical-raw-wasm/`,
+  `oh-archive-wasm/`, `oh-archive-strict-wasm/`, and `oh-datalog-wasm/`.
+- **PR:** hraness/oh#133
 - **Objective:** The `@hraness/oh` npm package ships the built Rust WASM/N-API
   artifacts as first-class files so downstream packages can import them instead
   of vendoring blobs.
@@ -55,8 +59,9 @@ consumers and hardens the surface.
 
 ## Phase B: Migrate downstream consumers off vendored blobs
 
-- **Status:** Not started
+- **Status:** Completed
 - **Depends on:** Phase A
+- **PRs:** hraness/sponge#285, hraness/wordcell#72, hraness/textbutler#125
 - **Objective:** Sponge, Wordcell, and Textbutler load the WASM artifacts from
   the published `@hraness/oh` package instead of checking in base64 blobs.
 - **Scope:** `lib/canonical-rust.ts` and `lib/vendor/oh-canonical/` in sponge;
@@ -75,8 +80,9 @@ consumers and hardens the surface.
 
 ## Phase C: Flip Rust paths to default-on with fallback telemetry
 
-- **Status:** Not started
+- **Status:** Completed
 - **Depends on:** Phase B
+- **PRs:** hraness/sponge#285 (commits), hraness/wordcell#72 (commits), hraness/textbutler#125 (commits)
 - **Objective:** Make the Rust engine the default where parity is proven, while
   keeping a safe TypeScript fallback and surfacing mismatch events for review.
 - **Scope:** Canonical/digest loaders in sponge (`lib/digest.ts`), wordcell
@@ -95,8 +101,20 @@ consumers and hardens the surface.
 
 ## Phase D: Integrate archive / SQLite / Datalog engines downstream
 
-- **Status:** Not started
+- **Status:** Partially completed
 - **Depends on:** Phase C
+- **Findings:**
+  - **Wordcell:** `src/clip/bundle-reader.ts` reads unpacked directories, not
+    ZIP archives, so `oh-archive` is not applicable without a new capture format.
+  - **Sponge:** no ZIP-shaped capture bundle ingestion was found in the current
+    `src/`/`lib/` tree.
+  - **Textbutler:** `src/imessage.ts` and `src/contacts.ts` already isolate
+    SQLite snapshots before opening them with `bun:sqlite`. The `oh-sqlite`
+    engine can replace `isolateSource`, but `oh-sqlite` is not yet packaged in
+    the `@hraness/oh` release artifacts (`v0.10.3` ships only the WASM crates),
+    so this needs a release engineering pass first.
+  - **oh:** exposing `oh-datalog` as `oh.projection.rust.v1` is blocked on a
+    clean consumer integration target; the engine itself is implemented.
 - **Objective:** Use the shared Rust engines for real production workloads beyond
   canonical JSON/digest.
 - **Scope:**
@@ -118,8 +136,18 @@ consumers and hardens the surface.
 
 ## Phase E: Hardening
 
-- **Status:** Not started
+- **Status:** Partially completed
 - **Depends on:** Phase A
+- **PR:** hraness/local-custody#8 (commits)
+- **Completed:**
+  - Port `local-custody` `protected-input` and control-socket request/listen
+    to Rust with dedicated contract tests.
+- **Remaining:**
+  - Add property tests for `oh-archive` malformed ZIP handling and
+    `oh-datalog` budget enforcement.
+  - Extend `spec/vectors.json` with concrete `controlFrame` and
+    `protectedInput` vectors and wire them into `rust/tests/vectors.rs`.
+  - Cross-platform N-API build matrix (optional, behind feature flag).
 - **Objective:** Close remaining gaps in the Rust surface.
 - **Scope:** `local-custody/rust/`, `oh/rust/`, release/CI matrices.
 - **Approach:**
