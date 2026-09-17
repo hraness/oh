@@ -13,10 +13,10 @@ import {
   MarketingTrustBoundary,
   ProductHero,
 } from "@hraness/design-kit/react/server";
-import { hranessAttribution } from "@hraness/site-footer";
 import { AskAiAboutThis } from "@hraness/ui";
 
 import publishedRelease from "../published-release.json";
+import { BrandMark, OhContentFooter } from "./site-footer";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
 import manifest from "../public/spec/manifest.json";
@@ -157,7 +157,7 @@ const questions = [
   },
   {
     question: "Who made it?",
-    answer: `${hranessAttribution.subtitle} Oh is its open-source kernel for research done with agents, published under the MIT license.`,
+    answer: "Hraness is an advanced software research organization dedicated to advancing the frontier of machine intelligence. Oh is its open-source kernel for research done with agents, published under the MIT license.",
   },
 ] as const;
 
@@ -169,22 +169,6 @@ const navigation = [
   { href: "/spec", label: "Specification" },
   { href: repository, label: "GitHub" },
 ] as const;
-
-function BrandMark() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="brand-mark">
-      <circle cx="12" cy="12" r="12" fill="currentColor" />
-      <circle cx="7.7" cy="13.2" r="3" fill="none" stroke="var(--background)" strokeWidth="2.1" />
-      <path
-        d="M12.8 6.7v9.5m0-3.2c.1-2.2 1.3-3.5 3-3.5 1.8 0 2.8 1.2 2.8 3.3v3.4"
-        fill="none"
-        stroke="var(--background)"
-        strokeLinecap="round"
-        strokeWidth="2.1"
-      />
-    </svg>
-  );
-}
 
 export default function Home() {
   const structuredData = [
@@ -431,14 +415,7 @@ oh verify`}</code></pre>
 
       <AskAiAboutThis className="ask-ai" url="https://oh.computer" />
 
-      <div className="site-footer">
-        <p>Oh is open source for researchers and the agents working beside them.</p>
-        <nav aria-label="Project links">
-          <a href="/spec">Ontology v1</a>
-          <a href={repository}>hraness/oh</a>
-          <a href="https://hraness.com/projects">Hraness projects</a>
-        </nav>
-      </div>
+      <OhContentFooter />
     </div>
   );
 }
