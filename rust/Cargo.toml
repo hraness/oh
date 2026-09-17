@@ -1,5 +1,5 @@
 [workspace]
-members = ["oh-canonical", "oh-canonical-wasm", "oh-canonical-napi", "oh-archive", "oh-archive-wasm", "oh-archive-napi", "oh-archive-strict-wasm", "oh-sqlite", "oh-sqlite-napi", "oh-datalog", "oh-datalog-wasm"]
+members = ["oh-canonical", "oh-canonical-wasm", "oh-canonical-napi", "oh-canonical-raw-wasm", "oh-archive", "oh-archive-wasm", "oh-archive-napi", "oh-archive-strict-wasm", "oh-sqlite", "oh-sqlite-napi", "oh-datalog", "oh-datalog-wasm"]
 resolver = "3"
 
 [workspace.package]

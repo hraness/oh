@@ -1,12 +1,8 @@
 //! ECMAScript `Number::toString(x, 10)` formatting for `f64`.
 //!
-//! This is what `JSON.stringify` uses for numbers. The implementation below is
-//! adapted from `parse-rust-core` (Apache-2.0 licensed) and reformatted for
-//! `oh-canonical`; it uses `ryu` for the shortest round-tripping decimal digits
-//! and then renders them with ECMAScript's exponent and decimal-point rules.
-//!
-//! Source: <https://docs.rs/parse-rust-core/latest/src/parse_rust_core/js_number.rs.html>
-//! License: Apache-2.0
+//! `JSON.stringify` uses this exact algorithm. We decompose the value through
+//! `dtoa` (a Rust port of V8's Grisu3 / `dtoa.c`) into a digit string and a
+//! decimal-point exponent, then apply the ECMA-262 §6.1.6.1.20 rendering rules.
 
 use std::fmt::Write as _;
 
@@ -40,8 +36,8 @@ pub fn to_ecma_string(x: f64) -> String {
 ///
 /// Returns `(digits, n)` with no trailing zeros, such that `0.<digits> * 10^n == x`.
 fn shortest_digits(x: f64) -> (String, i32) {
-    let mut buf = ryu::Buffer::new();
-    let s = buf.format_finite(x); // e.g. "100.0", "0.1", "1e20", "1.5e300"
+    let mut buf = dtoa::Buffer::new();
+    let s = buf.format_finite(x); // e.g. "100", "0.1", "1.5e+300"
 
     let (mantissa, exp10) = match s.split_once('e') {
         Some((m, e)) => (m, e.parse::<i32>().unwrap_or(0)),
@@ -126,5 +122,8 @@ mod tests {
         assert_eq!(to_ecma_string(1e21), "1e+21");
         assert_eq!(to_ecma_string(1.5), "1.5");
         assert_eq!(to_ecma_string(0.1), "0.1");
+        // Large integers where multiple shortest decimals exist; V8 uses the
+        // closest representation matching the literal text.
+        assert_eq!(to_ecma_string(123456789012345680000.0), "123456789012345680000");
     }
 }

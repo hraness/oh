@@ -186,6 +186,7 @@ mod tests {
         assert_eq!(canonical_json_str("1000000").unwrap(), "1000000");
         assert_eq!(canonical_json_str("1e20").unwrap(), "100000000000000000000");
         assert_eq!(canonical_json_str("1e21").unwrap(), "1e+21");
+        assert_eq!(canonical_json_str("123456789012345680000").unwrap(), "123456789012345680000");
     }
 
     #[test]
