@@ -75,7 +75,7 @@ selected profiles do not provide complete semantic coverage of Wikidata;
 preserved properties are not all mapped to local relations. Historical catalogs
 and definitions remain available.
 
-The installation instructions below use `0.10.2`, the
+The installation instructions below use `0.10.3`, the
 [verified public release](https://github.com/hraness/oh/actions/runs/35070815434).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
@@ -84,16 +84,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact verified public release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.10.2
+bun add --global @hraness/oh@0.10.3
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.10.2),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.10.3),
 including the mirrored
-[`hraness-oh-0.10.2.tgz`](https://github.com/hraness/oh/releases/download/v0.10.2/hraness-oh-0.10.2.tgz)
+[`hraness-oh-0.10.3.tgz`](https://github.com/hraness/oh/releases/download/v0.10.3/hraness-oh-0.10.3.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.10.2/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.10.3/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -151,7 +151,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.10.2"
+    "@hraness/oh": "0.10.3"
   }
 }
 ```
@@ -733,9 +733,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.10.2 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.10.2 Release at
-https://github.com/hraness/oh/releases/tag/v0.10.2. Verify the CLI with
+Install @hraness/oh@0.10.3 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.10.3 Release at
+https://github.com/hraness/oh/releases/tag/v0.10.3. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```

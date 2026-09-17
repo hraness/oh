@@ -178,15 +178,15 @@ describe("public identity and documentation", () => {
     ]);
     expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.10.2");
+    expect(packageJson.version).toBe("0.10.3");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.10.2"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.10.3"');
     expect(publishedRelease).toEqual({
-      version: "0.10.2",
+      version: "0.10.3",
       verificationRun: "https://github.com/hraness/oh/actions/runs/35070815434",
     });
-    expect(readme).toContain("installation instructions below use `0.10.2`");
-    expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.10.2`");
+    expect(readme).toContain("installation instructions below use `0.10.3`");
+    expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.10.3`");
     expect(skill).toContain("For an existing installation, use its installed CLI");
     expect(readme).toContain("Source version 0.6.1 adds `oh research catalog-v2`");
     expect(skill).toContain("With version 0.6.1 or newer, `oh research catalog-v2`");
@@ -216,14 +216,14 @@ describe("public identity and documentation", () => {
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
-    expect(readme).toContain("bun add --global @hraness/oh@0.10.2");
-    expect(readme).toContain('"@hraness/oh": "0.10.2"');
-    expect(readme).toContain("releases/download/v0.10.2/hraness-oh-0.10.2.tgz");
+    expect(readme).toContain("bun add --global @hraness/oh@0.10.3");
+    expect(readme).toContain('"@hraness/oh": "0.10.3"');
+    expect(readme).toContain("releases/download/v0.10.3/hraness-oh-0.10.3.tgz");
     expect(readme).not.toContain("@hraness/oh@0.4.3");
     expect(readme).not.toContain("releases/download/v0.4.3");
     expect(readme).not.toContain("github:hraness/oh#");
-    expect(skill).toContain("`@hraness/oh@0.10.2`");
-    expect(skill).toContain("immutable GitHub Release `v0.10.2`");
+    expect(skill).toContain("`@hraness/oh@0.10.3`");
+    expect(skill).toContain("immutable GitHub Release `v0.10.3`");
     expect(skill).not.toContain("@hraness/oh@0.4.3");
     expect(skill).toMatch(/^---\nname: oh\ndescription: .+\n---\n/u);
     expect(skill).not.toMatch(/TODO|TBD|example skill/iu);
