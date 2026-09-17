@@ -18,7 +18,9 @@ The pinned Paper theme remains the underlying site theme.
 ## STORY
 
 Keep the hero and citation preview, counted facts, record model, review trace,
-interfaces, boundaries, installation, questions, maker, and final actions.
+interfaces, boundaries, installation, questions, and final actions. The shared
+network footer owns the organization attribution; the page carries no separate
+maker section.
 Omit redundant section labels through empty legacy slots. Keep the open-source
 positioning visible beneath the hero summary and the current release beneath
 the installation heading. The historical first-run disclosure stays explicit.

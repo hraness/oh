@@ -3,7 +3,6 @@ import {
   MarketingFlow,
   MarketingInstallPanel,
   MarketingInterfaceGrid,
-  MarketingMaker,
   MarketingPage,
   MarketingPrimitives,
   MarketingProofFrame,
@@ -14,6 +13,7 @@ import {
   MarketingTrustBoundary,
   ProductHero,
 } from "@hraness/design-kit/react/server";
+import { hranessAttribution } from "@hraness/site-footer";
 import { AskAiAboutThis } from "@hraness/ui";
 
 import publishedRelease from "../published-release.json";
@@ -157,7 +157,7 @@ const questions = [
   },
   {
     question: "Who made it?",
-    answer: "Ben Guo, a musician and builder, formerly a founder and engineering leader at companies including Venmo and Stripe, now building from Puerto Rico. Oh is published by Hraness under the MIT license.",
+    answer: `${hranessAttribution.subtitle} Oh is its open-source kernel for research done with agents, published under the MIT license.`,
   },
 ] as const;
 
@@ -415,25 +415,6 @@ oh verify`}</code></pre>
               question,
             }))}
           />
-
-          <MarketingMaker
-            heading="Built by Ben Guo"
-            headingId="maker-title"
-            id="maker"
-            label=""
-            links={[
-              { href: "https://hraness.com", label: "hraness.com" },
-              { href: "https://x.com/hraness", label: "@hraness" },
-              { href: repository, label: "GitHub" },
-            ]}
-          >
-            <p>
-              Oh is built by Ben Guo, a musician and builder, formerly a founder and engineering
-              leader at companies including Venmo and Stripe, now building from Puerto Rico. Oh is
-              his open-source kernel for research done with agents, published by Hraness under the
-              MIT license.
-            </p>
-          </MarketingMaker>
 
           <MarketingCallToAction
             actions={[
