@@ -63,30 +63,37 @@ describe("Oh site source contract", () => {
   });
 
   test("renders the shared organization footer once for every page and no maker section", async () => {
-    const [packageJson, layout, home, specification, globals] = await Promise.all([
+    const [packageJson, layout, home, specification, globals, contentFooter] = await Promise.all([
       read("package.json"),
       read("app/layout.tsx"),
       read("app/page.tsx"),
       read("app/spec/page.tsx"),
       read("app/globals.css"),
+      read("app/site-footer.tsx"),
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/site-footer": "github:hraness/site-footer#v0.13.0"',
+      '"@hraness/site-footer": "github:hraness/site-footer#v0.15.0"',
     );
     expect(layout).toContain('import { HranessSiteFooter } from "@hraness/site-footer/react"');
     expect(layout).toContain(
       '<HranessSiteFooter placement="flow" mailingList={{ kind: "none" }} support={ohSupportProfile} />',
     );
     expect(globals).toContain('@import "@hraness/site-footer/styles.css";');
+    expect(contentFooter).toContain(
+      'import { MarketingSiteFooter } from "@hraness/design-kit/react/server"',
+    );
+    expect(contentFooter).toContain("export function OhContentFooter()");
     for (const page of [home, specification]) {
       expect(page).not.toContain("HranessSiteFooter");
       expect(page).not.toContain("MarketingMaker");
       expect(page).not.toContain("Ben Guo");
+      expect(page).not.toContain("hranessAttribution");
+      expect(page).toContain("OhContentFooter");
     }
-    expect(home).toContain('import { hranessAttribution } from "@hraness/site-footer"');
-    expect(home).toContain("hranessAttribution.subtitle");
+    expect(home).toContain("Hraness is an advanced software research organization");
     expect(globals).not.toContain("hraness-marketing-maker");
+    expect(globals).not.toContain(".site-footer");
   });
 
   test("derives available installs from verified publication and preserves the historical capture", async () => {
@@ -143,7 +150,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.8.0"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.10.0"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([

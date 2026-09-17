@@ -8,7 +8,7 @@ const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 async function run(cwd: string, ...args: string[]) {
   const child = Bun.spawn([process.execPath, join(import.meta.dir, "cli.ts"), "research", ...args],
-    { cwd, stdout: "pipe", stderr: "pipe" });
+    { cwd, env: { ...process.env, HRANESS_SUPPORT_AUDIENCE: "off" }, stdout: "pipe", stderr: "pipe" });
   const [code, stdout, stderr] = await Promise.all([child.exited,
     new Response(child.stdout).text(), new Response(child.stderr).text()]);
   return { code, stdout, stderr };
@@ -80,5 +80,22 @@ test("offline CLI exposes explicit participation roles without changing the V6 c
   expect(catalog.participationRolesPack.packId).toBe("sponge.participation-roles");
   expect(catalog.participationRolesPack.schemas).toHaveLength(5);
   expect(catalog.lock.roots).toHaveLength(21);
+  expect(existsSync(join(dir, ".oh"))).toBe(false);
+});
+
+
+test("offline CLI exposes the research evidence packs without changing the V7 command", async () => {
+  const dir = await root();
+  const result = await run(dir, "catalog-v8");
+  expect(result.code).toBe(0);
+  expect(result.stderr).toBe("");
+  const catalog = JSON.parse(result.stdout);
+  expect(catalog.packs).toHaveLength(30);
+  expect(catalog.schemas).toHaveLength(429);
+  for (const field of ["temporalRolesPack", "evidenceGradingPack", "citationPack",
+    "researchOpsPack", "sourceQualityPack", "sourcePolicyPack"]) {
+    expect(catalog[field].packId).toBe(`sponge.${field.replace(/Pack$/, "").replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`);
+  }
+  expect(catalog.lock.roots).toHaveLength(27);
   expect(existsSync(join(dir, ".oh"))).toBe(false);
 });
