@@ -1,0 +1,18 @@
+# Oh
+> Oh gives your agents a local path from a question to a cited artifact: sources, claims, citations, and a verifiable history of every change, in one SQLite file on your machine. Free and MIT licensed.
+When to use this site:
+- Use oh.computer to evaluate Oh for your agents: the research-graph model, the CLI, TypeScript SDK, and Agent Skill interfaces, and the local install commands.
+- Use /spec for the human-readable Oh ontology and storage contract.
+- Use /spec/manifest.json for the machine-readable index of every specification version, schema, and narrative file.
+- Use the GitHub repository for the source, the README install and SDK guides, the packaged Agent Skill, and issues.
+
+## Pages
+- [Oh](https://oh.computer): Product overview — the research-graph model, record kinds, verifiable operation history, interfaces, trust boundaries, and local installation.
+- [Oh ontology specification](https://oh.computer/spec): The versioned contract for Oh records, graph revisions, SQLite and libSQL authority, sync, semantic search, projections, and composite memory.
+
+## Optional
+- [sitemap](https://oh.computer/sitemap.xml): Indexable HTML URLs.
+- [specification manifest](https://oh.computer/spec/manifest.json): Machine-readable index pinning the current contract version and its schemas and narrative files.
+- [example citation record](https://oh.computer/examples/evidence-table-2.json): One canonical v1 evidence record connecting a stance on a claim to the edition it cites.
+- [GitHub](https://github.com/hraness/oh): Source code, README, Agent Skill, releases, and issues.
+- [npm](https://www.npmjs.com/package/@hraness/oh): The published @hraness/oh package.

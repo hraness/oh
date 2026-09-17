@@ -134,20 +134,22 @@ describe("built Oh site", () => {
     const server = await startBuiltSite();
     try {
       const [homeResponse, specificationResponse, slashAliasResponse, versionAliasResponse,
-        traceResponse, missingResponse] = await Promise.all([
+        traceResponse, llmsResponse, missingResponse] = await Promise.all([
         fetch(`${server.origin}/`, { redirect: "manual" }),
         fetch(`${server.origin}/spec`, { redirect: "manual" }),
         fetch(`${server.origin}/spec/`, { redirect: "manual" }),
         fetch(`${server.origin}/spec/v1`, { redirect: "manual" }),
         fetch(`${server.origin}/examples/evidence-table-2.json`, { redirect: "manual" }),
+        fetch(`${server.origin}/llms.txt`, { redirect: "manual" }),
         fetch(`${server.origin}/missing`, { redirect: "manual" }),
       ]);
-      const [home, specification, slashAlias, versionAlias, trace, missing] = await Promise.all([
+      const [home, specification, slashAlias, versionAlias, trace, llms, missing] = await Promise.all([
         homeResponse.text(),
         specificationResponse.text(),
         slashAliasResponse.text(),
         versionAliasResponse.text(),
         traceResponse.text(),
+        llmsResponse.text(),
         missingResponse.text(),
       ]);
 
@@ -169,6 +171,14 @@ describe("built Oh site", () => {
         kind: "evidence",
         v: 1,
       });
+      expect(llmsResponse.status).toBe(200);
+      expect(llmsResponse.headers.get("content-type")).toContain("text/plain");
+      expect(llms).toStartWith("# Oh\n");
+      expect(llms).toContain("](https://oh.computer)");
+      expect(llms).toContain("](https://oh.computer/spec)");
+      expect(llms).not.toContain("/spec/v1");
+      expect(homeResponse.headers.get("link")).toBe('</llms.txt>; rel="describedby"');
+      expect(specificationResponse.headers.get("link")).toBe('</llms.txt>; rel="describedby"');
       expect(missingResponse.status).toBe(404);
       expect(homeResponse.headers.get("x-frame-options")).toBeNull();
       expect(homeResponse.headers.get("content-security-policy") ?? "")
