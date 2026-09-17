@@ -265,4 +265,10 @@ replacement proves byte-exact parity through property tests.
 
 - 2026-09-17: Phases 1–4 implemented, committed, and pushed as
   `rust-canonical-foundations` → PR #128.
-- 2026-09-17: Phase 5 started; `oh-archive` core crate created.
+- 2026-09-17: Phase 5 and Phase 7 implemented and pushed to
+  `rust-archive-foundations` → PR #129. This adds `oh-archive` (bounded ZIP64
+  extraction), `oh-sqlite` (read-only SQLite snapshot isolation), and their
+  N-API/WASM bindings.
+- 2026-09-17: Phase 10 (`oh-datalog` positive-Datalog projection engine) is
+  the next large in-repo phase; Phases 6, 8, 9, and 11 require published
+  upstream artifacts or external repository changes.
