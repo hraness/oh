@@ -137,7 +137,7 @@
     "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun run build:research",
     "build:types": "tsc -p tsconfig.build.json",
     "check:cost-surfaces": "bun ./scripts/check-cost-surfaces.mjs",
-    "check": "bun run check:cost-surfaces && bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:research-package && bun run test:package",
+    "check": "bun run check:cost-surfaces && bun run rust:build:artifacts && bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:research-package && bun run test:package",
     "test:node": "node ./tests/node-portable.mjs",
     "test:types:node": "tsc -p tsconfig.node-portable.json --noEmit",
     "test:package": "bun run ./scripts/package-smoke.ts",
