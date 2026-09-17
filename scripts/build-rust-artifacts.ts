@@ -57,6 +57,8 @@ async function copyCargoWasm(crate: string, cargoTarget: string) {
   const b64 = bytes.toString("base64");
   const sha = createHash("sha256").update(bytes).digest("hex");
   const artifactPath = resolve(target, "artifact.js");
+  const declarationPath = resolve(target, "artifact.d.ts");
+  const constName = crate.toUpperCase().replace(/-/g, "_");
   const lines: string[] = [];
   for (let i = 0; i < b64.length; i += 120) {
     lines.push(`  "${b64.slice(i, i + 120)}"`);
@@ -69,8 +71,14 @@ async function copyCargoWasm(crate: string, cargoTarget: string) {
  * SHA-256: ${sha}
  * Rebuild: bun run rust:build:artifacts
  */
-export const ${crate.toUpperCase().replace(/-/g, "_")}_SHA256 = "${sha}";
-export const ${crate.toUpperCase().replace(/-/g, "_")}_BASE64 =\n${joined};\n`,
+export const ${constName}_SHA256 = "${sha}";
+export const ${constName}_BASE64 =\n${joined};\n`,
+  );
+  await writeFile(
+    declarationPath,
+    `/** Generated declaration for ${crate} raw-ABI WASM artifact. */
+export const ${constName}_SHA256: string;
+export const ${constName}_BASE64: string;\n`,
   );
 }
 
