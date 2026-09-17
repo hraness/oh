@@ -28,7 +28,7 @@ consumers and hardens the surface.
 
 ## Phase A: Ship Rust WASM artifacts in `@hraness/oh` releases
 
-- **Status:** In progress
+- **Status:** Done (released in `@hraness/oh@0.10.3`, PR #133)
 - **Objective:** The `@hraness/oh` npm package ships the built Rust WASM/N-API
   artifacts as first-class files so downstream packages can import them instead
   of vendoring blobs.
@@ -55,7 +55,7 @@ consumers and hardens the surface.
 
 ## Phase B: Migrate downstream consumers off vendored blobs
 
-- **Status:** Not started
+- **Status:** Done (sponge #285, wordcell #72, textbutler #125)
 - **Depends on:** Phase A
 - **Objective:** Sponge, Wordcell, and Textbutler load the WASM artifacts from
   the published `@hraness/oh` package instead of checking in base64 blobs.
@@ -75,7 +75,7 @@ consumers and hardens the surface.
 
 ## Phase C: Flip Rust paths to default-on with fallback telemetry
 
-- **Status:** Not started
+- **Status:** Done (sponge #285, wordcell #72, textbutler #125)
 - **Depends on:** Phase B
 - **Objective:** Make the Rust engine the default where parity is proven, while
   keeping a safe TypeScript fallback and surfacing mismatch events for review.
@@ -95,7 +95,7 @@ consumers and hardens the surface.
 
 ## Phase D: Integrate archive / SQLite / Datalog engines downstream
 
-- **Status:** Not started
+- **Status:** In progress (PRs opened: oh #134 + #136, wordcell #74, textbutler #129)
 - **Depends on:** Phase C
 - **Objective:** Use the shared Rust engines for real production workloads beyond
   canonical JSON/digest.
@@ -118,7 +118,7 @@ consumers and hardens the surface.
 
 ## Phase E: Hardening
 
-- **Status:** Not started
+- **Status:** In progress (PRs opened: local-custody #8, oh #135 N-API matrix)
 - **Depends on:** Phase A
 - **Objective:** Close remaining gaps in the Rust surface.
 - **Scope:** `local-custody/rust/`, `oh/rust/`, release/CI matrices.
@@ -139,3 +139,13 @@ consumers and hardens the surface.
 ## Implementation log
 
 - 2026-09-17: Plan created; Phase A started.
+- 2026-09-17: Phase A completed with `@hraness/oh@0.10.3` release (PR #133).
+- 2026-09-17: Phases B and C completed; Sponge, Wordcell, and Textbutler consume
+  released artifacts with default-on Rust paths and fallback telemetry
+  (sponge #285, wordcell #72, textbutler #125).
+- 2026-09-17: Phase D Datalog integration started: `oh-datalog` `materialize_projection`
+  seam exposed as `@hraness/oh/projection/rust` (PR #134) and Wordcell graph
+  authority wired to use it (PR #74).
+- 2026-09-17: Phase E hardening started: `local-custody` control-socket and
+  protected-input Rust port pushed (PR #8); `oh-archive` and `oh-datalog`
+  property/budget tests landed.

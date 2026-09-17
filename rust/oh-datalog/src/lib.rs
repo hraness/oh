@@ -512,6 +512,49 @@ struct MaterializedProjection {
     rounds: u64,
 }
 
+/// Relations produced by materializing a positive-Datalog program.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MaterializedRelations {
+    /// Relation name -> ordered unique tuples.
+    pub relations: BTreeMap<String, Vec<Vec<OhProjectionAtom>>>,
+    pub base_facts: u64,
+    pub derived_facts: u64,
+    pub rounds: u64,
+}
+
+/// Materialize a positive-Datalog program without evaluating a query or
+/// building proofs. This is the seam used by optional external engines that
+/// want Oh to build the result envelope around their derived relation set.
+pub fn materialize_projection(
+    dataset: &OhProjectionDataset,
+    rule_pack: &OhProjectionRulePack,
+    options: OhProjectionEvaluationOptions,
+) -> Result<MaterializedRelations, ProjectionError> {
+    let options = resolve_evaluation_options(options)?;
+    let mut work = WorkBudget::new(options.maximum_work_units);
+    let materialized = materialize_naive(
+        dataset,
+        rule_pack,
+        options.maximum_derived_tuples,
+        options.maximum_rounds,
+        &mut work,
+    )?;
+    let relations = materialized
+        .relations
+        .into_iter()
+        .map(|(relation, states)| {
+            let tuples = states.into_values().map(|state| state.tuple).collect();
+            (relation, tuples)
+        })
+        .collect();
+    Ok(MaterializedRelations {
+        relations,
+        base_facts: materialized.base_facts,
+        derived_facts: materialized.derived_facts,
+        rounds: materialized.rounds,
+    })
+}
+
 /// Evaluation options controlling projection limits.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct OhProjectionEvaluationOptions {
@@ -1054,6 +1097,29 @@ mod tests {
 
         assert_eq!(result.facts.derived, 6); // a->b, a->c, a->d, b->c, b->d, c->d
         assert_eq!(result.output.rows.len(), 6);
+    }
+
+    #[test]
+    fn materialize_projection_returns_relations() {
+        let dataset = dataset(vec![
+            fact("edge", vec!["a", "b"], vec![("s1", "sha1")]),
+            fact("edge", vec!["b", "c"], vec![("s2", "sha2")]),
+        ]);
+        let rules = rule_pack(vec![rule(
+            "path",
+            vec![literal("edge", vec![variable("x"), variable("y")])],
+            literal("path", vec![variable("x"), variable("y")]),
+        )]);
+        let result = materialize_projection(&dataset, &rules, OhProjectionEvaluationOptions {
+            maximum_derived_tuples: None,
+            maximum_rounds: None,
+            maximum_work_units: None,
+            ..Default::default()
+        }).unwrap();
+        assert!(result.relations.contains_key("edge"));
+        assert!(result.relations.contains_key("path"));
+        assert_eq!(result.relations["edge"].len(), 2);
+        assert_eq!(result.relations["path"].len(), 2);
     }
 
     #[test]
