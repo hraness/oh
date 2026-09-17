@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { HranessSiteFooter } from "@hraness/site-footer/react";
 import { ohSupportProfile } from "../../src/support-profile";
+import { FoilController } from "./foil-controller";
 import "./globals.css";
 
 const title = "Oh: a research graph your agents can inspect";
@@ -53,6 +54,7 @@ export default function RootLayout({
         <div className="network-footer">
           <HranessSiteFooter placement="flow" mailingList={{ kind: "none" }} support={ohSupportProfile} />
         </div>
+        <FoilController />
       </body>
     </html>
   );
