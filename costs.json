@@ -161,6 +161,14 @@
       "budget": {
         "bytesPerArtifact": 4194304
       }
+    },
+    "rust:datalog-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-datalog/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
     }
   },
   "exempt": []

@@ -143,7 +143,8 @@
     "rust:check": "export PATH=\"/Users/bg/.cargo/bin:$PATH\" && cd rust && cargo check --locked && cargo clippy -- -D warnings && cargo test --locked",
     "rust:build:canonical:wasm": "export PATH=\"/Users/bg/.cargo/bin:$PATH\" && cd rust/oh-canonical-wasm && wasm-pack build --target web --out-dir pkg",
     "rust:build:archive:wasm": "export PATH=\"/Users/bg/.cargo/bin:$PATH\" && cd rust/oh-archive-wasm && wasm-pack build --target web --out-dir pkg",
-    "rust:build": "bun run rust:build:canonical:wasm && bun run rust:build:archive:wasm"
+    "rust:build:datalog:wasm": "export PATH=\"/Users/bg/.cargo/bin:$PATH\" && cd rust/oh-datalog-wasm && wasm-pack build --target web --out-dir pkg",
+    "rust:build": "bun run rust:build:canonical:wasm && bun run rust:build:archive:wasm && bun run rust:build:datalog:wasm"
   },
   "devDependencies": {
     "@suss/datalog": "0.20.0",
