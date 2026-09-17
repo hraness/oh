@@ -69,8 +69,8 @@ async function copyCargoWasm(crate: string, cargoTarget: string) {
  * SHA-256: ${sha}
  * Rebuild: bun run rust:build:artifacts
  */
-export const ${crate.toUpperCase().replace(/-/g, "_")}_WASM_SHA256 = "${sha}";
-export const ${crate.toUpperCase().replace(/-/g, "_")}_WASM_BASE64 =\n${joined};\n`,
+export const ${crate.toUpperCase().replace(/-/g, "_")}_SHA256 = "${sha}";
+export const ${crate.toUpperCase().replace(/-/g, "_")}_BASE64 =\n${joined};\n`,
   );
 }
 
