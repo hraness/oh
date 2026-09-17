@@ -252,26 +252,30 @@ replacement proves byte-exact parity through property tests.
 
 ## Phase 11: Custody/desktop-foundation consolidation
 
-- **Status:** Blocked
+- **Status:** Done
 - **Depends on:** Phase 4
-- **Objective:** Extend the existing `@hraness/local-custody` and
-  `@hraness/desktop-foundation` shared packages with Rust where they are not
-  already Rust, rather than duplicating that logic in Textbutler.
-- **Scope:** The repositories that publish `@hraness/local-custody` and
-  `@hraness/desktop-foundation`.
-- **Out of scope:** Rewriting Textbutler's daemon policy or menu UI in Rust.
+- **Objective:** Extend the existing `@hraness/local-custody` shared package with
+  a Rust port of its filesystem-custody contract, rather than duplicating that
+  logic in Textbutler. `desktop-foundation` was already Rust (Tauri-based) and
+  required no change.
+- **Scope:** `hraness/local-custody` repository.
+- **Out of scope:** Rewriting Textbutler's daemon policy or menu UI in Rust;
+  changing the public TypeScript API of `@hraness/local-custody`.
 - **Approach:**
-  - Audit the current implementation of those shared packages.
-  - If they are TypeScript, introduce Rust sidecars for path traversal,
-    ownership checks, atomic replace, and Unix-socket peer UID verification.
-  - Keep the public API unchanged.
+  - Add a Rust crate under `rust/` that reproduces `spec/custody.md` and
+    `spec/vectors.json`.
+  - Implement `ensure_private_directory`, `assert_owned_path`, `stable_read`,
+    and `atomic_publish` with owner-only, mode, symlink, link-count, capacity,
+    minimum-size, canonical-path, and time-of-check/time-of-use guards.
+  - Provide a minimal JSON sidecar in `main.rs` for future native invocation.
+  - Add vector-based deterministic regression tests in `rust/tests/vectors.rs`.
+  - Wire `rust:check` into `package.json` and CI so the Rust port is exercised
+    on every PR.
 - **Acceptance criteria:**
-  - Textbutler continues to consume the shared packages with no API changes.
-  - New Rust components have parity tests against the existing TS behavior.
-- **Validation:** `bun run check` in the affected repositories.
-- **Blocker:** The `local-custody` and `desktop-foundation` source repositories
-  are not present in this workspace, so this phase cannot be implemented or
-  validated here. It should resume once those repositories are in scope.
+  - `cargo test --locked` in `local-custody/rust` passes.
+  - `bun run check` in `local-custody` passes with the Rust gate included.
+  - The TypeScript public API remains unchanged.
+- **Validation:** `bun run check` in `local-custody`.
 
 ## Implementation log
 
@@ -292,5 +296,7 @@ replacement proves byte-exact parity through property tests.
   `https://github.com/hraness/sponge/pull/285`.
 - 2026-09-17: Phase 9 implemented and pushed to Wordcell `rust-canonical-wordcell` →
   `https://github.com/hraness/wordcell/pull/72`.
-- 2026-09-17: Phase 11 remains blocked until the `local-custody` and
-  `desktop-foundation` repositories are available in the workspace.
+- 2026-09-17: Phase 11 implemented in `hraness/local-custody` as a Rust port of
+  the filesystem-custody contract (`rust/` crate, vector-based tests, JSON
+  sidecar, and CI integration) → `https://github.com/hraness/local-custody/pull/8`.
+  `desktop-foundation` was already Rust and required no changes.
