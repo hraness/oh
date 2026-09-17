@@ -10,6 +10,11 @@ fallback so the base package has no required runtime dependencies.
   Implements the same contract as `src/canonical.ts`.
 - `oh-canonical-wasm` — `wasm-pack`/`wasm-bindgen` bindings.
 - `oh-canonical-napi` — `napi-rs` bindings (opt-in performance layer).
+- `oh-archive` — bounded, untrusted ZIP64 archive extraction.
+- `oh-archive-wasm` — `wasm-pack` bindings for `oh-archive`.
+- `oh-archive-napi` — `napi-rs` bindings for `oh-archive`.
+- `oh-sqlite` — read-only SQLite database + WAL/journal snapshot isolation.
+- `oh-sqlite-napi` — `napi-rs` bindings for `oh-sqlite`.
 
 ## Build
 

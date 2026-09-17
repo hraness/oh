@@ -1,0 +1,23 @@
+[package]
+name = "oh-datalog"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Positive-Datalog projection engine for Oh."
+
+[dependencies]
+oh-canonical = { path = "../oh-canonical" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[lib]
+name = "oh_datalog"
+path = "src/lib.rs"

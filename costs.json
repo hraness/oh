@@ -137,6 +137,38 @@
       "budget": {
         "bytesPerArtifact": 2097152
       }
+    },
+    "rust:archive-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-archive/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 2097152
+      }
+    },
+    "rust:archive-napi": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-archive/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
+    },
+    "rust:sqlite-napi": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-sqlite/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
+    },
+    "rust:datalog-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-datalog/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
     }
   },
   "exempt": []
