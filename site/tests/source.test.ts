@@ -184,6 +184,39 @@ describe("Oh site source contract", () => {
     expect(sitemap).not.toContain("https://oh.computer/spec/v1");
   });
 
+  test("publishes an llms.txt index that lists only real canonical destinations", async () => {
+    const [llms, sitemap, nextConfig] = await Promise.all([
+      read("public/llms.txt"),
+      read("public/sitemap.xml"),
+      read("next.config.ts"),
+    ]);
+
+    expect(llms).toStartWith("# Oh\n");
+    expect(llms).toContain("\n> ");
+    expect(llms).toContain("## Pages");
+    expect(llms).toContain("](https://oh.computer)");
+    expect(llms).toContain("](https://oh.computer/spec)");
+    expect(llms).not.toContain("/spec/v1");
+    expect(nextConfig).toContain('rel="describedby"');
+    expect(nextConfig).toContain("/llms.txt");
+
+    const canonicalRoutes = new Set(
+      [...sitemap.matchAll(/<loc>(https:\/\/oh\.computer[^<]*)<\/loc>/gu)]
+        .map(([, url]) => url),
+    );
+    const siteUrls = [...llms.matchAll(/\]\((https:\/\/oh\.computer[^)\s]*)\)/gu)]
+      .map(([, url]) => url ?? "");
+    expect(siteUrls.length).toBeGreaterThan(0);
+    for (const url of siteUrls) {
+      const normalized = url === "https://oh.computer" ? "https://oh.computer/" : url;
+      if (canonicalRoutes.has(normalized)) {
+        continue;
+      }
+      const path = normalized.slice("https://oh.computer".length);
+      expect(await Bun.file(join(site, "public", path)).exists()).toBe(true);
+    }
+  });
+
   test("keeps page-specific social metadata and the Oh icon explicit", async () => {
     const [layout, specification, favicon] = await Promise.all([
       read("app/layout.tsx"),
@@ -271,6 +304,7 @@ describe("Oh site source contract", () => {
       "app/layout.tsx",
       "app/page.tsx",
       "app/spec/page.tsx",
+      "public/llms.txt",
       "public/spec/v1/migration.md",
     ];
     const providerBoundaryPaths = [
