@@ -58,6 +58,14 @@ jobs:
         with:
           node-version: "24.19.0"
           registry-url: https://registry.npmjs.org
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
       - name: Verify reviewed-main release identity
         id: identity
         env:
