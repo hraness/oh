@@ -1,0 +1,31 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV8",
+    "additionalPack": "sponge.temporal-roles",
+    "additionalPackRevision": 1
+  },
+  "builder": "createSpongeTemporalRolesPackV1",
+  "previousCatalogFactory": "spongeKnowledgeDomainCatalogV7",
+  "concepts": [],
+  "relations": [
+    "as-of-time",
+    "available-at",
+    "entered-at",
+    "event-time",
+    "first-seen-at",
+    "observation-time",
+    "reassess-by",
+    "reviewed-at",
+    "searched-at",
+    "superseded-at"
+  ],
+  "directDependencies": [
+    "sponge.core",
+    "sponge.foundation",
+    "sponge.reference"
+  ],
+  "queryKind": "declarative-predicate-inventory",
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

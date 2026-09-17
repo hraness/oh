@@ -1,0 +1,34 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV8",
+    "additionalPack": "sponge.source-quality",
+    "additionalPackRevision": 1
+  },
+  "builder": "createSpongeSourceQualityPackV1",
+  "previousCatalogFactory": "spongeKnowledgeDomainCatalogV7",
+  "concepts": [
+    "maturity-descriptor",
+    "source-scorecard",
+    "veto-rule"
+  ],
+  "relations": [
+    "applies-to-domain",
+    "hit-rate",
+    "horizon-days",
+    "observation-count",
+    "preregistered-sample",
+    "scorecard-maturity",
+    "scorecard-source",
+    "triggered-veto",
+    "veto-rule-text"
+  ],
+  "directDependencies": [
+    "sponge.core",
+    "sponge.foundation",
+    "sponge.reference"
+  ],
+  "queryKind": "declarative-predicate-inventory",
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

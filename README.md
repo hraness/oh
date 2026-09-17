@@ -890,6 +890,22 @@ descriptors. Listed query paths are declarative guidance; they do not execute
 joins or infer employment, ownership or rights.
 Catalogs V1–V6 retain their exact declarations and locks.
 
+Source version 0.11.0 adds `oh research catalog-v8` with six optional
+research-evidence vocabularies: [temporal roles](spec/research-v1/temporal-roles-v1.md),
+[evidence grading](spec/research-v1/evidence-grading-v1.md),
+[citations](spec/research-v1/citation-v1.md),
+[research operations](spec/research-v1/research-ops-v1.md),
+[source quality](spec/research-v1/source-quality-v1.md) and
+[source policy](spec/research-v1/source-policy-v1.md). A record can now carry
+its event, observation, availability, entry and review times as named roles;
+hold a graded stratum, tier and corroboration state under a stated criteria
+era; bind a claim to a verbatim selector in a retained payload; document a
+bounded search that found nothing; and record monitor runs, rejections,
+review events, measured scorecards and per-source capability decisions.
+Everything stays attributed: a grade is not a review state, corroboration is
+not truth, a bounded null result is not nonexistence and a policy record is
+not an authorization. Catalogs V1–V7 retain their exact declarations and locks.
+
 ## Optional development support
 
 Source version 0.10.1 adds `oh support` for optional development support.

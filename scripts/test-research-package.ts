@@ -74,6 +74,18 @@ globalThis.researchProbe = (async () => {
   }
   const roleResolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: roles.packs, roots: roles.lock.roots });
   if (!roleResolution.ok || roleResolution.value.lock.lockSha256 !== roles.lock.lockSha256) throw new Error("V7 role catalog dependency lock did not resolve.");
+  const evidence = await research.spongeKnowledgeDomainCatalogV8();
+  if (evidence.packs.length !== roles.packs.length + 6 || evidence.schemas.length !== 429
+    || evidence.temporalRolesPack.packId !== "sponge.temporal-roles"
+    || evidence.evidenceGradingPack.packId !== "sponge.evidence-grading"
+    || evidence.citationPack.packId !== "sponge.citation"
+    || evidence.researchOpsPack.packId !== "sponge.research-ops"
+    || evidence.sourceQualityPack.packId !== "sponge.source-quality"
+    || evidence.sourcePolicyPack.packId !== "sponge.source-policy") {
+    throw new Error("Missing research evidence packs in the built browser export.");
+  }
+  const evidenceResolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: evidence.packs, roots: evidence.lock.roots });
+  if (!evidenceResolution.ok || evidenceResolution.value.lock.lockSha256 !== evidence.lock.lockSha256) throw new Error("V8 catalog cannot resolve its complete dependency lock in the browser.");
   const input = { v: 2, properties: "all-present", mappingVersion: "browser-probe", captures: [{
     requestedId: "Q1", resolvedId: "Q1", sourceUri: "https://www.wikidata.org/w/api.php", redirects: [],
     capturedAt: "2026-09-13T00:00:00.000Z", coverage: { kind: "complete-entity" },
