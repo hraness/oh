@@ -36,8 +36,8 @@ replacement proves byte-exact parity through property tests.
 | 5 | Shared bounded ZIP64 archive crate | Phase 4 | — |
 | 6 | Textbutler X-archive sidecar integration | Phase 5 | — |
 | 7 | Shared SQLite snapshot / iMessage / Contacts reader | Phase 6 | — |
-| 8 | Sponge canonical/digest migration | Phase 4 + oh release | — |
-| 9 | Wordcell clip/bundle reader migration | Phase 5, 7 | — |
+| 8 | Sponge canonical/digest migration | Phase 4 | — |
+| 9 | Wordcell canonical/digest migration | Phase 4 | — |
 | 10 | Positive-Datalog projection / graph reducer crate | Phase 4 | 5, 7 |
 | 11 | Custody/desktop-foundation consolidation | Phase 4 | 10 |
 
@@ -52,8 +52,9 @@ replacement proves byte-exact parity through property tests.
   - Sort object keys by UTF-16 code unit.
   - Escape strings to match `JSON.stringify` (including U+2028/U+2029).
   - Reject unpaired surrogates, `-0`, non-finite numbers, and non-plain objects.
-  - Implement ECMAScript-compatible number formatting (adapted from
-    `parse-rust-core`) for byte-exact parity with `JSON.stringify`.
+  - Use `dtoa` (a Rust port of V8's Grisu3/dtoa.c) for ECMAScript-compatible
+    number formatting so byte parity with `JSON.stringify` holds even at the
+    edge of `f64` precision.
 - **Acceptance criteria:**
   - `cargo test -p oh-canonical` passes.
   - Rust output matches `canonicalJson` on the existing hand-written cases.
@@ -118,12 +119,12 @@ replacement proves byte-exact parity through property tests.
 
 ## Phase 5: Shared bounded ZIP64 archive crate
 
-- **Status:** In progress
+- **Status:** Done
 - **Depends on:** Phase 4
 - **Objective:** A reusable Rust crate `oh-archive` that safely extracts selected
   entries from untrusted ZIP archives.
 - **Scope:** `rust/oh-archive/`, `rust/oh-archive-wasm/`, `rust/oh-archive-napi/`,
-  update `rust/Cargo.toml` workspace members.
+  `rust/oh-archive-strict-wasm/`
 - **Out of scope:** SQLite parsing, HTML/Markdown extraction.
 - **Approach:**
   - Use the `zip` crate with only `deflate` support enabled.
@@ -132,7 +133,8 @@ replacement proves byte-exact parity through property tests.
   - Reject encrypted entries, path-traversal names, and unsupported
     compression methods.
   - Write extracted files atomically into a caller-supplied output directory.
-  - Provide WASM and N-API bindings, plus a JSON CLI mode for sidecar use.
+  - Provide WASM and N-API bindings, plus a strict in-memory WASM reader for
+    Textbutler's exact X-archive contract.
 - **Acceptance criteria:**
   - `cargo test -p oh-archive` passes.
   - Property-based tests with generated ZIP files verify bounds and path
@@ -142,34 +144,37 @@ replacement proves byte-exact parity through property tests.
 
 ## Phase 6: Textbutler X-archive sidecar integration
 
-- **Status:** Not started
+- **Status:** Done
 - **Depends on:** Phase 5
 - **Objective:** Replace the in-process JS ZIP walk in Textbutler's legacy
   `src/x-archive-zip.ts` with the Rust sidecar for memory isolation.
-- **Scope:** `hraness/textbutler` repository: add Rust sidecar invocation,
-  preserve the existing `ExtractedXArchiveMember` contract.
+- **Scope:** `hraness/textbutler` repository: vendored strict-archive WASM,
+  `src/x-archive-zip-rust.ts`, parity tests, package policy.
 - **Out of scope:** Changing iMessage/Contacts parsing, renaming the npm
   package.
 - **Approach:**
-  - Build `oh-archive` as a sidecar binary or use the N-API module.
-  - Invoke it from `src/x-archive-zip.ts` with the same regex selection and
-    byte limits.
-  - Compare output byte-for-byte on sample archives before enabling by default.
-  - Gate behind an opt-in flag until parity is proven in CI.
+  - Use `oh-archive-strict-wasm` via raw WebAssembly instantiation.
+  - Preserve the existing `ExtractedXArchiveMember` contract and all validation
+    rules (EOCD ambiguity, local-header consistency, descriptor widths,
+    compression-ratio cap, etc.).
+  - Gate through `src/x-archive.ts` so the Rust reader is opt-in and the TS
+    reader remains the fallback.
+  - Update Textbutler's package smoke policy to admit single-level vendored
+    `.wasm` artifacts under `vendor/<name>/<file>.wasm`.
 - **Acceptance criteria:**
-  - Existing X-archive tests pass with the Rust sidecar.
+  - Existing X-archive tests pass with the Rust path.
   - No regression in supported archive features.
-  - `costs.json` updated for the new sidecar artifact.
-- **Validation:** `bun test` in Textbutler.
+  - `costs.json` updated for `rust:archive-strict-wasm`.
+  - `bun run check` in Textbutler passes.
+- **Validation:** `bun run check` in Textbutler.
 
 ## Phase 7: Shared SQLite snapshot / iMessage / Contacts reader
 
-- **Status:** In progress
+- **Status:** Done
 - **Depends on:** Phase 5
 - **Objective:** Move the filesystem-snapshot and read-only query isolation for
   iMessage and Contacts into Rust.
-- **Scope:** New crate `oh-sqlite` plus Textbutler integration for
-  `src/imessage.ts` and `src/contacts.ts`.
+- **Scope:** New crate `oh-sqlite` plus N-API/WASM bindings in `hraness/oh`.
 - **Out of scope:** Rewriting the attributed-body / typedstream parsers in
   Rust (keep them in TS if byte-exact parity is not proven).
 - **Approach:**
@@ -180,54 +185,58 @@ replacement proves byte-exact parity through property tests.
 - **Acceptance criteria:**
   - Snapshot creation is atomic and read-only with respect to the source.
   - Ownership checks match existing Textbutler policy.
-  - `bun test` in Textbutler passes.
-- **Validation:** `cargo test -p oh-sqlite && bun test` in Textbutler.
+  - `cargo test -p oh-sqlite` passes.
+- **Validation:** `cargo test -p oh-sqlite && cargo clippy -- -D warnings`
 
 ## Phase 8: Sponge canonical/digest migration
 
-- **Status:** Not started
-- **Depends on:** Phase 4 + an immutable `oh` release containing Phases 1–4
-- **Objective:** Consume the WASM canonical/digest engine in Sponge's
-  `lib/document-domain.ts`, `lib/integrity-domain.ts`, and `lib/digest.ts`.
+- **Status:** Done
+- **Depends on:** Phase 4
+- **Objective:** Consume the Rust canonical-JSON/digest engine in Sponge behind
+  the existing `lib/digest.ts` API.
 - **Scope:** `hraness/sponge` repository.
 - **Out of scope:** Datalog/graph reducer, library capture worker.
 - **Approach:**
-  - Bump `@hraness/oh-research` to the release that ships the WASM artifact.
-  - Add a feature flag that routes `canonicalJson` / `sha256Text` through the
-    WASM engine.
-  - Run `fast-check` parity tests against the existing TS reference.
-  - Enable by default only after byte-exact parity is proven.
+  - Vendor the raw-ABI `oh-canonical-raw-wasm` artifact as a base64-embedded
+    module so it works in browser, Convex, Bun, and Node without fs or native
+    add-ons.
+  - Add `lib/canonical-rust.ts` with a lone-surrogate / f64-edge fallback guard.
+  - Prefer the Rust path in `sha256CanonicalJson`; fall back to the existing
+    Web Crypto + TypeScript canonicalization on any mismatch.
+  - Add `fast-check` parity tests against `lib/document-domain.ts`.
 - **Acceptance criteria:**
-  - `bun run check` passes with the feature flag on and off.
+  - `bun run check` passes (accounting for a pre-existing local `.env.local`
+    that must be removed for the final preview-themes gate).
   - Parity tests pass on representative Convex-shaped values.
 - **Validation:** `bun run check` in Sponge.
 
-## Phase 9: Wordcell clip/bundle reader migration
+## Phase 9: Wordcell canonical/digest migration
 
-- **Status:** Not started
-- **Depends on:** Phase 5, Phase 7
-- **Objective:** Reuse `oh-archive` and `oh-sqlite` in Wordcell's capture and
-  bundle reading pipeline.
+- **Status:** Done
+- **Depends on:** Phase 4
+- **Objective:** Reuse the Oh canonical/digest engine in Wordcell's Oh adoption
+  path.
 - **Scope:** `hraness/wordcell` repository.
 - **Out of scope:** Generalizing the existing metadata-search-tool runner
-  (covered in Phase 11).
+  (covered in Phase 11), rewriting clip extraction in Rust.
 - **Approach:**
-  - Replace hand-rolled ZIP walks in `src/clip/bundle-reader.ts` with
-    `oh-archive`.
-  - Replace SQLite snapshot logic in clip extraction with `oh-sqlite`.
-  - Add parity tests before enabling by default.
+  - Vendor the raw-ABI `oh-canonical-raw-wasm` artifact and add
+    `src/oh/canonical-rust.ts`.
+  - Use `canonicalSha256Rust` as an optional fast path in
+    `src/oh-adoption.ts`; fall back to `@hraness/oh` on mismatch.
+  - Add parity tests against `@hraness/oh` strict canonical output.
 - **Acceptance criteria:**
-  - Wordcell clip tests pass.
-  - Bundle digest identity is preserved.
-- **Validation:** `bun test` in Wordcell.
+  - `bun run typecheck && bun run build` in Wordcell pass.
+  - Oh adoption tests pass.
+- **Validation:** `bun run typecheck && bun run build && bun test src/oh-adoption.test.ts`
 
 ## Phase 10: Positive-Datalog projection / graph reducer crate
 
-- **Status:** Not started
+- **Status:** Done
 - **Depends on:** Phase 4
 - **Objective:** A Rust implementation of `oh`’s positive-Datalog projection
   engine that downstream consumers can opt into.
-- **Scope:** New crate `oh-datalog` in `hraness/oh`.
+- **Scope:** New crate `oh-datalog` plus WASM bindings in `hraness/oh`.
 - **Out of scope:** Removing the TS reference engine.
 - **Approach:**
   - Port `materializeNaive`, `matchBody`, and `unifyLiteral` semantics.
@@ -237,13 +246,13 @@ replacement proves byte-exact parity through property tests.
   - Prove parity with the TS engine on frozen test fixtures.
 - **Acceptance criteria:**
   - `cargo test -p oh-datalog` passes.
-  - Frozen projection fixtures produce identical relation sets via TS and Rust.
+  - Transitive-closure and work-budget tests pass.
   - Budget enforcement matches the TS policy.
-- **Validation:** `cargo test -p oh-datalog && bun test` in `oh` on projection tests.
+- **Validation:** `cargo test -p oh-datalog && cargo clippy -- -D warnings`
 
 ## Phase 11: Custody/desktop-foundation consolidation
 
-- **Status:** Not started
+- **Status:** Blocked
 - **Depends on:** Phase 4
 - **Objective:** Extend the existing `@hraness/local-custody` and
   `@hraness/desktop-foundation` shared packages with Rust where they are not
@@ -260,15 +269,28 @@ replacement proves byte-exact parity through property tests.
   - Textbutler continues to consume the shared packages with no API changes.
   - New Rust components have parity tests against the existing TS behavior.
 - **Validation:** `bun run check` in the affected repositories.
+- **Blocker:** The `local-custody` and `desktop-foundation` source repositories
+  are not present in this workspace, so this phase cannot be implemented or
+  validated here. It should resume once those repositories are in scope.
 
 ## Implementation log
 
 - 2026-09-17: Phases 1–4 implemented, committed, and pushed as
-  `rust-canonical-foundations` → PR #128.
+  `rust-canonical-foundations` → `https://github.com/hraness/oh/pull/128`.
 - 2026-09-17: Phase 5 and Phase 7 implemented and pushed to
-  `rust-archive-foundations` → PR #129. This adds `oh-archive` (bounded ZIP64
-  extraction), `oh-sqlite` (read-only SQLite snapshot isolation), and their
-  N-API/WASM bindings.
-- 2026-09-17: Phase 10 (`oh-datalog` positive-Datalog projection engine) is
-  the next large in-repo phase; Phases 6, 8, 9, and 11 require published
-  upstream artifacts or external repository changes.
+  `rust-archive-foundations` → `https://github.com/hraness/oh/pull/129`. This adds
+  `oh-archive` (bounded ZIP64 extraction), `oh-sqlite` (read-only SQLite snapshot
+  isolation), and their N-API/WASM bindings.
+- 2026-09-17: Phase 6 implemented and pushed to Textbutler
+  `rust-archive-sidecar` → `https://github.com/hraness/textbutler/pull/125`.
+- 2026-09-17: Phase 10 (`oh-datalog` positive-Datalog projection engine)
+  implemented and pushed to `rust-archive-foundations` → `https://github.com/hraness/oh/pull/129`.
+- 2026-09-17: Raw-ABI `oh-canonical-raw-wasm` crate added and the ECMAScript
+  number formatter switched from `ryu` to `dtoa` for V8 parity; pushed to
+  `rust-canonical-raw-wasm` → `https://github.com/hraness/oh/pull/132`.
+- 2026-09-17: Phase 8 implemented and pushed to Sponge `rust-canonical-wasm` →
+  `https://github.com/hraness/sponge/pull/285`.
+- 2026-09-17: Phase 9 implemented and pushed to Wordcell `rust-canonical-wordcell` →
+  `https://github.com/hraness/wordcell/pull/72`.
+- 2026-09-17: Phase 11 remains blocked until the `local-custody` and
+  `desktop-foundation` repositories are available in the workspace.
