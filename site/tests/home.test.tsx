@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { hranessAttribution } from "@hraness/site-footer";
 import { renderToStaticMarkup } from "react-dom/server";
 import Home from "../app/page";
 import Specification from "../app/spec/page";
@@ -10,9 +11,22 @@ test("both public pages have one optional support footer and no product signup",
   for (const page of [<Home key="home" />, <Specification key="spec" />]) {
     const html = renderToStaticMarkup(<RootLayout>{page}</RootLayout>);
     expect(html.match(/<footer\b/gu)).toHaveLength(1);
+    expect(html).toContain('id="hraness-site-footer"');
     expect(html).toContain("https://account.hraness.com/support?product=oh-computer&amp;source=web#support");
     expect(html).not.toContain('type="email"');
     expect(html).not.toContain("action=updates");
+  }
+});
+
+test("both public pages attribute the site to Hraness through the shared footer only", () => {
+  for (const page of [<Home key="home" />, <Specification key="spec" />]) {
+    const html = renderToStaticMarkup(<RootLayout>{page}</RootLayout>);
+    expect(html.match(/data-slot="hraness-attribution"/gu)).toHaveLength(1);
+    expect(html).toContain(hranessAttribution.title);
+    expect(html).toContain(hranessAttribution.subtitle);
+    expect(html).not.toContain("Ben Guo");
+    expect(html).not.toContain("hraness-marketing-maker");
+    expect(html).not.toContain('id="maker"');
   }
 });
 

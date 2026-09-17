@@ -23,13 +23,15 @@ describe("evidence-led product narrative", () => {
       'id="kernel"',
       'id="install"',
       'id="questions"',
-      'id="maker"',
       "<MarketingCallToAction",
     ];
     const positions = landmarks.map((landmark) => page.indexOf(landmark));
 
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((left, right) => left - right));
+    // Attribution belongs to the shared network footer rendered by the layout.
+    expect(page).not.toContain('id="maker"');
+    expect(page).not.toContain("MarketingMaker");
     expect(page).toContain('const heading = "A research graph your agents can inspect"');
     expect(page).toContain("init and verify stay local and print canonical JSON");
     expect(page).toContain('"@type": "FAQPage"');
