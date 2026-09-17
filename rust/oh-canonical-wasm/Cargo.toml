@@ -1,0 +1,20 @@
+[package]
+name = "oh-canonical-wasm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "WASM bindings for oh-canonical."
+
+[dependencies]
+oh-canonical = { path = "../oh-canonical" }
+wasm-bindgen = "0.2"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
