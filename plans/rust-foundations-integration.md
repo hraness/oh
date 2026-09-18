@@ -28,10 +28,11 @@ consumers and hardens the surface.
 
 ## Phase A: Ship Rust WASM artifacts in `@hraness/oh` releases
 
-- **Status:** Done (released in `@hraness/oh@0.10.3`, PR #133)
-- **Objective:** The `@hraness/oh` npm package ships the built Rust WASM/N-API
-  artifacts as first-class files so downstream packages can import them instead
-  of vendoring blobs.
+- **Status:** Done (WASM in `@hraness/oh@0.10.3`, PR #133; SQLite sidecars in `@hraness/oh@0.10.6`, PRs #136/#139)
+- **Objective:** The `@hraness/oh` package ships built Rust WASM artifacts and
+  native SQLite sidecars as first-class files so downstream packages can import
+  them instead of vendoring blobs. N-API libraries remain CI artifacts, not
+  package exports.
 - **Scope:** `package.json`, `scripts/build-rust-artifacts.ts`,
   `src/canonical-rust.ts`, `costs.json`, release workflow.
 - **Approach:**
@@ -86,25 +87,24 @@ consumers and hardens the surface.
     path first and only fall back on mismatch or load failure.
   - Add a non-fatal `rust-engine-fallback` event (or simple stderr warning) when
     fallback is triggered, including the reason and the input shape class.
-  - Keep a compile-time or environment variable escape hatch to force the TS
-    reference path.
+  - Keep the TypeScript reference functions directly testable as the fallback
+    path; no process-wide force switch is part of the released contract.
 - **Acceptance criteria:**
   - Downstream tests pass with Rust as the default.
-  - Forcing TS path still passes the same tests.
-- **Validation:** `bun run test` in each consumer with both default and forced-TS.
+  - Direct reference-path tests preserve the same result contracts.
+- **Validation:** `bun run test` in each consumer.
 
 ## Phase D: Integrate archive / SQLite / Datalog engines downstream
 
-- **Status:** In progress (PRs opened: oh #134 + #136, wordcell #74, textbutler #129)
+- **Status:** Done (oh #134/#136, wordcell #74, textbutler #129)
 - **Depends on:** Phase C
 - **Objective:** Use the shared Rust engines for real production workloads beyond
   canonical JSON/digest.
 - **Scope:**
   - **Textbutler:** route iMessage/Contacts snapshot creation through
-    `oh-sqlite` (already in `@hraness/oh` after Phase A).
-  - **Sponge:** use `oh-archive` for capture bundle ingestion if any ZIP-shaped
-    paths exist.
-  - **Wordcell:** use `oh-archive` for capture-bundle reading.
+    `oh-sqlite`.
+  - **Sponge/Wordcell archive:** not applicable; neither has a production
+    ZIP-shaped ingestion path requiring the strict archive engine.
   - **oh:** expose `oh-datalog` `oh.projection.rust.v1` behind the existing
     projection engine identity.
 - **Approach:**
@@ -118,19 +118,19 @@ consumers and hardens the surface.
 
 ## Phase E: Hardening
 
-- **Status:** In progress (PRs opened: local-custody #8, oh #135 N-API matrix)
+- **Status:** Partially done (local-custody #8, oh #135; remaining items below)
 - **Depends on:** Phase A
 - **Objective:** Close remaining gaps in the Rust surface.
 - **Scope:** `local-custody/rust/`, `oh/rust/`, release/CI matrices.
 - **Approach:**
-  - Port `local-custody` `control-socket` and `protected-input` to Rust with
-    vector tests.
-  - Add property tests for `oh-archive` malformed ZIP handling and
-    `oh-datalog` budget enforcement.
-  - Add a cross-platform N-API build matrix for Bun consumers that want native
-    speed where WASM is not enough.
-  - Optionally run `wasm-opt` on shipped WASM artifacts with size budgets in
-    `costs.json`.
+  - `local-custody` has Rust control-socket/protected-input/filesystem code and
+    vector tests, but the released TypeScript package does not ship or call a
+    native artifact yet.
+  - Deterministic archive and Datalog budget regressions exist; dedicated
+    arbitrary-input/fuzz targets remain future hardening.
+  - The cross-platform N-API matrix builds CI artifacts. They remain unpublished
+    until a consumer justifies a package loader/distribution contract.
+  - `wasm-opt` and explicit optimized-size budgets remain optional future work.
 - **Acceptance criteria:**
   - `cargo test` and `bun run check` pass in `local-custody` and `oh`.
   - N-API artifacts build on Linux/macOS CI.
@@ -147,5 +147,8 @@ consumers and hardens the surface.
   seam exposed as `@hraness/oh/projection/rust` (PR #134) and Wordcell graph
   authority wired to use it (PR #74).
 - 2026-09-17: Phase E hardening started: `local-custody` control-socket and
-  protected-input Rust port pushed (PR #8); `oh-archive` and `oh-datalog`
-  property/budget tests landed.
+  protected-input Rust port pushed (PR #8); deterministic `oh-archive`
+  malformed-input and `oh-datalog` budget regressions landed.
+- 2026-09-18: Audit PR #142 hardened ECMAScript number parity, raw WASM ABI
+  bounds, strict archive option parsing, and SQLite snapshot/protocol isolation.
+  Follow-up work documents N-API as build-only and smoke-loads native artifacts.

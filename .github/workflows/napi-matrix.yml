@@ -74,6 +74,31 @@ jobs:
             [ -n "$found" ] || { echo "missing built library for ${lib}" >&2; exit 1; }
           done
           ls -l "$out"
+      - name: Smoke native N-API artifacts
+        if: matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'x86_64-apple-darwin'
+        env:
+          NAPI_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const path = require("node:path");
+          const root = path.resolve("rust/napi-artifacts", process.env.NAPI_TARGET);
+          const canonical = require(path.join(root, `oh_canonical.napi.${process.env.NAPI_TARGET}.node`));
+          const archive = require(path.join(root, `oh_archive.napi.${process.env.NAPI_TARGET}.node`));
+          const sqlite = require(path.join(root, `oh_sqlite.napi.${process.env.NAPI_TARGET}.node`));
+          if (canonical.canonicalJson('{"b":1,"a":2}') !== '{"a":2,"b":1}') {
+            throw new Error("canonical N-API smoke result mismatch");
+          }
+          if (canonical.canonicalSha256('{"b":1,"a":2}').length !== 64) {
+            throw new Error("canonical N-API digest result mismatch");
+          }
+          if (typeof archive.extractZipEntriesJson !== "function") {
+            throw new Error("archive N-API export is missing");
+          }
+          if (typeof sqlite.snapshotDatabaseJson !== "function") {
+            throw new Error("SQLite N-API export is missing");
+          }
+          NODE
       - name: Upload .node artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
