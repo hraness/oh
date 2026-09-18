@@ -178,6 +178,14 @@
         "bytesPerArtifact": 4194304
       }
     },
+    "rust:sqlite-cli": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-sqlite-cli/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
+    },
     "rust:datalog-wasm": {
       "kind": "served",
       "retention": "persistent",

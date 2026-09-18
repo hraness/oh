@@ -1,6 +1,6 @@
 {
   "name": "@hraness/oh",
-  "version": "0.10.3",
+  "version": "0.10.4",
   "description": "open-source tools for agentic research",
   "type": "module",
   "license": "MIT",
@@ -51,6 +51,10 @@
     "./sqlite": {
       "types": "./dist/sqlite/index.d.ts",
       "import": "./dist/sqlite/index.js"
+    },
+    "./sqlite-snapshot": {
+      "types": "./dist/sqlite-snapshot.d.ts",
+      "import": "./dist/sqlite-snapshot.js"
     },
     "./sync": {
       "types": "./dist/sync.d.ts",
@@ -136,7 +140,7 @@
     "bench:stress:retrieval": "bun run ./scripts/benchmarks/stress-retrieval.ts",
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run rust:build:artifacts && bun run build:js && bun run build:portable && bun run build:types",
-    "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts ./src/canonical-rust.ts ./src/projection-rust.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
+    "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sqlite-snapshot.ts ./src/sync.ts ./src/canonical-rust.ts ./src/projection-rust.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
     "rust:build:artifacts": "bun run ./scripts/build-rust-artifacts.ts",
     "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun run build:research",
     "build:types": "tsc -p tsconfig.build.json",

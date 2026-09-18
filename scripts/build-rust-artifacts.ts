@@ -1,7 +1,23 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { $ } from "bun";
+
+function hostPlatformArch(): { platform: string; arch: string; triple: string } {
+  const platform = process.platform;
+  const arch = process.arch;
+  if (platform === "darwin" && arch === "arm64") {
+    return { platform: "darwin", arch: "arm64", triple: "aarch64-apple-darwin" };
+  }
+  if (platform === "darwin" && arch === "x64") {
+    return { platform: "darwin", arch: "x64", triple: "x86_64-apple-darwin" };
+  }
+  if (platform === "linux" && arch === "x64") {
+    return { platform: "linux", arch: "x64", triple: "x86_64-unknown-linux-gnu" };
+  }
+  throw new Error(`Unsupported host platform for sidecar build: ${platform}-${arch}`);
+}
 
 const root = resolve(import.meta.dir, "..");
 const outDir = resolve(root, "dist", "rust-artifacts");
@@ -10,10 +26,11 @@ const outDir = resolve(root, "dist", "rust-artifacts");
 // Rust installation that may lack the wasm32 target.
 const cargoBin = `${process.env.HOME ?? ""}/.cargo/bin`;
 process.env.PATH = `${cargoBin}:${process.env.PATH ?? ""}`;
+process.env.RUSTFLAGS = `${process.env.RUSTFLAGS ?? ""} --remap-path-prefix=${root}=. --remap-path-prefix=${process.env.HOME ?? ""}/.cargo/registry/src/=/cargo-registry-src/ --remap-path-prefix=${process.env.HOME ?? ""}/.rustup/toolchains/=/rust-toolchains/ -C strip=symbols`.trim();
 
 type Artifact = {
   readonly crate: string;
-  readonly kind: "wasm-pack" | "cargo-wasm";
+  readonly kind: "wasm-pack" | "cargo-wasm" | "cargo-native";
   readonly sourceFiles?: readonly string[];
   readonly cargoTarget?: string;
 };
@@ -24,6 +41,7 @@ const artifacts: readonly Artifact[] = [
   { crate: "oh-archive-wasm", kind: "wasm-pack" },
   { crate: "oh-archive-strict-wasm", kind: "cargo-wasm", cargoTarget: "oh_archive_strict_wasm.wasm" },
   { crate: "oh-datalog-wasm", kind: "wasm-pack" },
+  { crate: "oh-sqlite-cli", kind: "cargo-native" },
 ];
 
 async function copyWasmPack(crate: string) {
@@ -82,6 +100,35 @@ export const ${constName}_BASE64: string;\n`,
   );
 }
 
+async function copyCargoNative(crate: string) {
+  const { platform, arch, triple } = hostPlatformArch();
+  const source = resolve(root, "rust", "target", triple, "release", crate);
+  const target = resolve(outDir, "oh-sqlite", `${platform}-${arch}`);
+  await mkdir(target, { recursive: true });
+  const dest = resolve(target, crate);
+  await writeFile(dest, await readFile(source));
+  await chmod(dest, 0o755);
+  try {
+    execFileSync("strip", [dest]);
+  } catch {
+    // Stripping is best-effort; some hosts may not have a compatible strip for the target.
+  }
+  const finalBytes = await readFile(dest);
+  const sha = createHash("sha256").update(finalBytes).digest("hex");
+  const manifestPath = resolve(target, "artifact.json");
+  await writeFile(
+    manifestPath,
+    JSON.stringify({
+      crate,
+      platform,
+      arch,
+      triple,
+      sha256: sha,
+      bytes: finalBytes.length,
+    }, null, 2) + "\n",
+  );
+}
+
 async function build() {
   for (const artifact of artifacts) {
     if (artifact.kind === "wasm-pack") {
@@ -91,12 +138,19 @@ async function build() {
         throw new Error(`wasm-pack build failed for ${artifact.crate}: ${result.stderr}`);
       }
       await copyWasmPack(artifact.crate);
-    } else {
+    } else if (artifact.kind === "cargo-wasm") {
       const result = await $`cd ${resolve(root, "rust")} && cargo build --release --target wasm32-unknown-unknown -p ${artifact.crate}`.quiet();
       if (result.exitCode !== 0) {
         throw new Error(`cargo build failed for ${artifact.crate}: ${result.stderr}`);
       }
       await copyCargoWasm(artifact.crate, artifact.cargoTarget!);
+    } else {
+      const { triple } = hostPlatformArch();
+      const result = await $`cd ${resolve(root, "rust")} && cargo build --release --target ${triple} -p ${artifact.crate}`.quiet();
+      if (result.exitCode !== 0) {
+        throw new Error(`cargo build failed for ${artifact.crate} (${triple}): ${result.stderr}`);
+      }
+      await copyCargoNative(artifact.crate);
     }
   }
 }
