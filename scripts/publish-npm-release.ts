@@ -13,6 +13,9 @@ import {
 import { trustedPublishingEnvironment } from "./release-process-environment";
 import { planNpmPublication, type NpmRetryState } from "./release-attempt-policy";
 
+/** Bounded post-publish observation window for the registry to expose the exact version. */
+export const PUBLISH_OBSERVATION_WINDOW_MS = 600_000;
+
 function required(name: string, pattern: RegExp): string {
   const value = process.env[name];
   if (value === undefined || !pattern.test(value)) throw new Error(`npm publication requires valid ${name}.`);
@@ -168,7 +171,10 @@ if (plan.action === "verify") {
   const publishExitCode = await publishTarball();
   let observed: CompleteRelease | null = null;
   let lookupFailure: unknown;
-  const deadline = Date.now() + 180_000;
+  // The registry can take several minutes to expose a freshly published
+  // version through its metadata endpoints; the window must exceed that lag
+  // or a successful publish is misreported as unverifiable.
+  const deadline = Date.now() + PUBLISH_OBSERVATION_WINDOW_MS;
   while (Date.now() < deadline) {
     await Bun.sleep(3_000);
     try {

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { $ } from "bun";
+import { buildRustArtifactManifest } from "./build-rust-manifest";
 
 function hostPlatformArch(): { platform: string; arch: string; triple: string } {
   const platform = process.platform;
@@ -156,3 +157,4 @@ async function build() {
 }
 
 await build();
+await buildRustArtifactManifest();

@@ -199,6 +199,8 @@ jobs:
             chmod +x "$dest"
           done
           rm -rf dist/rust-artifacts/sidecar-temp/
+      - name: Regenerate the rust artifact manifest for every staged target
+        run: bun run rust:build:manifest
       - name: Create one exact npm tarball and checksum
         run: |
           set -euo pipefail
