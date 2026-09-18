@@ -121,6 +121,70 @@
         "rowsPerAccount": 100000,
         "bytesPerAccountMonth": 52428800
       }
+    },
+    "rust:canonical-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-canonical/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 1048576
+      }
+    },
+    "rust:canonical-napi": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-canonical/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 2097152
+      }
+    },
+    "rust:canonical-raw-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-canonical-raw-wasm/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 262144
+      }
+    },
+    "rust:archive-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-archive/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 2097152
+      }
+    },
+    "rust:archive-napi": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-archive/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
+    },
+    "rust:archive-strict-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-archive-strict-wasm/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 2097152
+      }
+    },
+    "rust:sqlite-napi": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-sqlite/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
+    },
+    "rust:datalog-wasm": {
+      "kind": "served",
+      "retention": "persistent",
+      "owner": "rust/oh-datalog/Cargo.toml",
+      "budget": {
+        "bytesPerArtifact": 4194304
+      }
     }
   },
   "exempt": []

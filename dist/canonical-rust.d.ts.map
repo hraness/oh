@@ -1,0 +1,1 @@
+{"version":3,"file":"canonical-rust.d.ts","sourceRoot":"","sources":["../src/canonical-rust.ts"],"names":[],"mappings":"AAEA,MAAM,MAAM,uBAAuB,GAAG,QAAQ,CAAC;IAC7C,uCAAuC;IACvC,aAAa,CAAC,IAAI,EAAE,MAAM,GAAG,MAAM,CAAC;IACpC,+DAA+D;IAC/D,eAAe,CAAC,IAAI,EAAE,MAAM,GAAG,MAAM,CAAC;CACvC,CAAC,CAAC;AAwCH,yEAAyE;AACzE,wBAAsB,2BAA2B,IAAI,OAAO,CAAC,uBAAuB,CAAC,CAYpF"}
