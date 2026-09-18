@@ -148,6 +148,7 @@
     "bench:stress:retrieval": "bun run ./scripts/benchmarks/stress-retrieval.ts",
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run rust:build:artifacts && bun run build:js && bun run build:portable && bun run build:types",
+    "vercel-build": "bun run ./scripts/vercel-build.ts",
     "build:js": "bun build --root=./src ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sqlite-snapshot.ts ./src/sync.ts ./src/canonical-rust.ts ./src/projection-rust.ts ./src/rust-fallback.ts ./src/artifact-manifest.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
     "rust:build:artifacts": "bun run ./scripts/build-rust-artifacts.ts",
     "rust:build:manifest": "bun run ./scripts/build-rust-manifest.ts",
