@@ -16,6 +16,7 @@ const SQLITE_MAGIC_LEN: usize = 16;
 
 /// Options controlling snapshot creation.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SnapshotOptions {
     /// Path to the main SQLite database file.
     pub source_path: PathBuf,
@@ -34,6 +35,7 @@ fn default_max_total_bytes() -> u64 { 64 * 1024 * 1024 * 1024 }
 
 /// A successfully created snapshot.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     /// Path to the copied main database file.
     pub database_path: PathBuf,
