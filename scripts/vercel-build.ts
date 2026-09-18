@@ -24,3 +24,12 @@ if (!(await has("wasm-pack"))) {
 }
 
 await $`bun run build`;
+
+// The repo-root project deploys as Framework "Other", which requires a
+// `public/` output directory once a build command runs. Publish the built
+// runtime (JS bundles + generated Rust/WASM artifacts) exactly as `dist/`
+// laid it out.
+const { cp, rm } = await import("node:fs/promises");
+const root = new URL("..", import.meta.url).pathname;
+await rm(`${root}public`, { recursive: true, force: true });
+await cp(`${root}dist`, `${root}public`, { recursive: true });
