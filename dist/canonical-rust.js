@@ -228,12 +228,14 @@ async function loadCanonicalRustTextEngine() {
   if (wasm === null) {
     return {
       canonicalJson: (text) => canonicalJson(JSON.parse(text)),
-      canonicalSha256: (text) => canonicalSha256(JSON.parse(text))
+      canonicalSha256: (text) => canonicalSha256(JSON.parse(text)),
+      implementation: "typescript"
     };
   }
   return {
     canonicalJson: (text) => decodeString(wasm.canonical_json(text)),
-    canonicalSha256: (text) => decodeString(wasm.canonical_sha256(text))
+    canonicalSha256: (text) => decodeString(wasm.canonical_sha256(text)),
+    implementation: "rust-wasm"
   };
 }
 export {

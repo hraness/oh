@@ -17,12 +17,17 @@
 
 use oh_canonical::{canonical_json_str, canonical_sha256_str};
 
+const MAX_INPUT_BYTES: usize = 16 * 1024 * 1024;
+const MAX_ALLOCATION_BYTES: usize = MAX_INPUT_BYTES + 12;
+
 #[unsafe(no_mangle)]
 pub extern "C" fn oh_canonical_alloc(len: usize) -> *mut u8 {
-    if len == 0 {
+    if len == 0 || len > MAX_ALLOCATION_BYTES {
         return std::ptr::null_mut();
     }
-    let layout = std::alloc::Layout::array::<u8>(len).unwrap();
+    let Ok(layout) = std::alloc::Layout::array::<u8>(len) else {
+        return std::ptr::null_mut();
+    };
     unsafe { std::alloc::alloc(layout) }
 }
 
@@ -31,23 +36,30 @@ pub extern "C" fn oh_canonical_alloc(len: usize) -> *mut u8 {
 /// `len` must be the exact capacity originally allocated.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn oh_canonical_free(ptr: *mut u8, len: usize) {
-    if ptr.is_null() || len == 0 {
+    if ptr.is_null() || len == 0 || len > MAX_ALLOCATION_BYTES {
         return;
     }
-    let layout = std::alloc::Layout::array::<u8>(len).unwrap();
+    let Ok(layout) = std::alloc::Layout::array::<u8>(len) else {
+        return;
+    };
     unsafe { std::alloc::dealloc(ptr, layout) }
 }
 
 fn result_buffer(status: u32, payload: &[u8]) -> *mut u8 {
-    let capacity = 12usize.saturating_add(payload.len());
+    let Some(capacity) = 12usize.checked_add(payload.len()) else {
+        return std::ptr::null_mut();
+    };
+    let (Ok(capacity_u32), Ok(payload_u32)) = (u32::try_from(capacity), u32::try_from(payload.len())) else {
+        return std::ptr::null_mut();
+    };
     let ptr = oh_canonical_alloc(capacity);
     if ptr.is_null() {
         return std::ptr::null_mut();
     }
     let header = [
-        (capacity as u32).to_le_bytes(),
+        capacity_u32.to_le_bytes(),
         status.to_le_bytes(),
-        (payload.len() as u32).to_le_bytes(),
+        payload_u32.to_le_bytes(),
     ]
     .concat();
     unsafe {
@@ -64,7 +76,14 @@ unsafe fn run(
     in_len: usize,
     f: impl Fn(&str) -> Result<String, oh_canonical::CanonicalError>,
 ) -> *mut u8 {
-    let bytes = unsafe { std::slice::from_raw_parts(in_ptr, in_len) };
+    if in_len > MAX_INPUT_BYTES || (in_len > 0 && in_ptr.is_null()) {
+        return result_buffer(1, b"input exceeds its byte limit or has an invalid pointer");
+    }
+    let bytes = if in_len == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(in_ptr, in_len) }
+    };
     let text = match std::str::from_utf8(bytes) {
         Ok(text) => text,
         Err(_) => return result_buffer(1, b"input is not valid UTF-8"),

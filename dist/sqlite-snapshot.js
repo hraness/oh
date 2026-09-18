@@ -18,10 +18,11 @@ var __export = (target, all) => {
 import { spawn, spawnSync } from "child_process";
 import { mkdirSync, statSync } from "fs";
 import { mkdir, stat } from "fs/promises";
-import { dirname, resolve } from "path";
+import { dirname, isAbsolute, relative, resolve, sep } from "path";
 import { fileURLToPath } from "url";
 var MAX_REQUEST_BYTES = 4096;
 var MAX_RESPONSE_BYTES = 4096;
+var SQLITE_HEADER_BYTES = 16;
 var SPAWN_TIMEOUT_MS = 120000;
 
 class SnapshotSidecarNotFoundError extends Error {
@@ -90,7 +91,7 @@ function artifactBaseDirectory() {
 }
 function sidecarBinaryPath(platform = currentPlatformArch().platform, arch = currentPlatformArch().arch) {
   const base = process.env.HRANESS_OH_SQLITE_CLI_PATH ? dirname(process.env.HRANESS_OH_SQLITE_CLI_PATH) : artifactBaseDirectory();
-  return process.env.HRANESS_OH_SQLITE_CLI_PATH ? process.env.HRANESS_OH_SQLITE_CLI_PATH : resolve(base, `${platform}-${arch}`, "oh-sqlite-cli");
+  return process.env.HRANESS_OH_SQLITE_CLI_PATH ? resolve(process.env.HRANESS_OH_SQLITE_CLI_PATH) : resolve(base, `${platform}-${arch}`, "oh-sqlite-cli");
 }
 function boundInteger(value, fallback, maximum) {
   const result = value ?? fallback;
@@ -102,96 +103,110 @@ function boundInteger(value, fallback, maximum) {
 function boundedRequest(options) {
   const sourcePath = typeof options.sourcePath === "string" ? options.sourcePath : "";
   const outputDirectory = typeof options.outputDirectory === "string" ? options.outputDirectory : "";
-  if (sourcePath.length === 0)
-    throw new TypeError("sourcePath is required");
-  if (outputDirectory.length === 0)
-    throw new TypeError("outputDirectory is required");
+  if (!isAbsolute(sourcePath))
+    throw new TypeError("sourcePath must be absolute");
+  if (!isAbsolute(outputDirectory))
+    throw new TypeError("outputDirectory must be absolute");
+  const maxFileBytes = boundInteger(options.maxFileBytes, 16 * 1024 * 1024 * 1024, Number.MAX_SAFE_INTEGER);
+  const maxTotalBytes = boundInteger(options.maxTotalBytes, 64 * 1024 * 1024 * 1024, Number.MAX_SAFE_INTEGER);
   const request = {
     sourcePath,
     outputDirectory,
-    maxFileBytes: boundInteger(options.maxFileBytes, 16 * 1024 * 1024 * 1024, Number.MAX_SAFE_INTEGER),
-    maxTotalBytes: boundInteger(options.maxTotalBytes, 64 * 1024 * 1024 * 1024, Number.MAX_SAFE_INTEGER)
+    maxFileBytes,
+    maxTotalBytes
   };
   return request;
 }
-async function readLine(stream) {
-  if (stream === null)
-    throw new SnapshotProtocolError(new Error("stdout is not available"), "");
-  const chunks = [];
-  let total = 0;
-  for await (const chunk of stream) {
-    total += chunk.length;
-    if (total > MAX_RESPONSE_BYTES) {
-      throw new SnapshotProtocolError(new Error("response exceeds maximum length"), "");
-    }
-    chunks.push(chunk);
-    if (chunk.includes(`
-`))
-      break;
-  }
-  const combined = Buffer.concat(chunks);
-  const newline = combined.indexOf(`
+async function runSidecar(binaryPath, requestJson) {
+  const child = spawn(binaryPath, [], { stdio: ["pipe", "pipe", "pipe"] });
+  return new Promise((resolvePromise, rejectPromise) => {
+    const stdout = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let settled = false;
+    const finish = (error, value) => {
+      if (settled)
+        return;
+      settled = true;
+      clearTimeout(timer);
+      if (error === null)
+        resolvePromise(value ?? "");
+      else
+        rejectPromise(error);
+    };
+    const failProtocol = (reason) => {
+      child.kill("SIGKILL");
+      finish(new SnapshotProtocolError(reason, Buffer.concat(stdout).toString("utf8")));
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      finish(new SnapshotTimeoutError(SPAWN_TIMEOUT_MS));
+    }, SPAWN_TIMEOUT_MS);
+    child.once("error", (error) => finish(error));
+    child.stdin.once("error", (error) => finish(error));
+    child.stdout.on("data", (chunk) => {
+      stdoutBytes += chunk.length;
+      if (stdoutBytes > MAX_RESPONSE_BYTES) {
+        failProtocol(new Error("response exceeds maximum length"));
+        return;
+      }
+      stdout.push(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderrBytes += chunk.length;
+      if (stderrBytes > MAX_RESPONSE_BYTES)
+        failProtocol(new Error("stderr exceeds maximum length"));
+    });
+    child.once("close", (code, signal) => {
+      if (settled)
+        return;
+      const output = Buffer.concat(stdout).toString("utf8");
+      if (code !== 0 || signal !== null) {
+        finish(new SnapshotProtocolError(new Error(`oh-sqlite-cli exited with code ${code ?? "unknown"}`), output));
+        return;
+      }
+      const newline = output.indexOf(`
 `);
-  const line = combined.subarray(0, newline >= 0 ? newline : combined.length).toString("utf8");
-  return line;
+      if (newline < 0 || output.slice(newline + 1).trim().length !== 0) {
+        finish(new SnapshotProtocolError(new Error("response must be exactly one JSON line"), output));
+        return;
+      }
+      finish(null, output.slice(0, newline));
+    });
+    child.stdin.end(`${requestJson}
+`);
+  });
 }
 function isSnapshotError(value) {
   return typeof value === "object" && value !== null && typeof value.error === "string";
 }
 async function snapshotDatabase(options) {
-  const { platform, arch } = currentPlatformArch();
-  const binaryPath = sidecarBinaryPath(platform, arch);
-  try {
-    await stat(binaryPath);
-  } catch {
-    throw new SnapshotSidecarNotFoundError(platform, arch, binaryPath);
-  }
-  await mkdir(options.outputDirectory, { recursive: true });
   const request = boundedRequest(options);
   const requestJson = JSON.stringify(request);
   if (Buffer.byteLength(requestJson, "utf8") > MAX_REQUEST_BYTES) {
     throw new TypeError("snapshot request exceeds maximum length");
   }
-  const child = spawn(binaryPath, [], {
-    stdio: ["pipe", "pipe", "pipe"],
-    timeout: SPAWN_TIMEOUT_MS
-  });
-  child.stdin.write(requestJson);
-  child.stdin.write(`
-`);
-  child.stdin.end();
-  const stdout = await Promise.race([
-    readLine(child.stdout),
-    new Promise((_, reject) => {
-      child.once("error", reject);
-      child.once("exit", (code) => {
-        if (code !== 0)
-          reject(new Error(`oh-sqlite-cli exited with code ${code}`));
-      });
-      setTimeout(() => reject(new SnapshotTimeoutError(SPAWN_TIMEOUT_MS)), SPAWN_TIMEOUT_MS);
-    })
-  ]);
-  let parsed;
+  const { platform, arch } = currentPlatformArch();
+  const binaryPath = sidecarBinaryPath(platform, arch);
   try {
-    parsed = JSON.parse(stdout);
+    if (!(await stat(binaryPath)).isFile())
+      throw new Error("sidecar is not a file");
   } catch (error) {
-    throw new SnapshotProtocolError(error, stdout);
+    if (error.code !== "ENOENT" && !(error instanceof Error && error.message === "sidecar is not a file")) {
+      throw error;
+    }
+    throw new SnapshotSidecarNotFoundError(platform, arch, binaryPath);
   }
-  if (isSnapshotError(parsed)) {
-    throw new SnapshotError(parsed.error, parsed);
-  }
-  const candidate = parsed;
-  if (typeof candidate.databasePath !== "string" || candidate.walPath !== null && typeof candidate.walPath !== "string" || candidate.journalPath !== null && typeof candidate.journalPath !== "string" || typeof candidate.totalBytes !== "number") {
-    throw new SnapshotProtocolError(new Error("missing snapshot fields"), stdout);
-  }
-  return Object.freeze({
-    databasePath: candidate.databasePath,
-    walPath: candidate.walPath ?? null,
-    journalPath: candidate.journalPath ?? null,
-    totalBytes: candidate.totalBytes
-  });
+  await mkdir(request.outputDirectory, { recursive: true });
+  return parseSnapshotResponse(await runSidecar(binaryPath, requestJson), request);
 }
-function parseSnapshotResponse(stdout) {
+function containedPath(path, outputDirectory) {
+  if (!isAbsolute(path))
+    return false;
+  const rel = relative(resolve(outputDirectory), resolve(path));
+  return rel.length > 0 && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+function parseSnapshotResponse(stdout, request) {
   let parsed;
   try {
     parsed = JSON.parse(stdout);
@@ -202,37 +217,46 @@ function parseSnapshotResponse(stdout) {
     throw new SnapshotError(parsed.error, parsed);
   }
   const candidate = parsed;
-  if (typeof candidate.databasePath !== "string" || candidate.walPath !== null && typeof candidate.walPath !== "string" || candidate.journalPath !== null && typeof candidate.journalPath !== "string" || typeof candidate.totalBytes !== "number") {
-    throw new SnapshotProtocolError(new Error("missing snapshot fields"), stdout);
+  const keys = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? Object.keys(parsed).sort() : [];
+  if (keys.join(",") !== "databasePath,journalPath,totalBytes,walPath" || typeof candidate.databasePath !== "string" || !containedPath(candidate.databasePath, request.outputDirectory) || candidate.walPath !== null && (typeof candidate.walPath !== "string" || candidate.walPath !== `${candidate.databasePath}-wal`) || candidate.journalPath !== null && (typeof candidate.journalPath !== "string" || candidate.journalPath !== `${candidate.databasePath}-journal`) || !Number.isSafeInteger(candidate.totalBytes) || candidate.totalBytes < SQLITE_HEADER_BYTES || candidate.totalBytes > request.maxTotalBytes) {
+    throw new SnapshotProtocolError(new Error("invalid snapshot fields"), stdout);
   }
   return Object.freeze({
     databasePath: candidate.databasePath,
-    walPath: candidate.walPath ?? null,
-    journalPath: candidate.journalPath ?? null,
+    walPath: candidate.walPath,
+    journalPath: candidate.journalPath,
     totalBytes: candidate.totalBytes
   });
 }
 function snapshotDatabaseSync(options) {
-  const { platform, arch } = currentPlatformArch();
-  const binaryPath = sidecarBinaryPath(platform, arch);
-  try {
-    statSync(binaryPath);
-  } catch {
-    throw new SnapshotSidecarNotFoundError(platform, arch, binaryPath);
-  }
-  mkdirSync(options.outputDirectory, { recursive: true });
   const request = boundedRequest(options);
   const requestJson = JSON.stringify(request);
   if (Buffer.byteLength(requestJson, "utf8") > MAX_REQUEST_BYTES) {
     throw new TypeError("snapshot request exceeds maximum length");
   }
+  const { platform, arch } = currentPlatformArch();
+  const binaryPath = sidecarBinaryPath(platform, arch);
+  try {
+    if (!statSync(binaryPath).isFile())
+      throw new Error("sidecar is not a file");
+  } catch (error) {
+    if (error.code !== "ENOENT" && !(error instanceof Error && error.message === "sidecar is not a file")) {
+      throw error;
+    }
+    throw new SnapshotSidecarNotFoundError(platform, arch, binaryPath);
+  }
+  mkdirSync(request.outputDirectory, { recursive: true });
   const result = spawnSync(binaryPath, [], {
     input: `${requestJson}
 `,
     timeout: SPAWN_TIMEOUT_MS,
-    encoding: "utf8"
+    encoding: "utf8",
+    maxBuffer: MAX_RESPONSE_BYTES
   });
   if (result.error !== undefined && result.error !== null) {
+    if (result.error.code === "ETIMEDOUT") {
+      throw new SnapshotTimeoutError(SPAWN_TIMEOUT_MS);
+    }
     throw new SnapshotProtocolError(result.error, result.stdout ?? "");
   }
   if (result.status !== 0) {
@@ -241,8 +265,10 @@ function snapshotDatabaseSync(options) {
   const stdout = result.stdout ?? "";
   const newline = stdout.indexOf(`
 `);
-  const line = newline >= 0 ? stdout.slice(0, newline) : stdout;
-  return parseSnapshotResponse(line);
+  if (newline < 0 || stdout.slice(newline + 1).trim().length !== 0) {
+    throw new SnapshotProtocolError(new Error("response must be exactly one JSON line"), stdout);
+  }
+  return parseSnapshotResponse(stdout.slice(0, newline), request);
 }
 export {
   snapshotDatabaseSync,

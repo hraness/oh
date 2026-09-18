@@ -17,6 +17,7 @@ pub mod strict;
 
 /// Options controlling archive extraction.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExtractOptions {
     /// Path to the ZIP archive.
     pub archive_path: PathBuf,

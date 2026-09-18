@@ -16,6 +16,10 @@ function jsonTextArbitrary(): fc.Arbitrary<string> {
 }
 
 describe("canonical-rust text engine parity", () => {
+  test("loads the Rust WASM implementation", async () => {
+    expect((await engine()).implementation).toBe("rust-wasm");
+  });
+
   test("canonicalJson matches the TypeScript reference on generated JSON text", async () => {
     const rust = await engine();
     fc.assert(
@@ -39,6 +43,20 @@ describe("canonical-rust text engine parity", () => {
         expect(actual).toBe(expected);
       }),
       { numRuns: 1000 },
+    );
+  });
+
+  test("finite f64 formatting matches ECMAScript", async () => {
+    const rust = await engine();
+    fc.assert(
+      fc.property(
+        fc.double({ noDefaultInfinity: true, noNaN: true }).filter((value) => !Object.is(value, -0)),
+        (value) => {
+          const text = JSON.stringify(value);
+          expect(rust.canonicalJson(text)).toBe(text);
+        },
+      ),
+      { numRuns: 20_000 },
     );
   });
 

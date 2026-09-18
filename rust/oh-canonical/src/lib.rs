@@ -186,6 +186,10 @@ mod tests {
         assert_eq!(canonical_json_str("1000000").unwrap(), "1000000");
         assert_eq!(canonical_json_str("1e20").unwrap(), "100000000000000000000");
         assert_eq!(canonical_json_str("1e21").unwrap(), "1e+21");
+        assert_eq!(
+            canonical_json_str("-1.3461398955916093e-298").unwrap(),
+            "-1.3461398955916093e-298"
+        );
         // serde_json parses some extreme integer strings to a different f64 than
         // JavaScript; the reference path uses JS values, not parsed JSON text,
         // so we do not assert text-parity here.
