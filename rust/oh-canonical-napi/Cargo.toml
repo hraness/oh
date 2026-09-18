@@ -16,3 +16,6 @@ napi-derive = "2"
 [lib]
 crate-type = ["cdylib"]
 path = "src/lib.rs"
+
+[build-dependencies]
+napi-build = "2"

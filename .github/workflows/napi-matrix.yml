@@ -40,7 +40,7 @@ jobs:
           targets: ${{ matrix.target }}
           components: clippy
       - name: Cache cargo
-        uses: Swatinem/rust-cache@9d47c6ad4b07e38d7f5cbb1d5a86a2255a8b8e2a # v2.7.8
+        uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
         with:
           workspaces: rust
       - name: Clippy N-API crates
@@ -53,12 +53,30 @@ jobs:
           set -euo pipefail
           cd rust
           cargo build --release --target ${{ matrix.target }} -p oh-canonical-napi -p oh-archive-napi -p oh-sqlite-napi
+      - name: Stage .node artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="rust/napi-artifacts/${{ matrix.target }}"
+          mkdir -p "$out"
+          for lib in oh_canonical_napi oh_archive_napi oh_sqlite_napi; do
+            found=""
+            for ext in so dylib dll; do
+              src="rust/target/${{ matrix.target }}/release/lib${lib}.${ext}"
+              [ -f "$src" ] || src="rust/target/${{ matrix.target }}/release/${lib}.${ext}"
+              if [ -f "$src" ]; then
+                name="${lib%_napi}.napi"
+                cp "$src" "$out/${name}.${{ matrix.target }}.node"
+                found=1
+                break
+              fi
+            done
+            [ -n "$found" ] || { echo "missing built library for ${lib}" >&2; exit 1; }
+          done
+          ls -l "$out"
       - name: Upload .node artifacts
-        uses: actions/upload-artifact@65c4c3a3114ee7398c7db1b3e422b47aa9bca4f5 # v4.6.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: napi-${{ matrix.target }}
-          path: |
-            rust/target/${{ matrix.target }}/release/liboh_canonical_napi*.node
-            rust/target/${{ matrix.target }}/release/liboh_archive_napi*.node
-            rust/target/${{ matrix.target }}/release/liboh_sqlite_napi*.node
+          path: rust/napi-artifacts/${{ matrix.target }}/*.node
           if-no-files-found: error
