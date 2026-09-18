@@ -187,15 +187,16 @@ jobs:
       - name: Stage native sidecar artifacts in the npm tree
         run: |
           set -euo pipefail
-          mkdir -p dist/rust-artifacts/oh-sqlite
           for pair in linux-x64 darwin-arm64 darwin-x64; do
             src="dist/rust-artifacts/sidecar-temp/oh-sqlite-cli-${pair}/oh-sqlite-cli"
             dest="dist/rust-artifacts/oh-sqlite/${pair}/oh-sqlite-cli"
-            if [[ -f "$src" ]]; then
-              mkdir -p "dist/rust-artifacts/oh-sqlite/${pair}"
-              cp "$src" "$dest"
-              chmod +x "$dest"
+            if [[ ! -f "$src" ]]; then
+              echo "::error::Missing native sidecar artifact for ${pair}"
+              exit 1
             fi
+            mkdir -p "dist/rust-artifacts/oh-sqlite/${pair}"
+            cp "$src" "$dest"
+            chmod +x "$dest"
           done
           rm -rf dist/rust-artifacts/sidecar-temp/
       - name: Create one exact npm tarball and checksum
@@ -315,27 +316,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bun run ./scripts/publish-github-release.ts "$VERIFIED_TAG" artifacts/*.tgz artifacts/SHA256SUMS
-      - name: Download native sidecar artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: oh-sqlite-cli-*
-          path: sidecars/
-          merge-multiple: false
-      - name: Attach native sidecar binaries to the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          files=(sidecars/*/oh-sqlite-cli)
-          if [[ ${#files[@]} -gt 0 && -f "${files[0]}" ]]; then
-            # Name each attached binary by platform-arch so consumers can fetch it directly.
-            args=()
-            for file in "${files[@]}"; do
-              name="$(basename "$(dirname "$file")")"
-              args+=("$file#${name}-oh-sqlite-cli")
-            done
-            gh release upload "$VERIFIED_TAG" "${args[@]}" --clobber --repo "$GITHUB_REPOSITORY"
-          fi
 
   publish_npm:
     name: Publish exact npm package
