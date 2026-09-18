@@ -469,6 +469,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "oh-sqlite-cli"
+version = "0.1.0"
+dependencies = [
+ "oh-sqlite",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "oh-sqlite-napi"
 version = "0.1.0"
 dependencies = [

@@ -13,8 +13,57 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  rust_artifacts:
+    name: Build native sidecar (${{ matrix.platform }}-${{ matrix.arch }})
+    permissions:
+      contents: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux
+            arch: x64
+            triple: x86_64-unknown-linux-gnu
+          - os: macos-14
+            platform: darwin
+            arch: arm64
+            triple: aarch64-apple-darwin
+          - os: macos-13
+            platform: darwin
+            arch: x64
+            triple: x86_64-apple-darwin
+    steps:
+      - name: Check out exact tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.ref }}
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+          targets: ${{ matrix.triple }}
+      - name: Build oh-sqlite-cli sidecar
+        env:
+          RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=. --remap-path-prefix=${HOME}/.cargo/registry/src/=/cargo-registry-src/ --remap-path-prefix=${HOME}/.rustup/toolchains/=/rust-toolchains/ -C strip=symbols"
+        run: |
+          set -euo pipefail
+          cd rust
+          cargo build --release --target ${{ matrix.triple }} -p oh-sqlite-cli
+      - name: Upload sidecar artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: oh-sqlite-cli-${{ matrix.platform }}-${{ matrix.arch }}
+          path: rust/target/${{ matrix.triple }}/release/oh-sqlite-cli
+          if-no-files-found: error
+          retention-days: 7
+
   verify:
     name: Verify and build exact release
+    needs: rust_artifacts
     permissions:
       contents: read
     runs-on: ubuntu-24.04
@@ -129,6 +178,26 @@ jobs:
         run: |
           set -euo pipefail
           test -z "$(git status --porcelain=v1 --untracked-files=all)"
+      - name: Download native sidecar artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: oh-sqlite-cli-*
+          path: dist/rust-artifacts/sidecar-temp/
+          merge-multiple: false
+      - name: Stage native sidecar artifacts in the npm tree
+        run: |
+          set -euo pipefail
+          mkdir -p dist/rust-artifacts/oh-sqlite
+          for pair in linux-x64 darwin-arm64 darwin-x64; do
+            src="dist/rust-artifacts/sidecar-temp/oh-sqlite-cli-${pair}/oh-sqlite-cli"
+            dest="dist/rust-artifacts/oh-sqlite/${pair}/oh-sqlite-cli"
+            if [[ -f "$src" ]]; then
+              mkdir -p "dist/rust-artifacts/oh-sqlite/${pair}"
+              cp "$src" "$dest"
+              chmod +x "$dest"
+            fi
+          done
+          rm -rf dist/rust-artifacts/sidecar-temp/
       - name: Create one exact npm tarball and checksum
         run: |
           set -euo pipefail
@@ -246,6 +315,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bun run ./scripts/publish-github-release.ts "$VERIFIED_TAG" artifacts/*.tgz artifacts/SHA256SUMS
+      - name: Download native sidecar artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: oh-sqlite-cli-*
+          path: sidecars/
+          merge-multiple: false
+      - name: Attach native sidecar binaries to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          files=(sidecars/*/oh-sqlite-cli)
+          if [[ ${#files[@]} -gt 0 && -f "${files[0]}" ]]; then
+            # Name each attached binary by platform-arch so consumers can fetch it directly.
+            args=()
+            for file in "${files[@]}"; do
+              name="$(basename "$(dirname "$file")")"
+              args+=("$file#${name}-oh-sqlite-cli")
+            done
+            gh release upload "$VERIFIED_TAG" "${args[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+          fi
 
   publish_npm:
     name: Publish exact npm package
