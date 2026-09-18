@@ -367,6 +367,7 @@ describe("versioned public contract", () => {
       "./memory-page",
       "./package.json",
       "./projection",
+      "./projection/rust",
       "./research",
       "./research-store",
       "./sdk",
