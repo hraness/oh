@@ -184,6 +184,11 @@ export async function scanPackage(root: string): Promise<void> {
     if (REVIEWED_BINARY_EXTENSIONS.has(extension)) {
       return;
     }
+    // Native SQLite sidecars are compiled binaries and may contain build-path
+    // strings from the Rust toolchain that are not part of the package contract.
+    if (packagePath.startsWith("dist/rust-artifacts/oh-sqlite/") && packagePath.endsWith("/oh-sqlite-cli")) {
+      return;
+    }
     if (packagePath === REVIEWED_WIKIDATA_ARCHIVE) {
       try {
         bytes += auditWikidataCorpusContent(await readReviewedWikidataArchive(path));

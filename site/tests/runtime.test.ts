@@ -154,8 +154,8 @@ describe("built Oh site", () => {
       ]);
 
       expect(homeResponse.status).toBe(200);
-      expect(home).toContain("Current release v0.10.5");
-      expect(home).toContain("@hraness/oh@0.10.5");
+      expect(home).toContain("Current release v0.10.6");
+      expect(home).toContain("@hraness/oh@0.10.6");
       expect(home).not.toContain("@hraness/oh@0.4.3");
       expect(home).toContain("source CLI 0.4.0");
       expect(home).toContain("https://github.com/hraness/oh/actions/runs/00000000000");
