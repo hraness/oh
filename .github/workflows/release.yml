@@ -31,7 +31,7 @@ jobs:
             platform: darwin
             arch: arm64
             triple: aarch64-apple-darwin
-          - os: macos-13
+          - os: macos-14
             platform: darwin
             arch: x64
             triple: x86_64-apple-darwin
