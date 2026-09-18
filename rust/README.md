@@ -1,9 +1,9 @@
 # Oh Rust foundations
 
 Shared Rust primitives for the `oh` package. Releases ship optional WASM
-artifacts and native SQLite sidecars; the N-API crates are build- and
-load-tested CI artifacts but are not package exports. TypeScript remains the
-fallback so the base package has no required runtime dependencies.
+artifacts and native SQLite sidecars; the N-API crates are matrix-built and
+load-tested on native runner targets but are not package exports. TypeScript
+remains the fallback so the base package has no required runtime dependencies.
 
 ## Crates
 
