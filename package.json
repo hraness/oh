@@ -109,7 +109,15 @@
     "./canonical-rust/artifact": "./dist/rust-artifacts/oh-canonical-raw-wasm/artifact.js",
     "./archive-wasm": "./dist/rust-artifacts/oh-archive-wasm/oh_archive_wasm.js",
     "./archive-strict-wasm": "./dist/rust-artifacts/oh-archive-strict-wasm/oh_archive_strict_wasm.wasm",
-    "./datalog-wasm": "./dist/rust-artifacts/oh-datalog-wasm/oh_datalog_wasm.js"
+    "./datalog-wasm": "./dist/rust-artifacts/oh-datalog-wasm/oh_datalog_wasm.js",
+    "./artifact-manifest": {
+      "types": "./dist/artifact-manifest.d.ts",
+      "import": "./dist/artifact-manifest.js"
+    },
+    "./rust-fallback": {
+      "types": "./dist/rust-fallback.d.ts",
+      "import": "./dist/rust-fallback.js"
+    }
   },
   "files": [
     "dist",
@@ -140,8 +148,9 @@
     "bench:stress:retrieval": "bun run ./scripts/benchmarks/stress-retrieval.ts",
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run rust:build:artifacts && bun run build:js && bun run build:portable && bun run build:types",
-    "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sqlite-snapshot.ts ./src/sync.ts ./src/canonical-rust.ts ./src/projection-rust.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
+    "build:js": "bun build --root=./src ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sqlite-snapshot.ts ./src/sync.ts ./src/canonical-rust.ts ./src/projection-rust.ts ./src/rust-fallback.ts ./src/artifact-manifest.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
     "rust:build:artifacts": "bun run ./scripts/build-rust-artifacts.ts",
+    "rust:build:manifest": "bun run ./scripts/build-rust-manifest.ts",
     "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun run build:research",
     "build:types": "tsc -p tsconfig.build.json",
     "check:cost-surfaces": "bun ./scripts/check-cost-surfaces.mjs",

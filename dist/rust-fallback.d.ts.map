@@ -1,0 +1,1 @@
+{"version":3,"file":"rust-fallback.d.ts","sourceRoot":"","sources":["../src/rust-fallback.ts"],"names":[],"mappings":"AAAA;;;;;;;;;GASG;AAYH,MAAM,MAAM,oBAAoB,GAAG,QAAQ,CAAC;IAC1C;;;OAGG;IACH,GAAG,EAAE,MAAM,CAAC;IACZ,4EAA4E;IAC5E,MAAM,EAAE,MAAM,CAAC;IACf,8EAA8E;IAC9E,UAAU,CAAC,EAAE,MAAM,CAAC;CACrB,CAAC,CAAC;AAEH;;;;;GAKG;AACH,wBAAgB,kBAAkB,CAAC,MAAM,EAAE,oBAAoB,GAAG,IAAI,CAuBrE"}

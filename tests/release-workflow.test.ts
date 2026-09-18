@@ -123,7 +123,8 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(npmPublisher.indexOf('fetchMetadata(registryUrl, "version")')).toBeLessThan(
     npmPublisher.indexOf('fetchMetadata(registryLatestUrl, "latest")'),
   );
-  expect(npmPublisher).toContain("Date.now() + 180_000");
+  expect(npmPublisher).toContain("PUBLISH_OBSERVATION_WINDOW_MS = 600_000");
+  expect(npmPublisher).toContain("Date.now() + PUBLISH_OBSERVATION_WINDOW_MS");
   expect(npmPublisher).toContain('fetchMetadata(registryUrl, "version")');
   expect(npmPublisher).toContain('fetchMetadata(registryLatestUrl, "latest")');
   expect(npmPublisher).not.toContain("NODE_AUTH_TOKEN");
