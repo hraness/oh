@@ -5,6 +5,7 @@ export type CanonicalRustTextEngine = Readonly<{
   canonicalJson(text: string): string;
   /** SHA-256 hex digest of the canonical JSON form of `text`. */
   canonicalSha256(text: string): string;
+  implementation: "rust-wasm" | "typescript";
 }>;
 
 type WasmModule = {
@@ -52,10 +53,12 @@ export async function loadCanonicalRustTextEngine(): Promise<CanonicalRustTextEn
     return {
       canonicalJson: (text) => canonicalJson(JSON.parse(text)),
       canonicalSha256: (text) => canonicalSha256(JSON.parse(text)),
+      implementation: "typescript",
     };
   }
   return {
     canonicalJson: (text) => decodeString(wasm.canonical_json(text)),
     canonicalSha256: (text) => decodeString(wasm.canonical_sha256(text)),
+    implementation: "rust-wasm",
   };
 }

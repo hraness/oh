@@ -17,12 +17,18 @@
 
 use oh_archive::strict::{read_zip_entries_strict, StrictZipOptions};
 
+const MAX_ARCHIVE_BYTES: usize = 512 * 1024 * 1024;
+const MAX_OPTIONS_BYTES: usize = 64 * 1024;
+const MAX_ALLOCATION_BYTES: usize = 1024 * 1024 * 1024;
+
 #[unsafe(no_mangle)]
 pub extern "C" fn oh_archive_alloc(len: usize) -> *mut u8 {
-    if len == 0 {
+    if len == 0 || len > MAX_ALLOCATION_BYTES {
         return std::ptr::null_mut();
     }
-    let layout = std::alloc::Layout::array::<u8>(len).unwrap();
+    let Ok(layout) = std::alloc::Layout::array::<u8>(len) else {
+        return std::ptr::null_mut();
+    };
     unsafe { std::alloc::alloc(layout) }
 }
 
@@ -31,23 +37,30 @@ pub extern "C" fn oh_archive_alloc(len: usize) -> *mut u8 {
 /// `len` must be the exact capacity originally allocated.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn oh_archive_free(ptr: *mut u8, len: usize) {
-    if ptr.is_null() || len == 0 {
+    if ptr.is_null() || len == 0 || len > MAX_ALLOCATION_BYTES {
         return;
     }
-    let layout = std::alloc::Layout::array::<u8>(len).unwrap();
+    let Ok(layout) = std::alloc::Layout::array::<u8>(len) else {
+        return;
+    };
     unsafe { std::alloc::dealloc(ptr, layout) }
 }
 
 fn result_buffer(status: u32, payload: &[u8]) -> *mut u8 {
-    let capacity = 12usize.saturating_add(payload.len());
+    let Some(capacity) = 12usize.checked_add(payload.len()) else {
+        return std::ptr::null_mut();
+    };
+    let (Ok(capacity_u32), Ok(payload_u32)) = (u32::try_from(capacity), u32::try_from(payload.len())) else {
+        return std::ptr::null_mut();
+    };
     let ptr = oh_archive_alloc(capacity);
     if ptr.is_null() {
         return std::ptr::null_mut();
     }
     let header = [
-        (capacity as u32).to_le_bytes(),
+        capacity_u32.to_le_bytes(),
         status.to_le_bytes(),
-        (payload.len() as u32).to_le_bytes(),
+        payload_u32.to_le_bytes(),
     ]
     .concat();
     unsafe {
@@ -81,6 +94,15 @@ pub unsafe extern "C" fn oh_archive_read_strict(
     options_ptr: *const u8,
     options_len: usize,
 ) -> *mut u8 {
+    if archive_len == 0
+        || archive_len > MAX_ARCHIVE_BYTES
+        || archive_ptr.is_null()
+        || options_len == 0
+        || options_len > MAX_OPTIONS_BYTES
+        || options_ptr.is_null()
+    {
+        return result_buffer(1, b"archive or options exceed their bounds or have an invalid pointer");
+    }
     let archive = unsafe { std::slice::from_raw_parts(archive_ptr, archive_len) };
     let options_bytes = unsafe { std::slice::from_raw_parts(options_ptr, options_len) };
     let options: StrictZipOptions = match serde_json::from_slice(options_bytes) {

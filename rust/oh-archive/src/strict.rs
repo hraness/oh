@@ -39,6 +39,7 @@ const U32_MAX: u32 = 0xffff_ffff;
 
 /// Bounds enforced while reading a strict archive.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct StrictZipLimits {
     /// Maximum archive size in bytes.
     pub max_archive_bytes: u64,
@@ -78,6 +79,7 @@ impl Default for StrictZipLimits {
 
 /// Options controlling strict archive reads.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct StrictZipOptions {
     /// Regex patterns; only entries whose full name matches at least one
     /// pattern are decoded and returned.
