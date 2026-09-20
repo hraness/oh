@@ -150,6 +150,13 @@ Run the focused guard and cached-development checks with:
 bun test tests/memory-benchmark-answer-program-identity*.test.ts
 ```
 
+A separate [fresh identity test](FRESH_IDENTITY_RESULTS.md) subsequently froze
+the same guard before 20 new cases were authored. It removed two false
+admissions and preserved all 45 supported admissions, yielding 20/20 correct
+case outcomes. Both removed errors occurred in one canonical control. This
+finite cleanup result is separate from the cached development replay above
+and does not establish generalization to unrecognized prose.
+
 ## Where Algal and Wordcell fit
 
 A separate offline compatibility probe ran this pure function through an
