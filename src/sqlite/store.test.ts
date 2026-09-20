@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { canonicalJson, canonicalSha256 } from "../canonical";
+import { canonicalJson, canonicalSha256, type JsonValue } from "../canonical";
 import { createKnowledgeGraphRecordV1 } from "../graph";
 import { createOhOperationV1 } from "../operation";
 import { createOhStoreBindingV1, OH_WORKING_STORE_PROFILE_V1 } from "../store";
@@ -40,6 +40,18 @@ describe("Oh SQLite authority", () => {
     expect(reopened.get(first.key)).toEqual(first);
     expect(reopened.verifyReplay().head.operationSha256).toBe(operation.operationSha256);
     reopened.close();
+  });
+
+  test("canonicalizes nested object keys before materializing search text", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "search-key-order" });
+    const value = JSON.parse('{"z":"first","a":"second","nested":{"b":"bee","a":"aye","2":"two","10":"ten"}}') as JsonValue;
+    const inserted = createKnowledgeGraphRecordV1({ dependencies: [], key: "entity:key-order",
+      kind: "entity", value, v: 1 });
+    store.commit({ actorId: "agent.test", changes: [{ kind: "put", record: inserted, v: 1 }],
+      expectedHead: store.head(), operationId: "op_key_order" });
+    expect(store.searchKeyword("ten")[0]?.key).toBe(inserted.key);
+    expect(store.verifyReplay()).toMatchObject({ operations: 1, records: 1, sqliteIntegrity: "ok" });
+    store.close();
   });
 
   test("enforces compare-and-swap across independent connections", async () => {

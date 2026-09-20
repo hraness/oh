@@ -246,7 +246,17 @@ function extractSearchText(value: JsonValue, maximumBytes = 1024 * 1024): string
     } else if (Array.isArray(candidate)) {
       for (const item of candidate) visit(item, depth + 1);
     } else if (candidate !== null) {
-      for (const [key, item] of Object.entries(candidate)) {
+      // Records are hashed and replayed through canonical JSON, whose object
+      // members use code-unit lexicographic order. JavaScript's ordinary
+      // property enumeration gives integer-looking keys a different order,
+      // so using Object.entries here can materialize an index that replay
+      // rejects even though the authoritative record is valid.
+      const keys = Object.keys(candidate).sort((left, right) =>
+        left < right ? -1 : left > right ? 1 : 0);
+      const object = candidate as { readonly [key: string]: JsonValue };
+      for (const key of keys) {
+        const item = object[key];
+        if (item === undefined) throw new TypeError("Search value contains an undefined property.");
         parts.push(key); bytes += key.length + 1;
         visit(item, depth + 1);
       }
