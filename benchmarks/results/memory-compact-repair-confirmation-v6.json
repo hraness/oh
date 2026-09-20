@@ -1,0 +1,910 @@
+{
+  "protocol": "oh.memory.compact-repair-confirmation-results.v6",
+  "status": "confirmation-complete",
+  "productionActivation": false,
+  "selectedFinalist": "jev-compact-repair",
+  "confirmationVerdict": {
+    "success": false,
+    "candidate": "jev-compact-repair",
+    "conditions": {
+      "positiveInstructionDelta": true,
+      "positiveInstructionConfidenceLowerBound": false,
+      "nondecreasingControls": true,
+      "nondecreasingOverall": true
+    },
+    "primaryDelta": 0.09375,
+    "primaryHistoryBootstrap95Lower": 0,
+    "controlsDelta": 0,
+    "overallDelta": 0.0625,
+    "productionActivation": false
+  },
+  "treatment": {
+    "reusedVersion": 4,
+    "custodyVersion": 6,
+    "promptChangedForConfirmation": false,
+    "isolatedJevCausality": false,
+    "unconditionalSecondReaderControl": false,
+    "description": "Fixed Jev applicability and compliance checks followed by at most one compact source-bound repair of the baseline answer."
+  },
+  "population": {
+    "plannedHistories": 16,
+    "plannedQuestions": 48,
+    "developmentHistories": 8,
+    "confirmationHistories": 8,
+    "historyDisjoint": true,
+    "categoryCountsPerStage": {
+      "instruction_following": 16,
+      "information_extraction": 4,
+      "temporal_reasoning": 4
+    },
+    "priorExposure": "unknown"
+  },
+  "development": {
+    "stage": "development",
+    "complete": true,
+    "questions": 24,
+    "histories": 8,
+    "primary": {
+      "questions": 16,
+      "histories": 8,
+      "means": {
+        "baseline": {
+          "operationalBeamScore": 0.90625,
+          "halfCreditNuggetMean": 0.953125
+        },
+        "jev-compact-repair": {
+          "operationalBeamScore": 0.96875,
+          "halfCreditNuggetMean": 0.984375
+        }
+      },
+      "contrasts": [
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "operationalBeamScore",
+          "questions": 16,
+          "histories": 8,
+          "delta": 0.0625,
+          "pairs": {
+            "wins": 1,
+            "ties": 15,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0.1875,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        },
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "halfCreditNuggetMean",
+          "questions": 16,
+          "histories": 8,
+          "delta": 0.03125,
+          "pairs": {
+            "wins": 1,
+            "ties": 15,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0.09375,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        }
+      ]
+    },
+    "controls": {
+      "questions": 8,
+      "histories": 8,
+      "means": {
+        "baseline": {
+          "operationalBeamScore": 0.5625,
+          "halfCreditNuggetMean": 0.5625
+        },
+        "jev-compact-repair": {
+          "operationalBeamScore": 0.5625,
+          "halfCreditNuggetMean": 0.5625
+        }
+      },
+      "contrasts": [
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "operationalBeamScore",
+          "questions": 8,
+          "histories": 8,
+          "delta": 0,
+          "pairs": {
+            "wins": 0,
+            "ties": 8,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        },
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "halfCreditNuggetMean",
+          "questions": 8,
+          "histories": 8,
+          "delta": 0,
+          "pairs": {
+            "wins": 0,
+            "ties": 8,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        }
+      ]
+    },
+    "overall": {
+      "questions": 24,
+      "histories": 8,
+      "means": {
+        "baseline": {
+          "operationalBeamScore": 0.7916666666666666,
+          "halfCreditNuggetMean": 0.8229166666666666
+        },
+        "jev-compact-repair": {
+          "operationalBeamScore": 0.8333333333333334,
+          "halfCreditNuggetMean": 0.84375
+        }
+      },
+      "contrasts": [
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "operationalBeamScore",
+          "questions": 24,
+          "histories": 8,
+          "delta": 0.041666666666666664,
+          "pairs": {
+            "wins": 1,
+            "ties": 23,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0.125,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        },
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "halfCreditNuggetMean",
+          "questions": 24,
+          "histories": 8,
+          "delta": 0.020833333333333332,
+          "pairs": {
+            "wins": 1,
+            "ties": 23,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0.0625,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        }
+      ]
+    },
+    "categories": {
+      "instruction_following": {
+        "questions": 16,
+        "histories": 8,
+        "means": {
+          "baseline": {
+            "operationalBeamScore": 0.90625,
+            "halfCreditNuggetMean": 0.953125
+          },
+          "jev-compact-repair": {
+            "operationalBeamScore": 0.96875,
+            "halfCreditNuggetMean": 0.984375
+          }
+        },
+        "contrasts": [
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "operationalBeamScore",
+            "questions": 16,
+            "histories": 8,
+            "delta": 0.0625,
+            "pairs": {
+              "wins": 1,
+              "ties": 15,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0.1875,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          },
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "halfCreditNuggetMean",
+            "questions": 16,
+            "histories": 8,
+            "delta": 0.03125,
+            "pairs": {
+              "wins": 1,
+              "ties": 15,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0.09375,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          }
+        ]
+      },
+      "information_extraction": {
+        "questions": 4,
+        "histories": 4,
+        "means": {
+          "baseline": {
+            "operationalBeamScore": 0.5,
+            "halfCreditNuggetMean": 0.5
+          },
+          "jev-compact-repair": {
+            "operationalBeamScore": 0.5,
+            "halfCreditNuggetMean": 0.5
+          }
+        },
+        "contrasts": [
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "operationalBeamScore",
+            "questions": 4,
+            "histories": 4,
+            "delta": 0,
+            "pairs": {
+              "wins": 0,
+              "ties": 4,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          },
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "halfCreditNuggetMean",
+            "questions": 4,
+            "histories": 4,
+            "delta": 0,
+            "pairs": {
+              "wins": 0,
+              "ties": 4,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          }
+        ]
+      },
+      "temporal_reasoning": {
+        "questions": 4,
+        "histories": 4,
+        "means": {
+          "baseline": {
+            "operationalBeamScore": 0.625,
+            "halfCreditNuggetMean": 0.625
+          },
+          "jev-compact-repair": {
+            "operationalBeamScore": 0.625,
+            "halfCreditNuggetMean": 0.625
+          }
+        },
+        "contrasts": [
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "operationalBeamScore",
+            "questions": 4,
+            "histories": 4,
+            "delta": 0,
+            "pairs": {
+              "wins": 0,
+              "ties": 4,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          },
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "halfCreditNuggetMean",
+            "questions": 4,
+            "histories": 4,
+            "delta": 0,
+            "pairs": {
+              "wins": 0,
+              "ties": 4,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          }
+        ]
+      }
+    },
+    "confirmationVerdict": null,
+    "resultSha256": "2684c49003e5cde40611031db08aefc7f0c69e855f9d25ae12f37226dc699135",
+    "gradesSha256": "05c68bb8429e468d3983bb996bd4899cc8b93cfb7ac1f78efade6d0a8e925cce"
+  },
+  "confirmation": {
+    "stage": "confirmation",
+    "complete": true,
+    "questions": 24,
+    "histories": 8,
+    "primary": {
+      "questions": 16,
+      "histories": 8,
+      "means": {
+        "baseline": {
+          "operationalBeamScore": 0.7916666666666667,
+          "halfCreditNuggetMean": 0.7916666666666667
+        },
+        "jev-compact-repair": {
+          "operationalBeamScore": 0.8854166666666667,
+          "halfCreditNuggetMean": 0.9010416666666667
+        }
+      },
+      "contrasts": [
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "operationalBeamScore",
+          "questions": 16,
+          "histories": 8,
+          "delta": 0.09375,
+          "pairs": {
+            "wins": 2,
+            "ties": 14,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0.21875,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        },
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "halfCreditNuggetMean",
+          "questions": 16,
+          "histories": 8,
+          "delta": 0.109375,
+          "pairs": {
+            "wins": 2,
+            "ties": 14,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0.265625,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        }
+      ]
+    },
+    "controls": {
+      "questions": 8,
+      "histories": 8,
+      "means": {
+        "baseline": {
+          "operationalBeamScore": 0.625,
+          "halfCreditNuggetMean": 0.625
+        },
+        "jev-compact-repair": {
+          "operationalBeamScore": 0.625,
+          "halfCreditNuggetMean": 0.625
+        }
+      },
+      "contrasts": [
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "operationalBeamScore",
+          "questions": 8,
+          "histories": 8,
+          "delta": 0,
+          "pairs": {
+            "wins": 0,
+            "ties": 8,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        },
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "halfCreditNuggetMean",
+          "questions": 8,
+          "histories": 8,
+          "delta": 0,
+          "pairs": {
+            "wins": 0,
+            "ties": 8,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        }
+      ]
+    },
+    "overall": {
+      "questions": 24,
+      "histories": 8,
+      "means": {
+        "baseline": {
+          "operationalBeamScore": 0.736111111111111,
+          "halfCreditNuggetMean": 0.736111111111111
+        },
+        "jev-compact-repair": {
+          "operationalBeamScore": 0.798611111111111,
+          "halfCreditNuggetMean": 0.8090277777777777
+        }
+      },
+      "contrasts": [
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "operationalBeamScore",
+          "questions": 24,
+          "histories": 8,
+          "delta": 0.0625,
+          "pairs": {
+            "wins": 2,
+            "ties": 22,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0.14583333333333334,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        },
+        {
+          "candidate": "jev-compact-repair",
+          "control": "baseline",
+          "metric": "halfCreditNuggetMean",
+          "questions": 24,
+          "histories": 8,
+          "delta": 0.07291666666666667,
+          "pairs": {
+            "wins": 2,
+            "ties": 22,
+            "losses": 0
+          },
+          "historyBootstrap95": {
+            "lower": 0,
+            "upper": 0.17708333333333334,
+            "resamples": 10000,
+            "seed": 20260919
+          }
+        }
+      ]
+    },
+    "categories": {
+      "instruction_following": {
+        "questions": 16,
+        "histories": 8,
+        "means": {
+          "baseline": {
+            "operationalBeamScore": 0.7916666666666667,
+            "halfCreditNuggetMean": 0.7916666666666667
+          },
+          "jev-compact-repair": {
+            "operationalBeamScore": 0.8854166666666667,
+            "halfCreditNuggetMean": 0.9010416666666667
+          }
+        },
+        "contrasts": [
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "operationalBeamScore",
+            "questions": 16,
+            "histories": 8,
+            "delta": 0.09375,
+            "pairs": {
+              "wins": 2,
+              "ties": 14,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0.21875,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          },
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "halfCreditNuggetMean",
+            "questions": 16,
+            "histories": 8,
+            "delta": 0.109375,
+            "pairs": {
+              "wins": 2,
+              "ties": 14,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0.265625,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          }
+        ]
+      },
+      "information_extraction": {
+        "questions": 4,
+        "histories": 4,
+        "means": {
+          "baseline": {
+            "operationalBeamScore": 0.5,
+            "halfCreditNuggetMean": 0.5
+          },
+          "jev-compact-repair": {
+            "operationalBeamScore": 0.5,
+            "halfCreditNuggetMean": 0.5
+          }
+        },
+        "contrasts": [
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "operationalBeamScore",
+            "questions": 4,
+            "histories": 4,
+            "delta": 0,
+            "pairs": {
+              "wins": 0,
+              "ties": 4,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          },
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "halfCreditNuggetMean",
+            "questions": 4,
+            "histories": 4,
+            "delta": 0,
+            "pairs": {
+              "wins": 0,
+              "ties": 4,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          }
+        ]
+      },
+      "temporal_reasoning": {
+        "questions": 4,
+        "histories": 4,
+        "means": {
+          "baseline": {
+            "operationalBeamScore": 0.75,
+            "halfCreditNuggetMean": 0.75
+          },
+          "jev-compact-repair": {
+            "operationalBeamScore": 0.75,
+            "halfCreditNuggetMean": 0.75
+          }
+        },
+        "contrasts": [
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "operationalBeamScore",
+            "questions": 4,
+            "histories": 4,
+            "delta": 0,
+            "pairs": {
+              "wins": 0,
+              "ties": 4,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          },
+          {
+            "candidate": "jev-compact-repair",
+            "control": "baseline",
+            "metric": "halfCreditNuggetMean",
+            "questions": 4,
+            "histories": 4,
+            "delta": 0,
+            "pairs": {
+              "wins": 0,
+              "ties": 4,
+              "losses": 0
+            },
+            "historyBootstrap95": {
+              "lower": 0,
+              "upper": 0,
+              "resamples": 10000,
+              "seed": 20260919
+            }
+          }
+        ]
+      }
+    },
+    "confirmationVerdict": {
+      "success": false,
+      "candidate": "jev-compact-repair",
+      "conditions": {
+        "positiveInstructionDelta": true,
+        "positiveInstructionConfidenceLowerBound": false,
+        "nondecreasingControls": true,
+        "nondecreasingOverall": true
+      },
+      "primaryDelta": 0.09375,
+      "primaryHistoryBootstrap95Lower": 0,
+      "controlsDelta": 0,
+      "overallDelta": 0.0625,
+      "productionActivation": false
+    },
+    "resultSha256": "7571d82b82c916565781fa88fddc14e60dd89a1afaad7e44a872302aad6861b2",
+    "gradesSha256": "c67bbcb78be3169fd8ff35cad3c7eec5c7991922c1acd4798125df148be801e5"
+  },
+  "accounting": {
+    "snapshot": "completed-confirmation-audit",
+    "currency": "USD",
+    "unit": "microdollars",
+    "gateway": {
+      "calls": 396,
+      "settledMicros": 3764307,
+      "uncertainReservedMicros": 232768,
+      "exposureMicros": 3997075
+    },
+    "jev": {
+      "calls": 673,
+      "settled": 673,
+      "unresolved": 0,
+      "inputTokens": 641718,
+      "outputTokens": 32552,
+      "exposureMicros": 27287,
+      "settledMicros": 27287,
+      "uncertainReservedMicros": 0
+    },
+    "applicability": {
+      "calls": 552,
+      "settled": 552,
+      "unresolved": 0,
+      "inputTokens": 509318,
+      "outputTokens": 27152,
+      "exposureMicros": 21649,
+      "settledMicros": 21649,
+      "uncertainReservedMicros": 0
+    },
+    "compliance": {
+      "development": {
+        "calls": 30,
+        "settled": 30,
+        "unresolved": 0,
+        "inputTokens": 51123,
+        "outputTokens": 1366,
+        "exposureMicros": 2164,
+        "settledMicros": 2164,
+        "uncertainReservedMicros": 0
+      },
+      "confirmation": {
+        "calls": 28,
+        "settled": 28,
+        "unresolved": 0,
+        "inputTokens": 45022,
+        "outputTokens": 1277,
+        "exposureMicros": 1904,
+        "settledMicros": 1904,
+        "uncertainReservedMicros": 0
+      }
+    },
+    "v5Binding": {
+      "calls": 63,
+      "settled": 63,
+      "unresolved": 0,
+      "inputTokens": 36255,
+      "outputTokens": 2757,
+      "exposureMicros": 1570,
+      "settledMicros": 1570,
+      "uncertainReservedMicros": 0
+    },
+    "settledMicros": 3791594,
+    "uncertainReservedMicros": 232768,
+    "exposureMicros": 4024362,
+    "v6ExposureMicros": 1027007,
+    "v5BoundaryExposureMicros": 2997355,
+    "v6MaximumMicros": 4000000,
+    "campaignMaximumMicros": 10000000
+  },
+  "execution": {
+    "cases": 24,
+    "logicalReaders": 48,
+    "baselineDrafts": 24,
+    "passThrough": 11,
+    "revisions": 13,
+    "distinctReaderRequests": 37,
+    "newReaderPhysicalRequests": 37,
+    "judgeLogicalCalls": 90,
+    "judgePhysicalRequests": 68,
+    "newJudgePhysicalRequests": 68,
+    "gradeRows": 48,
+    "predecessorGateway": 291,
+    "knownGatewayJobs": 396,
+    "newGatewayJobs": 105,
+    "retainedUncertain": 2
+  },
+  "captureAudit": {
+    "verdict": "passed",
+    "providerCallsDuringAudit": 0,
+    "auditSha256": "c0423e148bb27dd46a7cadd13f6841af3c67779cf0bf2a31c470c11623549c65",
+    "auditorSha256": "2950edcbfa6d9498a152a6b23790e419e44db79771e394076feaf0196cb52c0d",
+    "physicalRequestSetSha256": "5f92cb50bcd78ea40bc5eae0f9f21380e57b1a7ea7291a888a40db81afc58070",
+    "gatewayUsageByModel": [
+      {
+        "model": "openai/gpt-4o",
+        "calls": 229,
+        "inputTokens": 313441,
+        "cachedInputTokens": 0,
+        "outputTokens": 15852,
+        "reasoningTokens": 0,
+        "chargeMicros": 942178
+      },
+      {
+        "model": "openai/gpt-5-mini",
+        "calls": 167,
+        "inputTokens": 10079533,
+        "cachedInputTokens": 1086464,
+        "outputTokens": 273316,
+        "reasoningTokens": 210368,
+        "chargeMicros": 3054897
+      }
+    ]
+  },
+  "source": {
+    "dataset": "BEAM",
+    "revision": "3205395e897e7318c7b094ef4e6047b9b82dbb03",
+    "sourceSha256": "8280371b8322fc39af44489a65c698c9e48e7feafddcca012d64ba75d54ff2f4",
+    "preparationSha256": "4488147eb226a02c4adb9923be1cb0df09bd88ffc4f1eb6e8db20c476fcab798",
+    "developmentMetadataSha256": "3083ba4638d34837fba93398c9199a453b3c11552eeea3d14bb09057527a8631",
+    "confirmationMetadataSha256": "f466cf27abf1133b28a4b089ceb9c57014371ea0efbff5431176522e0156902d",
+    "developmentQuestionSetSha256": "e4e3b08fc413e2ef8a1470ab6ba7c2f442683aab74496bf0254b43d64a933fd2",
+    "confirmationQuestionSetSha256": "65e1042eee6fd6b89822ca4b74e7d2f08f106db8b2ecc3c6b703891a5b0c666c",
+    "developmentMemorySetSha256": "d9eb68580b437a893639ba151349141e92e50dc32eec712eb19c43eb450a97bd",
+    "confirmationMemorySetSha256": "c243e11141936cdae092a6cde9f7766ccf8bec6ca73b6b1f733d5df6f0fdb8f9"
+  },
+  "statistics": {
+    "unit": "history",
+    "bootstrapResamples": 10000,
+    "seed": 20260919,
+    "interval": "paired percentile95",
+    "weighting": "question mean within sampled complete histories",
+    "singleDrawPerDistinctRequest": true
+  },
+  "providers": {
+    "reader": {
+      "id": "gpt5-mini-task-complete-long-deadline-v1-reader",
+      "model": "openai/gpt-5-mini",
+      "profileSha256": "9dbc1d92b9b59bc071da8f57a2860a133e443927440968a63dfdd99b5f4d2308",
+      "snapshotPinned": false,
+      "timeoutMs": 600000,
+      "maxOutputTokens": 8192,
+      "pricesSha256": "4e00e74206c60744205fa747109a0ba72135ea61feb5feade7562b385a089e43"
+    },
+    "judge": {
+      "id": "gpt4o-beam-nugget-v1",
+      "model": "openai/gpt-4o",
+      "profileSha256": "9dd6b467b5cad1bc5d5bd7eac6eb3f1738198dff5d3f087a1c0594ba927fa92c",
+      "snapshotPinned": false,
+      "timeoutMs": 120000,
+      "maxOutputTokens": 512,
+      "pricesSha256": "fbf41c663bce8eb1e5f6c401993a212a7cababeef15d2ac426739abf6aaf6b84"
+    },
+    "semantic": {
+      "model": "jev-1.13.0",
+      "versionPinned": true
+    }
+  },
+  "evidence": {
+    "manifestSha256": "3f061156da3c13ab21713a7d2b4d12788e2ee9098eb111cc16f0e17208aa54a9",
+    "v4ManifestSha256": "1d3b654f344aab9bbe35d46bb8f1521c5e713bc1469641f82976b12eca52d4a6",
+    "originalManifestSha256": "9d40821af264c3affcae3dd3ea63c40ce432ba952d979a12b0e213024db0aa7b",
+    "decisionSha256": "3e677724f77b5978cbec802621861055e8babcae56bd5c7cb746b7c5bd4c13c9",
+    "boundarySha256": "ec5927cd865e4f7144ee2209f609b7720ee15931d78cd4b48f28ec67cb5844c3",
+    "v5AuditSha256": "b3ae0b5fc01e5bf8be7fce3d05d0bc0aa26ae6ea9ef0ccd719e8797c6e9b0e73",
+    "analysisSha256": "7fdaa8ba0a78215842ede713e93a95e3a4c8ac4c244ce3e5d8546778897bb608",
+    "scorerPolicySha256": "16ec3b3c143666403b4f333ceb3484b298029c020d239c0c0c3cd0729ab9f993",
+    "codeClosureSha256": "726673006140de8d050ebce72fa36c10d09e2c42ff6c159ba1ae759620a3cbe4",
+    "exporterSha256": "1cd998260148088fd46270b26aa273faff341d91965c2218da507ef535f492e4",
+    "draftPlanSha256": "23b1117b65896d24c833e2e0ce58cb7aef46b476b07ca8dc4e0bd06d554e8710",
+    "checkerPlanSha256": "4d0b532a366c772925abac425a55741945ac0b8dd5d41dc7049ae6dec27dad9b",
+    "readerPlanSha256": "d76898df689286cff0960da442256a9171c7e87fe6e675da2edbfefc9758264b",
+    "gradingPlanSha256": "d640d49f0f74e5363c528851669eba33f37e73869f3a2ad3c6a02b0dc81a6240"
+  },
+  "limitations": [
+    "V4 was selected after adaptive development refinements; this fixed history-disjoint confirmation tests that bundle once.",
+    "The small cohort is not certified globally unseen. Model and judge single-draw uncertainty is not captured by the whole-history bootstrap.",
+    "Operational BEAM scores and half-credit sensitivity do not prove source grounding or a hallucination rate.",
+    "The baseline is an experimental lexical-aid reader; this is not a comparison against current production Oh.",
+    "Jev causality is not isolated from the extra conditional reader call, and there is no equal-cost unconditional second-reader control.",
+    "Gateway model names are aliases, not verified immutable snapshots. All V1–V6 charges and retained uncertain reservations remain included.",
+    "Logical cells, distinct request identities and newly paid physical requests are separate counts. Exact pass-through and cache reuse share captures.",
+    "Costs are the completed audited snapshot. No automatic production activation follows from the confirmation verdict."
+  ]
+}
