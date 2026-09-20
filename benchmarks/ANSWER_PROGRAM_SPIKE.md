@@ -107,6 +107,49 @@ comparable end-to-end latencies. Cumulative campaign exposure was $2.997355,
 including $0.232768 still reserved for two uncertain attempts from an earlier
 experiment.
 
+## Exact identity veto after development
+
+`scripts/benchmarks/answer-program-identity.ts` adds a separate benchmark-only
+guard for the attribution grammar already used by the exact baseline:
+
+```text
+Audiobook <JSON string>: <title|narrator> = <JSON string>.
+```
+
+`inspectRecommendationIdentityV1` compares the full statement's subject, field
+and value with the host's expected values. It returns `exact-match`,
+`exact-mismatch` or `unrecognized`. Recognized mismatches veto a semantic
+admission. Neither an exact match nor an unrecognized statement admits a new
+candidate: the existing supported judgment is still required. Unknown wording
+keeps its semantic uncertainty. Malformed input envelopes, invalid Unicode and
+oversized strings throw; unrecognized statement syntax returns `unrecognized`.
+
+Only the complete canonical assertion is recognized. Signs, punctuation,
+case and Unicode remain distinct; the guard does not normalize identifiers.
+Statements are bounded to 4,096 UTF-8 bytes, with 256-byte subjects and values.
+This does not replace source eligibility, current-record checks, supersession
+policy or the answer program's span validation.
+
+A separate regression replays the published semantic admissions with this
+veto. It preserves the original results above and makes no provider calls.
+Its locked request identities come from the fixture inputs; expected answers
+are used only to score the filtered outcomes. The repair was chosen after
+observing the two identity failures, so any improvement on those same cases
+is development evidence. Independently authored parser counterexamples test
+the guard's exact contract, not model generalization.
+
+On that cached development replay, the veto removes the two wrong-item
+admissions and retains all 44 supported admissions. The resulting program
+matches all 20 case outcomes and returns all 18 complete recommendations.
+This repairs the observed failure mechanism; it does not turn the original
+18/20 semantic result into an independently measured 20/20 result.
+
+Run the focused guard and cached-development checks with:
+
+```sh
+bun test tests/memory-benchmark-answer-program-identity*.test.ts
+```
+
 ## Where Algal and Wordcell fit
 
 A separate offline compatibility probe ran this pure function through an
