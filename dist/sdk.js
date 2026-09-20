@@ -18313,7 +18313,12 @@ function extractSearchText(value, maximumBytes = 1024 * 1024) {
       for (const item of candidate)
         visit(item, depth + 1);
     } else if (candidate !== null) {
-      for (const [key, item] of Object.entries(candidate)) {
+      const keys3 = Object.keys(candidate).sort((left3, right3) => left3 < right3 ? -1 : left3 > right3 ? 1 : 0);
+      const object = candidate;
+      for (const key of keys3) {
+        const item = object[key];
+        if (item === undefined)
+          throw new TypeError("Search value contains an undefined property.");
         parts2.push(key);
         bytes += key.length + 1;
         visit(item, depth + 1);
