@@ -7,6 +7,8 @@ state tests does not establish that an agent writes useful memories.
 
 For fast development sweeps across shared corpus indexes, use the [development lab](DEVELOPMENT.md). It compares retrieval variants without model calls and records full development results before promoting candidates to paid answer comparisons.
 
+The [source-bound answer-program probe](ANSWER_PROGRAM_SPIKE.md) separates semantic field attribution from exact joins and citation rendering. Its authored recommendation cases measure a restricted candidate inventory, not representative retrieval or memory quality.
+
 The [answer-audit development results](ANSWER_AUDIT_V1_RESULTS.md) report a completed diagnostic continuation: mean answer accuracy changed from 92.67% to 93.33% across three repeats of 100 development questions, with seven improvements and five regressions. The original experiment remains aborted and the audit was not promoted.
 
 For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below. The separately frozen [Gateway amendment](GATEWAY_STUDY_V3.md) preserves closed subscription responses and uses budgeted Gateway calls for unattempted work.
