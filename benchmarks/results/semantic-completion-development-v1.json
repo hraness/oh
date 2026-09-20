@@ -1,0 +1,228 @@
+{
+  "protocol": "oh.public.locomo-semantic-completion-development.v9",
+  "cohort": {
+    "partition": "exposed-development",
+    "questions": 100,
+    "histories": 2,
+    "questionsPerHistory": 50,
+    "readerCells": 200,
+    "contextMaximumBytes": 24000,
+    "candidate": "Retain the complete semantic parent context as an exact prefix, then append whole adjacent source turns within the same byte ceiling."
+  },
+  "overall": {
+    "questions": 100,
+    "controlCorrect": 84,
+    "candidateCorrect": 83,
+    "controlMean": 0.84,
+    "candidateMean": 0.83,
+    "netCorrect": -1,
+    "delta": -0.01,
+    "wins": 3,
+    "losses": 4,
+    "ties": 93
+  },
+  "byHistory": [
+    {
+      "history": "history-1",
+      "questions": 50,
+      "controlCorrect": 45,
+      "candidateCorrect": 42,
+      "controlMean": 0.9,
+      "candidateMean": 0.84,
+      "netCorrect": -3,
+      "delta": -0.06,
+      "wins": 0,
+      "losses": 3,
+      "ties": 47
+    },
+    {
+      "history": "history-2",
+      "questions": 50,
+      "controlCorrect": 39,
+      "candidateCorrect": 41,
+      "controlMean": 0.78,
+      "candidateMean": 0.82,
+      "netCorrect": 2,
+      "delta": 0.04,
+      "wins": 3,
+      "losses": 1,
+      "ties": 46
+    }
+  ],
+  "byCategory": {
+    "locomo:1": {
+      "questions": 24,
+      "controlCorrect": 21,
+      "candidateCorrect": 23,
+      "controlMean": 0.875,
+      "candidateMean": 0.9583333333333334,
+      "netCorrect": 2,
+      "delta": 0.08333333333333333,
+      "wins": 2,
+      "losses": 0,
+      "ties": 22
+    },
+    "locomo:2": {
+      "questions": 20,
+      "controlCorrect": 14,
+      "candidateCorrect": 14,
+      "controlMean": 0.7,
+      "candidateMean": 0.7,
+      "netCorrect": 0,
+      "delta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 20
+    },
+    "locomo:3": {
+      "questions": 6,
+      "controlCorrect": 3,
+      "candidateCorrect": 4,
+      "controlMean": 0.5,
+      "candidateMean": 0.6666666666666666,
+      "netCorrect": 1,
+      "delta": 0.16666666666666666,
+      "wins": 1,
+      "losses": 0,
+      "ties": 5
+    },
+    "locomo:4": {
+      "questions": 50,
+      "controlCorrect": 46,
+      "candidateCorrect": 42,
+      "controlMean": 0.92,
+      "candidateMean": 0.84,
+      "netCorrect": -4,
+      "delta": -0.08,
+      "wins": 0,
+      "losses": 4,
+      "ties": 46
+    }
+  },
+  "contextDiagnostics": {
+    "partitions": [
+      {
+        "context": "unchanged",
+        "questions": 11,
+        "controlCorrect": 11,
+        "candidateCorrect": 11,
+        "netCorrect": 0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 11
+      },
+      {
+        "context": "changed",
+        "questions": 89,
+        "controlCorrect": 73,
+        "candidateCorrect": 72,
+        "netCorrect": -1,
+        "wins": 3,
+        "losses": 4,
+        "ties": 82
+      }
+    ],
+    "method": "Post-hoc descriptive partition by equality of the frozen control/candidate native request hashes:11 unchanged-context pairs and89 changed-context pairs. Both arms still receive fresh draws. This diagnostic does not change the frozen gate or isolate context effects from draw variability."
+  },
+  "counts": {
+    "readerPhysicalCalls": 200,
+    "judgeLogicalCells": 200,
+    "judgePhysicalCalls": 165,
+    "invalidReaderCells": 0,
+    "invalidJudgePhysicalResponses": 0
+  },
+  "firstResponseOutcomes": {
+    "readers": {
+      "completed": 200,
+      "refused": 0,
+      "truncated": 0
+    },
+    "judges": {
+      "completed": 165,
+      "refused": 0,
+      "truncated": 0
+    },
+    "additionalInvalidCompletedReaders": 0,
+    "additionalInvalidCompletedJudges": 0
+  },
+  "gate": {
+    "netAtLeastFive": false,
+    "noHistoryRegression": false,
+    "noInvalidResponses": true
+  },
+  "developmentSuccess": false,
+  "productionActivation": false,
+  "timing": {
+    "unit": "milliseconds",
+    "control": {
+      "count": 100,
+      "mean": 9864.218657140003,
+      "median": 8647.7266045,
+      "p95": 24849.210708
+    },
+    "candidate": {
+      "count": 100,
+      "mean": 9234.112476680004,
+      "median": 7913.0060834999895,
+      "p95": 18315.335249999946
+    },
+    "pairedCandidateMinusControl": {
+      "count": 100,
+      "mean": -630.106180460001,
+      "median": 28.477687499980675,
+      "p95": 4370.123123999976
+    },
+    "method": "Captured per-request serviceMs for all100 paired questions, including zero-scored outcomes. Median averages the middle two; p95 uses nearest rank. Paired differences are candidate minus control within question. Four concurrent requests and alternating arm order make this descriptive, not an isolated latency effect or end-to-end wall time."
+  },
+  "cost": {
+    "currency": "USD",
+    "integerUnit": "microdollars",
+    "oldExposureMicros": 4046654,
+    "newExposureMicros": 577274,
+    "totalExposureMicros": 4623928,
+    "oldUncertainReservationMicros": 232768,
+    "readerActualMicros": 563804,
+    "judgeActualMicros": 13470,
+    "reservations": {
+      "freshReaderRequestsMicros": 4668238,
+      "actualConstructedJudgeRequestsMicros": 148089,
+      "frozenMaximumJudgeAllowanceMicros": 1008400,
+      "maximumJudgeCalls": 200
+    },
+    "calls": {
+      "oldGateway": 416,
+      "newReaders": 200,
+      "newJudges": 165,
+      "totalGateway": 781,
+      "oldJev": 736,
+      "newJev": 0,
+      "totalJev": 736
+    },
+    "note": "Actual new costs are confirmed first-response charges. Total exposure also retains both historical uncertain attempts. Reservations are admission upper bounds, not additional spend."
+  },
+  "models": {
+    "reader": "openai/gpt-5-mini",
+    "readerProfile": "gpt5-mini-calibration-only-v1-reader",
+    "judge": "openai/gpt-4o-mini",
+    "judgeProfile": "gpt4o-mini-locomo-j-judge-v1",
+    "immutableSnapshotVerified": false
+  },
+  "reproducibility": {
+    "manifestSha256": "42051dc5cd99ec5d82aade0133ae01a156a9e0dd90110fbf7f804537ee27bee1",
+    "resultSha256": "a69afbdaa0f5433e2ce11d3075ce39cd05c925398d0078fac0b84e6b066f2424",
+    "auditSha256": "6b0408bb5ec81897baad3030787bf9a09b6a0c7b53929235ade1bc560a570ac5",
+    "auditorCodeSha256": "aa90952e5e7c0e0aee389f847bda98332cc8dd1f116c1f7a15095ca5db2ff1e5",
+    "exporterCodeSha256": "17d0fb11e46108dd1581fd9f39e61dec180a6e4b3e270a3ca208cbb1d140b694",
+    "readerPlanSha256": "e3de4423a138a25585c90112b10bb3d203a665aa226360339432a5048f1fa07f",
+    "readerReceiptSha256": "1e3c1d19c71511e4abd00aa6550fa9996050aaae498dd88894e8c70c7adc17ba",
+    "judgePlanSha256": "6abc360116f637d22b71f309eaadcc5bcd11de05677eef2f798b64be2067cec6",
+    "physicalIdentitiesSha256": "7edb376dd99aff8c3971497c0bcf955f93e016bc4d4af1f93b4b9b53ab605a69"
+  },
+  "limitations": [
+    "These are 100 already-exposed development questions from two histories. The treatment was selected using development evidence; this is not a held-out generalization result.",
+    "The reader and judge use Gateway model aliases, not verified immutable model snapshots. One native CORRECT/WRONG judge profile measures benchmark scoring, not independently established factual truth.",
+    "Exact equal answers within a question share one physical judgment; all 200 logical score cells remain in the denominator. Invalid reader/judge outcomes score zero and prevent the development gate.",
+    "Latency summaries are descriptive paired service times under concurrency 4; no confidence interval, population-wide superiority, production activation or benchmark leadership is claimed.",
+    "History indices follow ASCII ordering of frozen corpus IDs. Private paths, source text, question text, reference answers and generated answers are excluded from this projection."
+  ]
+}
