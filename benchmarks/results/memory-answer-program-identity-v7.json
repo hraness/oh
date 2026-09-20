@@ -1,0 +1,3366 @@
+{
+  "protocol": "oh.benchmark.fresh-binding-identity-results.v7",
+  "status": "complete-finite-stress-suite",
+  "productionActivation": false,
+  "scope": "Prospective, deliberately targeted synthetic binding stress suite. Not representative retrieval, BEAM confirmation, field extraction or memory quality.",
+  "policy": {
+    "protocol": "oh.private.fresh-binding-identity-probe.v7",
+    "scope": "Prospective, deliberately targeted synthetic binding stress suite. Not representative retrieval, BEAM confirmation, field extraction or memory quality.",
+    "arms": [
+      "writer",
+      "exact",
+      "semantic",
+      "guarded",
+      "allUnknown"
+    ],
+    "program": "Reuse frozen V5 writer/Jev prompts, source eligibility, candidate spans, exact grammar, typed recommendation program and rendering. The guarded arm only vetoes exact identity mismatches from the same authenticated supported semantic decisions.",
+    "caseDesign": "20 newly authored cases: 4 structured canonical controls, 8 new paraphrase-template families and 8 new adversarial/boundary families. New identities alone do not make a new semantic family. Independent source/gold review precedes every provider call.",
+    "goldIsolation": "Source-only candidate construction; gold separate and unavailable to request construction. Root and runner are not shown new case prose before code freeze. Any fixture correction occurs before the final freeze and any paid request.",
+    "semanticAdmission": "Only the selected supported choice admits; no new threshold, confidence tuning, additional model call, or guard-only admission. Exact-match and unrecognized never create a binding.",
+    "primaryDecision": "Finite cleanup demonstrated only if the veto removes at least one gold-unsupported admission, removes zero gold-supported admissions, and preserves or improves the number of correct complete recommendations versus the same unguarded semantic draws. If no false admission is removed, no cleanup benefit is demonstrated. This is not a utility or superiority gate.",
+    "reporting": "Report all-case TP/FP/FN/TN, admission precision/recall, supported emitted fields and field precision, correct complete recommendation coverage and absolute counts, missingness, conflicts, malformed answers, whole-case outcome accuracy, each group, timing and total cost. Zero-denominator precision/recall is null, never one.",
+    "writerComparison": "Emitted-field precision and correct complete recommendation coverage are a descriptive pair; whole-case outcome accuracy is supplementary. No isolated Jev-versus-writer causal claim, since answer construction also differs.",
+    "inference": "A complete finite stress suite with one draw per distinct request. No optional stopping, resampling to clear a threshold, or representative-population confidence claim. Preserve every failure. Source/gold ambiguity found after freeze invalidates the affected interpretation without silently dropping the case.",
+    "predecessor": "Closed independently audited V6 confirmation, 396 Gateway records and 673 settled Jev calls. Preserve the complete native prefix, four closed semantic ledgers and the two historical uncertain Gateway reservations. Add this version's binding ledger exactly once.",
+    "maximumCases": 20,
+    "maximumBindingCalls": 160,
+    "maximumReaderCalls": 20,
+    "maximumReaderReservationMicros": 25000,
+    "maximumIncrementMicros": 3000000,
+    "maximumCampaignMicros": 10000000,
+    "maximumGatewayCalls": 1200,
+    "maximumJevCalls": 2000,
+    "maximumConcurrency": 4,
+    "automaticRetries": 0,
+    "repeat": 0,
+    "readerProfile": "gpt5-mini-task-complete-long-deadline-v1-reader",
+    "promotion": "No production activation, language extension, baseline replacement or BEAM-confirmation promotion. V6's failed confirmation verdict remains immutable regardless of this outcome."
+  },
+  "cases": 20,
+  "rows": [
+    {
+      "caseId": "g01",
+      "group": "direct",
+      "scores": {
+        "writer": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 2,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 6,
+          "admitted": 4,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        },
+        "semantic": {
+          "candidates": 6,
+          "admitted": 4,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        },
+        "guarded": {
+          "candidates": 6,
+          "admitted": 4,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 4,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 0,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g02",
+      "group": "direct",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 3,
+          "admitted": 2,
+          "supported": 3,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 1,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 3,
+          "admitted": 3,
+          "supported": 3,
+          "truePositive": 3,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 3,
+          "admitted": 3,
+          "supported": 3,
+          "truePositive": 3,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 2,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 1,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g03",
+      "group": "direct",
+      "scores": {
+        "writer": {
+          "correctItems": 0,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 2,
+          "recommended": 0,
+          "abstentions": 0,
+          "conflicts": 2,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 0,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 2,
+          "recommended": 0,
+          "abstentions": 0,
+          "conflicts": 2,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 2,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 6,
+          "admitted": 4,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        },
+        "semantic": {
+          "candidates": 6,
+          "admitted": 6,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 2,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 6,
+          "admitted": 4,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 4,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 2,
+          "unsupported": 2
+        },
+        "unrecognized": {
+          "admitted": 0,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 2,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g04",
+      "group": "direct",
+      "scores": {
+        "writer": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 2,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 4,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 6,
+          "admitted": 4,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        },
+        "semantic": {
+          "candidates": 6,
+          "admitted": 4,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        },
+        "guarded": {
+          "candidates": 6,
+          "admitted": 4,
+          "supported": 4,
+          "truePositive": 4,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 4,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 0,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g05",
+      "group": "paraphrase",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g06",
+      "group": "paraphrase",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g07",
+      "group": "paraphrase",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g08",
+      "group": "paraphrase",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g09",
+      "group": "paraphrase",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g10",
+      "group": "paraphrase",
+      "scores": {
+        "writer": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 1,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 1,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 5,
+          "admitted": 0,
+          "supported": 3,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 3,
+          "trueNegative": 2
+        },
+        "semantic": {
+          "candidates": 5,
+          "admitted": 3,
+          "supported": 3,
+          "truePositive": 3,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        },
+        "guarded": {
+          "candidates": 5,
+          "admitted": 3,
+          "supported": 3,
+          "truePositive": 3,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 3,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g11",
+      "group": "paraphrase",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g12",
+      "group": "paraphrase",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g13",
+      "group": "adversarial",
+      "scores": {
+        "writer": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 4,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 2
+        },
+        "semantic": {
+          "candidates": 4,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        },
+        "guarded": {
+          "candidates": 4,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g14",
+      "group": "adversarial",
+      "scores": {
+        "writer": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 1,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 1,
+          "trueNegative": 1
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 1,
+          "supported": 1,
+          "truePositive": 1,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 1
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 1,
+          "supported": 1,
+          "truePositive": 1,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 1
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 1,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g15",
+      "group": "adversarial",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 0,
+          "conflicts": 1,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 0,
+          "conflicts": 1,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 0,
+          "conflicts": 1,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 3,
+          "admitted": 0,
+          "supported": 3,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 3,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 3,
+          "admitted": 3,
+          "supported": 3,
+          "truePositive": 3,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 3,
+          "admitted": 3,
+          "supported": 3,
+          "truePositive": 3,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 3,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g16",
+      "group": "adversarial",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 0,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 2,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 2,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 2,
+          "trueNegative": 0
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 2,
+          "supported": 2,
+          "truePositive": 2,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 0
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 2,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g17",
+      "group": "adversarial",
+      "scores": {
+        "writer": {
+          "correctItems": 0,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 1,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 1,
+          "trueNegative": 1
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 1,
+          "supported": 1,
+          "truePositive": 1,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 1
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 1,
+          "supported": 1,
+          "truePositive": 1,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 1
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 1,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g18",
+      "group": "adversarial",
+      "scores": {
+        "writer": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 1,
+          "totalItems": 1,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 1,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 2,
+          "admitted": 0,
+          "supported": 1,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 1,
+          "trueNegative": 1
+        },
+        "semantic": {
+          "candidates": 2,
+          "admitted": 1,
+          "supported": 1,
+          "truePositive": 1,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 1
+        },
+        "guarded": {
+          "candidates": 2,
+          "admitted": 1,
+          "supported": 1,
+          "truePositive": 1,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 1
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 1,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g19",
+      "group": "adversarial",
+      "scores": {
+        "writer": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 1,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 1,
+          "goldRecommendations": 1,
+          "recommended": 1,
+          "abstentions": 1,
+          "conflicts": 0,
+          "emittedFields": 2,
+          "supportedFields": 2,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 1,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 1,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 3,
+          "correctCase": false,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 4,
+          "admitted": 0,
+          "supported": 3,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 3,
+          "trueNegative": 1
+        },
+        "semantic": {
+          "candidates": 4,
+          "admitted": 3,
+          "supported": 3,
+          "truePositive": 3,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 1
+        },
+        "guarded": {
+          "candidates": 4,
+          "admitted": 3,
+          "supported": 3,
+          "truePositive": 3,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 1
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 3,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    },
+    {
+      "caseId": "g20",
+      "group": "adversarial",
+      "scores": {
+        "writer": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 0,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "exact": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 0,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "semantic": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 0,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "guarded": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 0,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        },
+        "allUnknown": {
+          "correctItems": 2,
+          "totalItems": 2,
+          "correctRecommendations": 0,
+          "goldRecommendations": 0,
+          "recommended": 0,
+          "abstentions": 2,
+          "conflicts": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 0,
+          "correctCase": true,
+          "malformedOrIncomplete": false
+        }
+      },
+      "bindingScores": {
+        "exact": {
+          "candidates": 4,
+          "admitted": 0,
+          "supported": 0,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 4
+        },
+        "semantic": {
+          "candidates": 4,
+          "admitted": 0,
+          "supported": 0,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 4
+        },
+        "guarded": {
+          "candidates": 4,
+          "admitted": 0,
+          "supported": 0,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 4
+        }
+      },
+      "guardClassifications": {
+        "exact-match": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "exact-mismatch": {
+          "admitted": 0,
+          "unsupported": 0
+        },
+        "unrecognized": {
+          "admitted": 0,
+          "unsupported": 0
+        }
+      },
+      "removal": {
+        "unsupported": 0,
+        "supported": 0
+      },
+      "programExecutionComplete": true
+    }
+  ],
+  "overall": {
+    "writer": {
+      "cases": 20,
+      "correctCases": 17,
+      "correctItems": 23,
+      "totalItems": 27,
+      "correctRecommendations": 15,
+      "goldRecommendations": 17,
+      "recommended": 15,
+      "abstentions": 9,
+      "conflicts": 3,
+      "malformedOrIncompleteCases": 0,
+      "emittedFields": 30,
+      "supportedFields": 30,
+      "outsideInventoryFields": 0,
+      "goldSupportedFieldSlots": 43,
+      "caseAccuracy": 0.85,
+      "itemAccuracy": 0.8518518518518519,
+      "completeItemCoverage": 0.8823529411764706,
+      "emittedFieldPrecision": 1,
+      "supportedFieldCoverage": 0.6976744186046512
+    },
+    "exact": {
+      "cases": 20,
+      "correctCases": 9,
+      "correctItems": 16,
+      "totalItems": 27,
+      "correctRecommendations": 7,
+      "goldRecommendations": 17,
+      "recommended": 7,
+      "abstentions": 20,
+      "conflicts": 0,
+      "malformedOrIncompleteCases": 0,
+      "emittedFields": 14,
+      "supportedFields": 14,
+      "outsideInventoryFields": 0,
+      "goldSupportedFieldSlots": 43,
+      "caseAccuracy": 0.45,
+      "itemAccuracy": 0.5925925925925926,
+      "completeItemCoverage": 0.4117647058823529,
+      "emittedFieldPrecision": 1,
+      "supportedFieldCoverage": 0.32558139534883723
+    },
+    "semantic": {
+      "cases": 20,
+      "correctCases": 19,
+      "correctItems": 25,
+      "totalItems": 27,
+      "correctRecommendations": 15,
+      "goldRecommendations": 17,
+      "recommended": 15,
+      "abstentions": 9,
+      "conflicts": 3,
+      "malformedOrIncompleteCases": 0,
+      "emittedFields": 30,
+      "supportedFields": 30,
+      "outsideInventoryFields": 0,
+      "goldSupportedFieldSlots": 43,
+      "caseAccuracy": 0.95,
+      "itemAccuracy": 0.9259259259259259,
+      "completeItemCoverage": 0.8823529411764706,
+      "emittedFieldPrecision": 1,
+      "supportedFieldCoverage": 0.6976744186046512
+    },
+    "guarded": {
+      "cases": 20,
+      "correctCases": 20,
+      "correctItems": 27,
+      "totalItems": 27,
+      "correctRecommendations": 17,
+      "goldRecommendations": 17,
+      "recommended": 17,
+      "abstentions": 9,
+      "conflicts": 1,
+      "malformedOrIncompleteCases": 0,
+      "emittedFields": 34,
+      "supportedFields": 34,
+      "outsideInventoryFields": 0,
+      "goldSupportedFieldSlots": 43,
+      "caseAccuracy": 1,
+      "itemAccuracy": 1,
+      "completeItemCoverage": 1,
+      "emittedFieldPrecision": 1,
+      "supportedFieldCoverage": 0.7906976744186046
+    },
+    "allUnknown": {
+      "cases": 20,
+      "correctCases": 5,
+      "correctItems": 9,
+      "totalItems": 27,
+      "correctRecommendations": 0,
+      "goldRecommendations": 17,
+      "recommended": 0,
+      "abstentions": 27,
+      "conflicts": 0,
+      "malformedOrIncompleteCases": 0,
+      "emittedFields": 0,
+      "supportedFields": 0,
+      "outsideInventoryFields": 0,
+      "goldSupportedFieldSlots": 43,
+      "caseAccuracy": 0.25,
+      "itemAccuracy": 0.3333333333333333,
+      "completeItemCoverage": 0,
+      "emittedFieldPrecision": null,
+      "supportedFieldCoverage": 0
+    }
+  },
+  "bindings": {
+    "exact": {
+      "candidates": 63,
+      "admitted": 14,
+      "supported": 45,
+      "truePositive": 14,
+      "falsePositive": 0,
+      "falseNegative": 31,
+      "trueNegative": 18,
+      "precision": 1,
+      "recall": 0.3111111111111111
+    },
+    "semantic": {
+      "candidates": 63,
+      "admitted": 47,
+      "supported": 45,
+      "truePositive": 45,
+      "falsePositive": 2,
+      "falseNegative": 0,
+      "trueNegative": 16,
+      "precision": 0.9574468085106383,
+      "recall": 1
+    },
+    "guarded": {
+      "candidates": 63,
+      "admitted": 45,
+      "supported": 45,
+      "truePositive": 45,
+      "falsePositive": 0,
+      "falseNegative": 0,
+      "trueNegative": 18,
+      "precision": 1,
+      "recall": 1
+    }
+  },
+  "groups": {
+    "direct": {
+      "outcomes": {
+        "writer": {
+          "cases": 4,
+          "correctCases": 3,
+          "correctItems": 5,
+          "totalItems": 7,
+          "correctRecommendations": 5,
+          "goldRecommendations": 7,
+          "recommended": 5,
+          "abstentions": 0,
+          "conflicts": 2,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 10,
+          "supportedFields": 10,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 14,
+          "caseAccuracy": 0.75,
+          "itemAccuracy": 0.7142857142857143,
+          "completeItemCoverage": 0.7142857142857143,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 0.7142857142857143
+        },
+        "exact": {
+          "cases": 4,
+          "correctCases": 4,
+          "correctItems": 7,
+          "totalItems": 7,
+          "correctRecommendations": 7,
+          "goldRecommendations": 7,
+          "recommended": 7,
+          "abstentions": 0,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 14,
+          "supportedFields": 14,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 14,
+          "caseAccuracy": 1,
+          "itemAccuracy": 1,
+          "completeItemCoverage": 1,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 1
+        },
+        "semantic": {
+          "cases": 4,
+          "correctCases": 3,
+          "correctItems": 5,
+          "totalItems": 7,
+          "correctRecommendations": 5,
+          "goldRecommendations": 7,
+          "recommended": 5,
+          "abstentions": 0,
+          "conflicts": 2,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 10,
+          "supportedFields": 10,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 14,
+          "caseAccuracy": 0.75,
+          "itemAccuracy": 0.7142857142857143,
+          "completeItemCoverage": 0.7142857142857143,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 0.7142857142857143
+        },
+        "guarded": {
+          "cases": 4,
+          "correctCases": 4,
+          "correctItems": 7,
+          "totalItems": 7,
+          "correctRecommendations": 7,
+          "goldRecommendations": 7,
+          "recommended": 7,
+          "abstentions": 0,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 14,
+          "supportedFields": 14,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 14,
+          "caseAccuracy": 1,
+          "itemAccuracy": 1,
+          "completeItemCoverage": 1,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 1
+        },
+        "allUnknown": {
+          "cases": 4,
+          "correctCases": 0,
+          "correctItems": 0,
+          "totalItems": 7,
+          "correctRecommendations": 0,
+          "goldRecommendations": 7,
+          "recommended": 0,
+          "abstentions": 7,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 14,
+          "caseAccuracy": 0,
+          "itemAccuracy": 0,
+          "completeItemCoverage": 0,
+          "emittedFieldPrecision": null,
+          "supportedFieldCoverage": 0
+        }
+      },
+      "bindings": {
+        "exact": {
+          "candidates": 21,
+          "admitted": 14,
+          "supported": 15,
+          "truePositive": 14,
+          "falsePositive": 0,
+          "falseNegative": 1,
+          "trueNegative": 6,
+          "precision": 1,
+          "recall": 0.9333333333333333
+        },
+        "semantic": {
+          "candidates": 21,
+          "admitted": 17,
+          "supported": 15,
+          "truePositive": 15,
+          "falsePositive": 2,
+          "falseNegative": 0,
+          "trueNegative": 4,
+          "precision": 0.8823529411764706,
+          "recall": 1
+        },
+        "guarded": {
+          "candidates": 21,
+          "admitted": 15,
+          "supported": 15,
+          "truePositive": 15,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 6,
+          "precision": 1,
+          "recall": 1
+        }
+      }
+    },
+    "paraphrase": {
+      "outcomes": {
+        "writer": {
+          "cases": 8,
+          "correctCases": 8,
+          "correctItems": 9,
+          "totalItems": 9,
+          "correctRecommendations": 8,
+          "goldRecommendations": 8,
+          "recommended": 8,
+          "abstentions": 1,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 16,
+          "supportedFields": 16,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 17,
+          "caseAccuracy": 1,
+          "itemAccuracy": 1,
+          "completeItemCoverage": 1,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 0.9411764705882353
+        },
+        "exact": {
+          "cases": 8,
+          "correctCases": 0,
+          "correctItems": 1,
+          "totalItems": 9,
+          "correctRecommendations": 0,
+          "goldRecommendations": 8,
+          "recommended": 0,
+          "abstentions": 9,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 17,
+          "caseAccuracy": 0,
+          "itemAccuracy": 0.1111111111111111,
+          "completeItemCoverage": 0,
+          "emittedFieldPrecision": null,
+          "supportedFieldCoverage": 0
+        },
+        "semantic": {
+          "cases": 8,
+          "correctCases": 8,
+          "correctItems": 9,
+          "totalItems": 9,
+          "correctRecommendations": 8,
+          "goldRecommendations": 8,
+          "recommended": 8,
+          "abstentions": 1,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 16,
+          "supportedFields": 16,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 17,
+          "caseAccuracy": 1,
+          "itemAccuracy": 1,
+          "completeItemCoverage": 1,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 0.9411764705882353
+        },
+        "guarded": {
+          "cases": 8,
+          "correctCases": 8,
+          "correctItems": 9,
+          "totalItems": 9,
+          "correctRecommendations": 8,
+          "goldRecommendations": 8,
+          "recommended": 8,
+          "abstentions": 1,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 16,
+          "supportedFields": 16,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 17,
+          "caseAccuracy": 1,
+          "itemAccuracy": 1,
+          "completeItemCoverage": 1,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 0.9411764705882353
+        },
+        "allUnknown": {
+          "cases": 8,
+          "correctCases": 0,
+          "correctItems": 1,
+          "totalItems": 9,
+          "correctRecommendations": 0,
+          "goldRecommendations": 8,
+          "recommended": 0,
+          "abstentions": 9,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 17,
+          "caseAccuracy": 0,
+          "itemAccuracy": 0.1111111111111111,
+          "completeItemCoverage": 0,
+          "emittedFieldPrecision": null,
+          "supportedFieldCoverage": 0
+        }
+      },
+      "bindings": {
+        "exact": {
+          "candidates": 19,
+          "admitted": 0,
+          "supported": 17,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 17,
+          "trueNegative": 2,
+          "precision": null,
+          "recall": 0
+        },
+        "semantic": {
+          "candidates": 19,
+          "admitted": 17,
+          "supported": 17,
+          "truePositive": 17,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2,
+          "precision": 1,
+          "recall": 1
+        },
+        "guarded": {
+          "candidates": 19,
+          "admitted": 17,
+          "supported": 17,
+          "truePositive": 17,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 2,
+          "precision": 1,
+          "recall": 1
+        }
+      }
+    },
+    "adversarial": {
+      "outcomes": {
+        "writer": {
+          "cases": 8,
+          "correctCases": 6,
+          "correctItems": 9,
+          "totalItems": 11,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 8,
+          "conflicts": 1,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 12,
+          "caseAccuracy": 0.75,
+          "itemAccuracy": 0.8181818181818182,
+          "completeItemCoverage": 1,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 0.3333333333333333
+        },
+        "exact": {
+          "cases": 8,
+          "correctCases": 5,
+          "correctItems": 8,
+          "totalItems": 11,
+          "correctRecommendations": 0,
+          "goldRecommendations": 2,
+          "recommended": 0,
+          "abstentions": 11,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 12,
+          "caseAccuracy": 0.625,
+          "itemAccuracy": 0.7272727272727273,
+          "completeItemCoverage": 0,
+          "emittedFieldPrecision": null,
+          "supportedFieldCoverage": 0
+        },
+        "semantic": {
+          "cases": 8,
+          "correctCases": 8,
+          "correctItems": 11,
+          "totalItems": 11,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 8,
+          "conflicts": 1,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 12,
+          "caseAccuracy": 1,
+          "itemAccuracy": 1,
+          "completeItemCoverage": 1,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 0.3333333333333333
+        },
+        "guarded": {
+          "cases": 8,
+          "correctCases": 8,
+          "correctItems": 11,
+          "totalItems": 11,
+          "correctRecommendations": 2,
+          "goldRecommendations": 2,
+          "recommended": 2,
+          "abstentions": 8,
+          "conflicts": 1,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 4,
+          "supportedFields": 4,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 12,
+          "caseAccuracy": 1,
+          "itemAccuracy": 1,
+          "completeItemCoverage": 1,
+          "emittedFieldPrecision": 1,
+          "supportedFieldCoverage": 0.3333333333333333
+        },
+        "allUnknown": {
+          "cases": 8,
+          "correctCases": 5,
+          "correctItems": 8,
+          "totalItems": 11,
+          "correctRecommendations": 0,
+          "goldRecommendations": 2,
+          "recommended": 0,
+          "abstentions": 11,
+          "conflicts": 0,
+          "malformedOrIncompleteCases": 0,
+          "emittedFields": 0,
+          "supportedFields": 0,
+          "outsideInventoryFields": 0,
+          "goldSupportedFieldSlots": 12,
+          "caseAccuracy": 0.625,
+          "itemAccuracy": 0.7272727272727273,
+          "completeItemCoverage": 0,
+          "emittedFieldPrecision": null,
+          "supportedFieldCoverage": 0
+        }
+      },
+      "bindings": {
+        "exact": {
+          "candidates": 23,
+          "admitted": 0,
+          "supported": 13,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "falseNegative": 13,
+          "trueNegative": 10,
+          "precision": null,
+          "recall": 0
+        },
+        "semantic": {
+          "candidates": 23,
+          "admitted": 13,
+          "supported": 13,
+          "truePositive": 13,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 10,
+          "precision": 1,
+          "recall": 1
+        },
+        "guarded": {
+          "candidates": 23,
+          "admitted": 13,
+          "supported": 13,
+          "truePositive": 13,
+          "falsePositive": 0,
+          "falseNegative": 0,
+          "trueNegative": 10,
+          "precision": 1,
+          "recall": 1
+        }
+      }
+    }
+  },
+  "guardClassifications": {
+    "exact-match": {
+      "admitted": 14,
+      "unsupported": 0,
+      "unsupportedRetained": 0
+    },
+    "exact-mismatch": {
+      "admitted": 2,
+      "unsupported": 2,
+      "unsupportedRetained": 0
+    },
+    "unrecognized": {
+      "admitted": 31,
+      "unsupported": 0,
+      "unsupportedRetained": 0
+    }
+  },
+  "cleanup": {
+    "demonstrated": true,
+    "conditions": {
+      "falseAdmissionRemoved": true,
+      "noSupportedAdmissionRemoved": true,
+      "correctCompleteCoveragePreserved": true,
+      "programExecutionComplete": true
+    },
+    "falseAdmissionsRemoved": 2,
+    "supportedAdmissionsRemoved": 0,
+    "semanticCorrectRecommendations": 15,
+    "guardedCorrectRecommendations": 17,
+    "programExecutionComplete": true,
+    "interpretation": "Finite cleanup only; not a usefulness, writer-superiority, generalization or promotion gate.",
+    "productionActivation": false
+  },
+  "timing": {
+    "jev": {
+      "recordedCalls": 63,
+      "missingCalls": 0,
+      "sumServiceMs": 20113.975293,
+      "medianServiceMs": 305.0250410000008,
+      "interpretation": "Captured request service times; sums are not end-to-end wall latency."
+    },
+    "writer": {
+      "recordedCalls": 20,
+      "missingCalls": 0,
+      "sumServiceMs": 88924.99958000002,
+      "medianServiceMs": 4266.207624499999,
+      "interpretation": "Captured request service times; sums are not end-to-end wall latency."
+    }
+  },
+  "accounting": {
+    "currency": "USD",
+    "unit": "microdollars",
+    "gateway": {
+      "calls": 416,
+      "confirmedMicros": 3785023,
+      "unresolvedMicros": 232768,
+      "exposureMicros": 4017791
+    },
+    "jev": {
+      "calls": 736,
+      "settled": 736,
+      "unresolved": 0,
+      "inputTokens": 678194,
+      "outputTokens": 35309,
+      "exposureMicros": 28863
+    },
+    "applicability": {
+      "calls": 552,
+      "settled": 552,
+      "unresolved": 0,
+      "inputTokens": 509318,
+      "outputTokens": 27152,
+      "exposureMicros": 21649
+    },
+    "developmentCompliance": {
+      "calls": 30,
+      "settled": 30,
+      "unresolved": 0,
+      "inputTokens": 51123,
+      "outputTokens": 1366,
+      "exposureMicros": 2164
+    },
+    "confirmationCompliance": {
+      "calls": 28,
+      "settled": 28,
+      "unresolved": 0,
+      "inputTokens": 45022,
+      "outputTokens": 1277,
+      "exposureMicros": 1904
+    },
+    "v5Binding": {
+      "calls": 63,
+      "settled": 63,
+      "unresolved": 0,
+      "inputTokens": 36255,
+      "outputTokens": 2757,
+      "exposureMicros": 1570
+    },
+    "v7Binding": {
+      "calls": 63,
+      "settled": 63,
+      "unresolved": 0,
+      "inputTokens": 36476,
+      "outputTokens": 2757,
+      "exposureMicros": 1576
+    },
+    "exposureMicros": 4046654,
+    "incrementMicros": 22292,
+    "settledMicros": 3813886,
+    "uncertainReservedMicros": 232768,
+    "newGatewayCalls": 20,
+    "newGatewayMicros": 20716,
+    "v6BoundaryExposureMicros": 4024362,
+    "incrementLimitMicros": 3000000,
+    "campaignLimitMicros": 10000000
+  },
+  "models": {
+    "semantic": {
+      "model": "jev-1.13.0",
+      "versionPinned": true
+    },
+    "writer": {
+      "model": "openai/gpt-5-mini",
+      "profileId": "gpt5-mini-task-complete-long-deadline-v1-reader",
+      "profileSha256": "9dbc1d92b9b59bc071da8f57a2860a133e443927440968a63dfdd99b5f4d2308",
+      "qualification": "gateway-alias",
+      "snapshotPinned": false,
+      "timeoutMs": 600000,
+      "maxOutputTokens": 8192,
+      "pricesSha256": "4e00e74206c60744205fa747109a0ba72135ea61feb5feade7562b385a089e43"
+    }
+  },
+  "evidence": {
+    "manifestSha256": "7213ae6a9dd69719b49773d3efdc583ae2073e9d5e5c3098f8affc2ea73eb735",
+    "planSha256": "21f39c094aa20f2112923989ab90355abe578cd8887be7aa0037244b636875ff",
+    "resultSha256": "77efbd5e72ba3acf4e48bc30c8c362fe9b3bd34df8246082fe0cb34619f2ce9b",
+    "programResultsSha256": "fd058fc05e5eafeb31e4ed97e81a27c74926928b5fd2c1f82f13f9c5776f7e6e",
+    "auditSha256": "94bafef6071b9861ed6e59a9e098a98d847d865c975478845ff8dfa8ff6a2fdf",
+    "auditorSha256": "ef6fd7d7f99d5463e55794a33385c3e7395e9e44d6f151f6c8c4f49586051dd3",
+    "physicalRequestSetSha256": "9f94c3940e842704b714a2ca354bfc4015e70f6d69a056f0fc02b233f4611403",
+    "analysisSha256": "49ec3173532f68d4ab2143f7f0c6ebeb8a3721cabc00f519d21b5b86ecaf4c5a",
+    "goldSha256": "ac474bcd279c99e7972c88fde85be19b3eac935562cadc3e0afd2459a53fd51e",
+    "fixtureSha256": "6c8f53b5594ceb6e742e0a3ec89ccdfb997697d65a2fd6e9d34297850539e0dd",
+    "fixtureReviewSha256": "d70978207ed08e30a21fab7248f558eda694542941fc66587a3243a376bef02a",
+    "boundarySha256": "fa674a72caaf0bcd9c23c8448f4d5daa20b3a96e59b8082f98ae82dfa85160c2",
+    "helperSha256": "3b50de2f68f5b13d82e167688ae26416f0b7f19757d3f22f0205bf53eb9da643",
+    "identityGuardSha256": "d0bcbf10fe7a1c745217c50f387a4aa8bc79d61a995b796e554ef6f27cee4492",
+    "codeClosureSha256": "c1ccf7b8f6b87a205834e15111970b55e9d79eeeaf67370c9f1d1d4269900d94",
+    "sourcePopulationSha256": "e53095cc9a740f4298510aeac180f7e2cf218639b82508138588e8bd5ada058d",
+    "exporterSha256": "146074d2beffa0945f509a5bc8bb787bbfd9036cd4a158677dcc6ce41c7b1f22"
+  },
+  "predecessor": {
+    "version": 6,
+    "confirmationSuccess": false,
+    "manifestSha256": "3f061156da3c13ab21713a7d2b4d12788e2ee9098eb111cc16f0e17208aa54a9",
+    "auditSha256": "c0423e148bb27dd46a7cadd13f6841af3c67779cf0bf2a31c470c11623549c65",
+    "resultSha256": "7571d82b82c916565781fa88fddc14e60dd89a1afaad7e44a872302aad6861b2"
+  },
+  "limitations": [
+    "Twenty deliberately targeted authored cases are a finite mechanism test, not representative memory, retrieval or field-extraction evidence.",
+    "The g03 control treats canonically equivalent composed/decomposed Unicode title strings as distinct identifiers under the fixture's exact-string policy. The prompts request exact identity but do not explicitly specify Unicode normalization; cleanup on this control does not establish semantic misunderstanding or better general factual quality.",
+    "Every arm is restricted to supplied eligible candidates. In g10 the source names the title but no title candidate is supplied; withholding it tests inventory obedience, not an inability to recover that title by reading the source.",
+    "Both semantic programs use the same captured decisions; the veto only removes exact identity mismatches and does not verify unrecognized prose.",
+    "Writer comparison changes the answer-construction bundle. Field support precision and correct complete recommendation coverage are distinct from status accuracy.",
+    "Host-supplied source authority, candidate spans and locked item identities remain assumptions. Source hashes and replay do not prove semantic entailment or world truth.",
+    "One draw per distinct request; no population confidence or automatic promotion claim. Gateway writer identity is an alias, not a verified immutable snapshot.",
+    "V6's failed confirmation verdict and all preceding exposure, including uncertain reservations, remain unchanged."
+  ]
+}

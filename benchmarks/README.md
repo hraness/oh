@@ -9,6 +9,8 @@ For fast development sweeps across shared corpus indexes, use the [development l
 
 The [source-bound answer-program probe](ANSWER_PROGRAM_SPIKE.md) separates semantic field attribution from exact joins and citation rendering. Its authored recommendation cases measure a restricted candidate inventory, not representative retrieval or memory quality.
 
+The [fresh identity test](FRESH_IDENTITY_RESULTS.md) reuses a frozen exact-identity guard on 20 new authored cases. It removes two false semantic admissions while retaining all 45 supported candidates; its finite cleanup result does not establish representative memory quality.
+
 The [compact-repair confirmation](COMPACT_REPAIR_CONFIRMATION.md) reports an unchanged Jev-assisted instruction-repair procedure on 24 history-disjoint BEAM questions. It improved two cases without regressions, but its confidence interval includes zero and the frozen success rule failed.
 
 The [answer-audit development results](ANSWER_AUDIT_V1_RESULTS.md) report a completed diagnostic continuation: mean answer accuracy changed from 92.67% to 93.33% across three repeats of 100 development questions, with seven improvements and five regressions. The original experiment remains aborted and the audit was not promoted.
