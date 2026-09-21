@@ -16,7 +16,7 @@ import {
 import { AskAiAboutThis } from "@hraness/ui";
 
 import publishedRelease from "../published-release.json";
-import { BrandMark, OhContentFooter } from "./site-footer";
+import { OhContentFooter } from "./site-footer";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
 import manifest from "../public/spec/manifest.json";
@@ -217,7 +217,8 @@ export default function Home() {
       <a className="skip-link" href="#main">Skip to content</a>
       <MarketingSiteHeader
         action={{ href: "#install", label: "Install Oh" }}
-        brand={<><BrandMark />Oh</>}
+        brand="Oh"
+        brandMark="/marks/oh-computer.svg"
         brandLabel="Oh home"
         className="hraness-material-chrome"
         links={navigation}

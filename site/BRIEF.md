@@ -37,7 +37,7 @@ This adopts the user-approved shared appearance. The homepage-only
 `data-hraness-marketing-preset="editorial"` ancestor includes the header and main
 content. `/spec` keeps its Paper header, Nebula Sans reading typography, and
 document layout. Citation proof JSON, specification artifacts, release metadata,
-kit/UI versions, and the Paper snapshot are unchanged. The separate marketing
+and the Paper snapshot remain unchanged. The separate marketing
 snapshot records immutable source and file hashes.
 
 Phone section anchors reserve 6rem above the section boundary so headings
@@ -52,3 +52,12 @@ navigation, keyboard focus, the first-run disclosure, and the absence of filled
 grid patches. Preserve release and public-contract checks. The integration
 owner runs final repository and production gates; this brief records
 requirements, not their completion.
+
+
+## METALLIC HEADER
+
+The header name and transparent product mark use the shared design-kit metallic
+foil treatment with a subtle rainbow reflection. Keep the original vector
+geometry, an accessible home link, and the image fallback for forced colors or
+unavailable masks. Static paint must remain legible without hover or animation.
+Browser/touch icons and the content footer retain their existing artwork.
