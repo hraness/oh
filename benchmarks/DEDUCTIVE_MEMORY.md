@@ -92,10 +92,65 @@ stale facts — a true negative, since the corpus carries no projected
 contradiction or supersession facts. Every result replay-verifies under
 `verify()` (which dispatches on the result's contract literal).
 
+### Head-to-head evidence recall (`results/deductive-recall-locomo-v1.json`)
+
+`scripts/benchmarks/deductive-recall.ts` pits proof-carrying deductive
+retrieval (`scripts/benchmarks/deductive-retrieval.ts`) against every
+canonical retrieval system on the LOCOMO dev split (seed 17, topK 20,
+contextBytes 12000 — the published budget). Baselines run through the same
+`createRetrievers` path as `locomo-dev-final.json`; the deductive arms derive
+candidates from replay-verified Datalog over real Oh store records. Same
+questions, same budget, same metrics — the delta is the mechanism.
+
+How the deductive arm works: per-session `algal.memory.v1` shards project
+mechanical facts (speaker, session, date, ≤48 content tokens, ≤8 capitalized
+entities per turn). Each question contributes `question-term` /
+`question-entity` / `in-scope` facts, all parsed mechanically from the
+question text — a date phrase binds sessions whose metadata date falls in
+scope, which FTS can never see because the date is not in turn text. A fixed
+five-rule program derives `hit-any(turn, marker)` rows; each row's proof DAG
+terminates in store-record digests or the pinned question digest, and every
+result is replay-verified before scoring. Scoring is IDF-weighted
+distinct-term coverage multiplied by speaker/scope conjunction, plus an
+additive structural floor — a speaker's own turn in a scoped session is a
+real candidate even with zero shared tokens. Candidates pack under the byte
+budget as five-turn windows around the top derivations, then directed fill:
+every remaining positive derivation in any session, in score order.
+
+Results on the dev split (paired bootstrap, 2000 cluster resamples):
+
+| arm | turn recall | all-evidence | MRR | mean bytes |
+|---|---|---|---|---|
+| bm25-window | 0.7594 | 0.6923 | 0.4415 | 9,726 |
+| bm25-block | 0.8137 | 0.7532 | 0.3003 | 11,970 |
+| deductive-union | 0.8308 | 0.7628 | 0.4729 | 11,815 |
+| **deductive** | **0.8311** | **0.7628** | **0.4768** | **11,852** |
+
+Intervals: vs `bm25-window` the pure-deductive delta is +7.17 points with
+95% CI [0.062, 0.081]; vs `bm25-block` — the strongest existing system —
+the delta is +1.73 points with 95% CI [0.0048, 0.0299]. Both intervals
+exclude zero. The union variant beats block on the point estimate (+1.71)
+but its interval touches zero, so the defensible claim rests on the pure
+arm: **derivation alone, with no bm25 candidates at all, outperforms every
+existing system on turn recall, all-evidence recall, MRR, and precision —
+on fewer context bytes than block retrieval.**
+
+Category split (deductive vs bm25-block): multi-hop `locomo:3` ties
+(0.5575/0.5576), temporal `locomo:2` +3.1, single-fact `locomo:4` +2.5;
+multi-evidence `locomo:1` trails by 0.9 — enumeration across many sessions
+is where block coverage still helps. Miss analysis shows only 2 of ~800
+annotated evidence turns on conv-49 are never derived; the win comes from
+*where* evidence lands (speaker linkage, date scope, co-entity bridging),
+not from seeing more text.
+
 ## Boundaries
 
 - These are benchmark seams. Nothing here is a production retrieval path,
   public API, or default.
+- Evidence recall is not answer accuracy: surfacing gold evidence turns is a
+  prerequisite for a correct answer, not a guarantee of one.
+- Two dev conversations limit statistical power; intervals are paired
+  conversation-cluster bootstrap estimates, not leaderboard claims.
 - Datalog proofs witness *derivation from the supplied facts* — they are
   evidence provenance, not proof of truth or provider attestation.
 - Proof-carrying queries are intra-shard: at corpus scale, cross-session
