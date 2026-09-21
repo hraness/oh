@@ -1,0 +1,436 @@
+{
+  "protocol": "oh.public.complete-instruction-development.v12",
+  "cohort": {
+    "partition": "retrospective-exposed-development",
+    "questions": 16,
+    "histories": 8,
+    "instructionPairs": 8,
+    "controlPairs": 8,
+    "readerCells": 32
+  },
+  "treatment": {
+    "control": "Same keyword evidence and common prompt, empty standingInstructions channel.",
+    "candidate": "Identical keyword evidence and common prompt, every entry from the frozen extracted instruction inventory in source order.",
+    "readerPassesPerArm": 1,
+    "newJevCalls": 0
+  },
+  "overall": {
+    "questions": 16,
+    "controlScoreSum": 12,
+    "candidateScoreSum": 10.5,
+    "controlMean": 0.75,
+    "candidateMean": 0.65625,
+    "netScore": -1.5,
+    "delta": -0.09375,
+    "wins": 0,
+    "losses": 2,
+    "ties": 14
+  },
+  "instruction": {
+    "questions": 8,
+    "controlScoreSum": 6.5,
+    "candidateScoreSum": 6.5,
+    "controlMean": 0.8125,
+    "candidateMean": 0.8125,
+    "netScore": 0,
+    "delta": 0,
+    "wins": 0,
+    "losses": 0,
+    "ties": 8
+  },
+  "control": {
+    "questions": 8,
+    "controlScoreSum": 5.5,
+    "candidateScoreSum": 4,
+    "controlMean": 0.6875,
+    "candidateMean": 0.5,
+    "netScore": -1.5,
+    "delta": -0.1875,
+    "wins": 0,
+    "losses": 2,
+    "ties": 6
+  },
+  "byCategory": {
+    "information_extraction": {
+      "questions": 4,
+      "controlScoreSum": 3,
+      "candidateScoreSum": 2,
+      "controlMean": 0.75,
+      "candidateMean": 0.5,
+      "netScore": -1,
+      "delta": -0.25,
+      "wins": 0,
+      "losses": 1,
+      "ties": 3
+    },
+    "instruction_following": {
+      "questions": 8,
+      "controlScoreSum": 6.5,
+      "candidateScoreSum": 6.5,
+      "controlMean": 0.8125,
+      "candidateMean": 0.8125,
+      "netScore": 0,
+      "delta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 8
+    },
+    "temporal_reasoning": {
+      "questions": 4,
+      "controlScoreSum": 2.5,
+      "candidateScoreSum": 2,
+      "controlMean": 0.625,
+      "candidateMean": 0.5,
+      "netScore": -0.5,
+      "delta": -0.125,
+      "wins": 0,
+      "losses": 1,
+      "ties": 3
+    }
+  },
+  "counts": {
+    "readerPhysicalCalls": 32,
+    "judgeLogicalCells": 56,
+    "judgePhysicalCalls": 56,
+    "invalidReaderCells": 0,
+    "detectedInvalidJudgePhysicalResponses": 0,
+    "invalidCells": 0,
+    "winningInstructionHistories": 0
+  },
+  "firstResponseOutcomes": {
+    "readers": {
+      "completed": 32,
+      "refused": 0,
+      "truncated": 0
+    },
+    "judges": {
+      "completed": 56,
+      "refused": 0,
+      "truncated": 0
+    }
+  },
+  "gate": {
+    "atLeastTwoInstructionWins": false,
+    "atLeastTwoWinningHistories": false,
+    "noInstructionLoss": true,
+    "noControlLoss": false,
+    "noInvalidResponses": true
+  },
+  "developmentSuccess": false,
+  "productionActivation": false,
+  "descriptive": {
+    "bootstrap": {
+      "replicates": 10000,
+      "seed": 12012026,
+      "lowerIndex": 249,
+      "upperIndex": 9750,
+      "unit": "history",
+      "generator": "xorshift32",
+      "interval": "percentile-95-no-interpolation"
+    },
+    "primary": {
+      "overall": {
+        "questions": 16,
+        "controlScoreSum": 12,
+        "candidateScoreSum": 10.5,
+        "controlMean": 0.75,
+        "candidateMean": 0.65625,
+        "netScore": -1.5,
+        "delta": -0.09375,
+        "wins": 0,
+        "losses": 2,
+        "ties": 14,
+        "pairedDeltaCI95": {
+          "lower": -0.21875,
+          "upper": 0
+        }
+      },
+      "instruction": {
+        "questions": 8,
+        "controlScoreSum": 6.5,
+        "candidateScoreSum": 6.5,
+        "controlMean": 0.8125,
+        "candidateMean": 0.8125,
+        "netScore": 0,
+        "delta": 0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 8,
+        "pairedDeltaCI95": {
+          "lower": 0,
+          "upper": 0
+        }
+      },
+      "control": {
+        "questions": 8,
+        "controlScoreSum": 5.5,
+        "candidateScoreSum": 4,
+        "controlMean": 0.6875,
+        "candidateMean": 0.5,
+        "netScore": -1.5,
+        "delta": -0.1875,
+        "wins": 0,
+        "losses": 2,
+        "ties": 6,
+        "pairedDeltaCI95": {
+          "lower": -0.4375,
+          "upper": 0
+        }
+      }
+    },
+    "halfCredit": {
+      "overall": {
+        "questions": 16,
+        "controlScoreSum": 12.25,
+        "candidateScoreSum": 11,
+        "controlMean": 0.765625,
+        "candidateMean": 0.6875,
+        "netScore": -1.25,
+        "delta": -0.078125,
+        "wins": 0,
+        "losses": 2,
+        "ties": 14,
+        "pairedDeltaCI95": {
+          "lower": -0.203125,
+          "upper": 0
+        },
+        "unavailableCells": 0
+      },
+      "instruction": {
+        "questions": 8,
+        "controlScoreSum": 6.75,
+        "candidateScoreSum": 6.75,
+        "controlMean": 0.84375,
+        "candidateMean": 0.84375,
+        "netScore": 0,
+        "delta": 0,
+        "wins": 0,
+        "losses": 0,
+        "ties": 8,
+        "pairedDeltaCI95": {
+          "lower": 0,
+          "upper": 0
+        },
+        "unavailableCells": 0
+      },
+      "control": {
+        "questions": 8,
+        "controlScoreSum": 5.5,
+        "candidateScoreSum": 4.25,
+        "controlMean": 0.6875,
+        "candidateMean": 0.53125,
+        "netScore": -1.25,
+        "delta": -0.15625,
+        "wins": 0,
+        "losses": 2,
+        "ties": 6,
+        "pairedDeltaCI95": {
+          "lower": -0.40625,
+          "upper": 0
+        },
+        "unavailableCells": 0
+      }
+    }
+  },
+  "timing": {
+    "readers": {
+      "control": {
+        "calls": 16,
+        "totalMs": 275177.97658200003,
+        "meanMs": 17198.623536375002,
+        "medianMs": 14862.8644375,
+        "p95Ms": 34964.17941700001,
+        "maximumMs": 34964.17941700001
+      },
+      "candidate": {
+        "calls": 16,
+        "totalMs": 261523.39325400002,
+        "meanMs": 16345.212078375002,
+        "medianMs": 15277.451042000008,
+        "p95Ms": 29085.78700000001,
+        "maximumMs": 29085.78700000001
+      }
+    },
+    "judges": {
+      "calls": 56,
+      "totalMs": 145986.08745699996,
+      "meanMs": 2606.8944188749992,
+      "medianMs": 1753.3291039999967,
+      "p95Ms": 5801.957000000009,
+      "maximumMs": 32642.1065
+    }
+  },
+  "cost": {
+    "currency": "USD",
+    "integerUnit": "microdollars",
+    "oldExposureMicros": 5064577,
+    "newExposureMicros": 467044,
+    "totalExposureMicros": 5531621,
+    "oldGatewayExposureMicros": 5035714,
+    "oldJevExposureMicros": 28863,
+    "retainedUncertainReservationMicros": 232768,
+    "readerActualMicros": 254966,
+    "judgeActualMicros": 212078,
+    "reservations": {
+      "readerMicros": 1377063,
+      "actualConstructedJudgeMicros": 1377196,
+      "maximumJudgeAllowanceMicros": 3373440,
+      "maximumJudgeCalls": 56,
+      "maximumCombinedExposureMicros": 9815080
+    },
+    "calls": {
+      "oldGateway": 1106,
+      "newReaders": 32,
+      "newJudges": 56,
+      "totalGateway": 1194,
+      "oldJev": 736,
+      "newJev": 0,
+      "totalJev": 736
+    }
+  },
+  "models": {
+    "reader": "openai/gpt-5-mini",
+    "readerProfile": "gpt5-mini-task-complete-long-deadline-v1-reader",
+    "judge": "openai/gpt-4o",
+    "judgeProfile": "gpt4o-beam-nugget-v1",
+    "immutableSnapshotVerified": false
+  },
+  "reproducibility": {
+    "manifestSha256": "1cf96161da62fee0b7b546a78effc5a96cd4b8e72fb8324871eedbc7bb8c692a",
+    "recoveryManifestSha256": "ada840613232f9d1e4b04b1171a7ae2cb9aacbb601e881d901a3a4a4bd6fa6e7",
+    "recoveryBoundarySha256": "e44d9d9add47096a928cf1672e25b7495f18044314aff8c6864c060e4eb7d17a",
+    "recoveryReviewSha256": "58aac04be563123828ff9e2038b59aef8737a61b1557509120acf76538f60825",
+    "resultSha256": "3555ffd9fa5a902752749a4c454c1fdabda5628c3aec9ee91fc23b049152c864",
+    "auditorCodeSha256": "2c584054286ad2bb89ad71c5b771a35d95bf24e1dd04dc802b204f6999772ff2",
+    "analysisCodeSha256": "85544661dfcf9a3f97175b0f8b29ad1cba8594b6ebda2d5b81aea889646b5d64",
+    "analysisProtocolSha256": "9592628ab48313f9aa4c3635b2c0064bef1cd1d63eb8484d1c28778134abbd8b",
+    "readerPlanSha256": "f3f82a49c6f490e9fd712f0e92a5f4aa09a492bb128bf588079bf6e53db98bf1",
+    "readerReceiptSha256": "95ab9327dab820064409bfe221d281fb34d5e37827e88112e164708981aca76b",
+    "judgePlanSha256": "9881e37222a1e1aee69f3d3e9c6b55b79fc750322ae0aeb38fa4fbfe6fc76c98",
+    "judgeReceiptSha256": "3e9778f442fbf7e1927642db585b6823bdf2c2495d0cf9b594c6e8dee2d9193f",
+    "physicalIdentitiesSha256": "a9c6e0378808fa323113a5c33dd8888fb4248c764c80fefe55dff1f369f190e4",
+    "closedV10ManifestSha256": "755322d7bcbb1da1357b22ddb9359a0412342ea0ad9d825e8ce2fd0ec9634972",
+    "closedV10AuditSha256": "900d6bdccb3a4a83f5f64248bdcd9446075fb7a7385ae38ca830b05f8438d7f9",
+    "closedV10ResultSha256": "363c59a2ce486390d65af0716d39a06d177d7881c5dcddaee839b2f3428a4f1e",
+    "auditSha256": "5da328875e2cee3e1b7f9ed5e0898f8c12abe4e8384912d6b0384fdf69bbbfc9",
+    "exporterCodeSha256": "88e17c6672d079326b03f26dea1d3b163103ab69c95c69ec1cc7ad426f5c3a5d"
+  },
+  "limitations": [
+    "Sixteen questions from eight previously exposed histories are retrospective development evidence, not independent generalization or a representative population.",
+    "The control uses current-main keyword recall under a common benchmark answer host; this is not a product-default answer API. All instruction entries use benchmark provenance, not authenticated production principal/scope authority.",
+    "Complete means every entry emitted by the frozen lexical buildInstructionInventory extractor, which scans explicit user directives, preferences and revocations without consulting the question or gold. It does not establish exhaustive ground-truth instruction recall or production authority.",
+    "Reader and judge identities are Gateway aliases, not verified immutable snapshots. One GPT-4o criterion judge measures benchmark compliance, not independently proven factual truth.",
+    "After all readers completed and before any V12 judge call, a reviewed recovery accepted the grader's original structured reference object with its original canonical digest. No question, rubric, prompt, reader, reducer or gate changed.",
+    "The unchanged native BEAM primary score remains authoritative. Half-credit sensitivity and the preregistered 10,000-resample history bootstrap are descriptive and never change the gate. Eight clusters limit interval precision.",
+    "Refused, truncated and judge-content-invalid responses retain zero in all 16 pairs and 32 cells of a completed stage. A normalized failed response, including an authenticated empty completion, stops and drains live dispatch with its cost retained; it cannot produce a completed stage audit. The 20,000-byte serialized judge-message limit is a narrower declared admission policy than the legacy harness; no answer is truncated or retried. The invalid-judge counter reports detected faults because native reduction stops a cell at its first content failure.",
+    "Reader service times are descriptive under concurrency four and alternating arm order, not end-to-end latency or an isolated causal latency effect. Equal answer wires within one question may share a physical judgment.",
+    "Confirmed new costs and retained historical uncertainty are counted once. Admission reservations are upper bounds, not additional spend. No incremental Jev benefit, production activation, or benchmark leadership is claimed.",
+    "This projection excludes private paths, source text, question/history identities, answers, rubrics and provider raw bodies."
+  ],
+  "byHistory": [
+    {
+      "history": "history-1",
+      "questions": 2,
+      "controlScoreSum": 0.5,
+      "candidateScoreSum": 0.5,
+      "controlMean": 0.25,
+      "candidateMean": 0.25,
+      "netScore": 0,
+      "delta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 2
+    },
+    {
+      "history": "history-2",
+      "questions": 2,
+      "controlScoreSum": 2,
+      "candidateScoreSum": 2,
+      "controlMean": 1,
+      "candidateMean": 1,
+      "netScore": 0,
+      "delta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 2
+    },
+    {
+      "history": "history-3",
+      "questions": 2,
+      "controlScoreSum": 2,
+      "candidateScoreSum": 1.5,
+      "controlMean": 1,
+      "candidateMean": 0.75,
+      "netScore": -0.5,
+      "delta": -0.25,
+      "wins": 0,
+      "losses": 1,
+      "ties": 1
+    },
+    {
+      "history": "history-4",
+      "questions": 2,
+      "controlScoreSum": 1.5,
+      "candidateScoreSum": 1.5,
+      "controlMean": 0.75,
+      "candidateMean": 0.75,
+      "netScore": 0,
+      "delta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 2
+    },
+    {
+      "history": "history-5",
+      "questions": 2,
+      "controlScoreSum": 2,
+      "candidateScoreSum": 2,
+      "controlMean": 1,
+      "candidateMean": 1,
+      "netScore": 0,
+      "delta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 2
+    },
+    {
+      "history": "history-6",
+      "questions": 2,
+      "controlScoreSum": 0,
+      "candidateScoreSum": 0,
+      "controlMean": 0,
+      "candidateMean": 0,
+      "netScore": 0,
+      "delta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 2
+    },
+    {
+      "history": "history-7",
+      "questions": 2,
+      "controlScoreSum": 2,
+      "candidateScoreSum": 2,
+      "controlMean": 1,
+      "candidateMean": 1,
+      "netScore": 0,
+      "delta": 0,
+      "wins": 0,
+      "losses": 0,
+      "ties": 2
+    },
+    {
+      "history": "history-8",
+      "questions": 2,
+      "controlScoreSum": 2,
+      "candidateScoreSum": 1,
+      "controlMean": 1,
+      "candidateMean": 0.5,
+      "netScore": -1,
+      "delta": -0.5,
+      "wins": 0,
+      "losses": 1,
+      "ties": 1
+    }
+  ]
+}
