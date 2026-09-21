@@ -23,6 +23,7 @@ import {
 import {
   query as datalogQuery,
   verify as datalogVerify,
+  type EvaluationMode,
   type Fact,
   type QueryResult,
   type Snapshot,
@@ -166,15 +167,19 @@ export function projectRecords(input: unknown): Snapshot {
 
 /**
  * Run a named rule pack + query literal against a snapshot, then replay-verify
- * the result. Returns the verified `algal.query-result.v1` (proof DAG intact).
+ * the result. `evaluation` selects the engine mode: `scan` (default, the
+ * upstream-faithful `algal.query-result.v1` metric) or `indexed` (the v2
+ * positional-index evaluator — identical rows/proofs, different `work`).
+ * Returns the verified query result (proof DAG intact).
  */
 export function queryMemory(
   snapshot: unknown,
   packName: string,
   queryLiteral: unknown,
+  options: Readonly<{ evaluation?: EvaluationMode }> = {},
 ): QueryResult & { verified: true } {
   const program = buildQuery(packName, queryLiteral);
-  const result = datalogQuery(snapshot, program);
+  const result = datalogQuery(snapshot, program, options);
   if (!datalogVerify(snapshot, program, result))
     fail("query result failed replay verification");
   return { ...result, verified: true as const };
@@ -184,7 +189,8 @@ export function queryMemory(
  * Consistency audit over a projected snapshot: conflict pairs, conflicted
  * entities, and stale/superseded facts — each row carrying its proof digest.
  */
-export function auditConsistency(snapshot: unknown): {
+export function auditConsistency(snapshot: unknown,
+  options: Readonly<{ evaluation?: EvaluationMode }> = {}): {
   readonly conflicts: readonly { pair: readonly JsonValue[]; proof: string }[];
   readonly stale: readonly { fact: JsonValue; proof: string }[];
   readonly auditSha256: Sha256Hex;
@@ -192,11 +198,11 @@ export function auditConsistency(snapshot: unknown): {
   const conflicts = queryMemory(snapshot, "consistency-audit", {
     relation: "conflict-pair",
     terms: [{ var: "a" }, { var: "b" }],
-  });
+  }, options);
   const staleRows = queryMemory(snapshot, "supersession", {
     relation: "stale",
     terms: [{ var: "f" }],
-  });
+  }, options);
   const audit = {
     conflicts: conflicts.rows.map(r => ({ pair: r.tuple, proof: r.proof })),
     stale: staleRows.rows.map(r => ({ fact: r.tuple[0]!, proof: r.proof })),
