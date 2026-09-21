@@ -17,10 +17,9 @@ import { DATASETS, selectSplit, type Corpus, type Dataset } from "./datasets";
 import { fetchDataset, loadDataset, ROOT, writeNew } from "./io";
 import { projectRecords, auditConsistency, queryMemory,
   type MemoryRecord } from "./deductive-memory";
-import { query as datalogQuery, verify as datalogVerify,
-  type JsonValue } from "./memory-datalog";
+import type { JsonValue } from "./memory-datalog";
 
-const PROTOCOL = "oh.deductive-memory-real.v1" as const;
+const PROTOCOL = "oh.deductive-memory-real.v2" as const;
 const SEED = 17;
 
 /** Deterministic corpus pick: first dev corpus by id. */
@@ -141,28 +140,18 @@ async function main(): Promise<void> {
       sessions.set(sessionId, projected);
     }
 
-    // Per-session shards: base-fact provenance queries only (zero-rule program).
-    // The engine evaluates EVERY pack rule at fixpoint regardless of the query
-    // target, and its naive-scan join charges per (binding × tuple) scan — any
-    // non-trivial rule pack over ~600-fact shards exhausts the 250K work bound
-    // (measured). Derivation runs on the compact corpus index; shards carry
-    // proof-carrying base facts. This is the honest split.
-    const baseProgram = (relation: string, arity: number) => ({
-      contract: "algal.query.v1" as const, rules: [] as const,
-      query: { relation, terms: Array.from({ length: arity }, () => ({ var: `v${arity}` }) as const)
-        .map((_, i) => ({ var: `v${i}` }) as const) },
-    });
-    const baseQuery = (snap: ReturnType<typeof projectRecords>, relation: string, arity: number) => {
-      const program = baseProgram(relation, arity);
-      const result = datalogQuery(snap, program);
-      if (!datalogVerify(snap, program, result)) throw new Error("shard base query failed replay");
-      return result;
-    };
+    // Per-session shards under INDEXED evaluation (algal.query-result.v2): the
+    // positional-index join makes the full rule packs feasible at ~600-fact
+    // shard scale — the naive scan exhausted the 250K bound on these exact
+    // shards (v1 artifact). Measured work per query is recorded.
+    const EVAL = { evaluation: "indexed" as const };
     const shards = [...sessions.entries()].map(([sessionId, projected]) => {
       const memory = projectRecords(projected);
-      const states = baseQuery(memory, "states", 3);
-      const timeline = baseQuery(memory, "states-at", 4);
-      const mentions = baseQuery(memory, "mentions", 2);
+      const audit = auditConsistency(memory, EVAL);
+      const refers = queryMemory(memory, "alias-expansion",
+        { relation: "record-refers", terms: [{ var: "d" }, { var: "c" }] }, EVAL);
+      const history = queryMemory(memory, "temporal",
+        { relation: "history-at", terms: [{ var: "e" }, { var: "a" }, { var: "v" }, { var: "vf" }] }, EVAL);
       const factsByRelation: Record<string, number> = {};
       for (const fact of memory.facts) {
         factsByRelation[fact.relation] = (factsByRelation[fact.relation] ?? 0) + 1;
@@ -170,9 +159,12 @@ async function main(): Promise<void> {
       return { sessionId, memoryRecords: projected.length, facts: memory.facts.length,
         snapshotBytes: utf8ByteLength(canonicalJson(memory)),
         factsByRelation, memorySha256: canonicalSha256(memory),
-        statesRows: states.rows.length, statesSha256: canonicalSha256(states),
-        timelineRows: timeline.rows.length, timelineSha256: canonicalSha256(timeline),
-        mentionsRows: mentions.rows.length, mentionsSha256: canonicalSha256(mentions) };
+        conflictPairs: audit.conflicts.length, staleFacts: audit.stale.length,
+        auditSha256: audit.auditSha256,
+        refersRows: refers.rows.length, refersWork: refers.work,
+        refersSha256: canonicalSha256(refers), refersContract: refers.contract,
+        historyRows: history.rows.length, historyWork: history.work,
+        historySha256: canonicalSha256(history) };
     });
 
     // Corpus-level index at session granularity: one mention per
@@ -191,11 +183,11 @@ async function main(): Promise<void> {
         attr: "date", value: date, validFrom: date });
     }
     const index = projectRecords(indexRecords);
-    const indexAudit = auditConsistency(index);
+    const indexAudit = auditConsistency(index, EVAL);
     const indexRefers = queryMemory(index, "alias-expansion",
-      { relation: "record-refers", terms: [{ var: "d" }, { var: "c" }] });
+      { relation: "record-refers", terms: [{ var: "d" }, { var: "c" }] }, EVAL);
     const indexHistory = queryMemory(index, "temporal",
-      { relation: "history-at", terms: [{ var: "e" }, { var: "a" }, { var: "v" }, { var: "vf" }] });
+      { relation: "history-at", terms: [{ var: "e" }, { var: "a" }, { var: "v" }, { var: "vf" }] }, EVAL);
     const speakers = [...new Set(corpus.turns.map(t => t.speaker))].sort();
     const speakerRefs = indexRefers.rows.filter(r => speakers.includes(String(r.tuple[1])));
 
@@ -228,18 +220,17 @@ async function main(): Promise<void> {
         speakerMentionRows: speakerRefs.length,
         refersRows: indexRefers.rows.length,
         refersSha256: canonicalSha256(indexRefers),
+        refersWork: indexRefers.work,
         historyRows: indexHistory.rows.length,
         historySha256: canonicalSha256(indexHistory),
+        historyWork: indexHistory.work,
         conflictPairs: indexAudit.conflicts.length,
         staleFacts: indexAudit.stale.length,
         auditSha256: indexAudit.auditSha256,
         verified: indexRefers.verified && indexHistory.verified,
       },
-      workBoundFinding:
-        "naive-scan join charges per (binding × tuple) scan before the relation " +
-        "check; any non-trivial pack over ~600-fact session shards exhausts the " +
-        "250K work bound — measured, not configured. Feasible shape: zero-rule " +
-        "base-fact queries per shard + all packs on a ~190-fact corpus index.",
+      evaluation: "indexed",
+      resultContract: "algal.query-result.v2",
       speakers,
       honesty: [
         "contradicts/supersedes facts are never fabricated — empty audit is a true negative",
@@ -251,7 +242,7 @@ async function main(): Promise<void> {
     };
     const dir = `${ROOT}/benchmarks/results`;
     mkdirSync(dir, { recursive: true });
-    const path = `${dir}/deductive-memory-locomo-v1.json`;
+    const path = `${dir}/deductive-memory-locomo-v2.json`;
     await writeNew(path, Buffer.from(canonicalJson(artifact)));
     console.log(JSON.stringify({
       output: path.replace(`${ROOT}/`, ""),

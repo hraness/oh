@@ -70,18 +70,27 @@ Two measured findings shaped the architecture:
   2048 facts; the full corpus projects ~8,900 facts. The honest shape shards
   at session granularity (25 shards, max 598 facts / 103 KiB each) plus one
   compact corpus-level index (~200 facts).
-- **Work bound is real.** The engine's naive-scan join charges per
-  `(binding × tuple)` scan *before* the relation check, so multi-literal
-  rules over ~600-fact shards exhaust the 250K work budget. Shards therefore
-  run zero-rule base-fact queries (proof-carrying provenance lookups); the
-  session-granular index carries the derived queries.
+- **Work bound was real, and is now versioned.** The v1 engine's naive-scan
+  join charges per `(binding × tuple)` scan *before* the relation check, so
+  multi-literal rules over ~600-fact shards exhaust the 250K work budget
+  (measured: `deductive-memory-locomo-v1.json` shards could only run
+  zero-rule base-fact queries). `deductive-memory-real.ts` now runs the
+  **indexed evaluator**: per-relation + per-position tuple indexes built per
+  fixpoint round, charging work per candidate actually examined. Bucket order
+  preserves the global canonical tuple order, so `rows` and `proofs` are
+  byte-identical to scan — only `work` differs, which is why results carry
+  `algal.query-result.v2`.
 
-Results on real data: `record-refers` resolved 50 (session, speaker) index
-records through `mentions ∘ refers` with proof DAGs terminating in the index
-record digests; `history-at` restated all 25 session dates as derived facts;
-the consistency audit reported 0 conflict pairs and 0 stale facts — a true
-negative, since the corpus carries no projected contradiction or supersession
-facts. Every query result replay-verified under `verify()`.
+Results on real data (`deductive-memory-locomo-v2.json`): the full rule packs
+now run on **every session shard** — `record-refers` resolves each shard's
+mention provenance at ≤3,835 work (vs. >250K infeasible under scan, ~100×
+reduction), `history-at` at ≤1,929, and the three-literal `conflicted` audit
+completes per shard at ≤1,363 work (measured). The corpus index answers 50
+(session, speaker) `record-refers` rows at 1,405 work and 25 `history-at`
+rows at 731. Audit across all 25 shards plus the index: 0 conflict pairs, 0
+stale facts — a true negative, since the corpus carries no projected
+contradiction or supersession facts. Every result replay-verifies under
+`verify()` (which dispatches on the result's contract literal).
 
 ## Boundaries
 
@@ -92,9 +101,10 @@ facts. Every query result replay-verified under `verify()`.
 - Proof-carrying queries are intra-shard: at corpus scale, cross-session
   derivation requires a compact index projection (as demonstrated) or a
   bounded aggregation layer that does not yet exist.
-- The 250K-work naive-scan join is the measured feasibility ceiling;
-  production-scale deductive queries would need indexed evaluation, which
-  changes the work metric and therefore the `algal.query-result.v1` contract.
+- `algal.query-result.v2` results are produced and verified by the indexed
+  evaluator only — the `work` metric differs from upstream Rust `v1`, so v2
+  is not cross-verifiable against the reference engine. `scan` mode remains
+  the byte-faithful v1 path.
 - Conformal coverage is a marginal guarantee under exchangeability; it says
   nothing about a specific query's certainty.
 - Calibration must be re-fit and re-measured per cohort; the development fit

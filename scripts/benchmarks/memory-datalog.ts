@@ -66,7 +66,7 @@ export type ProofNode =
   | { kind: "rule"; rule: string; premises: string[] };
 
 export interface QueryResult {
-  contract: "algal.query-result.v1";
+  contract: "algal.query-result.v1" | "algal.query-result.v2";
   snapshot: string;
   program: string;
   complete: true;
@@ -334,6 +334,104 @@ function join(
   return bindings;
 }
 
+/**
+ * v2 indexed evaluation. Buckets preserve `sortedValues(tuples)` order, so the
+ * match enumeration is the same subsequence the naive scan produces — identical
+ * binding order, identical first-canonical witnesses, byte-identical `rows` and
+ * `proofs`. Only `work` accounting differs: indexed evaluation charges per
+ * candidate tuple actually examined (post-index), plus one unit per tuple per
+ * fixpoint round for index maintenance. That is a different metric, so results
+ * carry `algal.query-result.v2`; snapshots and programs stay `v1`.
+ */
+interface TupleIndex {
+  byRelation: Map<string, Tuple[]>;
+  byPosition: Map<string, Tuple[]>;
+}
+
+function buildIndex(tuples: Map<string, Tuple>, state: { work: number },
+  limits: Limits): TupleIndex {
+  const index: TupleIndex = { byRelation: new Map(), byPosition: new Map() };
+  for (const tuple of sortedValues(tuples)) {
+    charge(state, limits);
+    const bucket = index.byRelation.get(tuple.relation);
+    if (bucket === undefined) index.byRelation.set(tuple.relation, [tuple]);
+    else bucket.push(tuple);
+    for (let position = 0; position < tuple.values.length; position += 1) {
+      const key = `${tuple.relation} ${position} ${canonical(tuple.values[position])}`;
+      const positional = index.byPosition.get(key);
+      if (positional === undefined) index.byPosition.set(key, [tuple]);
+      else positional.push(tuple);
+    }
+  }
+  return index;
+}
+
+function joinIndexed(
+  literals: readonly Literal[],
+  index: TupleIndex,
+  state: { work: number },
+  limits: Limits,
+): Binding[] {
+  let bindings: Binding[] = [{ values: new Map(), premises: [] }];
+  for (const literal of literals) {
+    const next: Binding[] = [];
+    for (const binding of bindings) {
+      // Narrow to the smallest candidate bucket: any constant term or already-
+      // bound variable selects a positional index; otherwise the relation index.
+      let candidates: readonly Tuple[] | undefined;
+      let bestSize = Infinity;
+      for (let position = 0; position < literal.terms.length; position += 1) {
+        const term = literal.terms[position]!;
+        const name = variable(term);
+        const boundValue = name === null ? term : binding.values.get(name);
+        if (boundValue === undefined) continue;
+        const bucket = index.byPosition.get(
+          `${literal.relation} ${position} ${canonical(boundValue)}`);
+        if (bucket === undefined) { candidates = []; bestSize = 0; break; }
+        if (bucket.length < bestSize) { candidates = bucket; bestSize = bucket.length; }
+      }
+      if (candidates === undefined) candidates = index.byRelation.get(literal.relation) ?? [];
+      for (const tuple of candidates) {
+        charge(state, limits);
+        const candidate: Binding = {
+          values: new Map(binding.values),
+          premises: [...binding.premises],
+        };
+        let matched = true;
+        const count = Math.min(literal.terms.length, tuple.values.length);
+        for (let index = 0; index < count; index += 1) {
+          const term = literal.terms[index]!;
+          const value = tuple.values[index]!;
+          const name = variable(term);
+          if (name !== null) {
+            const bound = candidate.values.get(name);
+            if (bound !== undefined) {
+              if (!jsonEquals(bound, value)) {
+                matched = false;
+                break;
+              }
+            } else {
+              candidate.values.set(name, value);
+            }
+          } else if (!jsonEquals(term, value)) {
+            matched = false;
+            break;
+          }
+        }
+        if (matched) {
+          if (next.length >= limits.maxBindings) {
+            throw new Error("Datalog join bindings");
+          }
+          candidate.premises.push(tuple.proof);
+          next.push(candidate);
+        }
+      }
+    }
+    bindings = next;
+  }
+  return bindings;
+}
+
 function instantiate(literal: Literal, binding: Binding): JsonValue[] {
   return literal.terms.map((term) => {
     const name = variable(term);
@@ -409,7 +507,15 @@ function parseLimits(value: unknown): Limits {
   return limits;
 }
 
-export function query(snapshot: unknown, program: unknown): QueryResult {
+export type EvaluationMode = "scan" | "indexed";
+
+export function query(snapshot: unknown, program: unknown,
+  options: Readonly<{ evaluation?: EvaluationMode }> = {}): QueryResult {
+  if (options.evaluation !== undefined
+    && options.evaluation !== "scan" && options.evaluation !== "indexed") {
+    throw new Error("memory/query evaluation must be scan or indexed");
+  }
+  const indexed = options.evaluation === "indexed";
   if (
     utf8ByteLength(canonical(snapshot)) > MAX_SNAPSHOT_BYTES ||
     utf8ByteLength(canonical(program)) > MAX_PROGRAM_BYTES
@@ -483,10 +589,14 @@ export function query(snapshot: unknown, program: unknown): QueryResult {
       throw new Error("Datalog rounds exhausted; no complete answer");
     }
     rounds += 1;
+    const index = indexed ? buildIndex(tuples, state, limits) : null;
     const additions = new Map<string, Tuple>();
     for (const rule of rules) {
       const ruleDigest = digest(rule);
-      for (const binding of join(rule.body, tuples, state, limits)) {
+      const ruleBindings = index === null
+        ? join(rule.body, tuples, state, limits)
+        : joinIndexed(rule.body, index, state, limits);
+      for (const binding of ruleBindings) {
         charge(state, limits);
         const values = instantiate(rule.head, binding);
         const key = canonical([rule.head.relation, values]);
@@ -505,7 +615,11 @@ export function query(snapshot: unknown, program: unknown): QueryResult {
   }
 
   const rows = new Map<string, { tuple: JsonValue[]; proof: string }>();
-  for (const binding of join([wanted], tuples, state, limits)) {
+  const wantedIndex = indexed ? buildIndex(tuples, state, limits) : null;
+  const wantedBindings = wantedIndex === null
+    ? join([wanted], tuples, state, limits)
+    : joinIndexed([wanted], wantedIndex, state, limits);
+  for (const binding of wantedBindings) {
     const values = instantiate(wanted, binding);
     const key = canonical(values);
     if (!rows.has(key)) {
@@ -533,7 +647,7 @@ export function query(snapshot: unknown, program: unknown): QueryResult {
   }
 
   const result: QueryResult = {
-    contract: "algal.query-result.v1",
+    contract: indexed ? "algal.query-result.v2" : "algal.query-result.v1",
     snapshot: digest(snapshot),
     program: digest(program),
     complete: true,
@@ -584,7 +698,10 @@ export function remember(
 }
 
 export function verify(snapshot: unknown, program: unknown, result: unknown): boolean {
-  return canonical(query(snapshot, program)) === canonical(result);
+  const contract = isPlainRecord(result) ? result["contract"] : undefined;
+  const evaluation: EvaluationMode =
+    contract === "algal.query-result.v2" ? "indexed" : "scan";
+  return canonical(query(snapshot, program, { evaluation })) === canonical(result);
 }
 
 export function sourceId(value: unknown): string {

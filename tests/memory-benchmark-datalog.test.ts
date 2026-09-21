@@ -416,3 +416,93 @@ describe("memory-datalog sourceId", () => {
     expect(() => sourceId(42)).toThrow("expected text");
   });
 });
+
+describe("memory-datalog indexed evaluation (algal.query-result.v2)", () => {
+  const INDEXED = { evaluation: "indexed" as const };
+
+  /** Join-heavy fixture: mentions ∘ refers over many entities — the shape that
+   * exhausted the naive-scan work bound on real corpus shards. */
+  function joinFixture(n: number) {
+    const source = sourceDigest("observed mentions");
+    const facts = [];
+    for (let i = 0; i < n; i += 1) {
+      facts.push({ relation: "mentions", tuple: [`doc-${i}`, `entity-${i % 7}`], sources: [source] });
+      facts.push({ relation: "entity", tuple: [`entity-${i % 7}`], sources: [source] });
+    }
+    const snapshot = { contract: "algal.memory.v1", facts };
+    const program = {
+      contract: "algal.query.v1",
+      rules: [
+        { id: "refers-self", head: { relation: "refers", terms: [{ var: "c" }, { var: "c" }] },
+          body: [{ relation: "entity", terms: [{ var: "c" }] }] },
+        { id: "record-refers", head: { relation: "record-refers", terms: [{ var: "d" }, { var: "c" }] },
+          body: [{ relation: "mentions", terms: [{ var: "d" }, { var: "x" }] },
+                 { relation: "refers", terms: [{ var: "x" }, { var: "c" }] }] },
+      ],
+      query: { relation: "record-refers", terms: [{ var: "d" }, { var: "c" }] },
+    };
+    return { snapshot, program };
+  }
+
+  test("indexed results carry the v2 contract and replay-verify", () => {
+    const { snapshot, program } = fixture();
+    const result = query(snapshot, program, INDEXED);
+    expect(result.contract).toBe("algal.query-result.v2");
+    expect(result.complete).toBe(true);
+    expect(result.witnessPolicy).toBe("first-canonical-derivation");
+    expect(verify(snapshot, program, result)).toBe(true);
+    const tampered = { ...result, work: result.work + 1 };
+    expect(verify(snapshot, program, tampered)).toBe(false);
+    // a v1 scan result never verifies as v2 and vice versa
+    const scan = query(snapshot, program);
+    expect(scan.contract).toBe("algal.query-result.v1");
+    expect(verify(snapshot, program, scan)).toBe(true);
+    expect(canonicalJson(scan)).not.toBe(canonicalJson(result));
+  });
+
+  test("indexed and scan produce byte-identical rows and proofs", () => {
+    const { snapshot, program } = joinFixture(60);
+    const scan = query(snapshot, program);
+    const indexed = query(snapshot, program, INDEXED);
+    expect(indexed.rows).toEqual(scan.rows);
+    expect(indexed.proofs).toEqual(scan.proofs);
+    expect(indexed.rounds).toBe(scan.rounds);
+    expect(indexed.baseFacts).toBe(scan.baseFacts);
+    expect(indexed.derivedFacts).toBe(scan.derivedFacts);
+    expect(indexed.work).toBeLessThan(scan.work);
+    expect(indexed.work).toBeLessThan(250_000);
+  });
+
+  test("indexed evaluation still enforces every limit fail-closed", () => {
+    const { snapshot, program } = joinFixture(80);
+    expect(() => query(snapshot, { ...program, limits: { maxWork: 50 } }, INDEXED))
+      .toThrow("Datalog work exhausted; no complete answer");
+    expect(() => query(snapshot, { ...program, limits: { maxRows: 3 } }, INDEXED))
+      .toThrow("Datalog result rows; no truncated answer returned");
+    expect(() => query(snapshot, { ...program, limits: { maxRounds: 1 } }, INDEXED))
+      .toThrow("Datalog rounds exhausted; no complete answer");
+  });
+
+  test("indexed evaluation is deterministic across runs and input order", () => {
+    const { snapshot, program } = joinFixture(40);
+    const first = query(snapshot, program, INDEXED);
+    const second = query(snapshot, program, INDEXED);
+    expect(canonicalJson(second)).toBe(canonicalJson(first));
+    const reordered = { ...snapshot, facts: [...snapshot.facts].reverse() };
+    const again = query(reordered, program, INDEXED);
+    // The snapshot digest binds the input bytes, so a reordered input has a
+    // different snapshot pin — but rows, proofs, and work are identical.
+    expect(again.rows).toEqual(first.rows);
+    expect(again.proofs).toEqual(first.proofs);
+    expect(again.work).toBe(first.work);
+    expect(again.snapshot).not.toBe(first.snapshot);
+  });
+
+  test("unknown evaluation modes are rejected, not silently scanned", () => {
+    const { snapshot, program } = fixture();
+    expect(() => query(snapshot, program, { evaluation: "indexxed" as never }))
+      .toThrow("evaluation must be scan or indexed");
+    expect(query(snapshot, program, { evaluation: "scan" }).contract)
+      .toBe("algal.query-result.v1");
+  });
+});

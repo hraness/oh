@@ -118,3 +118,40 @@ describe("committed LOCOMO artifact", () => {
     expect(totalFacts).toBe((artifact.sharding as Record<string, unknown>).totalFacts);
   });
 });
+
+describe("committed LOCOMO v2 artifact (indexed evaluation)", () => {
+  const path = join(import.meta.dir, "../benchmarks/results/deductive-memory-locomo-v2.json");
+  const artifact = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+
+  test("declares indexed evaluation and the v2 result contract", () => {
+    expect(artifact.protocol).toBe("oh.deductive-memory-real.v2");
+    expect(artifact.evaluation).toBe("indexed");
+    expect(artifact.resultContract).toBe("algal.query-result.v2");
+    expect(artifact.datasetSha256).toBe(DATASETS.locomo.sha256);
+    expect(artifact.corpusId).toBe("conv-49");
+    expect((artifact.store as Record<string, unknown>).integrity).toBe("verified");
+  });
+
+  test("full rule packs run per-shard inside the work bound", () => {
+    const shards = artifact.shards as readonly Record<string, unknown>[];
+    expect(shards).toHaveLength(25);
+    for (const shard of shards) {
+      // record-refers is a two-literal join that exhausted 250K work under scan
+      expect(shard.refersContract).toBe("algal.query-result.v2");
+      expect(Number(shard.refersWork)).toBeGreaterThan(0);
+      expect(Number(shard.refersWork)).toBeLessThan(250_000);
+      expect(Number(shard.historyWork)).toBeLessThan(250_000);
+      expect(Number(shard.refersRows)).toBeGreaterThan(0);
+      expect(Number(shard.conflictPairs)).toBe(0);
+    }
+  });
+
+  test("corpus index carries the verified derived results", () => {
+    const index = artifact.corpusIndex as Record<string, unknown>;
+    expect(index.verified).toBe(true);
+    expect(index.refersRows).toBe(50);
+    expect(index.historyRows).toBe(25);
+    expect(index.conflictPairs).toBe(0);
+    expect(Number(index.refersWork)).toBeLessThan(250_000);
+  });
+});
