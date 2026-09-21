@@ -51,7 +51,9 @@ import {
 
 export const DEDUCTIVE_MEMORY_PROTOCOL = "oh.benchmark.deductive-memory.v1" as const;
 export const DEDUCTIVE_MEMORY_LIMITS = Object.freeze({
-  maximumRecords: 2_048,
+  // Aligned with OH_MEMORY_LIMITS_V1.maximumRecordsPerLane: a projected
+  // MemoryRecord set can be at most as large as one real store lane.
+  maximumRecords: 8_192,
   maximumRecordBytes: 65_536,
   maximumContentBytes: 8_192,
   maximumAliases: 16,
