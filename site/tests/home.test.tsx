@@ -98,3 +98,39 @@ test("confines Lantern to the homepage chrome, hero wall, citation plane and rea
   expect(html).not.toContain('data-selected');
   expect(html).not.toContain('hraness-marketing-field');
 });
+
+
+test("the header keeps a named home link and exact-artwork foil fallback", () => {
+  for (const Page of [Home, Specification]) {
+    const html = renderToStaticMarkup(<Page />);
+    const homeLinks: string[] = [];
+    const marks: string[] = [];
+    const fallbackImages: string[] = [];
+    const masks: string[] = [];
+    new HTMLRewriter()
+      .on('header a[aria-label="Oh home"]', {
+        element(element) {
+          homeLinks.push(element.getAttribute("href") ?? "");
+          expect(element.hasAttribute("data-foil")).toBe(true);
+        },
+      })
+      .on('header a[aria-label="Oh home"] .hraness-foil-mark', {
+        element(element) { marks.push(element.getAttribute("aria-hidden") ?? ""); },
+      })
+      .on('header a[aria-label="Oh home"] .hraness-foil-mark img', {
+        element(element) {
+          fallbackImages.push(element.getAttribute("src") ?? "");
+          expect(element.hasAttribute("alt")).toBe(true);
+          expect(element.getAttribute("alt") ?? "").toBe("");
+        },
+      })
+      .on('header a[aria-label="Oh home"] .hraness-foil-mark__paint', {
+        element(element) { masks.push((element.getAttribute("style") ?? "").replaceAll("&quot;", '"')); },
+      })
+      .transform(html);
+    expect(homeLinks).toEqual(["/"]);
+    expect(marks).toEqual(["true"]);
+    expect(fallbackImages).toEqual(["/marks/oh-computer.svg"]);
+    expect(masks).toEqual(['--hraness-foil-mask:url("/marks/oh-computer.svg")']);
+  }
+});
