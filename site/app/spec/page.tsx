@@ -58,6 +58,7 @@ export default function Specification() {
         action={{ href: "/#install", label: "Install Oh" }}
         ariaLabel="Specification navigation"
         brand="Oh"
+        brandMark="/marks/oh-computer.svg"
         brandLabel="Oh home"
         className="spec-header"
         links={[
