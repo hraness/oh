@@ -35,7 +35,33 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function prohibitedPublicIdentifiers(source: string): string[] {
+  // This exact artwork path is already public and used by the content footer.
+  // Admit only the quoted asset reference, not its provider-name token elsewhere.
+  const withoutPublicArtwork = source.replaceAll('"/marks/oh-computer.svg"', '""');
+  const tokens = new Set(
+    withoutPublicArtwork.toLocaleLowerCase("en-US").match(/[a-z][a-z0-9-]*/gu) ?? [],
+  );
+  return [...tokens].filter((token) => prohibitedPublicIdentifierSha256.has(sha256(token)));
+}
+
 describe("Oh site source contract", () => {
+  test("admits only the exact public artwork reference in the identifier boundary", async () => {
+    expect(prohibitedPublicIdentifiers('brandMark="/marks/oh-computer.svg"')).toEqual([]);
+    for (const source of [
+      "oh-computer",
+      'project="oh-computer"',
+      'brandMark="/private/oh-computer.svg"',
+      'brandMark="/marks/oh-computer.svg?private=1"',
+      'brandMark="/marks/oh-computer.svg" project="oh-computer"',
+    ]) {
+      expect(prohibitedPublicIdentifiers(source)).toEqual(["oh-computer"]);
+    }
+    expect(sha256(await read("public/marks/oh-computer.svg"))).toBe(
+      "b9c62d7ef8168eae34a8cf388efb8d1ac9ec609a6d3d31b8e81af5c7a9f5724d",
+    );
+  });
+
   test("keeps first-party styling independent of Tailwind", async () => {
     const [packageJson, lockfile, postcss, globals] = await Promise.all([
       read("package.json"),
@@ -331,9 +357,6 @@ describe("Oh site source contract", () => {
     const vercelConfig = JSON.parse(vercelConfigSource) as unknown;
     const providerBoundary = (await Promise.all(providerBoundaryPaths.map(read))).join("\n");
     const publicSource = [packageJsonSource, vercelConfigSource, ...publicSources].join("\n");
-    const tokens = new Set(
-      publicSource.toLocaleLowerCase("en-US").match(/[a-z][a-z0-9-]*/gu) ?? [],
-    );
 
     expect(packageJson.name).toBe("oh-site");
     expect(packageJson.packageManager).toBe("bun@1.3.14");
@@ -362,7 +385,6 @@ describe("Oh site source contract", () => {
     expect(await Bun.file(join(site, ".openai/hosting.json")).exists()).toBe(false);
     expect(await Bun.file(join(site, "vite.config.ts")).exists()).toBe(false);
     expect(publicSource).not.toMatch(/\/Users\/[^/\s]+|\/private\/tmp\/[^\s)]+/iu);
-    expect([...tokens].filter((token) => prohibitedPublicIdentifierSha256.has(sha256(token))))
-      .toEqual([]);
+    expect(prohibitedPublicIdentifiers(publicSource)).toEqual([]);
   });
 });
