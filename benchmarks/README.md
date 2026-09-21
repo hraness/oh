@@ -575,3 +575,7 @@ cannot certify an incomplete matrix. Run it from the frozen source tree.
 The [frozen Gateway continuation](GATEWAY_STUDY_V6_TAKEOVER.md) is complete and independently audited: `oh-fact` **81/120**, `bm25-window` **78/120**, `bm25-record-window` **79/120**. It did not pass the fixed criterion for the fact-retrieval arm. The [final numerical report](results/memory-gateway-final-v6.json) retains all 360 cases and both primary and adverse reader-failure sensitivity, with mixed extraction provenance and the post-start scoring amendment disclosed. This is not an official leaderboard or saturation claim.
 
 The separate [reserved reader pair](results/memory-reserved-reader-profile-v1.json) scored 84/100 with 96 KB versus 78/100 with 24 KB. See [the development guide](DEVELOPMENT.md) for its distinct procedure, faster loop, rejected experiments and evaluation boundaries.
+
+## Deductive memory and calibrated selection seam
+
+The [deductive memory seam](DEDUCTIVE_MEMORY.md) adds five benchmark-scoped primitives: a proof-carrying bounded Datalog engine ported from ALGAL, consistency rule packs, isotonic/Platt score calibration, split-conformal coverage selection, and budgeted submodular channel packing — composed in `scripts/benchmarks/deductive-memory.ts`. On the frozen pointwise captures, isotonic recalibration cut held-out ECE from 0.155 to 0.019. These are benchmark seams only: they change no production retrieval, store, or wire contract.

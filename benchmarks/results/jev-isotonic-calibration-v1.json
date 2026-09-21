@@ -1,0 +1,47 @@
+{
+ "protocol": "oh.benchmark.jev-isotonic-calibration.v1",
+ "providerCalls": 0,
+ "samplesSha256": "16021b8da16ecfcb332557a304a051dc91ece7c9fc6bfcf69c681067102ba7b4",
+ "sampleCount": 505,
+ "positiveCount": 25,
+ "source": "wordcell-pointwise evidence/jev-calibration-samples.json (frozen jev-request-shape-v1 captures joined to focal-directive labels)",
+ "metrics": {
+  "raw": {
+   "ece": 0.1544950495049504,
+   "brier": 0.1572225742574263,
+   "logLoss": 0.5339022492517196
+  },
+  "heldOut5Fold": {
+   "isotonic": {
+    "brier": 0.04574212387023397,
+    "ece": 0.019308073594561687,
+    "logLoss": 0.23213638465195768
+   },
+   "platt": {
+    "brier": 0.04950495049504938,
+    "ece": 0.04950495049504851,
+    "logLoss": 1.709840415589637
+   }
+  }
+ },
+ "isotonicModel": {
+  "steps": 231,
+  "modelSha256": "2d6331ef421a887dd256ff4594ed42ff88282c39e37575b94f096f4231c3ee65",
+  "inputSha256": "6579ad8b03f2787b8a04fae14e46fcf032576ba7da7f29e66321fe855e49eb97"
+ },
+ "plattDiagnostics": {
+  "converged": false,
+  "iterations": 100,
+  "note": "logistic fit diverges on this near-separable cohort (all 25 positives <= 0.52); isotonic is the correct calibrator here"
+ },
+ "findings": [
+  "Raw Jev pointwise scores are poorly calibrated (ECE 0.155, logLoss 0.534).",
+  "Isotonic recalibration on 5-fold held-out data cuts ECE to ~0.019 and Brier to ~0.046 — scores become usable probabilities.",
+  "Platt/logistic diverges on this near-separable cohort; monotone isotonic is the right default for Jev scores.",
+  "Calibration must be fit on development-labeled data only and re-measured per cohort."
+ ],
+ "designConsequences": [
+  "Calibration unlocks conformal coverage selection and expected-value channel packing.",
+  "Raw-score thresholds remain prohibited; calibrated probabilities may threshold."
+ ]
+}
