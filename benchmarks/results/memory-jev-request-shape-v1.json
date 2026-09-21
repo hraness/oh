@@ -1,0 +1,349 @@
+{
+  "protocol": "oh.memory.jev-request-shape.v1",
+  "status": "complete",
+  "model": "jev-1.13.0",
+  "baseCommit": "cb6ab0cd477bbeb5afa249bd445422dff26fbeb4",
+  "source": {
+    "name": "BEAM",
+    "revision": "3205395e897e7318c7b094ef4e6047b9b82dbb03",
+    "license": "CC-BY-SA-4.0",
+    "url": "https://huggingface.co/datasets/Mohammadta/BEAM"
+  },
+  "policy": {
+    "protocol": "oh.private.jev-request-shape-source.v1",
+    "pool": "Existing lexical top8 in lexical score order, followed by the complete deterministic standing-instruction inventory in source order; deduplicate source occurrences; maximum32; no gold-driven additions or trimming.",
+    "oldPool": "Existing lexical top24; audited offline only because focal targets were mostly absent.",
+    "text": "Same authenticated baseline source-turn text for both scoring arms; existing reranker UTF8 prefix1200-byte convention is applied equally by the pure helper.",
+    "primary": "Independent pointwise minus shared-state batch on annotated focal-directive hit@8; descriptive paired history bootstrap.",
+    "secondary": "Target recall@8, reciprocal rank, candidate-pool target coverage; known-target annotations are not exhaustive fact relevance.",
+    "repeats": 1,
+    "histories": 12,
+    "questions": 24,
+    "selected": 8,
+    "interpretation": "Previously inspected development cohort, source-only candidate-pool revision before new outcomes; no representative Wordcell quality or final-answer claim.",
+    "syntheticPolicy": "Two authored smoke cases measure simple ranking behavior; no adaptive prompt changes or score-based case exclusion. Transport, identity or usage failure stops dispatch."
+  },
+  "analysisPolicy": {
+    "primary": "pointwise-batch targetHitAtK",
+    "k": 8,
+    "resamples": 10000,
+    "seed": 20260919,
+    "cluster": "history",
+    "interval": "descriptive percentile95; question mean weighted by observed questions in sampled histories",
+    "sensitivityExclusions": [
+      12,
+      18
+    ],
+    "reason": "Conditional-applicability ambiguity declared before provider outcomes",
+    "readerFollowup": "No reader calls in this $2 retrieval-only trial; no production promotion from focal-directive metrics."
+  },
+  "coverage": {
+    "questions": 24,
+    "targets": 25,
+    "oldPoolTargetCount": 2,
+    "revisedPoolTargetCount": 25,
+    "baselineHit8": 1
+  },
+  "accounting": {
+    "calls": 537,
+    "settled": 537,
+    "unresolved": 0,
+    "inputTokens": 368010,
+    "exposureMicros": 15735,
+    "maximumCalls": 608,
+    "maximumMicros": 2000000
+  },
+  "usageBasedEstimatedUsd": 0.015735,
+  "calls": {
+    "synthetic": 8,
+    "development": 529,
+    "batch": 26,
+    "pointwise": 511
+  },
+  "all": {
+    "questions": 24,
+    "histories": 12,
+    "means": {
+      "baseline": {
+        "targetHitAtK": 0.041666666666666664,
+        "targetRecallAtK": 0.041666666666666664,
+        "targetReciprocalRankAtK": 0.041666666666666664,
+        "poolTargetRecall": 1
+      },
+      "batch": {
+        "targetHitAtK": 0.4583333333333333,
+        "targetRecallAtK": 0.4583333333333333,
+        "targetReciprocalRankAtK": 0.22916666666666666,
+        "poolTargetRecall": 1
+      },
+      "pointwise": {
+        "targetHitAtK": 0.5833333333333334,
+        "targetRecallAtK": 0.5833333333333334,
+        "targetReciprocalRankAtK": 0.25734126984126987,
+        "poolTargetRecall": 1
+      }
+    },
+    "contrasts": [
+      {
+        "candidate": "pointwise",
+        "control": "batch",
+        "metric": "targetHitAtK",
+        "questions": 24,
+        "histories": 12,
+        "delta": 0.125,
+        "questionPairs": {
+          "wins": 4,
+          "ties": 19,
+          "losses": 1
+        },
+        "historyBootstrap95": {
+          "lower": 0,
+          "upper": 0.25,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      },
+      {
+        "candidate": "batch",
+        "control": "baseline",
+        "metric": "targetHitAtK",
+        "questions": 24,
+        "histories": 12,
+        "delta": 0.4166666666666667,
+        "questionPairs": {
+          "wins": 10,
+          "ties": 14,
+          "losses": 0
+        },
+        "historyBootstrap95": {
+          "lower": 0.20833333333333334,
+          "upper": 0.6666666666666666,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      },
+      {
+        "candidate": "pointwise",
+        "control": "baseline",
+        "metric": "targetHitAtK",
+        "questions": 24,
+        "histories": 12,
+        "delta": 0.5416666666666666,
+        "questionPairs": {
+          "wins": 13,
+          "ties": 11,
+          "losses": 0
+        },
+        "historyBootstrap95": {
+          "lower": 0.375,
+          "upper": 0.7083333333333334,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      },
+      {
+        "candidate": "pointwise",
+        "control": "batch",
+        "metric": "targetRecallAtK",
+        "questions": 24,
+        "histories": 12,
+        "delta": 0.125,
+        "questionPairs": {
+          "wins": 4,
+          "ties": 19,
+          "losses": 1
+        },
+        "historyBootstrap95": {
+          "lower": 0,
+          "upper": 0.25,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      },
+      {
+        "candidate": "pointwise",
+        "control": "batch",
+        "metric": "targetReciprocalRankAtK",
+        "questions": 24,
+        "histories": 12,
+        "delta": 0.028174603174603168,
+        "questionPairs": {
+          "wins": 9,
+          "ties": 12,
+          "losses": 3
+        },
+        "historyBootstrap95": {
+          "lower": -0.06696428571428573,
+          "upper": 0.13616071428571427,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      }
+    ]
+  },
+  "strictApplicability": {
+    "questions": 22,
+    "histories": 12,
+    "means": {
+      "baseline": {
+        "targetHitAtK": 0.045454545454545456,
+        "targetRecallAtK": 0.045454545454545456,
+        "targetReciprocalRankAtK": 0.045454545454545456,
+        "poolTargetRecall": 1
+      },
+      "batch": {
+        "targetHitAtK": 0.5,
+        "targetRecallAtK": 0.5,
+        "targetReciprocalRankAtK": 0.25,
+        "poolTargetRecall": 1
+      },
+      "pointwise": {
+        "targetHitAtK": 0.5909090909090909,
+        "targetRecallAtK": 0.5909090909090909,
+        "targetReciprocalRankAtK": 0.27424242424242423,
+        "poolTargetRecall": 1
+      }
+    },
+    "contrasts": [
+      {
+        "candidate": "pointwise",
+        "control": "batch",
+        "metric": "targetHitAtK",
+        "questions": 22,
+        "histories": 12,
+        "delta": 0.09090909090909091,
+        "questionPairs": {
+          "wins": 3,
+          "ties": 18,
+          "losses": 1
+        },
+        "historyBootstrap95": {
+          "lower": 0,
+          "upper": 0.21739130434782608,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      },
+      {
+        "candidate": "batch",
+        "control": "baseline",
+        "metric": "targetHitAtK",
+        "questions": 22,
+        "histories": 12,
+        "delta": 0.45454545454545453,
+        "questionPairs": {
+          "wins": 10,
+          "ties": 12,
+          "losses": 0
+        },
+        "historyBootstrap95": {
+          "lower": 0.22727272727272727,
+          "upper": 0.6818181818181818,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      },
+      {
+        "candidate": "pointwise",
+        "control": "baseline",
+        "metric": "targetHitAtK",
+        "questions": 22,
+        "histories": 12,
+        "delta": 0.5454545454545454,
+        "questionPairs": {
+          "wins": 12,
+          "ties": 10,
+          "losses": 0
+        },
+        "historyBootstrap95": {
+          "lower": 0.35,
+          "upper": 0.7272727272727273,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      },
+      {
+        "candidate": "pointwise",
+        "control": "batch",
+        "metric": "targetRecallAtK",
+        "questions": 22,
+        "histories": 12,
+        "delta": 0.09090909090909091,
+        "questionPairs": {
+          "wins": 3,
+          "ties": 18,
+          "losses": 1
+        },
+        "historyBootstrap95": {
+          "lower": 0,
+          "upper": 0.21739130434782608,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      },
+      {
+        "candidate": "pointwise",
+        "control": "batch",
+        "metric": "targetReciprocalRankAtK",
+        "questions": 22,
+        "histories": 12,
+        "delta": 0.024242424242424235,
+        "questionPairs": {
+          "wins": 8,
+          "ties": 11,
+          "losses": 3
+        },
+        "historyBootstrap95": {
+          "lower": -0.07778079710144929,
+          "upper": 0.14236359126984124,
+          "resamples": 10000,
+          "seed": 20260919
+        }
+      }
+    ]
+  },
+  "syntheticOrders": [
+    {
+      "caseId": "smoke-0",
+      "batch": [
+        "turn-1",
+        "turn-3",
+        "turn-2"
+      ],
+      "pointwise": [
+        "turn-1",
+        "turn-3",
+        "turn-2"
+      ]
+    },
+    {
+      "caseId": "smoke-1",
+      "batch": [
+        "turn-2",
+        "turn-3",
+        "turn-1"
+      ],
+      "pointwise": [
+        "turn-2",
+        "turn-3",
+        "turn-1"
+      ]
+    }
+  ],
+  "pins": {
+    "manifestSha256": "0e3a025fdf724d48ab36b5422415b4ea67d9a0a510c69d907a0b4bb7fa65e2a9",
+    "resultSha256": "fefb25649309badd969ee2b4035a55fe1dbf66df3d790b42c13bffcc28153952",
+    "labelsSha256": "446535d8caab1f7d4d66ddac61261e79387f8e4becb8c85cc286a00dc9f19fa6",
+    "provenanceSha256": "6d53b352c001dc3ad1a380c271138ae3caa677314707796fea0038b2524e1491",
+    "planSha256": "8f5b70b7727867de6284ed1838e76c61a992336dd898583bdd8a40a640e0dc47"
+  },
+  "limitations": [
+    "Adapted, previously inspected development cohort; one provider response per request; descriptive intervals.",
+    "Only25focal standing directives are positively annotated; other turns remain unjudged. No exhaustive relevance, precision, or NDCG claim.",
+    "Source-only pool expansion was chosen after observing old-pool target absence and before any new provider outcomes.",
+    "Pointwise changes shared candidate/question context only; Wordcell's note representation, exact-match protection, and relevance prompt are not transplanted.",
+    "No new reader answers were generated; retrieval gains do not establish answer gains or representative Wordcell quality.",
+    "Cost is a rounded usage-based estimate at pinned published input pricing, not a provider invoice."
+  ],
+  "productionPromotion": false
+}

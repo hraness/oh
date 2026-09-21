@@ -13,6 +13,11 @@ The [fresh identity test](FRESH_IDENTITY_RESULTS.md) reuses a frozen exact-ident
 
 The [compact-repair confirmation](COMPACT_REPAIR_CONFIRMATION.md) reports an unchanged Jev-assisted instruction-repair procedure on 24 history-disjoint BEAM questions. It improved two cases without regressions, but its confidence interval includes zero and the frozen success rule failed.
 
+The [instruction-selection results](INSTRUCTION_SELECTION.md) combine a positive
+pointwise Jev retrieval diagnostic with a negative complete-inventory reader
+test. They define a provider-neutral benchmark seam while leaving Wordcell's
+note policy and Oh's public API unchanged.
+
 The [answer-audit development results](ANSWER_AUDIT_V1_RESULTS.md) report a completed diagnostic continuation: mean answer accuracy changed from 92.67% to 93.33% across three repeats of 100 development questions, with seven improvements and five regressions. The original experiment remains aborted and the audit was not promoted.
 
 For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below. The separately frozen [Gateway amendment](GATEWAY_STUDY_V3.md) preserves closed subscription responses and uses budgeted Gateway calls for unattempted work.
