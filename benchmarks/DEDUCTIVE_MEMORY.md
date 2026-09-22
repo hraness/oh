@@ -217,6 +217,13 @@ bm25-window +7.78, CI [0.065, 0.094]. The semantic composition widens the
 held-out margin over the strongest existing system by ~7× while remaining
 proof-carrying and replay-verified end to end.
 
+**Pooled all-ten** (`results/deductive-recall-locomo-all-sem-v1.json`, 2
+tuning + 8 held-out corpora): deductive-semantic **0.8667** vs bm25-block
+0.8255 — **+4.12 points, 95% CI [0.025, 0.061]** (mechanical arm: +0.86,
+CI [0.0015, 0.0155]); vs vector 0.8021 — **+6.46, CI [0.035, 0.093]**; vs
+bm25-window +8.50, CI [0.071, 0.100]. Every baseline interval excludes
+zero on all ten clusters.
+
 ## Boundaries
 
 - These are benchmark seams. Nothing here is a production retrieval path,
