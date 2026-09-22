@@ -454,8 +454,9 @@ oh get evidence:table-2 \\
             </p>
             <p className="benchmark-note">
               The latest completed{" "}
-              <a href={`${repository}/blob/main/benchmarks/LOCOMO_COMPOSITION_DEV_RESULT_V1.md`}>composition instruction test</a>{" "}
-              did not pass its development gate on identical retrieved context.
+              <a href={`${repository}/blob/main/benchmarks/CLONEMEM_KEYWORD_DEV_RESULT_V1.md`}>CloneMem keyword-query test</a>{" "}
+              improved development recall but did not pass its answer-quality gate.
+              Defaults remain unchanged.
             </p>
           </MarketingSection>
 

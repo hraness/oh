@@ -38,10 +38,11 @@ promoted to Oh's default retrieval path. The completed
 [composition development screen](LOCOMO_COMPOSITION_DEV_RESULT_V1.md) also failed
 its advancement rule: 74.17% versus 75.42% over identical vector-window context.
 It changed only the reading instruction on 160 previously exposed questions.
-The next [CloneMem keyword development screen](CLONEMEM_KEYWORD_DEV_V1.md)
-tests fixed query normalization against vector retrieval with the same reader.
-Its answer-quality result is pending; offline recall alone does not qualify it
-for confirmation or a product claim.
+The completed [CloneMem keyword development screen](CLONEMEM_KEYWORD_DEV_RESULT_V1.md)
+also failed its advancement rule: 67.35% answer accuracy versus 68.95% for vector
+retrieval on all 146 questions from two previously exposed personas. Recall@10
+rose from 12.05% to 15.17%, but the answer-quality gate failed; the candidate
+does not advance to confirmation or change a default.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
 

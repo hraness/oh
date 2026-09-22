@@ -25,7 +25,7 @@ test("publishes both measured benchmark outcomes with their scope and source evi
     ["anchors-query-4", "vector-window"].map((arm) => percent(answerResult.scores.reader.arms.find((row) => row.armId === arm)!.accuracy)),
   ]);
   expect(answerResult.scores.claims.modelJudgedQaImprovement).toBe(false);
-  for (const qualification of ["Agent-run benchmark", "1,224 annotated questions", "1,586 confirmation questions", "300 questions", "three reader attempts", "identical judge prompts shared one judgment", "immutable snapshot", "prior project exposure", "No established answer improvement", "multiple-choice accuracy gain", "composition instruction test", "did not pass its development gate on identical retrieved context"]) {
+  for (const qualification of ["Agent-run benchmark", "1,224 annotated questions", "1,586 confirmation questions", "300 questions", "three reader attempts", "identical judge prompts shared one judgment", "immutable snapshot", "prior project exposure", "No established answer improvement", "multiple-choice accuracy gain", "CloneMem keyword-query test", "improved development recall but did not pass its answer-quality gate", "Defaults remain unchanged"]) {
     expect(copy.replace(/\s+/gu, " ")).toContain(qualification);
   }
   expect(links).toEqual([
@@ -33,7 +33,7 @@ test("publishes both measured benchmark outcomes with their scope and source evi
     "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json",
     "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json",
     "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md",
-    "https://github.com/hraness/oh/blob/main/benchmarks/LOCOMO_COMPOSITION_DEV_RESULT_V1.md",
+    "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_KEYWORD_DEV_RESULT_V1.md",
   ]);
   expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
   expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));

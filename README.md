@@ -796,11 +796,11 @@ The separate [CloneMem comparison](benchmarks/CLONEMEM_TRANSFER_V1.md) also did
 not establish a multiple-choice accuracy gain from Oh hybrid search over vector
 search.
 
-Answer-quality improvements remain under development. A subsequent
-[conversation-order development test](benchmarks/LOCOMO_ORDER_DEV_RESULT_V1.md)
-also failed its advancement rule; no new context policy has been promoted.
-The [composition instruction test](benchmarks/LOCOMO_COMPOSITION_DEV_RESULT_V1.md)
-also failed its development gate on identical retrieved context.
+Answer-quality improvements remain under development. The latest
+[CloneMem keyword-query test](benchmarks/CLONEMEM_KEYWORD_DEV_RESULT_V1.md)
+raised development recall but failed its answer-quality gate. Defaults remain
+unchanged; the [experiment history](benchmarks/README.md) includes the earlier
+conversation-order and composition tests.
 
 Run the network-free state and projection checks from a checkout:
 
