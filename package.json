@@ -133,6 +133,9 @@
     "registry": "https://registry.npmjs.org"
   },
   "scripts": {
+    "bench:deductive:control": "bun run ./scripts/benchmarks/deductive-frozen-control.ts",
+    "bench:deductive": "bun run ./scripts/benchmarks/deductive-recall.ts",
+    "bench:deductive:fusion": "bun run ./scripts/benchmarks/deductive-fusion-probe.ts",
     "bench:memory": "bun run ./scripts/benchmark-memory.ts",
     "bench:lab": "bun run ./scripts/benchmarks/lab.ts",
     "bench:lab:paid": "bun run ./scripts/benchmarks/lab-paid.ts",
