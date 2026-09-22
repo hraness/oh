@@ -686,6 +686,77 @@ export function resolveOhSupersessionV1(store: OhObserveStoreV1, draft: OhSupers
   return { candidatesTruncated, orderingConflict, supersedes: head.key };
 }
 
+/**
+ * The minimum a supersession read needs. A read never commits, so it asks for
+ * `get` and nothing else, and a snapshot-backed or libSQL reader satisfies it.
+ */
+export type OhObservationReadStoreV1 = Readonly<{
+  get(key: string): KnowledgeGraphRecordV1 | null;
+}>;
+
+/**
+ * How many times the fact behind one observation was restated, counted by
+ * following `supersedes` from `key` toward the oldest record.
+ *
+ * This is the correction count a per-record revision count cannot see. A record
+ * key's revision count reports rewrites of one key; the observation profile
+ * models a correction as a *new* key superseding an older one, so the two
+ * measure different churn and neither subsumes the other.
+ *
+ * `depth` is the number of links followed, so a first statement reads 0. `origin`
+ * is the oldest key reached. `resolved` is true only when the walk ended at a
+ * record that supersedes nothing, which is the one case where `depth` and
+ * `origin` are exact; a walk stopped by a cycle, the chain bound, or an absent
+ * record reports `resolved: false`, and then `depth` is a lower bound and
+ * `origin` is merely the oldest key observed. A damaged chain is reported, never
+ * repaired and never silently completed.
+ *
+ * The count carries no meaning. A fact restated eleven times may be contested,
+ * refined, or simply discussed often; whether that warrants review is the
+ * application's decision.
+ */
+export type OhObservationSupersessionV1 = Readonly<{
+  depth: number;
+  key: string;
+  loop: boolean;
+  missing: string | null;
+  origin: string;
+  resolved: boolean;
+  truncated: boolean;
+  v: 1;
+}>;
+
+export function ohObservationSupersessionV1(
+  store: OhObservationReadStoreV1,
+  key: string,
+): OhObservationSupersessionV1 {
+  const start = safeCode(key, 512);
+  if (start === null || !start.startsWith(OH_OBSERVATION_KEY_PREFIX_V1)) {
+    throw new TypeError("Invalid observation key.");
+  }
+  const onPath = new Set<string>();
+  let current = start;
+  let origin = start;
+  let depth = 0;
+  let loop = false;
+  let truncated = false;
+  let missing: string | null = null;
+  let resolved = false;
+  for (;;) {
+    if (onPath.has(current)) { loop = true; break; }
+    if (onPath.size >= OH_OBSERVATION_LIMITS_V1.supersessionChain) { truncated = true; break; }
+    onPath.add(current);
+    const record = store.get(current);
+    const value = record === null ? null : parseOhObservationValueV1(record.value);
+    if (value === null) { missing = current; break; }
+    origin = current;
+    if (value.supersedes === null) { resolved = true; break; }
+    current = value.supersedes;
+    depth += 1;
+  }
+  return { depth, key: start, loop, missing, origin, resolved, truncated, v: 1 };
+}
+
 function observationRecord(key: string, activityKey: string, value: OhObservationValueV1): KnowledgeGraphRecordV1 {
   const dependencies = sortedDependencies([activityKey, ...value.sources.map((source) => source.key),
     ...(value.supersedes === null ? [] : [value.supersedes])]);

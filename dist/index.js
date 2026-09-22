@@ -18185,6 +18185,45 @@ function resolveOhSupersessionV1(store, draft, exclude3 = new Set) {
   const orderingConflict = orderingConflictBetween({ order: head5.order, statedAt: head5.value.statedAt }, draft);
   return { candidatesTruncated, orderingConflict, supersedes: head5.key };
 }
+function ohObservationSupersessionV1(store, key) {
+  const start3 = safeCode(key, 512);
+  if (start3 === null || !start3.startsWith(OH_OBSERVATION_KEY_PREFIX_V1)) {
+    throw new TypeError("Invalid observation key.");
+  }
+  const onPath = new Set;
+  let current = start3;
+  let origin = start3;
+  let depth = 0;
+  let loop3 = false;
+  let truncated = false;
+  let missing = null;
+  let resolved = false;
+  for (;; ) {
+    if (onPath.has(current)) {
+      loop3 = true;
+      break;
+    }
+    if (onPath.size >= OH_OBSERVATION_LIMITS_V1.supersessionChain) {
+      truncated = true;
+      break;
+    }
+    onPath.add(current);
+    const record = store.get(current);
+    const value = record === null ? null : parseOhObservationValueV1(record.value);
+    if (value === null) {
+      missing = current;
+      break;
+    }
+    origin = current;
+    if (value.supersedes === null) {
+      resolved = true;
+      break;
+    }
+    current = value.supersedes;
+    depth += 1;
+  }
+  return { depth, key: start3, loop: loop3, missing, origin, resolved, truncated, v: 1 };
+}
 function observationRecord(key, activityKey, value) {
   const dependencies = sortedDependencies([
     activityKey,
@@ -18487,6 +18526,7 @@ export {
   orderedUnique,
   opaqueId,
   ohRecordRevisionChangesFromOperationsV1,
+  ohObservationSupersessionV1,
   ohObservationKeyV1,
   ohObservationIndexV1,
   ohObservationActivityKeyV1,

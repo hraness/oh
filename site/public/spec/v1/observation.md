@@ -148,6 +148,33 @@ outside the examined set; the link reports `candidatesTruncated` and the
 receipt lists the affected observation keys so a consumer can re-link them or
 account for the degradation.
 
+## Reading how often a fact was restated
+
+`ohObservationSupersessionV1` follows `supersedes` from one observation toward
+the oldest record and reports how far it got. It asks a store only for `get`, so
+a snapshot or change-feed reader answers it, and it never writes.
+
+This is the count a per-record revision read cannot produce. A record key's
+revision count reports how often *that key* was rewritten; this profile records a
+correction as a new key superseding an older one, so each key in a chain is
+typically written once and carries a revision count of zero while the fact behind
+them was restated repeatedly. The two numbers measure different churn and neither
+subsumes the other.
+
+`depth` is the number of links followed, so a first statement reads 0. `origin`
+is the oldest key reached. `resolved` is true only when the walk ended at a record
+that supersedes nothing, and that is the only case in which `depth` and `origin`
+are exact. A walk stopped by a cycle, by the 8192-link chain bound, or by a record
+that is absent or not an observation reports `resolved: false`, names the missing
+key when there is one, and then `depth` is a floor and `origin` is merely the
+oldest key that could be read. A damaged chain is reported rather than repaired,
+and is never silently presented as complete.
+
+The count carries no meaning. A fact restated many times may be contested,
+progressively refined, or simply discussed often, and this profile does not
+distinguish those. Whether a depth warrants review is the application's decision,
+as it is for a revision count.
+
 ## Rendering
 
 A renderer places observations ahead of raw turns as
