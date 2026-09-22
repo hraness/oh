@@ -219,29 +219,62 @@ describe("record revision facts derived from the operation log", () => {
       if (change?.kind !== "put") throw new Error("expected a put");
       return change.record.recordSha256;
     };
-    const changes = ohRecordRevisionChangesFromOperationsV1("entity:feed", operations);
+    const changes = ohRecordRevisionChangesFromOperationsV1({ key: "entity:feed", operations, spaceId: "feed" });
     expect(changes).toEqual([
       { kind: "put", recordSha256: putDigest(first.operation), sequence: 1, v: 1 },
       { kind: "put", recordSha256: putDigest(second.operation), sequence: 2, v: 1 },
     ]);
     expect(reduceOhRecordRevisionsV1({ changes, key: "entity:feed", through: 2 }))
       .toMatchObject({ distinctPutDigests: 2, puts: 2, revisions: 1, truncated: false });
-    expect(ohRecordRevisionChangesFromOperationsV1("entity:absent", operations)).toEqual([]);
-    expect(() => ohRecordRevisionChangesFromOperationsV1("entity:feed", [{ not: "an operation" }] as never))
-      .toThrow("revision source operation is invalid");
+    expect(ohRecordRevisionChangesFromOperationsV1({ key: "entity:absent", operations, spaceId: "feed" })).toEqual([]);
+    expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:feed", spaceId: "feed",
+      operations: [{ not: "an operation" }] as never })).toThrow("revision source operation is invalid");
   });
 
-  test("refuses a feed that spans two spaces instead of reporting a duplicate sequence", () => {
-    // A sequence numbers an operation within one space, so the same key at
-    // sequence 1 of two spaces is two unrelated histories, not one conflict.
+  test("refuses operations from a space other than the one the caller named", () => {
+    // A sequence numbers an operation within one space. Inferring the space from
+    // the feed would accept a wholly wrong space and return plausible, wrong
+    // counts, so the caller names it and every operation is checked against it.
     const operationFor = (spaceId: string, name: string) => transitionOhSnapshotV1({
       actorId: "agent.test", changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({
         dependencies: [], key: "entity:shared", kind: "entity", v: 1, value: { name } }), v: 1 }],
       instant: "2026-09-07T12:00:00.000Z", operationId: "op_shared",
       snapshot: { head: emptyOhHeadV1(), records: [], v: 1 }, spaceId }).operation;
-    expect(() => ohRecordRevisionChangesFromOperationsV1("entity:shared",
-      [operationFor("left", "Left"), operationFor("right", "Right")]))
-      .toThrow("must come from one space");
+    expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:shared", spaceId: "left",
+      operations: [operationFor("left", "Left"), operationFor("right", "Right")] }))
+      .toThrow("belongs to right, not left");
+    // The whole feed from the wrong space is the case inference cannot detect.
+    expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:shared", spaceId: "left",
+      operations: [operationFor("right", "Right")] })).toThrow("belongs to right, not left");
+    expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:shared",
+      operations: [], spaceId: "Bad Space" })).toThrow("Invalid space ID");
+  });
+
+  test("refuses a feed with a missing page rather than lowering the counts silently", () => {
+    const first = transitionOhSnapshotV1({ actorId: "agent.test",
+      changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({ dependencies: [],
+        key: "entity:gap", kind: "entity", v: 1, value: { name: "One" } }), v: 1 }],
+      instant: "2026-09-07T12:00:00.000Z", operationId: "op_gap_one",
+      snapshot: { head: emptyOhHeadV1(), records: [], v: 1 }, spaceId: "gap" });
+    const second = transitionOhSnapshotV1({ actorId: "agent.test",
+      changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({ dependencies: [],
+        key: "entity:gap", kind: "entity", v: 1, value: { name: "Two" } }), v: 1 }],
+      instant: "2026-09-07T12:01:00.000Z", operationId: "op_gap_two", snapshot: first.snapshot, spaceId: "gap" });
+    const third = transitionOhSnapshotV1({ actorId: "agent.test",
+      changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({ dependencies: [],
+        key: "entity:gap", kind: "entity", v: 1, value: { name: "Three" } }), v: 1 }],
+      instant: "2026-09-07T12:02:00.000Z", operationId: "op_gap_three", snapshot: second.snapshot, spaceId: "gap" });
+    // Dropping the middle operation would otherwise report two puts, one
+    // revision, and truncated: false — a wrong answer that looks complete.
+    expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
+      operations: [first.operation, third.operation] })).toThrow("one contiguous run");
+    expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
+      operations: [second.operation, first.operation] })).toThrow("one contiguous run");
+    expect(ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
+      operations: [first.operation, second.operation, third.operation] })).toHaveLength(3);
+    // A later page that is internally contiguous is still accepted.
+    expect(ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
+      operations: [second.operation, third.operation] })).toHaveLength(2);
   });
 
   test("bounds the operations it will read at the operation page bound", () => {
@@ -249,8 +282,8 @@ describe("record revision facts derived from the operation log", () => {
     const operations = Array.from({ length: OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead + 1 },
       () => ({ not: "an operation" }));
     // The bound is checked before any operation digest is recomputed.
-    expect(() => ohRecordRevisionChangesFromOperationsV1("entity:feed", operations as never))
-      .toThrow(RangeError);
+    expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:feed",
+      operations: operations as never, spaceId: "feed" })).toThrow(RangeError);
   });
 
   test("parses and orders any generated change set (property)", () => {
@@ -265,18 +298,29 @@ describe("record revision facts derived from the operation log", () => {
       expect(parsed.every((change) => change !== null)).toBe(true);
       const through = changes.reduce((highest, change) => Math.max(highest, change.sequence), 0);
       const revisions = reduceOhRecordRevisionsV1({ changes, key: "entity:property", through });
-      const puts = changes.filter((change) => change.kind === "put");
       const sequences = changes.map((change) => change.sequence);
       // Ordering law: the reported endpoints do not depend on the read order.
       expect(revisions.latestSequence).toBe(changes.length === 0 ? null : Math.max(...sequences));
       expect(revisions.oldestObservedSequence).toBe(changes.length === 0 ? null : Math.min(...sequences));
-      expect(revisions.puts).toBe(puts.length);
-      expect(revisions.tombstones).toBe(changes.length - puts.length);
-      expect(revisions.revisions).toBe(Math.max(0, puts.length - 1));
-      expect(revisions.distinctPutDigests)
-        .toBe(new Set(puts.map((change) => change.recordSha256)).size);
       expect(reduceOhRecordRevisionsV1({ changes: [...changes].reverse(), key: "entity:property", through }))
         .toEqual(revisions);
+      // Independent oracle: replay the changes as a state machine instead of
+      // recounting them, so a wrong definition fails and not only a typo.
+      let held: string | null = null;
+      let writes = 0;
+      let removals = 0;
+      const everHeld = new Set<string>();
+      for (const change of [...changes].sort((left, right) => left.sequence - right.sequence)) {
+        if (change.kind === "put") { held = change.recordSha256; everHeld.add(held); writes += 1; }
+        else { held = null; removals += 1; }
+      }
+      expect(revisions.puts).toBe(writes);
+      expect(revisions.tombstones).toBe(removals);
+      expect(revisions.distinctPutDigests).toBe(everHeld.size);
+      expect(revisions.revisions).toBe(Math.max(0, writes - 1));
+      // The replayed end state must agree with what the read says is latest.
+      expect(revisions.latestKind === "put").toBe(held !== null);
+      expect(revisions.latestKind === null).toBe(changes.length === 0);
     }));
   });
 });

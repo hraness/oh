@@ -473,7 +473,8 @@ describe("Oh SQLite record revision reads", () => {
     const head = store.head();
     const operations = store.exportOperations(0, 1000);
     expect(reduceOhRecordRevisionsV1({ key: "entity:claim", through: head.sequence,
-      changes: ohRecordRevisionChangesFromOperationsV1("entity:claim", operations) }))
+      changes: ohRecordRevisionChangesFromOperationsV1({ key: "entity:claim", operations,
+        spaceId: "revisions-feed" }) }))
       .toEqual(store.recordRevisions("entity:claim"));
     store.close();
   });

@@ -77,18 +77,22 @@ the latest sequence, and the through sequence stay exact while the counts become
 lower bounds. `ohRecordRevisionChangesFromOperationsV1` collects the same
 changes from operations a reader already holds, so a change-feed consumer
 derives identical counts without local SQL. It accepts at most 1,000 operations,
-matching the operation page and import bounds, and refuses a feed that spans two
-spaces, because a sequence numbers an operation within one space.
+matching the operation page and import bounds. It requires the caller to name
+the space, because a sequence numbers an operation within one space and a feed
+from the wrong space would otherwise reduce to plausible wrong counts, and it
+requires one contiguous run of operations in sequence order, because a missing
+page would otherwise lower the counts with nothing reporting it. Contiguity
+across separate calls remains the caller's to maintain.
 
-The `limit` bounds the result, not the search. The read costs one index probe
-for each operation in the space up to its through sequence, stopping early once
-the limit is filled, so a key written often is found quickly while a key written
-rarely or not at all is proportional to the length of the log rather than to
-`limit`. An index on the change table's record key does not change this: SQLite
-drives the operation index for the space filter and the sequence ordering either
-way. Measured on a 20,000-operation space, a key present in every twentieth
-operation answers in 0.06 ms at `limit` 1 and 18 ms unbounded, while an absent
-key costs 16 ms whatever the limit.
+The `limit` bounds the result, not the search. In the worst case the read
+examines every operation in the space up to its through sequence, so its cost
+grows with the length of the log rather than with `limit`, and a key written
+rarely or not at all is the expensive case. V1 promises the bound on the result
+and nothing about the speed of the search: the plan SQLite chooses for this read
+depends on the indexes and table statistics the database happens to carry, so a
+host that adds either can change the cost in both directions. Treat the counts
+as correct and the latency as something to measure on the database in front of
+you.
 
 Both are reads. They add no table, index, or migration, they never write, and
 the `OhStoreV1` port, the operation bytes, and every V1 digest preimage are

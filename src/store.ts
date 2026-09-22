@@ -537,33 +537,46 @@ export function reduceOhRecordRevisionsV1(input: Readonly<{
  * with a change feed rather than local SQL derives the same facts. It reads
  * operations; it never mutates or commits.
  *
- * A sequence numbers an operation within one space, so a feed that spans two
- * spaces is rejected by name here rather than reaching the reducer as an
- * apparent duplicate sequence.
+ * The caller names the space. A sequence numbers an operation within one space,
+ * so operations from the wrong space would otherwise reduce to counts that look
+ * plausible and are wrong, which inferring the space from the feed cannot
+ * detect. The operations must also be one contiguous run in sequence order,
+ * because a feed missing a page would otherwise lower every count with nothing
+ * reporting it. Contiguity between separate calls stays the caller's to
+ * maintain: this function sees only what it is given.
  */
-export function ohRecordRevisionChangesFromOperationsV1(
-  key: string,
-  operations: readonly OhOperationV1[],
-): readonly OhRecordRevisionChangeV1[] {
-  const parsedKey = safeCode(key, 512);
-  if (parsedKey === null) throw new TypeError("Invalid record key.");
-  if (!Array.isArray(operations)) throw new TypeError("Invalid operation list.");
-  if (operations.length > OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead) {
+export function ohRecordRevisionChangesFromOperationsV1(input: Readonly<{
+  key: string;
+  operations: readonly OhOperationV1[];
+  spaceId: string;
+}>): readonly OhRecordRevisionChangeV1[] {
+  if (!isPlainRecord(input) || !Array.isArray(input.operations)) {
+    throw new TypeError("Invalid record revision operation input.");
+  }
+  const key = safeCode(input.key, 512);
+  const spaceId = safeCode(input.spaceId);
+  if (key === null) throw new TypeError("Invalid record key.");
+  if (spaceId === null) throw new TypeError("Invalid space ID.");
+  if (input.operations.length > OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead) {
     throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead} operations.`);
   }
   const changes: OhRecordRevisionChangeV1[] = [];
-  let spaceId: string | null = null;
-  for (const value of operations) {
+  let prior: OhOperationV1 | null = null;
+  for (const value of input.operations) {
     const operation = parseOhOperationV1(value);
     if (operation === null) throw new OhIntegrityError("A revision source operation is invalid.");
-    spaceId ??= operation.spaceId;
     if (operation.spaceId !== spaceId) {
-      throw new TypeError("Record revision changes must come from one space.");
+      throw new TypeError(`A revision source operation belongs to ${operation.spaceId}, not ${spaceId}.`);
     }
+    if (prior !== null && (operation.sequence !== prior.sequence + 1
+      || operation.parentOperationSha256 !== prior.operationSha256)) {
+      throw new TypeError("Record revision operations must be one contiguous run in sequence order.");
+    }
+    prior = operation;
     for (const change of operation.changes) {
-      if (change.kind === "put" && change.record.key === parsedKey) {
+      if (change.kind === "put" && change.record.key === key) {
         changes.push({ kind: "put", recordSha256: change.record.recordSha256, sequence: operation.sequence, v: 1 });
-      } else if (change.kind === "tombstone" && change.key === parsedKey) {
+      } else if (change.kind === "tombstone" && change.key === key) {
         changes.push({ kind: "tombstone", recordSha256: change.priorSha256, sequence: operation.sequence, v: 1 });
       }
     }

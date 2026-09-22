@@ -17284,29 +17284,36 @@ function reduceOhRecordRevisionsV1(input) {
     v: 1
   };
 }
-function ohRecordRevisionChangesFromOperationsV1(key, operations) {
-  const parsedKey = safeCode(key, 512);
-  if (parsedKey === null)
+function ohRecordRevisionChangesFromOperationsV1(input) {
+  if (!isPlainRecord(input) || !Array.isArray(input.operations)) {
+    throw new TypeError("Invalid record revision operation input.");
+  }
+  const key = safeCode(input.key, 512);
+  const spaceId = safeCode(input.spaceId);
+  if (key === null)
     throw new TypeError("Invalid record key.");
-  if (!Array.isArray(operations))
-    throw new TypeError("Invalid operation list.");
-  if (operations.length > OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead) {
+  if (spaceId === null)
+    throw new TypeError("Invalid space ID.");
+  if (input.operations.length > OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead) {
     throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead} operations.`);
   }
   const changes = [];
-  let spaceId = null;
-  for (const value of operations) {
+  let prior = null;
+  for (const value of input.operations) {
     const operation = parseOhOperationV1(value);
     if (operation === null)
       throw new OhIntegrityError("A revision source operation is invalid.");
-    spaceId ??= operation.spaceId;
     if (operation.spaceId !== spaceId) {
-      throw new TypeError("Record revision changes must come from one space.");
+      throw new TypeError(`A revision source operation belongs to ${operation.spaceId}, not ${spaceId}.`);
     }
+    if (prior !== null && (operation.sequence !== prior.sequence + 1 || operation.parentOperationSha256 !== prior.operationSha256)) {
+      throw new TypeError("Record revision operations must be one contiguous run in sequence order.");
+    }
+    prior = operation;
     for (const change of operation.changes) {
-      if (change.kind === "put" && change.record.key === parsedKey) {
+      if (change.kind === "put" && change.record.key === key) {
         changes.push({ kind: "put", recordSha256: change.record.recordSha256, sequence: operation.sequence, v: 1 });
-      } else if (change.kind === "tombstone" && change.key === parsedKey) {
+      } else if (change.kind === "tombstone" && change.key === key) {
         changes.push({ kind: "tombstone", recordSha256: change.priorSha256, sequence: operation.sequence, v: 1 });
       }
     }
