@@ -24,8 +24,15 @@ so the table asserts what biology does not.
 
 All three conditions score 44/44 for both models tested. In `conflict`, where
 37 entries qualify under the permuted table only and a different 37 under real
-biology only, both models returned **37/37 table-only and 0/37 real-only**, with
-confident citations, flagging none.
+biology only, both models returned **37/37 table-only and 0/37 real-only**, each
+citing two attributes from the row it was asserting.
+
+Two limits on that run, stated because the first is easy to overread. The output
+format was one row per line and nothing else, so a model had no channel in which
+to object to a contradiction; the absence of any objection is therefore not
+evidence that neither noticed. And 44/44 is recall — one model proposed a
+forty-fifth row that did not qualify, so the conditions establish that supplied
+evidence is followed, not that output was flawless.
 
 Stripping recognisable names changed nothing, so recall was never load-bearing —
 the grounding works. The same result read the other way is the constraint: a
@@ -47,6 +54,8 @@ Lift is recall divided by flag rate: the share of errors a signal catches
 divided by the share of claims it asks a curator to read. A signal that flags
 30% of claims and finds 30% of errors has found nothing a coin could not and
 reads 1.00x. Intervals are cluster bootstraps over collections.
+
+Model A is `claude-sonnet-5`, model B is `qwen3.5-flash`.
 
 | signal | lift, model A | lift, model B | verdict |
 | --- | --- | --- | --- |
