@@ -430,9 +430,9 @@ oh get evidence:table-2 \\
               </p>
               <p className="benchmark-note">
                 300 questions balanced across the same eight conversations, with
-                three reader attempts per policy. GPT-4o mini served as reader and
-                judge; identical judge prompts shared one judgment. The model
-                alias did not identify an immutable snapshot.
+                three reader attempts per question and policy. GPT-4o mini served
+                as reader and judge; identical judge prompts shared one judgment.
+                The model alias did not identify an immutable snapshot.
               </p>
             </div>
             <p className="benchmark-note">

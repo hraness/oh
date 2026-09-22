@@ -197,7 +197,8 @@ bun run scripts/benchmarks/locomo-window-source.ts verify \
   benchmarks/results/memory-locomo-window-development-v1.json
 ```
 
-The fetch downloads about 2.8 MB and makes no model calls. The replay verifies
+The fetch requires the GitHub CLI (`gh`) with GitHub API access. It downloads
+about 2.8 MB and makes no model calls. The replay verifies
 the pinned LoCoMo source, all 1,986 historical vector-window
 controls, and all 3,172 confirmation contexts before projecting the answer
 pool. `prepare` creates a new, separate reader source, scorer source and

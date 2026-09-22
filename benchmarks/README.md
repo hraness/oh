@@ -29,6 +29,9 @@ answer or recall gain from shipped hybrid search over matched vector retrieval.
 The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) confirmed an evidence-recall
 gain (90.08% versus 88.93%), but its completed 300-question answer comparison
 did not establish an accuracy gain (77.33% versus 78.11%).
+The subsequent [conversation-order development test](LOCOMO_ORDER_DEV_RESULT_V1.md)
+also failed its advancement rule: restoring source order scored 73.54% versus
+74.38% for the same selected evidence in its existing order.
 These studies preserve their controls, uncertainty and prior-exposure limits.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:

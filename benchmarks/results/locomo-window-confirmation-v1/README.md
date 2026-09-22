@@ -17,7 +17,8 @@ The compact `public-evidence.json` is also published as
 Historical relative cache paths inside the original freeze are provenance
 strings. The replay command accepts the public file locations explicitly.
 
-From the repository root, download the pinned 2.8 MB dataset once, then verify:
+The fetch requires the GitHub CLI (`gh`) with GitHub API access. From the
+repository root, download the pinned 2.8 MB dataset once, then verify:
 
 ```sh
 bun run bench:memory fetch --dataset locomo

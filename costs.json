@@ -302,7 +302,7 @@
         "taskExposureMicros": 25000000,
         "explicitAttemptsPerPhase": 8,
         "receiptFiles": 42,
-        "receiptBytesTotal": 271122432,
+        "receiptBytesTotal": 271712256,
         "sourceBytes": 16777216,
         "planBytes": 67108864,
         "judgeMessageBytes": 24000
