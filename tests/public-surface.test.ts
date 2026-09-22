@@ -183,7 +183,7 @@ describe("public identity and documentation", () => {
     expect(cli).toContain('OH_PACKAGE_VERSION = "0.11.0"');
     expect(publishedRelease).toEqual({
       version: "0.11.0",
-      verificationRun: "https://github.com/hraness/oh/actions/runs/00000000000",
+      verificationRun: "https://github.com/hraness/oh/actions/runs/35759877197",
     });
     expect(readme).toContain("installation instructions below use `0.11.0`");
     expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.11.0`");
@@ -199,8 +199,8 @@ describe("public identity and documentation", () => {
     expect(skill).toContain("oh research catalog-v2");
     expect(skill).toContain("oh research wikidata-mappings");
     expect(skill).toContain("wikidata-mapping-preview --file PATH");
-    expect(readme).toContain("https://github.com/hraness/oh/actions/runs/00000000000");
-    expect(skill).toContain("https://github.com/hraness/oh/actions/runs/00000000000");
+    expect(readme).toContain("https://github.com/hraness/oh/actions/runs/35759877197");
+    expect(skill).toContain("https://github.com/hraness/oh/actions/runs/35759877197");
     expect(readme).not.toContain("This source tree prepares version");
     expect(skill).not.toContain("until the next release completes publication");
     expect(packageJson.description).toBe(tagline);

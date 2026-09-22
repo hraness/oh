@@ -33,6 +33,10 @@ The subsequent [conversation-order development test](LOCOMO_ORDER_DEV_RESULT_V1.
 also failed its advancement rule: restoring source order scored 73.54% versus
 74.38% for the same selected evidence in its existing order.
 These studies preserve their controls, uncertainty and prior-exposure limits.
+Answer-quality development continues; no procedure from these studies is
+promoted to Oh's default retrieval path. The next fixed
+[composition development screen](LOCOMO_COMPOSITION_DEV_V1.md) changes only the
+reading instruction over identical vector-window context. Its result is pending.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
 

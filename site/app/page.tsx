@@ -439,7 +439,8 @@ oh get evidence:table-2 \\
               Benchmark policy <code>anchors-query-4</code> was selected on two
               other conversations. All ten conversations had prior project
               exposure. This policy is experimental; these retrieval scores do
-              not establish answer quality.
+              not establish answer quality. Answer-quality improvements remain
+              under development.
             </p>
             <ul className="benchmark-links" aria-label="LoCoMo benchmark evidence">
               <li><a href={`${repository}/blob/main/benchmarks/LOCOMO_WINDOW_QA_V1.md`}>Protocol and limitations</a></li>

@@ -321,6 +321,39 @@
         "publicBytes": 524288,
         "privateObservationsBytes": 4194304
       }
+    },
+    "benchmark:locomo-composition-development": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/locomo-composition-dev-run.ts",
+      "source": "scripts/benchmarks/locomo-composition-dev.ts",
+      "budget": {
+        "questionsPerStudy": 160,
+        "arms": 2,
+        "maximumPhysicalCalls": 1920,
+        "exposureMicrosPerCampaign": 8000000,
+        "taskExposureMicros": 25000000,
+        "explicitAttemptsPerPhase": 8,
+        "receiptFiles": 42,
+        "receiptBytesTotal": 271712256,
+        "sourceBytes": 16777216,
+        "planBytes": 67108864,
+        "judgeMessageBytes": 24000
+      }
+    },
+    "benchmark:locomo-composition-development-report": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/locomo-composition-dev-report.ts",
+      "source": "scripts/benchmarks/locomo-composition-dev-source.ts",
+      "budget": {
+        "sourceBytes": 16777216,
+        "scorerBytes": 16777216,
+        "planBytes": 67108864,
+        "preparedBytes": 262144,
+        "publicBytes": 524288,
+        "privateObservationsBytes": 4194304
+      }
     }
   },
   "exempt": []

@@ -76,7 +76,7 @@ preserved properties are not all mapped to local relations. Historical catalogs
 and definitions remain available.
 
 The installation instructions below use `0.11.0`, the
-[verified public release](https://github.com/hraness/oh/actions/runs/00000000000).
+[verified public release](https://github.com/hraness/oh/actions/runs/35759877197).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
 CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
@@ -795,6 +795,10 @@ change SDK defaults or establish a framework leaderboard ranking. Inspect the
 The separate [CloneMem comparison](benchmarks/CLONEMEM_TRANSFER_V1.md) also did
 not establish a multiple-choice accuracy gain from Oh hybrid search over vector
 search.
+
+Answer-quality improvements remain under development. A subsequent
+[conversation-order development test](benchmarks/LOCOMO_ORDER_DEV_RESULT_V1.md)
+also failed its advancement rule; no new context policy has been promoted.
 
 Run the network-free state and projection checks from a checkout:
 
