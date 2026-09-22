@@ -579,3 +579,15 @@ The separate [reserved reader pair](results/memory-reserved-reader-profile-v1.js
 ## Deductive memory and calibrated selection seam
 
 The [deductive memory seam](DEDUCTIVE_MEMORY.md) adds five benchmark-scoped primitives: a proof-carrying bounded Datalog engine ported from ALGAL, consistency rule packs, isotonic/Platt score calibration, split-conformal coverage selection, and budgeted submodular channel packing — composed in `scripts/benchmarks/deductive-memory.ts`. On the frozen pointwise captures, isotonic recalibration cut held-out ECE from 0.155 to 0.019. These are benchmark seams only: they change no production retrieval, store, or wire contract.
+
+## Curation triage and evidence obedience
+
+The [curation triage card](CURATION_TRIAGE.md) reports external-corpus
+measurements on which signal predicts a bad stored claim, and is not a matched
+arm of any comparison under the protocol card. Inter-model disagreement beats
+equal-size random review (1.88x and 2.38x, intervals clear of 1.0); model
+self-reported confidence is undemonstrated on two corpora and on a third party's
+published field; a lexical source-support check is worse than random. It also
+records that both models tested reproduced 37 of 37 false claims from a permuted
+evidence table with confident citations and flagged none, so a citation records
+where a claim came from and not whether its source was right.
