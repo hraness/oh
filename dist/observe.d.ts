@@ -246,6 +246,28 @@ export type OhObservationReadStoreV1 = Readonly<{
  * the distance to it. It says nothing about whether the link graph is complete:
  * a chain the linker never joined still resolves.
  *
+ * `candidateLookup` reports what the walked records' receipts recorded about
+ * the bounded lookup their link was chosen from, and it is three-valued because
+ * the honest answer has three cases.
+ *
+ * `"named"` means a receipt named one of the walked records, so its lookup
+ * saturated, the chain may be short by an unknown amount even though the walk
+ * completed, and `depth` is not a floor on the links that exist.
+ *
+ * `"unreadable"` means some receipt could not be read as one, so nothing is
+ * known. A boolean would have to report that state as one of the other two, and
+ * reporting it as the absence of saturation would be asserting a fact this read
+ * never established.
+ *
+ * `"none-recorded"` means every walked record's receipt was readable and named
+ * none of them. It is deliberately not called complete. A receipt records the
+ * lookup performed when the observation was extracted; `applySupersessionPolicyV1`
+ * re-links an already committed record against its original receipt and never
+ * writes one, so a link that policy chose from a saturated lookup is recorded
+ * nowhere this read can see. `"none-recorded"` therefore rules out recorded
+ * saturation and nothing more. A facet that drifted between sessions leaves no
+ * signal this read can report either.
+ *
  * When `resolved` is false the walk stopped on a cycle, on the record bound, or
  * on a record that is absent or is not a well-formed observation. `depth` then
  * counts one link past the last record it could read, so it exceeds the distance
@@ -255,14 +277,23 @@ export type OhObservationReadStoreV1 = Readonly<{
  * cycle that closes beyond it reports `truncated` instead. A damaged chain is
  * reported, never repaired and never silently completed.
  *
- * At most 8192 records are read, so the longest chain that can resolve carries
- * 8191 links.
+ * At most 8192 observation records are read, so the longest chain that can
+ * resolve carries 8191 links. Each one also costs a receipt read, memoised per
+ * session, so a chain whose links all come from different sessions performs up
+ * to 16384 reads in total.
  *
  * The count carries no meaning. A long chain may be contested, progressively
  * refined, or simply a subject discussed often; whether that warrants review is
  * the application's decision.
  */
+/**
+ * What the walked records' receipts recorded about their candidate lookup.
+ * `"named"` beats `"unreadable"`, which beats `"none-recorded"`: a lookup known
+ * to have saturated is reported even when another receipt could not be read.
+ */
+export type OhObservationCandidateLookupV1 = "named" | "none-recorded" | "unreadable";
 export type OhObservationSupersessionV1 = Readonly<{
+    candidateLookup: OhObservationCandidateLookupV1;
     depth: number;
     key: string;
     loop: boolean;
