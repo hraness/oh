@@ -48,11 +48,32 @@ const STOP = new Set(("a an the is are was were be been being do does did have h
 const MONTHS = "january february march april may june july august september october november december"
   .split(" ");
 
+/* Directional date cues: a cue word whose date phrase begins within 60 chars
+ * of its end turns the date scope into a one-sided bound ("before August 3,
+ * 2023" scopes sessions at or before that day — the evidence for such
+ * questions lives before the bound, never inside it). The closest cue–date
+ * pair wins; `as of`/`until` bound the reference point itself. */
+const DIRECTIONAL_CUES: readonly { cue: RegExp; direction: "before" | "after" }[] = [
+  { cue: /\b(?:before|prior to|earlier than|until|as of)\b/g, direction: "before" },
+  { cue: /\b(?:after|since|later than|following)\b/g, direction: "after" },
+];
+/* Post-cue date grammar: `August 3, 2023`, `16 November 2023`,
+ * `4th October, 2023`, `November 2023`, or a bare `2023`. */
+const MONTH_RE = "january|february|march|april|may|june|july|august|september|october|november|december";
+const DIRECTIONAL_DATE = new RegExp(
+  `(?:(\\d{1,2})(?:st|nd|rd|th)?\\s+)?(${MONTH_RE})(?:\\s+(\\d{1,2})(?:st|nd|rd|th)?)?\\s*,?\\s*((?:19|20)\\d{2})`);
+const DIRECTIONAL_YEAR = /\b((?:19|20)\d{2})\b/;
+
 export type ParsedQuestion = Readonly<{
   terms: readonly string[];
   entities: readonly string[];
   scopeMonths: readonly string[];
   scopeYears: readonly string[];
+  /** One-sided date bound from a directional cue ("before August 3, 2023",
+   * "after his trip in August 2023", "as of November 2023"). `month`/`day`
+   * are null at coarser granularity; both null means no directional cue. */
+  scopeDirection: "before" | "after" | null;
+  scopeBound: Readonly<{ year: number; month: number | null; day: number | null }> | null;
   /** Temporal direction cue: "first/earliest" asks for the earliest match,
    * "last/latest/recent/current" the latest. `null` = no ordering cue. */
   chronology: "asc" | "desc" | null;
@@ -68,11 +89,38 @@ export function parseQuestion(question: string): ParsedQuestion {
   const scopeYears = [...new Set(lower.match(/\b(19|20)\d{2}\b/g) ?? [])].slice(0, 4);
   const chronology = /\b(last|latest|recent|recently|current|currently|now|today)\b/i.test(question) ? "desc" as const
     : /\b(first|earliest|originally|initially|began|started)\b/i.test(question) ? "asc" as const : null;
+  // Directional bound: nearest cue–date pair wins. A nonexistent date
+  // ("February 30") is rejected rather than rolled over by Date.UTC.
+  let scopeDirection: ParsedQuestion["scopeDirection"] = null;
+  let scopeBound: ParsedQuestion["scopeBound"] = null;
+  let bestGap = 60;
+  for (const { cue, direction } of DIRECTIONAL_CUES) {
+    for (const cueMatch of lower.matchAll(cue)) {
+      const start = cueMatch.index! + cueMatch[0].length;
+      const window = lower.slice(start, start + 60);
+      const dated = DIRECTIONAL_DATE.exec(window);
+      const bare = dated === null ? DIRECTIONAL_YEAR.exec(window) : null;
+      const match = dated ?? bare;
+      if (match === null || match.index >= bestGap) continue;
+      const dayRaw = dated?.[1] ?? dated?.[3];
+      const bound = dated !== null
+        ? { year: Number(dated[4]), month: MONTHS.indexOf(dated[2]!) + 1,
+            day: dayRaw === undefined ? null : Number(dayRaw) }
+        : { year: Number(bare![1]), month: null, day: null };
+      if (bound.day !== null) {
+        const probe = new Date(Date.UTC(bound.year, bound.month! - 1, bound.day));
+        if (probe.getUTCMonth() !== bound.month! - 1 || probe.getUTCDate() !== bound.day) continue;
+      }
+      bestGap = match.index;
+      scopeDirection = direction;
+      scopeBound = Object.freeze(bound);
+    }
+  }
   return Object.freeze({ terms, entities,
     // A date scope binds only when the question carries a real month+year or
     // bare-year constraint — single months alone are too weak to restrict on.
     scopeMonths: scopeYears.length > 0 ? Object.freeze(scopeMonths.slice(0, 4)) : Object.freeze([]),
-    scopeYears: Object.freeze(scopeYears), chronology });
+    scopeYears: Object.freeze(scopeYears), scopeDirection, scopeBound, chronology });
 }
 
 /** The fixed retrieval rule program evaluated once per shard. `hit-any(T, X)`
@@ -220,7 +268,26 @@ type Derived = Readonly<{ turnId: string; sessionId: string; terms: ReadonlySet<
 export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
   question: ParsedQuestion): readonly Derived[] {
   const inScope = new Set<string>();
-  if (question.scopeYears.length > 0) {
+  const bound = question.scopeBound;
+  if (bound !== null && question.scopeDirection !== null) {
+    // Directional bound: the bound period itself stays in-scope (a session on
+    // the bound day may discuss the event), sessions strictly on the wrong
+    // side are out. Granularity widens to month/year when the question omits
+    // the day ("after his trip in August 2023" keeps August in-scope).
+    const start = Date.UTC(bound.year, (bound.month ?? 1) - 1, bound.day ?? 1);
+    const end = bound.day !== null
+      ? Date.UTC(bound.year, bound.month! - 1, bound.day, 23, 59, 59, 999)
+      : bound.month !== null
+        ? Date.UTC(bound.year, bound.month, 0, 23, 59, 59, 999)
+        : Date.UTC(bound.year, 11, 31, 23, 59, 59, 999);
+    for (const [sessionId, date] of prepared.sessionDates) {
+      const instant = parseEvolutionInstant(date);
+      if (instant === null) continue;
+      const time = Date.parse(instant);
+      if ((question.scopeDirection === "before" && time <= end)
+        || (question.scopeDirection === "after" && time >= start)) inScope.add(sessionId);
+    }
+  } else if (question.scopeYears.length > 0) {
     for (const [sessionId, date] of prepared.sessionDates) {
       const lower = date.toLowerCase();
       const yearHit = question.scopeYears.some((year) => lower.includes(year));
@@ -231,7 +298,11 @@ export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
   }
   const questionDigest = `sha256:${canonicalSha256({ protocol: DEDUCTIVE_RETRIEVAL_PROTOCOL,
     terms: question.terms, entities: question.entities,
-    scope: [...inScope].sort() })}`;
+    scope: [...inScope].sort(),
+    ...(question.scopeDirection === null ? {}
+      : { scopeDirection: question.scopeDirection,
+          scopeBound: question.scopeBound === null ? null
+            : [question.scopeBound.year, question.scopeBound.month, question.scopeBound.day] }) })}`;
   const questionFacts: Snapshot["facts"][number][] = [
     ...question.terms.map((term) => ({ relation: "question-term", tuple: [term], sources: [questionDigest] })),
     ...question.entities.map((entity) => ({ relation: "question-entity", tuple: [entity], sources: [questionDigest] })),
