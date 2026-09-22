@@ -36,6 +36,55 @@ describe("deductive retrieval", () => {
     expect(parseQuestion("What kind of car does Evan drive?").chronology).toBeNull();
   });
 
+  test("parseQuestion extracts directional date bounds mechanically", () => {
+    const before = parseQuestion("What did Maria do the week before August 3, 2023?");
+    expect(before.scopeDirection).toBe("before");
+    expect(before.scopeBound).toEqual({ year: 2023, month: 8, day: 3 });
+    const dayFirst = parseQuestion("Where was Tim in the week before 16 November 2023?");
+    expect(dayFirst.scopeBound).toEqual({ year: 2023, month: 11, day: 16 });
+    // "as of" is closer to the date than "since" — the nearest pair wins.
+    const asOf = parseQuestion("How long has it been since Andrew adopted his pet, as of November 2023?");
+    expect(asOf.scopeDirection).toBe("before");
+    expect(asOf.scopeBound).toEqual({ year: 2023, month: 11, day: null });
+    const after = parseQuestion("When did John meet his teammates after his trip in August 2023?");
+    expect(after.scopeDirection).toBe("after");
+    expect(after.scopeBound).toEqual({ year: 2023, month: 8, day: null });
+    // No cue, no date, and nonexistent dates all fail closed to equality scope.
+    expect(parseQuestion("Which places was Evan visiting in July 2023?").scopeBound).toBeNull();
+    expect(parseQuestion("What happened since we last talked?").scopeBound).toBeNull();
+    expect(parseQuestion("What happened before February 30, 2023?").scopeBound).toBeNull();
+  });
+
+  test("directional bounds scope the correct side of the timeline", () => {
+    const prepared = prepareDeductive(corpus);
+    try {
+      // s1 = 1 May 2023, s2 = 10 June 2023, s3 = 20 July 2023.
+      const before = parseQuestion("What did Sam say before June 15, 2023?");
+      const derivedBefore = deriveCandidates(prepared, before);
+      expect(derivedBefore.find((row) => row.turnId === "s1:1")?.scoped).toBe(true);
+      expect(derivedBefore.find((row) => row.turnId === "s2:1")?.scoped).toBe(true);
+      const july = derivedBefore.find((row) => row.turnId === "s3:0");
+      expect(july?.speaker).toBe(true); // speaker-linked but out-of-scope
+      expect(july?.scoped).toBeFalsy();
+      // The demotion now lands on the post-bound session, not the evidence side.
+      expect(scoreDerived(derivedBefore.find((row) => row.turnId === "s1:1")!, before,
+        prepared.documentFrequency, corpus.turns.length))
+        .toBeGreaterThan(scoreDerived(july!, before,
+          prepared.documentFrequency, corpus.turns.length));
+      const after = parseQuestion("What did Sam say after June 15, 2023?");
+      const derivedAfter = deriveCandidates(prepared, after);
+      expect(derivedAfter.find((row) => row.turnId === "s3:0")?.scoped).toBe(true);
+      expect(derivedAfter.find((row) => row.turnId === "s1:1")?.scoped).toBeFalsy();
+      // Month granularity keeps the bound month itself in-scope.
+      const monthBound = parseQuestion("What did Sam say after May 2023?");
+      const derivedMonth = deriveCandidates(prepared, monthBound);
+      expect(derivedMonth.find((row) => row.turnId === "s1:1")?.scoped).toBe(true);
+    } finally {
+      prepared.store.close();
+      prepared.fts.close();
+    }
+  });
+
   test("derives candidates with proofs and speaker linkage invisible to term matching", () => {
     const prepared = prepareDeductive(corpus);
     try {

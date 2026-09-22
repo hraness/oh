@@ -21,7 +21,8 @@ const VARIANTS: Readonly<Record<string, Readonly<{ windowRadius?: number;
 async function main(): Promise<void> {
   await fetchDataset("locomo");
   const dataset = selectSplit(await loadDataset("locomo"), "dev", 17) as Dataset;
-  const corpus = dataset.corpora.find((c) => c.id === "conv-49") ?? dataset.corpora[0]!;
+  const corpus = dataset.corpora.find((c) => c.id === (process.env.PROBE_CORPUS ?? "conv-49"))
+    ?? dataset.corpora[0]!;
   const retrievers = createRetrievers(corpus);
   const prepared = prepareDeductive(corpus);
   try {

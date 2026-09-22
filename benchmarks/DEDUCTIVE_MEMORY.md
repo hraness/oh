@@ -107,7 +107,12 @@ mechanical facts (speaker, session, date, ≤48 content tokens, ≤8 capitalized
 entities per turn). Each question contributes `question-term` /
 `question-entity` / `in-scope` facts, all parsed mechanically from the
 question text — a date phrase binds sessions whose metadata date falls in
-scope, which FTS can never see because the date is not in turn text. A fixed
+scope, which FTS can never see because the date is not in turn text. A
+directional cue (`before`/`after`/`since`/`until`/`as of` + a date) binds a
+one-sided bound instead of substring equality: sessions on the evidence
+side of the bound stay in scope while the wrong side demotes — "the week
+before August 3, 2023" keeps July sessions in scope rather than restricting
+to August itself. A fixed
 five-rule program derives `hit-any(turn, marker)` rows; each row's proof DAG
 terminates in store-record digests or the pinned question digest, and every
 result is replay-verified before scoring. Scoring is IDF-weighted
