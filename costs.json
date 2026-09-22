@@ -205,6 +205,38 @@
         "bytesTotal": 25000000
       }
     },
+    "benchmark:locomo-window-reader-judge": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/locomo-window-study-run.ts",
+      "source": "scripts/benchmarks/locomo-window-study.ts",
+      "budget": {
+        "questionsPerStudy": 300,
+        "maximumPhysicalCalls": 3600,
+        "exposureMicrosPerCampaign": 20000000,
+        "taskExposureMicros": 25000000,
+        "explicitAttemptsPerPhase": 8,
+        "receiptFiles": 42,
+        "receiptBytesTotal": 271122432,
+        "sourceBytes": 16777216,
+        "planBytes": 33554432,
+        "judgeMessageBytes": 24000
+      }
+    },
+    "benchmark:locomo-window-report": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/locomo-window-report.ts",
+      "source": "scripts/benchmarks/locomo-window-source.ts",
+      "budget": {
+        "sourceBytes": 16777216,
+        "scorerBytes": 16777216,
+        "planBytes": 33554432,
+        "preparedBytes": 262144,
+        "publicBytes": 524288,
+        "privateObservationsBytes": 4194304
+      }
+    },
     "benchmark:paired-memory-reader": {
       "kind": "derived",
       "retention": "persistent",

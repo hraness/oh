@@ -24,6 +24,12 @@ For an installed Claude Code subscription, use the separate [subscription benchm
 
 The [protocol card](PROTOCOL_CARD.md) and [pre-registered analysis plan](ANALYSIS_PLAN.md) fix the matched settings, strata and statistics for every current LongMemEval comparison. The [full 500-question comparison](EVOLUTION_RELEASE_RESULTS.md) reports the latest completed outcomes: with the nano reader BM25 window 378/500, Oh semantic 379/500 and full history 355/500; with GPT-5 mini on the same contexts BM25 427/500 and Oh semantic 449/500; and on the previously evaluated LoCoMo comparison (1,540 questions, published judge protocol) Oh semantic 84.4% with GPT-5 mini and 81.0% with nano against 81.6% and 78.1% for BM25, with exposure and protocol limits and a table of published results. The earlier [120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) remain closed.
 
+The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
+answer or recall gain from shipped hybrid search over matched vector retrieval.
+The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) follows a confirmed evidence
+recall improvement with a separately frozen, matched answer-quality test.
+These studies preserve their controls, uncertainty and prior-exposure limits.
+
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
 
 ```sh

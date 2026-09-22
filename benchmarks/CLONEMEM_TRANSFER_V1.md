@@ -1,7 +1,36 @@
 # CloneMem transfer comparison
 
-Status: protocol prepared on 2026-09-22, before CloneMem retrieval scores or
-reader outcomes. A result will be added after the frozen evaluation completes.
+Completed on 2026-09-22. This comparison did **not establish an improvement**
+from hybrid search. The protocol below was fixed before retrieval scores and
+reader outcomes. The [result artifact](results/memory-clonemem-transfer-v1.json)
+contains the complete aggregates, confidence intervals and provenance.
+
+| Measure | Oh hybrid | Vector | Paired difference (95% interval) |
+| --- | ---: | ---: | ---: |
+| Evidence Recall@10, 1,007 questions | 14.39% | 14.13% | +0.26 points (−2.59 to +2.68) |
+| Choice accuracy, 300 questions × 3 attempts | 66.89% | 68.67% | −1.78 points (−6.17 to +2.88) |
+
+Intervals resample the nine personas. Neither endpoint established a gain;
+the frozen combined improvement criterion was not met. This result does not
+support a claim that hybrid search improves CloneMem answers or outperforms
+another memory framework.
+
+All 1,800 reader calls completed, with no missing, failed or truncated
+responses, for **$1.664274** in captured provider usage. Both arms used the
+`openai/gpt-4o-mini` Gateway alias; the responses did not identify an immutable
+model snapshot. Mean context sizes were 21,780 bytes for hybrid and 26,586
+bytes for vector retrieval under the native top-ten whole-document rule.
+
+On an Apple M5 Max with 36 GiB memory, hybrid retrieval averaged 30.51 ms
+(48.93 ms p95). Its shared top-30 semantic call averaged 20.73 ms; this is not
+an independently timed vector top-ten search. Incremental ingestion and
+indexing took 380.30 seconds. Measurements used source checkpoint
+`6ffca340365792b71e09ce523a694b67675bc335`; offline replay reproduced all
+1,007 rankings and contexts without a model or network access.
+
+Evaluation and analysis were produced by coding agents, with independent
+agent checks of the native response ledger, scores and intervals. These are
+automated benchmark measurements, not human answer-quality judgments.
 
 This study measures the shipped Oh hybrid search against vector retrieval on
 personal histories containing diaries, email and social posts. Both methods
