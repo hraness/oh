@@ -1,0 +1,89 @@
+{
+  "protocol": "oh.clonemem-source-pin.v1",
+  "repository": "https://github.com/AvatarMemory/CloneMemBench",
+  "revision": "753d8a97fd78f4ee25af398a0f0c8d981a6be304",
+  "license": "Apache-2.0",
+  "excludedPrimaryPersonId": "5857744e-07fc-4db3-a86f-46b1b956641b",
+  "files": [
+    {
+      "path": "data/releases/100k/guiling_chen_11ccc069-2a93-4e9d-af03-cdacb0b8d568_benchmark_en.json",
+      "sha256": "719d38472cc990bb272db10db6c29678438c7599fd637931365fc0c92b6be27a",
+      "bytes": 839761,
+      "personId": "11ccc069-2a93-4e9d-af03-cdacb0b8d568",
+      "traces": 324,
+      "questions": 32
+    },
+    {
+      "path": "data/releases/100k/linchuan_shen_600bfee5-c87e-4fa9-ba36-14f9777bff6d_benchmark_en.json",
+      "sha256": "a1c15cdcdde56ac69f3fa90b3660c2722d050291150815fad2cd83f8afd97709",
+      "bytes": 1072569,
+      "personId": "600bfee5-c87e-4fa9-ba36-14f9777bff6d",
+      "traces": 361,
+      "questions": 76
+    },
+    {
+      "path": "data/releases/100k/yu_zhou_9fdf4fb7-c6d8-4fb1-9e01-581d5b85d84a_benchmark_en.json",
+      "sha256": "d4781bf5315cf198a220c1328b6f93cf9adb8cf4a441c55947a581769b2d2b33",
+      "bytes": 1187717,
+      "personId": "9fdf4fb7-c6d8-4fb1-9e01-581d5b85d84a",
+      "traces": 363,
+      "questions": 78
+    },
+    {
+      "path": "data/releases/500k/hao_lin_5857744e-07fc-4db3-a86f-46b1b956641b_benchmark_en.json",
+      "sha256": "9ec362306063704eeb03d36eeceb86791d62bee0bbd39a70e6feed471d4685da",
+      "bytes": 2805161,
+      "personId": "5857744e-07fc-4db3-a86f-46b1b956641b",
+      "traces": 942,
+      "questions": 180
+    },
+    {
+      "path": "data/releases/500k/jianguo_li_157c536e-cf63-4b96-acde-13a668618023_benchmark_en.json",
+      "sha256": "56521ffaf45f7fa747553feea21089ee924a3675c7d9fbf950822f4d9064a943",
+      "bytes": 2547290,
+      "personId": "157c536e-cf63-4b96-acde-13a668618023",
+      "traces": 903,
+      "questions": 142
+    },
+    {
+      "path": "data/releases/500k/minghui_li_2289bf34-6dcb-457f-bdff-3f4f0894130d_benchmark_en.json",
+      "sha256": "d27915c988254dd51ac3040a964c11cc7f0f7e5b5694f4ca074586fe725d272c",
+      "bytes": 4164213,
+      "personId": "2289bf34-6dcb-457f-bdff-3f4f0894130d",
+      "traces": 1344,
+      "questions": 167
+    },
+    {
+      "path": "data/releases/500k/xiaoyu_lin_2684282b-1e09-42a8-9425-533e2a95901d_benchmark_en.json",
+      "sha256": "6c0be306d4994faa4fca845cde56d18cde887275510ece58e976c48719858769",
+      "bytes": 2926964,
+      "personId": "2684282b-1e09-42a8-9425-533e2a95901d",
+      "traces": 1247,
+      "questions": 114
+    },
+    {
+      "path": "data/releases/500k/xiaoyu_lin_d4f00c57-092e-4748-bc51-bdd4c84ec31f_benchmark_en.json",
+      "sha256": "6219bdb1ef5e549b569464003f0c65309c91a56d890e4bb3c13d15db8adc8a9a",
+      "bytes": 1960012,
+      "personId": "d4f00c57-092e-4748-bc51-bdd4c84ec31f",
+      "traces": 730,
+      "questions": 110
+    },
+    {
+      "path": "data/releases/500k/xiaoyun_lin_b99ae361-6c8d-4815-8b53-42e0f637bf63_benchmark_en.json",
+      "sha256": "0bc7b9c08034dd3a310c473dc61c9c0ece62614c8808fa1702ef60b97f3ee529",
+      "bytes": 3745821,
+      "personId": "b99ae361-6c8d-4815-8b53-42e0f637bf63",
+      "traces": 1366,
+      "questions": 181
+    },
+    {
+      "path": "data/releases/500k/ziang_lin_b2df4690-4d0e-47f3-b863-f8584bd5880c_benchmark_en.json",
+      "sha256": "41fea0680807c188bc6419ef052e472f358a8ebac8cd72a9d136dd687ce5031b",
+      "bytes": 2862135,
+      "personId": "b2df4690-4d0e-47f3-b863-f8584bd5880c",
+      "traces": 909,
+      "questions": 107
+    }
+  ]
+}

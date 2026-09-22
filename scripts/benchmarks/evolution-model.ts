@@ -30,7 +30,9 @@ export const EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID = "gpt5-mini-explicit-abs
 export type EvolutionLongDeadlineReaderProfileId = typeof EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID;
 export const EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v1-reader";
 export type EvolutionTaskCompleteReaderProfileId = typeof EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID;
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId;
+export const EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID = "gpt4o-mini-clonemem-choice-v1-reader";
+export type EvolutionCloneMemChoiceReaderProfileId = typeof EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID;
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId | EvolutionCloneMemChoiceReaderProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionExtractorResponseFormat = typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT | typeof OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT;
@@ -176,7 +178,14 @@ const TASK_COMPLETE_READER_PROFILES: Readonly<Record<EvolutionTaskCompleteReader
     timeoutMs: 600_000, readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v1",
       instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v1"].instructionSha256 } },
 });
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES });
+/** CloneMem's released choice prompt uses one user message and temperature 0.1.
+ * The 512-token cap and Gateway alias are explicit bounded operational deviations.
+ * This additive profile leaves all historical profile and request identities unchanged. */
+const CLONEMEM_CHOICE_PROFILES: Readonly<Record<EvolutionCloneMemChoiceReaderProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-mini-reader"],
+    id: EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, maxOutputTokens: 512, settings: { temperature: 0.1 } },
+});
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES, ...CLONEMEM_CHOICE_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
@@ -193,7 +202,7 @@ function getProfile(value: unknown): EvolutionModelProfile {
   return EVOLUTION_PROFILES[value as EvolutionProfileId];
 }
 function validMessages(value: unknown, selected: EvolutionModelProfile): value is readonly Message[] {
-  const nativeJudge = selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
+  const nativeJudge = selected.id === EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID || selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
     || selected.id === "gpt4o-beam-event-extraction-v1" || selected.id === "gpt4o-beam-nugget-v1";
   return Array.isArray(value) && (nativeJudge
     ? value.length === 1 && value[0]?.role === "user"

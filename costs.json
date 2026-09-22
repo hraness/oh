@@ -194,6 +194,47 @@
         "bytesPerArtifact": 4194304
       }
     },
+    "benchmark:clonemem-source": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/clonemem-dataset.ts",
+      "source": "benchmarks/profiles/clonemem-source-v1.json",
+      "budget": {
+        "files": 9,
+        "bytesPerFile": 4164213,
+        "bytesTotal": 25000000
+      }
+    },
+    "benchmark:paired-memory-reader": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/paired-memory-study-run.ts",
+      "source": "scripts/benchmarks/paired-memory-study.ts",
+      "budget": {
+        "questionsPerStudy": 300,
+        "logicalCallsPerStudy": 1800,
+        "exposureMicrosPerCampaign": 20000000,
+        "programExposureMicros": 25000000,
+        "explicitLocalAttempts": 8,
+        "receiptFiles": 33,
+        "receiptBytesTotal": 34111488,
+        "sourceBytes": 67108864,
+        "planBytes": 134217728
+      }
+    },
+    "benchmark:clonemem-capture": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/clonemem-retrieval.ts",
+      "source": "scripts/benchmarks/clonemem-study.ts",
+      "budget": {
+        "personas": 9,
+        "questions": 1007,
+        "bytesPerPersona": 67108864,
+        "rowBytesTotal": 268435456,
+        "secondsPerCapture": 1200
+      }
+    },
     "benchmark:deductive-semantic-replay": {
       "kind": "derived",
       "retention": "persistent",
