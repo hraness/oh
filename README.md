@@ -799,6 +799,8 @@ search.
 Answer-quality improvements remain under development. A subsequent
 [conversation-order development test](benchmarks/LOCOMO_ORDER_DEV_RESULT_V1.md)
 also failed its advancement rule; no new context policy has been promoted.
+The [composition instruction test](benchmarks/LOCOMO_COMPOSITION_DEV_RESULT_V1.md)
+also failed its development gate on identical retrieved context.
 
 Run the network-free state and projection checks from a checkout:
 

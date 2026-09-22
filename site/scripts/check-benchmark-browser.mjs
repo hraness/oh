@@ -6,6 +6,7 @@ const evidenceLinks = [
   "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json",
   "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json",
   "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md",
+  "https://github.com/hraness/oh/blob/main/benchmarks/LOCOMO_COMPOSITION_DEV_RESULT_V1.md",
 ];
 
 async function settled(page) {

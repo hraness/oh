@@ -354,6 +354,27 @@
         "publicBytes": 524288,
         "privateObservationsBytes": 4194304
       }
+    },
+    "benchmark:clonemem-keyword-development": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/clonemem-keyword-dev-prepare.ts",
+      "source": "scripts/benchmarks/clonemem-keyword-dev-source.ts",
+      "budget": {
+        "questionsPerStudy": 146,
+        "personas": 2,
+        "logicalReaderCases": 876,
+        "maximumPhysicalCalls": 876,
+        "exposureMicrosPerCampaign": 5000000,
+        "taskExposureMicros": 25000000,
+        "sourceBytes": 67108864,
+        "scorerBytes": 8388608,
+        "provenanceBytes": 8388608,
+        "planBytes": 134217728,
+        "preparedBytes": 262144,
+        "publicBytes": 524288,
+        "privateObservationsBytes": 4194304
+      }
     }
   },
   "exempt": []

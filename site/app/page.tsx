@@ -452,6 +452,11 @@ oh get evidence:table-2 \\
               did not establish a multiple-choice accuracy gain over vector search.{" "}
               <a href={`${repository}/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md`}>Read the CloneMem comparison</a>.
             </p>
+            <p className="benchmark-note">
+              The latest completed{" "}
+              <a href={`${repository}/blob/main/benchmarks/LOCOMO_COMPOSITION_DEV_RESULT_V1.md`}>composition instruction test</a>{" "}
+              did not pass its development gate on identical retrieved context.
+            </p>
           </MarketingSection>
 
           <MarketingTrustBoundary
