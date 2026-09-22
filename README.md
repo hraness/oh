@@ -777,6 +777,25 @@ preimages that JSON Schema cannot express.
 
 ## Benchmark memory
 
+An experimental conversation-packing policy recovered **90.08%** of annotated
+LoCoMo evidence, versus **88.93%** for vector windows under the same
+12,000-byte ceiling. The gain was **1.15 percentage points**, with a 95%
+conversation-cluster interval of **+0.62 to +1.70 points**, across 1,224 questions
+in eight conversations. Both policies used the same top 20 vector results and
+whole original turns. Across all 1,586 confirmation questions, the candidate
+used 236 more bytes on average.
+
+The matched answer follow-up did **not establish an accuracy gain**: 77.33%
+versus 78.11%, difference −0.78 points (95% interval −4.64 to +2.34). It used
+300 conversation-balanced questions, three GPT-4o mini reader attempts per
+question and policy, and a GPT-4o mini judge. These are agent-run measurements
+on previously evaluated source data. The policy is experimental; it does not
+change SDK defaults or establish a framework leaderboard ranking. Inspect the
+[protocol, results and runnable reproduction](benchmarks/LOCOMO_WINDOW_QA_V1.md).
+The separate [CloneMem comparison](benchmarks/CLONEMEM_TRANSFER_V1.md) also did
+not establish a multiple-choice accuracy gain from Oh hybrid search over vector
+search.
+
 Run the network-free state and projection checks from a checkout:
 
 ```sh

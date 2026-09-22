@@ -364,6 +364,95 @@ oh get evidence:table-2 \\
             summary="The CLI, TypeScript SDK, and packaged Agent Skill operate the same records and contract. There is no separate agent-only path behind the convenient one."
           />
 
+          <MarketingSection
+            heading="More evidence within 12 KB."
+            headingId="benchmarks-title"
+            id="benchmarks"
+            label="Agent-run benchmark"
+            layout="split"
+            summary="On LoCoMo, a benchmark of long conversations, query-aware packing recovered more annotated source turns from the same vector rankings."
+          >
+            <div className="benchmark-comparison">
+              <table className="benchmark-table">
+                <caption>Evidence recall · 12,000-byte context ceiling</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Context policy</th>
+                    <th scope="col">Evidence recall</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Query-aware packing</th>
+                    <td>90.08%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Vector windows</th>
+                    <td>88.93%</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="benchmark-delta">
+                <strong>+1.15 percentage points</strong>
+                <span>95% conversation-cluster interval: +0.62 to +1.70 points.</span>
+              </p>
+              <p className="benchmark-note">
+                Mean share of annotated source turns recovered per question.
+                Recall covers 1,224 annotated questions across eight conversations.
+                Both policies use the same top 20 vector results and whole turns.
+                Across all 1,586 confirmation questions, query-aware packing used
+                236 more bytes on average.
+              </p>
+            </div>
+            <div className="benchmark-comparison benchmark-answer">
+              <table className="benchmark-table">
+                <caption>Model-judged answer accuracy</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Context policy</th>
+                    <th scope="col">Answer accuracy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Query-aware packing</th>
+                    <td>77.33%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Vector windows</th>
+                    <td>78.11%</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="benchmark-delta">
+                <strong>No established answer improvement</strong>
+                <span>−0.78 percentage points; 95% conversation-cluster interval: −4.64 to +2.34 points.</span>
+              </p>
+              <p className="benchmark-note">
+                300 questions balanced across the same eight conversations, with
+                three reader attempts per question and policy. GPT-4o mini served
+                as reader and judge; identical judge prompts shared one judgment.
+                The model alias did not identify an immutable snapshot.
+              </p>
+            </div>
+            <p className="benchmark-note">
+              Benchmark policy <code>anchors-query-4</code> was selected on two
+              other conversations. All ten conversations had prior project
+              exposure. This policy is experimental; these retrieval scores do
+              not establish answer quality.
+            </p>
+            <ul className="benchmark-links" aria-label="LoCoMo benchmark evidence">
+              <li><a href={`${repository}/blob/main/benchmarks/LOCOMO_WINDOW_QA_V1.md`}>Protocol and limitations</a></li>
+              <li><a href={`${repository}/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json`}>Retrieval results</a></li>
+              <li><a href={`${repository}/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json`}>Answer-quality results</a></li>
+            </ul>
+            <p className="benchmark-note benchmark-transfer">
+              On CloneMem, a separate personal-memory benchmark, Oh hybrid search
+              did not establish a multiple-choice accuracy gain over vector search.{" "}
+              <a href={`${repository}/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md`}>Read the CloneMem comparison</a>.
+            </p>
+          </MarketingSection>
+
           <MarketingTrustBoundary
             heading="Small enough to trust. Complete enough to build on."
             headingId="kernel-title"

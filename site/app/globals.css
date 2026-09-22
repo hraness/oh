@@ -155,6 +155,153 @@ a:focus-visible {
   text-decoration-color: currentColor;
 }
 
+/* The benchmark uses the shared section grammar and a semantic comparison table. */
+#benchmarks[data-layout="split"] {
+  align-items: start;
+}
+
+.benchmark-comparison {
+  min-inline-size: 0;
+}
+
+.benchmark-answer {
+  margin-block-start: 1rem;
+}
+
+.benchmark-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: start;
+}
+
+.benchmark-table caption {
+  padding-block-end: 1rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: start;
+}
+
+.benchmark-table th,
+.benchmark-table td {
+  padding-block: 1rem;
+  border-block-end: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.benchmark-table th {
+  font-weight: 500;
+}
+
+.benchmark-table th:first-child {
+  inline-size: 60%;
+  padding-inline-end: 1rem;
+}
+
+.benchmark-table thead {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.benchmark-table th:last-child,
+.benchmark-table td {
+  text-align: end;
+}
+
+.benchmark-table td {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.benchmark-delta {
+  display: grid;
+  gap: 0.2rem;
+  margin-block: 1.25rem;
+}
+
+.benchmark-delta strong {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.benchmark-delta span,
+.benchmark-note {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.benchmark-note {
+  margin: 0;
+  max-inline-size: 64ch;
+}
+
+.benchmark-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.benchmark-links a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 3rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.benchmark-links a,
+.benchmark-transfer a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+  text-underline-offset: 0.18em;
+}
+
+.benchmark-links a:hover,
+.benchmark-transfer a:hover {
+  text-decoration-color: currentColor;
+}
+
+.benchmark-transfer {
+  padding-block-start: 1.25rem;
+  border-block-start: 1px solid var(--line);
+}
+
+@media (max-width: 22rem) {
+  .benchmark-table thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .benchmark-table tbody,
+  .benchmark-table tbody tr {
+    display: grid;
+  }
+
+  .benchmark-table tbody th:first-child {
+    inline-size: auto;
+    padding-inline-end: 0;
+    padding-block-end: 0.25rem;
+    border-block-end: 0;
+    text-align: start;
+  }
+
+  .benchmark-table td {
+    padding-block-start: 0;
+    text-align: start;
+  }
+}
+
 /* The trace section: the heading group stays at the top of its column and
  * follows the reader while the trace and record scroll past. */
 #trace[data-layout="split"] {

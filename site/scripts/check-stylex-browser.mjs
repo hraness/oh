@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { log } from "node:console";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 import { withReducedTransparency } from "./browser-transparency.mjs";
+import { inspectBenchmark, runBenchmarkAccessibilityCases } from "./check-benchmark-browser.mjs";
 
 // Use an explicitly selected installed browser, never a signed-in profile or an
 // implicit download. Run after `bun run build`, under the repository scheduler.
@@ -280,6 +281,7 @@ try {
                 element.matches(":focus-visible") && Number.parseFloat(getComputedStyle(element).outlineWidth) >= 2), true);
             } finally { await page.emulateMedia({ forcedColors: "none" }); }
             assert.equal((await readMaterial()).wall.image, metrics.field.backgroundImage, "Material restores after native media changes");
+            metrics.benchmark = await inspectBenchmark(page, label, artifacts);
           }
           assert.deepEqual(failures, [], `${label}: runtime/resource failures`);
           log(`PASS ${label}: compiled layers, theme, fonts, geometry, focus, targets and disclosure`);
@@ -287,10 +289,16 @@ try {
       } finally { await context.close(); }
     }
   }
+  evidence.push(...await runBenchmarkAccessibilityCases(browser, origin, artifacts));
 } catch (error) {
   log(JSON.stringify({ completed: false, evidence }, null, 2));
   throw error;
 } finally {
   await cleanup();
 }
-log(JSON.stringify({ completed: true, cleanup: "browser and server closed", browser: browserVersion, node: process.version, scenarios: evidence.length, evidence }, null, 2));
+const receipt = { completed: true, cleanup: "browser and server closed", browser: browserVersion, node: process.version, scenarios: evidence.length };
+const evidencePath = artifacts ? join(artifacts, "browser-evidence.json") : null;
+if (evidencePath) await writeFile(evidencePath, JSON.stringify({ ...receipt, evidence }, null, 2) + "\n");
+// Keep stdout bounded: large synchronous Bun console writes can end mid-JSON
+// when piped. The awaited artifact write retains complete structured evidence.
+log(JSON.stringify({ ...receipt, labels: evidence.map((row) => row.label), evidencePath }, null, 2));
