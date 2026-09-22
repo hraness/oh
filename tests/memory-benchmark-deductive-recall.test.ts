@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { Corpus } from "../scripts/benchmarks/datasets";
 import { prepareDeductive, deductivePlan, deductiveRetrieve, parseQuestion, deriveCandidates,
-  scoreDerived, RETRIEVAL_PROGRAM_SHA256 } from "../scripts/benchmarks/deductive-retrieval";
+  scoreDerived, RETRIEVAL_PROGRAM_SHA256,
+  RETRIEVAL_SEM_PROGRAM_SHA256 } from "../scripts/benchmarks/deductive-retrieval";
 
 const corpus: Corpus = {
   id: "test-corpus", groupId: "test-corpus",
@@ -189,7 +190,42 @@ describe("deductive retrieval", () => {
     }
   });
 
+  test("deductive-semantic promotes declared sem-near edges to provable markers", () => {
+    const prepared = prepareDeductive(corpus);
+    try {
+      // s3:0 (watercolor) shares no terms with a car question — the mechanical
+      // program can never derive it. A declared sem-near edge makes it a
+      // replay-verified derivation under the semantic program.
+      const question = parseQuestion("What kind of car does Evan drive?");
+      const semFacts = [{ relation: "sem-near", tuple: ["turn:s3:0"],
+        sources: ["sha256:" + "0".repeat(64)] }];
+      const derived = deriveCandidates(prepared, question, { facts: semFacts });
+      const sem = derived.find((row) => row.turnId === "s3:0");
+      expect(sem?.sem).toBe(true);
+      expect(sem?.proofs.length).toBeGreaterThan(0);
+      expect(scoreDerived(sem!, question, prepared.documentFrequency,
+        corpus.turns.length)).toBeGreaterThan(0);
+      // The mechanical arm never consumes semantic edges: same extras are
+      // ignored unless the semantic system is selected.
+      const planMech = deductivePlan(corpus, prepared, "deductive",
+        "What kind of car does Evan drive?", BUDGET, { semFacts });
+      expect(planMech.derived.find((row) => row.turnId === "s3:0")).toBeUndefined();
+      const planSem = deductivePlan(corpus, prepared, "deductive-semantic",
+        "What kind of car does Evan drive?", BUDGET, { semFacts });
+      expect(planSem.candidates.some((c) => c.turn.id === "s3:0")).toBe(true);
+      // Replay verification still holds with producer-sourced facts injected.
+      const retrieved = deductiveRetrieve(corpus, prepared, "deductive-semantic",
+        "What kind of car does Evan drive?", BUDGET, { semFacts });
+      expect(retrieved.turnIds).toContain("s3:0");
+    } finally {
+      prepared.store.close();
+      prepared.fts.close();
+    }
+  });
+
   test("program digest is stable and results replay-verify", () => {
     expect(RETRIEVAL_PROGRAM_SHA256).toMatch(/^[0-9a-f]{64}$/);
+    expect(RETRIEVAL_SEM_PROGRAM_SHA256).toMatch(/^[0-9a-f]{64}$/);
+    expect(RETRIEVAL_SEM_PROGRAM_SHA256).not.toBe(RETRIEVAL_PROGRAM_SHA256);
   });
 });

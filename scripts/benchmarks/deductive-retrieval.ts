@@ -8,16 +8,21 @@
 // `k:`-prefixed marker for structural hits (speaker, scope, bridge); every
 // row's proof DAG terminates in real store-record digests and is
 // replay-verified before scoring.
-// No labels, no paid calls, no embeddings, no inferred semantics — the edge
-// over bm25 is purely structural: distinct-term coverage, speaker linkage
-// (a speaker's own turns never contain their name as a token), session date
-// scoping (the date lives in metadata, outside FTS reach), and entity
-// co-occurrence bridging. Candidates pack under the shared byte budget as
-// five-turn windows around the top derivations, then session-round-robin
+// The pure mechanical arms use no labels, paid calls, embeddings, or inferred
+// semantics — the edge over bm25 is purely structural: distinct-term coverage,
+// speaker linkage (a speaker's own turns never contain their name as a token),
+// session date scoping (the date lives in metadata, outside FTS reach), and
+// entity co-occurrence bridging. Candidates pack under the shared byte budget
+// as five-turn windows around the top derivations, then session-round-robin
 // directed fill of every remaining positive derivation.
+// The `deductive-semantic` arm adds one declared fact class — `sem-near(turn)`
+// edges emitted by the pinned local embedding producer (deductive-semantic.ts)
+// — evaluated under SEM_QUERY_PROGRAM so semantic evidence carries the same
+// proof DAGs and replay verification instead of an opaque similarity score.
 //
-// Systems exported: "deductive" (derivation-only ranking) and
-// "deductive-union" (derived candidates first, bm25 order fills the rest).
+// Systems exported: "deductive" (derivation-only ranking),
+// "deductive-union" (derived candidates first, bm25 order fills the rest),
+// "deductive-semantic" (mechanical + declared semantic edges, still no bm25).
 
 import { Database } from "bun:sqlite";
 import { canonicalSha256 } from "../../src/canonical";
@@ -31,7 +36,7 @@ import { parseEvolutionInstant } from "./evolution-dates";
 
 export const DEDUCTIVE_RETRIEVAL_PROTOCOL = "oh.deductive-retrieval.v1" as const;
 
-export const DEDUCTIVE_SYSTEMS = ["deductive", "deductive-union"] as const;
+export const DEDUCTIVE_SYSTEMS = ["deductive", "deductive-union", "deductive-semantic"] as const;
 export type DeductiveSystem = (typeof DEDUCTIVE_SYSTEMS)[number];
 
 function fail(message: string): never {
@@ -155,6 +160,26 @@ const QUERY_PROGRAM = validateRulePack({
 });
 export const RETRIEVAL_PROGRAM_SHA256 = canonicalSha256(QUERY_PROGRAM);
 
+/* The semantic arm's program: identical mechanical rules plus `hit-sem`,
+ * which promotes a declared `sem-near(turn)` edge (emitted by the pinned
+ * embedding producer in deductive-semantic.ts) to a structural marker. The
+ * `states(t,"session",se)` join confines firing to the shard that actually
+ * owns the turn — the injected fact alone would otherwise fire everywhere. */
+const SEM_RETRIEVAL_RULES = {
+  contract: "algal.query.v1" as const,
+  rules: [
+    ...RETRIEVAL_RULES.rules,
+    { id: "hit-sem", head: { relation: "hit-any", terms: [{ var: "t" }, "k:sem"] },
+      body: [{ relation: "sem-near", terms: [{ var: "t" }] },
+             { relation: "states", terms: [{ var: "t" }, "session", { var: "se" }] }] },
+  ],
+};
+const SEM_QUERY_PROGRAM = validateRulePack({
+  ...SEM_RETRIEVAL_RULES,
+  query: { relation: "hit-any", terms: [{ var: "t" }, { var: "x" }] },
+});
+export const RETRIEVAL_SEM_PROGRAM_SHA256 = canonicalSha256(SEM_QUERY_PROGRAM);
+
 /** Per-corpus deductive index: real Oh store records (provenance digests) plus
  * per-session `algal.memory.v1` shards of mechanical facts. */
 /** Per-shard projection summary used for sound pruning: a shard derives no
@@ -259,14 +284,14 @@ export function prepareDeductive(corpus: Corpus): {
 }
 
 type Derived = Readonly<{ turnId: string; sessionId: string; terms: ReadonlySet<string>;
-  speaker: boolean; scoped: boolean; sessionCoverage: number;
+  speaker: boolean; scoped: boolean; sem: boolean; sessionCoverage: number;
   bridges: number; proofs: readonly string[] }>;
 
-/** Derive question-relevant turn candidates across all session shards. Every
- * returned row was replay-verified; `proofs` carries the row proof digests so
- * the caller can audit exactly which facts produced each candidate. */
-export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
-  question: ParsedQuestion): readonly Derived[] {
+/** The session set `in-scope` binds for a parsed question: directional bounds
+ * compare session instants to the bound; otherwise substring equality on the
+ * declared year/month constraints. */
+export function questionScope(prepared: ReturnType<typeof prepareDeductive>,
+  question: ParsedQuestion): ReadonlySet<string> {
   const inScope = new Set<string>();
   const bound = question.scopeBound;
   if (bound !== null && question.scopeDirection !== null) {
@@ -296,27 +321,62 @@ export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
       if (yearHit && monthHit) inScope.add(sessionId);
     }
   }
-  const questionDigest = `sha256:${canonicalSha256({ protocol: DEDUCTIVE_RETRIEVAL_PROTOCOL,
+  return inScope;
+}
+
+/** The pinned question digest every question-side fact sources to. */
+export function questionDigestOf(question: ParsedQuestion, inScope: ReadonlySet<string>): string {
+  return `sha256:${canonicalSha256({ protocol: DEDUCTIVE_RETRIEVAL_PROTOCOL,
     terms: question.terms, entities: question.entities,
     scope: [...inScope].sort(),
     ...(question.scopeDirection === null ? {}
       : { scopeDirection: question.scopeDirection,
           scopeBound: question.scopeBound === null ? null
             : [question.scopeBound.year, question.scopeBound.month, question.scopeBound.day] }) })}`;
+}
+
+/** Extra derivation inputs for the semantic arm: producer-emitted facts
+ * (`sem-near`) appended to the question-side set, evaluated under the
+ * semantic program. The pure mechanical arms never pass these. */
+export interface DeriveExtras {
+  readonly facts?: readonly Snapshot["facts"][number][];
+}
+
+/** Derive question-relevant turn candidates across all session shards. Every
+ * returned row was replay-verified; `proofs` carries the row proof digests so
+ * the caller can audit exactly which facts produced each candidate. */
+export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
+  question: ParsedQuestion, extras?: DeriveExtras): readonly Derived[] {
+  const inScope = questionScope(prepared, question);
+  const program = extras?.facts !== undefined && extras.facts.length > 0
+    ? SEM_QUERY_PROGRAM : QUERY_PROGRAM;
+  const questionDigest = questionDigestOf(question, inScope);
   const questionFacts: Snapshot["facts"][number][] = [
     ...question.terms.map((term) => ({ relation: "question-term", tuple: [term], sources: [questionDigest] })),
     ...question.entities.map((entity) => ({ relation: "question-entity", tuple: [entity], sources: [questionDigest] })),
     ...[...inScope].map((sessionId) => ({ relation: "in-scope", tuple: [sessionId], sources: [questionDigest] })),
+    ...(extras?.facts ?? []),
   ];
   const termSet = new Set(question.terms);
   const entitySet = new Set(question.entities);
+  // Semantic-near turns keep their shard alive: the hit-sem join only fires
+  // where the turn's session facts live.
+  const nearSessions = new Set<string>();
+  for (const fact of extras?.facts ?? []) {
+    if (fact.relation !== "sem-near") continue;
+    const turnId = String(fact.tuple[0]).replace(/^turn:/, "");
+    const index = prepared.positionOf.get(turnId);
+    if (index === undefined) continue;
+    const sessionId = (prepared.records[index]!.value as { sessionId?: unknown }).sessionId;
+    if (typeof sessionId === "string") nearSessions.add(sessionId);
+  }
   // Sound pruning: a shard contributes rows only if some rule body can fire.
   const activeShards = [...prepared.shards.entries()].filter(([sessionId, snapshot]) => {
     if (snapshot.facts.length + questionFacts.length > 2_048) {
       fail(`shard ${sessionId} plus question facts exceeds the 2048-fact snapshot bound`);
     }
     const summary = prepared.summaries.get(sessionId)!;
-    if (inScope.has(sessionId)) return true;
+    if (inScope.has(sessionId) || nearSessions.has(sessionId)) return true;
     for (const term of termSet) if (summary.tokens.has(term)) return true;
     for (const entity of entitySet) {
       if (summary.entities.has(entity) || summary.speakers.has(entity)) return true;
@@ -324,18 +384,19 @@ export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
     return false;
   });
   const byTurn = new Map<string, { terms: Set<string>; speaker: boolean; scoped: boolean;
-    bridges: number; proofs: string[] }>();
+    sem: boolean; bridges: number; proofs: string[] }>();
   for (const [, snapshot] of activeShards) {
     const withQuestion: Snapshot = { contract: "algal.memory.v1",
       facts: [...snapshot.facts, ...questionFacts] };
-    const result = datalogQuery(withQuestion, QUERY_PROGRAM, { evaluation: "indexed" });
-    if (!datalogVerify(withQuestion, QUERY_PROGRAM, result)) fail("hit-any result failed replay verification");
+    const result = datalogQuery(withQuestion, program, { evaluation: "indexed" });
+    if (!datalogVerify(withQuestion, program, result)) fail("hit-any result failed replay verification");
     for (const row of result.rows) {
       const turnId = String(row.tuple[0]).replace(/^turn:/, "");
-      const entry = byTurn.get(turnId) ?? { terms: new Set<string>(), speaker: false, scoped: false, bridges: 0, proofs: [] };
+      const entry = byTurn.get(turnId) ?? { terms: new Set<string>(), speaker: false, scoped: false, sem: false, bridges: 0, proofs: [] };
       const marker = row.tuple[1];
       if (marker === "k:speaker") entry.speaker = true;
       else if (marker === "k:scoped") entry.scoped = true;
+      else if (marker === "k:sem") entry.sem = true;
       else if (marker === "k:bridge") entry.bridges += 1;
       else entry.terms.add(String(marker));
       entry.proofs.push(row.proof);
@@ -361,7 +422,7 @@ export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
   }
   return [...byTurn.entries()].map(([turnId, entry]) => Object.freeze({
     turnId, sessionId: turnToSession.get(turnId) ?? "",
-    terms: entry.terms, speaker: entry.speaker, scoped: entry.scoped,
+    terms: entry.terms, speaker: entry.speaker, scoped: entry.scoped, sem: entry.sem,
     sessionCoverage: sessionTerms.get(turnToSession.get(turnId) ?? "")?.size ?? 0,
     bridges: entry.bridges, proofs: Object.freeze(entry.proofs) }));
 }
@@ -374,21 +435,38 @@ export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
  * zero-term candidates. A bound date scope demotes out-of-scope turns. */
 export function scoreDerived(derived: Derived, question: ParsedQuestion,
   documentFrequency: ReadonlyMap<string, number>, totalTurns: number,
-  bridgeWeight = 0.3): number {
+  bridgeWeight = 0.3, semWeight = 1.5): number {
   const idf = (term: string) => Math.log(1 + totalTurns / Math.max(1, documentFrequency.get(term) ?? 0));
   const base = [...derived.terms].reduce((sum, term) => sum + idf(term), 0);
   const conjunction = 1 + (derived.speaker ? 0.5 : 0)
-    + (question.scopeYears.length > 0 && derived.scoped ? 0.5 : 0);
+    + (question.scopeYears.length > 0 && derived.scoped ? 0.5 : 0)
+    + (derived.sem ? 0.4 : 0);
   // Structural evidence is positive on its own (additive floor), not just a
   // multiplier of term coverage — a speaker's turn inside a scoped session is
   // a real candidate even with zero shared tokens.
   let score = base * conjunction
     + (derived.speaker ? 1 : 0)
     + (question.scopeYears.length > 0 && derived.scoped ? 1.5 : 0)
+    + (derived.sem ? semWeight : 0)
     + derived.sessionCoverage * 0.5
     + Math.min(derived.bridges, 3) * bridgeWeight;
   if (question.scopeYears.length > 0 && !derived.scoped) score *= 0.2;
   return score;
+}
+
+/** The store-backed candidate for a turn id — the same shape pack() consumes,
+ * carrying the record digest so contexts stay provenance-bound. */
+export function turnCandidate(prepared: ReturnType<typeof prepareDeductive>,
+  turnId: string): { turn: Turn; digest?: string } | undefined {
+  const index = prepared.positionOf.get(turnId);
+  if (index === undefined) return undefined;
+  const record = prepared.store.get(prepared.records[index]!.key);
+  if (record === null) return undefined;
+  const value = record.value as Turn;
+  return { turn: { id: value.id, sessionId: value.sessionId,
+    ...(value.sessionIndex === undefined ? {} : { sessionIndex: value.sessionIndex }),
+    date: value.date, speaker: value.speaker, text: value.text },
+    digest: record.recordSha256 };
 }
 
 /** The full selection pipeline up to (but excluding) byte packing: parsed
@@ -398,18 +476,20 @@ export function scoreDerived(derived: Derived, question: ParsedQuestion,
 export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepareDeductive>,
   system: DeductiveSystem, question: string, budget: RetrievalBudget,
   options: Readonly<{ sessionCap?: number; windowRadius?: number;
-    diverseFill?: boolean; bridgeWeight?: number }> = {}): {
+    diverseFill?: boolean; bridgeWeight?: number; semWeight?: number;
+    semFacts?: readonly Snapshot["facts"][number][] }> = {}): {
     readonly parsed: ParsedQuestion; readonly derived: readonly Derived[];
     readonly seeds: readonly { turnId: string; score: number; bm25: number }[];
     readonly candidates: readonly { turn: Turn; digest?: string }[];
   } {
   if (!DEDUCTIVE_SYSTEMS.includes(system)) fail(`unknown deductive system ${system}`);
   const parsed = parseQuestion(question);
-  const derived = deriveCandidates(prepared, parsed);
+  const derived = deriveCandidates(prepared, parsed,
+    system === "deductive-semantic" ? { facts: options.semFacts ?? [] } : undefined);
   const totalTurns = corpus.turns.length;
   const scores = new Map(derived.map((row) =>
     [row.turnId, scoreDerived(row, parsed, prepared.documentFrequency, totalTurns,
-      options.bridgeWeight ?? 0.3)]));
+      options.bridgeWeight ?? 0.3, options.semWeight ?? 1.5)]));
   // Chronology ordering: a "first/last" cue breaks score ties by the turn's
   // real instant (parsed under the declared benchmark grammars), so the
   // earliest or latest derivation surfaces first.
@@ -427,17 +507,7 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
     return parsed.chronology === "asc" ? instant : -instant;
   };
   const positions = prepared.positionOf;
-  const candidateOf = (turnId: string) => {
-    const index = positions.get(turnId);
-    if (index === undefined) return undefined;
-    const record = prepared.store.get(prepared.records[index]!.key);
-    if (record === null) return undefined;
-    const value = record.value as Turn;
-    return { turn: { id: value.id, sessionId: value.sessionId,
-      ...(value.sessionIndex === undefined ? {} : { sessionIndex: value.sessionIndex }),
-      date: value.date, speaker: value.speaker, text: value.text },
-      digest: record.recordSha256 };
-  };
+  const candidateOf = (turnId: string) => turnCandidate(prepared, turnId);
   const bm25Order = (limit: number): number[] => {
     const terms = queryTerms(question, true);
     const match = terms.map((term) => `"${term}"`).join(" OR ");
@@ -545,7 +615,8 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
 export function deductiveRetrieve(corpus: Corpus, prepared: ReturnType<typeof prepareDeductive>,
   system: DeductiveSystem, question: string, budget: RetrievalBudget,
   options: Readonly<{ sessionCap?: number; windowRadius?: number;
-    diverseFill?: boolean; bridgeWeight?: number }> = {}): Retrieved {
+    diverseFill?: boolean; bridgeWeight?: number; semWeight?: number;
+    semFacts?: readonly Snapshot["facts"][number][] }> = {}): Retrieved {
   const plan = deductivePlan(corpus, prepared, system, question, budget, options);
   return pack(plan.candidates, budget.contextBytes);
 }
