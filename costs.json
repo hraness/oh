@@ -193,6 +193,28 @@
       "budget": {
         "bytesPerArtifact": 4194304
       }
+    },
+    "benchmark:deductive-semantic-replay": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/deductive-semantic-cache.ts",
+      "source": "scripts/benchmarks/deductive-semantic.ts",
+      "budget": {
+        "entries": 4096,
+        "bytesPerEntry": 262144,
+        "bytesTotal": 1073741824
+      }
+    },
+    "benchmark:deductive-semantic-index": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/deductive-semantic.ts",
+      "source": "scripts/benchmarks/datasets.ts",
+      "budget": {
+        "indexes": 16,
+        "turnsPerCorpus": 100000,
+        "textBytesPerCorpus": 67108864
+      }
     }
   },
   "exempt": []

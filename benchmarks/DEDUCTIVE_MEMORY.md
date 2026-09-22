@@ -7,6 +7,157 @@ They answer a narrower question than "is retrieval good": can memory answers
 carry their own evidence, and can channel selection be principled instead of
 greedy top-k?
 
+
+## Current comparison: match the window policy
+
+The original vector baseline returned its top 20 turns, while the deductive
+arms expanded seeds into five-turn windows and filled the remaining context.
+The same 12,000-byte ceiling did not make those selection policies equivalent.
+The frozen vector contexts averaged 4,126 bytes; deductive-semantic averaged
+11,888 bytes. The earlier comparison therefore did not isolate the value of
+structural derivation from the value of neighboring text.
+
+The [frozen window control](results/deductive-frozen-window-control-v1.json)
+reuses the complete top-20 vector ordering already captured for all 1,986
+questions. It applies the same radius-two expansion and byte packing as the
+deductive arm. It adds no model calls, scores, or unobserved tail ranks.
+
+| Method | Evidence-turn recall | All-evidence recall | Mean context bytes |
+|---|---:|---:|---:|
+| BM25 block | 82.55% | 76.76% | 11,940 |
+| Mechanical deductive | 83.41% | 77.47% | 11,858 |
+| Deductive-semantic | 86.67% | 80.53% | 11,888 |
+| Vector, top 20 | 80.21% | 73.83% | 4,126 |
+| **Vector with windows** | **88.71%** | **83.07%** | **11,695** |
+
+Vector with windows exceeds deductive-semantic by **2.04 percentage points**;
+the paired conversation-cluster bootstrap interval is **[0.78, 3.52] points**.
+On the eight conversations excluded from this lane's tuning, the difference
+is **2.42 points**, interval **[0.99, 4.07]**. This is a stronger evidence-recall
+baseline. Deductive-semantic retains better reciprocal rank (0.501 versus
+0.467), so the recall result alone does not decide answer quality.
+
+All ten conversations were exposed in earlier project studies, as recorded
+in [the release evaluation](EVOLUTION_RELEASE_RESULTS.md). Here, “held out”
+means excluded from this particular lane's tuning, not previously unseen by
+the project. The results below remain historical evidence; the claim that
+the semantic composition beats vector retrieval must now be restricted to
+the original **unexpanded** vector baseline.
+
+Reproduce the control from the pinned dataset and committed capture:
+
+```sh
+bun run bench:deductive:control
+```
+
+The command verifies the source artifact's exact bytes, its result digest,
+corpus identities, and every comparison context and metric before scoring
+new windows. It requires the previously fetched LOCOMO dataset in the local
+benchmark cache. It makes no network or model calls and refuses to overwrite
+a different result. Both retrieval methods share
+`deductive-packing.ts`, so subsequent selection changes can retain a matched
+control. The v2 live runner additionally compares a vector-window arm with
+up to 256 ranked candidates and the same diverse tail fill; this frozen
+control has only the original twenty ranks and makes no claim about that
+larger candidate set.
+
+## Rank fusion candidate
+
+The next candidate preserves vector rank instead of reducing every semantic
+match to one binary bonus. It combines vector and mechanically derived ranks
+with reciprocal-rank fusion (`k=60`), then uses the shared twenty-seed,
+radius-two window policy under 12,000 bytes. Missing vector tail ranks
+contribute zero; this experiment does not invent similarities beyond the
+captured top twenty. Mechanical rank carries replay-verified derivation
+evidence; the vector ordering is bound to the frozen capture, not represented
+as a Datalog proof. This is proof-assisted rank fusion, not a proof of every
+ranking contribution or of the answer’s truth.
+
+The [development capture](results/deductive-fusion-dev-v1.json) compares
+predeclared structural weights 0, 0.25, 0.5 and 0.75. The equal-weight candidate
+was selected at **89.09%** turn recall versus **87.85%** for vector windows;
+both development conversations improved. All-evidence recall rose from
+81.41% to 82.69%, and reciprocal rank from 0.437 to 0.486. Selection used only
+those two conversations.
+
+The [frozen confirmation](results/deductive-fusion-confirm-v1.json) then ran
+only that candidate and vector windows across the other eight conversations
+(1,586 questions, 1,224 with annotated evidence):
+
+| Method | Evidence-turn recall | All-evidence recall | Reciprocal rank | Mean context bytes |
+|---|---:|---:|---:|---:|
+| Vector with windows | 88.93% | 83.50% | 0.475 | 11,720 |
+| Equal-weight rank fusion | 89.33% | 83.82% | 0.508 | 11,715 |
+
+The recall difference is **+0.39 percentage points**, with a paired
+conversation-cluster 95% bootstrap interval of **[−0.67, +1.11] points**.
+This positive mean does **not** establish recall superiority. Seven of eight
+conversation means improved; one regressed. The candidate remains experimental.
+Pooled across development and confirmation, recall is 89.28% versus 88.71%,
+but that pooled estimate includes the data used to choose the weight.
+
+All 1,586 control contexts matched the independent frozen window control.
+The parent process replayed every published context and metric; the artifact
+records the actual source hashes, development selection, and conversation
+identities. No weights were adjusted on the confirmation results. The next
+quality gate is a separate evaluation of answers and evidence ranking on
+previously unseen data before promoting this policy into the public runtime.
+
+## Faster repeatable experiments
+
+The mechanical and union arms now share one explicitly prepared derivation
+per question. Query evaluation and replay verification still run; only the
+identical second evaluation is removed. Reuse checks the source snapshot,
+question, semantic inputs and store head, and rejects a changed input.
+On eight fixed development queries, the two-arm workload fell from **1,232 ms
+to 789 ms** on average (**1.56× faster**), with identical retrieval-output
+hashes. The [paired measurement](results/deductive-reuse-latency-v1.json)
+alternates execution order and records every sample. This is local benchmark
+latency, not production or model-inference latency.
+
+The semantic producer can capture ranked results once and replay them with
+QMD entirely unavailable. Cache identity binds the raw query, corpus bytes,
+model bytes, embedding profile, runtime, thresholds and rank limit. A replay
+validates the source IDs, rank order, scores, facts and content digest; a
+missing or changed entry fails closed. Capture verifies the actual loaded
+model file. A [one-question live smoke](results/deductive-semantic-replay-smoke-v1.json)
+captured 256 ranks and replayed the exact result in 2.9 ms with nonexistent
+QMD and model paths; this checks replay behavior, not full-corpus model parity.
+Increasing the vector rank budget no longer increases the
+semantic fact budget: `topN` independently bounds the semantic edges.
+
+```sh
+# Inspect the bounded runner; this command performs no experiment.
+bun run bench:deductive --help
+
+# Capture the development split using the optional, locally installed QMD.
+DEDUCTIVE_RECALL_SPLIT=dev bun run bench:deductive
+
+# Repeat from validated rankings, without loading the model.
+DEDUCTIVE_RECALL_SPLIT=dev DEDUCTIVE_RECALL_CACHE_MODE=replay-only bun run bench:deductive
+
+# Compare the predeclared rank-fusion candidates on development data only.
+bun run bench:deductive:fusion
+
+# Repeat the frozen confirmation with four local workers under one host owner.
+bun run scripts/benchmarks/deductive-fusion-confirm.ts
+```
+
+The fusion commands write fresh run directories under `.cache/benchmarks/`.
+They preserve the committed evidence; confirmation always uses the exact
+committed development selection. On machines with the host scheduler,
+run confirmation through one exclusive compute allocation.
+
+Replay records are private derived benchmark files, limited to 4,096 records
+of at most 256 KiB each, with one writer per cache. Model indexing separately
+limits each cache root to 16 corpus directories and bounds the source corpus
+before writing; QMD owns the derived SQLite file size. Both can be rebuilt from the
+explicitly selected corpus and local model. Producer v2 strengthens provenance
+and uses the verified store's query embedding runtime; it does not rewrite
+v1 captures or claim new rankings reproduce every historical inference.
+The public memory API remains unchanged until a source-backed implementation
+has its own quality, freshness and latency evidence.
+
 ## What each piece does
 
 **Proof-carrying Datalog** (`scripts/benchmarks/memory-datalog.ts`). A
@@ -44,7 +195,7 @@ Density-greedy monotone-submodular maximization with a best-single fallback
 under a byte budget, emitting a marginal-gain trace so the selection is
 auditable pick by pick.
 
-## Evidence so far
+## Earlier experiments
 
 On the frozen `jev-request-shape-v1` captures (505 pointwise scores, 25
 annotated positives), isotonic recalibration cut 5-fold held-out expected
@@ -137,7 +288,7 @@ strongest existing system — +2.05 points, 95% CI [0.011, 0.030]. Both
 intervals exclude zero, and so does the union arm's.
 
 **Held-out confirmation** (`results/deductive-recall-locomo-test-v1.json`,
-8 corpora never touched during design or tuning): deductive 0.8341 vs
+8 corpora excluded from this lane’s design and tuning): deductive 0.8341 vs
 bm25-block 0.8285 (+0.55, CI [-0.001, 0.011]) and vs bm25-window 0.7874
 (**+4.67, CI [0.036, 0.056] — decisive**).
 
@@ -148,8 +299,8 @@ out): deductive 0.8341 vs bm25-block 0.8255 — **+0.86 points with 95% CI
 bm25-window +5.24 points, CI [0.041, 0.064]. The union arm's interval vs
 block also excludes zero ([0.0011, 0.0163]).
 
-The defensible claim: **derivation alone, with no bm25 candidates at all,
-outperforms every existing retrieval system on the full LOCOMO dataset —
+The mechanical comparison supported this narrower result: **derivation alone, with no bm25 candidates at all,
+outperformed the lexical retrieval systems included in that comparison on the full LOCOMO dataset —
 +0.86 turn recall over the strongest system with a positive 95% paired
 bootstrap interval, +0.71 all-evidence recall, +61% MRR (0.488 vs 0.303),
 +9.6% precision, on ~80 fewer context bytes.** Per-category vs block:
@@ -199,8 +350,8 @@ same seed/budget as the mechanical run):
 
 Paired bootstrap (2000 resamples over the 2 dev clusters): vs `bm25-block`
 **+5.92 points, 95% CI [0.039, 0.080]**; vs `vector` — embeddings alone —
-**+10.0 points, CI [0.045, 0.155]**; vs `bm25-window` +11.35 points. The
-composition beats both mechanisms' solo forms and leads every category —
+**+10.0 points, CI [0.045, 0.155]**; vs `bm25-window` +11.35 points. In that comparison, the
+composition beat mechanical retrieval and unexpanded vector retrieval in every category —
 including cat3 multi-hop at 0.659 vs bm25-block's 0.558, reversing the
 mechanical arm's only deficit (+10.1 where it trailed by 2.5). The
 composition adds mechanical structure embeddings lack (speaker/scope
@@ -209,7 +360,7 @@ anaphora) — neither alone produces the other.
 
 **Held-out semantic confirmation**
 (`results/deductive-recall-locomo-test-sem-v1.json`, the same 8 corpora
-never touched during design or tuning): deductive-semantic **0.8652** vs
+excluded from this lane’s design and tuning): deductive-semantic **0.8652** vs
 bm25-block 0.8285 — **+3.66 points, 95% CI [0.021, 0.059], excluding
 zero** where the mechanical arm's interval brushed zero ([-0.001, 0.011]);
 vs vector-alone 0.8096 — **+5.56 points, CI [0.028, 0.082]**; vs

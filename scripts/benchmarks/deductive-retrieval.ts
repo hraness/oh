@@ -33,6 +33,7 @@ import { pack, queryTerms, renderTurn, type Retrieved, type RetrievalBudget } fr
 import { query as datalogQuery, verify as datalogVerify, type JsonValue, type Snapshot } from "./memory-datalog";
 import { validateRulePack, type AlgalFactV1 } from "./consistency-rules";
 import { parseEvolutionInstant } from "./evolution-dates";
+import { orderedWindowPlan } from "./deductive-packing";
 
 export const DEDUCTIVE_RETRIEVAL_PROTOCOL = "oh.deductive-retrieval.v1" as const;
 
@@ -343,6 +344,75 @@ export interface DeriveExtras {
   readonly facts?: readonly AlgalFactV1[];
 }
 
+declare const preparedDerivationBrand: unique symbol;
+/** Explicit, one-question reuse handle. It retains only one fully replay-
+ * verified derivation; no process-wide query cache or eviction policy. */
+export interface PreparedDeductiveDerivation {
+  readonly [preparedDerivationBrand]: true;
+}
+
+type StoredDerived = Omit<Derived, "terms"> & { readonly terms: readonly string[] };
+const preparedDerivations = new WeakMap<PreparedDeductiveDerivation, Readonly<{
+  prepared: ReturnType<typeof prepareDeductive>;
+  question: string;
+  inputSha256: string;
+  sourceSha256: string;
+  rows: readonly StoredDerived[];
+}>>();
+
+function derivationInputSha256(extras?: DeriveExtras): string {
+  const facts = extras?.facts ?? [];
+  return canonicalSha256({
+    program: facts.length > 0 ? RETRIEVAL_SEM_PROGRAM_SHA256 : RETRIEVAL_PROGRAM_SHA256,
+    facts,
+  });
+}
+
+/** Readonly TypeScript types do not prevent callers mutating their maps or
+ * facts. Bind the exact projection, pruning metadata, record sources and store
+ * head on each explicit reuse instead of trusting object identity alone. */
+function derivationSourceSha256(prepared: ReturnType<typeof prepareDeductive>): string {
+  return canonicalSha256({ corpusId: prepared.corpusId, head: prepared.store.head(),
+    records: prepared.records,
+    shards: [...prepared.shards],
+    summaries: [...prepared.summaries].map(([sessionId, summary]) => [sessionId, {
+      tokens: [...summary.tokens], entities: [...summary.entities], speakers: [...summary.speakers],
+    }]),
+    sessionDates: [...prepared.sessionDates], positionOf: [...prepared.positionOf],
+  });
+}
+
+/** Evaluate and replay-verify once, then share the result explicitly between
+ * mechanical ranking arms or selection experiments. Reuse rejects changed
+ * inputs; callers create a new handle after changing the corpus or question. */
+export function createDeductiveDerivation(prepared: ReturnType<typeof prepareDeductive>,
+  question: string, extras?: DeriveExtras): PreparedDeductiveDerivation {
+  const parsed = parseQuestion(question);
+  const rows = deriveCandidates(prepared, parsed, extras).map((row): StoredDerived =>
+    Object.freeze({ ...row, terms: Object.freeze([...row.terms]),
+      proofs: Object.freeze([...row.proofs]) }));
+  const handle = Object.freeze({}) as PreparedDeductiveDerivation;
+  preparedDerivations.set(handle, Object.freeze({ prepared, question,
+    inputSha256: derivationInputSha256(extras), sourceSha256: derivationSourceSha256(prepared),
+    rows: Object.freeze(rows) }));
+  return handle;
+}
+
+function reuseDeductiveDerivation(handle: PreparedDeductiveDerivation,
+  prepared: ReturnType<typeof prepareDeductive>, question: string,
+  extras?: DeriveExtras): readonly Derived[] {
+  const saved = preparedDerivations.get(handle);
+  if (saved === undefined || saved.prepared !== prepared || saved.question !== question
+    || saved.inputSha256 !== derivationInputSha256(extras)
+    || saved.sourceSha256 !== derivationSourceSha256(prepared)) {
+    fail("prepared derivation inputs changed; create a new derivation");
+  }
+  // Fresh sets protect the privately frozen cache from callers that cast away
+  // ReadonlySet; neither the returned row nor its proof array can be changed.
+  return Object.freeze(saved.rows.map((row) => Object.freeze({ ...row,
+    terms: new Set(row.terms), proofs: Object.freeze([...row.proofs]) })));
+}
+
 /** Derive question-relevant turn candidates across all session shards. Every
  * returned row was replay-verified; `proofs` carries the row proof digests so
  * the caller can audit exactly which facts produced each candidate. */
@@ -479,15 +549,16 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
   system: DeductiveSystem, question: string, budget: RetrievalBudget,
   options: Readonly<{ sessionCap?: number; windowRadius?: number;
     diverseFill?: boolean; bridgeWeight?: number; semWeight?: number;
-    semFacts?: readonly AlgalFactV1[] }> = {}): {
+    semFacts?: readonly AlgalFactV1[]; derivation?: PreparedDeductiveDerivation }> = {}): {
     readonly parsed: ParsedQuestion; readonly derived: readonly Derived[];
     readonly seeds: readonly { turnId: string; score: number; bm25: number }[];
     readonly candidates: readonly { turn: Turn; digest?: string }[];
   } {
   if (!DEDUCTIVE_SYSTEMS.includes(system)) fail(`unknown deductive system ${system}`);
   const parsed = parseQuestion(question);
-  const derived = deriveCandidates(prepared, parsed,
-    system === "deductive-semantic" ? { facts: options.semFacts ?? [] } : undefined);
+  const extras = system === "deductive-semantic" ? { facts: options.semFacts ?? [] } : undefined;
+  const derived = options.derivation === undefined ? deriveCandidates(prepared, parsed, extras)
+    : reuseDeductiveDerivation(options.derivation, prepared, question, extras);
   const totalTurns = corpus.turns.length;
   const scores = new Map(derived.map((row) =>
     [row.turnId, scoreDerived(row, parsed, prepared.documentFrequency, totalTurns,
@@ -508,7 +579,6 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
     const instant = instantOf.get(turnId) ?? 0;
     return parsed.chronology === "asc" ? instant : -instant;
   };
-  const positions = prepared.positionOf;
   const candidateOf = (turnId: string) => turnCandidate(prepared, turnId);
   const bm25Order = (limit: number): number[] => {
     const terms = queryTerms(question, true);
@@ -536,89 +606,17 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
         || (a.bm25 === -1 ? 64 : a.bm25) - (b.bm25 === -1 ? 64 : b.bm25)
         || String(a.turnId).localeCompare(String(b.turnId)))
     : ordered;
-  // Multi-evidence questions need seed diversity, not one dense cluster: cap
-  // seeds per session, then backfill by score so the budget still fills.
-  const sessionCap = options.sessionCap;
-  const sessionOf = (turnId: string): string => {
-    const index = positions.get(turnId);
-    return index === undefined ? "" : corpus.turns[index]!.sessionId;
-  };
-  let seeds = merged.slice(0, budget.topK);
-  if (sessionCap !== undefined && sessionCap > 0) {
-    const counts = new Map<string, number>();
-    const capped: typeof merged = [], overflow: typeof merged = [];
-    for (const row of merged) {
-      const session = sessionOf(row.turnId);
-      const n = counts.get(session) ?? 0;
-      if (n < sessionCap) { counts.set(session, n + 1); capped.push(row); }
-      else overflow.push(row);
-    }
-    seeds = [...capped, ...overflow].slice(0, budget.topK);
-  }
-  const seedIds = new Set(seeds.map((row) => row.turnId));
-  // Radius 2 (five-turn windows) is the declared default — one turn narrower
-  // than a six-turn retrieval block, tuned on the dev split only. Every seed
-  // widens fully: probes showed restricting tail-seed windows and shrinking
-  // radius on spread evidence both lose more recall than they save.
-  const radius = options.windowRadius ?? 2;
-  if (!Number.isSafeInteger(radius) || radius < 0 || radius > 8) fail("invalid windowRadius");
-  const candidates = seeds.flatMap(({ turnId }) => {
-    const candidate = candidateOf(turnId);
-    if (candidate === undefined) return [];
-    const position = positions.get(turnId)!;
-    const neighbors = Array.from({ length: radius * 2 + 1 }, (_, i) => position - radius + i)
-      .filter((index) => index !== position
-        && corpus.turns[index]?.sessionId === candidate.turn.sessionId
-        && corpus.turns[index]?.sessionIndex === candidate.turn.sessionIndex)
-      .flatMap((index) => {
-        const neighbor = candidateOf(corpus.turns[index]!.id);
-        return neighbor === undefined ? [] : [neighbor];
-      });
-    return [candidate, ...neighbors];
-  });
-  // Directed session fill: every remaining positive derivation — in ANY
-  // session, not only seeded ones — appended after the windows. Default is
-  // round-robin across sessions (the best remaining derivation per session,
-  // cycling): enumeration evidence is spread thin across sessions, and a
-  // fresh session's top derivation beats the same session's fifth. Adjacency
-  // near a hit is stronger evidence than a weak distant derivation, so
-  // windows pack first; the fill is the expansion bm25 cannot express
-  // because it sees no per-turn derived coverage.
-  const inWindow = new Set(candidates.map((c) => c.turn.id));
-  const fillRows = merged
-    .filter((row) => !seedIds.has(row.turnId) && !inWindow.has(row.turnId)
-      && (scores.get(row.turnId) ?? 0) > 0);
-  const fillOrdered = options.diverseFill !== false
-    ? (() => {
-        const bySession = new Map<string, typeof fillRows>();
-        for (const row of fillRows) {
-          const session = sessionOf(row.turnId);
-          const list = bySession.get(session) ?? [];
-          list.push(row);
-          bySession.set(session, list);
-        }
-        const queues = [...bySession.values()];
-        const out: typeof fillRows = [];
-        for (let depth = 0; queues.some((queue) => depth < queue.length); depth++) {
-          for (const queue of queues) if (depth < queue.length) out.push(queue[depth]!);
-        }
-        return out;
-      })()
-    : fillRows;
-  const sessionFill = fillOrdered
-    .flatMap((row) => {
-      const candidate = candidateOf(row.turnId);
-      return candidate === undefined ? [] : [candidate];
-    })
-    .slice(0, budget.topK);
-  return { parsed, derived, seeds, candidates: [...candidates, ...sessionFill] };
+  const { seeds, candidates } = orderedWindowPlan({ corpus, positionOf: prepared.positionOf,
+    ordered: merged, topK: budget.topK, candidateOf,
+    canFill: (row) => (scores.get(row.turnId) ?? 0) > 0, options });
+  return { parsed, derived, seeds, candidates };
 }
 
 export function deductiveRetrieve(corpus: Corpus, prepared: ReturnType<typeof prepareDeductive>,
   system: DeductiveSystem, question: string, budget: RetrievalBudget,
   options: Readonly<{ sessionCap?: number; windowRadius?: number;
     diverseFill?: boolean; bridgeWeight?: number; semWeight?: number;
-    semFacts?: readonly AlgalFactV1[] }> = {}): Retrieved {
+    semFacts?: readonly AlgalFactV1[]; derivation?: PreparedDeductiveDerivation }> = {}): Retrieved {
   const plan = deductivePlan(corpus, prepared, system, question, budget, options);
   return pack(plan.candidates, budget.contextBytes);
 }
