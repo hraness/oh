@@ -1,5 +1,6 @@
 // Development-only rank fusion over the pinned, complete top-20 vector capture.
 // Selection sees corpus/question/ranks only; gold enters afterward in scoring.
+import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { canonicalJson, canonicalSha256, sha256Hex } from "../../src/canonical";
 import { DATASETS, selectSplit, type Corpus } from "./datasets";
@@ -79,7 +80,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.some((arg) => arg !== "--help")) throw new Error("Unknown argument; use --help.");
   if (args.includes("--help")) {
-    console.log("bun run scripts/benchmarks/deductive-fusion-probe.ts\nDevelopment only: pinned top-20 vector ranks plus mechanical RRF; no models, network, or paid calls.");
+    console.log("bun run scripts/benchmarks/deductive-fusion-probe.ts\nDevelopment only: pinned top-20 vector ranks plus mechanical RRF; no models, network, or paid calls.\nEach run writes a fresh private .cache/benchmarks/deductive-fusion-dev-*/result.json; committed evidence stays unchanged.");
     return;
   }
   const started = performance.now();
@@ -161,7 +162,8 @@ async function main(): Promise<void> {
       "No model, provider, reader, or judge calls; evidence recall is not answer accuracy.",
       "Only two development conversation clusters; the selected policy requires frozen independent confirmation.",
     ] };
-  const output = join(ROOT, ".cache/benchmarks/deductive-fusion-dev-v1.json");
+  const outputDirectory = mkdtempSync(join(ROOT, ".cache/benchmarks/deductive-fusion-dev-"));
+  const output = join(outputDirectory, "result.json");
   await writeNew(output, canonicalJson(artifact));
   console.log(JSON.stringify({ output, resultSha256: artifact.resultSha256,
     policySha256: artifact.policySha256, summaries, winner: artifact.winner,

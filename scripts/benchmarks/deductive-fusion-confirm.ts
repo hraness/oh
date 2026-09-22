@@ -1,7 +1,7 @@
 // Frozen one-candidate confirmation. Four one-corpus processes share one
 // scheduler owner; no embedding/provider calls and no confirmation retuning.
 import { mkdtempSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { canonicalJson, canonicalSha256, isPlainRecord, sha256Hex } from "../../src/canonical";
 import { DATASETS, selectSplit, type Dataset } from "./datasets";
 import { CONTROL_BUDGET, FROZEN_SOURCE, FROZEN_SOURCE_SHA256, frozenWindow,
@@ -96,6 +96,8 @@ interface WorkerResult {
 async function runCorpus(corpusId: string, output: string, mechanismSha256: string): Promise<void> {
   const started = performance.now();
   if (!CORPUS_IDS.includes(corpusId)
+    || output !== resolve(output)
+    || dirname(dirname(output)) !== join(ROOT, ".cache/benchmarks")
     || !dirname(output).startsWith(join(ROOT, ".cache/benchmarks/deductive-fusion-confirm-"))
     || basename(output) !== `${corpusId}.json`
     || sourceIdentity().sha256 !== mechanismSha256) throw new Error("Invalid frozen worker invocation.");
@@ -199,7 +201,7 @@ async function main(): Promise<void> {
     return;
   }
   if (args.length === 1 && args[0] === "--help") {
-    console.log("bun run scripts/benchmarks/deductive-fusion-confirm.ts\nFrozen alpha-0.5 confirmation on eight corpora; four local workers under one exclusive scheduler owner.");
+    console.log("bun run scripts/benchmarks/deductive-fusion-confirm.ts\nFrozen alpha-0.5 confirmation on eight corpora; four local workers under one exclusive scheduler owner.\nEach run writes a fresh private .cache/benchmarks/deductive-fusion-confirm-*/result.json beside its worker receipts; committed evidence stays unchanged.");
     return;
   }
   if (args.length > 0) throw new Error("Unknown arguments; use --help.");
@@ -304,7 +306,7 @@ async function main(): Promise<void> {
       "Evidence recall is not answer accuracy, a public leaderboard result, or proof of truth; derivation proofs establish provenance from supplied facts.",
       "No model, provider, reader or judge calls were made. Timing measures this local four-process run and is not a production latency claim.",
     ] };
-  const output = join(ROOT, "benchmarks/results/deductive-fusion-confirm-v1.json");
+  const output = join(outputDirectory, "result.json");
   await writeNew(output, canonicalJson(artifact));
   console.log(JSON.stringify({ output, resultSha256: artifact.resultSha256, mechanismSha256: mechanism.sha256,
     elapsedMs: artifact.timing.elapsedMs, splits }, null, 2));
