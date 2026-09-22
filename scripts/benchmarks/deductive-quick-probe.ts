@@ -1,14 +1,22 @@
-// Purpose: fast conv-49 signal for deductive arms vs bm25-window/bm25-block.
-// Diagnostic only; writes nothing.
+// Purpose: fast conv-49 signal for deductive arm variants vs
+// bm25-window/bm25-block. Diagnostic only; writes nothing.
 // Usage: bun run scripts/benchmarks/deductive-quick-probe.ts
 
 import { DATASETS, selectSplit, type Dataset } from "./datasets";
 import { fetchDataset, loadDataset } from "./io";
 import { createRetrievers, type RetrievalBudget } from "./retrieval";
 import { evidenceMetrics, mean } from "./metrics";
-import { deductiveRetrieve, prepareDeductive, DEDUCTIVE_SYSTEMS } from "./deductive-retrieval";
+import { deductiveRetrieve, prepareDeductive } from "./deductive-retrieval";
 
 const BUDGET: RetrievalBudget = { topK: 20, contextBytes: 12_000 };
+
+const VARIANTS: Readonly<Record<string, Readonly<{ windowRadius?: number;
+  diverseFill?: boolean; bridgeWeight?: number }>>> = {
+  "deductive": {},
+  "deductive-b0.6": { bridgeWeight: 0.6 },
+  "deductive-b1.0": { bridgeWeight: 1.0 },
+  "deductive-b1.6": { bridgeWeight: 1.6 },
+};
 
 async function main(): Promise<void> {
   await fetchDataset("locomo");
@@ -18,19 +26,15 @@ async function main(): Promise<void> {
   const prepared = prepareDeductive(corpus);
   try {
     retrievers.prepare(["bm25-window", "bm25-block"]);
-    const arms = ["bm25-window", "bm25-block", ...DEDUCTIVE_SYSTEMS,
-      "deductive-r2", "deductive-union-r2", "deductive-r3", "deductive-union-r3"] as const;
+    const arms = ["bm25-window", "bm25-block", ...Object.keys(VARIANTS)] as const;
     const rows = new Map<string, { recall: number[]; all: number[]; mrr: number[];
       byCat: Map<string, number[]> }>();
     for (const arm of arms) rows.set(arm, { recall: [], all: [], mrr: [], byCat: new Map() });
     for (const question of dataset.questions.filter((q) => q.corpusId === corpus.id)) {
       for (const arm of arms) {
         const retrieved = arm.startsWith("deductive")
-          ? deductiveRetrieve(corpus, prepared,
-              arm.replace(/-r[23]$/, "") as (typeof DEDUCTIVE_SYSTEMS)[number],
-              question.question, BUDGET,
-              arm.endsWith("-r2") ? { windowRadius: 2 }
-                : arm.endsWith("-r3") ? { windowRadius: 3 } : {})
+          ? deductiveRetrieve(corpus, prepared, "deductive", question.question, BUDGET,
+              VARIANTS[arm]!)
           : await retrievers.retrieve(arm as "bm25-window" | "bm25-block",
               question.question, BUDGET);
         const m = evidenceMetrics(question, retrieved.turnIds, retrieved.sessionIds);
