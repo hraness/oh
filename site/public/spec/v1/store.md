@@ -53,10 +53,12 @@ counts: how many puts and tombstones touched it, how many puts followed the
 first one, how many distinct record digests those puts stored, which change was
 the most recent, and the head sequence the answer was read through. A put that
 stores bytes the key already held advances the log without changing the record,
-so comparing the put count with the distinct-digest count separates a rewrite
-from a content change. The reducer sorts its input by sequence and rejects two
-changes to one key in one operation, a change ahead of the head it was read
-through, and more than 65,536 changes.
+so while no tombstone touched the key, a put count above the distinct-digest
+count means the key was rewritten rather than changed. After a tombstone that
+comparison no longer holds, because removing a record and restoring identical
+bytes changes it twice while storing one digest. The reducer sorts its input by
+sequence and rejects two changes at one sequence, a change ahead of the head it
+was read through, and more than 65,536 changes.
 
 The counts are facts about the log. V1 attaches no meaning to them: the kernel
 states how often a record was written, and an application decides whether that
@@ -68,14 +70,25 @@ correction is a separate key with its own count, and following that chain is the
 application's work.
 
 Two readers produce those changes. `OhSqliteStore.recordRevisions` reads them
-from the local log inside one read transaction, newest first, bounded by an
-explicit `limit` that defaults to 65,536. A read that hits its bound reports
+from the local log inside one read transaction, newest first, under an explicit
+`limit` that defaults to 65,536. A read that hits its bound reports
 `truncated: true`; truncation drops the oldest changes, so the latest change,
 the latest sequence, and the through sequence stay exact while the counts become
 lower bounds. `ohRecordRevisionChangesFromOperationsV1` collects the same
 changes from operations a reader already holds, so a change-feed consumer
-derives identical counts without local SQL; it accepts at most 65,536
-operations.
+derives identical counts without local SQL. It accepts at most 1,000 operations,
+matching the operation page and import bounds, and refuses a feed that spans two
+spaces, because a sequence numbers an operation within one space.
+
+The `limit` bounds the result, not the search. The read costs one index probe
+for each operation in the space up to its through sequence, stopping early once
+the limit is filled, so a key written often is found quickly while a key written
+rarely or not at all is proportional to the length of the log rather than to
+`limit`. An index on the change table's record key does not change this: SQLite
+drives the operation index for the space filter and the sequence ordering either
+way. Measured on a 20,000-operation space, a key present in every twentieth
+operation answers in 0.06 ms at `limit` 1 and 18 ms unbounded, while an absent
+key costs 16 ms whatever the limit.
 
 Both are reads. They add no table, index, or migration, they never write, and
 the `OhStoreV1` port, the operation bytes, and every V1 digest preimage are

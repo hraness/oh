@@ -867,7 +867,7 @@ function replayOhOperationsV1(spaceId, values, maximumRecords = OH_GRAPH_LIMITS_
 }
 var OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
   changesPerKey: 65536,
-  operationsPerRead: 65536
+  operationsPerRead: 1000
 });
 function transitionOhSnapshotV1(input) {
   const actorId = safeCode(input.actorId);

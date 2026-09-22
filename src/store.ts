@@ -412,7 +412,7 @@ export function replayOhOperationsV1(
 
 export const OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
   changesPerKey: 65_536,
-  operationsPerRead: 65_536,
+  operationsPerRead: 1_000,
 });
 
 /**
@@ -428,14 +428,17 @@ export type OhRecordRevisionChangeV1 = Readonly<{
 }>;
 
 /**
- * Derived churn facts for one record key, read from the append-only log. The
- * kernel reports counts and nothing else: no threshold, ranking, or trust
+ * Derived revision facts for one record key, read from the append-only log.
+ * The kernel reports counts and nothing else: no threshold, ranking, or trust
  * judgement belongs here.
  *
  * `revisions` is the number of puts after the first one — how many times the
- * key was written again. `distinctPutDigests` separates a rewrite from a
- * content change, because a put that stores identical bytes advances the log
- * without changing the record. `latestKind` is `"put"` when the last observed
+ * key was written again. `distinctPutDigests` counts the contents those puts
+ * stored, so while `tombstones` is zero a put count above the digest count
+ * means the key was rewritten with bytes it already held. Once the key was
+ * tombstoned that comparison no longer separates a rewrite from a content
+ * change, because removing and restoring identical bytes changes the record
+ * twice while storing one digest. `latestKind` is `"put"` when the last observed
  * change materialized the record and `"tombstone"` when it removed it. The
  * counts follow one record key: a correction an application models as a new
  * record superseding an older one is a separate key with its own counts.
@@ -501,7 +504,7 @@ export function reduceOhRecordRevisionsV1(input: Readonly<{
     const change = parseOhRecordRevisionChangeV1(value);
     if (change === null) throw new TypeError("Invalid record revision change.");
     if (change.sequence > through) throw new RangeError("A record revision change is ahead of its through sequence.");
-    if (sequences.has(change.sequence)) throw new TypeError("A record key has two changes in one operation.");
+    if (sequences.has(change.sequence)) throw new TypeError("A record key has two changes at one sequence.");
     sequences.add(change.sequence);
     parsed.push(change);
   }
@@ -533,6 +536,10 @@ export function reduceOhRecordRevisionsV1(input: Readonly<{
  * Collects one key's log changes from already parsed operations, so a reader
  * with a change feed rather than local SQL derives the same facts. It reads
  * operations; it never mutates or commits.
+ *
+ * A sequence numbers an operation within one space, so a feed that spans two
+ * spaces is rejected by name here rather than reaching the reducer as an
+ * apparent duplicate sequence.
  */
 export function ohRecordRevisionChangesFromOperationsV1(
   key: string,
@@ -545,9 +552,14 @@ export function ohRecordRevisionChangesFromOperationsV1(
     throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead} operations.`);
   }
   const changes: OhRecordRevisionChangeV1[] = [];
+  let spaceId: string | null = null;
   for (const value of operations) {
     const operation = parseOhOperationV1(value);
     if (operation === null) throw new OhIntegrityError("A revision source operation is invalid.");
+    spaceId ??= operation.spaceId;
+    if (operation.spaceId !== spaceId) {
+      throw new TypeError("Record revision changes must come from one space.");
+    }
     for (const change of operation.changes) {
       if (change.kind === "put" && change.record.key === parsedKey) {
         changes.push({ kind: "put", recordSha256: change.record.recordSha256, sequence: operation.sequence, v: 1 });

@@ -1971,7 +1971,7 @@ function sortedRecords(records) {
 }
 var OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
   changesPerKey: 65536,
-  operationsPerRead: 65536
+  operationsPerRead: 1000
 });
 function normalizeRoots(values) {
   if (!Array.isArray(values) || values.length < 1 || values.length > OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots) {

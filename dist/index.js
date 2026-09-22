@@ -17222,7 +17222,7 @@ function replayOhOperationsV1(spaceId, values3, maximumRecords = OH_GRAPH_LIMITS
 }
 var OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
   changesPerKey: 65536,
-  operationsPerRead: 65536
+  operationsPerRead: 1000
 });
 function parseOhRecordRevisionChangeV1(value) {
   if (!isPlainRecord(value) || !hasExactKeys(value, ["kind", "recordSha256", "sequence", "v"]) || value.v !== 1 || value.kind !== "put" && value.kind !== "tombstone")
@@ -17253,7 +17253,7 @@ function reduceOhRecordRevisionsV1(input) {
     if (change.sequence > through)
       throw new RangeError("A record revision change is ahead of its through sequence.");
     if (sequences.has(change.sequence))
-      throw new TypeError("A record key has two changes in one operation.");
+      throw new TypeError("A record key has two changes at one sequence.");
     sequences.add(change.sequence);
     parsed.push(change);
   }
@@ -17294,10 +17294,15 @@ function ohRecordRevisionChangesFromOperationsV1(key, operations) {
     throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead} operations.`);
   }
   const changes = [];
+  let spaceId = null;
   for (const value of operations) {
     const operation = parseOhOperationV1(value);
     if (operation === null)
       throw new OhIntegrityError("A revision source operation is invalid.");
+    spaceId ??= operation.spaceId;
+    if (operation.spaceId !== spaceId) {
+      throw new TypeError("Record revision changes must come from one space.");
+    }
     for (const change of operation.changes) {
       if (change.kind === "put" && change.record.key === parsedKey) {
         changes.push({ kind: "put", recordSha256: change.record.recordSha256, sequence: operation.sequence, v: 1 });

@@ -154,7 +154,7 @@ export declare function parseOhStoreBindingV1(value: unknown): OhStoreBindingV1 
 export declare function replayOhOperationsV1(spaceId: string, values: readonly OhOperationV1[], maximumRecords?: number): OhSnapshotV1;
 export declare const OH_RECORD_REVISIONS_LIMITS_V1: Readonly<{
     changesPerKey: 65536;
-    operationsPerRead: 65536;
+    operationsPerRead: 1000;
 }>;
 /**
  * One append-only log change that touched a single record key. A put carries
@@ -168,14 +168,17 @@ export type OhRecordRevisionChangeV1 = Readonly<{
     v: 1;
 }>;
 /**
- * Derived churn facts for one record key, read from the append-only log. The
- * kernel reports counts and nothing else: no threshold, ranking, or trust
+ * Derived revision facts for one record key, read from the append-only log.
+ * The kernel reports counts and nothing else: no threshold, ranking, or trust
  * judgement belongs here.
  *
  * `revisions` is the number of puts after the first one — how many times the
- * key was written again. `distinctPutDigests` separates a rewrite from a
- * content change, because a put that stores identical bytes advances the log
- * without changing the record. `latestKind` is `"put"` when the last observed
+ * key was written again. `distinctPutDigests` counts the contents those puts
+ * stored, so while `tombstones` is zero a put count above the digest count
+ * means the key was rewritten with bytes it already held. Once the key was
+ * tombstoned that comparison no longer separates a rewrite from a content
+ * change, because removing and restoring identical bytes changes the record
+ * twice while storing one digest. `latestKind` is `"put"` when the last observed
  * change materialized the record and `"tombstone"` when it removed it. The
  * counts follow one record key: a correction an application models as a new
  * record superseding an older one is a separate key with its own counts.
@@ -217,6 +220,10 @@ export declare function reduceOhRecordRevisionsV1(input: Readonly<{
  * Collects one key's log changes from already parsed operations, so a reader
  * with a change feed rather than local SQL derives the same facts. It reads
  * operations; it never mutates or commits.
+ *
+ * A sequence numbers an operation within one space, so a feed that spans two
+ * spaces is rejected by name here rather than reaching the reducer as an
+ * apparent duplicate sequence.
  */
 export declare function ohRecordRevisionChangesFromOperationsV1(key: string, operations: readonly OhOperationV1[]): readonly OhRecordRevisionChangeV1[];
 export declare function transitionOhSnapshotV1(input: Readonly<{

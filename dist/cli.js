@@ -9604,7 +9604,7 @@ function reduceOhRecordRevisionsV1(input) {
     if (change.sequence > through)
       throw new RangeError("A record revision change is ahead of its through sequence.");
     if (sequences.has(change.sequence))
-      throw new TypeError("A record key has two changes in one operation.");
+      throw new TypeError("A record key has two changes at one sequence.");
     sequences.add(change.sequence);
     parsed.push(change);
   }
@@ -9850,7 +9850,7 @@ var init_store = __esm(() => {
   EMPTY_RECORDS_SHA256 = canonicalSha256([]);
   OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
     changesPerKey: 65536,
-    operationsPerRead: 65536
+    operationsPerRead: 1000
   });
 });
 

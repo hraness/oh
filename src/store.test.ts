@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import * as fc from "fast-check";
 
 import { canonicalJson, canonicalSha256 } from "./canonical";
 import { OhRecordCodecRegistry } from "./contract";
@@ -172,7 +173,7 @@ describe("record revision facts derived from the operation log", () => {
       changes: [put(4, digest("c")), put(2, digest("b"))] }))
       .toMatchObject({ latestSequence: 4, oldestObservedSequence: 2 });
     expect(() => reduceOhRecordRevisionsV1({ key: "entity:ordered", through: 4,
-      changes: [put(2, digest("b")), put(2, digest("c"))] })).toThrow("two changes in one operation");
+      changes: [put(2, digest("b")), put(2, digest("c"))] })).toThrow("two changes at one sequence");
   });
 
   test("keeps a tombstoned key inspectable and names its removal", () => {
@@ -228,5 +229,54 @@ describe("record revision facts derived from the operation log", () => {
     expect(ohRecordRevisionChangesFromOperationsV1("entity:absent", operations)).toEqual([]);
     expect(() => ohRecordRevisionChangesFromOperationsV1("entity:feed", [{ not: "an operation" }] as never))
       .toThrow("revision source operation is invalid");
+  });
+
+  test("refuses a feed that spans two spaces instead of reporting a duplicate sequence", () => {
+    // A sequence numbers an operation within one space, so the same key at
+    // sequence 1 of two spaces is two unrelated histories, not one conflict.
+    const operationFor = (spaceId: string, name: string) => transitionOhSnapshotV1({
+      actorId: "agent.test", changes: [{ kind: "put", record: createKnowledgeGraphRecordV1({
+        dependencies: [], key: "entity:shared", kind: "entity", v: 1, value: { name } }), v: 1 }],
+      instant: "2026-09-07T12:00:00.000Z", operationId: "op_shared",
+      snapshot: { head: emptyOhHeadV1(), records: [], v: 1 }, spaceId }).operation;
+    expect(() => ohRecordRevisionChangesFromOperationsV1("entity:shared",
+      [operationFor("left", "Left"), operationFor("right", "Right")]))
+      .toThrow("must come from one space");
+  });
+
+  test("bounds the operations it will read at the operation page bound", () => {
+    expect(OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead).toBe(1_000);
+    const operations = Array.from({ length: OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead + 1 },
+      () => ({ not: "an operation" }));
+    // The bound is checked before any operation digest is recomputed.
+    expect(() => ohRecordRevisionChangesFromOperationsV1("entity:feed", operations as never))
+      .toThrow(RangeError);
+  });
+
+  test("parses and orders any generated change set (property)", () => {
+    fc.assert(fc.property(fc.uniqueArray(fc.record({
+      kind: fc.constantFrom("put" as const, "tombstone" as const),
+      recordSha256: fc.string({ maxLength: 64, minLength: 64, unit: fc.constantFrom(
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f") }),
+      sequence: fc.integer({ max: 4_096, min: 1 }),
+      v: fc.constant(1 as const),
+    }), { maxLength: 24, selector: (change) => change.sequence }), (changes) => {
+      const parsed = changes.map(parseOhRecordRevisionChangeV1);
+      expect(parsed.every((change) => change !== null)).toBe(true);
+      const through = changes.reduce((highest, change) => Math.max(highest, change.sequence), 0);
+      const revisions = reduceOhRecordRevisionsV1({ changes, key: "entity:property", through });
+      const puts = changes.filter((change) => change.kind === "put");
+      const sequences = changes.map((change) => change.sequence);
+      // Ordering law: the reported endpoints do not depend on the read order.
+      expect(revisions.latestSequence).toBe(changes.length === 0 ? null : Math.max(...sequences));
+      expect(revisions.oldestObservedSequence).toBe(changes.length === 0 ? null : Math.min(...sequences));
+      expect(revisions.puts).toBe(puts.length);
+      expect(revisions.tombstones).toBe(changes.length - puts.length);
+      expect(revisions.revisions).toBe(Math.max(0, puts.length - 1));
+      expect(revisions.distinctPutDigests)
+        .toBe(new Set(puts.map((change) => change.recordSha256)).size);
+      expect(reduceOhRecordRevisionsV1({ changes: [...changes].reverse(), key: "entity:property", through }))
+        .toEqual(revisions);
+    }));
   });
 });

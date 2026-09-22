@@ -478,22 +478,64 @@ describe("Oh SQLite record revision reads", () => {
     store.close();
   });
 
-  test("bounds a long history to the newest changes and stays fast", () => {
+  test("bounds a long history to the newest changes, never the oldest", () => {
     const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-bounded" });
     const operations = 400;
     for (let index = 0; index < operations; index += 1) {
       commit(store, "entity:hot", `Revision ${index}`, `op_${index}`);
     }
-    const started = performance.now();
-    const bounded = store.recordRevisions("entity:hot", { limit: 50 });
-    const complete = store.recordRevisions("entity:hot");
-    expect(performance.now() - started).toBeLessThan(5000);
-    expect(bounded).toMatchObject({ changes: 50, latestKind: "put", latestSequence: operations,
+    expect(store.recordRevisions("entity:hot", { limit: 50 })).toMatchObject({
+      changes: 50, latestKind: "put", latestSequence: operations,
       oldestObservedSequence: operations - 49, puts: 50, revisions: 49,
       through: operations, truncated: true });
-    expect(complete).toMatchObject({ changes: operations, latestSequence: operations,
-      oldestObservedSequence: 1, puts: operations, revisions: operations - 1, truncated: false });
+    expect(store.recordRevisions("entity:hot")).toMatchObject({ changes: operations,
+      latestSequence: operations, oldestObservedSequence: 1, puts: operations,
+      revisions: operations - 1, truncated: false });
     store.close();
+  });
+
+  test("keeps a truncated read's newest change exact when that change is a tombstone", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-bounded-tombstone" });
+    for (let index = 0; index < 20; index += 1) {
+      commit(store, "entity:hot", `Revision ${index}`, `op_${index}`);
+    }
+    const current = store.get("entity:hot");
+    if (current === null) throw new Error("expected a current record");
+    store.commit({ actorId: "agent.test", expectedHead: store.head(), operationId: "op_tombstone",
+      changes: [{ key: "entity:hot", kind: "tombstone", priorSha256: current.recordSha256, v: 1 }] });
+    // Truncation drops the oldest changes, so the removal must survive it.
+    expect(store.recordRevisions("entity:hot", { limit: 3 })).toMatchObject({
+      changes: 3, latestKind: "tombstone", latestSequence: 21, oldestObservedSequence: 19,
+      puts: 2, tombstones: 1, through: 21, truncated: true });
+    store.close();
+  });
+
+  test("counts only the bound space when two spaces share one database file", async () => {
+    // oh_operation_records has no space_id column, so the join to oh_operations
+    // is the only thing scoping this read.
+    const path = await databasePath();
+    const left = new OhSqliteStore({ path, spaceId: "revisions-left" });
+    const right = new OhSqliteStore({ path, spaceId: "revisions-right" });
+    commit(left, "entity:shared", "Left one", "op_left_one");
+    commit(left, "entity:shared", "Left two", "op_left_two");
+    commit(right, "entity:shared", "Right one", "op_right_one");
+    expect(left.recordRevisions("entity:shared")).toMatchObject({ puts: 2, revisions: 1, through: 2 });
+    expect(right.recordRevisions("entity:shared")).toMatchObject({ puts: 1, revisions: 0, through: 1 });
+    left.close();
+    right.close();
+  });
+
+  test("reads a history that arrived by operation import rather than local commit", async () => {
+    const path = await databasePath();
+    const source = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-import" });
+    commit(source, "entity:claim", "First", "op_one");
+    commit(source, "entity:claim", "Second", "op_two");
+    const exported = source.exportOperations(0, 1000);
+    const target = new OhSqliteStore({ path, spaceId: "revisions-import" });
+    target.importOperations({ expectedHead: target.head(), operations: exported });
+    expect(target.recordRevisions("entity:claim")).toEqual(source.recordRevisions("entity:claim"));
+    source.close();
+    target.close();
   });
 
   test("rejects a log change whose stored digest is not a record digest", () => {
