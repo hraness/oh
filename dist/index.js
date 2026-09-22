@@ -18191,11 +18191,22 @@ function ohObservationSupersessionV1(store, key) {
     throw new TypeError("Invalid observation key.");
   }
   const onPath = new Set;
+  const receipts = new Map;
+  const receiptFor = (activityKey) => {
+    const known = receipts.get(activityKey);
+    if (known !== undefined)
+      return known;
+    const record = store.get(activityKey);
+    const value = record === null || record.kind !== "activity" ? null : parseOhObservationActivityValueV1(record.value);
+    receipts.set(activityKey, value);
+    return value;
+  };
   let current = start3;
   let origin = start3;
   let depth = 0;
   let loop3 = false;
   let truncated = false;
+  let candidatesTruncated = false;
   let missing = null;
   let resolved = false;
   for (;; ) {
@@ -18214,6 +18225,10 @@ function ohObservationSupersessionV1(store, key) {
       break;
     }
     const value = parsed.value;
+    const activityKey = parsed.dependencies.find((dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
+    if (activityKey !== undefined && receiptFor(activityKey)?.candidatesTruncated.includes(current) === true) {
+      candidatesTruncated = true;
+    }
     origin = current;
     if (value.supersedes === null) {
       resolved = true;
@@ -18222,7 +18237,7 @@ function ohObservationSupersessionV1(store, key) {
     current = value.supersedes;
     depth += 1;
   }
-  return { depth, key: start3, loop: loop3, missing, origin, resolved, truncated, v: 1 };
+  return { candidatesTruncated, depth, key: start3, loop: loop3, missing, origin, resolved, truncated, v: 1 };
 }
 function observationRecord(key, activityKey, value) {
   const dependencies = sortedDependencies([

@@ -719,6 +719,15 @@ export type OhObservationReadStoreV1 = Readonly<{
  * the distance to it. It says nothing about whether the link graph is complete:
  * a chain the linker never joined still resolves.
  *
+ * `candidatesTruncated` covers the part of that gap the store can see. A link
+ * is chosen from a bounded candidate lookup, and the receipt records which of a
+ * session's observations had that lookup saturate. When any record on the walk
+ * is named there, the chain may be short by an unknown amount even though the
+ * walk completed, and `depth` is not a floor on the links that exist. It is
+ * false when no record on the walk was affected, which is not a promise that
+ * the link graph is right — a facet that drifted between sessions leaves no
+ * trace anywhere.
+ *
  * When `resolved` is false the walk stopped on a cycle, on the record bound, or
  * on a record that is absent or is not a well-formed observation. `depth` then
  * counts one link past the last record it could read, so it exceeds the distance
@@ -736,6 +745,7 @@ export type OhObservationReadStoreV1 = Readonly<{
  * the application's decision.
  */
 export type OhObservationSupersessionV1 = Readonly<{
+  candidatesTruncated: boolean;
   depth: number;
   key: string;
   loop: boolean;
@@ -755,11 +765,25 @@ export function ohObservationSupersessionV1(
     throw new TypeError("Invalid observation key.");
   }
   const onPath = new Set<string>();
+  // One receipt covers a whole session, so a chain of observations from one
+  // session reads it once.
+  const receipts = new Map<string, OhObservationActivityValueV1 | null>();
+  const receiptFor = (activityKey: string): OhObservationActivityValueV1 | null => {
+    const known = receipts.get(activityKey);
+    if (known !== undefined) return known;
+    const record = store.get(activityKey);
+    const value = record === null || record.kind !== "activity"
+      ? null
+      : parseOhObservationActivityValueV1(record.value);
+    receipts.set(activityKey, value);
+    return value;
+  };
   let current = start;
   let origin = start;
   let depth = 0;
   let loop = false;
   let truncated = false;
+  let candidatesTruncated = false;
   let missing: string | null = null;
   let resolved = false;
   for (;;) {
@@ -772,12 +796,21 @@ export function ohObservationSupersessionV1(
     const parsed = parseOhObservationRecordV1(store.get(current));
     if (parsed === null) { missing = current; break; }
     const value = parsed.value;
+    // The link that produced this record came from a bounded candidate lookup.
+    // When that lookup hit its bound the true predecessor may never have been
+    // examined, so the chain can be short by an unknown amount even though the
+    // walk itself completed. The receipt is the only place that is recorded.
+    const activityKey = parsed.dependencies.find(
+      (dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
+    if (activityKey !== undefined && receiptFor(activityKey)?.candidatesTruncated.includes(current) === true) {
+      candidatesTruncated = true;
+    }
     origin = current;
     if (value.supersedes === null) { resolved = true; break; }
     current = value.supersedes;
     depth += 1;
   }
-  return { depth, key: start, loop, missing, origin, resolved, truncated, v: 1 };
+  return { candidatesTruncated, depth, key: start, loop, missing, origin, resolved, truncated, v: 1 };
 }
 
 function observationRecord(key: string, activityKey: string, value: OhObservationValueV1): KnowledgeGraphRecordV1 {

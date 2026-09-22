@@ -170,8 +170,15 @@ during extraction is written once and reports none.
 is true only when the walk ended at a record that supersedes nothing, and only
 then does `origin` name the oldest record and `depth` equal the distance to it.
 `resolved` says nothing about whether the link graph is complete: a chain the
-lookup never joined, including one degraded by `candidatesTruncated` above, still
-resolves.
+lookup never joined still resolves.
+
+`candidatesTruncated` covers the part of that gap the store records. The receipt
+above names the observations whose candidate lookup hit its bound, and the read
+reports `true` when any record on the walk is named there. The chain may then be
+short by an unknown amount even though the walk completed, so `depth` is not a
+floor on the links that exist. `false` means no record on the walk was affected.
+It is not a promise that the link graph is right: a facet that changed between
+sessions starts a fresh chain and leaves no trace for any reader to find.
 
 When `resolved` is false the walk stopped on a cycle, on the record bound, or on a
 record that is absent or is not a well-formed observation record. `depth` then

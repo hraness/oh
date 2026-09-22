@@ -246,6 +246,15 @@ export type OhObservationReadStoreV1 = Readonly<{
  * the distance to it. It says nothing about whether the link graph is complete:
  * a chain the linker never joined still resolves.
  *
+ * `candidatesTruncated` covers the part of that gap the store can see. A link
+ * is chosen from a bounded candidate lookup, and the receipt records which of a
+ * session's observations had that lookup saturate. When any record on the walk
+ * is named there, the chain may be short by an unknown amount even though the
+ * walk completed, and `depth` is not a floor on the links that exist. It is
+ * false when no record on the walk was affected, which is not a promise that
+ * the link graph is right — a facet that drifted between sessions leaves no
+ * trace anywhere.
+ *
  * When `resolved` is false the walk stopped on a cycle, on the record bound, or
  * on a record that is absent or is not a well-formed observation. `depth` then
  * counts one link past the last record it could read, so it exceeds the distance
@@ -263,6 +272,7 @@ export type OhObservationReadStoreV1 = Readonly<{
  * the application's decision.
  */
 export type OhObservationSupersessionV1 = Readonly<{
+    candidatesTruncated: boolean;
     depth: number;
     key: string;
     loop: boolean;
