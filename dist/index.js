@@ -18206,7 +18206,8 @@ function ohObservationSupersessionV1(store, key) {
   let depth = 0;
   let loop3 = false;
   let truncated = false;
-  let candidatesTruncated = false;
+  let named = false;
+  let unreadable = false;
   let missing = null;
   let resolved = false;
   for (;; ) {
@@ -18226,8 +18227,11 @@ function ohObservationSupersessionV1(store, key) {
     }
     const value = parsed.value;
     const activityKey = parsed.dependencies.find((dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
-    if (activityKey !== undefined && receiptFor(activityKey)?.candidatesTruncated.includes(current) === true) {
-      candidatesTruncated = true;
+    const receipt = activityKey === undefined ? null : receiptFor(activityKey);
+    if (receipt === null) {
+      unreadable = true;
+    } else if (receipt.candidatesTruncated.includes(current)) {
+      named = true;
     }
     origin = current;
     if (value.supersedes === null) {
@@ -18237,7 +18241,8 @@ function ohObservationSupersessionV1(store, key) {
     current = value.supersedes;
     depth += 1;
   }
-  return { candidatesTruncated, depth, key: start3, loop: loop3, missing, origin, resolved, truncated, v: 1 };
+  const candidateLookup = named ? "named" : unreadable ? "unreadable" : "none-recorded";
+  return { candidateLookup, depth, key: start3, loop: loop3, missing, origin, resolved, truncated, v: 1 };
 }
 function observationRecord(key, activityKey, value) {
   const dependencies = sortedDependencies([

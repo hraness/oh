@@ -370,11 +370,11 @@ describe("observeOhV1", () => {
     // re-put and reads 1, so the two signals overlap there rather than being
     // independent.
     expect(ohObservationSupersessionV1(store, frequencyThree)).toEqual({ depth: 2, key: frequencyThree,
-      candidatesTruncated: false, loop: false, missing: null, origin: frequencyOne, resolved: true,
+      candidateLookup: "none-recorded", loop: false, missing: null, origin: frequencyOne, resolved: true,
       truncated: false, v: 1 });
     expect(ohObservationSupersessionV1(store, frequencyTwo)).toMatchObject({ depth: 1, origin: frequencyOne, resolved: true });
     expect(ohObservationSupersessionV1(store, frequencyOne)).toEqual({ depth: 0, key: frequencyOne,
-      candidatesTruncated: false, loop: false, missing: null, origin: frequencyOne, resolved: true,
+      candidateLookup: "none-recorded", loop: false, missing: null, origin: frequencyOne, resolved: true,
       truncated: false, v: 1 });
     // An observation that never joined a chain is a first statement, not an error.
     expect(ohObservationSupersessionV1(store, first.observationKeys[0]!)).toMatchObject({ depth: 0, resolved: true });
@@ -396,6 +396,17 @@ describe("observeOhV1", () => {
     expect(applied.links).toEqual([{ candidatesTruncated: false, key: second.observationKeys[0]!, orderingConflict: false,
       supersedes: first.observationKeys[1]! }]);
     expect(applied.operation?.changes).toHaveLength(1);
+    // The policy computes candidatesTruncated for the link and writes no receipt,
+    // so a link it chose from a saturated lookup is recorded nowhere a reader can
+    // see. This is why the supersession read reports "none-recorded" rather than
+    // claiming a chain is complete: the receipt covers the lookup performed at
+    // extraction and nothing the policy did afterwards.
+    const relinked = parseOhObservationRecordV1(store.get(second.observationKeys[0]!))!;
+    const receiptKey = relinked.dependencies.find((dependency) => dependency.startsWith("activity:observe-"))!;
+    const receipt = parseOhObservationActivityValueV1(store.get(receiptKey)!.value)!;
+    expect(receipt.candidatesTruncated).toEqual([]);
+    expect(ohObservationSupersessionV1(store, second.observationKeys[0]!))
+      .toMatchObject({ candidateLookup: "none-recorded", resolved: true });
     const after = parseOhObservationRecordV1(store.get(second.observationKeys[0]!))!;
     expect(after.value.supersedes).toBe(first.observationKeys[1]!);
     expect(after.recordSha256).not.toBe(before.recordSha256);
@@ -645,8 +656,21 @@ describe("observation supersession depth over a damaged chain", () => {
   // dependencies, and the superseded key in dependencies. The walk gates on
   // parseOhObservationRecordV1, so a fake that skipped these would be rejected
   // as damage and would not exercise the case under test.
+  // A readable receipt that names nothing. Without one the walk reports
+  // "unreadable", which is correct but not what these cases are testing.
+  const emptyReceiptValue = {
+    candidatesTruncated: [], format: "oh.observation-activity.v1",
+    instructionSha256: "b".repeat(64), modelId: "test-model", observationCount: 0,
+    observedAt: "2026-01-01T00:00:00.000Z", promptSha256: "c".repeat(64),
+    responseSha256: "d".repeat(64), sessionIndex: 0, sessionSha256: "e".repeat(64),
+    sources: [{ key: "edition:turn-00000", recordSha256: "a".repeat(64), v: 1 }], v: 1,
+  };
   const chain = (links: ReadonlyMap<string, string | null>) => ({
     get(key: string): KnowledgeGraphRecordV1 | null {
+      if (key === "activity:observe-k") {
+        return createKnowledgeGraphRecordV1({ dependencies: ["edition:turn-00000"],
+          key, kind: "activity", v: 1, value: emptyReceiptValue as never });
+      }
       if (!links.has(key)) return null;
       const supersedes = links.get(key) ?? null;
       return createKnowledgeGraphRecordV1({
@@ -660,7 +684,7 @@ describe("observation supersession depth over a damaged chain", () => {
 
   test("reports an exact depth only when the walk reaches a first statement", () => {
     const store = chain(new Map([[key(2), key(1)], [key(1), key(0)], [key(0), null]]));
-    expect(ohObservationSupersessionV1(store, key(2))).toEqual({ candidatesTruncated: false, depth: 2,
+    expect(ohObservationSupersessionV1(store, key(2))).toEqual({ candidateLookup: "none-recorded", depth: 2,
       key: key(2), loop: false, missing: null, origin: key(0), resolved: true, truncated: false, v: 1 });
   });
 
@@ -668,10 +692,10 @@ describe("observation supersession depth over a damaged chain", () => {
     // The oldest record is gone. Depth 1 is a floor, not the answer, and origin
     // is only the oldest key still readable.
     const store = chain(new Map([[key(1), key(0)]]));
-    expect(ohObservationSupersessionV1(store, key(1))).toEqual({ candidatesTruncated: false, depth: 1,
+    expect(ohObservationSupersessionV1(store, key(1))).toEqual({ candidateLookup: "none-recorded", depth: 1,
       key: key(1), loop: false, missing: key(0), origin: key(1), resolved: false, truncated: false, v: 1 });
     // A start key that is absent reads as unresolved rather than as depth 0.
-    expect(ohObservationSupersessionV1(store, key(9))).toEqual({ candidatesTruncated: false, depth: 0,
+    expect(ohObservationSupersessionV1(store, key(9))).toEqual({ candidateLookup: "none-recorded", depth: 0,
       key: key(9), loop: false, missing: key(9), origin: key(9), resolved: false, truncated: false, v: 1 });
   });
 
@@ -740,10 +764,64 @@ describe("observation supersession depth over a damaged chain", () => {
     };
     expect(parseOhObservationActivityValueV1(activityValue)).not.toBeNull();
     expect(ohObservationSupersessionV1(store, obs(1)))
-      .toMatchObject({ candidatesTruncated: true, depth: 1, resolved: true });
+      .toMatchObject({ candidateLookup: "named", depth: 1, resolved: true });
     // The other observation's own lookup was not truncated.
     expect(ohObservationSupersessionV1(store, obs(0)))
-      .toMatchObject({ candidatesTruncated: false, depth: 0, resolved: true });
+      .toMatchObject({ candidateLookup: "none-recorded", depth: 0, resolved: true });
+  });
+
+  test("reports a receipt it could not read as unknown, never as absence", () => {
+    // receiptFor maps an absent record, a record of another kind, and an
+    // unparsable value all to null. Reporting that as "no saturation recorded"
+    // would assert a fact the read never established.
+    const noReceipt = { get: (_: string): KnowledgeGraphRecordV1 | null => null };
+    expect(ohObservationSupersessionV1(chain(new Map([[key(0), null]])), key(0)))
+      .toMatchObject({ candidateLookup: "none-recorded", resolved: true });
+    const foreignReceipt = {
+      get(lookup: string): KnowledgeGraphRecordV1 | null {
+        if (lookup === "activity:observe-k") {
+          return createKnowledgeGraphRecordV1({ dependencies: [], key: lookup,
+            kind: "entity", v: 1, value: { name: "not a receipt" } as never });
+        }
+        return chain(new Map([[key(0), null]])).get(lookup);
+      },
+    };
+    expect(ohObservationSupersessionV1(foreignReceipt, key(0)))
+      .toMatchObject({ candidateLookup: "unreadable", resolved: true });
+    expect(noReceipt.get(key(0))).toBeNull();
+  });
+
+  test("checks every walked record, not only the one the walk started from", () => {
+    // A read that only inspected the start record would report none-recorded
+    // here, because the saturated lookup belongs to the oldest record.
+    const session = "a".repeat(64);
+    const obs = (index: number) => `edition:obs-${session}-${String(index).padStart(3, "0")}`;
+    const activityKey = `activity:observe-${session}`;
+    const receipt = {
+      candidatesTruncated: [obs(0)], format: "oh.observation-activity.v1",
+      instructionSha256: "b".repeat(64), modelId: "test-model", observationCount: 2,
+      observedAt: "2026-01-01T00:00:00.000Z", promptSha256: "c".repeat(64),
+      responseSha256: "d".repeat(64), sessionIndex: 0, sessionSha256: session,
+      sources: [{ key: "edition:turn-00000", recordSha256: "a".repeat(64), v: 1 }], v: 1,
+    };
+    const store = {
+      get(lookup: string): KnowledgeGraphRecordV1 | null {
+        if (lookup === activityKey) {
+          return createKnowledgeGraphRecordV1({ dependencies: ["edition:turn-00000"],
+            key: activityKey, kind: "activity", v: 1, value: receipt as never });
+        }
+        if (lookup !== obs(0) && lookup !== obs(1)) return null;
+        const supersedes = lookup === obs(1) ? obs(0) : null;
+        return createKnowledgeGraphRecordV1({
+          dependencies: [activityKey, "edition:turn-00000",
+            ...(supersedes === null ? [] : [supersedes])].sort(),
+          key: lookup, kind: "edition", v: 1, value: observationValue(supersedes) as never,
+        });
+      },
+    };
+    // Only the origin is named, and the walk starts two links away from it.
+    expect(ohObservationSupersessionV1(store, obs(1)))
+      .toMatchObject({ candidateLookup: "named", depth: 1, origin: obs(0), resolved: true });
   });
 
   test("refuses a key that is not an observation key", () => {

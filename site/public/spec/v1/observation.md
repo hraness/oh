@@ -172,27 +172,36 @@ then does `origin` name the oldest record and `depth` equal the distance to it.
 `resolved` says nothing about whether the link graph is complete: a chain the
 lookup never joined still resolves.
 
-`candidatesTruncated` covers the part of that gap the store records. The receipt
-above names the observations whose candidate lookup hit its bound, and the read
-reports `true` when any record on the walk is named there. The chain may then be
-short by an unknown amount even though the walk completed, so `depth` is not a
-floor on the links that exist. `false` means no record on the walk was affected.
-It is not a promise that the link graph is right: a facet that changed between
-sessions starts a fresh chain and leaves no trace for any reader to find.
+`candidateLookup` reports what the walked records' receipts recorded about the
+bounded lookup their link was chosen from. It has three values because the honest
+answer has three cases.
 
-When `resolved` is false the walk stopped on a cycle, on the record bound, or on a
-record that is absent or is not a well-formed observation record. `depth` then
-counts one link past the last record read, so it exceeds the distance to `origin`
-by one, and `origin` is merely the oldest readable key. `missing` names the key
-that could not be read, and `missing` equal to the requested key is the case where
-nothing was read at all. `loop` reports a cycle inside the bound; a cycle closing
-beyond it reports `truncated`. A damaged chain is reported rather than repaired,
-and is never presented as complete.
+`named` means a receipt named one of the walked records, so its lookup saturated.
+The chain may then be short by an unknown amount even though the walk completed,
+and `depth` is not a floor on the links that exist.
+
+`unreadable` means a receipt could not be read as one, so nothing is known. A
+boolean would have to fold that state into one of the others, and folding it into
+the absence of saturation would report a fact the read never established.
+
+`none-recorded` means every walked record's receipt was readable and named none of
+them. It is deliberately not called complete. A receipt covers the lookup
+performed when the observation was extracted. Applying the supersession policy
+re-links an already committed record against its original receipt and writes no
+receipt of its own, so a link the policy chose from a saturated lookup is recorded
+nowhere this read can see. `none-recorded` rules out recorded saturation and
+nothing further. A facet that changed between sessions leaves no signal this read
+can report either.
+
+Each walked record costs one receipt read, memoised per session, so a chain whose
+links all come from one session reads one receipt and a chain whose links come
+from different sessions reads one per link.
 
 A link is followed only when the record parses as an observation record, so a
 record of another kind stored at an observation key is reported as damage instead
-of counted. At most 8192 records are read, so the longest chain that can resolve
-carries 8191 links.
+of counted. At most 8192 observation records are read, so the longest chain that can resolve
+carries 8191 links, and with one receipt per link a walk performs up to 16384
+reads in total.
 
 The count carries no meaning. A long chain may be contested, progressively
 refined, or simply a subject discussed often, and this profile does not
