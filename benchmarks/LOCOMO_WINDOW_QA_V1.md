@@ -1,7 +1,41 @@
 # LoCoMo conversation packing: matched answer comparison
 
-Status: protocol fixed on 2026-09-22, before selecting the answer-study sample
-or making its reader and judge calls. Results will be added after completion.
+Status: completed on 2026-09-22. The protocol was fixed before selecting the
+answer-study sample or making its reader and judge calls.
+
+Query-aware packing improved evidence recall, but this follow-up did not
+establish an answer-quality improvement. In the fixed 300-question sample,
+model-judged accuracy was **77.33%** for `anchors-query-4` and **78.11%** for
+`vector-window`. The paired difference was **−0.78 percentage points**, with
+an eight-conversation 95% cluster interval of **−4.64 to +2.34 points**.
+This interval also does not establish that the candidate is worse.
+
+| Measurement | Vector windows | Query-aware packing |
+| --- | ---: | ---: |
+| Model-judged correct answers / 900 reader attempts | 703 | 696 |
+| Mean accuracy across three reader attempts | 78.11% | 77.33% |
+| Lowest–highest repeat accuracy | 77.67–78.33% | 77.00–77.67% |
+| Mean context bytes across 300 questions | 11,775.61 | 11,962.75 |
+
+All 1,800 reader calls and 582 distinct judge calls completed, with no reader,
+judge, input-bound, or unresolved failures. Exact duplicate judge prompts share
+one grade across arms and repeats. Reader usage cost **$0.980257** and judge
+usage **$0.047530**, totaling **$1.027787**. The
+[answer result](results/memory-locomo-window-qa-v1.json) records all conversation
+and repeat results, uncertainty, model identities, usage and claim decisions.
+Reader and judge responses did not identify an immutable model snapshot: the
+treatment remains the `openai/gpt-4o-mini` alias.
+
+Evaluation and analysis were performed by coding agents. Answer accuracy is
+model-judged; no human answer-quality validation is claimed.
+
+The [audit record](results/memory-locomo-window-qa-audit-v1.json) records an
+independent replay of all 2,382 native responses and a separate Python
+reconstruction of the primary statistics. Both matched. A blinded coding-agent
+review of 32 answers agreed with the model judge on 28, disagreed on two, and
+flagged two as ambiguous. The disagreements affected both policies on the same
+question. This small diagnostic does not estimate general judge accuracy and
+did not change any primary score.
 
 [LoCoMo](https://github.com/snap-research/locomo) tests questions about long
 conversations. This study uses the pinned `locomo10.json` release at commit
@@ -30,8 +64,10 @@ interval of **+0.62 to +1.70 points**. This recall denominator contains 1,224
 questions with evidence labels. All eight conversation differences were
 positive. The [confirmation artifact](results/memory-locomo-window-confirmation-v1.json)
 records both methods, conversation results, intervals and source hashes.
-The candidate used 236 more bytes per question on average, so the
-comparison has an equal ceiling, not equal realized context length.
+Across all 1,586 confirmation questions, the candidate used 236 more bytes
+per question on average. The comparison has an equal ceiling, not equal
+realized context length; this byte average has a different denominator from
+evidence recall.
 
 Those eight conversations were excluded from this policy's selection, but
 the broader project has previously evaluated them. This answer experiment is
@@ -151,16 +187,18 @@ two-policy comparison does not establish superiority over another framework.
 
 ## Reproduce the source admission
 
-The public source adapter replays the frozen contexts without a model or
-network access. Supply the original confirmation directory and development
-result whose hashes appear in the confirmation artifact:
+Fetch the checksum-pinned source dataset once, then replay the published
+original receipts without a model or additional network access:
 
 ```sh
+bun run bench:memory fetch --dataset locomo
 bun run scripts/benchmarks/locomo-window-source.ts verify \
-  CONFIRMATION_DIRECTORY DEVELOPMENT_RESULT
+  benchmarks/results/locomo-window-confirmation-v1 \
+  benchmarks/results/memory-locomo-window-development-v1.json
 ```
 
-This verifies the pinned LoCoMo source, all 1,986 historical vector-window
+The fetch downloads about 2.8 MB and makes no model calls. The replay verifies
+the pinned LoCoMo source, all 1,986 historical vector-window
 controls, and all 3,172 confirmation contexts before projecting the answer
 pool. `prepare` creates a new, separate reader source, scorer source and
 complete reservation plan; it makes no provider calls:
@@ -182,3 +220,8 @@ bun run scripts/benchmarks/locomo-window-report.ts score \
 
 Original provider responses, source text and private account paths remain in
 the local experiment store. Public artifacts contain aggregates and hashes.
+
+The [receipt archive](results/locomo-window-confirmation-v1/README.md) describes
+the exact original files and their provenance. LoCoMo is by Maharana et al.;
+its source dataset is distributed under
+[CC BY-NC 4.0](https://github.com/snap-research/locomo/blob/3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376/LICENSE.txt).

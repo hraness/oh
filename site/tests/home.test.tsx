@@ -5,6 +5,38 @@ import Specification from "../app/spec/page";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import publishedRelease from "../published-release.json";
 import RootLayout from "../app/layout";
+import recallResult from "../../benchmarks/results/memory-locomo-window-confirmation-v1.json";
+import answerResult from "../../benchmarks/results/memory-locomo-window-qa-v1.json";
+
+test("publishes both measured benchmark outcomes with their scope and source evidence", () => {
+  const html = renderToStaticMarkup(<Home />);
+  const tables: string[][] = [];
+  const links: string[] = [];
+  let copy = "";
+  new HTMLRewriter()
+    .on("#benchmarks table", { element() { tables.push([]); } })
+    .on("#benchmarks td", { text(chunk) { if (chunk.text) tables.at(-1)?.push(chunk.text); } })
+    .on("#benchmarks a", { element(element) { links.push(element.getAttribute("href") ?? ""); } })
+    .on("#benchmarks", { text(chunk) { copy += chunk.text; } })
+    .transform(html);
+  const percent = (value: number) => `${(value * 100).toFixed(2)}%`;
+  expect(tables).toEqual([
+    [percent(recallResult.summaries["anchors-query-4"].turnRecall), percent(recallResult.summaries["vector-window"].turnRecall)],
+    ["anchors-query-4", "vector-window"].map((arm) => percent(answerResult.scores.reader.arms.find((row) => row.armId === arm)!.accuracy)),
+  ]);
+  expect(answerResult.scores.claims.modelJudgedQaImprovement).toBe(false);
+  for (const qualification of ["Agent-run benchmark", "1,224 annotated questions", "1,586 confirmation questions", "300 questions", "three reader attempts", "identical judge prompts shared one judgment", "immutable snapshot", "prior project exposure", "No established answer improvement", "multiple-choice accuracy gain"]) {
+    expect(copy.replace(/\s+/gu, " ")).toContain(qualification);
+  }
+  expect(links).toEqual([
+    "https://github.com/hraness/oh/blob/main/benchmarks/LOCOMO_WINDOW_QA_V1.md",
+    "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json",
+    "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json",
+    "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md",
+  ]);
+  expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
+  expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));
+});
 
 test("both public pages render the in-flow content footer above the shared footer", () => {
   for (const page of [<Home key="home" />, <Specification key="spec" />]) {

@@ -288,6 +288,39 @@
         "turnsPerCorpus": 100000,
         "textBytesPerCorpus": 67108864
       }
+    },
+    "benchmark:locomo-order-development": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/locomo-order-dev-run.ts",
+      "source": "scripts/benchmarks/locomo-order-dev.ts",
+      "budget": {
+        "questionsPerStudy": 160,
+        "arms": 4,
+        "maximumPhysicalCalls": 3840,
+        "exposureMicrosPerCampaign": 15000000,
+        "taskExposureMicros": 25000000,
+        "explicitAttemptsPerPhase": 8,
+        "receiptFiles": 42,
+        "receiptBytesTotal": 271122432,
+        "sourceBytes": 16777216,
+        "planBytes": 67108864,
+        "judgeMessageBytes": 24000
+      }
+    },
+    "benchmark:locomo-order-development-report": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/locomo-order-dev-report.ts",
+      "source": "scripts/benchmarks/locomo-order-dev-source.ts",
+      "budget": {
+        "sourceBytes": 16777216,
+        "scorerBytes": 16777216,
+        "planBytes": 67108864,
+        "preparedBytes": 262144,
+        "publicBytes": 524288,
+        "privateObservationsBytes": 4194304
+      }
     }
   },
   "exempt": []

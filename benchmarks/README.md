@@ -26,8 +26,9 @@ The [protocol card](PROTOCOL_CARD.md) and [pre-registered analysis plan](ANALYSI
 
 The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
 answer or recall gain from shipped hybrid search over matched vector retrieval.
-The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) follows a confirmed evidence
-recall improvement with a separately frozen, matched answer-quality test.
+The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) confirmed an evidence-recall
+gain (90.08% versus 88.93%), but its completed 300-question answer comparison
+did not establish an accuracy gain (77.33% versus 78.11%).
 These studies preserve their controls, uncertainty and prior-exposure limits.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
