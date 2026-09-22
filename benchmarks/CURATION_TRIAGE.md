@@ -52,26 +52,33 @@ reads 1.00x. Intervals are cluster bootstraps over collections.
 | --- | --- | --- | --- |
 | inter-model disagreement | 1.88x (1.36–2.45) | 2.38x (1.92–2.95) | beats random review |
 | model self-reported confidence, below `high` | 1.21x (0.93–1.53) | 1.03x (0.56–1.49) | undemonstrated |
+| model self-reported confidence equal to `low` | 2.02x (1.51–2.66), 26 fires | 1.67x, fires 2 of 300 | beats random for A only |
 | lexical support check: asserted class absent from source text | 0.54x (0.25–0.85) | 0.45x (0.16–0.75) | **worse than random** |
 
 Accuracy within each self-reported confidence stratum, the number a published
-confidence field usually omits: `high` 73%/78% and `medium` 72%/81% for the
-stronger model — indistinguishable. The weaker model marked 91% of its claims
-`high`, so its scale conveys almost nothing.
+confidence field usually omits, for model A (tissue/disease): `high` 73%/78%,
+`medium` 72%/81%, `low` 15%/77%. `high` and `medium` are indistinguishable, and
+only `low` carries information, only on tissue. No interval is computed per
+stratum, so that separation is read off the point estimates. Model B marked 91%
+of its claims `high` and only 2 of 300 `low`, so its scale conveys almost
+nothing and its `low` signal cannot be used at all.
 
 The same test against a third party's published labels agrees. scBaseCount
-ships a `single_disease_confidence` field per sample; across 15,394 samples
-present in two of its releases, a `high` label did not predict a more stable
-call (8.8% revision rate, 6.7–11.4%) than a `low` label (9.7%, 8.5–11.0%),
-under two clusterings. Four deterministic features of its own stated reasoning
-also failed to predict revision.
+ships a `single_disease_confidence` field per sample. 15,394 samples are present
+in two of its releases and 14,560 are resolvable through its own published
+vocabulary; on those, a `high` label did not predict a more stable call (8.8%
+revision rate, 6.7–11.4%) than a `low` label (9.7%, 8.5–11.0%), under two
+clusterings. Four deterministic features of its own stated reasoning were also
+tested on the 9,544 samples carrying a reasoning string: none predicted higher
+revision risk, and the one interval clear of 1.0 pointed the other way (0.89x,
+0.81–0.99).
 
-**Inter-model disagreement is the only signal that survived**, and it is
-corpus-dependent rather than a property of a model. On OpenGenes the same two
-models agreed on 117 of 120 field values and were wrong together, so
-disagreement carried nothing; on CELLxGENE they disagree on 14% of claims and
-those claims are error-rich. Measure it on the corpus in hand; do not inherit
-the number.
+**Inter-model disagreement is the only signal that survived on both models**,
+and it is corpus-dependent rather than a property of a model. On OpenGenes the
+same two models almost never disagreed on a classifiable field value, so the
+signal had no room to carry information there and caught nothing; on CELLxGENE
+they disagree on 14% of claims and those claims are error-rich. Measure it on
+the corpus in hand; do not inherit the number.
 
 ## Rules this program should adopt
 
@@ -91,16 +98,20 @@ an external key.** Four comparisons in the source repository scored extraction
 against an external key and all four measured the key rather than the system:
 `mice` against `mouse`, `deletion` against `knockout`, `transgenic` filed as
 gain-of-function, and `ovarian carcinoma` against `malignant ovarian serous
-tumor`. The last cost 24 points of apparent accuracy on a third party's labels
-before ontology ancestry was applied. Release-to-release revision needs no key,
+tumor`. The last moved a third party's apparent accuracy by 24 points, of which
+roughly 14 came from applying ontology ancestry and roughly 10 from separating
+collections curated normal-only, where the curator may never have deposited the
+diseased samples. Release-to-release revision needs no key,
 so there is nothing to get wrong; its cost is that it bounds error from below
 rather than measuring it.
 
 One retracted result is the reason these rules are stated. A passage-support
-check reported 1.75x lift on 60 rows of a gene-sorted corpus and 0.60x on all
-395 — worse than random — because an alphabetical prefix of a sorted corpus is
-not a sample of it, and the prefix carried a different mix of curator classes
-than the corpus. Resampling the full corpus at n=60 returns 0.60x at every
+check was published at 1.75x lift on 60 rows of a gene-sorted corpus, and
+recomputes at 1.58x and 1.85x for the two models on that same slice against
+0.60x and 0.61x on the full corpus — worse than random — because an
+alphabetical prefix of a sorted corpus is not a sample of it, and the prefix
+carried a different mix of curator classes
+than the corpus. Resampling the full claim pool at n=60 returns 0.60x at every
 sample size, so the small n was never the fault.
 
 ## Relation to the calibrated selection seam
@@ -109,7 +120,7 @@ The [deductive memory seam](DEDUCTIVE_MEMORY.md) recalibrates a retrieval score
 and cut held-out ECE from 0.155 to 0.019. These measurements are the argument
 for doing that rather than asking the model. A recalibrated score is fitted
 against observed outcomes and can be checked; a self-reported `high` was not
-distinguishable from `medium` on either corpus here, and on a third party's
+distinguishable from `medium` on the corpus measured here, and on a third party's
 published field it failed to predict even its own revision. Where a confidence
 value is needed, derive it and calibrate it. Where one arrives attached to an
 imported claim, treat it as unvalidated metadata until measured on the corpus
