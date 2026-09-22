@@ -30,8 +30,8 @@ import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordV1 } from "../..
 import { OhSqliteStore } from "../../src/sqlite/store";
 import type { Corpus, Turn } from "./datasets";
 import { pack, queryTerms, renderTurn, type Retrieved, type RetrievalBudget } from "./retrieval";
-import { query as datalogQuery, verify as datalogVerify, type Snapshot } from "./memory-datalog";
-import { validateRulePack } from "./consistency-rules";
+import { query as datalogQuery, verify as datalogVerify, type JsonValue, type Snapshot } from "./memory-datalog";
+import { validateRulePack, type AlgalFactV1 } from "./consistency-rules";
 import { parseEvolutionInstant } from "./evolution-dates";
 
 export const DEDUCTIVE_RETRIEVAL_PROTOCOL = "oh.deductive-retrieval.v1" as const;
@@ -339,7 +339,7 @@ export function questionDigestOf(question: ParsedQuestion, inScope: ReadonlySet<
  * (`sem-near`) appended to the question-side set, evaluated under the
  * semantic program. The pure mechanical arms never pass these. */
 export interface DeriveExtras {
-  readonly facts?: readonly Snapshot["facts"][number][];
+  readonly facts?: readonly AlgalFactV1[];
 }
 
 /** Derive question-relevant turn candidates across all session shards. Every
@@ -355,7 +355,8 @@ export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
     ...question.terms.map((term) => ({ relation: "question-term", tuple: [term], sources: [questionDigest] })),
     ...question.entities.map((entity) => ({ relation: "question-entity", tuple: [entity], sources: [questionDigest] })),
     ...[...inScope].map((sessionId) => ({ relation: "in-scope", tuple: [sessionId], sources: [questionDigest] })),
-    ...(extras?.facts ?? []),
+    ...(extras?.facts ?? []).map((fact) => ({ relation: fact.relation,
+      tuple: [...fact.tuple] as JsonValue[], sources: [...fact.sources] })),
   ];
   const termSet = new Set(question.terms);
   const entitySet = new Set(question.entities);
@@ -477,7 +478,7 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
   system: DeductiveSystem, question: string, budget: RetrievalBudget,
   options: Readonly<{ sessionCap?: number; windowRadius?: number;
     diverseFill?: boolean; bridgeWeight?: number; semWeight?: number;
-    semFacts?: readonly Snapshot["facts"][number][] }> = {}): {
+    semFacts?: readonly AlgalFactV1[] }> = {}): {
     readonly parsed: ParsedQuestion; readonly derived: readonly Derived[];
     readonly seeds: readonly { turnId: string; score: number; bm25: number }[];
     readonly candidates: readonly { turn: Turn; digest?: string }[];
@@ -616,7 +617,7 @@ export function deductiveRetrieve(corpus: Corpus, prepared: ReturnType<typeof pr
   system: DeductiveSystem, question: string, budget: RetrievalBudget,
   options: Readonly<{ sessionCap?: number; windowRadius?: number;
     diverseFill?: boolean; bridgeWeight?: number; semWeight?: number;
-    semFacts?: readonly Snapshot["facts"][number][] }> = {}): Retrieved {
+    semFacts?: readonly AlgalFactV1[] }> = {}): Retrieved {
   const plan = deductivePlan(corpus, prepared, system, question, budget, options);
   return pack(plan.candidates, budget.contextBytes);
 }
