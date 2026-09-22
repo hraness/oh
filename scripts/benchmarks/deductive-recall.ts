@@ -11,15 +11,17 @@ import { mkdirSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import { canonicalJson, canonicalSha256, sha256Hex } from "../../src/canonical";
 import { DATASETS, selectSplit, type Corpus, type Dataset } from "./datasets";
-import { fetchDataset, loadDataset, ROOT, writeNew } from "./io";
+import { fetchDataset, loadDataset, ROOT } from "./io";
 import { createRetrievers, DEFAULT_SYSTEMS, type RetrievalBudget, type System } from "./retrieval";
 import { evidenceMetrics, mean, pairedBootstrap, percentile } from "./metrics";
 import { DEDUCTIVE_RETRIEVAL_PROTOCOL, DEDUCTIVE_SYSTEMS, prepareDeductive, deductiveRetrieve,
   parseQuestion, questionScope, questionDigestOf, turnCandidate, RETRIEVAL_PROGRAM_SHA256,
-  RETRIEVAL_SEM_PROGRAM_SHA256, type DeductiveSystem } from "./deductive-retrieval";
+  RETRIEVAL_SEM_PROGRAM_SHA256, createDeductiveDerivation } from "./deductive-retrieval";
 import { createSemanticProducer, SEMANTIC_MODEL_SHA256, SEMANTIC_PRODUCER_ID,
   type SemanticProducer } from "./deductive-semantic";
 import { pack } from "./retrieval";
+import { vectorWindowRetrieve } from "./deductive-packing";
+import { writeFrozenControl } from "./deductive-frozen-control";
 
 // The semantic arms run only when the pinned qmd producer is provisioned
 // (DEDUCTIVE_RECALL_SEM=0 disables them for environments without the engine).
@@ -27,19 +29,21 @@ import { pack } from "./retrieval";
 // `-sem` artifact suffix keep the published mechanical artifact untouched.
 const SEM_ENABLED = process.env.DEDUCTIVE_RECALL_SEM !== "0";
 const PROTOCOL = SEM_ENABLED
-  ? "oh.deductive-recall-semantic.v1" as const
-  : "oh.deductive-recall.v1" as const;
+  ? "oh.deductive-recall-semantic.v2" as const
+  : "oh.deductive-recall.v2" as const;
 const SEED = 17;
 const BUDGET: RetrievalBudget = { topK: 20, contextBytes: 12_000 };
 const BASELINE_SYSTEMS: readonly System[] = DEFAULT_SYSTEMS;
 const VECTOR_ARM = "vector" as const;
+const VECTOR_WINDOW_ARM = "vector-window" as const;
+const VECTOR_RANK_LIMIT = 256;
 const ARMS = [...BASELINE_SYSTEMS, ...DEDUCTIVE_SYSTEMS.filter((arm) =>
   arm !== "deductive-semantic" || SEM_ENABLED),
-  ...(SEM_ENABLED ? [VECTOR_ARM] : [])] as const;
+  ...(SEM_ENABLED ? [VECTOR_ARM, VECTOR_WINDOW_ARM] : [])] as const;
 type Arm = (typeof ARMS)[number];
 // dev is the tuning split (radius, fill policy chosen there); test is the
-// held-out confirmation — 8 corpora, 8 bootstrap clusters, never touched
-// during design. DEDUCTIVE_RECALL_SPLIT=test selects it.
+// confirmation split — 8 corpora excluded from this lane's tuning. Earlier
+// project studies exposed all ten. DEDUCTIVE_RECALL_SPLIT=test selects it.
 const SPLIT = (process.env.DEDUCTIVE_RECALL_SPLIT ?? "dev") as "dev" | "test" | "all";
 if (SPLIT !== "dev" && SPLIT !== "test" && SPLIT !== "all") {
   throw new TypeError(`deductive-recall: unknown split ${SPLIT}`);
@@ -52,7 +56,23 @@ interface Row {
 }
 
 async function main(): Promise<void> {
-  await fetchDataset("locomo");
+  const args = process.argv.slice(2);
+  if (args.some((arg) => arg !== "--help")) throw new TypeError("Unknown argument; use --help.");
+  if (args.includes("--help")) {
+    console.log("bun run bench:deductive\n"
+      + "DEDUCTIVE_RECALL_SPLIT=dev|test|all (default dev)\n"
+      + "DEDUCTIVE_RECALL_CACHE_MODE=read-write|replay-only|off (default read-write)\n"
+      + "DEDUCTIVE_RECALL_SEM=0 disables local semantic arms\n"
+      + "DEDUCTIVE_RECALL_QMD_CACHE_ROOT selects an existing exact corpus index root\n"
+      + "Replay-only requires cached data and semantic rankings; it never initializes QMD.\n"
+      + "Writes a separate v2 artifact; different existing bytes fail closed.");
+    return;
+  }
+  const cacheMode = process.env.DEDUCTIVE_RECALL_CACHE_MODE ?? "read-write";
+  if (cacheMode !== "read-write" && cacheMode !== "replay-only" && cacheMode !== "off") {
+    throw new TypeError("deductive-recall: invalid cache mode");
+  }
+  if (cacheMode !== "replay-only") await fetchDataset("locomo");
   const dataset = selectSplit(await loadDataset("locomo"), SPLIT, SEED) as Dataset;
   const corpora = [...dataset.corpora].sort((a, b) => a.id.localeCompare(b.id));
   const rows: Row[] = [];
@@ -60,17 +80,22 @@ async function main(): Promise<void> {
     shardFacts: number[]; corpusSha256: string }[] = [];
 
   let producer: SemanticProducer | null = null;
-  if (SEM_ENABLED) producer = await createSemanticProducer({});
+  if (SEM_ENABLED) producer = await createSemanticProducer({ cacheMode,
+    ...(process.env.DEDUCTIVE_RECALL_QMD_CACHE_ROOT === undefined ? {}
+      : { qmdCacheRoot: process.env.DEDUCTIVE_RECALL_QMD_CACHE_ROOT }) });
   // One function invocation per corpus: per-invocation locals make a stale
   // prepared/retrievers binding impossible by construction — the earlier
   // inlined loop let a prior iteration's closed store surface inside the next
   // corpus under Bun's async desugaring (observed twice; not reproducible on
   // demand). The corpusId invariant turns any recurrence into a labeled
   // invariant failure rather than a bare "store is closed".
-  for (const corpus of corpora) {
-    await runCorpus(corpus, dataset, producer, rows, corpusInfo);
+  try {
+    for (const corpus of corpora) {
+      await runCorpus(corpus, dataset, producer, rows, corpusInfo);
+    }
+  } finally {
+    if (producer !== null) await producer.close();
   }
-  if (producer !== null) await producer.close();
 
   const summarize = (selected: readonly Row[]) => ({
     questions: selected.length,
@@ -96,7 +121,7 @@ async function main(): Promise<void> {
   // vector (embeddings alone — the bar for the semantic composition adding
   // anything over raw proximity).
   const baselines = SEM_ENABLED
-    ? ["bm25-window", "bm25-block", "vector"] as const
+    ? ["bm25-window", "bm25-block", "vector", "vector-window"] as const
     : ["bm25-window", "bm25-block"] as const;
   const comparisons = Object.fromEntries(baselines.map((baseline) => {
     const baselineRows = new Map(rows.filter((row) => row.arm === baseline)
@@ -138,6 +163,8 @@ async function main(): Promise<void> {
     dataset: "locomo",
     datasetSha256: DATASETS.locomo.sha256,
     split: SPLIT, seed: SEED, budget: BUDGET,
+    ...(SEM_ENABLED ? { vectorWindow: { rankLimit: VECTOR_RANK_LIMIT,
+      windowRadius: 2, diverseFill: true } } : {}),
     corpora: corpusInfo,
     arms: [...ARMS],
     summaries,
@@ -159,15 +186,16 @@ async function main(): Promise<void> {
       SPLIT === "dev"
         ? "Intervals are paired conversation-cluster bootstrap estimates; two dev conversations limit statistical power."
         : SPLIT === "test"
-          ? "Intervals are paired conversation-cluster bootstrap estimates; the test corpora were never used for design or tuning."
-          : "Intervals are paired conversation-cluster bootstrap estimates over all ten corpora; the two dev conversations were used for tuning, the other eight were held out.",
+          ? "Intervals are paired conversation-cluster bootstrap estimates; the test corpora were excluded from this lane's tuning, but all ten conversations were exposed in earlier project studies."
+          : "Intervals are paired conversation-cluster bootstrap estimates over all ten corpora; two were used for this lane's tuning. All ten were exposed in earlier project studies.",
+      "The vector-window control uses the same seed expansion, diverse fill and byte packing as deductive retrieval; raw vector remains a separate top-20 control.",
     ],
-    v: 1,
+    v: 2,
   };
   const dir = `${ROOT}/benchmarks/results`;
   mkdirSync(dir, { recursive: true });
-  const path = `${dir}/deductive-recall-locomo-${SPLIT}${SEM_ENABLED ? "-sem" : ""}-v1.json`;
-  await writeNew(path, Buffer.from(canonicalJson(artifact)));
+  const path = `${dir}/deductive-recall-locomo-${SPLIT}${SEM_ENABLED ? "-sem" : ""}-v2.json`;
+  await writeFrozenControl(path, canonicalJson(artifact));
   console.log(JSON.stringify({ output: path.replace(`${ROOT}/`, ""),
     artifactSha256: canonicalSha256(artifact),
     turnRecall: Object.fromEntries(ARMS.map((arm) => [arm, summaries[arm]!.turnRecall])),
@@ -211,8 +239,8 @@ async function runCorpus(corpus: Corpus, dataset: Dataset,
         const parsed = parseQuestion(question.question);
         const inScope = questionScope(prepared, parsed);
         sem = await producer.searchAndFacts(question.question,
-          questionDigestOf(parsed, inScope), BUDGET.topK);
-        const retrieved = pack(sem.ranked.flatMap((hit) => {
+          questionDigestOf(parsed, inScope), VECTOR_RANK_LIMIT);
+        const retrieved = pack(sem.ranked.slice(0, BUDGET.topK).flatMap((hit) => {
           const candidate = turnCandidate(prepared, hit.turnId);
           return candidate === undefined ? [] : [candidate];
         }), BUDGET.contextBytes);
@@ -220,11 +248,17 @@ async function runCorpus(corpus: Corpus, dataset: Dataset,
           sessionIds: retrieved.sessionIds,
           contextBytes: Buffer.byteLength(retrieved.context),
           contextSha256: sha256Hex(retrieved.context) });
+        const window = vectorWindowRetrieve(corpus, prepared.positionOf, sem.ranked,
+          BUDGET, (turnId) => turnCandidate(prepared, turnId));
+        contexts.set(VECTOR_WINDOW_ARM, { turnIds: window.turnIds,
+          sessionIds: window.sessionIds, contextBytes: Buffer.byteLength(window.context),
+          contextSha256: sha256Hex(window.context) });
       }
+      const derivation = createDeductiveDerivation(prepared, question.question);
       for (const system of DEDUCTIVE_SYSTEMS) {
         if (system === "deductive-semantic" && producer === null) continue;
         const retrieved = deductiveRetrieve(corpus, prepared, system, question.question, BUDGET,
-          system === "deductive-semantic" ? { semFacts: sem!.facts } : {});
+          system === "deductive-semantic" ? { semFacts: sem!.facts } : { derivation });
         contexts.set(system, { turnIds: retrieved.turnIds, sessionIds: retrieved.sessionIds,
           contextBytes: Buffer.byteLength(retrieved.context),
           contextSha256: sha256Hex(retrieved.context) });
