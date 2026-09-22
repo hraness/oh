@@ -4,13 +4,17 @@
 // date, lowercase content tokens, capitalized mention entities). Each question
 // injects `question-term` / `question-entity` / `in-scope` facts (all parsed
 // mechanically from the question text), then a fixed positive-Datalog program
-// derives `hit-term(turn, token)` and `hit-kind(turn, kind)` rows; every row's
-// proof DAG terminates in real store-record digests and is replay-verified.
+// derives `hit-any(turn, marker)` rows — a token marker for term hits, a
+// `k:`-prefixed marker for structural hits (speaker, scope, bridge); every
+// row's proof DAG terminates in real store-record digests and is
+// replay-verified before scoring.
 // No labels, no paid calls, no embeddings, no inferred semantics — the edge
 // over bm25 is purely structural: distinct-term coverage, speaker linkage
 // (a speaker's own turns never contain their name as a token), session date
 // scoping (the date lives in metadata, outside FTS reach), and entity
-// co-occurrence bridging.
+// co-occurrence bridging. Candidates pack under the shared byte budget as
+// five-turn windows around the top derivations, then session-round-robin
+// directed fill of every remaining positive derivation.
 //
 // Systems exported: "deductive" (derivation-only ranking) and
 // "deductive-union" (derived candidates first, bm25 order fills the rest).
@@ -298,7 +302,8 @@ export function deriveCandidates(prepared: ReturnType<typeof prepareDeductive>,
  * in its text). Session coverage and bridge hits are additive fallbacks for
  * zero-term candidates. A bound date scope demotes out-of-scope turns. */
 export function scoreDerived(derived: Derived, question: ParsedQuestion,
-  documentFrequency: ReadonlyMap<string, number>, totalTurns: number): number {
+  documentFrequency: ReadonlyMap<string, number>, totalTurns: number,
+  bridgeWeight = 0.3): number {
   const idf = (term: string) => Math.log(1 + totalTurns / Math.max(1, documentFrequency.get(term) ?? 0));
   const base = [...derived.terms].reduce((sum, term) => sum + idf(term), 0);
   const conjunction = 1 + (derived.speaker ? 0.5 : 0)
@@ -310,7 +315,7 @@ export function scoreDerived(derived: Derived, question: ParsedQuestion,
     + (derived.speaker ? 1 : 0)
     + (question.scopeYears.length > 0 && derived.scoped ? 1.5 : 0)
     + derived.sessionCoverage * 0.5
-    + Math.min(derived.bridges, 3) * 0.3;
+    + Math.min(derived.bridges, 3) * bridgeWeight;
   if (question.scopeYears.length > 0 && !derived.scoped) score *= 0.2;
   return score;
 }
@@ -321,7 +326,8 @@ export function scoreDerived(derived: Derived, question: ParsedQuestion,
  * exact same stages the retriever runs — no duplicated logic. */
 export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepareDeductive>,
   system: DeductiveSystem, question: string, budget: RetrievalBudget,
-  options: Readonly<{ sessionCap?: number; windowRadius?: number }> = {}): {
+  options: Readonly<{ sessionCap?: number; windowRadius?: number;
+    diverseFill?: boolean; bridgeWeight?: number }> = {}): {
     readonly parsed: ParsedQuestion; readonly derived: readonly Derived[];
     readonly seeds: readonly { turnId: string; score: number; bm25: number }[];
     readonly candidates: readonly { turn: Turn; digest?: string }[];
@@ -331,7 +337,8 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
   const derived = deriveCandidates(prepared, parsed);
   const totalTurns = corpus.turns.length;
   const scores = new Map(derived.map((row) =>
-    [row.turnId, scoreDerived(row, parsed, prepared.documentFrequency, totalTurns)]));
+    [row.turnId, scoreDerived(row, parsed, prepared.documentFrequency, totalTurns,
+      options.bridgeWeight ?? 0.3)]));
   // Chronology ordering: a "first/last" cue breaks score ties by the turn's
   // real instant (parsed under the declared benchmark grammars), so the
   // earliest or latest derivation surfaces first.
@@ -407,7 +414,9 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
   }
   const seedIds = new Set(seeds.map((row) => row.turnId));
   // Radius 2 (five-turn windows) is the declared default — one turn narrower
-  // than a six-turn retrieval block, tuned on the dev split only.
+  // than a six-turn retrieval block, tuned on the dev split only. Every seed
+  // widens fully: probes showed restricting tail-seed windows and shrinking
+  // radius on spread evidence both lose more recall than they save.
   const radius = options.windowRadius ?? 2;
   if (!Number.isSafeInteger(radius) || radius < 0 || radius > 8) fail("invalid windowRadius");
   const candidates = seeds.flatMap(({ turnId }) => {
@@ -425,14 +434,35 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
     return [candidate, ...neighbors];
   });
   // Directed session fill: every remaining positive derivation — in ANY
-  // session, not only seeded ones — appended after the windows in merged
-  // order. Adjacency near a hit is stronger evidence than a weak distant
-  // derivation, so windows pack first; the fill is the expansion bm25 cannot
-  // express because it sees no per-turn derived coverage.
+  // session, not only seeded ones — appended after the windows. Default is
+  // round-robin across sessions (the best remaining derivation per session,
+  // cycling): enumeration evidence is spread thin across sessions, and a
+  // fresh session's top derivation beats the same session's fifth. Adjacency
+  // near a hit is stronger evidence than a weak distant derivation, so
+  // windows pack first; the fill is the expansion bm25 cannot express
+  // because it sees no per-turn derived coverage.
   const inWindow = new Set(candidates.map((c) => c.turn.id));
-  const sessionFill = merged
+  const fillRows = merged
     .filter((row) => !seedIds.has(row.turnId) && !inWindow.has(row.turnId)
-      && (scores.get(row.turnId) ?? 0) > 0)
+      && (scores.get(row.turnId) ?? 0) > 0);
+  const fillOrdered = options.diverseFill !== false
+    ? (() => {
+        const bySession = new Map<string, typeof fillRows>();
+        for (const row of fillRows) {
+          const session = sessionOf(row.turnId);
+          const list = bySession.get(session) ?? [];
+          list.push(row);
+          bySession.set(session, list);
+        }
+        const queues = [...bySession.values()];
+        const out: typeof fillRows = [];
+        for (let depth = 0; queues.some((queue) => depth < queue.length); depth++) {
+          for (const queue of queues) if (depth < queue.length) out.push(queue[depth]!);
+        }
+        return out;
+      })()
+    : fillRows;
+  const sessionFill = fillOrdered
     .flatMap((row) => {
       const candidate = candidateOf(row.turnId);
       return candidate === undefined ? [] : [candidate];
@@ -443,7 +473,8 @@ export function deductivePlan(corpus: Corpus, prepared: ReturnType<typeof prepar
 
 export function deductiveRetrieve(corpus: Corpus, prepared: ReturnType<typeof prepareDeductive>,
   system: DeductiveSystem, question: string, budget: RetrievalBudget,
-  options: Readonly<{ sessionCap?: number; windowRadius?: number }> = {}): Retrieved {
+  options: Readonly<{ sessionCap?: number; windowRadius?: number;
+    diverseFill?: boolean; bridgeWeight?: number }> = {}): Retrieved {
   const plan = deductivePlan(corpus, prepared, system, question, budget, options);
   return pack(plan.candidates, budget.contextBytes);
 }

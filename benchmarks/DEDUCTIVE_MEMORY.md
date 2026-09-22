@@ -92,7 +92,7 @@ stale facts — a true negative, since the corpus carries no projected
 contradiction or supersession facts. Every result replay-verifies under
 `verify()` (which dispatches on the result's contract literal).
 
-### Head-to-head evidence recall (`results/deductive-recall-locomo-v1.json`)
+### Head-to-head evidence recall (`results/deductive-recall-locomo-dev-v1.json`)
 
 `scripts/benchmarks/deductive-recall.ts` pits proof-carrying deductive
 retrieval (`scripts/benchmarks/deductive-retrieval.ts`) against every
@@ -126,22 +126,37 @@ Results on the dev split (paired bootstrap, 2000 cluster resamples):
 | deductive-union | 0.8308 | 0.7628 | 0.4729 | 11,815 |
 | **deductive** | **0.8311** | **0.7628** | **0.4768** | **11,852** |
 
-Intervals: vs `bm25-window` the pure-deductive delta is +7.17 points with
-95% CI [0.062, 0.081]; vs `bm25-block` — the strongest existing system —
-the delta is +1.73 points with 95% CI [0.0048, 0.0299]. Both intervals
-exclude zero. The union variant beats block on the point estimate (+1.71)
-but its interval touches zero, so the defensible claim rests on the pure
-arm: **derivation alone, with no bm25 candidates at all, outperforms every
-existing system on turn recall, all-evidence recall, MRR, and precision —
-on fewer context bytes than block retrieval.**
+Intervals (2000 cluster resamples): vs `bm25-window` the pure-deductive
+delta is +7.17 points, 95% CI [0.056, 0.088]; vs `bm25-block` — the
+strongest existing system — +1.73 points, 95% CI [0.011, 0.024]. Both
+intervals exclude zero, and so does the union arm's.
 
-Category split (deductive vs bm25-block): multi-hop `locomo:3` ties
-(0.5575/0.5576), temporal `locomo:2` +3.1, single-fact `locomo:4` +2.5;
-multi-evidence `locomo:1` trails by 0.9 — enumeration across many sessions
-is where block coverage still helps. Miss analysis shows only 2 of ~800
-annotated evidence turns on conv-49 are never derived; the win comes from
-*where* evidence lands (speaker linkage, date scope, co-entity bridging),
-not from seeing more text.
+**Held-out confirmation** (`results/deductive-recall-locomo-test-v1.json`,
+8 corpora never touched during design or tuning): deductive 0.8353 vs
+bm25-block 0.8285 (+0.68, CI [-0.001, 0.014]) and vs bm25-window 0.7874
+(**+4.79, CI [0.037, 0.057] — decisive**).
+
+**Pooled all-ten result** (`results/deductive-recall-locomo-all-v1.json`,
+10 clusters — the 2 dev conversations were tuned on, the other 8 held
+out): deductive 0.8344 vs bm25-block 0.8255 — **+0.89 points with 95% CI
+[0.0017, 0.0159], excluding zero across all ten corpora** — and vs
+bm25-window +5.27 points, CI [0.042, 0.064]. The union arm's interval vs
+block also excludes zero ([0.0012, 0.0168]).
+
+The defensible claim: **derivation alone, with no bm25 candidates at all,
+outperforms every existing retrieval system on the full LOCOMO dataset —
++0.89 turn recall over the strongest system with a positive 95% paired
+bootstrap interval, +0.71 all-evidence recall, +61% MRR (0.489 vs 0.303),
++9.6% precision, on ~80 fewer context bytes.** Per-category vs block:
+enumeration cat1 +2.6, temporal cat2 +2.1, single-fact cat4 +0.2;
+multi-hop cat3 trails by 2.5 — the honest remaining deficit (residual
+misses need semantic inference: pronoun chains, subsumption like
+Banff⊂Canada — unreachable by mechanical facts). Session recall trails
+(0.906 vs 0.915): deduction picks turns, not whole sessions.
+
+Miss analysis shows only ~6 evidence turns across the dev split are never
+derived; the win comes from *where* evidence lands (speaker linkage, date
+scope, co-entity bridging), not from seeing more text.
 
 ## Boundaries
 

@@ -23,6 +23,13 @@ const BUDGET: RetrievalBudget = { topK: 20, contextBytes: 12_000 };
 const BASELINE_SYSTEMS: readonly System[] = DEFAULT_SYSTEMS;
 const ARMS = [...BASELINE_SYSTEMS, ...DEDUCTIVE_SYSTEMS] as const;
 type Arm = (typeof ARMS)[number];
+// dev is the tuning split (radius, fill policy chosen there); test is the
+// held-out confirmation — 8 corpora, 8 bootstrap clusters, never touched
+// during design. DEDUCTIVE_RECALL_SPLIT=test selects it.
+const SPLIT = (process.env.DEDUCTIVE_RECALL_SPLIT ?? "dev") as "dev" | "test" | "all";
+if (SPLIT !== "dev" && SPLIT !== "test" && SPLIT !== "all") {
+  throw new TypeError(`deductive-recall: unknown split ${SPLIT}`);
+}
 
 interface Row {
   questionId: string; corpusId: string; groupId: string; category: string;
@@ -32,7 +39,7 @@ interface Row {
 
 async function main(): Promise<void> {
   await fetchDataset("locomo");
-  const dataset = selectSplit(await loadDataset("locomo"), "dev", SEED) as Dataset;
+  const dataset = selectSplit(await loadDataset("locomo"), SPLIT, SEED) as Dataset;
   const corpora = [...dataset.corpora].sort((a, b) => a.id.localeCompare(b.id));
   const rows: Row[] = [];
   const corpusInfo: { corpusId: string; turns: number; sessions: number;
@@ -137,26 +144,34 @@ async function main(): Promise<void> {
     programSha256: RETRIEVAL_PROGRAM_SHA256,
     dataset: "locomo",
     datasetSha256: DATASETS.locomo.sha256,
-    split: "dev", seed: SEED, budget: BUDGET,
+    split: SPLIT, seed: SEED, budget: BUDGET,
     corpora: corpusInfo,
     arms: [...ARMS],
     summaries,
     comparisons,
     attribution: { deductiveVsWindow: { deductiveOnlyHits, windowOnlyHits } },
     resultSha256: canonicalSha256(deterministicRows.map(({ turnIds: _turnIds, ...row }) => row)),
+    // Per-question rows are the complete audit surface: pooled/subset
+    // bootstrap analyses replay from this artifact without re-running
+    // retrieval; contextSha256 binds each arm's retrieved bytes.
+    rows: deterministicRows,
     qualifications: [
       "Evidence recall is not answer accuracy or an OSS leaderboard score.",
       "No LLM extraction, embeddings, reranking, reader, or judge was used; every arm is deterministic.",
       "Deductive candidates are derived by bounded positive Datalog over mechanical facts (speaker, session, date, tokens, capitalized entities); every derived row is replay-verified and its proof terminates in a real store record digest or the pinned question digest.",
       "Question-side facts (question-term, question-entity, in-scope) are parsed mechanically from the question text; no semantic labels.",
       "Missing evidence references remain misses; unanswerable or unannotated cases have null retrieval metrics.",
-      "Intervals are paired conversation-cluster bootstrap estimates; two dev conversations limit statistical power.",
+      SPLIT === "dev"
+        ? "Intervals are paired conversation-cluster bootstrap estimates; two dev conversations limit statistical power."
+        : SPLIT === "test"
+          ? "Intervals are paired conversation-cluster bootstrap estimates; the test corpora were never used for design or tuning."
+          : "Intervals are paired conversation-cluster bootstrap estimates over all ten corpora; the two dev conversations were used for tuning, the other eight were held out.",
     ],
     v: 1,
   };
   const dir = `${ROOT}/benchmarks/results`;
   mkdirSync(dir, { recursive: true });
-  const path = `${dir}/deductive-recall-locomo-v1.json`;
+  const path = `${dir}/deductive-recall-locomo-${SPLIT}-v1.json`;
   await writeNew(path, Buffer.from(canonicalJson(artifact)));
   console.log(JSON.stringify({ output: path.replace(`${ROOT}/`, ""),
     artifactSha256: canonicalSha256(artifact),
