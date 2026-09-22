@@ -41,6 +41,46 @@ require a native error with the immutable brand for that exact error family.
 A branded base class remains visible through an ordinary subclass, but a base
 instance MUST NOT satisfy an arbitrary subclass check.
 
+## Record revision reads
+
+The operation log already records every change to every record key: each
+committed operation lists its puts and tombstones, and a key can appear at most
+once in one operation. A reader can therefore ask how often a stored record was
+written without keeping a separate counter.
+
+`reduceOhRecordRevisionsV1` turns a bounded set of one key's log changes into
+counts: how many puts and tombstones touched it, how many puts followed the
+first one, how many distinct record digests those puts stored, which change was
+the most recent, and the head sequence the answer was read through. A put that
+stores bytes the key already held advances the log without changing the record,
+so comparing the put count with the distinct-digest count separates a rewrite
+from a content change. The reducer sorts its input by sequence and rejects two
+changes to one key in one operation, a change ahead of the head it was read
+through, and more than 65,536 changes.
+
+The counts are facts about the log. V1 attaches no meaning to them: the kernel
+states how often a record was written, and an application decides whether that
+matters for review, ranking, or trust.
+
+A count follows one record key. Where an application represents a correction as
+a new record that supersedes an older one, as the observation profile does, the
+correction is a separate key with its own count, and following that chain is the
+application's work.
+
+Two readers produce those changes. `OhSqliteStore.recordRevisions` reads them
+from the local log inside one read transaction, newest first, bounded by an
+explicit `limit` that defaults to 65,536. A read that hits its bound reports
+`truncated: true`; truncation drops the oldest changes, so the latest change,
+the latest sequence, and the through sequence stay exact while the counts become
+lower bounds. `ohRecordRevisionChangesFromOperationsV1` collects the same
+changes from operations a reader already holds, so a change-feed consumer
+derives identical counts without local SQL; it accepts at most 65,536
+operations.
+
+Both are reads. They add no table, index, or migration, they never write, and
+the `OhStoreV1` port, the operation bytes, and every V1 digest preimage are
+unchanged.
+
 ## Semantic bundle ingress
 
 Model-facing code SHOULD use `OhSemanticBundleIngressV1` instead of generic

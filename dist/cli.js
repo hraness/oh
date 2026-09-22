@@ -9575,6 +9575,66 @@ function replayOhOperationsV1(spaceId, values, maximumRecords = OH_GRAPH_LIMITS_
   }
   return { head, records: sortedRecords(records.values()), v: 1 };
 }
+function parseOhRecordRevisionChangeV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["kind", "recordSha256", "sequence", "v"]) || value.v !== 1 || value.kind !== "put" && value.kind !== "tombstone")
+    return null;
+  const recordSha256 = parseSha256Hex(value.recordSha256);
+  const sequence = Number.isSafeInteger(value.sequence) && value.sequence > 0 ? value.sequence : null;
+  return recordSha256 !== null && sequence !== null ? { kind: value.kind, recordSha256, sequence, v: 1 } : null;
+}
+function reduceOhRecordRevisionsV1(input) {
+  if (!isPlainRecord(input) || !Array.isArray(input.changes)) {
+    throw new TypeError("Invalid record revision input.");
+  }
+  const key3 = safeCode(input.key, 512);
+  const through = Number.isSafeInteger(input.through) && input.through >= 0 ? input.through : null;
+  const truncated = input.truncated ?? false;
+  if (key3 === null || through === null || typeof truncated !== "boolean") {
+    throw new TypeError("Invalid record revision input.");
+  }
+  if (input.changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
+    throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
+  }
+  const parsed = [];
+  const sequences = new Set;
+  for (const value of input.changes) {
+    const change = parseOhRecordRevisionChangeV1(value);
+    if (change === null)
+      throw new TypeError("Invalid record revision change.");
+    if (change.sequence > through)
+      throw new RangeError("A record revision change is ahead of its through sequence.");
+    if (sequences.has(change.sequence))
+      throw new TypeError("A record key has two changes in one operation.");
+    sequences.add(change.sequence);
+    parsed.push(change);
+  }
+  parsed.sort((left, right) => left.sequence - right.sequence);
+  const digests = new Set;
+  let puts = 0;
+  let tombstones = 0;
+  for (const change of parsed) {
+    if (change.kind === "put") {
+      puts += 1;
+      digests.add(change.recordSha256);
+    } else
+      tombstones += 1;
+  }
+  const latest = parsed.at(-1) ?? null;
+  return {
+    changes: parsed.length,
+    distinctPutDigests: digests.size,
+    key: key3,
+    latestKind: latest === null ? null : latest.kind,
+    latestSequence: latest?.sequence ?? null,
+    oldestObservedSequence: parsed[0]?.sequence ?? null,
+    puts,
+    revisions: puts === 0 ? 0 : puts - 1,
+    through,
+    tombstones,
+    truncated,
+    v: 1
+  };
+}
 function normalizeRoots(values) {
   if (!Array.isArray(values) || values.length < 1 || values.length > OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots) {
     throw new RangeError(`A dependency closure needs 1 through ${OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots} roots.`);
@@ -9736,7 +9796,7 @@ class OhSemanticBundleIngressV1 {
     });
   }
 }
-var OH_CANONICAL_STORE_PROFILE_V1, OH_WORKING_STORE_PROFILE_V1, OH_DEPENDENCY_CLOSURE_LIMITS_V1, OhPurgedSpaceError, EMPTY_RECORDS_SHA256;
+var OH_CANONICAL_STORE_PROFILE_V1, OH_WORKING_STORE_PROFILE_V1, OH_DEPENDENCY_CLOSURE_LIMITS_V1, OhPurgedSpaceError, EMPTY_RECORDS_SHA256, OH_RECORD_REVISIONS_LIMITS_V1;
 var init_store = __esm(() => {
   init_canonical();
   init_contract();
@@ -9788,6 +9848,10 @@ var init_store = __esm(() => {
     }
   };
   EMPTY_RECORDS_SHA256 = canonicalSha256([]);
+  OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
+    changesPerKey: 65536,
+    operationsPerRead: 65536
+  });
 });
 
 // src/sqlite/runtime.ts
@@ -10517,6 +10581,31 @@ class OhSqliteStore {
     const rows = this.database.query(`SELECT ${OPERATION_COLUMNS} FROM oh_operations
        WHERE space_id = ? ORDER BY sequence DESC LIMIT ?`).all(this.spaceId, normalizeLimit(limit));
     return rows.map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
+  }
+  recordRevisions(key3, options = {}) {
+    this.#assertOpen();
+    const parsedKey = safeCode(key3, 512);
+    if (parsedKey === null)
+      throw new TypeError("Invalid record key.");
+    const limit = normalizeLimit(options.limit, OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey, OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey);
+    return withReadTransaction(this.database, () => {
+      const head = this.head();
+      const rows = this.database.query(`SELECT operation.sequence AS sequence, changed.change_kind AS change_kind,
+           changed.record_sha256 AS record_sha256
+         FROM oh_operation_records AS changed
+         JOIN oh_operations AS operation ON operation.operation_sha256 = changed.operation_sha256
+         WHERE operation.space_id = ? AND changed.record_key = ? AND operation.sequence <= ?
+         ORDER BY operation.sequence DESC LIMIT ?`).all(this.spaceId, parsedKey, head.sequence, limit + 1);
+      const truncated = rows.length > limit;
+      const changes = rows.slice(0, limit).map((row) => {
+        const recordSha256 = parseSha256Hex(row.record_sha256);
+        if (recordSha256 === null || row.change_kind !== "put" && row.change_kind !== "tombstone") {
+          throw new OhIntegrityError("A stored log change carries an invalid record revision.");
+        }
+        return { kind: row.change_kind, recordSha256, sequence: row.sequence, v: 1 };
+      });
+      return reduceOhRecordRevisionsV1({ changes, key: parsedKey, through: head.sequence, truncated });
+    });
   }
   searchKeyword(query, limit = 20) {
     this.#assertOpen();

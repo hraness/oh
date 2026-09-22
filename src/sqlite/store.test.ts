@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { canonicalJson, canonicalSha256, type JsonValue } from "../canonical";
 import { createKnowledgeGraphRecordV1 } from "../graph";
 import { createOhOperationV1 } from "../operation";
-import { createOhStoreBindingV1, OH_WORKING_STORE_PROFILE_V1 } from "../store";
+import { createOhStoreBindingV1, ohRecordRevisionChangesFromOperationsV1,
+  OH_WORKING_STORE_PROFILE_V1, reduceOhRecordRevisionsV1 } from "../store";
 import { OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError,
   OhSqliteStore } from "./store";
 
@@ -407,6 +408,100 @@ describe("Oh SQLite authority", () => {
     expect(store.snapshotRecords()).toHaveLength(1000);
     expect(() => store.snapshotRecords(65_537)).toThrow("65536");
     expect(performance.now() - started).toBeLessThan(5000);
+    store.close();
+  });
+});
+
+describe("Oh SQLite record revision reads", () => {
+  const commit = (store: OhSqliteStore, key: string, name: string, operationId: string) =>
+    store.commit({ actorId: "agent.test", changes: [{ kind: "put", record: record(key, name), v: 1 }],
+      expectedHead: store.head(), operationId });
+
+  test("reports no revisions for a record written once, and none at all for an absent key", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-once" });
+    commit(store, "entity:ada", "Ada Lovelace", "op_one");
+    expect(store.recordRevisions("entity:ada")).toEqual({
+      changes: 1, distinctPutDigests: 1, key: "entity:ada", latestKind: "put",
+      latestSequence: 1, oldestObservedSequence: 1, puts: 1, revisions: 0,
+      through: 1, tombstones: 0, truncated: false, v: 1,
+    });
+    expect(store.recordRevisions("entity:missing")).toMatchObject({
+      changes: 0, latestKind: null, latestSequence: null, puts: 0, revisions: 0, through: 1,
+    });
+    expect(() => store.recordRevisions("Entity:Bad")).toThrow("Invalid record key");
+    expect(() => store.recordRevisions("entity:ada", { limit: 0 })).toThrow(RangeError);
+    expect(() => store.recordRevisions("entity:ada", { limit: 65_537 })).toThrow(RangeError);
+    store.close();
+  });
+
+  test("counts repeated writes and separates a rewrite from a content change", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-churn" });
+    commit(store, "entity:claim", "First", "op_one");
+    commit(store, "entity:claim", "Second", "op_two");
+    commit(store, "entity:other", "Untouched", "op_other");
+    commit(store, "entity:claim", "Second", "op_three");
+    expect(store.recordRevisions("entity:claim")).toMatchObject({
+      changes: 3, distinctPutDigests: 2, latestKind: "put", latestSequence: 4,
+      oldestObservedSequence: 1, puts: 3, revisions: 2, through: 4, tombstones: 0, truncated: false,
+    });
+    expect(store.recordRevisions("entity:other")).toMatchObject({ puts: 1, revisions: 0, through: 4 });
+    expect(store.verifyReplay()).toMatchObject({ operations: 4, records: 2, sqliteIntegrity: "ok" });
+    store.close();
+  });
+
+  test("keeps a tombstoned record's history readable after the record is gone", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-tombstone" });
+    commit(store, "entity:retracted", "First", "op_one");
+    const second = commit(store, "entity:retracted", "Second", "op_two");
+    const prior = second.changes[0];
+    if (prior?.kind !== "put") throw new Error("expected a put");
+    store.commit({ actorId: "agent.test", expectedHead: store.head(), operationId: "op_tombstone",
+      changes: [{ key: "entity:retracted", kind: "tombstone", priorSha256: prior.record.recordSha256, v: 1 }] });
+    expect(store.get("entity:retracted")).toBeNull();
+    expect(store.recordRevisions("entity:retracted")).toMatchObject({
+      changes: 3, distinctPutDigests: 2, latestKind: "tombstone", latestSequence: 3,
+      puts: 2, revisions: 1, through: 3, tombstones: 1, truncated: false,
+    });
+    store.close();
+  });
+
+  test("agrees with the same facts derived from an exported change feed", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-feed" });
+    commit(store, "entity:claim", "First", "op_one");
+    commit(store, "entity:claim", "Second", "op_two");
+    commit(store, "entity:claim", "Third", "op_three");
+    const head = store.head();
+    const operations = store.exportOperations(0, 1000);
+    expect(reduceOhRecordRevisionsV1({ key: "entity:claim", through: head.sequence,
+      changes: ohRecordRevisionChangesFromOperationsV1("entity:claim", operations) }))
+      .toEqual(store.recordRevisions("entity:claim"));
+    store.close();
+  });
+
+  test("bounds a long history to the newest changes and stays fast", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-bounded" });
+    const operations = 400;
+    for (let index = 0; index < operations; index += 1) {
+      commit(store, "entity:hot", `Revision ${index}`, `op_${index}`);
+    }
+    const started = performance.now();
+    const bounded = store.recordRevisions("entity:hot", { limit: 50 });
+    const complete = store.recordRevisions("entity:hot");
+    expect(performance.now() - started).toBeLessThan(5000);
+    expect(bounded).toMatchObject({ changes: 50, latestKind: "put", latestSequence: operations,
+      oldestObservedSequence: operations - 49, puts: 50, revisions: 49,
+      through: operations, truncated: true });
+    expect(complete).toMatchObject({ changes: operations, latestSequence: operations,
+      oldestObservedSequence: 1, puts: operations, revisions: operations - 1, truncated: false });
+    store.close();
+  });
+
+  test("rejects a log change whose stored digest is not a record digest", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-integrity" });
+    commit(store, "entity:ada", "Ada Lovelace", "op_one");
+    store.database.query("UPDATE oh_operation_records SET record_sha256 = NULL WHERE record_key = ?")
+      .run("entity:ada");
+    expect(() => store.recordRevisions("entity:ada")).toThrow(OhIntegrityError);
     store.close();
   });
 });

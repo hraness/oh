@@ -410,6 +410,158 @@ export function replayOhOperationsV1(
   return { head, records: sortedRecords(records.values()), v: 1 };
 }
 
+export const OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
+  changesPerKey: 65_536,
+  operationsPerRead: 65_536,
+});
+
+/**
+ * One append-only log change that touched a single record key. A put carries
+ * the digest it wrote; a tombstone carries the prior digest it removed, which
+ * is exactly what the operation log persists for each change kind.
+ */
+export type OhRecordRevisionChangeV1 = Readonly<{
+  kind: "put" | "tombstone";
+  recordSha256: Sha256Hex;
+  sequence: number;
+  v: 1;
+}>;
+
+/**
+ * Derived churn facts for one record key, read from the append-only log. The
+ * kernel reports counts and nothing else: no threshold, ranking, or trust
+ * judgement belongs here.
+ *
+ * `revisions` is the number of puts after the first one — how many times the
+ * key was written again. `distinctPutDigests` separates a rewrite from a
+ * content change, because a put that stores identical bytes advances the log
+ * without changing the record. `latestKind` is `"put"` when the last observed
+ * change materialized the record and `"tombstone"` when it removed it. The
+ * counts follow one record key: a correction an application models as a new
+ * record superseding an older one is a separate key with its own counts.
+ *
+ * A reader that hits its change bound returns `truncated: true`. Truncation
+ * drops the oldest changes, never the newest, so `latestKind`, `latestSequence`
+ * and `through` stay exact while `changes`, `puts`, `tombstones`, `revisions`
+ * and `distinctPutDigests` become lower bounds and `oldestObservedSequence`
+ * describes only the observed window.
+ */
+export type OhRecordRevisionsV1 = Readonly<{
+  changes: number;
+  distinctPutDigests: number;
+  key: string;
+  latestKind: "put" | "tombstone" | null;
+  latestSequence: number | null;
+  oldestObservedSequence: number | null;
+  puts: number;
+  revisions: number;
+  through: number;
+  tombstones: number;
+  truncated: boolean;
+  v: 1;
+}>;
+
+export function parseOhRecordRevisionChangeV1(value: unknown): OhRecordRevisionChangeV1 | null {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["kind", "recordSha256", "sequence", "v"])
+    || value.v !== 1 || (value.kind !== "put" && value.kind !== "tombstone")) return null;
+  const recordSha256 = parseSha256Hex(value.recordSha256);
+  const sequence = Number.isSafeInteger(value.sequence) && (value.sequence as number) > 0
+    ? value.sequence as number : null;
+  return recordSha256 !== null && sequence !== null
+    ? { kind: value.kind, recordSha256, sequence, v: 1 } : null;
+}
+
+/**
+ * Reduces a bounded, unordered set of log changes for one key into its
+ * revision facts. Changes are sorted by sequence here, so no caller depends on
+ * a read order, and a repeated sequence is rejected because the log admits one
+ * change per key per operation.
+ */
+export function reduceOhRecordRevisionsV1(input: Readonly<{
+  changes: readonly unknown[];
+  key: string;
+  through: number;
+  truncated?: boolean;
+}>): OhRecordRevisionsV1 {
+  if (!isPlainRecord(input) || !Array.isArray(input.changes)) {
+    throw new TypeError("Invalid record revision input.");
+  }
+  const key = safeCode(input.key, 512);
+  const through = Number.isSafeInteger(input.through) && input.through >= 0 ? input.through : null;
+  const truncated = input.truncated ?? false;
+  if (key === null || through === null || typeof truncated !== "boolean") {
+    throw new TypeError("Invalid record revision input.");
+  }
+  if (input.changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
+    throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
+  }
+  const parsed: OhRecordRevisionChangeV1[] = [];
+  const sequences = new Set<number>();
+  for (const value of input.changes) {
+    const change = parseOhRecordRevisionChangeV1(value);
+    if (change === null) throw new TypeError("Invalid record revision change.");
+    if (change.sequence > through) throw new RangeError("A record revision change is ahead of its through sequence.");
+    if (sequences.has(change.sequence)) throw new TypeError("A record key has two changes in one operation.");
+    sequences.add(change.sequence);
+    parsed.push(change);
+  }
+  parsed.sort((left, right) => left.sequence - right.sequence);
+  const digests = new Set<Sha256Hex>();
+  let puts = 0;
+  let tombstones = 0;
+  for (const change of parsed) {
+    if (change.kind === "put") { puts += 1; digests.add(change.recordSha256); } else tombstones += 1;
+  }
+  const latest = parsed.at(-1) ?? null;
+  return {
+    changes: parsed.length,
+    distinctPutDigests: digests.size,
+    key,
+    latestKind: latest === null ? null : latest.kind,
+    latestSequence: latest?.sequence ?? null,
+    oldestObservedSequence: parsed[0]?.sequence ?? null,
+    puts,
+    revisions: puts === 0 ? 0 : puts - 1,
+    through,
+    tombstones,
+    truncated,
+    v: 1,
+  };
+}
+
+/**
+ * Collects one key's log changes from already parsed operations, so a reader
+ * with a change feed rather than local SQL derives the same facts. It reads
+ * operations; it never mutates or commits.
+ */
+export function ohRecordRevisionChangesFromOperationsV1(
+  key: string,
+  operations: readonly OhOperationV1[],
+): readonly OhRecordRevisionChangeV1[] {
+  const parsedKey = safeCode(key, 512);
+  if (parsedKey === null) throw new TypeError("Invalid record key.");
+  if (!Array.isArray(operations)) throw new TypeError("Invalid operation list.");
+  if (operations.length > OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead) {
+    throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead} operations.`);
+  }
+  const changes: OhRecordRevisionChangeV1[] = [];
+  for (const value of operations) {
+    const operation = parseOhOperationV1(value);
+    if (operation === null) throw new OhIntegrityError("A revision source operation is invalid.");
+    for (const change of operation.changes) {
+      if (change.kind === "put" && change.record.key === parsedKey) {
+        changes.push({ kind: "put", recordSha256: change.record.recordSha256, sequence: operation.sequence, v: 1 });
+      } else if (change.kind === "tombstone" && change.key === parsedKey) {
+        changes.push({ kind: "tombstone", recordSha256: change.priorSha256, sequence: operation.sequence, v: 1 });
+      }
+    }
+    if (changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
+      throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
+    }
+  }
+  return changes;
+}
+
 export function transitionOhSnapshotV1(input: Readonly<{
   actorId: string;
   changes: readonly KnowledgeGraphChangeV1[];

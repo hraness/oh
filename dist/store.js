@@ -876,6 +876,97 @@ function replayOhOperationsV1(spaceId, values, maximumRecords = OH_GRAPH_LIMITS_
   }
   return { head, records: sortedRecords(records.values()), v: 1 };
 }
+var OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
+  changesPerKey: 65536,
+  operationsPerRead: 65536
+});
+function parseOhRecordRevisionChangeV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["kind", "recordSha256", "sequence", "v"]) || value.v !== 1 || value.kind !== "put" && value.kind !== "tombstone")
+    return null;
+  const recordSha256 = parseSha256Hex(value.recordSha256);
+  const sequence = Number.isSafeInteger(value.sequence) && value.sequence > 0 ? value.sequence : null;
+  return recordSha256 !== null && sequence !== null ? { kind: value.kind, recordSha256, sequence, v: 1 } : null;
+}
+function reduceOhRecordRevisionsV1(input) {
+  if (!isPlainRecord(input) || !Array.isArray(input.changes)) {
+    throw new TypeError("Invalid record revision input.");
+  }
+  const key = safeCode(input.key, 512);
+  const through = Number.isSafeInteger(input.through) && input.through >= 0 ? input.through : null;
+  const truncated = input.truncated ?? false;
+  if (key === null || through === null || typeof truncated !== "boolean") {
+    throw new TypeError("Invalid record revision input.");
+  }
+  if (input.changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
+    throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
+  }
+  const parsed = [];
+  const sequences = new Set;
+  for (const value of input.changes) {
+    const change = parseOhRecordRevisionChangeV1(value);
+    if (change === null)
+      throw new TypeError("Invalid record revision change.");
+    if (change.sequence > through)
+      throw new RangeError("A record revision change is ahead of its through sequence.");
+    if (sequences.has(change.sequence))
+      throw new TypeError("A record key has two changes in one operation.");
+    sequences.add(change.sequence);
+    parsed.push(change);
+  }
+  parsed.sort((left, right) => left.sequence - right.sequence);
+  const digests = new Set;
+  let puts = 0;
+  let tombstones = 0;
+  for (const change of parsed) {
+    if (change.kind === "put") {
+      puts += 1;
+      digests.add(change.recordSha256);
+    } else
+      tombstones += 1;
+  }
+  const latest = parsed.at(-1) ?? null;
+  return {
+    changes: parsed.length,
+    distinctPutDigests: digests.size,
+    key,
+    latestKind: latest === null ? null : latest.kind,
+    latestSequence: latest?.sequence ?? null,
+    oldestObservedSequence: parsed[0]?.sequence ?? null,
+    puts,
+    revisions: puts === 0 ? 0 : puts - 1,
+    through,
+    tombstones,
+    truncated,
+    v: 1
+  };
+}
+function ohRecordRevisionChangesFromOperationsV1(key, operations) {
+  const parsedKey = safeCode(key, 512);
+  if (parsedKey === null)
+    throw new TypeError("Invalid record key.");
+  if (!Array.isArray(operations))
+    throw new TypeError("Invalid operation list.");
+  if (operations.length > OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead) {
+    throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead} operations.`);
+  }
+  const changes = [];
+  for (const value of operations) {
+    const operation = parseOhOperationV1(value);
+    if (operation === null)
+      throw new OhIntegrityError("A revision source operation is invalid.");
+    for (const change of operation.changes) {
+      if (change.kind === "put" && change.record.key === parsedKey) {
+        changes.push({ kind: "put", recordSha256: change.record.recordSha256, sequence: operation.sequence, v: 1 });
+      } else if (change.kind === "tombstone" && change.key === parsedKey) {
+        changes.push({ kind: "tombstone", recordSha256: change.priorSha256, sequence: operation.sequence, v: 1 });
+      }
+    }
+    if (changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
+      throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
+    }
+  }
+  return changes;
+}
 function transitionOhSnapshotV1(input) {
   const actorId = safeCode(input.actorId);
   const operationId = safeCode(input.operationId);
@@ -1171,12 +1262,15 @@ export {
   verifyOhDependencyClosureAgainstV1,
   transitionOhSnapshotV1,
   replayOhOperationsV1,
+  reduceOhRecordRevisionsV1,
   parseOhStoreProfileV1,
   parseOhStoreBindingV1,
   parseOhSpacePurgeReceiptV1,
+  parseOhRecordRevisionChangeV1,
   parseOhHeadV1,
   parseOhHeadRefV1,
   parseOhDependencyClosureV1,
+  ohRecordRevisionChangesFromOperationsV1,
   isOhProfileError,
   isOhOperationSizeError,
   isOhIntegrityError,
@@ -1196,6 +1290,7 @@ export {
   OhDependencyError,
   OhConflictError,
   OH_WORKING_STORE_PROFILE_V1,
+  OH_RECORD_REVISIONS_LIMITS_V1,
   OH_OPERATION_SIZE_ERROR_CODE_V1,
   OH_DEPENDENCY_CLOSURE_LIMITS_V1,
   OH_CANONICAL_STORE_PROFILE_V1
