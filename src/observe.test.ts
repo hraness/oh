@@ -15,6 +15,7 @@ import {
   observeOhV1,
   ohObservationActivityKeyV1,
   ohObservationKeyV1,
+  ohObservationSupersessionV1,
   parseOhObservationActivityValueV1,
   parseOhObservationRecordV1,
   parseOhObservationResponseV1,
@@ -363,6 +364,18 @@ describe("observeOhV1", () => {
       .toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: null });
     expect(resolveOhSupersessionV1(store, { facet: null, speaker: "user", statedAt: "2026/04/01" }))
       .toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: null });
+    // The churn a per-record revision count cannot see: one fact, three separate
+    // keys, restated twice. On this path each key is written once, so its own
+    // revision count is 0; a key linked by applySupersessionPolicyV1 instead is
+    // re-put and reads 1, so the two signals overlap there rather than being
+    // independent.
+    expect(ohObservationSupersessionV1(store, frequencyThree)).toEqual({ depth: 2, key: frequencyThree,
+      loop: false, missing: null, origin: frequencyOne, resolved: true, truncated: false, v: 1 });
+    expect(ohObservationSupersessionV1(store, frequencyTwo)).toMatchObject({ depth: 1, origin: frequencyOne, resolved: true });
+    expect(ohObservationSupersessionV1(store, frequencyOne)).toEqual({ depth: 0, key: frequencyOne,
+      loop: false, missing: null, origin: frequencyOne, resolved: true, truncated: false, v: 1 });
+    // An observation that never joined a chain is a first statement, not an error.
+    expect(ohObservationSupersessionV1(store, first.observationKeys[0]!)).toMatchObject({ depth: 0, resolved: true });
     store.close();
   });
 
@@ -617,5 +630,85 @@ describe("derived-first rendering", () => {
     expect(isOhRecommendationQueryV1("Any good ideas for a weekend trip?")).toBe(true);
     expect(isOhRecommendationQueryV1("How many times did I visit the gym?")).toBe(false);
     expect(isOhRecommendationQueryV1("r".repeat(20_000))).toBe(false);
+  });
+});
+
+describe("observation supersession depth over a damaged chain", () => {
+  const observationValue = (supersedes: string | null) => ({
+    eventAt: null, facet: "tea", format: "oh.observation.v1", kind: "preference", orderingConflict: false,
+    resolvedFrom: null, sources: [{ key: "edition:turn-00000", recordSha256: "a".repeat(64), v: 1 }],
+    speaker: "user", statedAt: "2026-01-01", supersedes, text: "user prefers tea.", v: 1,
+  });
+  // A well-formed observation record: exactly one receipt, every cited source in
+  // dependencies, and the superseded key in dependencies. The walk gates on
+  // parseOhObservationRecordV1, so a fake that skipped these would be rejected
+  // as damage and would not exercise the case under test.
+  const chain = (links: ReadonlyMap<string, string | null>) => ({
+    get(key: string): KnowledgeGraphRecordV1 | null {
+      if (!links.has(key)) return null;
+      const supersedes = links.get(key) ?? null;
+      return createKnowledgeGraphRecordV1({
+        dependencies: ["activity:observe-k", "edition:turn-00000",
+          ...(supersedes === null ? [] : [supersedes])].sort(),
+        key, kind: "edition", v: 1, value: observationValue(supersedes) as never,
+      });
+    },
+  });
+  const key = (index: number) => `edition:obs-k-${String(index).padStart(5, "0")}`;
+
+  test("reports an exact depth only when the walk reaches a first statement", () => {
+    const store = chain(new Map([[key(2), key(1)], [key(1), key(0)], [key(0), null]]));
+    expect(ohObservationSupersessionV1(store, key(2))).toEqual({ depth: 2, key: key(2), loop: false,
+      missing: null, origin: key(0), resolved: true, truncated: false, v: 1 });
+  });
+
+  test("names an absent link instead of treating the chain as finished", () => {
+    // The oldest record is gone. Depth 1 is a floor, not the answer, and origin
+    // is only the oldest key still readable.
+    const store = chain(new Map([[key(1), key(0)]]));
+    expect(ohObservationSupersessionV1(store, key(1))).toEqual({ depth: 1, key: key(1), loop: false,
+      missing: key(0), origin: key(1), resolved: false, truncated: false, v: 1 });
+    // A start key that is absent reads as unresolved rather than as depth 0.
+    expect(ohObservationSupersessionV1(store, key(9))).toEqual({ depth: 0, key: key(9), loop: false,
+      missing: key(9), origin: key(9), resolved: false, truncated: false, v: 1 });
+  });
+
+  test("reports a cycle rather than following it forever", () => {
+    const store = chain(new Map([[key(0), key(1)], [key(1), key(0)]]));
+    expect(ohObservationSupersessionV1(store, key(0))).toMatchObject({ loop: true, resolved: false, truncated: false });
+  });
+
+  test("stops at the chain bound and says the depth is a floor", () => {
+    const bound = OH_OBSERVATION_LIMITS_V1.supersessionChain;
+    const links = new Map<string, string | null>();
+    for (let index = 0; index <= bound + 8; index += 1) links.set(key(index), key(index + 1));
+    const read = ohObservationSupersessionV1(chain(links), key(0));
+    expect(read).toMatchObject({ depth: bound, loop: false, resolved: false, truncated: true });
+  });
+
+  test("treats a record of another kind at an observation key as damage", () => {
+    // parseOhObservationValueV1 alone would accept this: the value parses, only
+    // the record does not. Counting it would stamp a foreign record as a link
+    // and report resolved: true, which is the opposite of what the spec promises.
+    const store = {
+      get(lookup: string): KnowledgeGraphRecordV1 | null {
+        if (lookup !== key(0) && lookup !== key(1)) return null;
+        const foreign = lookup === key(0);
+        return createKnowledgeGraphRecordV1({
+          dependencies: ["activity:observe-k", "edition:turn-00000", ...(foreign ? [] : [key(0)])].sort(),
+          key: lookup, kind: foreign ? "entity" : "edition", v: 1,
+          value: (foreign ? { name: "not an observation" } : observationValue(key(0))) as never,
+        });
+      },
+    };
+    expect(ohObservationSupersessionV1(store, key(1)))
+      .toMatchObject({ missing: key(0), resolved: false });
+  });
+
+  test("refuses a key that is not an observation key", () => {
+    const store = chain(new Map([[key(0), null]]));
+    expect(() => ohObservationSupersessionV1(store, "entity:ada")).toThrow("Invalid observation key");
+    expect(() => ohObservationSupersessionV1(store, "Edition:Obs-Bad")).toThrow("Invalid observation key");
+    expect(() => ohObservationSupersessionV1(store, "")).toThrow("Invalid observation key");
   });
 });
