@@ -43,6 +43,8 @@ also failed its advancement rule: 67.35% answer accuracy versus 68.95% for vecto
 retrieval on all 146 questions from two previously exposed personas. Recall@10
 rose from 12.05% to 15.17%, but the answer-quality gate failed; the candidate
 does not advance to confirmation or change a default.
+The subsequent [ranking diagnostics](CLONEMEM_RANKING_DIAGNOSTIC_V1.md) rejected
+equal fusion weights and measured candidate-pool label coverage without new model calls.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
 
