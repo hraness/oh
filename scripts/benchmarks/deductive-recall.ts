@@ -15,13 +15,27 @@ import { fetchDataset, loadDataset, ROOT, writeNew } from "./io";
 import { createRetrievers, DEFAULT_SYSTEMS, type RetrievalBudget, type System } from "./retrieval";
 import { evidenceMetrics, mean, pairedBootstrap, percentile } from "./metrics";
 import { DEDUCTIVE_RETRIEVAL_PROTOCOL, DEDUCTIVE_SYSTEMS, prepareDeductive, deductiveRetrieve,
-  parseQuestion, RETRIEVAL_PROGRAM_SHA256, type DeductiveSystem } from "./deductive-retrieval";
+  parseQuestion, questionScope, questionDigestOf, turnCandidate, RETRIEVAL_PROGRAM_SHA256,
+  RETRIEVAL_SEM_PROGRAM_SHA256, type DeductiveSystem } from "./deductive-retrieval";
+import { createSemanticProducer, SEMANTIC_MODEL_SHA256, SEMANTIC_PRODUCER_ID,
+  type SemanticProducer } from "./deductive-semantic";
+import { pack } from "./retrieval";
 
-const PROTOCOL = "oh.deductive-recall.v1" as const;
+// The semantic arms run only when the pinned qmd producer is provisioned
+// (DEDUCTIVE_RECALL_SEM=0 disables them for environments without the engine).
+// Enabling them changes the fact surface — a distinct protocol literal and a
+// `-sem` artifact suffix keep the published mechanical artifact untouched.
+const SEM_ENABLED = process.env.DEDUCTIVE_RECALL_SEM !== "0";
+const PROTOCOL = SEM_ENABLED
+  ? "oh.deductive-recall-semantic.v1" as const
+  : "oh.deductive-recall.v1" as const;
 const SEED = 17;
 const BUDGET: RetrievalBudget = { topK: 20, contextBytes: 12_000 };
 const BASELINE_SYSTEMS: readonly System[] = DEFAULT_SYSTEMS;
-const ARMS = [...BASELINE_SYSTEMS, ...DEDUCTIVE_SYSTEMS] as const;
+const VECTOR_ARM = "vector" as const;
+const ARMS = [...BASELINE_SYSTEMS, ...DEDUCTIVE_SYSTEMS.filter((arm) =>
+  arm !== "deductive-semantic" || SEM_ENABLED),
+  ...(SEM_ENABLED ? [VECTOR_ARM] : [])] as const;
 type Arm = (typeof ARMS)[number];
 // dev is the tuning split (radius, fill policy chosen there); test is the
 // held-out confirmation — 8 corpora, 8 bootstrap clusters, never touched
@@ -45,16 +59,20 @@ async function main(): Promise<void> {
   const corpusInfo: { corpusId: string; turns: number; sessions: number;
     shardFacts: number[]; corpusSha256: string }[] = [];
 
+  let producer: SemanticProducer | null = null;
+  if (SEM_ENABLED) producer = await createSemanticProducer({});
   for (const corpus of corpora) {
     const retrievers = createRetrievers(corpus);
     const prepared = prepareDeductive(corpus);
     try {
       retrievers.prepare([...BASELINE_SYSTEMS]);
+      if (producer !== null) await producer.prepare(corpus);
       corpusInfo.push({ corpusId: corpus.id, turns: corpus.turns.length,
         sessions: prepared.shards.size,
         shardFacts: [...prepared.shards.values()].map((s) => s.facts.length),
         corpusSha256: canonicalSha256({ id: corpus.id, groupId: corpus.groupId, turns: corpus.turns }) });
       const questions = dataset.questions.filter((q) => q.corpusId === corpus.id);
+      console.error(`[deductive-recall] corpus ${corpus.id}: ${questions.length} questions`);
       for (const question of questions) {
         const contexts = new Map<Arm, { turnIds: readonly string[]; sessionIds: readonly string[];
           contextBytes: number; contextSha256: string }>();
@@ -64,8 +82,25 @@ async function main(): Promise<void> {
             contextBytes: Buffer.byteLength(retrieved.context),
             contextSha256: sha256Hex(retrieved.context) });
         }
+        let sem: Awaited<ReturnType<SemanticProducer["searchAndFacts"]>> | null = null;
+        if (producer !== null) {
+          const parsed = parseQuestion(question.question);
+          const inScope = questionScope(prepared, parsed);
+          sem = await producer.searchAndFacts(question.question,
+            questionDigestOf(parsed, inScope), BUDGET.topK);
+          const retrieved = pack(sem.ranked.flatMap((hit) => {
+            const candidate = turnCandidate(prepared, hit.turnId);
+            return candidate === undefined ? [] : [candidate];
+          }), BUDGET.contextBytes);
+          contexts.set(VECTOR_ARM, { turnIds: retrieved.turnIds,
+            sessionIds: retrieved.sessionIds,
+            contextBytes: Buffer.byteLength(retrieved.context),
+            contextSha256: sha256Hex(retrieved.context) });
+        }
         for (const system of DEDUCTIVE_SYSTEMS) {
-          const retrieved = deductiveRetrieve(corpus, prepared, system, question.question, BUDGET);
+          if (system === "deductive-semantic" && producer === null) continue;
+          const retrieved = deductiveRetrieve(corpus, prepared, system, question.question, BUDGET,
+            system === "deductive-semantic" ? { semFacts: sem!.facts } : {});
           contexts.set(system, { turnIds: retrieved.turnIds, sessionIds: retrieved.sessionIds,
             contextBytes: Buffer.byteLength(retrieved.context),
             contextSha256: sha256Hex(retrieved.context) });
@@ -85,6 +120,7 @@ async function main(): Promise<void> {
       prepared.fts.close();
     }
   }
+  if (producer !== null) await producer.close();
 
   const summarize = (selected: readonly Row[]) => ({
     questions: selected.length,
@@ -104,10 +140,14 @@ async function main(): Promise<void> {
         summarize(selected.filter((row) => row.category === category))])) }];
   }));
 
-  // Paired bootstrap vs BOTH relevant baselines: bm25-window (the turn-level
-  // champion the deductive arm is designed to beat) and bm25-block (the
-  // strongest existing system overall — the bar for "outperforming").
-  const baselines = ["bm25-window", "bm25-block"] as const;
+  // Paired bootstrap vs the relevant baselines: bm25-window (the turn-level
+  // champion the deductive arm is designed to beat), bm25-block (the
+  // strongest existing system overall — the bar for "outperforming"), and
+  // vector (embeddings alone — the bar for the semantic composition adding
+  // anything over raw proximity).
+  const baselines = SEM_ENABLED
+    ? ["bm25-window", "bm25-block", "vector"] as const
+    : ["bm25-window", "bm25-block"] as const;
   const comparisons = Object.fromEntries(baselines.map((baseline) => {
     const baselineRows = new Map(rows.filter((row) => row.arm === baseline)
       .map((row) => [row.questionId, row]));
@@ -142,6 +182,9 @@ async function main(): Promise<void> {
     protocol: PROTOCOL,
     retrievalProtocol: DEDUCTIVE_RETRIEVAL_PROTOCOL,
     programSha256: RETRIEVAL_PROGRAM_SHA256,
+    ...(SEM_ENABLED ? { semProgramSha256: RETRIEVAL_SEM_PROGRAM_SHA256,
+      semanticProducer: { id: SEMANTIC_PRODUCER_ID,
+        modelSha256: SEMANTIC_MODEL_SHA256 } } : {}),
     dataset: "locomo",
     datasetSha256: DATASETS.locomo.sha256,
     split: SPLIT, seed: SEED, budget: BUDGET,
@@ -157,8 +200,10 @@ async function main(): Promise<void> {
     rows: deterministicRows,
     qualifications: [
       "Evidence recall is not answer accuracy or an OSS leaderboard score.",
-      "No LLM extraction, embeddings, reranking, reader, or judge was used; every arm is deterministic.",
-      "Deductive candidates are derived by bounded positive Datalog over mechanical facts (speaker, session, date, tokens, capitalized entities); every derived row is replay-verified and its proof terminates in a real store record digest or the pinned question digest.",
+      "No LLM extraction, reranking, reader, or judge was used; every arm is deterministic.",
+      SEM_ENABLED
+        ? "Deductive candidates are derived by bounded positive Datalog; the deductive/deductive-union arms use mechanical facts only (speaker, session, date, tokens, capitalized entities), while deductive-semantic and vector additionally consume declared sem-near edges emitted by the pinned local embedding producer (engine and model sha256 are bound into each fact's provenance digest)."
+        : "Deductive candidates are derived by bounded positive Datalog over mechanical facts (speaker, session, date, tokens, capitalized entities); every derived row is replay-verified and its proof terminates in a real store record digest or the pinned question digest.",
       "Question-side facts (question-term, question-entity, in-scope) are parsed mechanically from the question text; no semantic labels.",
       "Missing evidence references remain misses; unanswerable or unannotated cases have null retrieval metrics.",
       SPLIT === "dev"
@@ -171,7 +216,7 @@ async function main(): Promise<void> {
   };
   const dir = `${ROOT}/benchmarks/results`;
   mkdirSync(dir, { recursive: true });
-  const path = `${dir}/deductive-recall-locomo-${SPLIT}-v1.json`;
+  const path = `${dir}/deductive-recall-locomo-${SPLIT}${SEM_ENABLED ? "-sem" : ""}-v1.json`;
   await writeNew(path, Buffer.from(canonicalJson(artifact)));
   console.log(JSON.stringify({ output: path.replace(`${ROOT}/`, ""),
     artifactSha256: canonicalSha256(artifact),

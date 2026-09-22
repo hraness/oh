@@ -163,6 +163,60 @@ Miss analysis shows only ~6 evidence turns across the dev split are never
 derived; the win comes from *where* evidence lands (speaker linkage, date
 scope, co-entity bridging), not from seeing more text.
 
+### Declared semantic edges (`results/deductive-recall-locomo-*-sem-v1.json`)
+
+The mechanical arm's residual misses are genuinely semantic — pronoun
+chains, cross-turn anaphora, concept subsumption (Banff⊂Canada). The
+`deductive-semantic` arm adds exactly one new fact class to the same
+machinery instead of an opaque reranker: `sem-near(turn)` edges emitted by
+`scripts/benchmarks/deductive-semantic.ts`, a producer pinned to the repo's
+own optional QMD embedding runtime (`@tobilu/qmd@2.5.3`,
+`embeddinggemma-300M` Q8_0, model file sha256
+`b5ce9d77…60490d63`). Each fact's sources carry a producer digest binding
+the engine, model hash, profile hash, tau/top-N, the pinned question
+digest, and the emitted turn set — semantic evidence enters the derivation
+with declared provenance and is replay-verified like every mechanical row.
+`hit-sem` joins each edge against the turn's own `states(t,"session",se)`
+fact, so an edge can only fire inside the shard that owns the turn.
+
+These runs write a **separate protocol and artifact family**
+(`oh.deductive-recall-semantic.v1`, `*-sem-v1.json`): the published
+mechanical artifacts are unchanged. A `vector` arm — the same embeddings
+alone, packed under the same byte budget — is included so the composition
+is compared against raw proximity, not only against bm25.
+
+Dev-split artifact (`results/deductive-recall-locomo-dev-sem-v1.json`,
+same seed/budget as the mechanical run):
+
+| arm | turn recall | all-evidence | MRR | mean bytes |
+|---|---|---|---|---|
+| bm25-window | 0.7594 | 0.6923 | 0.4415 | 9,726 |
+| vector | 0.7729 | 0.6859 | 0.4747 | 4,391 |
+| bm25-block | 0.8137 | 0.7532 | 0.3003 | 11,970 |
+| deductive | 0.8343 | 0.7660 | 0.4756 | 11,876 |
+| deductive-union | 0.8308 | 0.7628 | 0.4716 | 11,815 |
+| **deductive-semantic** | **0.8729** | **0.8077** | **0.4913** | **11,899** |
+
+Paired bootstrap (2000 resamples over the 2 dev clusters): vs `bm25-block`
+**+5.92 points, 95% CI [0.039, 0.080]**; vs `vector` — embeddings alone —
+**+10.0 points, CI [0.045, 0.155]**; vs `bm25-window` +11.35 points. The
+composition beats both mechanisms' solo forms and leads every category —
+including cat3 multi-hop at 0.659 vs bm25-block's 0.558, reversing the
+mechanical arm's only deficit (+10.1 where it trailed by 2.5). The
+composition adds mechanical structure embeddings lack (speaker/scope
+derivations) and semantic reach mechanical facts lack (subsumption,
+anaphora) — neither alone produces the other.
+
+**Held-out semantic confirmation**
+(`results/deductive-recall-locomo-test-sem-v1.json`, the same 8 corpora
+never touched during design or tuning): deductive-semantic **0.8652** vs
+bm25-block 0.8285 — **+3.66 points, 95% CI [0.021, 0.059], excluding
+zero** where the mechanical arm's interval brushed zero ([-0.001, 0.011]);
+vs vector-alone 0.8096 — **+5.56 points, CI [0.028, 0.082]**; vs
+bm25-window +7.78, CI [0.065, 0.094]. The semantic composition widens the
+held-out margin over the strongest existing system by ~7× while remaining
+proof-carrying and replay-verified end to end.
+
 ## Boundaries
 
 - These are benchmark seams. Nothing here is a production retrieval path,
@@ -173,6 +227,10 @@ scope, co-entity bridging), not from seeing more text.
   conversation-cluster bootstrap estimates, not leaderboard claims.
 - Datalog proofs witness *derivation from the supplied facts* — they are
   evidence provenance, not proof of truth or provider attestation.
+- `sem-near` edges are producer-emitted approximations: a `k:sem` proof
+  witnesses that the pinned model ranked the turn near the question, not
+  that the turn is relevant. The producer digest binds the exact model,
+  thresholds, and emitted set; a different model produces different edges.
 - Proof-carrying queries are intra-shard: at corpus scale, cross-session
   derivation requires a compact index projection (as demonstrated) or a
   bounded aggregation layer that does not yet exist.
