@@ -253,7 +253,9 @@ describe("public identity and documentation", () => {
       }
       expect({ path: relative(root, path), violations }).toEqual({ path: relative(root, path), violations: [] });
     }
-  });
+  // Committed result artifacts make the scanned corpus grow over time; the
+  // bound reflects the scan's actual job, not a fixed budget from a smaller tree.
+  }, 30_000);
 
   test("does not claim unshipped migration artifacts or procedures", async () => {
     const migration = await readFile(join(root, "spec/v1/migration.md"), "utf8");

@@ -10,7 +10,7 @@
 import { mkdirSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import { canonicalJson, canonicalSha256, sha256Hex } from "../../src/canonical";
-import { DATASETS, selectSplit, type Dataset } from "./datasets";
+import { DATASETS, selectSplit, type Corpus, type Dataset } from "./datasets";
 import { fetchDataset, loadDataset, ROOT, writeNew } from "./io";
 import { createRetrievers, DEFAULT_SYSTEMS, type RetrievalBudget, type System } from "./retrieval";
 import { evidenceMetrics, mean, pairedBootstrap, percentile } from "./metrics";
@@ -61,64 +61,14 @@ async function main(): Promise<void> {
 
   let producer: SemanticProducer | null = null;
   if (SEM_ENABLED) producer = await createSemanticProducer({});
+  // One function invocation per corpus: per-invocation locals make a stale
+  // prepared/retrievers binding impossible by construction — the earlier
+  // inlined loop let a prior iteration's closed store surface inside the next
+  // corpus under Bun's async desugaring (observed twice; not reproducible on
+  // demand). The corpusId invariant turns any recurrence into a labeled
+  // invariant failure rather than a bare "store is closed".
   for (const corpus of corpora) {
-    const retrievers = createRetrievers(corpus);
-    const prepared = prepareDeductive(corpus);
-    try {
-      retrievers.prepare([...BASELINE_SYSTEMS]);
-      if (producer !== null) await producer.prepare(corpus);
-      corpusInfo.push({ corpusId: corpus.id, turns: corpus.turns.length,
-        sessions: prepared.shards.size,
-        shardFacts: [...prepared.shards.values()].map((s) => s.facts.length),
-        corpusSha256: canonicalSha256({ id: corpus.id, groupId: corpus.groupId, turns: corpus.turns }) });
-      const questions = dataset.questions.filter((q) => q.corpusId === corpus.id);
-      console.error(`[deductive-recall] corpus ${corpus.id}: ${questions.length} questions`);
-      for (const question of questions) {
-        const contexts = new Map<Arm, { turnIds: readonly string[]; sessionIds: readonly string[];
-          contextBytes: number; contextSha256: string }>();
-        for (const system of BASELINE_SYSTEMS) {
-          const retrieved = await retrievers.retrieve(system, question.question, BUDGET);
-          contexts.set(system, { turnIds: retrieved.turnIds, sessionIds: retrieved.sessionIds,
-            contextBytes: Buffer.byteLength(retrieved.context),
-            contextSha256: sha256Hex(retrieved.context) });
-        }
-        let sem: Awaited<ReturnType<SemanticProducer["searchAndFacts"]>> | null = null;
-        if (producer !== null) {
-          const parsed = parseQuestion(question.question);
-          const inScope = questionScope(prepared, parsed);
-          sem = await producer.searchAndFacts(question.question,
-            questionDigestOf(parsed, inScope), BUDGET.topK);
-          const retrieved = pack(sem.ranked.flatMap((hit) => {
-            const candidate = turnCandidate(prepared, hit.turnId);
-            return candidate === undefined ? [] : [candidate];
-          }), BUDGET.contextBytes);
-          contexts.set(VECTOR_ARM, { turnIds: retrieved.turnIds,
-            sessionIds: retrieved.sessionIds,
-            contextBytes: Buffer.byteLength(retrieved.context),
-            contextSha256: sha256Hex(retrieved.context) });
-        }
-        for (const system of DEDUCTIVE_SYSTEMS) {
-          if (system === "deductive-semantic" && producer === null) continue;
-          const retrieved = deductiveRetrieve(corpus, prepared, system, question.question, BUDGET,
-            system === "deductive-semantic" ? { semFacts: sem!.facts } : {});
-          contexts.set(system, { turnIds: retrieved.turnIds, sessionIds: retrieved.sessionIds,
-            contextBytes: Buffer.byteLength(retrieved.context),
-            contextSha256: sha256Hex(retrieved.context) });
-        }
-        for (const arm of ARMS) {
-          const got = contexts.get(arm)!;
-          rows.push({ questionId: question.id, corpusId: corpus.id, groupId: corpus.groupId,
-            category: question.category, arm, unanswerable: question.unanswerable,
-            contextBytes: got.contextBytes, contextSha256: got.contextSha256,
-            turnIds: got.turnIds,
-            metrics: evidenceMetrics(question, got.turnIds, got.sessionIds) });
-        }
-      }
-    } finally {
-      retrievers.close();
-      prepared.store.close();
-      prepared.fts.close();
-    }
+    await runCorpus(corpus, dataset, producer, rows, corpusInfo);
   }
   if (producer !== null) await producer.close();
 
@@ -227,6 +177,72 @@ async function main(): Promise<void> {
         .filter(([arm]) => arm.startsWith("deductive"))
         .map(([arm, c]) => [arm, c.interval95]))])),
   }));
+}
+
+async function runCorpus(corpus: Corpus, dataset: Dataset,
+  producer: SemanticProducer | null, rows: Row[],
+  corpusInfo: { corpusId: string; turns: number; sessions: number;
+    shardFacts: number[]; corpusSha256: string }[]): Promise<void> {
+  const retrievers = createRetrievers(corpus);
+  const prepared = prepareDeductive(corpus);
+  try {
+    retrievers.prepare([...BASELINE_SYSTEMS]);
+    if (producer !== null) await producer.prepare(corpus);
+    corpusInfo.push({ corpusId: corpus.id, turns: corpus.turns.length,
+      sessions: prepared.shards.size,
+      shardFacts: [...prepared.shards.values()].map((s) => s.facts.length),
+      corpusSha256: canonicalSha256({ id: corpus.id, groupId: corpus.groupId, turns: corpus.turns }) });
+    const questions = dataset.questions.filter((q) => q.corpusId === corpus.id);
+    console.error(`[deductive-recall] corpus ${corpus.id}: ${questions.length} questions`);
+    for (const question of questions) {
+      if (prepared.corpusId !== corpus.id) {
+        throw new Error(`stale prepared ${prepared.corpusId} inside corpus ${corpus.id}`);
+      }
+      const contexts = new Map<Arm, { turnIds: readonly string[]; sessionIds: readonly string[];
+        contextBytes: number; contextSha256: string }>();
+      for (const system of BASELINE_SYSTEMS) {
+        const retrieved = await retrievers.retrieve(system, question.question, BUDGET);
+        contexts.set(system, { turnIds: retrieved.turnIds, sessionIds: retrieved.sessionIds,
+          contextBytes: Buffer.byteLength(retrieved.context),
+          contextSha256: sha256Hex(retrieved.context) });
+      }
+      let sem: Awaited<ReturnType<SemanticProducer["searchAndFacts"]>> | null = null;
+      if (producer !== null) {
+        const parsed = parseQuestion(question.question);
+        const inScope = questionScope(prepared, parsed);
+        sem = await producer.searchAndFacts(question.question,
+          questionDigestOf(parsed, inScope), BUDGET.topK);
+        const retrieved = pack(sem.ranked.flatMap((hit) => {
+          const candidate = turnCandidate(prepared, hit.turnId);
+          return candidate === undefined ? [] : [candidate];
+        }), BUDGET.contextBytes);
+        contexts.set(VECTOR_ARM, { turnIds: retrieved.turnIds,
+          sessionIds: retrieved.sessionIds,
+          contextBytes: Buffer.byteLength(retrieved.context),
+          contextSha256: sha256Hex(retrieved.context) });
+      }
+      for (const system of DEDUCTIVE_SYSTEMS) {
+        if (system === "deductive-semantic" && producer === null) continue;
+        const retrieved = deductiveRetrieve(corpus, prepared, system, question.question, BUDGET,
+          system === "deductive-semantic" ? { semFacts: sem!.facts } : {});
+        contexts.set(system, { turnIds: retrieved.turnIds, sessionIds: retrieved.sessionIds,
+          contextBytes: Buffer.byteLength(retrieved.context),
+          contextSha256: sha256Hex(retrieved.context) });
+      }
+      for (const arm of ARMS) {
+        const got = contexts.get(arm)!;
+        rows.push({ questionId: question.id, corpusId: corpus.id, groupId: corpus.groupId,
+          category: question.category, arm, unanswerable: question.unanswerable,
+          contextBytes: got.contextBytes, contextSha256: got.contextSha256,
+          turnIds: got.turnIds,
+          metrics: evidenceMetrics(question, got.turnIds, got.sessionIds) });
+      }
+    }
+  } finally {
+    retrievers.close();
+    prepared.store.close();
+    prepared.fts.close();
+  }
 }
 
 if (import.meta.main) {
