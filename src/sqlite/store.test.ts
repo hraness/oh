@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import { canonicalJson, canonicalSha256, type JsonValue } from "../canonical";
 import { createKnowledgeGraphRecordV1 } from "../graph";
 import { createOhOperationV1 } from "../operation";
-import { createOhStoreBindingV1, OH_WORKING_STORE_PROFILE_V1 } from "../store";
+import { createOhStoreBindingV1, ohRecordRevisionChangesFromOperationsV1,
+  OH_WORKING_STORE_PROFILE_V1, reduceOhRecordRevisionsV1 } from "../store";
 import { OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError,
   OhSqliteStore } from "./store";
 
@@ -407,6 +408,156 @@ describe("Oh SQLite authority", () => {
     expect(store.snapshotRecords()).toHaveLength(1000);
     expect(() => store.snapshotRecords(65_537)).toThrow("65536");
     expect(performance.now() - started).toBeLessThan(5000);
+    store.close();
+  });
+});
+
+describe("Oh SQLite record revision reads", () => {
+  const commit = (store: OhSqliteStore, key: string, name: string, operationId: string) =>
+    store.commit({ actorId: "agent.test", changes: [{ kind: "put", record: record(key, name), v: 1 }],
+      expectedHead: store.head(), operationId });
+
+  test("reports no revisions for a record written once, and none at all for an absent key", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-once" });
+    commit(store, "entity:ada", "Ada Lovelace", "op_one");
+    expect(store.recordRevisions("entity:ada")).toEqual({
+      changes: 1, distinctPutDigests: 1, idempotentPuts: 0, key: "entity:ada", latestKind: "put",
+      latestSequence: 1, oldestObservedSequence: 1, puts: 1, revisions: 0,
+      through: 1, tombstones: 0, truncated: false, v: 1,
+    });
+    expect(store.recordRevisions("entity:missing")).toMatchObject({
+      changes: 0, latestKind: null, latestSequence: null, puts: 0, revisions: 0, through: 1,
+    });
+    expect(() => store.recordRevisions("Entity:Bad")).toThrow("Invalid record key");
+    expect(() => store.recordRevisions("entity:ada", { limit: 0 })).toThrow(RangeError);
+    expect(() => store.recordRevisions("entity:ada", { limit: 65_537 })).toThrow(RangeError);
+    store.close();
+  });
+
+  test("counts repeated writes and separates a rewrite from a content change", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-churn" });
+    commit(store, "entity:claim", "First", "op_one");
+    commit(store, "entity:claim", "Second", "op_two");
+    commit(store, "entity:other", "Untouched", "op_other");
+    commit(store, "entity:claim", "Second", "op_three");
+    // "Second" is committed twice with an unrelated key in between, so the log
+    // holds three puts, two distinct digests, and one genuinely idempotent write.
+    expect(store.recordRevisions("entity:claim")).toMatchObject({
+      changes: 3, distinctPutDigests: 2, idempotentPuts: 1, latestKind: "put", latestSequence: 4,
+      oldestObservedSequence: 1, puts: 3, revisions: 2, through: 4, tombstones: 0, truncated: false,
+    });
+    expect(store.recordRevisions("entity:other")).toMatchObject({ puts: 1, revisions: 0, through: 4 });
+    expect(store.verifyReplay()).toMatchObject({ operations: 4, records: 2, sqliteIntegrity: "ok" });
+    store.close();
+  });
+
+  test("keeps a tombstoned record's history readable after the record is gone", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-tombstone" });
+    commit(store, "entity:retracted", "First", "op_one");
+    const second = commit(store, "entity:retracted", "Second", "op_two");
+    const prior = second.changes[0];
+    if (prior?.kind !== "put") throw new Error("expected a put");
+    store.commit({ actorId: "agent.test", expectedHead: store.head(), operationId: "op_tombstone",
+      changes: [{ key: "entity:retracted", kind: "tombstone", priorSha256: prior.record.recordSha256, v: 1 }] });
+    expect(store.get("entity:retracted")).toBeNull();
+    expect(store.recordRevisions("entity:retracted")).toMatchObject({
+      changes: 3, distinctPutDigests: 2, latestKind: "tombstone", latestSequence: 3,
+      puts: 2, revisions: 1, through: 3, tombstones: 1, truncated: false,
+    });
+    store.close();
+  });
+
+  test("agrees with the same facts derived from an exported change feed", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-feed" });
+    commit(store, "entity:claim", "First", "op_one");
+    commit(store, "entity:claim", "Second", "op_two");
+    commit(store, "entity:claim", "Third", "op_three");
+    const head = store.head();
+    const operations = store.exportOperations(0, 1000);
+    const read = ohRecordRevisionChangesFromOperationsV1({ key: "entity:claim", operations,
+      spaceId: "revisions-feed" });
+    expect(read.fromSequence).toBe(1);
+    expect(reduceOhRecordRevisionsV1({ key: "entity:claim", through: head.sequence,
+      changes: read.changes, fromSequence: read.fromSequence, truncated: false }))
+      .toEqual(store.recordRevisions("entity:claim"));
+    // A feed that starts after the log's first operation reports a lower bound,
+    // so it can never be mistaken for the exact answer above.
+    const partial = ohRecordRevisionChangesFromOperationsV1({ key: "entity:claim",
+      operations: operations.slice(1), spaceId: "revisions-feed" });
+    expect(partial.fromSequence).toBe(2);
+    const bounded = reduceOhRecordRevisionsV1({ key: "entity:claim", through: head.sequence,
+      changes: partial.changes, fromSequence: partial.fromSequence, truncated: false });
+    expect(bounded).toMatchObject({ puts: 2, revisions: 1, truncated: true });
+    expect(bounded.puts).toBeLessThan(store.recordRevisions("entity:claim").puts);
+    store.close();
+  });
+
+  test("bounds a long history to the newest changes, never the oldest", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-bounded" });
+    const operations = 400;
+    for (let index = 0; index < operations; index += 1) {
+      commit(store, "entity:hot", `Revision ${index}`, `op_${index}`);
+    }
+    expect(store.recordRevisions("entity:hot", { limit: 50 })).toMatchObject({
+      changes: 50, latestKind: "put", latestSequence: operations,
+      oldestObservedSequence: operations - 49, puts: 50, revisions: 49,
+      through: operations, truncated: true });
+    expect(store.recordRevisions("entity:hot")).toMatchObject({ changes: operations,
+      latestSequence: operations, oldestObservedSequence: 1, puts: operations,
+      revisions: operations - 1, truncated: false });
+    store.close();
+  });
+
+  test("keeps a truncated read's newest change exact when that change is a tombstone", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-bounded-tombstone" });
+    for (let index = 0; index < 20; index += 1) {
+      commit(store, "entity:hot", `Revision ${index}`, `op_${index}`);
+    }
+    const current = store.get("entity:hot");
+    if (current === null) throw new Error("expected a current record");
+    store.commit({ actorId: "agent.test", expectedHead: store.head(), operationId: "op_tombstone",
+      changes: [{ key: "entity:hot", kind: "tombstone", priorSha256: current.recordSha256, v: 1 }] });
+    // Truncation drops the oldest changes, so the removal must survive it.
+    expect(store.recordRevisions("entity:hot", { limit: 3 })).toMatchObject({
+      changes: 3, latestKind: "tombstone", latestSequence: 21, oldestObservedSequence: 19,
+      puts: 2, tombstones: 1, through: 21, truncated: true });
+    store.close();
+  });
+
+  test("counts only the bound space when two spaces share one database file", async () => {
+    // oh_operation_records has no space_id column, so the join to oh_operations
+    // is the only thing scoping this read.
+    const path = await databasePath();
+    const left = new OhSqliteStore({ path, spaceId: "revisions-left" });
+    const right = new OhSqliteStore({ path, spaceId: "revisions-right" });
+    commit(left, "entity:shared", "Left one", "op_left_one");
+    commit(left, "entity:shared", "Left two", "op_left_two");
+    commit(right, "entity:shared", "Right one", "op_right_one");
+    expect(left.recordRevisions("entity:shared")).toMatchObject({ puts: 2, revisions: 1, through: 2 });
+    expect(right.recordRevisions("entity:shared")).toMatchObject({ puts: 1, revisions: 0, through: 1 });
+    left.close();
+    right.close();
+  });
+
+  test("reads a history that arrived by operation import rather than local commit", async () => {
+    const path = await databasePath();
+    const source = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-import" });
+    commit(source, "entity:claim", "First", "op_one");
+    commit(source, "entity:claim", "Second", "op_two");
+    const exported = source.exportOperations(0, 1000);
+    const target = new OhSqliteStore({ path, spaceId: "revisions-import" });
+    target.importOperations({ expectedHead: target.head(), operations: exported });
+    expect(target.recordRevisions("entity:claim")).toEqual(source.recordRevisions("entity:claim"));
+    source.close();
+    target.close();
+  });
+
+  test("rejects a log change whose stored digest is not a record digest", () => {
+    const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-integrity" });
+    commit(store, "entity:ada", "Ada Lovelace", "op_one");
+    store.database.query("UPDATE oh_operation_records SET record_sha256 = NULL WHERE record_key = ?")
+      .run("entity:ada");
+    expect(() => store.recordRevisions("entity:ada")).toThrow(OhIntegrityError);
     store.close();
   });
 });
