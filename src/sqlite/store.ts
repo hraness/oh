@@ -932,7 +932,10 @@ export class OhSqliteStore {
         }
         return { kind: row.change_kind, recordSha256, sequence: row.sequence, v: 1 };
       });
-      return reduceOhRecordRevisionsV1({ changes, key: parsedKey, through: head.sequence, truncated });
+      // The scan covers the space from its first operation, so the window is
+      // only ever narrowed by `limit`, never by where the read started.
+      return reduceOhRecordRevisionsV1({ changes, fromSequence: head.sequence === 0 ? 0 : 1,
+        key: parsedKey, through: head.sequence, truncated });
     });
   }
 

@@ -50,15 +50,22 @@ written without keeping a separate counter.
 
 `reduceOhRecordRevisionsV1` turns a bounded set of one key's log changes into
 counts: how many puts and tombstones touched it, how many puts followed the
-first one, how many distinct record digests those puts stored, which change was
-the most recent, and the head sequence the answer was read through. A put that
-stores bytes the key already held advances the log without changing the record,
-so while no tombstone touched the key, a put count above the distinct-digest
-count means the key was rewritten rather than changed. After a tombstone that
-comparison no longer holds, because removing a record and restoring identical
-bytes changes it twice while storing one digest. The reducer sorts its input by
-sequence and rejects two changes at one sequence, a change ahead of the head it
-was read through, and more than 65,536 changes.
+first one, how many distinct record digests those puts stored, how many puts
+stored bytes the key already held, which change was the most recent, and the head
+sequence the answer was read through.
+
+A put that stores the digest the preceding put stored advances the log without
+changing the record, and `idempotentPuts` counts exactly those. The distinct
+digest count does not carry that meaning and must not be used for it: a key put
+as A, B, A stores three puts and two digests while every put changed the record,
+and is indistinguishable by those two numbers from A, A, B, which contains one
+rewrite. A tombstone clears the record, so a put restoring identical bytes after
+one changes the record rather than rewriting it, and does not count.
+
+The reducer sorts its input by sequence and rejects two changes at one sequence,
+a change ahead of the head it was read through, a start sequence after that head,
+and more than 65,536 changes. It requires every field, including `truncated`, so
+a caller cannot omit the one field that separates an exact count from a bound.
 
 The counts are facts about the log. V1 attaches no meaning to them: the kernel
 states how often a record was written, and an application decides whether that
@@ -71,18 +78,29 @@ application's work.
 
 Two readers produce those changes. `OhSqliteStore.recordRevisions` reads them
 from the local log inside one read transaction, newest first, under an explicit
-`limit` that defaults to 65,536. A read that hits its bound reports
-`truncated: true`; truncation drops the oldest changes, so the latest change,
-the latest sequence, and the through sequence stay exact while the counts become
-lower bounds. `ohRecordRevisionChangesFromOperationsV1` collects the same
-changes from operations a reader already holds, so a change-feed consumer
-derives identical counts without local SQL. It accepts at most 1,000 operations,
-matching the operation page and import bounds. It requires the caller to name
-the space, because a sequence numbers an operation within one space and a feed
-from the wrong space would otherwise reduce to plausible wrong counts, and it
-requires one contiguous run of operations in sequence order, because a missing
-page would otherwise lower the counts with nothing reporting it. Contiguity
-across separate calls remains the caller's to maintain.
+`limit` that defaults to 65,536. A read that finds more changes than its bound
+reports `truncated: true`; truncation drops the oldest changes, so the latest
+change, the latest sequence, and the through sequence stay exact while the counts
+become lower bounds.
+
+`ohRecordRevisionChangesFromOperationsV1` collects the same changes from
+operations a reader already holds, so a change-feed consumer derives the same
+counts without local SQL. It accepts at most 1,000 operations, matching the
+operation page and import bounds. It requires the caller to name the space,
+because a sequence numbers an operation within one space and a feed from the
+wrong space would otherwise reduce to plausible wrong counts, and it requires one
+contiguous run of operations in sequence order, because a missing page would
+otherwise lower the counts with nothing reporting it.
+
+Contiguity within one call does not establish that the run began at the start of
+the log, and a consumer following a live feed from its cursor never does begin
+there. The reader therefore returns the first sequence it observed, and a reduce
+over a run that did not start at the log's first operation reports
+`truncated: true`. Without that, a partial window would report counts that are
+lower than the truth and yet identical in shape to an exact answer for a key
+first written later in the log, which no consumer could tell apart. A caller
+stitching several pages together concatenates the changes and reduces once with
+the earliest observed sequence.
 
 The `limit` bounds the result, not the search. In the worst case the read
 examines every operation in the space up to its through sequence, so its cost

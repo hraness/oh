@@ -888,15 +888,19 @@ function parseOhRecordRevisionChangeV1(value) {
   return recordSha256 !== null && sequence !== null ? { kind: value.kind, recordSha256, sequence, v: 1 } : null;
 }
 function reduceOhRecordRevisionsV1(input) {
-  if (!isPlainRecord(input) || !Array.isArray(input.changes)) {
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["changes", "fromSequence", "key", "through", "truncated"]) || !Array.isArray(input.changes)) {
     throw new TypeError("Invalid record revision input.");
   }
   const key = safeCode(input.key, 512);
   const through = Number.isSafeInteger(input.through) && input.through >= 0 ? input.through : null;
-  const truncated = input.truncated ?? false;
-  if (key === null || through === null || typeof truncated !== "boolean") {
+  const fromSequence = Number.isSafeInteger(input.fromSequence) && input.fromSequence >= 0 ? input.fromSequence : null;
+  if (key === null || through === null || fromSequence === null || typeof input.truncated !== "boolean") {
     throw new TypeError("Invalid record revision input.");
   }
+  if (fromSequence > 0 && through > 0 && fromSequence > through) {
+    throw new RangeError("A record revision read cannot start after the sequence it was read through.");
+  }
+  const truncated = input.truncated || through > 0 && fromSequence !== 1;
   if (input.changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
     throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
   }
@@ -917,17 +921,25 @@ function reduceOhRecordRevisionsV1(input) {
   const digests = new Set;
   let puts = 0;
   let tombstones = 0;
+  let idempotentPuts = 0;
+  let priorPutDigest = null;
   for (const change of parsed) {
     if (change.kind === "put") {
       puts += 1;
       digests.add(change.recordSha256);
-    } else
+      if (priorPutDigest === change.recordSha256)
+        idempotentPuts += 1;
+      priorPutDigest = change.recordSha256;
+    } else {
       tombstones += 1;
+      priorPutDigest = null;
+    }
   }
   const latest = parsed.at(-1) ?? null;
   return {
     changes: parsed.length,
     distinctPutDigests: digests.size,
+    idempotentPuts,
     key,
     latestKind: latest === null ? null : latest.kind,
     latestSequence: latest?.sequence ?? null,
@@ -955,10 +967,13 @@ function ohRecordRevisionChangesFromOperationsV1(input) {
   }
   const changes = [];
   let prior = null;
+  let first = 0;
   for (const value of input.operations) {
     const operation = parseOhOperationV1(value);
     if (operation === null)
       throw new OhIntegrityError("A revision source operation is invalid.");
+    if (prior === null)
+      first = operation.sequence;
     if (operation.spaceId !== spaceId) {
       throw new TypeError(`A revision source operation belongs to ${operation.spaceId}, not ${spaceId}.`);
     }
@@ -973,11 +988,8 @@ function ohRecordRevisionChangesFromOperationsV1(input) {
         changes.push({ kind: "tombstone", recordSha256: change.priorSha256, sequence: operation.sequence, v: 1 });
       }
     }
-    if (changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
-      throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
-    }
   }
-  return changes;
+  return { changes, fromSequence: prior === null ? 0 : first };
 }
 function transitionOhSnapshotV1(input) {
   const actorId = safeCode(input.actorId);

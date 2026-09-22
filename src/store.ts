@@ -434,24 +434,28 @@ export type OhRecordRevisionChangeV1 = Readonly<{
  *
  * `revisions` is the number of puts after the first one — how many times the
  * key was written again. `distinctPutDigests` counts the contents those puts
- * stored, so while `tombstones` is zero a put count above the digest count
- * means the key was rewritten with bytes it already held. Once the key was
- * tombstoned that comparison no longer separates a rewrite from a content
- * change, because removing and restoring identical bytes changes the record
- * twice while storing one digest. `latestKind` is `"put"` when the last observed
- * change materialized the record and `"tombstone"` when it removed it. The
- * counts follow one record key: a correction an application models as a new
- * record superseding an older one is a separate key with its own counts.
+ * stored. `distinctPutDigests` is therefore how many distinct contents the key
+ * ever held, and nothing more: a key put as A, B, A stores three puts and two
+ * digests without ever rewriting identical bytes, so comparing `puts` to
+ * `distinctPutDigests` does not separate a rewrite from a content change.
+ * `idempotentPuts` is the quantity that does — a put whose digest equals the
+ * immediately preceding put's digest advanced the log without changing the
+ * record. `latestKind` is `"put"` when the last observed change materialized the
+ * record and `"tombstone"` when it removed it. The counts follow one record key:
+ * a correction an application models as a new record superseding an older one is
+ * a separate key with its own counts.
  *
- * A reader that hits its change bound returns `truncated: true`. Truncation
- * drops the oldest changes, never the newest, so `latestKind`, `latestSequence`
- * and `through` stay exact while `changes`, `puts`, `tombstones`, `revisions`
- * and `distinctPutDigests` become lower bounds and `oldestObservedSequence`
+ * A reader returns `truncated: true` when it hit its change bound or did not
+ * observe the log from its first operation. Truncation drops the oldest changes,
+ * never the newest, so `latestKind`, `latestSequence` and `through` stay exact
+ * while `changes`, `puts`, `tombstones`, `revisions`, `idempotentPuts` and
+ * `distinctPutDigests` become lower bounds and `oldestObservedSequence`
  * describes only the observed window.
  */
 export type OhRecordRevisionsV1 = Readonly<{
   changes: number;
   distinctPutDigests: number;
+  idempotentPuts: number;
   key: string;
   latestKind: "put" | "tombstone" | null;
   latestSequence: number | null;
@@ -482,19 +486,30 @@ export function parseOhRecordRevisionChangeV1(value: unknown): OhRecordRevisionC
  */
 export function reduceOhRecordRevisionsV1(input: Readonly<{
   changes: readonly unknown[];
+  fromSequence: number;
   key: string;
   through: number;
-  truncated?: boolean;
+  truncated: boolean;
 }>): OhRecordRevisionsV1 {
-  if (!isPlainRecord(input) || !Array.isArray(input.changes)) {
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["changes", "fromSequence", "key", "through", "truncated"])
+    || !Array.isArray(input.changes)) {
     throw new TypeError("Invalid record revision input.");
   }
   const key = safeCode(input.key, 512);
   const through = Number.isSafeInteger(input.through) && input.through >= 0 ? input.through : null;
-  const truncated = input.truncated ?? false;
-  if (key === null || through === null || typeof truncated !== "boolean") {
+  const fromSequence = Number.isSafeInteger(input.fromSequence) && (input.fromSequence as number) >= 0
+    ? input.fromSequence as number : null;
+  if (key === null || through === null || fromSequence === null
+    || typeof input.truncated !== "boolean") {
     throw new TypeError("Invalid record revision input.");
   }
+  if (fromSequence > 0 && through > 0 && fromSequence > through) {
+    throw new RangeError("A record revision read cannot start after the sequence it was read through.");
+  }
+  // Observing the log from anywhere but its first operation lowers every count,
+  // and the result would otherwise be indistinguishable from an exact one for a
+  // key first written later. A partial window is a lower bound, so say so.
+  const truncated = input.truncated || (through > 0 && fromSequence !== 1);
   if (input.changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
     throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
   }
@@ -512,13 +527,26 @@ export function reduceOhRecordRevisionsV1(input: Readonly<{
   const digests = new Set<Sha256Hex>();
   let puts = 0;
   let tombstones = 0;
+  let idempotentPuts = 0;
+  let priorPutDigest: Sha256Hex | null = null;
   for (const change of parsed) {
-    if (change.kind === "put") { puts += 1; digests.add(change.recordSha256); } else tombstones += 1;
+    if (change.kind === "put") {
+      puts += 1;
+      digests.add(change.recordSha256);
+      if (priorPutDigest === change.recordSha256) idempotentPuts += 1;
+      priorPutDigest = change.recordSha256;
+    } else {
+      tombstones += 1;
+      // A tombstone clears the record, so restoring identical bytes afterwards
+      // changes it rather than rewriting it.
+      priorPutDigest = null;
+    }
   }
   const latest = parsed.at(-1) ?? null;
   return {
     changes: parsed.length,
     distinctPutDigests: digests.size,
+    idempotentPuts,
     key,
     latestKind: latest === null ? null : latest.kind,
     latestSequence: latest?.sequence ?? null,
@@ -542,14 +570,21 @@ export function reduceOhRecordRevisionsV1(input: Readonly<{
  * plausible and are wrong, which inferring the space from the feed cannot
  * detect. The operations must also be one contiguous run in sequence order,
  * because a feed missing a page would otherwise lower every count with nothing
- * reporting it. Contiguity between separate calls stays the caller's to
- * maintain: this function sees only what it is given.
+ * reporting it.
+ *
+ * It returns the first sequence it observed alongside the changes, because
+ * contiguity within one call does not establish that the run began at the start
+ * of the log, and a consumer following a live feed from its cursor never does.
+ * Passing that `fromSequence` to `reduceOhRecordRevisionsV1` is what marks such
+ * a read a lower bound instead of an exact count. A caller stitching several
+ * calls together concatenates the changes and reduces once with the earliest
+ * `fromSequence`.
  */
 export function ohRecordRevisionChangesFromOperationsV1(input: Readonly<{
   key: string;
   operations: readonly OhOperationV1[];
   spaceId: string;
-}>): readonly OhRecordRevisionChangeV1[] {
+}>): Readonly<{ changes: readonly OhRecordRevisionChangeV1[]; fromSequence: number }> {
   if (!isPlainRecord(input) || !Array.isArray(input.operations)) {
     throw new TypeError("Invalid record revision operation input.");
   }
@@ -562,9 +597,11 @@ export function ohRecordRevisionChangesFromOperationsV1(input: Readonly<{
   }
   const changes: OhRecordRevisionChangeV1[] = [];
   let prior: OhOperationV1 | null = null;
+  let first = 0;
   for (const value of input.operations) {
     const operation = parseOhOperationV1(value);
     if (operation === null) throw new OhIntegrityError("A revision source operation is invalid.");
+    if (prior === null) first = operation.sequence;
     if (operation.spaceId !== spaceId) {
       throw new TypeError(`A revision source operation belongs to ${operation.spaceId}, not ${spaceId}.`);
     }
@@ -580,11 +617,8 @@ export function ohRecordRevisionChangesFromOperationsV1(input: Readonly<{
         changes.push({ kind: "tombstone", recordSha256: change.priorSha256, sequence: operation.sequence, v: 1 });
       }
     }
-    if (changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
-      throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
-    }
   }
-  return changes;
+  return { changes, fromSequence: prior === null ? 0 : first };
 }
 
 export function transitionOhSnapshotV1(input: Readonly<{

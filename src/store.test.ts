@@ -143,54 +143,79 @@ describe("record revision facts derived from the operation log", () => {
   const digest = (byte: string) => byte.repeat(64);
 
   test("reports zero revisions for a key written once", () => {
-    expect(reduceOhRecordRevisionsV1({ changes: [put(4, digest("a"))],
-      key: "entity:once", through: 9 })).toEqual({
-      changes: 1, distinctPutDigests: 1, key: "entity:once", latestKind: "put",
+    expect(reduceOhRecordRevisionsV1({ changes: [put(4, digest("a"))], fromSequence: 1,
+      key: "entity:once", through: 9, truncated: false })).toEqual({
+      changes: 1, distinctPutDigests: 1, idempotentPuts: 0, key: "entity:once", latestKind: "put",
       latestSequence: 4, oldestObservedSequence: 4, puts: 1, revisions: 0,
       through: 9, tombstones: 0, truncated: false, v: 1,
     });
   });
 
   test("reports an absent key as no history rather than an error", () => {
-    expect(reduceOhRecordRevisionsV1({ changes: [], key: "entity:absent", through: 3 })).toEqual({
-      changes: 0, distinctPutDigests: 0, key: "entity:absent", latestKind: null,
+    expect(reduceOhRecordRevisionsV1({ changes: [], fromSequence: 1, key: "entity:absent",
+      through: 3, truncated: false })).toEqual({
+      changes: 0, distinctPutDigests: 0, idempotentPuts: 0, key: "entity:absent", latestKind: null,
       latestSequence: null, oldestObservedSequence: null, puts: 0, revisions: 0,
       through: 3, tombstones: 0, truncated: false, v: 1,
     });
   });
 
-  test("counts rewrites and separates them from content changes", () => {
-    // The third put stores the digest the first one already stored, so the key
-    // was written three times and held two distinct contents.
+  test("counts an idempotent rewrite separately from a content change", () => {
+    // Sorted, this key is a, a, b: the put at 3 stored bytes the key already
+    // held, so exactly one write advanced the log without changing the record.
     const revisions = reduceOhRecordRevisionsV1({ key: "entity:churned", through: 7,
+      fromSequence: 1, truncated: false,
       changes: [put(5, digest("b")), put(1, digest("a")), put(3, digest("a"))] });
-    expect(revisions).toMatchObject({ changes: 3, distinctPutDigests: 2, latestKind: "put",
-      latestSequence: 5, oldestObservedSequence: 1, puts: 3, revisions: 2, tombstones: 0 });
+    expect(revisions).toMatchObject({ changes: 3, distinctPutDigests: 2, idempotentPuts: 1,
+      latestKind: "put", latestSequence: 5, oldestObservedSequence: 1, puts: 3, revisions: 2,
+      tombstones: 0 });
+  });
+
+  test("does not infer a rewrite from a digest that merely repeats", () => {
+    // a, b, a holds two distinct digests across three puts with no tombstone,
+    // yet every put changed the record. Comparing puts to distinct digests
+    // would call this a rewrite, so `idempotentPuts` is the only field that may
+    // carry that meaning, and here it is zero.
+    expect(reduceOhRecordRevisionsV1({ key: "entity:returned", through: 3, fromSequence: 1,
+      truncated: false, changes: [put(1, digest("a")), put(2, digest("b")), put(3, digest("a"))] }))
+      .toMatchObject({ distinctPutDigests: 2, idempotentPuts: 0, puts: 3, tombstones: 0 });
+    // The genuinely idempotent history a, a, b is a different answer.
+    expect(reduceOhRecordRevisionsV1({ key: "entity:rewritten", through: 3, fromSequence: 1,
+      truncated: false, changes: [put(1, digest("a")), put(2, digest("a")), put(3, digest("b"))] }))
+      .toMatchObject({ distinctPutDigests: 2, idempotentPuts: 1, puts: 3, tombstones: 0 });
+    // A tombstone clears the record, so restoring identical bytes changes it.
+    expect(reduceOhRecordRevisionsV1({ key: "entity:restored", through: 3, fromSequence: 1,
+      truncated: false, changes: [put(1, digest("a")),
+        { kind: "tombstone", recordSha256: digest("a"), sequence: 2, v: 1 }, put(3, digest("a"))] }))
+      .toMatchObject({ distinctPutDigests: 1, idempotentPuts: 0, puts: 2, tombstones: 1 });
   });
 
   test("sorts an unordered read and rejects two changes to one key in one operation", () => {
-    expect(reduceOhRecordRevisionsV1({ key: "entity:ordered", through: 4,
-      changes: [put(4, digest("c")), put(2, digest("b"))] }))
+    expect(reduceOhRecordRevisionsV1({ key: "entity:ordered", through: 4, fromSequence: 1,
+      truncated: false, changes: [put(4, digest("c")), put(2, digest("b"))] }))
       .toMatchObject({ latestSequence: 4, oldestObservedSequence: 2 });
-    expect(() => reduceOhRecordRevisionsV1({ key: "entity:ordered", through: 4,
-      changes: [put(2, digest("b")), put(2, digest("c"))] })).toThrow("two changes at one sequence");
+    expect(() => reduceOhRecordRevisionsV1({ key: "entity:ordered", through: 4, fromSequence: 1,
+      truncated: false, changes: [put(2, digest("b")), put(2, digest("c"))] }))
+      .toThrow("two changes at one sequence");
   });
 
   test("keeps a tombstoned key inspectable and names its removal", () => {
-    expect(reduceOhRecordRevisionsV1({ key: "entity:removed", through: 6,
-      changes: [put(1, digest("a")), put(2, digest("b")),
+    expect(reduceOhRecordRevisionsV1({ key: "entity:removed", through: 6, fromSequence: 1,
+      truncated: false, changes: [put(1, digest("a")), put(2, digest("b")),
         { kind: "tombstone", recordSha256: digest("b"), sequence: 3, v: 1 }] }))
       .toMatchObject({ changes: 3, distinctPutDigests: 2, latestKind: "tombstone",
         latestSequence: 3, puts: 2, revisions: 1, tombstones: 1 });
   });
 
   test("refuses a change ahead of its through sequence and an unparsable change", () => {
-    expect(() => reduceOhRecordRevisionsV1({ changes: [put(8, digest("a"))],
-      key: "entity:ahead", through: 7 })).toThrow("ahead of its through sequence");
+    expect(() => reduceOhRecordRevisionsV1({ changes: [put(8, digest("a"))], fromSequence: 1,
+      key: "entity:ahead", through: 7, truncated: false })).toThrow("ahead of its through sequence");
     expect(() => reduceOhRecordRevisionsV1({ changes: [{ kind: "put", recordSha256: "short", sequence: 1, v: 1 }],
-      key: "entity:invalid", through: 1 })).toThrow("Invalid record revision change");
+      fromSequence: 1, key: "entity:invalid", through: 1, truncated: false }))
+      .toThrow("Invalid record revision change");
     expect(() => reduceOhRecordRevisionsV1({ changes: [{ kind: "revise", recordSha256: digest("a"), sequence: 1, v: 1 }],
-      key: "entity:invalid", through: 1 })).toThrow("Invalid record revision change");
+      fromSequence: 1, key: "entity:invalid", through: 1, truncated: false }))
+      .toThrow("Invalid record revision change");
     expect(parseOhRecordRevisionChangeV1({ kind: "put", recordSha256: digest("a"), sequence: 0, v: 1 })).toBeNull();
     expect(parseOhRecordRevisionChangeV1({ kind: "put", recordSha256: digest("a"), sequence: 1, v: 1, extra: 1 })).toBeNull();
   });
@@ -198,8 +223,8 @@ describe("record revision facts derived from the operation log", () => {
   test("bounds the change set it will reduce", () => {
     const changes = Array.from({ length: OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey + 1 },
       (_, index) => put(index + 1, digest("a")));
-    expect(() => reduceOhRecordRevisionsV1({ changes, key: "entity:unbounded",
-      through: changes.length })).toThrow(RangeError);
+    expect(() => reduceOhRecordRevisionsV1({ changes, fromSequence: 1, key: "entity:unbounded",
+      through: changes.length, truncated: false })).toThrow(RangeError);
   });
 
   test("derives the same facts from a change feed as from a local log read", () => {
@@ -219,14 +244,17 @@ describe("record revision facts derived from the operation log", () => {
       if (change?.kind !== "put") throw new Error("expected a put");
       return change.record.recordSha256;
     };
-    const changes = ohRecordRevisionChangesFromOperationsV1({ key: "entity:feed", operations, spaceId: "feed" });
-    expect(changes).toEqual([
+    const read = ohRecordRevisionChangesFromOperationsV1({ key: "entity:feed", operations, spaceId: "feed" });
+    expect(read.fromSequence).toBe(1);
+    expect(read.changes).toEqual([
       { kind: "put", recordSha256: putDigest(first.operation), sequence: 1, v: 1 },
       { kind: "put", recordSha256: putDigest(second.operation), sequence: 2, v: 1 },
     ]);
-    expect(reduceOhRecordRevisionsV1({ changes, key: "entity:feed", through: 2 }))
+    expect(reduceOhRecordRevisionsV1({ changes: read.changes, fromSequence: read.fromSequence,
+      key: "entity:feed", through: 2, truncated: false }))
       .toMatchObject({ distinctPutDigests: 2, puts: 2, revisions: 1, truncated: false });
-    expect(ohRecordRevisionChangesFromOperationsV1({ key: "entity:absent", operations, spaceId: "feed" })).toEqual([]);
+    expect(ohRecordRevisionChangesFromOperationsV1({ key: "entity:absent", operations, spaceId: "feed" }))
+      .toEqual({ changes: [], fromSequence: 1 });
     expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:feed", spaceId: "feed",
       operations: [{ not: "an operation" }] as never })).toThrow("revision source operation is invalid");
   });
@@ -270,11 +298,28 @@ describe("record revision facts derived from the operation log", () => {
       operations: [first.operation, third.operation] })).toThrow("one contiguous run");
     expect(() => ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
       operations: [second.operation, first.operation] })).toThrow("one contiguous run");
-    expect(ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
-      operations: [first.operation, second.operation, third.operation] })).toHaveLength(3);
-    // A later page that is internally contiguous is still accepted.
-    expect(ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
-      operations: [second.operation, third.operation] })).toHaveLength(2);
+    const whole = ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
+      operations: [first.operation, second.operation, third.operation] });
+    expect(whole.changes).toHaveLength(3);
+    expect(whole.fromSequence).toBe(1);
+    expect(reduceOhRecordRevisionsV1({ changes: whole.changes, fromSequence: whole.fromSequence,
+      key: "entity:gap", through: 3, truncated: false }))
+      .toMatchObject({ puts: 3, revisions: 2, truncated: false });
+    // A later page is internally contiguous, so the adapter accepts it, but it
+    // did not observe the log from its first operation. A consumer following a
+    // live feed from its cursor is always in this position, and the counts it
+    // gets are lower bounds that would otherwise be indistinguishable from an
+    // exact answer for a key first written at sequence 2.
+    const later = ohRecordRevisionChangesFromOperationsV1({ key: "entity:gap", spaceId: "gap",
+      operations: [second.operation, third.operation] });
+    expect(later.changes).toHaveLength(2);
+    expect(later.fromSequence).toBe(2);
+    expect(reduceOhRecordRevisionsV1({ changes: later.changes, fromSequence: later.fromSequence,
+      key: "entity:gap", through: 3, truncated: false }))
+      .toMatchObject({ puts: 2, revisions: 1, truncated: true });
+    // Stitching the pages back together recovers the exact answer.
+    expect(reduceOhRecordRevisionsV1({ changes: [...whole.changes], fromSequence: 1,
+      key: "entity:gap", through: 3, truncated: false })).toMatchObject({ puts: 3, truncated: false });
   });
 
   test("bounds the operations it will read at the operation page bound", () => {
@@ -297,13 +342,14 @@ describe("record revision facts derived from the operation log", () => {
       const parsed = changes.map(parseOhRecordRevisionChangeV1);
       expect(parsed.every((change) => change !== null)).toBe(true);
       const through = changes.reduce((highest, change) => Math.max(highest, change.sequence), 0);
-      const revisions = reduceOhRecordRevisionsV1({ changes, key: "entity:property", through });
+      const revisions = reduceOhRecordRevisionsV1({ changes, fromSequence: 1,
+        key: "entity:property", through, truncated: false });
       const sequences = changes.map((change) => change.sequence);
       // Ordering law: the reported endpoints do not depend on the read order.
       expect(revisions.latestSequence).toBe(changes.length === 0 ? null : Math.max(...sequences));
       expect(revisions.oldestObservedSequence).toBe(changes.length === 0 ? null : Math.min(...sequences));
-      expect(reduceOhRecordRevisionsV1({ changes: [...changes].reverse(), key: "entity:property", through }))
-        .toEqual(revisions);
+      expect(reduceOhRecordRevisionsV1({ changes: [...changes].reverse(), fromSequence: 1,
+        key: "entity:property", through, truncated: false })).toEqual(revisions);
       // Independent oracle: replay the changes as a state machine instead of
       // recounting them, so a wrong definition fails and not only a typo.
       let held: string | null = null;

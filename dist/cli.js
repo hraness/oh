@@ -9583,15 +9583,19 @@ function parseOhRecordRevisionChangeV1(value) {
   return recordSha256 !== null && sequence !== null ? { kind: value.kind, recordSha256, sequence, v: 1 } : null;
 }
 function reduceOhRecordRevisionsV1(input) {
-  if (!isPlainRecord(input) || !Array.isArray(input.changes)) {
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["changes", "fromSequence", "key", "through", "truncated"]) || !Array.isArray(input.changes)) {
     throw new TypeError("Invalid record revision input.");
   }
   const key3 = safeCode(input.key, 512);
   const through = Number.isSafeInteger(input.through) && input.through >= 0 ? input.through : null;
-  const truncated = input.truncated ?? false;
-  if (key3 === null || through === null || typeof truncated !== "boolean") {
+  const fromSequence = Number.isSafeInteger(input.fromSequence) && input.fromSequence >= 0 ? input.fromSequence : null;
+  if (key3 === null || through === null || fromSequence === null || typeof input.truncated !== "boolean") {
     throw new TypeError("Invalid record revision input.");
   }
+  if (fromSequence > 0 && through > 0 && fromSequence > through) {
+    throw new RangeError("A record revision read cannot start after the sequence it was read through.");
+  }
+  const truncated = input.truncated || through > 0 && fromSequence !== 1;
   if (input.changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
     throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
   }
@@ -9612,17 +9616,25 @@ function reduceOhRecordRevisionsV1(input) {
   const digests = new Set;
   let puts = 0;
   let tombstones = 0;
+  let idempotentPuts = 0;
+  let priorPutDigest = null;
   for (const change of parsed) {
     if (change.kind === "put") {
       puts += 1;
       digests.add(change.recordSha256);
-    } else
+      if (priorPutDigest === change.recordSha256)
+        idempotentPuts += 1;
+      priorPutDigest = change.recordSha256;
+    } else {
       tombstones += 1;
+      priorPutDigest = null;
+    }
   }
   const latest = parsed.at(-1) ?? null;
   return {
     changes: parsed.length,
     distinctPutDigests: digests.size,
+    idempotentPuts,
     key: key3,
     latestKind: latest === null ? null : latest.kind,
     latestSequence: latest?.sequence ?? null,
@@ -10604,7 +10616,13 @@ class OhSqliteStore {
         }
         return { kind: row.change_kind, recordSha256, sequence: row.sequence, v: 1 };
       });
-      return reduceOhRecordRevisionsV1({ changes, key: parsedKey, through: head.sequence, truncated });
+      return reduceOhRecordRevisionsV1({
+        changes,
+        fromSequence: head.sequence === 0 ? 0 : 1,
+        key: parsedKey,
+        through: head.sequence,
+        truncated
+      });
     });
   }
   searchKeyword(query, limit = 20) {

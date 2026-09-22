@@ -421,7 +421,7 @@ describe("Oh SQLite record revision reads", () => {
     const store = new OhSqliteStore({ path: ":memory:", spaceId: "revisions-once" });
     commit(store, "entity:ada", "Ada Lovelace", "op_one");
     expect(store.recordRevisions("entity:ada")).toEqual({
-      changes: 1, distinctPutDigests: 1, key: "entity:ada", latestKind: "put",
+      changes: 1, distinctPutDigests: 1, idempotentPuts: 0, key: "entity:ada", latestKind: "put",
       latestSequence: 1, oldestObservedSequence: 1, puts: 1, revisions: 0,
       through: 1, tombstones: 0, truncated: false, v: 1,
     });
@@ -440,8 +440,10 @@ describe("Oh SQLite record revision reads", () => {
     commit(store, "entity:claim", "Second", "op_two");
     commit(store, "entity:other", "Untouched", "op_other");
     commit(store, "entity:claim", "Second", "op_three");
+    // "Second" is committed twice with an unrelated key in between, so the log
+    // holds three puts, two distinct digests, and one genuinely idempotent write.
     expect(store.recordRevisions("entity:claim")).toMatchObject({
-      changes: 3, distinctPutDigests: 2, latestKind: "put", latestSequence: 4,
+      changes: 3, distinctPutDigests: 2, idempotentPuts: 1, latestKind: "put", latestSequence: 4,
       oldestObservedSequence: 1, puts: 3, revisions: 2, through: 4, tombstones: 0, truncated: false,
     });
     expect(store.recordRevisions("entity:other")).toMatchObject({ puts: 1, revisions: 0, through: 4 });
@@ -472,10 +474,21 @@ describe("Oh SQLite record revision reads", () => {
     commit(store, "entity:claim", "Third", "op_three");
     const head = store.head();
     const operations = store.exportOperations(0, 1000);
+    const read = ohRecordRevisionChangesFromOperationsV1({ key: "entity:claim", operations,
+      spaceId: "revisions-feed" });
+    expect(read.fromSequence).toBe(1);
     expect(reduceOhRecordRevisionsV1({ key: "entity:claim", through: head.sequence,
-      changes: ohRecordRevisionChangesFromOperationsV1({ key: "entity:claim", operations,
-        spaceId: "revisions-feed" }) }))
+      changes: read.changes, fromSequence: read.fromSequence, truncated: false }))
       .toEqual(store.recordRevisions("entity:claim"));
+    // A feed that starts after the log's first operation reports a lower bound,
+    // so it can never be mistaken for the exact answer above.
+    const partial = ohRecordRevisionChangesFromOperationsV1({ key: "entity:claim",
+      operations: operations.slice(1), spaceId: "revisions-feed" });
+    expect(partial.fromSequence).toBe(2);
+    const bounded = reduceOhRecordRevisionsV1({ key: "entity:claim", through: head.sequence,
+      changes: partial.changes, fromSequence: partial.fromSequence, truncated: false });
+    expect(bounded).toMatchObject({ puts: 2, revisions: 1, truncated: true });
+    expect(bounded.puts).toBeLessThan(store.recordRevisions("entity:claim").puts);
     store.close();
   });
 
