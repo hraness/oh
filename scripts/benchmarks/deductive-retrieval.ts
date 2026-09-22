@@ -193,6 +193,7 @@ export interface ShardSummary {
 }
 
 export function prepareDeductive(corpus: Corpus): {
+  readonly corpusId: string;
   readonly records: readonly KnowledgeGraphRecordV1[];
   readonly shards: ReadonlyMap<string, Snapshot>;
   readonly summaries: ReadonlyMap<string, ShardSummary>;
@@ -279,8 +280,8 @@ export function prepareDeductive(corpus: Corpus): {
     fts.transaction(() => corpus.turns.forEach((turn, index) => insert.run(index, renderTurn(turn))))();
   } catch (error) { store.close(); fts.close(); throw error; }
 
-  return { records, shards, summaries, sessionDates, positionOf,
-    documentFrequency, store, fts };
+  return { corpusId: corpus.id, records, shards, summaries, sessionDates,
+    positionOf, documentFrequency, store, fts };
 }
 
 type Derived = Readonly<{ turnId: string; sessionId: string; terms: ReadonlySet<string>;
