@@ -364,8 +364,11 @@ describe("observeOhV1", () => {
       .toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: null });
     expect(resolveOhSupersessionV1(store, { facet: null, speaker: "user", statedAt: "2026/04/01" }))
       .toEqual({ candidatesTruncated: false, orderingConflict: false, supersedes: null });
-    // The correction depth a per-record revision count cannot see: one fact,
-    // three separate keys, restated twice. Each key's own revision count is 0.
+    // The churn a per-record revision count cannot see: one fact, three separate
+    // keys, restated twice. On this path each key is written once, so its own
+    // revision count is 0; a key linked by applySupersessionPolicyV1 instead is
+    // re-put and reads 1, so the two signals overlap there rather than being
+    // independent.
     expect(ohObservationSupersessionV1(store, frequencyThree)).toEqual({ depth: 2, key: frequencyThree,
       loop: false, missing: null, origin: frequencyOne, resolved: true, truncated: false, v: 1 });
     expect(ohObservationSupersessionV1(store, frequencyTwo)).toMatchObject({ depth: 1, origin: frequencyOne, resolved: true });
@@ -636,11 +639,19 @@ describe("observation supersession depth over a damaged chain", () => {
     resolvedFrom: null, sources: [{ key: "edition:turn-00000", recordSha256: "a".repeat(64), v: 1 }],
     speaker: "user", statedAt: "2026-01-01", supersedes, text: "user prefers tea.", v: 1,
   });
+  // A well-formed observation record: exactly one receipt, every cited source in
+  // dependencies, and the superseded key in dependencies. The walk gates on
+  // parseOhObservationRecordV1, so a fake that skipped these would be rejected
+  // as damage and would not exercise the case under test.
   const chain = (links: ReadonlyMap<string, string | null>) => ({
     get(key: string): KnowledgeGraphRecordV1 | null {
       if (!links.has(key)) return null;
-      return createKnowledgeGraphRecordV1({ dependencies: [], key, kind: "edition", v: 1,
-        value: observationValue(links.get(key) ?? null) as never });
+      const supersedes = links.get(key) ?? null;
+      return createKnowledgeGraphRecordV1({
+        dependencies: ["activity:observe-k", "edition:turn-00000",
+          ...(supersedes === null ? [] : [supersedes])].sort(),
+        key, kind: "edition", v: 1, value: observationValue(supersedes) as never,
+      });
     },
   });
   const key = (index: number) => `edition:obs-k-${String(index).padStart(5, "0")}`;
@@ -673,6 +684,25 @@ describe("observation supersession depth over a damaged chain", () => {
     for (let index = 0; index <= bound + 8; index += 1) links.set(key(index), key(index + 1));
     const read = ohObservationSupersessionV1(chain(links), key(0));
     expect(read).toMatchObject({ depth: bound, loop: false, resolved: false, truncated: true });
+  });
+
+  test("treats a record of another kind at an observation key as damage", () => {
+    // parseOhObservationValueV1 alone would accept this: the value parses, only
+    // the record does not. Counting it would stamp a foreign record as a link
+    // and report resolved: true, which is the opposite of what the spec promises.
+    const store = {
+      get(lookup: string): KnowledgeGraphRecordV1 | null {
+        if (lookup !== key(0) && lookup !== key(1)) return null;
+        const foreign = lookup === key(0);
+        return createKnowledgeGraphRecordV1({
+          dependencies: ["activity:observe-k", "edition:turn-00000", ...(foreign ? [] : [key(0)])].sort(),
+          key: lookup, kind: foreign ? "entity" : "edition", v: 1,
+          value: (foreign ? { name: "not an observation" } : observationValue(key(0))) as never,
+        });
+      },
+    };
+    expect(ohObservationSupersessionV1(store, key(1)))
+      .toMatchObject({ missing: key(0), resolved: false });
   });
 
   test("refuses a key that is not an observation key", () => {

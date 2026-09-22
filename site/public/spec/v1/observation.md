@@ -148,51 +148,46 @@ outside the examined set; the link reports `candidatesTruncated` and the
 receipt lists the affected observation keys so a consumer can re-link them or
 account for the degradation.
 
-## Reading how often a fact was restated
+## Reading a supersession chain
 
-`ohObservationSupersessionV1` follows `supersedes` from one observation toward
-the oldest record and reports how far it got. It asks a store only for `get`, so
-a snapshot or change-feed reader answers it, and it never writes.
+`ohObservationSupersessionV1` follows `supersedes` from one observation toward the
+oldest record and reports how far it got. It needs a synchronous `get` and nothing
+else, and it never writes.
 
-This is the count a per-record revision read cannot produce. A record key's
-revision count reports how often *that key* was rewritten; this profile records a
-correction as a new key superseding an older one, so each key in a chain is
-typically written once and carries a revision count of zero while the fact behind
-them was restated repeatedly. The two numbers measure different churn and neither
-subsumes the other.
+It counts recorded links, not restatements. A link comes from the policy above,
+which matches on facet and speaker over a bounded candidate lookup, so a fact
+whose extracted facet changed between sessions starts a fresh chain and reads a
+lower depth than the number of times it was stated. `depth` describes the link
+graph the store holds.
 
-`depth` is the number of links followed, so a first statement reads 0. `origin`
-is the oldest key reached. `resolved` is true only when the walk ended at a record
-that supersedes nothing, and that is the only case in which `depth` and `origin`
-are exact. A walk stopped by a cycle, by the 8192-link chain bound, or by a record
-that is absent or not an observation reports `resolved: false`, names the missing
-key when there is one, and then `depth` is a floor and `origin` is merely the
-oldest key that could be read. A damaged chain is reported rather than repaired,
-and is never silently presented as complete.
+This is the churn a per-record revision count cannot see. A revision count reports
+rewrites of one key, and this profile records a correction as a new key. The two
+are not independent: applying the supersession policy re-puts a record when its
+link changes, so a key linked that way reports one revision, while a key linked
+during extraction is written once and reports none.
 
-The count carries no meaning. A fact restated many times may be contested,
-progressively refined, or simply discussed often, and this profile does not
+`depth` is the number of links followed, so a first statement reads 0. `resolved`
+is true only when the walk ended at a record that supersedes nothing, and only
+then does `origin` name the oldest record and `depth` equal the distance to it.
+`resolved` says nothing about whether the link graph is complete: a chain the
+lookup never joined, including one degraded by `candidatesTruncated` above, still
+resolves.
+
+When `resolved` is false the walk stopped on a cycle, on the record bound, or on a
+record that is absent or is not a well-formed observation record. `depth` then
+counts one link past the last record read, so it exceeds the distance to `origin`
+by one, and `origin` is merely the oldest readable key. `missing` names the key
+that could not be read, and `missing` equal to the requested key is the case where
+nothing was read at all. `loop` reports a cycle inside the bound; a cycle closing
+beyond it reports `truncated`. A damaged chain is reported rather than repaired,
+and is never presented as complete.
+
+A link is followed only when the record parses as an observation record, so a
+record of another kind stored at an observation key is reported as damage instead
+of counted. At most 8192 records are read, so the longest chain that can resolve
+carries 8191 links.
+
+The count carries no meaning. A long chain may be contested, progressively
+refined, or simply a subject discussed often, and this profile does not
 distinguish those. Whether a depth warrants review is the application's decision,
 as it is for a revision count.
-
-## Rendering
-
-A renderer places observations ahead of raw turns as
-`Memory: [<statedAt>] <speaker> (<kind>): <text>`, followed by the event date
-and its expression when present, `(superseded on <date>)` when a rendered
-successor exists, and an explicit both-dates marker on an ordering conflict.
-For a query that matches a bounded recommendation pattern, `preference`
-observations are grouped first under `Remembered preferences (<facets>)`. The
-renderer uses no model and is re-runnable from the stored records alone.
-
-## Boundaries
-
-- The library never dispatches a model call. The caller supplies an observer
-  with a model identifier and an `observe(prompt)` function.
-- Observations never replace raw turns; they are added beside them.
-- The record codec can be registered only in a store whose `edition` kind is
-  reserved for this profile: a registry keeps one parser per kind, so in a
-  store that also holds turn records the turns would fail to parse. The
-  library never registers it, and it is not part of the contract manifest.
-- No ontology assertion is written, because an observation binds no subject,
-  predicate, and object.

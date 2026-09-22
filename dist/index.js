@@ -18208,12 +18208,12 @@ function ohObservationSupersessionV1(store, key) {
       break;
     }
     onPath.add(current);
-    const record = store.get(current);
-    const value = record === null ? null : parseOhObservationValueV1(record.value);
-    if (value === null) {
+    const parsed = parseOhObservationRecordV1(store.get(current));
+    if (parsed === null) {
       missing = current;
       break;
     }
+    const value = parsed.value;
     origin = current;
     if (value.supersedes === null) {
       resolved = true;
