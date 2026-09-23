@@ -7,32 +7,47 @@ wording. Omitting explicit answer and evidence-label fields therefore did not
 establish that the remaining identifiers were neutral. The effect on retrieval
 or answer scores is unmeasured.
 
+## Default preparation for new runs
+
+The current LongMemEval parser assigns neutral session aliases in source order
+and turn IDs that distinguish each session occurrence. Repeated original session
+IDs share one alias, preserving evidence-session grouping and recall denominators.
+Authored text, roles, dates and chronological ordering remain intact. Answers
+stay in the evaluator's question records. Evidence references are remapped to
+neutral IDs; missing references remain distinct misses.
+
+Changed turn IDs invalidate the associated corpus, source-record, extraction,
+retrieval and reader request identities. Legacy manifests, extraction bundles and prepared contexts
+must be rebuilt. Reproduce historical artifacts with their frozen source commit;
+do not mix them with current preparation. This repair supplies no new quality
+score or estimate of the historical effect.
+
 ## How the identifiers reach the reader
 
 The audited source is commit `d805ed524e70cd46c875f6455b14c9e3a6074696`.
-The following path preserves the original identifiers:
+The following legacy path preserves the original identifiers:
 
-1. [`parseLongMemEval`](../scripts/benchmarks/datasets.ts#L166) copies
+1. [`parseLongMemEval`](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/datasets.ts#L166) copies
    `haystack_session_ids` into each turn's `sessionId` and uses that value to
    construct its turn ID. An occurrence suffix disambiguates repeated sessions;
    it does not conceal the original identifier.
-2. [`renderTurn`](../scripts/benchmarks/retrieval.ts#L49) places that turn ID
+2. [`renderTurn`](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/retrieval.ts#L49) places that turn ID
    before the date, speaker and text. Both the
-   [basic BM25 index](../scripts/benchmarks/retrieval.ts#L254) and the
-   [evolution passage and session indexes](../scripts/benchmarks/evolution-retrieval.ts#L423)
-   index this rendered text. The [semantic path](../scripts/benchmarks/evolution-retrieval.ts#L196)
+   [basic BM25 index](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/retrieval.ts#L254) and the
+   [evolution passage and session indexes](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/evolution-retrieval.ts#L423)
+   index this rendered text. The [semantic path](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/evolution-retrieval.ts#L196)
    includes the identifiers in turn-record values; its
-   [`recordDocument` renderer](../src/semantic-model.ts#L86) includes that complete
+   [`recordDocument` renderer](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/src/semantic-model.ts#L86) includes that complete
    value in embedding input.
-3. [`pack`](../scripts/benchmarks/retrieval.ts#L67) and the
-   [evolution context reconstruction](../scripts/benchmarks/evolution-retrieval.ts#L359)
+3. [`pack`](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/retrieval.ts#L67) and the
+   [evolution context reconstruction](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/evolution-retrieval.ts#L359)
    preserve the rendered IDs in selected context.
-4. [`answerMessages`](../scripts/benchmarks/model.ts#L58) sends that context in
+4. [`answerMessages`](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/model.ts#L58) sends that context in
    the reader's `memory` field. The
-   [evolution reader contracts](../scripts/benchmarks/evolution-reader-contracts.ts#L92)
+   [evolution reader contracts](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/evolution-reader-contracts.ts#L92)
    retain this message when changing the system instruction.
 
-The [extraction input](../scripts/benchmarks/units.ts#L37) also includes original
+The [extraction input](https://github.com/hraness/oh/blob/d805ed524e70cd46c875f6455b14c9e3a6074696/scripts/benchmarks/units.ts#L37) also includes original
 turn IDs for source attribution. Excluding explicit answer fields from these
 projections does not remove a cue already encoded in an identifier.
 
