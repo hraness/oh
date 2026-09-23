@@ -16970,13 +16970,72 @@ function createLibSqlOperationSyncTransportV1(client) {
   return makeLibSqlSyncBoundary(client);
 }
 
+// src/rerank-model.ts
+var OH_RERANK_PROFILE_V1 = Object.freeze({
+  contextSize: 4096,
+  engine: "@tobilu/qmd@2.5.3 LlamaCpp.rerank",
+  language: "en",
+  lexicalQuery: "normalized original query stem",
+  model: "Qwen3-Reranker-0.6B Q8_0 GGUF",
+  modelSha256: "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+  modelRevision: "a02f48bb4f057028298c21fa033da2b30d7742d5",
+  normalization: "NFC; en-US lowercase; token regex; first-occurrence deduplication; fixed stopword removal; first16",
+  ranking: "score descending, then ASCII key ascending",
+  semanticQuery: "unchanged original query stem",
+  v: 1
+});
+var OH_RERANK_LIMITS_V1 = Object.freeze({
+  defaultPoolSize: 30,
+  maximumDocumentBytes: 65536,
+  maximumDocuments: 128,
+  maximumPoolSize: 60,
+  maximumQueryBytes: 16384,
+  minimumPoolSize: 1
+});
+var OH_RERANK_STOPWORDS_V1 = Object.freeze("a an and are as at be been being but by can could did do does doing for from had has have having he her hers herself him himself his how i if in into is it its itself just me more most my myself no nor not of off on once only or other our ours ourselves out over own same she should so some such than that the their theirs them themselves then there these they this those through to too under until up very was we were what when where which while who whom why will with would you your yours yourself yourselves s t ve ll re d m don isn aren wasn weren".split(" "));
+var stopwordSet = new Set(OH_RERANK_STOPWORDS_V1);
+function normalizeOhRerankLexicalQueryV1(query) {
+  if (typeof query !== "string" || Buffer.byteLength(query) > OH_RERANK_LIMITS_V1.maximumQueryBytes || /\p{Surrogate}/u.test(query) || query.includes("\x00")) {
+    throw new TypeError("Rerank lexical query must be a bounded string.");
+  }
+  return [...new Set(query.normalize("NFC").toLocaleLowerCase("en-US").match(/[\p{L}\p{N}][\p{L}\p{N}_-]{0,63}/gu) ?? [])].filter((token) => !stopwordSet.has(token)).slice(0, 16).join(" ");
+}
+
+// src/semantic-model.ts
+var OH_EMBEDDING_PROFILE_V1 = Object.freeze({
+  dimensions: 768,
+  distance: "cosine",
+  documentation: "https://ai.google.dev/gemma/docs/embeddinggemma",
+  documentFormat: "title: {title} | text: {content}",
+  engine: "@tobilu/qmd@2.5.3",
+  model: "hf:ggml-org/embeddinggemma-300M-GGUF/embeddinggemma-300M-Q8_0.gguf",
+  normalization: "l2",
+  queryFormat: "task: search result | query: {query}",
+  v: 1
+});
+function recordDocument(record) {
+  return `# ${record.key}
+
+kind: ${record.kind}
+
+${canonicalJson(record.value)}
+`;
+}
+
 // src/search.ts
 async function searchOhV1(input) {
   const limit = input.limit ?? 10;
   const mode = input.mode ?? "keyword";
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
     throw new RangeError("Search limit must be 1 through 100.");
-  const keyword = mode === "semantic" ? [] : input.store.searchKeyword(input.query, Math.min(100, limit * 3));
+  const poolSize = input.rerankPoolSize ?? OH_RERANK_LIMITS_V1.defaultPoolSize;
+  if (!Number.isSafeInteger(poolSize) || poolSize < OH_RERANK_LIMITS_V1.minimumPoolSize || poolSize > OH_RERANK_LIMITS_V1.maximumPoolSize) {
+    throw new RangeError("Rerank pool size must be 1 through 60.");
+  }
+  const rerank = mode === "rerank";
+  const laneSize = rerank ? poolSize : Math.min(100, limit * 3);
+  const lexicalQuery = rerank ? normalizeOhRerankLexicalQueryV1(input.query) : input.query;
+  const keyword = mode === "semantic" ? [] : input.store.searchKeyword(lexicalQuery, laneSize);
   let semantic = [];
   const diagnostics = [];
   if (mode !== "keyword") {
@@ -16984,7 +17043,7 @@ async function searchOhV1(input) {
       diagnostics.push({ code: "semantic-unavailable", message: "No local semantic backend is configured.", v: 1 });
     } else {
       try {
-        semantic = await input.backend.search(input.query, Math.min(100, limit * 3), input.store);
+        semantic = await input.backend.search(input.query, laneSize, input.store);
       } catch (error) {
         diagnostics.push({
           code: "semantic-unavailable",
@@ -17004,6 +17063,43 @@ async function searchOhV1(input) {
   };
   keyword.forEach((result, index) => add5(result.key, "keyword", index + 1, result.score));
   semantic.forEach((result, index) => add5(result.key, "semantic", index + 1, result.score));
+  if (rerank && input.reranker !== undefined && byKey.size > 0) {
+    const pool = [...byKey.entries()].sort((left3, right3) => right3[1].score - left3[1].score || left3[0].localeCompare(right3[0]));
+    const documents = [];
+    for (const [key] of pool) {
+      const record = input.store.get(key);
+      if (record !== null)
+        documents.push({ key, record, score: byKey.get(key).score });
+    }
+    try {
+      const scored = await input.reranker.rerank(input.query, documents.map((document) => ({ key: document.key, text: recordDocument(document.record), v: 1 })));
+      const keys3 = new Set(documents.map((document) => document.key));
+      if (scored.length !== documents.length || scored.some((result) => !keys3.has(result.key))) {
+        throw new Error("The rerank backend did not score every candidate document.");
+      }
+      const ordered = [...scored].sort((left3, right3) => right3.score - left3.score || left3.key.localeCompare(right3.key));
+      const order = new Map(ordered.map((result, index) => [result.key, { rank: index + 1, score: result.score }]));
+      const ranked = documents.filter((document) => order.has(document.key)).sort((left3, right3) => order.get(left3.key).rank - order.get(right3.key).rank);
+      const results2 = [];
+      for (const document of ranked.slice(0, limit)) {
+        results2.push({
+          evidence: byKey.get(document.key).evidence,
+          record: document.record,
+          score: order.get(document.key).score,
+          v: 1
+        });
+      }
+      return { diagnostics, mode, results: results2, v: 1 };
+    } catch (error) {
+      diagnostics.push({
+        code: "rerank-unavailable",
+        message: error instanceof Error ? error.message : "Local rerank failed.",
+        v: 1
+      });
+    }
+  } else if (rerank) {
+    diagnostics.push({ code: "rerank-unavailable", message: "No local rerank backend is configured.", v: 1 });
+  }
   const results = [];
   for (const [key, rank] of [...byKey.entries()].sort((left3, right3) => right3[1].score - left3[1].score || left3[0].localeCompare(right3[0]))) {
     const record = input.store.get(key);
@@ -19271,16 +19367,18 @@ class OhSqliteStore {
 class Oh {
   store;
   semanticBackend;
+  rerankBackend;
   #closed = false;
-  constructor(store, semanticBackend) {
+  constructor(store, semanticBackend, rerankBackend) {
     this.store = store;
     this.semanticBackend = semanticBackend;
+    this.rerankBackend = rerankBackend;
   }
   static open(options = {}) {
     return new Oh(new OhSqliteStore({
       path: options.databasePath ?? ".oh/oh.sqlite",
       ...options.spaceId === undefined ? {} : { spaceId: options.spaceId }
-    }), options.semanticBackend);
+    }), options.semanticBackend, options.rerankBackend);
   }
   head() {
     return this.store.head();
@@ -19329,8 +19427,10 @@ class Oh {
   async search(query, options = {}) {
     return await searchOhV1({
       ...this.semanticBackend === undefined ? {} : { backend: this.semanticBackend },
+      ...this.rerankBackend === undefined ? {} : { reranker: this.rerankBackend },
       ...options.limit === undefined ? {} : { limit: options.limit },
       ...options.mode === undefined ? {} : { mode: options.mode },
+      ...options.rerankPoolSize === undefined ? {} : { rerankPoolSize: options.rerankPoolSize },
       query,
       store: this.store
     });
@@ -19359,7 +19459,11 @@ class Oh {
     try {
       await this.semanticBackend?.close();
     } finally {
-      this.store.close();
+      try {
+        await this.rerankBackend?.close();
+      } finally {
+        this.store.close();
+      }
     }
   }
 }

@@ -20,7 +20,7 @@ export type OhRecallWindowV1 = Readonly<{
     v: 1;
 }>;
 export type OhRecallDiagnosticV1 = Readonly<{
-    code: "semantic-unavailable" | "window-unavailable";
+    code: "rerank-unavailable" | "semantic-unavailable" | "window-unavailable";
     message: string;
     v: 1;
 }>;

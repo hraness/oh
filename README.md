@@ -580,6 +580,38 @@ The exact V1 profile is documented in
 all inference stay local. Keyword mode remains available when QMD or the model
 is absent.
 
+## Add a local reranker
+
+`mode: "rerank"` mirrors the procedure confirmed in the
+[CloneMem local-reranker confirmation](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md):
+the lexical lane searches a normalized query, the semantic lane keeps the
+original stem, their bounded pools form one union, and a pinned local
+cross-encoder scores every candidate document against the original query
+before the top results return. It is opt-in and off by default; keyword mode
+is unchanged.
+
+```ts
+import { Oh } from "@hraness/oh/sdk";
+import { OhQmdRerankBackendV1 } from "@hraness/oh/rerank";
+
+const reranker = new OhQmdRerankBackendV1({
+  modelPath: "/absolute/path/to/qwen3-reranker-0.6b-q8_0.gguf",
+});
+const oh = Oh.open({ semanticBackend: backend, rerankBackend: reranker });
+
+const result = await oh.search("early programmable machines", {
+  mode: "rerank",
+});
+```
+
+The backend uses the same optional `@tobilu/qmd@2.5.3` peer and a local GGUF
+model you supply — it never downloads weights. The profile
+(`Qwen3-Reranker-0.6B Q8_0`, 4,096-token context, score-descending then
+ASCII-key order) is recorded in `OH_RERANK_PROFILE_V1`. Without a rerank
+backend the mode degrades to the fused order with a `rerank-unavailable`
+diagnostic; without a semantic backend it reranks the keyword pool with a
+`semantic-unavailable` diagnostic.
+
 ## Add a hosted semantic cache
 
 The hosted V2 adapter uses the same source-record principle with a distinct,

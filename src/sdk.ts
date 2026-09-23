@@ -2,6 +2,7 @@ import { opaqueId, type JsonValue } from "./canonical";
 import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordKindV1,
   type KnowledgeGraphRecordV1 } from "./graph";
 import { recallOhV1, type OhRecallResponseV1, type OhRecallWindowV1 } from "./recall";
+import type { OhRerankBackendV1 } from "./rerank-model";
 import { searchOhV1, type OhSearchModeV1, type OhSearchResponseV1 } from "./search";
 import type { OhSemanticSearchBackend } from "./semantic";
 import { OhSqliteStore, type OhHeadV1, type OhReplayVerificationV1 } from "./sqlite/store";
@@ -15,6 +16,7 @@ export type { OhRecallDateRuleV1, OhRecallDateWindowV1, OhRecallDiagnosticV1, Oh
 
 export type OhOpenOptionsV1 = Readonly<{
   databasePath?: string;
+  rerankBackend?: OhRerankBackendV1;
   semanticBackend?: OhSemanticSearchBackend;
   spaceId?: string;
 }>;
@@ -22,17 +24,19 @@ export type OhOpenOptionsV1 = Readonly<{
 export class Oh {
   readonly store: OhSqliteStore;
   readonly semanticBackend: OhSemanticSearchBackend | undefined;
+  readonly rerankBackend: OhRerankBackendV1 | undefined;
   #closed = false;
 
-  private constructor(store: OhSqliteStore, semanticBackend?: OhSemanticSearchBackend) {
+  private constructor(store: OhSqliteStore, semanticBackend?: OhSemanticSearchBackend, rerankBackend?: OhRerankBackendV1) {
     this.store = store;
     this.semanticBackend = semanticBackend;
+    this.rerankBackend = rerankBackend;
   }
 
   static open(options: OhOpenOptionsV1 = {}): Oh {
     return new Oh(new OhSqliteStore({ path: options.databasePath ?? ".oh/oh.sqlite",
       ...(options.spaceId === undefined ? {} : { spaceId: options.spaceId }) }),
-      options.semanticBackend);
+      options.semanticBackend, options.rerankBackend);
   }
 
   head(): OhHeadV1 { return this.store.head(); }
@@ -82,10 +86,14 @@ export class Oh {
     return await this.semanticBackend.index(this.store.snapshotRecords());
   }
 
-  async search(query: string, options: Readonly<{ limit?: number; mode?: OhSearchModeV1 }> = {}): Promise<OhSearchResponseV1> {
+  async search(query: string, options: Readonly<{ limit?: number; mode?: OhSearchModeV1;
+    rerankPoolSize?: number }> = {}): Promise<OhSearchResponseV1> {
     return await searchOhV1({ ...(this.semanticBackend === undefined ? {} : { backend: this.semanticBackend }),
+      ...(this.rerankBackend === undefined ? {} : { reranker: this.rerankBackend }),
       ...(options.limit === undefined ? {} : { limit: options.limit }),
-      ...(options.mode === undefined ? {} : { mode: options.mode }), query, store: this.store });
+      ...(options.mode === undefined ? {} : { mode: options.mode }),
+      ...(options.rerankPoolSize === undefined ? {} : { rerankPoolSize: options.rerankPoolSize }),
+      query, store: this.store });
   }
 
   /** Fused recall over bounded V1 searches; `asOf` defaults to no question instant. */
@@ -106,6 +114,9 @@ export class Oh {
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
-    try { await this.semanticBackend?.close(); } finally { this.store.close(); }
+    try { await this.semanticBackend?.close(); }
+    finally {
+      try { await this.rerankBackend?.close(); } finally { this.store.close(); }
+    }
   }
 }

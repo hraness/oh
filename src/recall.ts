@@ -19,7 +19,7 @@ export const OH_RECALL_RENDERER_V1 = "oh.recall-render.v1" as const;
 
 export type OhRecallWindowV1 = Readonly<{ since: string; until: string; v: 1 }>;
 export type OhRecallDiagnosticV1 = Readonly<{
-  code: "semantic-unavailable" | "window-unavailable";
+  code: "rerank-unavailable" | "semantic-unavailable" | "window-unavailable";
   message: string;
   v: 1;
 }>;
