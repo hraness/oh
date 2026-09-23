@@ -1,5 +1,11 @@
 # Full 500-question LongMemEval comparison results
 
+**Identifier limitation, 2026-09-23:** the legacy LongMemEval path retains source
+identifiers in indexes and reader context. The [identifier audit](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md)
+found answer-label wording in a fixed pipeline sample; its effect on scores is
+unmeasured. The historical results below are unchanged. New comparisons require
+neutral identifiers and fresh indexes, retrieval and reader runs.
+
 This page reports the completed descriptive comparisons over all 500 LongMemEval-S
 questions defined by the [V7 full-release study](EVOLUTION_RELEASE_V7.md) and its
 [V8 full-context companion](FULL_CONTEXT_COMPANION.md). Three configurations
