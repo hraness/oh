@@ -454,9 +454,10 @@ oh get evidence:table-2 \\
             </p>
             <p className="benchmark-note">
               The latest completed{" "}
-              <a href={`${repository}/blob/main/benchmarks/CLONEMEM_KEYWORD_DEV_RESULT_V1.md`}>CloneMem keyword-query test</a>{" "}
-              improved development recall but did not pass its answer-quality gate.
-              Defaults remain unchanged.
+              <a href={`${repository}/blob/main/benchmarks/CLONEMEM_RERANK_DEV_RESULT_V1.md`}>CloneMem local-reranker screen</a>{" "}
+              passed its development gate (+10.05 answer points, +13.61 recall
+              points) on two previously exposed personas and advances to a
+              separately frozen confirmation. Defaults remain unchanged.
             </p>
           </MarketingSection>
 
