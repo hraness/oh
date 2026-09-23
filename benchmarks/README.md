@@ -34,6 +34,12 @@ duplicate-session grouping and evidence denominators. Previously prepared
 artifacts must be rebuilt; historical reproduction uses the original frozen
 source commit.
 
+The [shared preparation contracts](FRAMEWORK_PILOT_SOURCE_V1.md) validate
+answer-blind, lossless source units and deterministic context packing for future
+framework comparisons. They preserve session equivalence and occurrence
+identity, reject invalid splits, and require an explicit tokenizer. Their
+synthetic checks do not establish provider readiness or a new quality result.
+
 The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
 answer or recall gain from shipped hybrid search over matched vector retrieval.
 The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) confirmed an evidence-recall
