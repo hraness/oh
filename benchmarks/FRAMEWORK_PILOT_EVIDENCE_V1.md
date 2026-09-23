@@ -90,6 +90,31 @@ Judging uses the existing [LongMemEval prompt templates](profiles/longmemeval-ju
 and exact yes/no parser. Reference answers become available only after every
 intended retrieval context or failure has been frozen. Reader failures,
 malformed verdicts and unattempted cases remain visible in the full denominator.
+The campaign must also freeze every reader outcome before the separate judge
+stage can access reference answers.
+
+## Fixed reporting rules
+
+[`reportFrameworkPilotV1`](../scripts/benchmarks/framework-pilot-report-v1.ts)
+requires all 180 planned case-and-arm rows, including failures and unattempted
+stages. Conservative success is the number of correct completed judgments
+divided by all 60 planned questions. Graded answer accuracy uses only completed
+judgments and reports that smaller denominator. An incomplete stage contributes
+no success; it is not relabeled as an incorrect judge verdict.
+
+The primary comparison is Oh minus Supermemory in conservative success rate.
+Oh minus BM25 is a secondary descriptive comparison. Both use the same 10,000
+paired bootstrap samples, drawn within the six fixed question types with seed
+20260923. The 95% intervals use nearest-rank percentiles. They describe
+resampling uncertainty within this balanced development pilot, not performance
+on an unseen population.
+
+Search latency includes successful retrievals even when a later stage fails.
+Failed retrieval durations remain separate. Observed cost, confirmed charges,
+unresolved exposure and prior task/global exposure retain distinct fields;
+unknown amounts stay null. The report helper validates the complete matrix and
+computes statistics, but does not establish verdict provenance or reconcile
+provider billing. Those require the campaign's captured artifacts.
 
 ## What a matched result will establish
 
