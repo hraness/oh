@@ -110,8 +110,10 @@ resampling uncertainty within this balanced development pilot, not performance
 on an unseen population.
 
 Search latency includes successful retrievals even when a later stage fails.
-Failed retrieval durations remain separate. Observed cost, confirmed charges,
-unresolved exposure and prior task/global exposure retain distinct fields;
+Failed retrievals are excluded from those latency percentiles and counted
+separately; their captured durations remain in campaign artifacts.
+Observed cost, confirmed charges, unresolved exposure and prior task/global
+exposure retain distinct fields;
 unknown amounts stay null. The report helper validates the complete matrix and
 computes statistics, but does not establish verdict provenance or reconcile
 provider billing. Those require the campaign's captured artifacts.
