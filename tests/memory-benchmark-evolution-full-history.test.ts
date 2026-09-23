@@ -23,7 +23,7 @@ describe("complete full-history source control", () => {
       haystack_sessions: [[{ role: "user", content: "Later" }], [{ role: "user", content: "Earlier" }, { role: "assistant", content: "Same session" }], [{ role: "user", content: "Tied date" }]],
     }]).corpora[0]!;
     const full = createEvolutionFullHistorySource(parsed), legacy = pack(parsed.turns.map(turn => ({ turn })), 1, true);
-    expect(full.result.turnIds).toEqual(["repeated#1:0", "repeated#1:1", "third:0", "repeated#0:0"]);
+    expect(full.result.turnIds).toEqual(["s0001#1:0", "s0001#1:1", "s0002#2:0", "s0001#0:0"]);
     expect(full.result.context).toBe(legacy.context);
     expect(full.result.sessionIds).toEqual(legacy.sessionIds);
     expect(full.result.contextBytes).toBe(Buffer.byteLength(legacy.context));

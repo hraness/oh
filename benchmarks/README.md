@@ -29,6 +29,10 @@ The [LongMemEval identifier audit](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md), dated
 indexes and reader context, and a fixed pipeline sample included identifiers
 with answer-label wording. The effect on scores is unmeasured. New comparisons
 require neutral identifiers and fresh indexes, retrieval and reader runs.
+The current parser assigns those neutral identifiers by default and preserves
+duplicate-session grouping and evidence denominators. Previously prepared
+artifacts must be rebuilt; historical reproduction uses the original frozen
+source commit.
 
 The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
 answer or recall gain from shipped hybrid search over matched vector retrieval.
@@ -169,12 +173,12 @@ The state, projection, and retrieval paths use SQLite `:memory:`. The SQLite
 crash stress helper is the one exception: it uses a disposable database file in
 a temporary directory that it creates, owns, and removes. Downloads and reports live in
 `.cache/benchmarks/`; no production database, hosted cache, or sync destination
-is read or written. Ingestion receives raw turns, source identifiers, dates,
+is read or written. Ingestion receives raw turns, prepared source identifiers, dates,
 speakers, and provided image captions. Explicit answer and evidence-label fields,
-and supplied summaries, stay outside the memory adapters. Legacy LongMemEval
-identifiers still expose a structural cue in indexes and reader context; see
-the [identifier audit](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md) before running a new
-comparison. Images are not fetched.
+and supplied summaries, stay outside the memory adapters. LongMemEval session
+and turn identifiers are neutralized before ingestion. The
+[identifier audit](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md) explains the legacy
+exposure and why new comparisons require fresh artifacts. Images are not fetched.
 
 The baselines include no memory, recent turns, unbounded full context, raw
 SQLite BM25, and Oh's actual keyword API. Focused-query and neighboring-turn
@@ -295,8 +299,9 @@ different labels merely because different systems produced them.
 A separate ingest-time experiment extracts dated, self-contained facts with
 verbatim source quotes. Its input projection omits benchmark questions, explicit
 answer and evidence-label fields, and answer-location annotations. It retains
-source turn identifiers, so the [LongMemEval identifier limitation](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md)
-also applies to those inputs. Each segment stays within one session occurrence
+prepared turn identifiers, which are neutral for current LongMemEval input.
+Legacy extraction artifacts remain subject to the
+[identifier limitation](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md). Each segment stays within one session occurrence
 and date, and oversized turns are split losslessly. Invalid individual claims
 are counted and rejected. Malformed
 or clipped batches stop the run without automatic retries.

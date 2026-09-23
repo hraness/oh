@@ -180,16 +180,20 @@ export function parseLongMemEval(value: unknown): Dataset {
     if (sessions.length !== sessionIds.length || sessions.length !== dates.length) {
       throw new TypeError(`Haystack ${corpusId}: ${sessions.length} sessions, ${sessionIds.length} IDs, ${dates.length} dates.`);
     }
-    const occurrences = new Map<string, number>();
-    for (const sessionId of sessionIds) occurrences.set(sessionId, (occurrences.get(sessionId) ?? 0) + 1);
+    // Source IDs can encode answer cues. Alias by first source occurrence, independently of labels;
+    // repeated IDs retain their evidence-session equivalence class and separate occurrence boundaries.
+    const sessionAliases = new Map<string, string>();
+    for (const sessionId of sessionIds) {
+      if (!sessionAliases.has(sessionId)) sessionAliases.set(sessionId, `s${String(sessionAliases.size + 1).padStart(4, "0")}`);
+    }
     const turns: Turn[] = [];
     const evidenceTurnIds: string[] = [];
     for (const [index, session] of sessions.entries()) {
-      const sessionId = sessionIds[index]!;
+      const sessionId = sessionAliases.get(sessionIds[index]!)!;
       const date = text(dates[index], "session timestamp", 256);
       for (const [turnIndex, rawTurn] of array(session, "session", 8_192).entries()) {
         const turn = object(rawTurn, "turn");
-        const turnId = `${sessionId}${occurrences.get(sessionId)! > 1 ? `#${index}` : ""}:${turnIndex}`;
+        const turnId = `${sessionId}#${index}:${turnIndex}`;
         if (turn.has_answer !== undefined && typeof turn.has_answer !== "boolean") throw new TypeError("Invalid has_answer label.");
         if (turn.has_answer === true) evidenceTurnIds.push(turnId);
         turns.push({ id: turnId, sessionId, sessionIndex: index, date,
@@ -201,7 +205,9 @@ export function parseLongMemEval(value: unknown): Dataset {
     questions.push({ id: corpusId, corpusId, category, question: text(item.question, "question", 16_384),
       questionDate: text(item.question_date, "question_date", 256), answer: answer(item.answer),
       unanswerable: corpusId.endsWith("_abs"), evidenceTurnIds,
-      evidenceSessionIds: strings(item.answer_session_ids, "answer_session_ids") });
+      // Unmapped annotations remain distinct evaluator-only misses, disjoint from source aliases.
+      evidenceSessionIds: strings(item.answer_session_ids, "answer_session_ids")
+        .map((sessionId, index) => sessionAliases.get(sessionId) ?? `missing-session-${String(index + 1).padStart(4, "0")}`) });
   }
   return validateDataset({ corpora, questions });
 }
