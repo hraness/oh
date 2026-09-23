@@ -1,6 +1,6 @@
 ---
 name: oh
-description: Operate a local hraness/oh ontology store through its checked CLI or SDK. Use when a coding agent needs to initialize, inspect, write, search, verify, export, import, or synchronize content-addressed research records in an Oh SQLite space.
+description: Operate the local hraness/oh memory framework through its checked CLI or SDK. Use when a coding agent needs to initialize, inspect, write, search, verify, export, import, or synchronize source-backed memory and research records in an Oh SQLite space.
 ---
 
 # Operate Oh

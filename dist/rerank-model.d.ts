@@ -48,7 +48,7 @@ export interface OhRerankBackendV1 {
     rerank(query: string, documents: readonly OhRerankDocumentV1[]): Promise<readonly OhRerankResultV1[]>;
     close(): Promise<void>;
 }
-export declare function parseOhRerankQueryV1(query: string): string;
-export declare function parseOhRerankDocumentsV1(documents: readonly OhRerankDocumentV1[]): readonly OhRerankDocumentV1[];
-export declare function parseOhRerankResultsV1(results: readonly OhRerankResultV1[], keys: ReadonlySet<string>): readonly OhRerankResultV1[];
+export declare function parseOhRerankQueryV1(query: unknown): string;
+export declare function parseOhRerankDocumentsV1(documents: unknown): readonly OhRerankDocumentV1[];
+export declare function parseOhRerankResultsV1(results: unknown, keys: ReadonlySet<string>): readonly OhRerankResultV1[];
 //# sourceMappingURL=rerank-model.d.ts.map

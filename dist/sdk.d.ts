@@ -56,6 +56,7 @@ export declare class Oh {
         asOf?: string | null;
         limit?: number;
         mode?: OhSearchModeV1;
+        rerankPoolSize?: number;
         window?: OhRecallWindowV1 | null;
     }>): Promise<OhRecallResponseV1>;
     sync(transport: OhOperationSyncTransportV1, options?: Parameters<typeof synchronizeOhStoreV1>[2]): Promise<OhSyncResultV1>;

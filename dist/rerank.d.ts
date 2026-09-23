@@ -2,8 +2,9 @@ import { type OhRerankBackendV1, type OhRerankDocumentV1, type OhRerankResultV1 
 export { OH_RERANK_LIMITS_V1, OH_RERANK_PROFILE_V1, OH_RERANK_STOPWORDS_V1, normalizeOhRerankLexicalQueryV1, } from "./rerank-model";
 export type { OhRerankBackendV1, OhRerankDocumentV1, OhRerankResultV1, } from "./rerank-model";
 /** Optional local Qwen3 rerank backend through the pinned @tobilu/qmd peer.
- * The model path must already exist locally; this boundary never downloads.
- * Operations are serial and the backend must be closed to release the model. */
+ * The model must already exist locally and match the pinned digest. Complete
+ * query/document pairs must fit the model's context; no text is truncated.
+ * Operations are serial. Closing drains admitted work and shares its outcome. */
 export declare class OhQmdRerankBackendV1 implements OhRerankBackendV1 {
     #private;
     readonly profile: Readonly<{

@@ -35,7 +35,7 @@ function reseal(value: unknown, mutate: (row: Record<string, unknown>) => void) 
 }
 
 test("development input roles bind exact historical pins and reject alias or substituted scope", () => {
-  const pins = Object.fromEntries(Object.entries(CLONEMEM_KEYWORD_DEV_INPUT_SHA256).map(([role, sha256]) => [role, { path: `/private/tmp/${role}`, sha256 }]));
+  const pins = Object.fromEntries(Object.entries(CLONEMEM_KEYWORD_DEV_INPUT_SHA256).map(([role, sha256]) => [role, { path: `/absolute/fixtures/${role}`, sha256 }]));
   expect(Object.entries(parseCloneMemKeywordDevInputPins(pins))).toEqual(Object.entries(pins));
   for (const role of Object.keys(pins)) {
     expect(() => parseCloneMemKeywordDevInputPins({ ...pins, [role]: { ...pins[role], sha256: "0".repeat(64) } })).toThrow("changed");

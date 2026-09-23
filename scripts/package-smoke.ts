@@ -346,7 +346,7 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     await run([
       process.execPath,
       "-e",
-      "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
+      "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/rerank','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/projection-suss','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
     ], consumer);
     await writeFile(join(consumer, "operation-size-identity.mjs"), `
 import { Database } from "bun:sqlite";
@@ -488,7 +488,7 @@ if (copied instanceof OhOperationSizeError || isOhOperationSizeError(copied)) {
       "node",
       "--input-type=module",
       "-e",
-      "for (const p of ['@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
+      "for (const p of ['@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/projection-suss','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
     ], consumer);
     await writeFile(join(consumer, "research-profile.mjs"), `
 import assert from "node:assert/strict";

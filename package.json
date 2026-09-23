@@ -1,7 +1,7 @@
 {
   "name": "@hraness/oh",
-  "version": "0.11.0",
-  "description": "open-source tools for agentic research",
+  "version": "0.12.0",
+  "description": "Open-source memory for agents: source-backed records, retrieval, graph proofs, and verifiable history.",
   "type": "module",
   "license": "MIT",
   "author": "Hraness",
@@ -121,6 +121,10 @@
     "./rerank": {
       "types": "./dist/rerank.d.ts",
       "import": "./dist/rerank.js"
+    },
+    "./projection-suss": {
+      "types": "./dist/projection-suss.d.ts",
+      "import": "./dist/projection-suss.js"
     }
   },
   "files": [

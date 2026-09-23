@@ -1,6 +1,7 @@
 import { canonicalJson, parseCanonicalInstantV1, utf8ByteLength } from "./canonical";
 import type { KnowledgeGraphRecordV1 } from "./graph";
-import { searchOhV1, type OhSearchModeV1 } from "./search";
+import type { OhRerankBackendV1 } from "./rerank-model";
+import { resolveOhSearchModeV1, searchOhV1, type OhSearchModeV1 } from "./search";
 import type { OhSemanticSearchBackend } from "./semantic";
 import type { OhSqliteStore } from "./sqlite/store";
 
@@ -223,6 +224,8 @@ export async function recallOhV1(input: Readonly<{
   limit?: number;
   mode?: OhSearchModeV1;
   queries: readonly string[];
+  reranker?: OhRerankBackendV1;
+  rerankPoolSize?: number;
   store: OhSqliteStore;
   view?: OhRecallViewV1;
   window?: OhRecallWindowV1 | null;
@@ -236,19 +239,22 @@ export async function recallOhV1(input: Readonly<{
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > OH_RECALL_LIMITS_V1.maximumLimit) {
     throw new RangeError(`Recall limit must be 1 through ${OH_RECALL_LIMITS_V1.maximumLimit}.`);
   }
-  const mode = input.mode ?? "keyword";
-  if (mode !== "keyword" && mode !== "semantic" && mode !== "hybrid") throw new TypeError("Recall mode must be keyword, semantic, or hybrid.");
+  const mode = resolveOhSearchModeV1(input);
   const asOf = instantOrNull(input.asOf, "asOf"), window = checkedWindow(input.window), view = checkedView(input.view);
   const fused = new Map<string, Fused>();
   const diagnostics: OhRecallDiagnosticV1[] = [];
   const add = (record: KnowledgeGraphRecordV1, evidence: OhRecallEvidenceV1): void => {
-    const current = fused.get(record.key) ?? { evidence: [], record, score: 0 };
+    const prior = fused.get(record.key);
+    const current = prior?.record.recordSha256 === record.recordSha256 ? prior : { evidence: [], record, score: 0 };
     current.evidence.push(evidence);
     current.score += 1 / (OH_RECALL_LIMITS_V1.rrfConstant + evidence.rank);
     fused.set(record.key, current);
   };
   for (const [index, query] of queries.entries()) {
-    const response = await searchOhV1({ ...(input.backend === undefined ? {} : { backend: input.backend }), limit, mode, query, store: input.store });
+    const response = await searchOhV1({ ...(input.backend === undefined ? {} : { backend: input.backend }),
+      ...(input.reranker === undefined ? {} : { reranker: input.reranker }),
+      ...(input.rerankPoolSize === undefined ? {} : { rerankPoolSize: input.rerankPoolSize }),
+      limit, mode, query, store: input.store });
     diagnostics.push(...response.diagnostics);
     response.results.forEach((result, position) => {
       add(result.record, { lane: "query", query: index, rank: position + 1, score: result.score, v: 1 });
@@ -272,6 +278,7 @@ export async function recallOhV1(input: Readonly<{
     });
   }
   const results = [...fused.entries()]
+    .filter(([key, entry]) => input.store.get(key)?.recordSha256 === entry.record.recordSha256)
     .sort((left, right) => right[1].score - left[1].score || compareKeys(left[0], right[0]))
     .map(([, entry]): OhRecallResultV1 => ({ evidence: entry.evidence, record: entry.record, score: entry.score, v: 1 }));
   return { asOf, diagnostics, mode, queries, results, window, v: 1 };

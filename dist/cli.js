@@ -453,8 +453,46 @@ function normalizeOhRerankLexicalQueryV1(query) {
   }
   return [...new Set(query.normalize("NFC").toLocaleLowerCase("en-US").match(/[\p{L}\p{N}][\p{L}\p{N}_-]{0,63}/gu) ?? [])].filter((token) => !stopwordSet.has(token)).slice(0, 16).join(" ");
 }
+function parseOhRerankQueryV1(query) {
+  if (typeof query !== "string" || Buffer.byteLength(query) > OH_RERANK_LIMITS_V1.maximumQueryBytes || /\p{Surrogate}/u.test(query) || query.includes("\x00") || query.trim().length === 0) {
+    throw new TypeError("Rerank query must be a bounded nonempty string.");
+  }
+  return query;
+}
+function validText(value, maximumBytes) {
+  return typeof value === "string" && Buffer.byteLength(value) <= maximumBytes && !/\p{Surrogate}/u.test(value) && !value.includes("\x00");
+}
+function parseOhRerankDocumentsV1(documents) {
+  if (!Array.isArray(documents) || documents.length > OH_RERANK_LIMITS_V1.maximumDocuments) {
+    throw new TypeError("Rerank accepts at most 128 documents.");
+  }
+  const seen = new Set;
+  const parsed = [];
+  for (const document of documents) {
+    if (!isPlainRecord(document) || !hasExactKeys(document, ["key", "text", "v"]) || document.v !== 1 || !validText(document.key, 512) || document.key.length === 0 || !validText(document.text, OH_RERANK_LIMITS_V1.maximumDocumentBytes) || seen.has(document.key))
+      throw new TypeError("Rerank document identity or byte bound failed.");
+    seen.add(document.key);
+    parsed.push({ key: document.key, text: document.text, v: 1 });
+  }
+  return parsed;
+}
+function parseOhRerankResultsV1(results, keys) {
+  if (!Array.isArray(results) || results.length > OH_RERANK_LIMITS_V1.maximumDocuments || results.length !== keys.size)
+    throw new TypeError("Rerank must score every submitted document once.");
+  const seen = new Set;
+  const parsed = [];
+  for (const result of results) {
+    if (!isPlainRecord(result) || !hasExactKeys(result, ["key", "score", "v"]) || result.v !== 1 || !validText(result.key, 512) || !keys.has(result.key) || typeof result.score !== "number" || !Number.isFinite(result.score) || seen.has(result.key)) {
+      throw new TypeError("Rerank result coverage or score bound failed.");
+    }
+    seen.add(result.key);
+    parsed.push({ key: result.key, score: result.score, v: 1 });
+  }
+  return parsed;
+}
 var OH_RERANK_PROFILE_V1, OH_RERANK_LIMITS_V1, OH_RERANK_STOPWORDS_V1, stopwordSet;
 var init_rerank_model = __esm(() => {
+  init_canonical();
   OH_RERANK_PROFILE_V1 = Object.freeze({
     contextSize: 4096,
     engine: "@tobilu/qmd@2.5.3 LlamaCpp.rerank",
@@ -506,9 +544,36 @@ var init_semantic_model = __esm(() => {
 });
 
 // src/search.ts
+function resolveOhSearchModeV1(input) {
+  const mode = input.mode === undefined ? input.reranker !== undefined ? "rerank" : input.backend !== undefined ? "hybrid" : "keyword" : input.mode;
+  if (mode !== "keyword" && mode !== "semantic" && mode !== "hybrid" && mode !== "rerank") {
+    throw new TypeError("Search mode must be keyword, semantic, hybrid, or rerank.");
+  }
+  return mode;
+}
+function compareKeys(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+function semanticResults(value, limit) {
+  if (!Array.isArray(value) || value.length > limit)
+    throw new TypeError("Semantic search exceeded its bounded result lane.");
+  const seen = new Set, parsed = [];
+  for (const row of value) {
+    if (!isPlainRecord(row) || !hasExactKeys(row, ["key", "recordSha256", "score", "v"]) || row.v !== 1) {
+      throw new TypeError("Semantic search returned an invalid V1 result.");
+    }
+    const key = safeCode(row.key, 512), digest = parseSha256Hex(row.recordSha256);
+    if (key === null || digest === null || seen.has(key) || typeof row.score !== "number" || !Number.isFinite(row.score)) {
+      throw new TypeError("Semantic search returned an invalid identity or score.");
+    }
+    seen.add(key);
+    parsed.push({ key, recordSha256: digest, score: row.score, v: 1 });
+  }
+  return parsed;
+}
 async function searchOhV1(input) {
   const limit = input.limit ?? 10;
-  const mode = input.mode ?? "keyword";
+  const mode = resolveOhSearchModeV1(input);
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
     throw new RangeError("Search limit must be 1 through 100.");
   const poolSize = input.rerankPoolSize ?? OH_RERANK_LIMITS_V1.defaultPoolSize;
@@ -516,6 +581,8 @@ async function searchOhV1(input) {
     throw new RangeError("Rerank pool size must be 1 through 60.");
   }
   const rerank = mode === "rerank";
+  if (rerank)
+    parseOhRerankQueryV1(input.query);
   const laneSize = rerank ? poolSize : Math.min(100, limit * 3);
   const lexicalQuery = rerank ? normalizeOhRerankLexicalQueryV1(input.query) : input.query;
   const keyword = mode === "semantic" ? [] : input.store.searchKeyword(lexicalQuery, laneSize);
@@ -526,7 +593,7 @@ async function searchOhV1(input) {
       diagnostics.push({ code: "semantic-unavailable", message: "No local semantic backend is configured.", v: 1 });
     } else {
       try {
-        semantic = await input.backend.search(input.query, laneSize, input.store);
+        semantic = semanticResults(await input.backend.search(input.query, laneSize, input.store), laneSize);
       } catch (error) {
         diagnostics.push({
           code: "semantic-unavailable",
@@ -537,40 +604,45 @@ async function searchOhV1(input) {
     }
   }
   const byKey = new Map;
-  const add = (key, lane, rank, laneScore) => {
+  const add = (key, digest, lane, rank, laneScore) => {
+    if (input.store.get(key)?.recordSha256 !== digest)
+      return;
     const contribution = (lane === "keyword" ? 2 : 1) / (60 + rank);
-    const current = byKey.get(key) ?? { evidence: [], score: 0 };
+    const current = byKey.get(key) ?? { evidence: [], recordSha256: digest, score: 0 };
     current.evidence.push({ lane, rank, score: laneScore, v: 1 });
     current.score += contribution;
     byKey.set(key, current);
   };
-  keyword.forEach((result, index) => add(result.key, "keyword", index + 1, result.score));
-  semantic.forEach((result, index) => add(result.key, "semantic", index + 1, result.score));
+  keyword.forEach((result, index) => add(result.key, result.recordSha256, "keyword", index + 1, result.score));
+  semantic.forEach((result, index) => add(result.key, result.recordSha256, "semantic", index + 1, result.score));
   if (rerank && input.reranker !== undefined && byKey.size > 0) {
-    const pool = [...byKey.entries()].sort((left, right) => right[1].score - left[1].score || left[0].localeCompare(right[0]));
+    const pool = [...byKey.entries()].sort((left, right) => right[1].score - left[1].score || compareKeys(left[0], right[0]));
     const documents = [];
     for (const [key] of pool) {
       const record = input.store.get(key);
-      if (record !== null)
-        documents.push({ key, record, score: byKey.get(key).score });
+      if (record !== null && record.recordSha256 === byKey.get(key).recordSha256)
+        documents.push({ key, record });
     }
     try {
-      const scored = await input.reranker.rerank(input.query, documents.map((document) => ({ key: document.key, text: recordDocument(document.record), v: 1 })));
+      const submitted = parseOhRerankDocumentsV1(documents.map((document) => ({ key: document.key, text: recordDocument(document.record), v: 1 })));
       const keys = new Set(documents.map((document) => document.key));
-      if (scored.length !== documents.length || scored.some((result) => !keys.has(result.key))) {
-        throw new Error("The rerank backend did not score every candidate document.");
-      }
-      const ordered = [...scored].sort((left, right) => right.score - left.score || left.key.localeCompare(right.key));
+      const scored = parseOhRerankResultsV1(submitted.length === 0 ? [] : await input.reranker.rerank(input.query, submitted), keys);
+      const ordered = [...scored].sort((left, right) => right.score - left.score || compareKeys(left.key, right.key));
       const order = new Map(ordered.map((result, index) => [result.key, { rank: index + 1, score: result.score }]));
       const ranked = documents.filter((document) => order.has(document.key)).sort((left, right) => order.get(left.key).rank - order.get(right.key).rank);
       const results2 = [];
-      for (const document of ranked.slice(0, limit)) {
+      for (const document of ranked) {
+        const current = input.store.get(document.key);
+        if (current === null || current.recordSha256 !== document.record.recordSha256)
+          continue;
         results2.push({
           evidence: byKey.get(document.key).evidence,
-          record: document.record,
+          record: current,
           score: order.get(document.key).score,
           v: 1
         });
+        if (results2.length === limit)
+          break;
       }
       return { diagnostics, mode, results: results2, v: 1 };
     } catch (error) {
@@ -580,13 +652,13 @@ async function searchOhV1(input) {
         v: 1
       });
     }
-  } else if (rerank) {
+  } else if (rerank && input.reranker === undefined) {
     diagnostics.push({ code: "rerank-unavailable", message: "No local rerank backend is configured.", v: 1 });
   }
   const results = [];
-  for (const [key, rank] of [...byKey.entries()].sort((left, right) => right[1].score - left[1].score || left[0].localeCompare(right[0]))) {
+  for (const [key, rank] of [...byKey.entries()].sort((left, right) => right[1].score - left[1].score || compareKeys(left[0], right[0]))) {
     const record = input.store.get(key);
-    if (record === null)
+    if (record === null || record.recordSha256 !== rank.recordSha256)
       continue;
     results.push({ evidence: rank.evidence, record, score: rank.score, v: 1 });
     if (results.length === limit)
@@ -595,6 +667,7 @@ async function searchOhV1(input) {
   return { diagnostics, mode, results, v: 1 };
 }
 var init_search = __esm(() => {
+  init_canonical();
   init_rerank_model();
   init_semantic_model();
 });
@@ -662,7 +735,7 @@ function defaultOhRecallViewV1(record) {
   const text = object !== null && typeof object.text === "string" ? object.text : canonicalJson(value);
   return { instant: observedAt, order: null, session, text };
 }
-function compareKeys(left, right) {
+function compareKeys2(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 function compareInstants(left, right) {
@@ -694,20 +767,27 @@ async function recallOhV1(input) {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > OH_RECALL_LIMITS_V1.maximumLimit) {
     throw new RangeError(`Recall limit must be 1 through ${OH_RECALL_LIMITS_V1.maximumLimit}.`);
   }
-  const mode = input.mode ?? "keyword";
-  if (mode !== "keyword" && mode !== "semantic" && mode !== "hybrid")
-    throw new TypeError("Recall mode must be keyword, semantic, or hybrid.");
+  const mode = resolveOhSearchModeV1(input);
   const asOf = instantOrNull(input.asOf, "asOf"), window = checkedWindow(input.window), view = checkedView(input.view);
   const fused = new Map;
   const diagnostics = [];
   const add = (record, evidence) => {
-    const current = fused.get(record.key) ?? { evidence: [], record, score: 0 };
+    const prior = fused.get(record.key);
+    const current = prior?.record.recordSha256 === record.recordSha256 ? prior : { evidence: [], record, score: 0 };
     current.evidence.push(evidence);
     current.score += 1 / (OH_RECALL_LIMITS_V1.rrfConstant + evidence.rank);
     fused.set(record.key, current);
   };
   for (const [index, query] of queries.entries()) {
-    const response = await searchOhV1({ ...input.backend === undefined ? {} : { backend: input.backend }, limit, mode, query, store: input.store });
+    const response = await searchOhV1({
+      ...input.backend === undefined ? {} : { backend: input.backend },
+      ...input.reranker === undefined ? {} : { reranker: input.reranker },
+      ...input.rerankPoolSize === undefined ? {} : { rerankPoolSize: input.rerankPoolSize },
+      limit,
+      mode,
+      query,
+      store: input.store
+    });
     diagnostics.push(...response.diagnostics);
     response.results.forEach((result, position) => {
       add(result.record, { lane: "query", query: index, rank: position + 1, score: result.score, v: 1 });
@@ -727,13 +807,13 @@ async function recallOhV1(input) {
     const dated = scanned.flatMap((record) => {
       const viewed = checkedRecordView(view, record);
       return viewed.instant !== null && viewed.instant >= window.since && viewed.instant <= window.until ? [{ record, viewed }] : [];
-    }).sort((left, right) => compareInstants(left.viewed.instant, right.viewed.instant) || compareOrders(left.viewed.order, right.viewed.order) || compareKeys(left.record.key, right.record.key));
+    }).sort((left, right) => compareInstants(left.viewed.instant, right.viewed.instant) || compareOrders(left.viewed.order, right.viewed.order) || compareKeys2(left.record.key, right.record.key));
     dated.slice(0, limit).forEach((entry, position) => {
       const rank = position + 1;
       add(entry.record, { lane: "window", query: null, rank, score: 1 / (OH_RECALL_LIMITS_V1.rrfConstant + rank), v: 1 });
     });
   }
-  const results = [...fused.entries()].sort((left, right) => right[1].score - left[1].score || compareKeys(left[0], right[0])).map(([, entry]) => ({ evidence: entry.evidence, record: entry.record, score: entry.score, v: 1 }));
+  const results = [...fused.entries()].filter(([key, entry]) => input.store.get(key)?.recordSha256 === entry.record.recordSha256).sort((left, right) => right[1].score - left[1].score || compareKeys2(left[0], right[0])).map(([, entry]) => ({ evidence: entry.evidence, record: entry.record, score: entry.score, v: 1 }));
   return { asOf, diagnostics, mode, queries, results, window, v: 1 };
 }
 function dayNumber(instant) {
@@ -880,7 +960,7 @@ function compose(selected, asOf) {
     const sorted = [...members].sort(compareMembers);
     return { instant: sorted[0]?.view.instant ?? null, members: sorted, session };
   });
-  const dated = grouped.filter((group) => group.instant !== null).sort((left, right) => compareInstants(left.instant, right.instant) || compareKeys(left.session, right.session));
+  const dated = grouped.filter((group) => group.instant !== null).sort((left, right) => compareInstants(left.instant, right.instant) || compareKeys2(left.session, right.session));
   const undated = grouped.filter((group) => group.instant === null);
   const asOfDay = dayNumber(asOf);
   const blocks = [`Question date: ${formatDay(asOfDay)}`], keys = [];
@@ -25917,6 +25997,8 @@ class Oh {
   semanticBackend;
   rerankBackend;
   #closed = false;
+  #closing;
+  #pending = new Set;
   constructor(store, semanticBackend, rerankBackend) {
     this.store = store;
     this.semanticBackend = semanticBackend;
@@ -25928,10 +26010,28 @@ class Oh {
       ...options.spaceId === undefined ? {} : { spaceId: options.spaceId }
     }), options.semanticBackend, options.rerankBackend);
   }
+  #assertOpen() {
+    if (this.#closed)
+      throw new Error("Oh is closed.");
+  }
+  #admit(operation) {
+    if (this.#closed)
+      return Promise.reject(new Error("Oh is closed."));
+    const pending3 = Promise.resolve().then(operation);
+    this.#pending.add(pending3);
+    pending3.then(() => {
+      this.#pending.delete(pending3);
+    }, () => {
+      this.#pending.delete(pending3);
+    });
+    return pending3;
+  }
   head() {
+    this.#assertOpen();
     return this.store.head();
   }
   put(input) {
+    this.#assertOpen();
     const record = createKnowledgeGraphRecordV1({
       dependencies: [...input.dependencies ?? []].sort(),
       key: input.key,
@@ -25949,6 +26049,7 @@ class Oh {
     });
   }
   tombstone(input) {
+    this.#assertOpen();
     const current = this.store.get(input.key);
     if (current === null)
       throw new Error(`No record exists at ${input.key}.`);
@@ -25962,18 +26063,22 @@ class Oh {
     });
   }
   get(key3) {
+    this.#assertOpen();
     return this.store.get(key3);
   }
   list(options) {
+    this.#assertOpen();
     return this.store.list(options);
   }
   async indexSemantic() {
-    if (this.semanticBackend === undefined)
-      throw new Error("No local semantic backend is configured.");
-    return await this.semanticBackend.index(this.store.snapshotRecords());
+    return await this.#admit(async () => {
+      if (this.semanticBackend === undefined)
+        throw new Error("No local semantic backend is configured.");
+      return await this.semanticBackend.index(this.store.snapshotRecords());
+    });
   }
   async search(query, options = {}) {
-    return await searchOhV1({
+    return await this.#admit(() => searchOhV1({
       ...this.semanticBackend === undefined ? {} : { backend: this.semanticBackend },
       ...this.rerankBackend === undefined ? {} : { reranker: this.rerankBackend },
       ...options.limit === undefined ? {} : { limit: options.limit },
@@ -25981,38 +26086,56 @@ class Oh {
       ...options.rerankPoolSize === undefined ? {} : { rerankPoolSize: options.rerankPoolSize },
       query,
       store: this.store
-    });
+    }));
   }
   async recall(queries, options = {}) {
-    return await recallOhV1({
+    return await this.#admit(() => recallOhV1({
       ...this.semanticBackend === undefined ? {} : { backend: this.semanticBackend },
+      ...this.rerankBackend === undefined ? {} : { reranker: this.rerankBackend },
       asOf: options.asOf ?? null,
       ...options.limit === undefined ? {} : { limit: options.limit },
       ...options.mode === undefined ? {} : { mode: options.mode },
       ...options.window === undefined ? {} : { window: options.window },
+      ...options.rerankPoolSize === undefined ? {} : { rerankPoolSize: options.rerankPoolSize },
       queries: typeof queries === "string" ? [queries] : queries,
       store: this.store
-    });
+    }));
   }
   async sync(transport, options) {
-    return await synchronizeOhStoreV1(this.store, transport, options);
+    return await this.#admit(() => synchronizeOhStoreV1(this.store, transport, options));
   }
   verify() {
+    this.#assertOpen();
     return this.store.verifyReplay();
   }
-  async close() {
-    if (this.#closed)
-      return;
+  close() {
+    if (this.#closing !== undefined)
+      return this.#closing;
     this.#closed = true;
-    try {
-      await this.semanticBackend?.close();
-    } finally {
+    this.#closing = (async () => {
+      await Promise.allSettled([...this.#pending]);
+      const failures3 = [];
+      try {
+        await this.semanticBackend?.close();
+      } catch (error) {
+        failures3.push(error);
+      }
       try {
         await this.rerankBackend?.close();
-      } finally {
-        this.store.close();
+      } catch (error) {
+        failures3.push(error);
       }
-    }
+      try {
+        this.store.close();
+      } catch (error) {
+        failures3.push(error);
+      }
+      if (failures3.length === 1)
+        throw failures3[0];
+      if (failures3.length > 1)
+        throw new AggregateError(failures3, "Oh resource release failed.");
+    })();
+    return this.#closing;
   }
 }
 var init_sdk = __esm(() => {
@@ -26640,7 +26763,7 @@ init_recall();
 init_migrations();
 init_sync_model();
 import { lstat, readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.11.0";
+var OH_PACKAGE_VERSION = "0.12.0";
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",

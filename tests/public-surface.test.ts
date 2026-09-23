@@ -19,7 +19,7 @@ import {
 } from "../src/cloudflare-embedding.ts";
 
 const root = resolve(import.meta.dir, "..");
-const tagline = "open-source tools for agentic research";
+const tagline = "Open-source memory for agents: source-backed records, retrieval, graph proofs, and verifiable history.";
 
 const markdownFiles = [
   "README.md",
@@ -176,11 +176,11 @@ describe("public identity and documentation", () => {
       readFile(join(root, "skills/oh/SKILL.md"), "utf8"),
       readFile(join(root, "src/cli.ts"), "utf8"),
     ]);
-    expect(readme.startsWith(`# ${tagline}\n`)).toBe(true);
+    expect(readme.startsWith("# Oh — memory your agents can trace\n")).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.11.0");
+    expect(packageJson.version).toBe("0.12.0");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.11.0"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.12.0"');
     expect(publishedRelease).toEqual({
       version: "0.11.0",
       verificationRun: "https://github.com/hraness/oh/actions/runs/35759877197",
@@ -370,7 +370,9 @@ describe("versioned public contract", () => {
       "./memory-page",
       "./package.json",
       "./projection",
+      "./projection-suss",
       "./projection/rust",
+      "./rerank",
       "./research",
       "./research-store",
       "./rust-fallback",

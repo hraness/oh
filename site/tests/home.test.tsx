@@ -5,39 +5,31 @@ import Specification from "../app/spec/page";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import publishedRelease from "../published-release.json";
 import RootLayout from "../app/layout";
-import recallResult from "../../benchmarks/results/memory-locomo-window-confirmation-v1.json";
-import answerResult from "../../benchmarks/results/memory-locomo-window-qa-v1.json";
+import rerankResult from "../../benchmarks/results/memory-clonemem-rerank-confirm-v1.json";
 
-test("publishes both measured benchmark outcomes with their scope and source evidence", () => {
+test("ties the matched chart to evidence and keeps vendor protocols separate", () => {
   const html = renderToStaticMarkup(<Home />);
-  const tables: string[][] = [];
-  const links: string[] = [];
+  const values: string[] = [];
   let copy = "";
   new HTMLRewriter()
-    .on("#benchmarks table", { element() { tables.push([]); } })
-    .on("#benchmarks td", { text(chunk) { if (chunk.text) tables.at(-1)?.push(chunk.text); } })
-    .on("#benchmarks a", { element(element) { links.push(element.getAttribute("href") ?? ""); } })
+    .on("#benchmarks .hraness-design-chart-row__value", { text(chunk) { if (chunk.text) values.push(chunk.text); } })
     .on("#benchmarks", { text(chunk) { copy += chunk.text; } })
     .transform(html);
   const percent = (value: number) => `${(value * 100).toFixed(2)}%`;
-  expect(tables).toEqual([
-    [percent(recallResult.summaries["anchors-query-4"].turnRecall), percent(recallResult.summaries["vector-window"].turnRecall)],
-    ["anchors-query-4", "vector-window"].map((arm) => percent(answerResult.scores.reader.arms.find((row) => row.armId === arm)!.accuracy)),
-  ]);
-  expect(answerResult.scores.claims.modelJudgedQaImprovement).toBe(false);
-  for (const qualification of ["Agent-run benchmark", "1,224 annotated questions", "1,586 confirmation questions", "300 questions", "three reader attempts", "identical judge prompts shared one judgment", "immutable snapshot", "prior project exposure", "No established answer improvement", "multiple-choice accuracy gain", "CloneMem keyword-query test", "improved development recall but did not pass its answer-quality gate", "Defaults remain unchanged"]) {
+  expect(values).toEqual([percent(rerankResult.pooledReader.candidate), percent(rerankResult.pooledReader.baseline)]);
+  for (const qualification of ["861 questions", "prior project exposure", "immutable snapshot", "retry rule added during execution", "not every SDK integration", "not a matched ranking against Oh", "no established answer improvement"]) {
     expect(copy.replace(/\s+/gu, " ")).toContain(qualification);
   }
-  expect(links).toEqual([
-    "https://github.com/hraness/oh/blob/main/benchmarks/LOCOMO_WINDOW_QA_V1.md",
-    "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json",
-    "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json",
-    "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md",
-    "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_KEYWORD_DEV_RESULT_V1.md",
-  ]);
+  expect(html).toContain("https://www.letta.com/blog/benchmarking-ai-agent-memory/");
+  expect(html).toContain("https://supermemory.ai/research/longmembench/");
+  expect(html).toContain("CLONEMEM_RERANK_CONFIRM_RESULT_V1.md");
+  expect(html).toContain("memory-clonemem-rerank-confirm-v1.json");
   expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
   expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));
+  expect(html).toContain("Markdown files stay authoritative");
+  expect(html).toContain("does not automatically inherit");
 });
+
 
 test("both public pages render the in-flow content footer above the shared footer", () => {
   for (const page of [<Home key="home" />, <Specification key="spec" />]) {
@@ -80,7 +72,7 @@ test("makes the illustrative citation readable while keeping historical output a
       text(chunk) { examples[examples.length - 1] += chunk.text; },
     })
     .transform(html);
-  expect(examples).toEqual(["Open-source tools for agentic research"]);
+  expect(examples).toEqual(["Open-source memory for agents"]);
   expect(hero).not.toContain("Ask your agent to file the trial report");
   expect(hero).toContain(citationRecord.value.locator);
   expect(hero).toContain(citationRecord.value.relationship);

@@ -4,6 +4,8 @@ import { canonicalJson, utf8ByteLength } from "./canonical";
 import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordV1 } from "./graph";
 import { defaultOhRecallViewV1, OH_RECALL_DATE_GRAMMAR_V1, OH_RECALL_LIMITS_V1, recallOhV1, renderOhRecallV1,
   resolveRelativeDateWindowV1 } from "./recall";
+import { OH_RERANK_PROFILE_V1 } from "./rerank-model";
+import { OH_EMBEDDING_PROFILE_V1, type OhSemanticSearchBackendV1 } from "./semantic";
 import { OhSqliteStore } from "./sqlite/store";
 
 const record = (key: string, value: unknown): KnowledgeGraphRecordV1 =>
@@ -24,6 +26,51 @@ const QUIET = turn("edition:quiet", "2023-05-24T08:00:00.000Z", "s3", "Nothing t
 const RECORDS = [KAYAK, BICYCLE, BOTH, QUIET];
 
 describe("recallOhV1", () => {
+  test("uses configured capabilities by default and retains rerank failure diagnostics across fused searches", async () => {
+    const store = openStore(RECORDS);
+    const backend: OhSemanticSearchBackendV1 = { profile: OH_EMBEDDING_PROFILE_V1, close: async () => {},
+      index: async () => ({ indexed: 0, v: 1 }), search: async () => [] };
+    let calls = 0;
+    const reranker = { profile: OH_RERANK_PROFILE_V1, close: async () => {}, rerank: async () => {
+      calls++; throw new Error("local model unavailable");
+    } };
+    try {
+      expect((await recallOhV1({ asOf: null, queries: ["kayak"], store, backend })).mode).toBe("hybrid");
+      const response = await recallOhV1({ asOf: null, queries: ["kayak", "bicycle"], store, backend, reranker });
+      expect(response.mode).toBe("rerank");
+      expect(calls).toBe(2);
+      expect(response.results[0]?.record.key).toBe(BOTH.key);
+      expect(response.diagnostics).toEqual(Array.from({ length: 2 }, () => ({ code: "rerank-unavailable", message: "local model unavailable", v: 1 })));
+      expect((await recallOhV1({ asOf: null, queries: ["kayak"], mode: "keyword", store, backend, reranker })).mode).toBe("keyword");
+      expect(calls).toBe(2);
+    } finally { store.close(); }
+  });
+
+  test("never fuses evidence across revisions or returns a record replaced by a later query", async () => {
+    for (const includeReplacement of [false, true]) {
+      const store = openStore([KAYAK]);
+      let calls = 0;
+      const replacement = turn(KAYAK.key, "2023-05-05T10:00:00.000Z", "s2", "I gave the kayak away.");
+      const backend: OhSemanticSearchBackendV1 = { profile: OH_EMBEDDING_PROFILE_V1, close: async () => {},
+        index: async () => ({ indexed: 0, v: 1 }), search: async () => {
+          calls++;
+          if (calls === 1) return [{ key: KAYAK.key, recordSha256: KAYAK.recordSha256, score: 1, v: 1 }];
+          store.commit({ actorId: "test", changes: [{ kind: "put", record: replacement, v: 1 }],
+            expectedHead: store.head(), operationId: "op_replace" });
+          return includeReplacement ? [{ key: replacement.key, recordSha256: replacement.recordSha256, score: 1, v: 1 }] : [];
+        } };
+      try {
+        const response = await recallOhV1({ asOf: null, mode: "semantic", queries: ["kayak", "paddle"], store, backend });
+        if (!includeReplacement) expect(response.results).toEqual([]);
+        else {
+          expect(response.results[0]?.record).toEqual(replacement);
+          expect(response.results[0]?.evidence.map((item) => item.query)).toEqual([1]);
+          expect(response.results[0]?.score).toBe(1 / 61);
+        }
+      } finally { store.close(); }
+    }
+  });
+
   test("fuses bounded V1 searches by reciprocal rank across distinct queries", async () => {
     const store = openStore(RECORDS);
     try {

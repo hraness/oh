@@ -54,7 +54,11 @@
       ],
       "specification": "./v1/ontology.md",
       "status": "current",
-      "v": 1
+      "v": 1,
+      "retrieval": {
+        "specification": "./v1/retrieval.md",
+        "rerankProfile": "./v1/rerank-profile.json"
+      }
     }
   ],
   "optionalProfiles": [

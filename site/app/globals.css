@@ -160,59 +160,29 @@ a:focus-visible {
   align-items: start;
 }
 
-.benchmark-comparison {
-  min-inline-size: 0;
-}
-
-.benchmark-answer {
-  margin-block-start: 1rem;
-}
-
-.benchmark-table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  text-align: start;
-}
-
-.benchmark-table caption {
-  padding-block-end: 1rem;
-  color: var(--muted);
-  font-size: 0.95rem;
-  text-align: start;
-}
-
-.benchmark-table th,
-.benchmark-table td {
-  padding-block: 1rem;
-  border-block-end: 1px solid var(--line);
-  vertical-align: middle;
-}
-
-.benchmark-table th {
-  font-weight: 500;
-}
-
-.benchmark-table th:first-child {
-  inline-size: 60%;
-  padding-inline-end: 1rem;
-}
-
-.benchmark-table thead {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.benchmark-table th:last-child,
-.benchmark-table td {
-  text-align: end;
-}
-
-.benchmark-table td {
-  font-size: clamp(1.5rem, 3vw, 2.25rem);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-  white-space: nowrap;
+/* Shared chart geometry comes from design-kit; evidence and reading layout are local. */
+.memory-benchmark { min-inline-size: 0; }
+.memory-benchmark h3 { margin-block: 0 0.6rem; font-size: 1.25rem; font-weight: 500; }
+.memory-benchmark .hraness-design-bar-list-chart { margin: 1.75rem 0; }
+.memory-benchmark .hraness-design-chart-row__label { white-space: normal; overflow: visible; text-overflow: clip; }
+.memory-benchmark .hraness-design-chart-row__heading { flex-wrap: wrap; gap: 0.25rem 1rem; }
+.memory-benchmark .hraness-design-chart-row__value { font-variant-numeric: tabular-nums; }
+.benchmark-method { margin-block: 1.5rem; }
+.benchmark-method > div { display: grid; grid-template-columns: 7rem 1fr; gap: 1rem; padding-block: 0.6rem; border-block-end: 1px solid var(--line); }
+.benchmark-method dt { color: var(--muted); }
+.benchmark-method dd { margin: 0; }
+.benchmark-literature { border-block-start: 1px solid var(--line); margin-block-start: 1.5rem; padding-block-start: 1rem; }
+.benchmark-literature summary { cursor: pointer; min-block-size: 3rem; font-weight: 500; }
+.benchmark-literature table { inline-size: 100%; border-collapse: collapse; table-layout: fixed; text-align: start; }
+.benchmark-literature caption { padding-block-end: 1rem; text-align: start; color: var(--muted); }
+.benchmark-literature th, .benchmark-literature td { text-align: start; vertical-align: top; padding: 0.75rem 0.75rem 0.75rem 0; border-block-end: 1px solid var(--line); overflow-wrap: anywhere; }
+.benchmark-literature th { font-weight: 500; }
+.benchmark-literature a { text-underline-offset: 0.2em; }
+@media (max-width: 38rem) {
+  .benchmark-method > div { grid-template-columns: 1fr; gap: 0.15rem; }
+  .benchmark-literature thead { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+  .benchmark-literature tbody tr { display: grid; padding-block: 0.75rem; border-block-end: 1px solid var(--line); }
+  .benchmark-literature th, .benchmark-literature td { border: 0; padding: 0.25rem 0; }
 }
 
 .benchmark-delta {
@@ -271,35 +241,6 @@ a:focus-visible {
 .benchmark-transfer {
   padding-block-start: 1.25rem;
   border-block-start: 1px solid var(--line);
-}
-
-@media (max-width: 22rem) {
-  .benchmark-table thead {
-    position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .benchmark-table tbody,
-  .benchmark-table tbody tr {
-    display: grid;
-  }
-
-  .benchmark-table tbody th:first-child {
-    inline-size: auto;
-    padding-inline-end: 0;
-    padding-block-end: 0.25rem;
-    border-block-end: 0;
-    text-align: start;
-  }
-
-  .benchmark-table td {
-    padding-block-start: 0;
-    text-align: start;
-  }
 }
 
 /* The trace section: the heading group stays at the top of its column and

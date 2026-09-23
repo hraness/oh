@@ -1,13 +1,12 @@
-# open-source tools for agentic research
+# Oh — memory your agents can trace
 
 [![skills.sh](https://skills.sh/b/hraness/oh)](https://skills.sh/hraness/oh)
 
-Turn a research question into an artifact whose sources, claims, citations,
-dependencies, and change history remain inspectable in one local SQLite file.
-Oh is the ontology kernel, store, CLI, TypeScript SDK, and Agent Skill behind
-that path. It stores content-addressed records and an append-only operation log,
-checks every mutation against an explicit versioned contract, and keeps keyword
-and semantic indexes derived and replaceable.
+Oh is an open-source memory framework for agents. Store facts with their sources,
+retrieve context, derive graph answers with proofs, and inspect how accepted
+records changed. A TypeScript SDK, CLI, and Agent Skill share one versioned
+record model and an append-only operation log. Local SQLite storage works
+without an account or hosted model; search indexes stay rebuildable.
 
 [Website](https://oh.computer) · [Versioned specification](spec/README.md) ·
 [Agent Skill](skills/oh/SKILL.md)
@@ -530,7 +529,7 @@ bun add @suss/datalog@0.20.0
 ```
 
 ```ts
-import { evaluateOhProjectionWithSussV1 } from "@hraness/oh/experimental/projection-suss";
+import { evaluateOhProjectionWithSussV1 } from "@hraness/oh/projection-suss";
 
 const checked = evaluateOhProjectionWithSussV1({
   dataset,
@@ -580,15 +579,13 @@ The exact V1 profile is documented in
 all inference stay local. Keyword mode remains available when QMD or the model
 is absent.
 
-## Add a local reranker
+## Use the best configured retrieval
 
-`mode: "rerank"` mirrors the procedure confirmed in the
-[CloneMem local-reranker confirmation](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md):
-the lexical lane searches a normalized query, the semantic lane keeps the
-original stem, their bounded pools form one union, and a pinned local
-cross-encoder scores every candidate document against the original query
-before the top results return. It is opt-in and off by default; keyword mode
-is unchanged.
+Search and recall select the strongest configured path automatically: local
+reranking when a reranker is present, hybrid search when a semantic backend is
+present, and keyword search otherwise. There is no experimental switch.
+An explicit `mode` remains available when an application needs a particular
+retrieval policy or a reproducible comparison.
 
 ```ts
 import { Oh } from "@hraness/oh/sdk";
@@ -597,20 +594,31 @@ import { OhQmdRerankBackendV1 } from "@hraness/oh/rerank";
 const reranker = new OhQmdRerankBackendV1({
   modelPath: "/absolute/path/to/qwen3-reranker-0.6b-q8_0.gguf",
 });
+// `backend` is the semantic backend configured in the preceding example.
 const oh = Oh.open({ semanticBackend: backend, rerankBackend: reranker });
-
-const result = await oh.search("early programmable machines", {
-  mode: "rerank",
-});
+try {
+  const result = await oh.search("early programmable machines");
+  console.log(result.mode, result.results, result.diagnostics);
+} finally {
+  await oh.close();
+}
 ```
 
-The backend uses the same optional `@tobilu/qmd@2.5.3` peer and a local GGUF
-model you supply — it never downloads weights. The profile
-(`Qwen3-Reranker-0.6B Q8_0`, 4,096-token context, score-descending then
-ASCII-key order) is recorded in `OH_RERANK_PROFILE_V1`. Without a rerank
-backend the mode degrades to the fused order with a `rerank-unavailable`
-diagnostic; without a semantic backend it reranks the keyword pool with a
-`semantic-unavailable` diagnostic.
+The lexical and semantic pools form a bounded union. The local cross-encoder
+scores its documents against the original question and returns the best matches.
+The optional `@tobilu/qmd@2.5.3` backend uses a local model you supply; ordinary
+search never downloads weights or starts a hosted service. The pinned model
+identity and 4,096-token limit are recorded in `OH_RERANK_PROFILE_V1`.
+
+Unavailable backends produce diagnostics and retain the available retrieval
+results. Inspect those diagnostics when a workflow requires semantic or reranked
+results. Local reranking trades compute for relevance: the recorded CloneMem
+procedure had approximately 14.3-second warm query p95 on its test machine.
+That measurement is not a latency promise for the SDK or your hardware.
+
+The [CloneMem study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md) evaluates
+the retrieval procedure with its own source renderer. It is evidence for that
+setup; applications need their own evaluation of record rendering and workload.
 
 ## Add a hosted semantic cache
 
@@ -809,35 +817,35 @@ preimages that JSON Schema cannot express.
 
 ## Benchmark memory
 
-An experimental conversation-packing policy recovered **90.08%** of annotated
-LoCoMo evidence, versus **88.93%** for vector windows under the same
-12,000-byte ceiling. The gain was **1.15 percentage points**, with a 95%
-conversation-cluster interval of **+0.62 to +1.70 points**, across 1,224 questions
-in eight conversations. Both policies used the same top 20 vector results and
-whole original turns. Across all 1,586 confirmation questions, the candidate
-used 236 more bytes on average.
+In the [CloneMem reserved-persona study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md),
+Oh’s lexical/vector candidate union plus local Qwen3 reranking scored **77.82%**
+answer accuracy against **70.54%** for vector retrieval. The paired gain was
+**7.28 percentage points**, with a 95% persona-cluster bootstrap interval of
+**+4.61 to +10.27 points**. The study covers 861 questions from seven personas,
+three reader repeats per arm, and 5,166 completed cases. Mean evidence
+recall@10 rose from **14.48% to 32.80%**, with **22.1% fewer context bytes**.
 
-The matched answer follow-up did **not establish an accuracy gain**: 77.33%
-versus 78.11%, difference −0.78 points (95% interval −4.64 to +2.34). It used
-300 conversation-balanced questions, three GPT-4o mini reader attempts per
-question and policy, and a GPT-4o mini judge. These are agent-run measurements
-on previously evaluated source data. The policy is experimental; it does not
-change SDK defaults or establish a framework leaderboard ranking. Inspect the
-[protocol, results and runnable reproduction](benchmarks/LOCOMO_WINDOW_QA_V1.md).
-The separate [CloneMem comparison](benchmarks/CLONEMEM_TRANSFER_V1.md) also did
-not establish a multiple-choice accuracy gain from Oh hybrid search over vector
-search.
+These are agent-run measurements on data with prior project exposure. The seven
+personas were reserved from immediate development, not a pristine holdout.
+Two failed campaign attempts were excluded under a retry rule added during
+execution; their captures and costs remain recorded. An
+[independent audit](benchmarks/CLONEMEM_RERANK_CONFIRM_AUDIT_V2.md) reproduced
+the scores and interval; assigning all missing first-attempt responses against
+Oh still left a +6.16-point gain. The reader was the
+Gateway GPT-4o mini alias, without a verified immutable snapshot. Scores refer
+to the benchmark renderer and candidate preparation, not every SDK deployment.
 
-Answer-quality development is active. The
-[CloneMem local-reranker confirmation](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md)
-passed its pre-registered gate on all 861 questions from seven reserved
-personas: +7.28 answer points (95% persona-cluster bootstrap lower bound
-+4.61) and +18.32 recall points over vector retrieval, with nonnegative
-reader delta in every persona and 22.1% smaller contexts. The result is
-confirmed on this reserved, project-exposed population only; it does not
-change a default or claim external-framework superiority. The
-[experiment history](benchmarks/README.md) includes the earlier keyword,
-conversation-order and composition tests.
+Oh has **not established superiority over Letta, Supermemory, or other memory
+frameworks**. Vendor-published results use different protocols; the
+[website comparison](https://oh.computer/#benchmarks) keeps them separate from
+our matched runs. A framework-level claim needs a common dataset, reader,
+scoring procedure, context allowance, failure accounting, and production adapter.
+
+We retain negative results. On LoCoMo, query-aware packing improved evidence
+recall (90.08% versus 88.93%) but did not establish an answer-quality gain
+(77.33% versus 78.11%). Earlier CloneMem hybrid and keyword-fusion screens also
+failed their answer-quality advancement rules. Read the
+[experiment history and reproduction guide](benchmarks/README.md).
 
 Run the network-free state and projection checks from a checkout:
 
@@ -857,8 +865,8 @@ The [memory benchmark guide](https://github.com/hraness/oh/blob/main/benchmarks/
 datasets, raw and extracted memory comparisons, explicit paid-run limits,
 recorded reader results, and reproducibility evidence. Retrieval recall,
 downstream answer quality, and agent memory-writing behavior are separate
-measurements. The benchmark adapters do not change default memory or search
-policy.
+measurements. Historical benchmark adapters remain reproducibility tools; the SDK defaults
+are documented separately above.
 
 ## Verify a checkout
 
@@ -873,7 +881,8 @@ unchanged.
 
 ## Who builds on Oh
 
-Oh is the shared record and memory kernel behind other Hraness tools. Each
+Use Oh to build an application’s memory layer. Use Wordcell to maintain and
+query a Markdown knowledge base. Each
 consumer pins an immutable release and upgrades independently:
 
 - [Wordcell](https://wordcell.io)
@@ -886,7 +895,9 @@ consumer pins an immutable release and upgrades independently:
   projection, and memory-host surfaces as the server-side agent
   working-memory layer of its research workspace.
 
-The same engine serves both roles because the roles differ: Wordcell derives
+The [Wordcell integration guide](docs/wordcell.md) explains the boundary.
+Wordcell evaluates its own search pipeline; Oh memory-study scores do not
+automatically transfer to it. In these two integrations, Wordcell derives
 a replaceable projection from files that are already the record; Sponge keeps
 host-owned working records whose authority is the store itself.
 

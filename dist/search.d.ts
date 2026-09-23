@@ -25,6 +25,12 @@ export type OhSearchResponseV1 = Readonly<{
     results: readonly OhSearchResultV1[];
     v: 1;
 }>;
+/** Select only capabilities supplied by the caller; selection never acquires a backend. */
+export declare function resolveOhSearchModeV1(input: Readonly<{
+    backend?: OhSemanticSearchBackend;
+    mode?: OhSearchModeV1;
+    reranker?: OhRerankBackendV1;
+}>): OhSearchModeV1;
 export declare function searchOhV1(input: Readonly<{
     backend?: OhSemanticSearchBackend;
     limit?: number;

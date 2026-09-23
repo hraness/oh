@@ -7,12 +7,16 @@ questions from the seven reserved personas, three independent reader
 attempts each, **5,166** completed cases. The pooled difference was
 **+7.28 percentage points**, with a persona-cluster bootstrap 95% lower
 bound of **+4.61 points**, and recall@10 up **+18.32 points**. The
-candidate passed every condition of its pre-registered confirmatory gate.
+candidate passed every numeric condition of the initially declared gate on
+the complete-campaign matrix. The campaign retry and inclusion rule was added
+during execution; the [dated audit](CLONEMEM_RERANK_CONFIRM_AUDIT_V2.md)
+records that amendment and sensitivity analyses including the failed captures.
 
 This coding-agent experiment completed on 2026-09-23. Model-generated
 answers were scored by CloneMem's exact option-ID rule, with no model
-judge or human grading. The [frozen protocol](CLONEMEM_RERANK_CONFIRM_V1.md)
-remains unchanged. The [complete pooled result](results/memory-clonemem-rerank-confirm-v1.json)
+judge or human grading. The [protocol](CLONEMEM_RERANK_CONFIRM_V1.md)
+retains the original hypotheses and numeric thresholds with the documented
+retry amendment. The [complete pooled result](results/memory-clonemem-rerank-confirm-v1.json)
 retains every persona, group, cost, audit linkage and qualification.
 
 ## What changed
@@ -60,7 +64,7 @@ regressed on 30 and tied on 725.
 
 ## Confirmatory decision
 
-The pre-registered gate required, on the pooled 861-question matrix:
+The initially declared gate required, on the pooled 861-question matrix:
 
 1. **Complete matrix** — all 5,166 responses completed; zero failed,
    refused, truncated, unresolved or unattempted cases. Passed.
@@ -97,7 +101,7 @@ consumed 31.85M input tokens (0.73M cached) and 10.3K output tokens.
 The three completed campaigns charged **$4.730960**. Two earlier group-A
 campaign attempts halted on terminal provider failures — one HTTP 500
 capture, one provider error envelope under HTTP 200 — and were closed,
-independently audited and replaced under the protocol's retry clause;
+  independently audited and replaced under the retry clause added during execution;
 their **$2.282835** is reported as failed-run exposure, and their partial
 matrices did not join the pooled decision. Total task exposure at closure
 was **$12.876502** of the authorized $25; historical research spending

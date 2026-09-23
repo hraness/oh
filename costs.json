@@ -379,7 +379,7 @@
     "benchmark:clonemem-rerank-development": {
       "kind": "derived",
       "retention": "persistent",
-      "owner": ".cache/benchmarks/clonemem-rerank-dev-v1/continuation.ts",
+      "owner": "scripts/benchmarks/paired-memory-study-run.ts",
       "source": "scripts/benchmarks/clonemem-keyword-dev-source.ts",
       "budget": {
         "questionsPerStudy": 146,
@@ -399,10 +399,34 @@
         "privateObservationsBytes": 4194304
       }
     },
+    "benchmark:sdk-retrieval-qualification": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/sdk-retrieval-qualification-run.ts",
+      "source": "scripts/benchmarks/clonemem-dataset.ts",
+      "budget": {
+        "questionsPerCapture": 146,
+        "personas": 2,
+        "retrievalArms": 3,
+        "nativeSecondsPerCapture": 3600,
+        "documentsPerPool": 60,
+        "readerContextBytes": 98304,
+        "paidCampaigns": 2,
+        "maximumPhysicalCallsPerCampaign": 876,
+        "exposureMicrosPerCampaign": 12500000,
+        "additionalTaskExposureMicros": 25000000,
+        "priorTaskExposureMicros": 12876502,
+        "sourceBytes": 67108864,
+        "captureBytes": 67108864,
+        "scorerBytes": 8388608,
+        "planBytes": 134217728,
+        "preparedBytes": 524288
+      }
+    },
     "benchmark:clonemem-rerank-confirmation": {
       "kind": "derived",
       "retention": "persistent",
-      "owner": ".cache/benchmarks/clonemem-rerank-confirm-v1/continuation.ts",
+      "owner": "scripts/benchmarks/paired-memory-study-run.ts",
       "source": "scripts/benchmarks/clonemem-dataset.ts",
       "budget": {
         "questionsPerScreen": 861,

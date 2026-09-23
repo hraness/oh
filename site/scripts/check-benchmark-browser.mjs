@@ -2,11 +2,9 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 
 const evidenceLinks = [
-  "https://github.com/hraness/oh/blob/main/benchmarks/LOCOMO_WINDOW_QA_V1.md",
-  "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json",
-  "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json",
-  "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md",
-  "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_KEYWORD_DEV_RESULT_V1.md",
+  "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md",
+  "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-clonemem-rerank-confirm-v1.json",
+  "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_RERANK_CONFIRM_AUDIT_V2.md",
 ];
 
 async function settled(page) {
@@ -17,6 +15,7 @@ async function settled(page) {
 }
 
 export async function inspectBenchmark(page, label, artifacts) {
+  await page.locator("#benchmarks details").evaluateAll((nodes) => nodes.forEach((node) => { node.open = true; }));
   await page.locator("#benchmarks").scrollIntoViewIfNeeded();
   await settled(page);
   const metrics = await page.evaluate(() => {
@@ -36,6 +35,7 @@ export async function inspectBenchmark(page, label, artifacts) {
       if (!node.textContent.trim()) continue;
       if (++textNodes > 512) throw new Error("Benchmark text-node bound exceeded");
       const parent = node.parentElement;
+      if (parent.closest(".hraness-design-visually-hidden")) continue;
       const header = parent.closest("thead");
       // At 320px the semantic column headers remain accessible, while each
       // visible row stacks its label and value below the metric caption.
@@ -97,8 +97,9 @@ export async function inspectBenchmark(page, label, artifacts) {
     await page.screenshot({ path: join(artifacts, `${label}-benchmark.png`), fullPage: true, clip, animations: "disabled" });
   }
   assert.deepEqual(metrics.issues, [], `${label}: benchmark text clipping or overlap`);
-  assert.equal(await page.locator("#benchmarks table").count(), 2);
-  assert.deepEqual(await page.locator("#benchmarks a").evaluateAll((links) => links.map((link) => link.href)), evidenceLinks);
+  assert.equal(await page.locator("#benchmarks table").count(), 1);
+  assert.equal(await page.locator("#benchmarks .hraness-design-bar-list-chart").count(), 1);
+  assert.deepEqual(await page.locator("#benchmarks > div .benchmark-links a").evaluateAll((links) => links.map((link) => link.href)), evidenceLinks);
   return metrics;
 }
 

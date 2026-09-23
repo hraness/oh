@@ -1,4 +1,4 @@
-import { isPlainRecord } from "./canonical";
+import { hasExactKeys, isPlainRecord } from "./canonical";
 
 /** Cross-encoder rerank profile for the optional local Qwen3 backend.
  * The procedure mirrors the frozen CloneMem confirmation arm
@@ -59,7 +59,7 @@ export interface OhRerankBackendV1 {
   close(): Promise<void>;
 }
 
-export function parseOhRerankQueryV1(query: string): string {
+export function parseOhRerankQueryV1(query: unknown): string {
   if (typeof query !== "string" || Buffer.byteLength(query) > OH_RERANK_LIMITS_V1.maximumQueryBytes
     || /\p{Surrogate}/u.test(query) || query.includes("\0") || query.trim().length === 0) {
     throw new TypeError("Rerank query must be a bounded nonempty string.");
@@ -67,28 +67,41 @@ export function parseOhRerankQueryV1(query: string): string {
   return query;
 }
 
-export function parseOhRerankDocumentsV1(documents: readonly OhRerankDocumentV1[]): readonly OhRerankDocumentV1[] {
+function validText(value: unknown, maximumBytes: number): value is string {
+  return typeof value === "string" && Buffer.byteLength(value) <= maximumBytes
+    && !/\p{Surrogate}/u.test(value) && !value.includes("\0");
+}
+
+export function parseOhRerankDocumentsV1(documents: unknown): readonly OhRerankDocumentV1[] {
   if (!Array.isArray(documents) || documents.length > OH_RERANK_LIMITS_V1.maximumDocuments) {
     throw new TypeError("Rerank accepts at most 128 documents.");
   }
   const seen = new Set<string>();
-  return documents.map((document) => {
-    if (!isPlainRecord(document) || typeof document.key !== "string" || document.key.length === 0
-      || document.key.length > 512 || typeof document.text !== "string"
-      || Buffer.byteLength(document.text) > OH_RERANK_LIMITS_V1.maximumDocumentBytes
-      || !seen.add(document.key)) throw new TypeError("Rerank document identity or byte bound failed.");
-    return { key: document.key, text: document.text, v: 1 } as const;
-  });
+  const parsed: OhRerankDocumentV1[] = [];
+  for (const document of documents) {
+    if (!isPlainRecord(document) || !hasExactKeys(document, ["key", "text", "v"]) || document.v !== 1
+      || !validText(document.key, 512) || document.key.length === 0
+      || !validText(document.text, OH_RERANK_LIMITS_V1.maximumDocumentBytes)
+      || seen.has(document.key)) throw new TypeError("Rerank document identity or byte bound failed.");
+    seen.add(document.key);
+    parsed.push({ key: document.key, text: document.text, v: 1 });
+  }
+  return parsed;
 }
 
-export function parseOhRerankResultsV1(results: readonly OhRerankResultV1[], keys: ReadonlySet<string>): readonly OhRerankResultV1[] {
-  if (!Array.isArray(results) || results.length !== keys.size) throw new TypeError("Rerank must score every submitted document once.");
+export function parseOhRerankResultsV1(results: unknown, keys: ReadonlySet<string>): readonly OhRerankResultV1[] {
+  if (!Array.isArray(results) || results.length > OH_RERANK_LIMITS_V1.maximumDocuments
+    || results.length !== keys.size) throw new TypeError("Rerank must score every submitted document once.");
   const seen = new Set<string>();
-  return results.map((result) => {
-    if (!isPlainRecord(result) || typeof result.key !== "string" || !keys.has(result.key)
-      || typeof result.score !== "number" || !Number.isFinite(result.score) || !seen.add(result.key)) {
+  const parsed: OhRerankResultV1[] = [];
+  for (const result of results) {
+    if (!isPlainRecord(result) || !hasExactKeys(result, ["key", "score", "v"]) || result.v !== 1
+      || !validText(result.key, 512) || !keys.has(result.key)
+      || typeof result.score !== "number" || !Number.isFinite(result.score) || seen.has(result.key)) {
       throw new TypeError("Rerank result coverage or score bound failed.");
     }
-    return { key: result.key, score: result.score, v: 1 } as const;
-  });
+    seen.add(result.key);
+    parsed.push({ key: result.key, score: result.score, v: 1 });
+  }
+  return parsed;
 }

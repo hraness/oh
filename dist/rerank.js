@@ -15,8 +15,10 @@ var __export = (target, all) => {
 };
 
 // src/rerank.ts
-import { createRequire } from "module";
-import { join } from "path";
+import { createHash as createHash2 } from "crypto";
+import { open, realpath, stat } from "fs/promises";
+import { dirname, isAbsolute, join, resolve } from "path";
+import { fileURLToPath, pathToFileURL } from "url";
 
 // src/canonical.ts
 import { createHash, randomBytes } from "crypto";
@@ -184,106 +186,224 @@ function parseOhRerankQueryV1(query) {
   }
   return query;
 }
+function validText(value, maximumBytes) {
+  return typeof value === "string" && Buffer.byteLength(value) <= maximumBytes && !/\p{Surrogate}/u.test(value) && !value.includes("\x00");
+}
 function parseOhRerankDocumentsV1(documents) {
   if (!Array.isArray(documents) || documents.length > OH_RERANK_LIMITS_V1.maximumDocuments) {
     throw new TypeError("Rerank accepts at most 128 documents.");
   }
   const seen = new Set;
-  return documents.map((document) => {
-    if (!isPlainRecord(document) || typeof document.key !== "string" || document.key.length === 0 || document.key.length > 512 || typeof document.text !== "string" || Buffer.byteLength(document.text) > OH_RERANK_LIMITS_V1.maximumDocumentBytes || !seen.add(document.key))
+  const parsed = [];
+  for (const document of documents) {
+    if (!isPlainRecord(document) || !hasExactKeys(document, ["key", "text", "v"]) || document.v !== 1 || !validText(document.key, 512) || document.key.length === 0 || !validText(document.text, OH_RERANK_LIMITS_V1.maximumDocumentBytes) || seen.has(document.key))
       throw new TypeError("Rerank document identity or byte bound failed.");
-    return { key: document.key, text: document.text, v: 1 };
-  });
+    seen.add(document.key);
+    parsed.push({ key: document.key, text: document.text, v: 1 });
+  }
+  return parsed;
 }
 function parseOhRerankResultsV1(results, keys) {
-  if (!Array.isArray(results) || results.length !== keys.size)
+  if (!Array.isArray(results) || results.length > OH_RERANK_LIMITS_V1.maximumDocuments || results.length !== keys.size)
     throw new TypeError("Rerank must score every submitted document once.");
   const seen = new Set;
-  return results.map((result) => {
-    if (!isPlainRecord(result) || typeof result.key !== "string" || !keys.has(result.key) || typeof result.score !== "number" || !Number.isFinite(result.score) || !seen.add(result.key)) {
+  const parsed = [];
+  for (const result of results) {
+    if (!isPlainRecord(result) || !hasExactKeys(result, ["key", "score", "v"]) || result.v !== 1 || !validText(result.key, 512) || !keys.has(result.key) || typeof result.score !== "number" || !Number.isFinite(result.score) || seen.has(result.key)) {
       throw new TypeError("Rerank result coverage or score bound failed.");
     }
-    return { key: result.key, score: result.score, v: 1 };
-  });
+    seen.add(result.key);
+    parsed.push({ key: result.key, score: result.score, v: 1 });
+  }
+  return parsed;
 }
 
 // src/rerank.ts
+var TEMPLATE_OVERHEAD = 512;
+var MAXIMUM_MODEL_BYTES = 1073741824;
+var qmdModuleSpecifier = "@tobilu/qmd";
+function localPath(value, label) {
+  if (typeof value !== "string" || value.length === 0 || Buffer.byteLength(value) > 4096 || value.includes("\x00") || /\p{Surrogate}/u.test(value) || !isAbsolute(value) && /^[a-z][a-z\d+.-]*:/iu.test(value)) {
+    throw new TypeError("The rerank " + label + " must be a bounded local path.");
+  }
+  return resolve(value);
+}
+function fileIdentity(value) {
+  return [value.dev, value.ino, value.size, value.mtimeMs, value.ctimeMs].join(":");
+}
+async function verifyModel(path) {
+  const actual = await realpath(path), target = await stat(actual);
+  if (!target.isFile() || target.size < 1 || target.size > MAXIMUM_MODEL_BYTES) {
+    throw new Error("The rerank model must be a regular local file of at most 1 GiB.");
+  }
+  const file = await open(actual, "r");
+  try {
+    const before = await file.stat();
+    if (!before.isFile() || before.size < 1 || before.size > MAXIMUM_MODEL_BYTES) {
+      throw new Error("The rerank model must be a regular local file of at most 1 GiB.");
+    }
+    const hash = createHash2("sha256"), buffer = Buffer.alloc(65536);
+    let bytes = 0;
+    while (bytes <= before.size) {
+      const count = (await file.read(buffer, 0, Math.min(buffer.length, before.size - bytes + 1), bytes)).bytesRead;
+      if (count === 0)
+        break;
+      bytes += count;
+      if (bytes > before.size)
+        throw new Error("The rerank model changed during verification.");
+      hash.update(buffer.subarray(0, count));
+    }
+    const identity = fileIdentity(before);
+    if (bytes !== before.size || hash.digest("hex") !== OH_RERANK_PROFILE_V1.modelSha256) {
+      throw new Error("The local rerank model does not match the pinned SHA-256.");
+    }
+    if (identity !== fileIdentity(await file.stat()) || identity !== fileIdentity(await stat(actual))) {
+      throw new Error("The rerank model changed during verification.");
+    }
+    return { path: actual, identity };
+  } finally {
+    await file.close();
+  }
+}
+async function qmdConstructor() {
+  let packagePath;
+  try {
+    packagePath = join(dirname(fileURLToPath(import.meta.resolve(qmdModuleSpecifier))), "..", "package.json");
+  } catch {
+    throw new Error("Reranking needs the optional @tobilu/qmd@2.5.3 package.");
+  }
+  const file = await open(packagePath, "r");
+  let metadata;
+  try {
+    const info = await file.stat();
+    if (!info.isFile() || info.size > 65536)
+      throw new Error("The QMD package metadata exceeds its byte bound.");
+    const buffer = Buffer.alloc(65537);
+    let bytes = 0;
+    while (bytes < buffer.length) {
+      const count = (await file.read(buffer, bytes, buffer.length - bytes, bytes)).bytesRead;
+      if (count === 0)
+        break;
+      bytes += count;
+    }
+    if (bytes > 65536)
+      throw new Error("The QMD package metadata exceeds its byte bound.");
+    metadata = JSON.parse(buffer.subarray(0, bytes).toString("utf8"));
+  } finally {
+    await file.close();
+  }
+  if (!isPlainRecord(metadata) || metadata.name !== "@tobilu/qmd" || metadata.version !== "2.5.3") {
+    throw new Error("Reranking requires exactly @tobilu/qmd@2.5.3.");
+  }
+  const module = await import(pathToFileURL(join(dirname(packagePath), "dist", "llm.js")).href);
+  const LlamaCpp = module.LlamaCpp;
+  if (typeof LlamaCpp !== "function")
+    throw new Error("The installed QMD package has no compatible LlamaCpp export.");
+  const profile = LlamaCpp;
+  if (profile.RERANK_CONTEXT_SIZE !== OH_RERANK_PROFILE_V1.contextSize || profile.RERANK_TEMPLATE_OVERHEAD !== TEMPLATE_OVERHEAD) {
+    throw new Error("The QMD rerank context or template budget differs from the pinned profile.");
+  }
+  return LlamaCpp;
+}
+function tokenCount(tokens) {
+  if (!Array.isArray(tokens))
+    throw new Error("The rerank engine returned invalid tokenizer output.");
+  return tokens.length;
+}
+
 class OhQmdRerankBackendV1 {
   profile = OH_RERANK_PROFILE_V1;
   #options;
   #engine;
+  #loading;
+  #release;
+  #closing;
   #closed = false;
   #pending = Promise.resolve();
   constructor(options) {
-    if (typeof options.modelPath !== "string" || options.modelPath.length === 0 || options.modelPath.length > 4096 || options.modelPath.includes("\x00"))
-      throw new TypeError("The rerank model path must be a bounded local path.");
-    if (options.modelCacheDir !== undefined && (typeof options.modelCacheDir !== "string" || options.modelCacheDir.length === 0 || options.modelCacheDir.length > 4096 || options.modelCacheDir.includes("\x00")))
-      throw new TypeError("The rerank model cache directory must be a bounded local path.");
-    this.#options = options;
+    this.#options = {
+      modelPath: localPath(options.modelPath, "model path"),
+      ...options.modelCacheDir === undefined ? {} : { modelCacheDir: localPath(options.modelCacheDir, "model cache directory") }
+    };
   }
-  async#load() {
-    if (this.#engine !== undefined)
-      return this.#engine;
-    let module;
-    try {
-      const require2 = createRequire(import.meta.url);
-      const packageJson = require2.resolve("@tobilu/qmd/package.json");
-      module = await import(join(packageJson, "..", "dist", "llm.js"));
-    } catch {
-      throw new Error("Reranking needs the optional @tobilu/qmd@2.5.3 package.");
-    }
-    const LlamaCpp = module.LlamaCpp;
-    if (typeof LlamaCpp !== "function")
-      throw new Error("The installed QMD package has no compatible LlamaCpp export.");
+  #dispose() {
+    return this.#release ??= Promise.resolve().then(async () => {
+      await this.#engine?.dispose();
+    });
+  }
+  async#initialize() {
+    const verified = await verifyModel(this.#options.modelPath);
+    const LlamaCpp = await qmdConstructor();
     const engine = new LlamaCpp({
       inactivityTimeoutMs: 0,
-      modelCacheDir: this.#options.modelCacheDir,
-      rerankModel: this.#options.modelPath
+      modelCacheDir: this.#options.modelCacheDir ?? dirname(verified.path),
+      rerankModel: verified.path
     });
-    await engine.ensureLlama(false);
-    const contexts = await engine.ensureRerankContexts();
-    if (contexts.length < 1 || contexts[0]._llamaContext.contextSize !== OH_RERANK_PROFILE_V1.contextSize) {
-      await engine.dispose().catch(() => {});
-      throw new Error(`The rerank engine context size is not ${OH_RERANK_PROFILE_V1.contextSize}.`);
-    }
     this.#engine = engine;
-    return engine;
+    try {
+      if (engine.rerankModelName !== verified.path)
+        throw new Error("The rerank engine changed the local model path.");
+      await engine.ensureLlama(false);
+      const model = await engine.ensureRerankModel();
+      const contexts = await engine.ensureRerankContexts();
+      if (await realpath(model._modelPath) !== verified.path || fileIdentity(await stat(verified.path)) !== verified.identity) {
+        throw new Error("The loaded rerank model differs from the verified local file.");
+      }
+      if (typeof model.tokenize !== "function" || !Array.isArray(contexts) || contexts.length < 1 || contexts.length > 4 || contexts.some((context) => context?._llamaContext?.contextSize !== OH_RERANK_PROFILE_V1.contextSize || typeof context?._getEvaluationInput !== "function")) {
+        throw new Error("The rerank engine needs compatible 4096-token contexts.");
+      }
+      return { engine, model, contexts, modelPath: verified.path };
+    } catch (error) {
+      await this.#dispose();
+      throw error;
+    }
   }
   rerank(query, documents) {
     if (this.#closed)
       return Promise.reject(new Error("The rerank backend is closed."));
-    const parsedQuery = parseOhRerankQueryV1(query);
-    const parsedDocuments = parseOhRerankDocumentsV1(documents);
+    let parsedQuery, parsedDocuments;
+    try {
+      parsedQuery = parseOhRerankQueryV1(query);
+      parsedDocuments = parseOhRerankDocumentsV1(documents);
+    } catch (error) {
+      return Promise.reject(error);
+    }
     if (parsedDocuments.length === 0)
       return Promise.resolve([]);
     const operation = this.#pending.then(async () => {
-      const engine = await this.#load();
+      const { engine, model, contexts, modelPath } = await (this.#loading ??= this.#initialize());
+      const queryTokens = tokenCount(model.tokenize(parsedQuery));
+      const documentBudget = OH_RERANK_PROFILE_V1.contextSize - TEMPLATE_OVERHEAD - queryTokens;
+      if (documentBudget < 0)
+        throw new RangeError("The complete rerank query exceeds the 4096-token context; truncation is disabled.");
+      for (const document of parsedDocuments) {
+        if (tokenCount(model.tokenize(document.text)) > documentBudget || contexts.some((context) => tokenCount(context._getEvaluationInput(parsedQuery, document.text)) >= OH_RERANK_PROFILE_V1.contextSize)) {
+          throw new RangeError("A complete rerank query/document pair exceeds the 4096-token context; truncation is disabled.");
+        }
+      }
       const raw = await engine.rerank(parsedQuery, parsedDocuments.map((document) => ({ file: document.key, text: document.text })));
-      const results = raw.results;
-      if (!Array.isArray(results))
+      if (!isPlainRecord(raw) || !hasExactKeys(raw, ["results", "model"]) || raw.model !== modelPath || !Array.isArray(raw.results) || raw.results.length !== parsedDocuments.length) {
         throw new Error("The rerank engine returned an invalid result envelope.");
-      const keys = new Set(parsedDocuments.map((document) => document.key));
-      const scored = results.map((value) => {
-        if (value === null || typeof value !== "object")
+      }
+      const scored = [];
+      for (const row of raw.results) {
+        if (!isPlainRecord(row) || !hasExactKeys(row, ["file", "index", "score"]) || typeof row.file !== "string" || !Number.isSafeInteger(row.index) || parsedDocuments[row.index]?.key !== row.file || typeof row.score !== "number" || !Number.isFinite(row.score) || row.score < 0 || row.score > 1) {
           throw new TypeError("The rerank engine returned an invalid score row.");
-        const row = value;
-        const key = typeof row.file === "string" ? row.file : typeof row.key === "string" ? row.key : undefined;
-        const score = typeof row.score === "number" ? row.score : Number.NaN;
-        return { key, score, v: 1 };
-      });
-      const parsed = parseOhRerankResultsV1(scored.map((row) => ({ key: row.key ?? "", score: row.score, v: 1 })), keys);
-      return [...parsed].sort((left, right) => right.score - left.score || left.key.localeCompare(right.key));
+        }
+        scored.push({ key: row.file, score: row.score, v: 1 });
+      }
+      const parsed = parseOhRerankResultsV1(scored, new Set(parsedDocuments.map((document) => document.key)));
+      return [...parsed].sort((left, right) => right.score - left.score || (left.key < right.key ? -1 : left.key > right.key ? 1 : 0));
     });
     this.#pending = operation.catch(() => {});
     return operation;
   }
-  async close() {
-    if (this.#closed)
-      return;
+  close() {
+    if (this.#closing !== undefined)
+      return this.#closing;
     this.#closed = true;
-    await this.#pending.catch(() => {});
-    if (this.#engine !== undefined)
-      await this.#engine.dispose();
+    this.#closing = this.#pending.then(() => this.#dispose());
+    return this.#closing;
   }
 }
 export {
