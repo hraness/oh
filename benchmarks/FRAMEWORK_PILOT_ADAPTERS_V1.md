@@ -15,8 +15,9 @@ SDK adds its normal record wrapper for indexing. Supermemory adds its documented
 transport fields. Neither adapter reads a benchmark answer or evidence label.
 
 The source contract proves preservation relative to the supplied projection.
-Connecting that projection to the complete raw dataset remains a separate
-step. Native model admission must also establish that every actual query and
+The [raw LongMemEval bridge](FRAMEWORK_PILOT_EVIDENCE_V1.md#complete-source-histories)
+connects that projection to the pinned complete dataset and frozen selection.
+Native model admission must also establish that every actual query and
 wrapped document fits the selected model. A byte bound does not establish a
 token bound.
 
@@ -86,8 +87,9 @@ will fit. Request counts exclude provider-internal work and are not a cash cap.
 Results distinguish `provider-generated-memory` from
 `provider-document-chunk`. Returned document references join to accepted source
 units, but neither result kind is claimed to be authenticated original text.
-They must not be relabeled as source-unit Recall@20. A subsequent renderer must
-retain the evidence kind when preparing a common reader context.
+They must not be relabeled as source-unit Recall@20. The
+[common evidence renderer](FRAMEWORK_PILOT_EVIDENCE_V1.md#comparable-evidence-strings)
+retains the evidence kind when preparing a reader context.
 
 Cleanup requires complete scoped inventories and ownership checks. It deletes
 only the owned namespace, checks known document IDs for absence, and observes
@@ -97,7 +99,7 @@ erasure, cancellation of internal work or final billing settlement.
 
 ## Reader and judge routes
 
-The [model catalog](../scripts/benchmarks/evolution-model.ts) adds three explicit
+The [model catalog](../scripts/benchmarks/evolution-model.ts) adds five explicit
 profiles without changing the identities of older profiles:
 
 | Profile | Request route | Output ceiling |
@@ -105,6 +107,8 @@ profiles without changing the identities of older profiles:
 | `gpt4o-20240806-framework-pilot-v1-reader` | Direct `gpt-4o-2024-08-06` | 512 |
 | `gpt4o-gateway-framework-pilot-v1-reader` | Gateway `openai/gpt-4o`; requires reported resolution to `gpt-4o-2024-08-06` | 512 |
 | `gpt4o-gateway-framework-pilot-16-v1-judge` | Same Gateway route and resolution requirement | 16 |
+| `gpt4o-gateway-framework-pilot-alias-v1-reader` | Gateway `openai/gpt-4o`; dated snapshot may be undisclosed | 512 |
+| `gpt4o-gateway-framework-pilot-16-alias-v1-judge` | Same explicitly unpinned Gateway route | 16 |
 
 Each uses temperature 0, one user message, no streaming and no model fallback.
 The existing direct snapshot judge retains its 10-token ceiling. The Gateway
@@ -113,9 +117,16 @@ judge's 16-token ceiling is an explicit operational departure: the earlier
 provider rejection.
 
 An accepted Gateway response remains an alias request with
-`snapshotPinned: false`, even when its reported resolution matches. Missing or different
-resolution fails validation. Route availability and account authority require
-separate live evidence. The constructor neither discovers credentials nor
+`snapshotPinned: false`, even when it reports a dated resolution. The strict
+profiles reject missing or different August 2024 resolution. The separate
+`alias-v1` profiles accept the Gateway's observed family-only metadata and
+record an undisclosed snapshot as `null`. They retain verified route and usage
+checks. They do not reinterpret a captured response from a strict profile.
+Scores from these alias treatments cannot claim reproduction of the official
+pinned reader or judge stack.
+
+Route availability and account authority require separate live evidence.
+The constructor neither discovers credentials nor
 dispatches requests. All routes retain the existing shared spending ledger,
 first-response capture, conservative reservations and usage checks.
 
@@ -127,10 +138,10 @@ uncertain writes and owned cleanup. Tokenizer qualification compares its counts
 against the pinned official implementation. These checks do not establish live
 retrieval quality or the fairness of a complete campaign by themselves.
 
-A campaign still needs a frozen population and exposure record, a verified raw
-source bridge, native model and common split-plan admission, a qualified live
-provider transport, account-specific funding, a shared evidence renderer and
-reader prompt, separate gold access, and reporting over every intended case.
+A campaign binds the [frozen population, raw source bridge, shared evidence and
+reader](FRAMEWORK_PILOT_EVIDENCE_V1.md) to native model and common split-plan
+admission, a qualified live provider transport, account-specific funding,
+separate gold access, and reporting over every intended case.
 Capture all retrieval contexts or failures before opening gold for judging.
 Keep ingestion, local compute, query, reader, judge and cleanup costs and times
 in the final report, including unknown or unsettled charges.

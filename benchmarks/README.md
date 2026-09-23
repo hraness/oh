@@ -46,6 +46,12 @@ The [offline tokenizer](FRAMEWORK_PILOT_TOKENIZER_V1.md) counts complete context
 strings against pinned OpenAI tokenizer artifacts. Live campaign qualification
 and matched quality results remain separate from these source checks.
 
+The [pilot source, evidence and reader contract](FRAMEWORK_PILOT_EVIDENCE_V1.md)
+publishes the fixed 60-question selection and prior-exposure record. Its raw
+source bridge reconciles complete histories while separating evaluator fields;
+its common renderer distinguishes original source from provider-generated
+evidence and enforces the shared context budget. No matched score is reported.
+
 The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
 answer or recall gain from shipped hybrid search over matched vector retrieval.
 The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) confirmed an evidence-recall

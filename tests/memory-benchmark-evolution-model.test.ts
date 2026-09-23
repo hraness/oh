@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { makeEvolutionAnswerAuditMessages } from "../scripts/benchmarks/evolution-answer-audit";
-import { EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
+import { EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID,
+  EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_OPENAI_ENDPOINT, EVOLUTION_PROFILES, EVOLUTION_RESPONSE_MAX_BYTES,
   makeEvolutionRequest, parseEvolutionResponse, validateEvolutionRequest, type EvolutionProfileId,
   type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
@@ -33,7 +34,9 @@ describe("memory evolution model contracts", () => {
     for (const id of ids) {
       const prompt = id === "gpt5-mini-answer-audit-v1"
         ? makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "Blue.", draftAnswer: "Blue." })
-        : EVOLUTION_PROFILES[id].requiredResolvedSnapshot !== undefined || id === EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID || id === "gpt4o-mini-clonemem-choice-v1-reader" || id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1"
+        : EVOLUTION_PROFILES[id].requiredResolvedSnapshot !== undefined || id === EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID
+          || id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID || id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
+          || id === "gpt4o-mini-clonemem-choice-v1-reader" || id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1"
           || id === "gpt4o-beam-event-extraction-v1" || id === "gpt4o-beam-nugget-v1" ? directJudgeMessages : messages;
       const request = makeEvolutionRequest(id, prompt), bytes = raw(response(request));
       const result = parseEvolutionResponse(bytes, request);
@@ -101,6 +104,48 @@ describe("memory evolution model contracts", () => {
       expect(() => parseEvolutionResponse(mutate(matching, value => { value.model = "gpt-4o-2024-05-13"; }), request)).toThrow();
       expect(() => makeEvolutionRequest(id, messages)).toThrow("prompt shape");
       expect(() => validateEvolutionRequest({ ...request, profileId: "gpt4o-gateway-native-rubric-judge-v1" })).toThrow("request changed");
+    }
+  });
+
+  test("explicit framework alias treatments preserve all 108 pre-existing profile identities", () => {
+    const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) =>
+      id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID));
+    expect(Object.keys(previous)).toHaveLength(108);
+    expect(canonicalSha256(previous)).toBe("361cfed008518d23dfda4cd463127075daf79630addb0183b23cb3138dcaa1bb");
+  });
+
+  test("only explicit framework alias treatments accept an undisclosed snapshot and remain unpinned", () => {
+    for (const [aliasId, strictId, cap] of [
+      [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID, 512],
+      [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, 16],
+    ] as const) {
+      const alias = makeEvolutionRequest(aliasId, directJudgeMessages), strict = makeEvolutionRequest(strictId, directJudgeMessages);
+      expect(alias.body).toEqual(strict.body);
+      expect(alias.maxOutputTokens).toBe(cap);
+      expect(alias.reservationMicros).toBe(strict.reservationMicros);
+      expect(alias.requestSha256).not.toBe(strict.requestSha256);
+      expect(alias.profileSha256).not.toBe(strict.profileSha256);
+      expect(EVOLUTION_PROFILES[aliasId].requiredResolvedSnapshot).toBeUndefined();
+      for (const resolved of [undefined, null, "gpt-4o"]) {
+        const generic = response(alias);
+        generic.providerMetadata!.gateway.routing.resolvedProviderApiModelId = resolved as string;
+        // Match the Gateway's observed placement without copying any live completion.
+        const nested = structuredClone(generic) as Record<string, any>;
+        nested.choices[0].message.provider_metadata = nested.providerMetadata;
+        delete nested.providerMetadata;
+        expect(parseEvolutionResponse(raw(nested), alias).identity).toMatchObject({
+          qualification: "gateway-alias", snapshotPinned: false, resolvedSnapshot: null,
+          requestedModel: "openai/gpt-4o", finalProvider: "openai" });
+        expect(() => parseEvolutionResponse(raw(nested), strict)).toThrow("required Gateway snapshot");
+      }
+      const dated = response(alias);
+      dated.providerMetadata!.gateway.routing.resolvedProviderApiModelId = "gpt-4o-2024-05-13";
+      expect(parseEvolutionResponse(raw(dated), alias).identity).toMatchObject({
+        qualification: "gateway-alias", snapshotPinned: false, resolvedSnapshot: "gpt-4o-2024-05-13" });
+      expect(() => parseEvolutionResponse(mutate(dated, value => { value.providerMetadata.gateway.routing.finalProvider = "azure"; }), alias)).toThrow("provider mismatch");
+      expect(() => parseEvolutionResponse(mutate(dated, value => { delete value.providerMetadata; }), alias)).toThrow("Gateway metadata");
+      expect(() => makeEvolutionRequest(aliasId, messages)).toThrow("prompt shape");
+      expect(() => validateEvolutionRequest({ ...strict, profileId: aliasId })).toThrow("request changed");
     }
   });
 

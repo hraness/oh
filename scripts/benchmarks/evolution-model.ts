@@ -35,8 +35,11 @@ export type EvolutionCloneMemChoiceReaderProfileId = typeof EVOLUTION_CLONEMEM_C
 export const EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID = "gpt4o-20240806-framework-pilot-v1-reader";
 export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID = "gpt4o-gateway-framework-pilot-v1-reader";
 export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID = "gpt4o-gateway-framework-pilot-16-v1-judge";
+export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID = "gpt4o-gateway-framework-pilot-alias-v1-reader";
+export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID = "gpt4o-gateway-framework-pilot-16-alias-v1-judge";
 export type EvolutionFrameworkPilotProfileId = typeof EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID
-  | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID;
+  | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
+  | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID;
 export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId | EvolutionCloneMemChoiceReaderProfileId | EvolutionFrameworkPilotProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
@@ -206,6 +209,12 @@ const FRAMEWORK_PILOT_PROFILES: Readonly<Record<EvolutionFrameworkPilotProfileId
   [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-gateway-native-rubric-16-judge-v1"],
     id: EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, pricingCheckedAt: "2026-09-23",
     requiredResolvedSnapshot: "gpt-4o-2024-08-06" },
+  // Explicit unpinned treatments for Gateway responses that expose only the family alias.
+  // These distinct identities never reinterpret captures from the strict profiles above.
+  [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-gateway-native-rubric-judge-v1"],
+    id: EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, maxOutputTokens: 512, pricingCheckedAt: "2026-09-23" },
+  [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-gateway-native-rubric-16-judge-v1"],
+    id: EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID, pricingCheckedAt: "2026-09-23" },
 });
 export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES, ...CLONEMEM_CHOICE_PROFILES, ...FRAMEWORK_PILOT_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
@@ -224,7 +233,9 @@ function getProfile(value: unknown): EvolutionModelProfile {
   return EVOLUTION_PROFILES[value as EvolutionProfileId];
 }
 function validMessages(value: unknown, selected: EvolutionModelProfile): value is readonly Message[] {
-  const nativeJudge = selected.id === EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID || selected.qualification === "official-snapshot-request" || selected.requiredResolvedSnapshot !== undefined || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
+  const nativeJudge = selected.id === EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID || selected.qualification === "official-snapshot-request" || selected.requiredResolvedSnapshot !== undefined
+    || selected.id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID || selected.id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
+    || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
     || selected.id === "gpt4o-beam-event-extraction-v1" || selected.id === "gpt4o-beam-nugget-v1";
   return Array.isArray(value) && (nativeJudge
     ? value.length === 1 && value[0]?.role === "user"
