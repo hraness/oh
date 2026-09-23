@@ -72,6 +72,25 @@ The screen's decision applies to the **pooled 861-question matrix** across all
 three campaigns. The campaign split is an execution detail, not a sampling
 decision: every planned question enters exactly once per arm per repeat.
 
+### Campaign retry on terminal provider failure
+
+A campaign store records every captured provider response as durable evidence.
+When a captured response is unverifiable (for example a provider 5xx body, or
+an error envelope under HTTP 200), its row remains permanently unresolved and
+charged at its full reservation, and the framework refuses further admissions
+to that store. Such a campaign can never complete its matrix. In that case:
+
+1. The campaign is closed as-is; every captured response, the terminal
+   unresolved row, and all charges are preserved and independently audited.
+2. A **fresh campaign under a new campaign identity** is reconciled against
+   the closed predecessor for the same persona group, reusing the same frozen
+   input pins, scorer, prompt, plan, model and accounting policy. The
+   replacement re-runs the group's complete matrix; no completed or
+   unresolved row is ever retried in place or double-charged.
+3. The pooled decision consumes only campaigns with a complete matrix. Failed
+   campaign spend remains honest task exposure and is reported as
+   `failedRuns` in the pooled result.
+
 ## Confirmatory decision rule (pre-registered)
 
 The screen yields `confirmedImprovement: true` only if **all** of the
@@ -101,8 +120,10 @@ holdout and not a framework-leaderboard claim.
   experiments. Prior completed task exposure before this screen is
   **$5.862707** (five closed campaigns, zero unresolved charges).
 - Each campaign extends the closed-accounting ledger: predecessor store stays
-  closed and immutable; no writes to old stores; unresolved charges remain
-  zero.
+  closed and immutable; no writes to old stores. A terminal unresolved
+  reservation remains charged at its full reservation and is recorded, audited
+  and reported as failed-run exposure; it is never silently dropped or
+  retried inside the same store.
 - The same native custody rules apply: bounded artifacts, owned attempts,
   checkpointed jobs, closed-store post-run audit, offline score
   reconstruction, and the private/public artifact split.
