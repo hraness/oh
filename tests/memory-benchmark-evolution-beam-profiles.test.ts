@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { makeEvolutionAnswerAuditMessages } from "../scripts/benchmarks/evolution-answer-audit";
-import { EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
+import { EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID,
+  EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BEAM_JUDGE_PROFILE_IDS as beamIds, EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID, EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID, EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_PROFILES,
   evolutionReaderContract, makeEvolutionRequest, makeEvolutionProfileWindowRequest, parseEvolutionResponse,
   supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
@@ -18,6 +19,7 @@ const prompts = (id: string) => id === "gpt4o-beam-event-equivalence-v1" ? ordin
 
 test("BEAM profiles preserve all 98 existing profile/request bytes and all 54 full-window requests", () => {
   const old = Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID
+    && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
     && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
     && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && !(beamIds as readonly string[]).includes(id)
     && id !== EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID && id !== EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);

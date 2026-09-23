@@ -3,7 +3,8 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
-import { EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
+import { EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID,
+  EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID as capacityId, EVOLUTION_PROFILES, evolutionReaderContract,
   makeEvolutionRequest, makeEvolutionProfileWindowRequest, supportsEvolutionProfileWindow, validateEvolutionRequest,
   parseEvolutionResponse, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
@@ -19,6 +20,7 @@ test("capacity addition preserves all103 prior profiles/requests and56 full-wind
   const single = [{ role: "user" as const, content: "Evaluate this LongMemEval answer exactly as instructed." }];
   const audit = makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "The synthetic tile is blue.", draftAnswer: "Blue." });
   const profiles = Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID
+    && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
     && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
     && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== capacityId).sort(([a], [b]) => a < b ? -1 : 1);
   const requests = profiles.map(([id, p]) => makeEvolutionRequest(id as EvolutionProfileId, id === "gpt5-mini-answer-audit-v1" ? audit : p.qualification === "official-snapshot-request"

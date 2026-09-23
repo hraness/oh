@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { answerMessages, ANSWER_INSTRUCTION } from "../scripts/benchmarks/model";
 import { EVOLUTION_ANSWER_CONTRACT_IDS, EVOLUTION_READER_CONTRACT_IDS, EVOLUTION_READER_CONTRACTS, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
-import { EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
+import { EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID,
+  EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BASE_READER_IDS, EVOLUTION_PROFILES, evolutionReaderContract, evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest,
   parseEvolutionResponse, supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan } from "../scripts/benchmarks/evolution-plan";
@@ -140,6 +141,7 @@ describe("composable isolated reader answer contracts", () => {
       EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID,
       EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
       EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID,
+      EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID,
       "gpt5-mini-low-extractor-v1", "gpt5-mini-structured-extractor-v2", EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID,
       "gpt5-mini-answer-audit-v1",
       "gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1",
