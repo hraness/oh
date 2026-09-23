@@ -1,0 +1,280 @@
+{
+ "arms": [
+  "raw-vector",
+  "oh-union-qwen3-rerank-v1"
+ ],
+ "attribution": "Coding-agent experiment; model-generated answers scored by native option-ID rule",
+ "bootstrap": {
+  "lowerBound95": 0.04608661104489471,
+  "method": "persona-cluster",
+  "qualification": "seven-persona cluster resample; reserved population still project-exposed",
+  "resamples": 10000,
+  "seed": "frozen-screen-pin-derived deterministic",
+  "upperBound95": 0.10265848670756646
+ },
+ "byPersona": [
+  {
+   "persona": "persona-04",
+   "reader": {
+    "baseline": 0.7285429141716566,
+    "candidate": 0.8423153692614771,
+    "delta": 0.11377245508982037,
+    "losses": 4,
+    "questions": 167,
+    "ties": 139,
+    "wins": 24
+   },
+   "retrieval": {
+    "baseline": 0.09870518702854031,
+    "candidate": 0.2900873577520285,
+    "delta": 0.191382170723488,
+    "questions": 167
+   }
+  },
+  {
+   "persona": "persona-05",
+   "reader": {
+    "baseline": 0.7484848484848485,
+    "candidate": 0.7696969696969697,
+    "delta": 0.02121212121212121,
+    "losses": 5,
+    "questions": 110,
+    "ties": 97,
+    "wins": 8
+   },
+   "retrieval": {
+    "baseline": 0.24237012987012982,
+    "candidate": 0.40490259740259743,
+    "delta": 0.16253246753246756,
+    "questions": 110
+   }
+  },
+  {
+   "persona": "persona-06",
+   "reader": {
+    "baseline": 0.6924493554327809,
+    "candidate": 0.7421731123388583,
+    "delta": 0.04972375690607735,
+    "losses": 14,
+    "questions": 181,
+    "ties": 143,
+    "wins": 24
+   },
+   "retrieval": {
+    "baseline": 0.08971761817065683,
+    "candidate": 0.3059216872752784,
+    "delta": 0.21620406910462148,
+    "questions": 181
+   }
+  },
+  {
+   "persona": "persona-07",
+   "reader": {
+    "baseline": 0.48598130841121495,
+    "candidate": 0.6043613707165109,
+    "delta": 0.11838006230529595,
+    "losses": 4,
+    "questions": 107,
+    "ties": 82,
+    "wins": 21
+   },
+   "retrieval": {
+    "baseline": 0.13762828552548176,
+    "candidate": 0.3204647636890627,
+    "delta": 0.18283647816358098,
+    "questions": 107
+   }
+  },
+  {
+   "persona": "persona-01",
+   "reader": {
+    "baseline": 0.706140350877193,
+    "candidate": 0.7807017543859649,
+    "delta": 0.07456140350877193,
+    "losses": 0,
+    "questions": 76,
+    "ties": 68,
+    "wins": 8
+   },
+   "retrieval": {
+    "baseline": 0.11231203007518796,
+    "candidate": 0.2606516290726817,
+    "delta": 0.14833959899749372,
+    "questions": 76
+   }
+  },
+  {
+   "persona": "persona-02",
+   "reader": {
+    "baseline": 0.7606837606837606,
+    "candidate": 0.8717948717948718,
+    "delta": 0.1111111111111111,
+    "losses": 1,
+    "questions": 78,
+    "ties": 66,
+    "wins": 11
+   },
+   "retrieval": {
+    "baseline": 0.223478835978836,
+    "candidate": 0.4893213268213268,
+    "delta": 0.26584249084249084,
+    "questions": 78
+   }
+  },
+  {
+   "persona": "persona-03",
+   "reader": {
+    "baseline": 0.795774647887324,
+    "candidate": 0.8333333333333334,
+    "delta": 0.03755868544600939,
+    "losses": 2,
+    "questions": 142,
+    "ties": 130,
+    "wins": 10
+   },
+   "retrieval": {
+    "baseline": 0.17338195841716963,
+    "candidate": 0.2941901408450704,
+    "delta": 0.12080818242790074,
+    "questions": 142
+   }
+  }
+ ],
+ "campaigns": [
+  {
+   "auditSha256": "c5e82cd4e1aa156ab2b9f10d9c6e678018f03c7c9ca863da255e00e63a4042b6",
+   "calls": 1662,
+   "campaignId": "oh-clonemem-rerank-confirm-a3-20260922-v1",
+   "databaseSha256": "67b73a029d27d300d535dffc049c8ada8ac217aed818908fb667737fdcea3ab7",
+   "group": "a3",
+   "launchCheckpoint": "48e2c8a04c4268a88c90b9306277d3339dd951c5",
+   "scoredResultSha256": "dd5072b6305d90d157c508a8895db047dd33a40558041b933b64c3a38b7bea7c"
+  },
+  {
+   "auditSha256": "329d3a032f3205c9244437abcf2b1286f962dedbddebd4b251e5c0599a800b0e",
+   "calls": 1728,
+   "campaignId": "oh-clonemem-rerank-confirm-b-20260922-v1",
+   "databaseSha256": "a762c78ec622881d333a925144945e083cd462ccc00fb83296456eb8d9a173a6",
+   "group": "b",
+   "launchCheckpoint": "48e2c8a04c4268a88c90b9306277d3339dd951c5",
+   "scoredResultSha256": "ab750b7ce053e9780edded632adb6ef0c0239accbd4d19fa0a4483771d009ccc"
+  },
+  {
+   "auditSha256": "0316b88846de6b8b7f16c7a783b265d539c636b230f3193855d87c37da4bf6c5",
+   "calls": 1776,
+   "campaignId": "oh-clonemem-rerank-confirm-c-20260922-v1",
+   "databaseSha256": "6b6ef899ae5f25f03af124c0273cdd854ae8d8253b3887c9993081c908e12fc7",
+   "group": "c",
+   "launchCheckpoint": "e51e10b35210883b72cdbb6ab73622df88d0cac0",
+   "scoredResultSha256": "06dc92d955b0ac18dfe6e7fc7e418a172403bb2c2491e2ab843661384089e61a"
+  }
+ ],
+ "checkpointLineage": "Local git history was rebuilt after an external cleanup deleted the repository clone mid-run. Launch checkpoints 48e2c8a\u2026 (campaigns a3, b) reference the pre-loss lineage; their content was re-committed identically and pushed as codex/memory-answer-gain-20260922 (new commit e51e10b\u2026, campaign c checkpoint).",
+ "costs": {
+  "byGroup": [
+   {
+    "calls": 1662,
+    "chargedMicros": 1544495,
+    "group": "a3"
+   },
+   {
+    "calls": 1728,
+    "chargedMicros": 1607051,
+    "group": "b"
+   },
+   {
+    "calls": 1776,
+    "chargedMicros": 1579414,
+    "group": "c"
+   }
+  ],
+  "calls": 5166,
+  "chargedMicros": 4730960,
+  "failedCampaignMicros": 2282835,
+  "failedRuns": [
+   {
+    "auditSha256": "37e1f4dcb1123f645e50b328c9c2dce45ce635a8d64752edcd8d050d15a220b2",
+    "campaign": "a1",
+    "campaignId": "oh-clonemem-rerank-confirm-a-20260922-v1",
+    "chargedMicros": 1514903,
+    "completedCalls": 1619,
+    "databaseSha256": "0bc5ad044316378f5ffdbafbac6faa61675bfe12f623678595d1fbf5ec4779de",
+    "halt": "reader-failure",
+    "physicalJobs": 1620
+   },
+   {
+    "auditSha256": "b7dcf2a3947d504923f13fe3f2b86996c05c00eeb88ca899f0bdf939de7b992e",
+    "campaign": "a2",
+    "campaignId": "oh-clonemem-rerank-confirm-a2-20260922-v1",
+    "chargedMicros": 767932,
+    "completedCalls": 835,
+    "databaseSha256": "abbfcee9dc188cc394588b1504169a62c85e5222fc1daa86e084f0cdab673a48",
+    "halt": "reader-failure",
+    "physicalJobs": 836
+   }
+  ],
+  "priorTaskMicros": 5862707,
+  "remainingTaskMicros": 12123498,
+  "totalTaskMicros": 12876502
+ },
+ "decision": {
+  "confirmedImprovement": true,
+  "defaultChangeAuthorized": false,
+  "externalFrameworkSuperiority": false
+ },
+ "failedLogicalCases": 0,
+ "groups": [
+  "a3",
+  "b",
+  "c"
+ ],
+ "hardware": {
+  "cpu": "Apple M5 Max",
+  "memoryGiB": 36,
+  "rerankerInference": "local only; no provider charge"
+ },
+ "logicalCases": 5166,
+ "matrixComplete": true,
+ "measuredAt": "2026-09-23",
+ "modelRevision": "a02f48bb4f057028298c21fa033da2b30d7742d5",
+ "modelSha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+ "personas": 7,
+ "pooledReader": {
+  "baseline": 0.7053813395276809,
+  "candidate": 0.7781649245063881,
+  "delta": 0.07278358497870718,
+  "losses": 30,
+  "questions": 861,
+  "ties": 725,
+  "wins": 106
+ },
+ "pooledRecall": {
+  "baseline": 0.14482798785934672,
+  "candidate": 0.3279872437537943,
+  "delta": 0.18315925589444756,
+  "questions": 861
+ },
+ "protocol": "oh.clonemem-rerank-confirm-public-result.v1",
+ "qualifications": [
+  "Seven reserved personas; all nine eligible personas had prior project exposure \u2014 not a pristine holdout",
+  "Three sequential persona-group campaigns under one fixed screen and one shared accounting ledger; group A completed on a second campaign after the first halted on a transient provider 5xx",
+  "Same Gateway reader alias and native prompt; no verified immutable snapshot; three attempts, no model judge",
+  "Reranker is additional local inference excluded from provider charges",
+  "Persona-cluster bootstrap guards the pooled delta against single-persona concentration",
+  "Two group-A attempts (a1, a2) halted on terminal provider failures and were closed, independently audited and replaced; their spend is reported as failedRuns and their matrices did not join the pooled decision",
+  "Campaign c consolidated three closed retry-campaign export ledgers into one ancestry pin (byte-identical events) to stay within the framework 32-ledger bound",
+  "Passing confirms improvement on this reserved population only; default retrieval behavior unchanged and external-framework superiority not claimed"
+ ],
+ "questions": 861,
+ "repeats": 3,
+ "scoredPooledResultSha256": "8c9f4f9476937657fba2cdb7580c6575df24ab125402c0264c9b8ec322db435e",
+ "study": "CloneMem local-reranker confirmation screen (benchmarks/CLONEMEM_RERANK_CONFIRM_V1.md)",
+ "usage": {
+  "cachedInputTokens": 734976,
+  "chargedMicros": 4730960,
+  "inputTokens": 31849707,
+  "outputTokens": 10332,
+  "reasoningTokens": 0,
+  "totalPhysicalCalls": 5166
+ }
+}

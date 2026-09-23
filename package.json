@@ -1,7 +1,7 @@
 {
   "name": "@hraness/oh",
-  "version": "0.11.0",
-  "description": "open-source tools for agentic research",
+  "version": "0.12.0",
+  "description": "Open-source memory for agents: source-backed records, retrieval, graph proofs, and verifiable history.",
   "type": "module",
   "license": "MIT",
   "author": "Hraness",
@@ -117,6 +117,14 @@
     "./rust-fallback": {
       "types": "./dist/rust-fallback.d.ts",
       "import": "./dist/rust-fallback.js"
+    },
+    "./rerank": {
+      "types": "./dist/rerank.d.ts",
+      "import": "./dist/rerank.js"
+    },
+    "./projection-suss": {
+      "types": "./dist/projection-suss.d.ts",
+      "import": "./dist/projection-suss.js"
     }
   },
   "files": [
@@ -152,7 +160,7 @@
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
     "build": "bun run rust:build:artifacts && bun run build:js && bun run build:portable && bun run build:types",
     "vercel-build": "bun run ./scripts/vercel-build.ts",
-    "build:js": "bun build --root=./src ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sqlite-snapshot.ts ./src/sync.ts ./src/canonical-rust.ts ./src/projection-rust.ts ./src/rust-fallback.ts ./src/artifact-manifest.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
+    "build:js": "bun build --root=./src ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sqlite-snapshot.ts ./src/sync.ts ./src/canonical-rust.ts ./src/projection-rust.ts ./src/rust-fallback.ts ./src/artifact-manifest.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts ./src/rerank.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
     "rust:build:artifacts": "bun run ./scripts/build-rust-artifacts.ts",
     "rust:build:manifest": "bun run ./scripts/build-rust-manifest.ts",
     "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun run build:research",

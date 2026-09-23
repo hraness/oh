@@ -1,0 +1,286 @@
+import { describe, expect, test } from "bun:test";
+
+import { createKnowledgeGraphRecordV1 } from "./graph";
+import { normalizeOhRerankLexicalQueryV1, OH_RERANK_PROFILE_V1, type OhRerankBackendV1,
+  parseOhRerankDocumentsV1, parseOhRerankQueryV1, parseOhRerankResultsV1, type OhRerankResultV1 } from "./rerank-model";
+import { searchOhV1 } from "./search";
+import { OH_EMBEDDING_PROFILE_V1, type OhSemanticSearchBackendV1 } from "./semantic";
+import { OhSqliteStore } from "./sqlite/store";
+
+const record = (name: string, key = "entity:ada") => createKnowledgeGraphRecordV1({
+  dependencies: [], key, kind: "entity", v: 1, value: { name } });
+
+function commit(store: OhSqliteStore, value: ReturnType<typeof record>, operationId: string): void {
+  store.commit({ actorId: "agent.test", changes: [{ kind: "put", record: value, v: 1 }],
+    expectedHead: store.head(), operationId });
+}
+
+function reranker(scores: Readonly<Record<string, number>>,
+  capture?: { query?: string; keys?: readonly string[] }): OhRerankBackendV1 {
+  return {
+    profile: OH_RERANK_PROFILE_V1,
+    close: async () => {},
+    rerank: async (query, documents) => {
+      if (capture !== undefined) {
+        capture.query = query;
+        capture.keys = documents.map((document) => document.key);
+      }
+      return documents.map((document) => ({ key: document.key, score: scores[document.key] ?? 0, v: 1 }));
+    },
+  };
+}
+
+function semanticBackend(results: readonly string[],
+  capture?: { query?: string; limit?: number }): OhSemanticSearchBackendV1 {
+  return {
+    profile: OH_EMBEDDING_PROFILE_V1,
+    close: async () => {},
+    index: async () => ({ indexed: 0, v: 1 }),
+    search: async (query, limit, store) => {
+      if (capture !== undefined) { capture.query = query; capture.limit = limit; }
+      return results.map((key) => {
+        const record = store.get(key);
+        if (record === null) throw new Error("missing record");
+        return { key, recordSha256: record.recordSha256, score: 0.5, v: 1 };
+      });
+    },
+  };
+}
+
+describe("normalizeOhRerankLexicalQueryV1", () => {
+  test("lowercases, deduplicates, drops stopwords and caps at 16 terms", () => {
+    expect(normalizeOhRerankLexicalQueryV1("What did the THE the Ada engine DO do?"))
+      .toBe("ada engine");
+    const many = Array.from({ length: 20 }, (_, index) => `term${index}`).join(" ");
+    expect(normalizeOhRerankLexicalQueryV1(many).split(" ")).toHaveLength(16);
+  });
+  test("returns an empty lane for stopword-only input and rejects unbounded input", () => {
+    expect(normalizeOhRerankLexicalQueryV1("the a an of to")).toBe("");
+    expect(() => normalizeOhRerankLexicalQueryV1("x".repeat(16_385))).toThrow(TypeError);
+    expect(() => normalizeOhRerankLexicalQueryV1("has\0zero")).toThrow(TypeError);
+  });
+});
+
+describe("rerank input and result admission", () => {
+  const document = { key: "entity:ada", text: "Ada", v: 1 as const };
+  const score = { key: document.key, score: 0.5, v: 1 as const };
+
+  test("rejects duplicate document identities and duplicate scores even with the expected row count", () => {
+    expect(() => parseOhRerankDocumentsV1([document, document])).toThrow();
+    expect(() => parseOhRerankResultsV1([score, score], new Set([document.key, "entity:bob"]))).toThrow();
+  });
+
+  test("requires exact V1 envelopes, complete finite coverage, and dense bounded arrays", () => {
+    const documents: unknown[] = [null, {}, { ...document, v: 2 }, { key: document.key, text: "Ada" },
+      { ...document, extra: true }, { ...document, key: "" }, { ...document, text: "x".repeat(65_537) }];
+    for (const value of documents) expect(() => parseOhRerankDocumentsV1([value] as never)).toThrow();
+    expect(() => parseOhRerankDocumentsV1(new Array(1))).toThrow();
+    expect(() => parseOhRerankDocumentsV1(Array.from({ length: 129 }, (_, i) => ({ ...document, key: `k${i}` })))).toThrow();
+    const scores: unknown[] = [null, {}, { ...score, v: 2 }, { key: score.key, score: 1 },
+      { ...score, extra: true }, { ...score, key: "other" }, ...[NaN, Infinity, -Infinity].map((value) => ({ ...score, score: value }))];
+    for (const value of scores) expect(() => parseOhRerankResultsV1([value] as never, new Set([score.key]))).toThrow();
+    expect(() => parseOhRerankResultsV1(new Array(1), new Set([score.key]))).toThrow();
+    expect(() => parseOhRerankResultsV1([], new Set([score.key]))).toThrow();
+  });
+
+  test("enforces UTF-8 byte and Unicode scalar bounds without changing submitted text", () => {
+    for (const text of ["\ud800", "\udc00", "nul\0byte"]) {
+      expect(() => parseOhRerankQueryV1(text)).toThrow();
+      expect(() => parseOhRerankDocumentsV1([{ ...document, text }])).toThrow();
+      expect(() => parseOhRerankDocumentsV1([{ ...document, key: text }])).toThrow();
+    }
+    expect(() => parseOhRerankQueryV1("😀".repeat(4_097))).toThrow();
+    expect(() => parseOhRerankDocumentsV1([{ ...document, key: "😀".repeat(129) }])).toThrow();
+    expect(() => parseOhRerankDocumentsV1([{ ...document, text: "😀".repeat(16_385) }])).toThrow();
+    const text = "cafe\u0301 😀";
+    expect(parseOhRerankQueryV1(text)).toBe(text);
+    expect(parseOhRerankDocumentsV1([{ ...document, text }])[0]?.text).toBe(text);
+    expect(parseOhRerankDocumentsV1([{ ...document, text: "" }])[0]?.text).toBe("");
+  });
+});
+
+describe("searchOhV1 rerank mode", () => {
+  test("unions the normalized lexical and original semantic pools, then reranks by score", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    const first = record("Ada Lovelace analytical engine notes", "entity:ada");
+    const second = record("Babbage difference engine plans", "entity:babbage");
+    commit(store, first, "op_first");
+    commit(store, second, "op_second");
+    const semantic: { query?: string; limit?: number } = {};
+    const rerank: { query?: string; keys?: readonly string[] } = {};
+    const response = await searchOhV1({
+      backend: semanticBackend(["entity:babbage"], semantic),
+      limit: 10,
+      mode: "rerank",
+      query: "What did Ada do with the engine?",
+      reranker: reranker({ "entity:ada": 0.9, "entity:babbage": 0.4 }, rerank),
+      store,
+    });
+    expect(semantic.query).toBe("What did Ada do with the engine?");
+    expect(semantic.limit).toBe(30);
+    expect(rerank.query).toBe("What did Ada do with the engine?");
+    expect(new Set(rerank.keys)).toEqual(new Set(["entity:ada", "entity:babbage"]));
+    expect(response.diagnostics).toEqual([]);
+    expect(response.results.map((result) => result.record.key)).toEqual(["entity:ada", "entity:babbage"]);
+    expect(response.results[0]?.score).toBe(0.9);
+    expect(response.results[0]?.evidence.map((item) => item.lane)).toEqual(["keyword"]);
+    expect(response.results[1]?.evidence.map((item) => item.lane)).toEqual(["keyword", "semantic"]);
+    store.close();
+  });
+
+  test("honors limit and the ASCII-key tie-break", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("shared engine one", "entity:one"), "op_1");
+    commit(store, record("shared engine two", "entity:two"), "op_2");
+    commit(store, record("shared engine three", "entity:three"), "op_3");
+    const response = await searchOhV1({
+      limit: 2,
+      mode: "rerank",
+      query: "shared engine",
+      reranker: reranker({ "entity:one": 0.5, "entity:three": 0.5, "entity:two": 0.5 }),
+      store,
+    });
+    expect(response.results.map((result) => result.record.key)).toEqual(["entity:one", "entity:three"]);
+    store.close();
+  });
+
+  test("degrades with a rerank-unavailable diagnostic when no backend is configured", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("Ada engine"), "op_first");
+    const response = await searchOhV1({ mode: "rerank", query: "ada engine", store });
+    expect(response.diagnostics).toEqual([
+      { code: "semantic-unavailable", message: "No local semantic backend is configured.", v: 1 },
+      { code: "rerank-unavailable", message: "No local rerank backend is configured.", v: 1 },
+    ]);
+    expect(response.results[0]?.record.key).toBe("entity:ada");
+    store.close();
+  });
+
+  test("degrades with a diagnostic when the reranker fails or returns partial coverage", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("Ada engine"), "op_first");
+    const failing = await searchOhV1({
+      mode: "rerank", query: "ada engine", store,
+      reranker: { profile: OH_RERANK_PROFILE_V1, close: async () => {},
+        rerank: async () => { throw new Error("model gone"); } },
+    });
+    expect(failing.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["semantic-unavailable", "rerank-unavailable"]);
+    expect(failing.results[0]?.record.key).toBe("entity:ada");
+    const partial = await searchOhV1({
+      mode: "rerank", query: "ada engine", store,
+      reranker: { profile: OH_RERANK_PROFILE_V1, close: async () => {},
+        rerank: async () => [] as readonly OhRerankResultV1[] },
+    });
+    expect(partial.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["semantic-unavailable", "rerank-unavailable"]);
+    expect(partial.results[0]?.record.key).toBe("entity:ada");
+    store.close();
+  });
+
+  test("reranks a keyword-only pool when the semantic backend is absent", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("Ada engine"), "op_first");
+    commit(store, record("other engine", "entity:other"), "op_second");
+    const response = await searchOhV1({
+      mode: "rerank", query: "engine", store,
+      reranker: reranker({ "entity:other": 0.9, "entity:ada": 0.1 }),
+    });
+    expect(response.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(["semantic-unavailable"]);
+    expect(response.results[0]?.record.key).toBe("entity:other");
+    store.close();
+  });
+
+  test("bounds the pool size parameter", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("Ada engine"), "op_first");
+    await expect(searchOhV1({ mode: "rerank", query: "ada", rerankPoolSize: 0, store,
+      reranker: reranker({}) })).rejects.toThrow(RangeError);
+    await expect(searchOhV1({ mode: "rerank", query: "ada", rerankPoolSize: 61, store,
+      reranker: reranker({}) })).rejects.toThrow(RangeError);
+    store.close();
+  });
+
+  test("leaves existing modes unchanged", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("Ada engine"), "op_first");
+    const response = await searchOhV1({ mode: "keyword", query: "ada engine", store });
+    expect(response.mode).toBe("keyword");
+    expect(response.results[0]?.record.key).toBe("entity:ada");
+    store.close();
+  });
+
+  test("selects configured rerank, then hybrid, then keyword by default and preserves explicit overrides", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("Ada engine"), "op_first");
+    commit(store, record("other engine", "entity:other"), "op_second");
+    let semanticCalls = 0, rerankCalls = 0;
+    const backend = semanticBackend(["entity:other"]);
+    const semanticSearch = backend.search;
+    backend.search = async (...args) => { semanticCalls++; return await semanticSearch(...args); };
+    const ranker = reranker({ "entity:other": 1, "entity:ada": 0 });
+    const rank = ranker.rerank;
+    ranker.rerank = async (...args) => { rerankCalls++; return await rank(...args); };
+    try {
+      expect((await searchOhV1({ query: "engine", store })).mode).toBe("keyword");
+      expect((await searchOhV1({ backend, query: "engine", store })).mode).toBe("hybrid");
+      const best = await searchOhV1({ backend, reranker: ranker, query: "engine", store });
+      expect(best.mode).toBe("rerank");
+      expect(best.results[0]?.record.key).toBe("entity:other");
+      expect([semanticCalls, rerankCalls]).toEqual([2, 1]);
+      for (const mode of ["keyword", "hybrid", "semantic"] as const) {
+        expect((await searchOhV1({ backend, reranker: ranker, mode, query: "engine", store })).mode).toBe(mode);
+      }
+      expect([semanticCalls, rerankCalls]).toEqual([4, 1]);
+      await expect(searchOhV1({ backend, reranker: ranker, mode: "invalid" as never, query: "engine", store })).rejects.toThrow("mode");
+      expect([semanticCalls, rerankCalls]).toEqual([4, 1]);
+    } finally { store.close(); }
+  });
+
+  test("rejects hostile custom backend results at the search boundary and falls back with a diagnostic", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("shared marker", "entity:0-0:0"), "op_first");
+    commit(store, record("shared marker", "entity:0-0/b"), "op_second");
+    const left = { key: "entity:0-0/b", score: 1, v: 1 as const };
+    const right = { key: "entity:0-0:0", score: 1, v: 1 as const };
+    const variants: unknown[] = [null, [left, left], [left], [left, { ...right, key: "other" }],
+      [left, { ...right, score: NaN }], [left, { ...right, score: Infinity }], [left, { ...right, v: 2 }],
+      [left, { ...right, extra: true }]];
+    try {
+      for (const value of variants) {
+        const response = await searchOhV1({ mode: "rerank", query: "shared", store,
+          reranker: { profile: OH_RERANK_PROFILE_V1, close: async () => {}, rerank: async () => value as never } });
+        expect(response.diagnostics.map((item) => item.code)).toContain("rerank-unavailable");
+        expect(response.results).toHaveLength(2);
+        expect(response.results.every((item) => Number.isFinite(item.score))).toBe(true);
+      }
+      const tied = await searchOhV1({ mode: "rerank", query: "shared", store,
+        reranker: { profile: OH_RERANK_PROFILE_V1, close: async () => {}, rerank: async () => [right, left] } });
+      expect(tied.results.map((item) => item.record.key)).toEqual([left.key, right.key]);
+    } finally { store.close(); }
+  });
+
+  test("empty configured pools avoid native work and do not report a missing reranker", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    let calls = 0;
+    try {
+      const response = await searchOhV1({ query: "no matches", store,
+        reranker: { profile: OH_RERANK_PROFILE_V1, close: async () => {}, rerank: async () => { calls++; return []; } } });
+      expect(response.mode).toBe("rerank");
+      expect(response.results).toEqual([]);
+      expect(response.diagnostics.map((item) => item.code)).toEqual(["semantic-unavailable"]);
+      expect(calls).toBe(0);
+    } finally { store.close(); }
+  });
+
+  test("a record replaced while reranking is not returned with its predecessor's score", async () => {
+    const store = new OhSqliteStore({ path: ":memory:" });
+    commit(store, record("Ada engine"), "op_first");
+    try {
+      const response = await searchOhV1({ mode: "rerank", query: "Ada", store,
+        reranker: { profile: OH_RERANK_PROFILE_V1, close: async () => {}, rerank: async (_query, documents) => {
+          commit(store, record("replacement"), "op_second");
+          return documents.map((item) => ({ key: item.key, score: 1, v: 1 }));
+        } } });
+      expect(response.results).toEqual([]);
+    } finally { store.close(); }
+  });
+});

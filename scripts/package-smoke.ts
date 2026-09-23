@@ -312,6 +312,22 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     ) throw new Error("Packed package is not pinned to public provenance-bearing npm publication.");
     await requirePublishedPaths(packageRoot, manifest);
 
+    // The Suss adapter statically imports its optional peer. Its aliases must
+    // resolve in the dependency-free consumer without evaluating that module.
+    const peers = record(manifest.peerDependencies, "installed optional peers");
+    const peerMetadata = record(record(manifest.peerDependenciesMeta, "installed peer metadata")["@suss/datalog"], "Suss peer metadata");
+    const exports = record(manifest.exports, "installed exports");
+    if (peers["@suss/datalog"] !== "0.20.0" || peerMetadata.optional !== true) {
+      throw new Error("The packed Suss adapter lost its exact optional-peer boundary.");
+    }
+    for (const name of ["./projection-suss", "./experimental/projection-suss"]) {
+      const target = record(exports[name], "installed Suss alias");
+      if (target.import !== "./dist/projection-suss.js" || target.types !== "./dist/projection-suss.d.ts") {
+        throw new Error("The packed Suss aliases must share their shipped runtime and declaration entry.");
+      }
+    }
+    const sussAliasResolution = "if (import.meta.resolve('@hraness/oh/projection-suss') !== import.meta.resolve('@hraness/oh/experimental/projection-suss')) throw new Error('Packed Suss aliases differ.');";
+
     const cli = join(packageRoot, "dist", "cli.js");
     const help = await run([process.execPath, cli, "--help"], consumer, true);
     const installedBinHelp = await run([
@@ -346,8 +362,9 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     await run([
       process.execPath,
       "-e",
-      "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
+      "for (const p of ['@hraness/oh','@hraness/oh/sdk','@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/sqlite','@hraness/oh/sync','@hraness/oh/semantic','@hraness/oh/rerank','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
     ], consumer);
+    await run([process.execPath, "-e", sussAliasResolution], consumer);
     await writeFile(join(consumer, "operation-size-identity.mjs"), `
 import { Database } from "bun:sqlite";
 import { createKnowledgeGraphRecordV1 } from "@hraness/oh";
@@ -490,6 +507,7 @@ if (copied instanceof OhOperationSizeError || isOhOperationSizeError(copied)) {
       "-e",
       "for (const p of ['@hraness/oh/store','@hraness/oh/libsql','@hraness/oh/semantic-cloud','@hraness/oh/memory','@hraness/oh/memory-page','@hraness/oh/projection','@hraness/oh/experimental/memory','@hraness/oh/research','@hraness/oh/research-store']) await import(p)",
     ], consumer);
+    await run(["node", "--input-type=module", "-e", sussAliasResolution], consumer);
     await writeFile(join(consumer, "research-profile.mjs"), `
 import assert from "node:assert/strict";
 import * as research from "@hraness/oh/research";

@@ -20,7 +20,7 @@ import {
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-test("the projection subpath runs under Node without loading the SQLite runtime", async () => {
+test("projection and optional Suss subpaths run under Node without loading SQLite", async () => {
   const snapshot = createOhProjectionSnapshotV1({
     head: { generation: 0, graphRevisionSha256: null, operationSha256: null,
       recordsSha256: sha256("[]"), sequence: 0 },
@@ -41,6 +41,17 @@ test("the projection subpath runs under Node without loading the SQLite runtime"
   assert.deepEqual(parseOhProjectionResultV1(result), result);
   assert.equal(parseOhProjectionProofV1({ unexpected: true }), null);
   assert.equal(Object.hasOwn(projectionSurface, "evaluateOhProjectionWithMaterializerV1"), false);
+
+  // Frozen root development dependencies supply the optional Suss peer; the
+  // isolated packed-artifact gate deliberately remains dependency-free.
+  const stable = await import("@hraness/oh/projection-suss");
+  const compatibility = await import("@hraness/oh/experimental/projection-suss");
+  assert.equal(stable.evaluateOhProjectionWithSussV1, compatibility.evaluateOhProjectionWithSussV1);
+  assert.equal(stable.OH_PROJECTION_SUSS_VERSION_V1, "0.20.0");
+  const external = stable.evaluateOhProjectionWithSussV1({ dataset, query, rulePack, snapshot });
+  assert.equal(external.engine, stable.OH_PROJECTION_SUSS_ENGINE_V1);
+  assert.equal(external.authority, "derived");
+  assert.deepEqual(external.rows, result.rows);
 
   const sources = await Promise.all(["projection-public.js", "projection-suss.js"]
     .map(async (path) => await readFile(new URL(`../dist/${path}`, import.meta.url), "utf8")));

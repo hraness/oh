@@ -135,9 +135,13 @@ export function OhField() {
     };
     const start = () => { if (!running) { running = true; last = performance.now(); raf = requestAnimationFrame(tick); } };
     const stop = () => { running = false; cancelAnimationFrame(raf); };
-    const observer = new IntersectionObserver(([entry]) => (entry?.isIntersecting ? start() : stop()));
+    let isIntersecting = false;
+    const onVisibility = () => (isIntersecting && !document.hidden ? start() : stop());
+    const observer = new IntersectionObserver(([entry]) => {
+      isIntersecting = Boolean(entry?.isIntersecting);
+      onVisibility();
+    });
     observer.observe(field);
-    const onVisibility = () => (document.hidden ? stop() : start());
     document.addEventListener("visibilitychange", onVisibility);
     const resize = new ResizeObserver(() => { W = host.clientWidth; H = host.clientHeight; });
     resize.observe(host);

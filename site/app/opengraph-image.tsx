@@ -4,7 +4,7 @@ import {
   socialImageSize as size,
 } from "@hraness/web-discovery/social-image";
 
-export const alt = "Oh: a research graph your agents can inspect";
+export const alt = "Oh: memory your agents can trace";
 export { contentType, size };
 
 function OhMark() {
@@ -20,7 +20,7 @@ function OhMark() {
 
 export default function OpenGraphImage() {
   return createSocialImageResponse({
-    description: "Oh gives your agents a local path from a question to a cited artifact: sources, claims, citations, and a verifiable history of every change, in one SQLite file on your machine.",
+    description: "Source-backed records, local retrieval, graph proofs, and a verifiable change history. An open-source memory framework for agents.",
     domain: "oh.computer",
     eyebrow: "Oh",
     mark: <OhMark />,
@@ -30,6 +30,6 @@ export default function OpenGraphImage() {
       foreground: "#1C1A18",
       muted: "#6A655E",
     },
-    title: "A research graph your agents can inspect",
+    title: "Memory your agents can trace",
   });
 }

@@ -1,0 +1,1108 @@
+{
+  "protocol": "oh.sdk-retrieval-qualification-public-result.v1",
+  "benchmarkCheckpoint": "de878a521c4830870376b0928a901d3aa4644947",
+  "campaignsClosedAt": "2026-09-23T17:21:34.982210+00:00",
+  "dataset": {
+    "name": "CloneMemBench",
+    "revision": "753d8a97fd78f4ee25af398a0f0c8d981a6be304",
+    "sourceProfile": "benchmarks/profiles/clonemem-source-v1.json",
+    "uniqueQuestions": 146,
+    "personas": 2,
+    "personaQuestions": [
+      114,
+      32
+    ],
+    "previouslyExposedDevelopment": true,
+    "cleanHoldout": false,
+    "questionsSelectedByAnswerOutcomes": false
+  },
+  "primary": {
+    "auditorSha256": "b0771458cff8fe681578f5b3ea52adca6b051334471df33c11bcdd09edc8c8d3",
+    "benchmarkCheckpoint": "de878a521c4830870376b0928a901d3aa4644947",
+    "comparison": "semantic",
+    "contexts": [
+      {
+        "armId": "sdk-semantic",
+        "bytes": {
+          "count": 146,
+          "maximum": 35046,
+          "mean": 26049.68493150685,
+          "p50": 26957,
+          "p95": 31142
+        }
+      },
+      {
+        "armId": "sdk-default-rerank",
+        "bytes": {
+          "count": 146,
+          "maximum": 26363,
+          "mean": 20255.609589041094,
+          "p50": 20153,
+          "p95": 25054
+        }
+      }
+    ],
+    "costs": {
+      "additionalExposureMicros": 777621,
+      "campaignCapMicros": 12500000,
+      "confirmedMicros": 777621,
+      "exposureMicros": 777621,
+      "physicalCalls": 876,
+      "priorAdditionalExposureMicros": 0,
+      "priorTaskMicros": 12876502,
+      "qualification": "Current exposure independently reconciled to immutable SQLite. Cumulative exposure and fixed campaign allocation are authenticated against the root dispatch and task-budget receipts; the prior sibling ledger is separately audited in its own report.",
+      "remainingAdditionalMicros": 24222379,
+      "totalTaskExposureMicros": 13654123,
+      "unresolvedMicros": 0
+    },
+    "databaseUnchanged": true,
+    "decision": {
+      "conditions": {
+        "all146RecallQuestionsEvaluable": true,
+        "all876LogicalCasesCompleted": true,
+        "answerGainAtLeast3PercentagePoints": true,
+        "answerGainNonnegativeInBothPersonas": true,
+        "nativeCaptureAndResourcesClosed": true,
+        "nativeWarmP95Within30Seconds": true,
+        "overallRecallAt10Improves": true,
+        "recallAt10NonnegativeInBothPersonas": true
+      },
+      "passesLiteralZeroNativeErrorLogAdmission": false,
+      "passesPrimaryDevelopmentGate": true,
+      "primary": true,
+      "qualification": "The original numerical quality thresholds are evaluated under the recorded pre-paid native-initialization interpretation. It is not unchanged zero-error-log admission. Secondary comparison is descriptive and cannot rescue a failed primary."
+    },
+    "failedLogicalCases": 0,
+    "halt": "none",
+    "logicalCases": 876,
+    "matrixComplete": true,
+    "native": {
+      "calls": 146,
+      "complete": 146,
+      "elapsedMs": 1562944.492625,
+      "failed": 0,
+      "firstQueryMs": 11438.0295,
+      "initializationInterpretation": {
+        "handledCapabilityProbeFailures": 1,
+        "kind": "pre-paid-protocol-clarification",
+        "literalZeroErrorLogPolicyWouldFail": true,
+        "numericalQualityGatesChanged": false,
+        "qualification": "One error-level Metal initialization diagnostic was classified, from pinned source before paid dispatch and answer scoring, as a handled optional f16/bf16 capability-probe failure. The line does not identify which probe failed or its compiler cause. This is a disclosed interpretation/deviation from ambiguous frozen native-error wording, not unchanged zero-error-log admission.",
+        "recordedAt": "2026-09-23T16:26:21.751413+00:00",
+        "rerankerExecutionOrCleanupFailures": 0,
+        "stderrSha256": "bceee6a1604719d4ce149c5b32930950a7f7b9fa6b48696eacaa77e709c6931a"
+      },
+      "maximumDocumentBytes": 5855,
+      "maximumPool": 60,
+      "qualification": "Native QMD inference plus actual SDK route; authenticated historical semantic results are replayed, so this excludes live semantic inference latency.",
+      "rerankerMs": {
+        "count": 146,
+        "maximum": 14404.94058299996,
+        "mean": 10577.477231452054,
+        "p50": 10880.710499999986,
+        "p95": 12342.511792000034
+      },
+      "sdkRouteMs": [
+        {
+          "armId": "sdk-semantic",
+          "count": 146,
+          "maximum": 24.27545899990946,
+          "mean": 7.963519164376057,
+          "p50": 7.448333000065759,
+          "p95": 11.503292000037618
+        },
+        {
+          "armId": "sdk-default-rerank",
+          "count": 146,
+          "maximum": 14454.908333000029,
+          "mean": 10612.018348157542,
+          "p50": 10913.836916,
+          "p95": 12369.974041000009
+        }
+      ],
+      "totalPairs": 7834,
+      "warmRerankerMs": {
+        "count": 145,
+        "maximum": 14404.94058299996,
+        "mean": 10571.542388220689,
+        "p50": 10880.710499999986,
+        "p95": 12342.511792000034
+      }
+    },
+    "personas": 2,
+    "physicalJobs": 876,
+    "pins": {
+      "capturePin": "0a1780e140048c5065d341f77e5c1273038a6e7bf73b55ef4fc8d8e9989d7f31",
+      "databasePin": "6de241a9def4b16073f3e1607241b549242312b58ad1cca1cb0270a9f8533998",
+      "dispatchOutcomePin": "f0fffed59997a7c1f87f34d96cc4e8743879a860c279ee88954c47dfc043f864",
+      "freezePin": "02d5574e29df1f33618aa2d5dc30691371764c0ca732ef502095a0ee0c6e63d6",
+      "launchPin": "783bae44735711624d9b10232a3897fef7ac07064482b76a02886df653d57671",
+      "nativeInterpretationPin": "2e490bcb6113c2f842e3a10b1fe031155d76ab0bb6c922325b92189241ae346f",
+      "nativeSourceReviewPin": "5f3f078851f6fd5844ae7a6993c481caa0ec9fa95457b5ebd039ea11c1ac6da8",
+      "ownerPin": "a8d618709c457cc4fc5c4af4a1226e5b9b7769fe1e8e442fbbe1defd5dc8f9eb",
+      "planPin": "53076adf584f36d6ff42838fca5e294756ddb304be11eec3b96915d183ab8d86",
+      "preparedPin": "af33a3376e9d7d37cda151567beecd8bdf46c9dddf08f52d116b67e0f2e0fb15",
+      "protocolPin": "1075eac3e47fca5bab4f40d6ce7d33b3cd115943efc245841290cb15561ab693",
+      "resultPin": "19f35fd8f6551742b567d097b199820d050e2670cece469cd07ea9ccae53284e",
+      "scorerPin": "849e0a96548f0b1502c518cfc7eb03aaaa28ad7d27a4dbb0a7ecf282db28f31d",
+      "sourcePin": "78fff8973ade66add5e8b0d1a30545f203331d3c3c6ea60e97cbe6dcff828277",
+      "taskBudgetPin": "21e1dcd5e14fe8828dde544d52f7c7fa5b28fd2b261126d968414829d945034b"
+    },
+    "protocol": "oh.sdk-retrieval-qualification-independent-report.v1",
+    "qualifications": [
+      "Two previously exposed development personas. No clean holdout or external framework comparison.",
+      "Default production SDK uses recordDocument; whole original traces go to the unchanged reader.",
+      "Gateway GPT-4o mini alias, temperature 0.1, 512 output tokens, exact option-ID scoring; no model judge.",
+      "Ordinary hybrid differs in lexical query normalization; it is not a same-pool reranker ablation.",
+      "All planned cells stay in denominators; failed, unresolved and unattempted cells score zero.",
+      "Before paid calls, one handled initialization capability-probe error was classified separately from reranker execution and cleanup failures. Original protocol and stderr are preserved; literal zero-native-error-log admission would fail.",
+      "No SOTA, general population or Letta/Supermemory/Mem0 superiority claim."
+    ],
+    "questions": 146,
+    "reader": {
+      "arms": [
+        {
+          "accuracy": 0.6986301369863014,
+          "armId": "sdk-semantic",
+          "cases": 438,
+          "correct": 306,
+          "dispositions": {
+            "completed": 438,
+            "failed": 0,
+            "refused": 0,
+            "truncated": 0,
+            "unattempted": 0,
+            "unresolved": 0
+          }
+        },
+        {
+          "accuracy": 0.8059360730593608,
+          "armId": "sdk-default-rerank",
+          "cases": 438,
+          "correct": 353,
+          "dispositions": {
+            "completed": 438,
+            "failed": 0,
+            "refused": 0,
+            "truncated": 0,
+            "unattempted": 0,
+            "unresolved": 0
+          }
+        }
+      ],
+      "byPersona": [
+        {
+          "arms": [
+            {
+              "accuracy": 0.6900584795321637,
+              "armId": "sdk-semantic",
+              "cases": 342,
+              "correct": 236,
+              "dispositions": {
+                "completed": 342,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.783625730994152,
+              "armId": "sdk-default-rerank",
+              "cases": 342,
+              "correct": 268,
+              "dispositions": {
+                "completed": 342,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "persona": "persona-01",
+          "reader": {
+            "baseline": 0.6900584795321638,
+            "candidate": 0.783625730994152,
+            "delta": 0.09356725146198819,
+            "losses": 7,
+            "questions": 114,
+            "ties": 88,
+            "wins": 19
+          },
+          "recallAt10": {
+            "baseline": 0.08049289891395155,
+            "candidate": 0.2165204678362573,
+            "delta": 0.13602756892230577,
+            "losses": 5,
+            "questions": 114,
+            "ties": 76,
+            "wins": 33
+          }
+        },
+        {
+          "arms": [
+            {
+              "accuracy": 0.7291666666666666,
+              "armId": "sdk-semantic",
+              "cases": 96,
+              "correct": 70,
+              "dispositions": {
+                "completed": 96,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.8854166666666666,
+              "armId": "sdk-default-rerank",
+              "cases": 96,
+              "correct": 85,
+              "dispositions": {
+                "completed": 96,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "persona": "persona-02",
+          "reader": {
+            "baseline": 0.7291666666666666,
+            "candidate": 0.8854166666666666,
+            "delta": 0.15625,
+            "losses": 0,
+            "questions": 32,
+            "ties": 26,
+            "wins": 6
+          },
+          "recallAt10": {
+            "baseline": 0.2628111471861472,
+            "candidate": 0.41960903679653677,
+            "delta": 0.1567978896103896,
+            "losses": 3,
+            "questions": 32,
+            "ties": 16,
+            "wins": 13
+          }
+        }
+      ],
+      "byRepeat": [
+        {
+          "arms": [
+            {
+              "accuracy": 0.678082191780822,
+              "armId": "sdk-semantic",
+              "cases": 146,
+              "correct": 99,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.8013698630136986,
+              "armId": "sdk-default-rerank",
+              "cases": 146,
+              "correct": 117,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "repeat": 0
+        },
+        {
+          "arms": [
+            {
+              "accuracy": 0.726027397260274,
+              "armId": "sdk-semantic",
+              "cases": 146,
+              "correct": 106,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.815068493150685,
+              "armId": "sdk-default-rerank",
+              "cases": 146,
+              "correct": 119,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "repeat": 1
+        },
+        {
+          "arms": [
+            {
+              "accuracy": 0.6917808219178082,
+              "armId": "sdk-semantic",
+              "cases": 146,
+              "correct": 101,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.8013698630136986,
+              "armId": "sdk-default-rerank",
+              "cases": 146,
+              "correct": 117,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "repeat": 2
+        }
+      ],
+      "descriptiveUncertainty": {
+        "exposedDevelopmentPersonas": 2,
+        "independentPersonas": 2,
+        "lower95": 0.04566210045662101,
+        "method": "10,000 deterministic paired-question bootstrap draws within each fixed persona; LCG64",
+        "qualification": "Post-protocol descriptive interval conditional on these two exposed personas. It treats questions as exchangeable within persona; dependencies can make it optimistic. Not a population confidence interval, clean-holdout test, or gate input.",
+        "seedSha256": "02d5574e29df1f33618aa2d5dc30691371764c0ca732ef502095a0ee0c6e63d6",
+        "upper95": 0.16894977168949776
+      },
+      "pairedQuestions": {
+        "baseline": 0.6986301369863014,
+        "candidate": 0.8059360730593608,
+        "delta": 0.10730593607305938,
+        "losses": 7,
+        "questions": 146,
+        "ties": 114,
+        "wins": 25
+      }
+    },
+    "repeats": 3,
+    "retrieval": {
+      "evaluableQuestions": 146,
+      "k": 10,
+      "missingEvidenceQuestions": 0,
+      "pairedQuestions": {
+        "baseline": 0.12045306291881636,
+        "candidate": 0.26103303089604457,
+        "delta": 0.14057996797722822,
+        "losses": 8,
+        "questions": 146,
+        "ties": 92,
+        "wins": 46
+      }
+    },
+    "usage": {
+      "cachedInputTokens": 121088,
+      "inputTokens": 5234979,
+      "micros": 777621,
+      "modelIdentities": [
+        {
+          "calls": 876,
+          "identity": {
+            "finalProvider": "openai",
+            "qualification": "gateway-alias",
+            "reportedModel": "openai/gpt-4o-mini",
+            "requestedModel": "openai/gpt-4o-mini",
+            "resolvedProviderApiModelId": null,
+            "resolvedSnapshot": null,
+            "snapshotPinned": false
+          }
+        }
+      ],
+      "outputTokens": 1752,
+      "reasoningTokens": 0
+    }
+  },
+  "secondary": {
+    "auditorSha256": "b0771458cff8fe681578f5b3ea52adca6b051334471df33c11bcdd09edc8c8d3",
+    "benchmarkCheckpoint": "de878a521c4830870376b0928a901d3aa4644947",
+    "comparison": "hybrid",
+    "contexts": [
+      {
+        "armId": "sdk-hybrid",
+        "bytes": {
+          "count": 146,
+          "maximum": 29611,
+          "mean": 19635.369863013697,
+          "p50": 19568,
+          "p95": 25199
+        }
+      },
+      {
+        "armId": "sdk-default-rerank",
+        "bytes": {
+          "count": 146,
+          "maximum": 26363,
+          "mean": 20255.609589041094,
+          "p50": 20153,
+          "p95": 25054
+        }
+      }
+    ],
+    "costs": {
+      "additionalExposureMicros": 1461086,
+      "campaignCapMicros": 12500000,
+      "confirmedMicros": 683465,
+      "exposureMicros": 683465,
+      "physicalCalls": 876,
+      "priorAdditionalExposureMicros": 777621,
+      "priorTaskMicros": 12876502,
+      "qualification": "Current exposure independently reconciled to immutable SQLite. Cumulative exposure and fixed campaign allocation are authenticated against the root dispatch and task-budget receipts; the prior sibling ledger is separately audited in its own report.",
+      "remainingAdditionalMicros": 23538914,
+      "totalTaskExposureMicros": 14337588,
+      "unresolvedMicros": 0
+    },
+    "databaseUnchanged": true,
+    "decision": {
+      "conditions": {
+        "all146RecallQuestionsEvaluable": true,
+        "all876LogicalCasesCompleted": true,
+        "answerGainAtLeast3PercentagePoints": true,
+        "answerGainNonnegativeInBothPersonas": true,
+        "nativeCaptureAndResourcesClosed": true,
+        "nativeWarmP95Within30Seconds": true,
+        "overallRecallAt10Improves": true,
+        "recallAt10NonnegativeInBothPersonas": true
+      },
+      "passesLiteralZeroNativeErrorLogAdmission": false,
+      "passesPrimaryDevelopmentGate": null,
+      "primary": false,
+      "qualification": "The original numerical quality thresholds are evaluated under the recorded pre-paid native-initialization interpretation. It is not unchanged zero-error-log admission. Secondary comparison is descriptive and cannot rescue a failed primary."
+    },
+    "failedLogicalCases": 0,
+    "halt": "none",
+    "logicalCases": 876,
+    "matrixComplete": true,
+    "native": {
+      "calls": 146,
+      "complete": 146,
+      "elapsedMs": 1562944.492625,
+      "failed": 0,
+      "firstQueryMs": 11438.0295,
+      "initializationInterpretation": {
+        "handledCapabilityProbeFailures": 1,
+        "kind": "pre-paid-protocol-clarification",
+        "literalZeroErrorLogPolicyWouldFail": true,
+        "numericalQualityGatesChanged": false,
+        "qualification": "One error-level Metal initialization diagnostic was classified, from pinned source before paid dispatch and answer scoring, as a handled optional f16/bf16 capability-probe failure. The line does not identify which probe failed or its compiler cause. This is a disclosed interpretation/deviation from ambiguous frozen native-error wording, not unchanged zero-error-log admission.",
+        "recordedAt": "2026-09-23T16:26:21.751413+00:00",
+        "rerankerExecutionOrCleanupFailures": 0,
+        "stderrSha256": "bceee6a1604719d4ce149c5b32930950a7f7b9fa6b48696eacaa77e709c6931a"
+      },
+      "maximumDocumentBytes": 5855,
+      "maximumPool": 60,
+      "qualification": "Native QMD inference plus actual SDK route; authenticated historical semantic results are replayed, so this excludes live semantic inference latency.",
+      "rerankerMs": {
+        "count": 146,
+        "maximum": 14404.94058299996,
+        "mean": 10577.477231452054,
+        "p50": 10880.710499999986,
+        "p95": 12342.511792000034
+      },
+      "sdkRouteMs": [
+        {
+          "armId": "sdk-hybrid",
+          "count": 146,
+          "maximum": 81.9312500001397,
+          "mean": 23.236981150669926,
+          "p50": 21.852667000028305,
+          "p95": 34.26654099998996
+        },
+        {
+          "armId": "sdk-default-rerank",
+          "count": 146,
+          "maximum": 14454.908333000029,
+          "mean": 10612.018348157542,
+          "p50": 10913.836916,
+          "p95": 12369.974041000009
+        }
+      ],
+      "totalPairs": 7834,
+      "warmRerankerMs": {
+        "count": 145,
+        "maximum": 14404.94058299996,
+        "mean": 10571.542388220689,
+        "p50": 10880.710499999986,
+        "p95": 12342.511792000034
+      }
+    },
+    "personas": 2,
+    "physicalJobs": 876,
+    "pins": {
+      "capturePin": "0a1780e140048c5065d341f77e5c1273038a6e7bf73b55ef4fc8d8e9989d7f31",
+      "databasePin": "2d68d95c3502b82d0ced58282805bfced8b08069f99f3889bc05bdd589d88ef7",
+      "dispatchOutcomePin": "04dda58c902d7d621e82f3504f058ac35bee43d7fa36f9e59f8b154ad01483a8",
+      "freezePin": "02d5574e29df1f33618aa2d5dc30691371764c0ca732ef502095a0ee0c6e63d6",
+      "launchPin": "e720773ba48d5a3f7e8bb2d74471e62c5b061d8a0cfd2c2104722152a4bb09ed",
+      "nativeInterpretationPin": "2e490bcb6113c2f842e3a10b1fe031155d76ab0bb6c922325b92189241ae346f",
+      "nativeSourceReviewPin": "5f3f078851f6fd5844ae7a6993c481caa0ec9fa95457b5ebd039ea11c1ac6da8",
+      "ownerPin": "a8d618709c457cc4fc5c4af4a1226e5b9b7769fe1e8e442fbbe1defd5dc8f9eb",
+      "planPin": "d05c726752862f671255f05af5d947ab6b080c13df16ad18dbbb06cf1bdf949f",
+      "preparedPin": "2b5881ec798efffae0c44ba5d6e2d8a2e894ebee6cc0d5c685d9682903157794",
+      "protocolPin": "1075eac3e47fca5bab4f40d6ce7d33b3cd115943efc245841290cb15561ab693",
+      "resultPin": "1eb2c1cadad786812c54f6f3f61f02404c4e70ce309f7790c8f1e28b75d4b96e",
+      "scorerPin": "323e4e4660a122530ca1441a86d45750953966db06cb91ca13442920f26d5f84",
+      "sourcePin": "ed3f3a472f0b256f67a7cf9ba6b4613c80cf52d127b2d25e98942baf7ead1c6a",
+      "taskBudgetPin": "21e1dcd5e14fe8828dde544d52f7c7fa5b28fd2b261126d968414829d945034b"
+    },
+    "protocol": "oh.sdk-retrieval-qualification-independent-report.v1",
+    "qualifications": [
+      "Two previously exposed development personas. No clean holdout or external framework comparison.",
+      "Default production SDK uses recordDocument; whole original traces go to the unchanged reader.",
+      "Gateway GPT-4o mini alias, temperature 0.1, 512 output tokens, exact option-ID scoring; no model judge.",
+      "Ordinary hybrid differs in lexical query normalization; it is not a same-pool reranker ablation.",
+      "All planned cells stay in denominators; failed, unresolved and unattempted cells score zero.",
+      "Before paid calls, one handled initialization capability-probe error was classified separately from reranker execution and cleanup failures. Original protocol and stderr are preserved; literal zero-native-error-log admission would fail.",
+      "No SOTA, general population or Letta/Supermemory/Mem0 superiority claim."
+    ],
+    "questions": 146,
+    "reader": {
+      "arms": [
+        {
+          "accuracy": 0.6415525114155252,
+          "armId": "sdk-hybrid",
+          "cases": 438,
+          "correct": 281,
+          "dispositions": {
+            "completed": 438,
+            "failed": 0,
+            "refused": 0,
+            "truncated": 0,
+            "unattempted": 0,
+            "unresolved": 0
+          }
+        },
+        {
+          "accuracy": 0.8059360730593608,
+          "armId": "sdk-default-rerank",
+          "cases": 438,
+          "correct": 353,
+          "dispositions": {
+            "completed": 438,
+            "failed": 0,
+            "refused": 0,
+            "truncated": 0,
+            "unattempted": 0,
+            "unresolved": 0
+          }
+        }
+      ],
+      "byPersona": [
+        {
+          "arms": [
+            {
+              "accuracy": 0.6169590643274854,
+              "armId": "sdk-hybrid",
+              "cases": 342,
+              "correct": 211,
+              "dispositions": {
+                "completed": 342,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.7865497076023392,
+              "armId": "sdk-default-rerank",
+              "cases": 342,
+              "correct": 269,
+              "dispositions": {
+                "completed": 342,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "persona": "persona-01",
+          "reader": {
+            "baseline": 0.6169590643274854,
+            "candidate": 0.7865497076023392,
+            "delta": 0.16959064327485385,
+            "losses": 2,
+            "questions": 114,
+            "ties": 89,
+            "wins": 23
+          },
+          "recallAt10": {
+            "baseline": 0.053654970760233914,
+            "candidate": 0.2165204678362573,
+            "delta": 0.16286549707602338,
+            "losses": 1,
+            "questions": 114,
+            "ties": 74,
+            "wins": 39
+          }
+        },
+        {
+          "arms": [
+            {
+              "accuracy": 0.7291666666666666,
+              "armId": "sdk-hybrid",
+              "cases": 96,
+              "correct": 70,
+              "dispositions": {
+                "completed": 96,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.875,
+              "armId": "sdk-default-rerank",
+              "cases": 96,
+              "correct": 84,
+              "dispositions": {
+                "completed": 96,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "persona": "persona-02",
+          "reader": {
+            "baseline": 0.7291666666666666,
+            "candidate": 0.875,
+            "delta": 0.14583333333333337,
+            "losses": 2,
+            "questions": 32,
+            "ties": 24,
+            "wins": 6
+          },
+          "recallAt10": {
+            "baseline": 0.2253720238095238,
+            "candidate": 0.41960903679653677,
+            "delta": 0.19423701298701296,
+            "losses": 2,
+            "questions": 32,
+            "ties": 14,
+            "wins": 16
+          }
+        }
+      ],
+      "byRepeat": [
+        {
+          "arms": [
+            {
+              "accuracy": 0.6438356164383562,
+              "armId": "sdk-hybrid",
+              "cases": 146,
+              "correct": 94,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.815068493150685,
+              "armId": "sdk-default-rerank",
+              "cases": 146,
+              "correct": 119,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "repeat": 0
+        },
+        {
+          "arms": [
+            {
+              "accuracy": 0.636986301369863,
+              "armId": "sdk-hybrid",
+              "cases": 146,
+              "correct": 93,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.8082191780821918,
+              "armId": "sdk-default-rerank",
+              "cases": 146,
+              "correct": 118,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "repeat": 1
+        },
+        {
+          "arms": [
+            {
+              "accuracy": 0.6438356164383562,
+              "armId": "sdk-hybrid",
+              "cases": 146,
+              "correct": 94,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            },
+            {
+              "accuracy": 0.7945205479452054,
+              "armId": "sdk-default-rerank",
+              "cases": 146,
+              "correct": 116,
+              "dispositions": {
+                "completed": 146,
+                "failed": 0,
+                "refused": 0,
+                "truncated": 0,
+                "unattempted": 0,
+                "unresolved": 0
+              }
+            }
+          ],
+          "repeat": 2
+        }
+      ],
+      "descriptiveUncertainty": {
+        "exposedDevelopmentPersonas": 2,
+        "independentPersonas": 2,
+        "lower95": 0.10273972602739725,
+        "method": "10,000 deterministic paired-question bootstrap draws within each fixed persona; LCG64",
+        "qualification": "Post-protocol descriptive interval conditional on these two exposed personas. It treats questions as exchangeable within persona; dependencies can make it optimistic. Not a population confidence interval, clean-holdout test, or gate input.",
+        "seedSha256": "02d5574e29df1f33618aa2d5dc30691371764c0ca732ef502095a0ee0c6e63d6",
+        "upper95": 0.22831050228310504
+      },
+      "pairedQuestions": {
+        "baseline": 0.6415525114155252,
+        "candidate": 0.8059360730593608,
+        "delta": 0.1643835616438356,
+        "losses": 4,
+        "questions": 146,
+        "ties": 113,
+        "wins": 29
+      }
+    },
+    "repeats": 3,
+    "retrieval": {
+      "evaluableQuestions": 146,
+      "k": 10,
+      "missingEvidenceQuestions": 0,
+      "pairedQuestions": {
+        "baseline": 0.09129158512720156,
+        "candidate": 0.26103303089604457,
+        "delta": 0.169741445768843,
+        "losses": 3,
+        "questions": 146,
+        "ties": 88,
+        "wins": 55
+      }
+    },
+    "usage": {
+      "cachedInputTokens": 127872,
+      "inputTokens": 4610745,
+      "micros": 683465,
+      "modelIdentities": [
+        {
+          "calls": 876,
+          "identity": {
+            "finalProvider": "openai",
+            "qualification": "gateway-alias",
+            "reportedModel": "openai/gpt-4o-mini",
+            "requestedModel": "openai/gpt-4o-mini",
+            "resolvedProviderApiModelId": null,
+            "resolvedSnapshot": null,
+            "snapshotPinned": false
+          }
+        }
+      ],
+      "outputTokens": 1752,
+      "reasoningTokens": 0
+    }
+  },
+  "sharedNativeCapture": {
+    "calls": 146,
+    "complete": 146,
+    "elapsedMs": 1562944.492625,
+    "failed": 0,
+    "firstQueryMs": 11438.0295,
+    "initializationInterpretation": {
+      "handledCapabilityProbeFailures": 1,
+      "kind": "pre-paid-protocol-clarification",
+      "literalZeroErrorLogPolicyWouldFail": true,
+      "numericalQualityGatesChanged": false,
+      "qualification": "One error-level Metal initialization diagnostic was classified, from pinned source before paid dispatch and answer scoring, as a handled optional f16/bf16 capability-probe failure. The line does not identify which probe failed or its compiler cause. This is a disclosed interpretation/deviation from ambiguous frozen native-error wording, not unchanged zero-error-log admission.",
+      "recordedAt": "2026-09-23T16:26:21.751413+00:00",
+      "rerankerExecutionOrCleanupFailures": 0,
+      "stderrSha256": "bceee6a1604719d4ce149c5b32930950a7f7b9fa6b48696eacaa77e709c6931a"
+    },
+    "maximumDocumentBytes": 5855,
+    "maximumPool": 60,
+    "qualification": "Native QMD inference plus actual SDK route; authenticated historical semantic results are replayed, so this excludes live semantic inference latency.",
+    "rerankerMs": {
+      "count": 146,
+      "maximum": 14404.94058299996,
+      "mean": 10577.477231452054,
+      "p50": 10880.710499999986,
+      "p95": 12342.511792000034
+    },
+    "totalPairs": 7834,
+    "warmRerankerMs": {
+      "count": 145,
+      "maximum": 14404.94058299996,
+      "mean": 10571.542388220689,
+      "p50": 10880.710499999986,
+      "p95": 12342.511792000034
+    },
+    "sdkRouteMs": [
+      {
+        "armId": "sdk-semantic",
+        "count": 146,
+        "maximum": 24.27545899990946,
+        "mean": 7.963519164376057,
+        "p50": 7.448333000065759,
+        "p95": 11.503292000037618
+      },
+      {
+        "armId": "sdk-default-rerank",
+        "count": 146,
+        "maximum": 14454.908333000029,
+        "mean": 10612.018348157542,
+        "p50": 10913.836916,
+        "p95": 12369.974041000009
+      },
+      {
+        "armId": "sdk-hybrid",
+        "count": 146,
+        "maximum": 81.9312500001397,
+        "mean": 23.236981150669926,
+        "p50": 21.852667000028305,
+        "p95": 34.26654099998996
+      }
+    ]
+  },
+  "runtime": {
+    "arch": "arm64",
+    "bun": "1.3.14",
+    "env": {
+      "GGML_METAL_NO_RESIDENCY": "1",
+      "QMD_EMBED_PARALLELISM": "1",
+      "QMD_LLAMA_GPU": "metal",
+      "QMD_RERANK_CONTEXT_SIZE": "4096"
+    },
+    "platform": "darwin",
+    "gpuDevices": [
+      "Apple M5 Max"
+    ],
+    "gpuOffloading": true,
+    "qmdVersion": "2.5.3",
+    "nodeLlamaCppVersion": "3.18.1",
+    "model": "Qwen3-Reranker-0.6B-Q8_0",
+    "modelBytes": 639153184,
+    "modelSha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+    "bunExecutableSha256": "e0c90ec15d33363e6b70713d56bc3b2c7585c17f40a0fe0f8fd9305901d4e233",
+    "qmdPackageSha256": "a1cf458e797d5cd8a8c54d93f4876ef3ae189eda0456e0bc682b9fc27262d678",
+    "qmdImplementationSha256": "0de8e18a6a3b39000b51e7b75daf8295ab4ee978be0632ffe3e58ac231eac36a",
+    "closurePins": [
+      {
+        "file": "bun.lock",
+        "sha256": "1cb7df5b12dbf6e828323b31f6277ad40d81208b5ab0c5482882077429051edf"
+      },
+      {
+        "file": "package.json",
+        "sha256": "d36066daef2a6d69bc5306cde51170f569b833641710afc509410357784bce80"
+      },
+      {
+        "file": "node_modules/node-llama-cpp/package.json",
+        "sha256": "b75ffa4e24f545871c00f5fb977c6a3b63a4793cf65f2f266b862f8fa44867db"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/package.json",
+        "sha256": "627693bf9c07b7c55855dbb400ef331372bdedda7602588dc2347b12e7c9ea7e"
+      },
+      {
+        "file": "node_modules/node-llama-cpp/dist/bindings/getLlama.js",
+        "sha256": "94876d1c608451a92823efc3048b06a3f69eda6087d54b646466f87bee0d5ad3"
+      },
+      {
+        "file": "node_modules/node-llama-cpp/dist/evaluator/LlamaRankingContext.js",
+        "sha256": "0d9ca4c367492255b5706a7658bc22d0d1e8d647d7dd23905474f6974ed97365"
+      },
+      {
+        "file": "node_modules/node-llama-cpp/dist/evaluator/LlamaContext/LlamaContext.js",
+        "sha256": "c7047eb2e14f60e410b5ec008422066bf23aadba6cc42fea28c5321c235ffeb7"
+      },
+      {
+        "file": "node_modules/node-llama-cpp/dist/evaluator/LlamaModel/LlamaModel.js",
+        "sha256": "74c2f1cb6e4a5521cde4f49a73dcc6b8911111121e7a76fec862f1d374869b07"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/bins/mac-arm64-metal/_nlcBuildMetadata.json",
+        "sha256": "f5281c75dde72de4d9d0fa26801dddcfabda07b23f0e418d5bdca822a7c29f29"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/bins/mac-arm64-metal/libggml-base.dylib",
+        "sha256": "35bab443383d1a5caaabe574a8d9afda910967c42218d5bba58849a6736e2f41"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/bins/mac-arm64-metal/libggml-blas.so",
+        "sha256": "f60c3cc89ffb053abdd9a3b845bc4881d5edccc135fa74d7293316190a7d4877"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/bins/mac-arm64-metal/libggml-cpu.so",
+        "sha256": "7708099615c6746e7f4b5e0e0b547a8a9bd6da5a63407620f815ded39f4e63ae"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/bins/mac-arm64-metal/libggml-metal.so",
+        "sha256": "111d0052ec2e336c4aeab185b8f7c92c8dea0cca0500840d850e97d54cffd2d6"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/bins/mac-arm64-metal/libggml.metal.b8390.dylib",
+        "sha256": "76061a95edb70a10ae064406321b3fe9bfe4984ffedcb31bb82f63b72ddd7492"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/bins/mac-arm64-metal/libllama.metal.b8390.dylib",
+        "sha256": "c39f606829f7be6afa031d8de4417af94151ab2fb0a60c3971256fc4e916a88f"
+      },
+      {
+        "file": "node_modules/@node-llama-cpp/mac-arm64-metal/bins/mac-arm64-metal/llama-addon.node",
+        "sha256": "d7ceb753cf2dfdbd62045322920d7b840afe194ceccb3968598a030c764d65b2"
+      }
+    ]
+  },
+  "accounting": {
+    "currency": "USD",
+    "microsPerDollar": 1000000,
+    "pairedComparisons": 2,
+    "repeatsPerArmPerComparison": 3,
+    "logicalCasesPerComparison": 876,
+    "plannedLogicalCases": 1752,
+    "physicalCalls": 1752,
+    "completedLogicalCases": 1752,
+    "failedLogicalCases": 0,
+    "exposureMicros": 1461086,
+    "confirmedMicros": 1461086,
+    "unresolvedMicros": 0,
+    "additionalCapMicros": 25000000,
+    "remainingAdditionalMicros": 23538914,
+    "priorTaskExposureMicros": 12876502,
+    "totalTaskExposureMicros": 14337588,
+    "sharedNativeCalls": 146,
+    "qualification": "New paid reader exposure is the sum of each campaign once. Native work and reused historical semantic inference are excluded from provider dollar totals. Both comparisons share one native capture; their candidate reader responses are separate."
+  },
+  "methodDisclosures": {
+    "bothComparisonsSelectedBeforePrimaryAnswerInspection": true,
+    "answerOutcomesFirstInspectedAfterBothCampaignsClosed": true,
+    "independentAuditIsThirdPartyReview": false,
+    "sourceFilesFrozen": 375,
+    "sourceClosureRecheckedAfterOperationalDrift": true,
+    "workingTreeContinuouslyClean": false,
+    "operationalIncident": "Separate public service-catalog discovery was followed by an added .gitignore suffix and two catalog cache files outside the 375-file frozen closure. Tool causation is inferred from timing and content; exact mutation time was not instrumented. Evidence was preserved, only the added suffix was conditionally restored, and the two caches were moved to ignored evidence. Subsequent owner and independent checks matched every frozen source digest. Point-in-time cleanliness does not establish continuous cleanliness.",
+    "nativeInitialization": {
+      "handledCapabilityProbeFailures": 1,
+      "kind": "pre-paid-protocol-clarification",
+      "literalZeroErrorLogPolicyWouldFail": true,
+      "numericalQualityGatesChanged": false,
+      "qualification": "One error-level Metal initialization diagnostic was classified, from pinned source before paid dispatch and answer scoring, as a handled optional f16/bf16 capability-probe failure. The line does not identify which probe failed or its compiler cause. This is a disclosed interpretation/deviation from ambiguous frozen native-error wording, not unchanged zero-error-log admission.",
+      "recordedAt": "2026-09-23T16:26:21.751413+00:00",
+      "rerankerExecutionOrCleanupFailures": 0,
+      "stderrSha256": "bceee6a1604719d4ce149c5b32930950a7f7b9fa6b48696eacaa77e709c6931a"
+    },
+    "gateInterpretation": "The original numerical quality thresholds are evaluated under the recorded pre-paid native-initialization interpretation. It is not unchanged zero-error-log admission. Secondary comparison is descriptive and cannot rescue a failed primary.",
+    "secondary": "A separately paired descriptive comparison with fresh candidate reader attempts. Do not pool candidate observations or reuse one pair's candidate score for the other. Ordinary hybrid changes lexical query handling and is not a same-pool ablation.",
+    "uncertainty": "Per-persona and reader-repeat summaries are the primary variation views. The post-protocol, pre-answer bootstrap is descriptive conditional on two previously exposed personas; question dependencies may make it optimistic. It is not a population confidence interval or gate input.",
+    "publicReproduction": "Exact independent audit code and a synthetic fixture are public. The original-layout private source, gold, response and ledger bundle is required to reproduce the recorded ledger audits. Aggregate reports and public code alone are insufficient."
+  },
+  "evidenceDigests": {
+    "primaryReportSha256": "bf5a8b92f29506c19f92bfd08bc14ba3764e63efa6654373a25f626732a92a52",
+    "secondaryReportSha256": "bb738d3e6a9b0164e814a3cda69e9fbf6589eeab064d57002ef9df142a681954",
+    "auditorSha256": "b0771458cff8fe681578f5b3ea52adca6b051334471df33c11bcdd09edc8c8d3",
+    "syntheticFixtureSha256": "b88ffad01f4ca7ec490c901b5ac8e168d46421ab5e234fcce1ac1124e7788ef6",
+    "allCampaignsClosedSha256": "c860908c17e2ea2004c8f9eb323243cd83d726085f8da18433f737f52962e761",
+    "hardwarePreflightSha256": "dbd307f5d07ba18f53817a518c8b59aeb4eb2b865da6208da3bcb670e6c10118",
+    "primaryAuditManifestSha256": "a2aaae47b28261885865b1f67407c6d75de926c98bdc03baf579a7c2452d13e0",
+    "secondaryAuditManifestSha256": "f471d98a1be9287e3a5597d37c16e4261c8d318a199c25c0bbe45adbd9ec05dc",
+    "primaryProcessSha256": "a3f9e6320c2396c620b8cb10c4c87b84880e856427ea85bf2b110962947fc5ef",
+    "secondaryProcessSha256": "b51d7b7f044d562113762508c34ed5c70f4e3b2c56a518c5e99207f8e5968194",
+    "operationalReceiptDigests": {
+      "ignoreRestoration": "0dfad9f3796120c55267ff551f8af4b9ca5cf1eab4b9975862d9ab05e662e692",
+      "timingAndCleanStatus": "23971ca74fa43a812f5118dd2625c62aab5a5522140e24fe2680e324dea6b677",
+      "catalogCachePreservation": "1d111a95f1651020245e4feda7da30d2eea57cc08e8651b4d15283cc15e553b4",
+      "ownerSourceRecheck": "7ada375fbab4c372bc33e2ef0ce6ddd560bd100cd8f2f1babf7bf2980ca22736",
+      "independentSourceRecheck": "20d627ac4149e5b533be640c3fc80369648b087fc5a55d9ba9fa8894bc2b42cb"
+    }
+  },
+  "qualifications": [
+    "The configured default SDK route passed the primary development gate under the disclosed pre-paid native-initialization interpretation. Literal zero-native-error-log admission would fail.",
+    "Two previously exposed personas and 146 unique questions; repeated reader attempts are not additional independent questions or personas.",
+    "The actual production recordDocument rendering and Oh.search route were measured. Semantic inference was authenticated historical replay, so timing is not total live retrieval latency.",
+    "The GPT-4o mini reader was a Gateway alias, not an independently verified immutable snapshot. No model judge was used.",
+    "No memory-writing evaluation, clean-holdout confirmation, SOTA claim or measured comparison with Letta, Supermemory or Mem0."
+  ]
+}

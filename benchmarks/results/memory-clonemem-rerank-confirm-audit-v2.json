@@ -1,0 +1,657 @@
+{
+  "protocol": "oh.clonemem-rerank-confirm-independent-audit.v2",
+  "auditedAt": "2026-09-23",
+  "providerCalls": 0,
+  "attribution": "Independent stdlib Python recomputation by a separate coding agent; not third-party certification or provider attestation.",
+  "inputResultSha256": "7875476a0d7257f90739fb7ecef8e6b60b190f09ee74703bac60647934630358",
+  "screenFreezeSha256": "b368b8c92524dee31ac89b4d290344f7080422a02d09a621583f6b4496d480dc",
+  "auditorSha256": "01ea8ca0f968edc214c0bf353fca00f5c6113507e1e21b48fe4380c60a0ff302",
+  "method": {
+    "databaseAccess": "SQLite mode=ro&immutable=1 plus query_only; SHA-256 before and after, no WAL",
+    "nativeChecks": "Stored requests equal frozen planned requests; raw-response digests, answer text/digests, disposition, usage, charge and complete matrix verified; scoring independently reimplemented with exact option-ID rule.",
+    "scoring": "Three attempts per arm/question, average within question then equally across all 861 questions.",
+    "retrieval": "Flat union of gold trace IDs; recall on top ten selected traces; all frozen selected context hashes and byte sizes verified.",
+    "sampling": "Existing project-exposed reserved personas; no new answers, questions or retrieval policies selected.",
+    "primary": "Retains the original complete-campaign result. Additional summaries are post-hoc sensitivity analyses, not a replacement primary decision."
+  },
+  "campaigns": [
+    {
+      "campaign": "a1",
+      "databaseSha256": "0bc5ad044316378f5ffdbafbac6faa61675bfe12f623678595d1fbf5ec4779de",
+      "databaseUnchanged": true,
+      "rows": 1620,
+      "statuses": {
+        "settled": 1619,
+        "captured": 1
+      },
+      "plannedCases": 1662,
+      "byArm": {
+        "raw-vector": {
+          "planned": 831,
+          "settled": 809,
+          "correct": 605,
+          "captured": 1,
+          "unattempted": 21
+        },
+        "oh-union-qwen3-rerank-v1": {
+          "planned": 831,
+          "settled": 810,
+          "correct": 662,
+          "unattempted": 21
+        }
+      },
+      "chargedMicros": 1514903,
+      "protocolSha256": "8e4da930c6bcefc19452552555ef1bce38adb2428654b453cb61206957e4b763",
+      "sourceSha256": "50afad529a56aa6964699b3335a4ecf598381cb134e3fd58cc1d30597b995e28",
+      "artifactSha256": {
+        "prepared": "289d50d8b2dd530302c02910bccfdc62bb24a9e7e439d2804153d9264241331e",
+        "plan": "da2f628ff62f84ad629aa678eed5e639909dd2f2367c3a87c10b4526c64232b9",
+        "scorer": "e784a9bb906a6a3d5288de681dd935d1814e5281e6560072ccdf9bcbae5b4865",
+        "provenance": "2fad21405d50f4e7725023d18374be58205bb9a51882b9b235936897904e2e9b",
+        "capture": "d1eda830d273c005ec69d2aeb90e8025ce050c157bab09796690a7df0eae1c35",
+        "originalAudit": "37e1f4dcb1123f645e50b328c9c2dce45ce635a8d64752edcd8d050d15a220b2"
+      }
+    },
+    {
+      "campaign": "a2",
+      "databaseSha256": "abbfcee9dc188cc394588b1504169a62c85e5222fc1daa86e084f0cdab673a48",
+      "databaseUnchanged": true,
+      "rows": 836,
+      "statuses": {
+        "settled": 835,
+        "captured": 1
+      },
+      "plannedCases": 1662,
+      "byArm": {
+        "raw-vector": {
+          "planned": 831,
+          "settled": 418,
+          "correct": 306,
+          "unattempted": 413
+        },
+        "oh-union-qwen3-rerank-v1": {
+          "planned": 831,
+          "settled": 417,
+          "correct": 322,
+          "captured": 1,
+          "unattempted": 413
+        }
+      },
+      "chargedMicros": 767932,
+      "protocolSha256": "8e4da930c6bcefc19452552555ef1bce38adb2428654b453cb61206957e4b763",
+      "sourceSha256": "50afad529a56aa6964699b3335a4ecf598381cb134e3fd58cc1d30597b995e28",
+      "artifactSha256": {
+        "prepared": "669469fce78ebc638f23fa8bd1ece0a1196da4ceda6c9d0f3265eba6aced5e54",
+        "plan": "3f1e20b83786fb8d68df728f8a876a58876e0e008fd821b4e04ade6d650a251a",
+        "scorer": "e784a9bb906a6a3d5288de681dd935d1814e5281e6560072ccdf9bcbae5b4865",
+        "provenance": "24c84dbf5434d8944bcd4bd8be70a47305dbb8d86f9764b4c88808faf9871d25",
+        "capture": "f52acbe1b1551d62b0ef1b88dc84c85a4967f9e200960591ed859e7432b49af8",
+        "originalAudit": "b7dcf2a3947d504923f13fe3f2b86996c05c00eeb88ca899f0bdf939de7b992e"
+      }
+    },
+    {
+      "campaign": "a3",
+      "databaseSha256": "67b73a029d27d300d535dffc049c8ada8ac217aed818908fb667737fdcea3ab7",
+      "databaseUnchanged": true,
+      "rows": 1662,
+      "statuses": {
+        "settled": 1662
+      },
+      "plannedCases": 1662,
+      "byArm": {
+        "raw-vector": {
+          "planned": 831,
+          "settled": 831,
+          "correct": 612
+        },
+        "oh-union-qwen3-rerank-v1": {
+          "planned": 831,
+          "settled": 831,
+          "correct": 676
+        }
+      },
+      "chargedMicros": 1544495,
+      "protocolSha256": "738a731463d48a62cd7e8293aa03dad57c0bc07c6e14e581930a37136e312957",
+      "sourceSha256": "50afad529a56aa6964699b3335a4ecf598381cb134e3fd58cc1d30597b995e28",
+      "artifactSha256": {
+        "prepared": "16f8c270ac1402c46d9f705f61f508af83e951095a322ae42a93489bcd30296e",
+        "plan": "6a0ac54e3b06929a24d79c00118aeffa06abb8de32e83afc5c07363d734521a8",
+        "scorer": "e784a9bb906a6a3d5288de681dd935d1814e5281e6560072ccdf9bcbae5b4865",
+        "provenance": "cbf393ff8b567f5d64475a159ae6c7a2eac557bc4c2c708e75d3c8b757eac4bd",
+        "capture": "e9bc7ba84f849b2f9e54b6cbf074cbc83582599ad08dd5a590afa3dde18b9b9b",
+        "originalAudit": "c5e82cd4e1aa156ab2b9f10d9c6e678018f03c7c9ca863da255e00e63a4042b6"
+      }
+    },
+    {
+      "campaign": "b",
+      "databaseSha256": "a762c78ec622881d333a925144945e083cd462ccc00fb83296456eb8d9a173a6",
+      "databaseUnchanged": true,
+      "rows": 1728,
+      "statuses": {
+        "settled": 1728
+      },
+      "plannedCases": 1728,
+      "byArm": {
+        "raw-vector": {
+          "planned": 864,
+          "settled": 864,
+          "correct": 532
+        },
+        "oh-union-qwen3-rerank-v1": {
+          "planned": 864,
+          "settled": 864,
+          "correct": 597
+        }
+      },
+      "chargedMicros": 1607051,
+      "protocolSha256": "738a731463d48a62cd7e8293aa03dad57c0bc07c6e14e581930a37136e312957",
+      "sourceSha256": "1dd8dc51490e8401e3cd4470e58e995c6958d1f55fcf25f4630954c446b64329",
+      "artifactSha256": {
+        "prepared": "738673e42d3057cf048a4677787fe6629f40c46e70e307b604256e1b24fdcf4b",
+        "plan": "a7a2404ab63551cec6b4d89645d5411d9993a145a39319dce35a5f6e7b588bfb",
+        "scorer": "9c92da3cb2ac08d0eff241d291a76788a57895874fefb0f7ef31c63bc50da367",
+        "provenance": "03978e6eb08f18e26b78384803b99d0c6911b3c515f05a71750e4bf45b221034",
+        "capture": "608b887b17f4bf19cc8c2aa67ae09316526b5bcf362c984ccdb7e574b8d5d593",
+        "originalAudit": "329d3a032f3205c9244437abcf2b1286f962dedbddebd4b251e5c0599a800b0e"
+      }
+    },
+    {
+      "campaign": "c",
+      "databaseSha256": "6b6ef899ae5f25f03af124c0273cdd854ae8d8253b3887c9993081c908e12fc7",
+      "databaseUnchanged": true,
+      "rows": 1776,
+      "statuses": {
+        "settled": 1776
+      },
+      "plannedCases": 1776,
+      "byArm": {
+        "raw-vector": {
+          "planned": 888,
+          "settled": 888,
+          "correct": 678
+        },
+        "oh-union-qwen3-rerank-v1": {
+          "planned": 888,
+          "settled": 888,
+          "correct": 737
+        }
+      },
+      "chargedMicros": 1579414,
+      "protocolSha256": "738a731463d48a62cd7e8293aa03dad57c0bc07c6e14e581930a37136e312957",
+      "sourceSha256": "837a9eac4ad7f769ce460c7818bb79b6b0dbaaea7329e1524ec01518a295a295",
+      "artifactSha256": {
+        "prepared": "a643629db8c74d7936859645ba9eb9cd95efbf0efab93ce5c7719cfff0deb63a",
+        "plan": "d8647974b24f5ea8c7cb4b0cd40aff1a8798ff009785733f38d21fd517e9c1ee",
+        "scorer": "b3f49a331af2a116d6a3dbe358659d6966730bb53c083952504b9fb0b4553c2d",
+        "provenance": "cd42f6bc818e114cc38711f8233e4d772ed3641437a050f5594d03366b2c2890",
+        "capture": "a42d2de275ed9b7014968c7b80374bf816a0efe682e8d8e70a5958d137246458",
+        "originalAudit": "0316b88846de6b8b7f16c7a783b265d539c636b230f3193855d87c37da4bf6c5"
+      }
+    }
+  ],
+  "primary": {
+    "questions": 861,
+    "baseline": 0.705381339527681,
+    "candidate": 0.778164924506388,
+    "delta": 0.07278358497870696,
+    "wins": 106,
+    "losses": 30,
+    "ties": 725,
+    "byPersona": [
+      {
+        "persona": "persona-03",
+        "baselineCorrect": 339,
+        "baselineCases": 426,
+        "candidateCorrect": 355,
+        "candidateCases": 426,
+        "delta": 0.03755868544600938
+      },
+      {
+        "persona": "persona-04",
+        "baselineCorrect": 365,
+        "baselineCases": 501,
+        "candidateCorrect": 422,
+        "candidateCases": 501,
+        "delta": 0.11377245508982037
+      },
+      {
+        "persona": "persona-01",
+        "baselineCorrect": 161,
+        "baselineCases": 228,
+        "candidateCorrect": 178,
+        "candidateCases": 228,
+        "delta": 0.07456140350877194
+      },
+      {
+        "persona": "persona-02",
+        "baselineCorrect": 178,
+        "baselineCases": 234,
+        "candidateCorrect": 204,
+        "candidateCases": 234,
+        "delta": 0.11111111111111116
+      },
+      {
+        "persona": "persona-07",
+        "baselineCorrect": 156,
+        "baselineCases": 321,
+        "candidateCorrect": 194,
+        "candidateCases": 321,
+        "delta": 0.11838006230529591
+      },
+      {
+        "persona": "persona-06",
+        "baselineCorrect": 376,
+        "baselineCases": 543,
+        "candidateCorrect": 403,
+        "candidateCases": 543,
+        "delta": 0.04972375690607733
+      },
+      {
+        "persona": "persona-05",
+        "baselineCorrect": 247,
+        "baselineCases": 330,
+        "candidateCorrect": 254,
+        "candidateCases": 330,
+        "delta": 0.021212121212121127
+      }
+    ]
+  },
+  "bootstrap": {
+    "unit": "persona",
+    "personas": 7,
+    "resamples": 10000,
+    "seedHex": "b368b8c92524dee3",
+    "generator": "64-bit LCG multiplier6364136223846793005 increment1442695040888963407; high48bits; persona order matches input public result.",
+    "reproduced95": [
+      0.04608661104489471,
+      0.10265848670756646
+    ],
+    "exactFiniteBootstrap95": [
+      0.04608661104489471,
+      0.10189228529839883
+    ],
+    "exactOrderedDraws": 823543,
+    "exactCountVectors": 1716,
+    "qualification": "Describes variation among seven observed clusters; repeated answers are not independent personas and project exposure is not repaired by a confidence interval."
+  },
+  "recall": {
+    "baseline": 0.14482798785934675,
+    "candidate": 0.3279872437537943,
+    "delta": 0.18315925589444754
+  },
+  "context": {
+    "baselineMeanBytes": 27198.620209059234,
+    "candidateMeanBytes": 21201.837398373984,
+    "relativeReduction": 0.22048114075609837
+  },
+  "retrySensitivity": {
+    "firstCampaignAAdversarialMissingBounds": [
+      {
+        "questions": 861,
+        "baseline": 0.7111885404568332,
+        "candidate": 0.7727448703058459,
+        "delta": 0.061556329849012714,
+        "wins": 104,
+        "losses": 38,
+        "ties": 719,
+        "byPersona": [
+          {
+            "persona": "persona-03",
+            "baselineCorrect": 339,
+            "baselineCases": 426,
+            "candidateCorrect": 355,
+            "candidateCases": 426,
+            "delta": 0.03755868544600938
+          },
+          {
+            "persona": "persona-04",
+            "baselineCorrect": 373,
+            "baselineCases": 501,
+            "candidateCorrect": 406,
+            "candidateCases": 501,
+            "delta": 0.06586826347305386
+          },
+          {
+            "persona": "persona-01",
+            "baselineCorrect": 161,
+            "baselineCases": 228,
+            "candidateCorrect": 178,
+            "candidateCases": 228,
+            "delta": 0.07456140350877194
+          },
+          {
+            "persona": "persona-02",
+            "baselineCorrect": 178,
+            "baselineCases": 234,
+            "candidateCorrect": 204,
+            "candidateCases": 234,
+            "delta": 0.11111111111111116
+          },
+          {
+            "persona": "persona-07",
+            "baselineCorrect": 156,
+            "baselineCases": 321,
+            "candidateCorrect": 194,
+            "candidateCases": 321,
+            "delta": 0.11838006230529591
+          },
+          {
+            "persona": "persona-06",
+            "baselineCorrect": 376,
+            "baselineCases": 543,
+            "candidateCorrect": 403,
+            "candidateCases": 543,
+            "delta": 0.04972375690607733
+          },
+          {
+            "persona": "persona-05",
+            "baselineCorrect": 254,
+            "baselineCases": 330,
+            "candidateCorrect": 256,
+            "candidateCases": 330,
+            "delta": 0.0060606060606061
+          }
+        ]
+      },
+      {
+        "questions": 861,
+        "baseline": 0.70267131242741,
+        "candidate": 0.780874951606659,
+        "delta": 0.078203639179249,
+        "wins": 112,
+        "losses": 31,
+        "ties": 718,
+        "byPersona": [
+          {
+            "persona": "persona-03",
+            "baselineCorrect": 339,
+            "baselineCases": 426,
+            "candidateCorrect": 355,
+            "candidateCases": 426,
+            "delta": 0.03755868544600938
+          },
+          {
+            "persona": "persona-04",
+            "baselineCorrect": 351,
+            "baselineCases": 501,
+            "candidateCorrect": 427,
+            "candidateCases": 501,
+            "delta": 0.15169660678642716
+          },
+          {
+            "persona": "persona-01",
+            "baselineCorrect": 161,
+            "baselineCases": 228,
+            "candidateCorrect": 178,
+            "candidateCases": 228,
+            "delta": 0.07456140350877194
+          },
+          {
+            "persona": "persona-02",
+            "baselineCorrect": 178,
+            "baselineCases": 234,
+            "candidateCorrect": 204,
+            "candidateCases": 234,
+            "delta": 0.11111111111111116
+          },
+          {
+            "persona": "persona-07",
+            "baselineCorrect": 156,
+            "baselineCases": 321,
+            "candidateCorrect": 194,
+            "candidateCases": 321,
+            "delta": 0.11838006230529591
+          },
+          {
+            "persona": "persona-06",
+            "baselineCorrect": 376,
+            "baselineCases": 543,
+            "candidateCorrect": 403,
+            "candidateCases": 543,
+            "delta": 0.04972375690607733
+          },
+          {
+            "persona": "persona-05",
+            "baselineCorrect": 254,
+            "baselineCases": 330,
+            "candidateCorrect": 256,
+            "candidateCases": 330,
+            "delta": 0.0060606060606061
+          }
+        ]
+      }
+    ],
+    "firstSettledPerCell": {
+      "questions": 861,
+      "baseline": 0.7100271002710028,
+      "candidate": 0.7797135114208286,
+      "delta": 0.06968641114982577,
+      "wins": 104,
+      "losses": 31,
+      "ties": 726,
+      "byPersona": [
+        {
+          "persona": "persona-03",
+          "baselineCorrect": 339,
+          "baselineCases": 426,
+          "candidateCorrect": 355,
+          "candidateCases": 426,
+          "delta": 0.03755868544600938
+        },
+        {
+          "persona": "persona-04",
+          "baselineCorrect": 370,
+          "baselineCases": 501,
+          "candidateCorrect": 424,
+          "candidateCases": 501,
+          "delta": 0.10778443113772462
+        },
+        {
+          "persona": "persona-01",
+          "baselineCorrect": 161,
+          "baselineCases": 228,
+          "candidateCorrect": 178,
+          "candidateCases": 228,
+          "delta": 0.07456140350877194
+        },
+        {
+          "persona": "persona-02",
+          "baselineCorrect": 178,
+          "baselineCases": 234,
+          "candidateCorrect": 204,
+          "candidateCases": 234,
+          "delta": 0.11111111111111116
+        },
+        {
+          "persona": "persona-07",
+          "baselineCorrect": 156,
+          "baselineCases": 321,
+          "candidateCorrect": 194,
+          "candidateCases": 321,
+          "delta": 0.11838006230529591
+        },
+        {
+          "persona": "persona-06",
+          "baselineCorrect": 376,
+          "baselineCases": 543,
+          "candidateCorrect": 403,
+          "candidateCases": 543,
+          "delta": 0.04972375690607733
+        },
+        {
+          "persona": "persona-05",
+          "baselineCorrect": 254,
+          "baselineCases": 330,
+          "candidateCorrect": 256,
+          "candidateCases": 330,
+          "delta": 0.0060606060606061
+        }
+      ]
+    },
+    "firstAttemptTerminalFailureScoredZero": {
+      "questions": 861,
+      "baseline": 0.7096399535423926,
+      "candidate": 0.7797135114208286,
+      "delta": 0.07007355787843594,
+      "wins": 105,
+      "losses": 31,
+      "ties": 725,
+      "byPersona": [
+        {
+          "persona": "persona-03",
+          "baselineCorrect": 339,
+          "baselineCases": 426,
+          "candidateCorrect": 355,
+          "candidateCases": 426,
+          "delta": 0.03755868544600938
+        },
+        {
+          "persona": "persona-04",
+          "baselineCorrect": 369,
+          "baselineCases": 501,
+          "candidateCorrect": 424,
+          "candidateCases": 501,
+          "delta": 0.1097804391217565
+        },
+        {
+          "persona": "persona-01",
+          "baselineCorrect": 161,
+          "baselineCases": 228,
+          "candidateCorrect": 178,
+          "candidateCases": 228,
+          "delta": 0.07456140350877194
+        },
+        {
+          "persona": "persona-02",
+          "baselineCorrect": 178,
+          "baselineCases": 234,
+          "candidateCorrect": 204,
+          "candidateCases": 234,
+          "delta": 0.11111111111111116
+        },
+        {
+          "persona": "persona-07",
+          "baselineCorrect": 156,
+          "baselineCases": 321,
+          "candidateCorrect": 194,
+          "candidateCases": 321,
+          "delta": 0.11838006230529591
+        },
+        {
+          "persona": "persona-06",
+          "baselineCorrect": 376,
+          "baselineCases": 543,
+          "candidateCorrect": 403,
+          "candidateCases": 543,
+          "delta": 0.04972375690607733
+        },
+        {
+          "persona": "persona-05",
+          "baselineCorrect": 254,
+          "baselineCases": 330,
+          "candidateCorrect": 256,
+          "candidateCases": 330,
+          "delta": 0.0060606060606061
+        }
+      ]
+    },
+    "allCompletedPerQuestion": {
+      "questions": 861,
+      "baseline": 0.7078977932636469,
+      "candidate": 0.779068266873145,
+      "delta": 0.07117047360949813,
+      "wins": 107,
+      "losses": 32,
+      "ties": 722,
+      "byPersona": [
+        {
+          "persona": "persona-03",
+          "baselineCorrect": 339,
+          "baselineCases": 426,
+          "candidateCorrect": 355,
+          "candidateCases": 426,
+          "delta": 0.03755868544600938
+        },
+        {
+          "persona": "persona-04",
+          "baselineCorrect": 865,
+          "baselineCases": 1190,
+          "candidateCorrect": 994,
+          "candidateCases": 1190,
+          "delta": 0.10840336134453787
+        },
+        {
+          "persona": "persona-01",
+          "baselineCorrect": 161,
+          "baselineCases": 228,
+          "candidateCorrect": 178,
+          "candidateCases": 228,
+          "delta": 0.07456140350877194
+        },
+        {
+          "persona": "persona-02",
+          "baselineCorrect": 178,
+          "baselineCases": 234,
+          "candidateCorrect": 204,
+          "candidateCases": 234,
+          "delta": 0.11111111111111116
+        },
+        {
+          "persona": "persona-07",
+          "baselineCorrect": 156,
+          "baselineCases": 321,
+          "candidateCorrect": 194,
+          "candidateCases": 321,
+          "delta": 0.11838006230529591
+        },
+        {
+          "persona": "persona-06",
+          "baselineCorrect": 376,
+          "baselineCases": 543,
+          "candidateCorrect": 403,
+          "candidateCases": 543,
+          "delta": 0.04972375690607733
+        },
+        {
+          "persona": "persona-05",
+          "baselineCorrect": 658,
+          "baselineCases": 868,
+          "candidateCorrect": 666,
+          "candidateCases": 868,
+          "delta": 0.009216589861751112
+        }
+      ]
+    },
+    "allCompletedCalls": 7620,
+    "allAttemptedCalls": 7622,
+    "qualification": "All-attempt analysis averages available repetitions within arm/question before equally weighting questions. Partial campaigns are not independent replications. Adversarial bounds preserve A1, B and C and vary only43 missing A1 cells."
+  },
+  "accounting": {
+    "cleanCampaignMicros": 4730960,
+    "failedCampaignMicros": 2282835,
+    "confirmationExposureMicros": 7013795,
+    "priorTaskMicros": 5862707,
+    "totalTaskMicros": 12876502,
+    "originalAuthorizedTaskMicros": 25000000,
+    "remainingOriginalTaskMicros": 12123498
+  },
+  "protocolHistory": {
+    "originalProtocolSha256": "8e4da930c6bcefc19452552555ef1bce38adb2428654b453cb61206957e4b763",
+    "amendedProtocolSha256": "738a731463d48a62cd7e8293aa03dad57c0bc07c6e14e581930a37136e312957",
+    "originalProtocolRecoveryCommit": "f14c3ef",
+    "amendmentRecoveryCommit": "e51e10b",
+    "originalPrelossCommit": "d24bb39",
+    "amendmentPrelossCommit": "48e2c8a",
+    "change": "Retry rule and complete-campaign inclusion added after A1 and A2 failures, before A3. Arms, population and numeric decision thresholds unchanged.",
+    "evidence": "A1/A2 prepared packets bind original protocol; A3/B/C bind amended protocol. Devin daffodil-minute transcript nodes2775,2985,3000 record second failure then amendment.",
+    "classification": "Initial hypotheses and thresholds were predeclared; full analysis/inclusion protocol was amended during execution. Do not call the whole final protocol unchanged or fully preregistered."
+  },
+  "limitations": [
+    "All eligible personas had prior project exposure; not pristine holdout.",
+    "Raw-vector comparator only; no matched Letta, Supermemory or Mem0 comparison.",
+    "Gateway alias does not establish immutable provider model snapshot.",
+    "Independent arithmetic and capture integrity checks are not external certification or proof of provider provenance.",
+    "Measured reranker document renderer differs from shipped SDK recordDocument; production default quality requires a separate qualification.",
+    "Local reranker latency and inference resources are excluded from reader provider charges."
+  ]
+}

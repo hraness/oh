@@ -18,6 +18,7 @@ import { AskAiAboutThis } from "@hraness/ui";
 import { OhField } from "./oh-field";
 
 import publishedRelease from "../published-release.json";
+import { MemoryBenchmarkComparison } from "./benchmark-comparison";
 import { OhContentFooter } from "./site-footer";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
@@ -42,9 +43,9 @@ const capturedVersion = "0.4.0";
 const capturedOn = "September 5, 2026";
 const repository = "https://github.com/hraness/oh";
 
-const heading = "A research graph your agents can inspect";
+const heading = "Memory your agents can trace";
 const lead =
-  "Keep the sources behind an agent’s answer. Oh stores your questions, claims, and citations in a local research graph, so you can follow a brief back to the evidence and review what changed.";
+  "Oh is an open-source memory framework for agents. Store facts with their sources, retrieve useful context, and follow every accepted change through a verifiable history. Build on it with a TypeScript SDK, CLI, and local SQLite storage.";
 const footnote =
   `Free and MIT licensed. Bun 1.3.14 or newer, no account, no hosted model. Current release v${releaseVersion}.`;
 
@@ -153,7 +154,7 @@ const questions = [
   },
   {
     question: "Is semantic search required?",
-    answer: "No. Keyword search works without a model. Local semantic search uses the optional QMD peer dependency with a pinned EmbeddingGemma profile, and a hosted embedding cache through Cloudflare Workers AI and libSQL is a separate, explicit profile. Both are rebuildable views joined back to the current record digest.",
+    answer: "No. Keyword search works without a model. When you configure a semantic backend, SDK search uses hybrid retrieval; adding a local reranker makes reranking the default. There is no experimental switch. Local models use the optional QMD peer; hosted embedding through Cloudflare Workers AI and libSQL is a separate profile. Search results are joined back to the current record digest.",
   },
   {
     question: "Does a passing verification mean a claim is true?",
@@ -165,7 +166,7 @@ const questions = [
   },
   {
     question: "What does it cost?",
-    answer: "Nothing. Oh is MIT licensed and published on npm as @hraness/oh. The base package has no required runtime dependencies; the optional peers for local semantic search, libSQL, and Datalog projection install only when you use them.",
+    answer: "The software is free and MIT licensed, published as @hraness/oh. Local retrieval uses your hardware; hosted adapters use the provider plans you configure. The base package has no required runtime dependencies.",
   },
   {
     question: "Where can I run it?",
@@ -173,12 +174,13 @@ const questions = [
   },
   {
     question: "Who made it?",
-    answer: "Hraness is an advanced software research organization dedicated to advancing the frontier of machine intelligence. Oh is its open-source kernel for research done with agents, published under the MIT license.",
+    answer: "Hraness is an advanced software research organization dedicated to advancing the frontier of machine intelligence. Oh is its open-source memory framework for agents, published under the MIT license.",
   },
 ] as const;
 
 const navigation = [
   { href: "#model", label: "Model" },
+  { href: "#benchmarks", label: "Benchmarks" },
   { href: "#trace", label: "Trace" },
   { href: "#interfaces", label: "Interfaces" },
   { href: "#questions", label: "Questions" },
@@ -238,7 +240,7 @@ export default function Home() {
             boundary={footnote}
             className="oh-marketing-hero"
             eyebrow=""
-            example="Open-source tools for agentic research"
+            example="Open-source memory for agents"
             frame={(
               <div className="oh-board">
                 <div className="oh-record-card" aria-hidden="true">
@@ -375,92 +377,36 @@ oh get evidence:table-2 \\
           />
 
           <MarketingSection
-            heading="More evidence within 12 KB."
+            heading="Better answers, with evidence you can inspect."
             headingId="benchmarks-title"
             id="benchmarks"
-            label="Agent-run benchmark"
+            label=""
             layout="split"
-            summary="On LoCoMo, a benchmark of long conversations, query-aware packing recovered more annotated source turns from the same vector rankings."
+            summary="The configured default SDK route improved answer accuracy in a fixed CloneMem development comparison. Read the measured gain alongside its population, compute cost, and limitations."
           >
-            <div className="benchmark-comparison">
-              <table className="benchmark-table">
-                <caption>Evidence recall · 12,000-byte context ceiling</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Context policy</th>
-                    <th scope="col">Evidence recall</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <th scope="row">Query-aware packing</th>
-                    <td>90.08%</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Vector windows</th>
-                    <td>88.93%</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="benchmark-delta">
-                <strong>+1.15 percentage points</strong>
-                <span>95% conversation-cluster interval: +0.62 to +1.70 points.</span>
-              </p>
-              <p className="benchmark-note">
-                Mean share of annotated source turns recovered per question.
-                Recall covers 1,224 annotated questions across eight conversations.
-                Both policies use the same top 20 vector results and whole turns.
-                Across all 1,586 confirmation questions, query-aware packing used
-                236 more bytes on average.
-              </p>
-            </div>
-            <div className="benchmark-comparison benchmark-answer">
-              <table className="benchmark-table">
-                <caption>Model-judged answer accuracy</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Context policy</th>
-                    <th scope="col">Answer accuracy</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <th scope="row">Query-aware packing</th>
-                    <td>77.33%</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Vector windows</th>
-                    <td>78.11%</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="benchmark-delta">
-                <strong>No established answer improvement</strong>
-                <span>−0.78 percentage points; 95% conversation-cluster interval: −4.64 to +2.34 points.</span>
-              </p>
-              <p className="benchmark-note">
-                300 questions balanced across the same eight conversations, with
-                three reader attempts per question and policy. GPT-4o mini served
-                as reader and judge; identical judge prompts shared one judgment.
-                The model alias did not identify an immutable snapshot.
-              </p>
-            </div>
-            <p className="benchmark-note">
-              Benchmark policy <code>anchors-query-4</code> was selected on two
-              other conversations. All ten conversations had prior project
-              exposure. This policy is experimental; these retrieval scores do
-              not establish answer quality.
-            </p>
-            <ul className="benchmark-links" aria-label="LoCoMo benchmark evidence">
-              <li><a href={`${repository}/blob/main/benchmarks/LOCOMO_WINDOW_QA_V1.md`}>Protocol and limitations</a></li>
-              <li><a href={`${repository}/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json`}>Retrieval results</a></li>
-              <li><a href={`${repository}/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json`}>Answer-quality results</a></li>
+            <MemoryBenchmarkComparison />
+          </MarketingSection>
+
+          <MarketingSection
+            heading="Oh is the engine. Wordcell is your knowledge base."
+            headingId="wordcell-title"
+            id="wordcell"
+            label=""
+            layout="split"
+            summary="Use Oh to build memory into an application. Use Wordcell to work with a knowledge base made of Markdown files."
+          >
+            <p>Oh owns the record, retrieval, and proof primitives. Applications decide
+              what a memory means, when it may be written, and who can use it.</p>
+            <p><a href="https://wordcell.io">Wordcell</a> adds notes, links, capture,
+              search, and publishing. Its Markdown files stay authoritative. Oh supplies
+              a rebuildable graph for queries and source proofs; rebuilding it never
+              rewrites your notes.</p>
+            <p>Wordcell evaluates its own retrieval pipeline. Its use of Oh’s graph
+              does not automatically inherit the memory benchmark scores above.</p>
+            <ul className="benchmark-links">
+              <li><a href="https://wordcell.io/developers">Build with Wordcell</a></li>
+              <li><a href={`${repository}/blob/main/docs/wordcell.md`}>Understand the integration</a></li>
             </ul>
-            <p className="benchmark-note benchmark-transfer">
-              On CloneMem, a separate personal-memory benchmark, Oh hybrid search
-              did not establish a multiple-choice accuracy gain over vector search.{" "}
-              <a href={`${repository}/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md`}>Read the CloneMem comparison</a>.
-            </p>
           </MarketingSection>
 
           <MarketingTrustBoundary

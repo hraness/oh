@@ -4,9 +4,9 @@ import { ohSupportProfile } from "../../src/support-profile";
 import { FoilController } from "./foil-controller";
 import "./globals.css";
 
-const title = "Oh: a research graph your agents can inspect";
+const title = "Oh: memory your agents can trace";
 const description =
-  "Oh gives your agents a local path from a question to a cited artifact: sources, claims, citations, and a verifiable history of every change, in one SQLite file on your machine.";
+  "An open-source memory framework for agents: source-backed records, local retrieval, graph proofs, and a verifiable change history. TypeScript SDK, CLI, and SQLite storage.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://oh.computer"),
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     title,
     description,
     images: [{
-      alt: "open-source tools for agentic research",
+      alt: "Open-source memory for agents",
       height: 630,
       url: "/opengraph-image",
       width: 1200,
