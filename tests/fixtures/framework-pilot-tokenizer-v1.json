@@ -1,0 +1,282 @@
+{
+  "protocol": "oh.framework-pilot-tokenizer-fixtures.v1",
+  "provenance": {
+    "tiktokenVersion": "0.14.0",
+    "sourceCommit": "4e71bbe0c078468e00fefbf94b39849389f346e5",
+    "assetSha256": "446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d",
+    "wheelSha256": "f2af4a336ea56d6c14f27741a0e1d8294a35dd0b038bcf990d232ebb54eb994b",
+    "api": "Encoding.encode(allowed_special=set(),disallowed_special=())",
+    "cookbookChecks": [
+      "antidisestablishmentarianism",
+      "arithmetic",
+      "japanese"
+    ],
+    "cookbookUrl": "https://developers.openai.com/cookbook/examples/how_to_count_tokens_with_tiktoken"
+  },
+  "rows": [
+    {
+      "id": "empty",
+      "text": "",
+      "tokens": []
+    },
+    {
+      "id": "english",
+      "text": "hello world",
+      "tokens": [
+        24912,
+        2375
+      ]
+    },
+    {
+      "id": "antidisestablishmentarianism",
+      "text": "antidisestablishmentarianism",
+      "tokens": [
+        493,
+        129901,
+        376,
+        160388,
+        21203,
+        2367
+      ]
+    },
+    {
+      "id": "arithmetic",
+      "text": "2 + 2 = 4",
+      "tokens": [
+        17,
+        659,
+        220,
+        17,
+        314,
+        220,
+        19
+      ]
+    },
+    {
+      "id": "japanese",
+      "text": "お誕生日おめでとう",
+      "tokens": [
+        8930,
+        9697,
+        243,
+        128225,
+        8930,
+        17693,
+        4344,
+        48669
+      ]
+    },
+    {
+      "id": "chinese",
+      "text": "你好，世界",
+      "tokens": [
+        177519,
+        979,
+        28428
+      ]
+    },
+    {
+      "id": "arabic",
+      "text": "مرحبا بالعالم",
+      "tokens": [
+        158894,
+        26537,
+        101462,
+        12773
+      ]
+    },
+    {
+      "id": "nfc",
+      "text": "é",
+      "tokens": [
+        377
+      ]
+    },
+    {
+      "id": "nfd",
+      "text": "é",
+      "tokens": [
+        68,
+        13430
+      ]
+    },
+    {
+      "id": "emoji",
+      "text": "👩🏽‍💻 🏳️‍🌈",
+      "tokens": [
+        28823,
+        102,
+        52622,
+        121,
+        2524,
+        31446,
+        119,
+        9552,
+        237,
+        111,
+        15148,
+        2524,
+        64364,
+        230
+      ]
+    },
+    {
+      "id": "whitespace",
+      "text": " a\r\n\t b  ",
+      "tokens": [
+        261,
+        370,
+        197,
+        287,
+        256
+      ]
+    },
+    {
+      "id": "control",
+      "text": "\u0000\b\f",
+      "tokens": [
+        188,
+        196,
+        200
+      ]
+    },
+    {
+      "id": "literal-endoftext",
+      "text": "<|endoftext|>",
+      "tokens": [
+        27,
+        91,
+        419,
+        1440,
+        919,
+        91,
+        29
+      ]
+    },
+    {
+      "id": "literal-endofprompt",
+      "text": "<|endofprompt|>",
+      "tokens": [
+        27,
+        91,
+        419,
+        1440,
+        82467,
+        91,
+        29
+      ]
+    },
+    {
+      "id": "all-literal-markers",
+      "text": "<|im_start|> <|fim_prefix|> <|endoftext|>",
+      "tokens": [
+        27,
+        91,
+        321,
+        10949,
+        91,
+        29,
+        464,
+        91,
+        103473,
+        33197,
+        91,
+        29,
+        464,
+        91,
+        419,
+        1440,
+        919,
+        91,
+        29
+      ]
+    },
+    {
+      "id": "part-one",
+      "text": "hel",
+      "tokens": [
+        4161
+      ]
+    },
+    {
+      "id": "part-two",
+      "text": "lo",
+      "tokens": [
+        746
+      ]
+    },
+    {
+      "id": "combined",
+      "text": "hello",
+      "tokens": [
+        24912
+      ]
+    },
+    {
+      "id": "context-line-one",
+      "text": "{\"content\":\"a\",\"unitId\":\"u000001\"}",
+      "tokens": [
+        10848,
+        3252,
+        7534,
+        64,
+        4294,
+        5400,
+        906,
+        7534,
+        84,
+        1302,
+        7659,
+        18583
+      ]
+    },
+    {
+      "id": "context-line-two",
+      "text": "{\"content\":\"a\",\"unitId\":\"u000002\"}",
+      "tokens": [
+        10848,
+        3252,
+        7534,
+        64,
+        4294,
+        5400,
+        906,
+        7534,
+        84,
+        1302,
+        11950,
+        18583
+      ]
+    },
+    {
+      "id": "whole-jsonl-context",
+      "text": "{\"content\":\"a\",\"unitId\":\"u000001\"}\n{\"content\":\"a\",\"unitId\":\"u000002\"}",
+      "tokens": [
+        10848,
+        3252,
+        7534,
+        64,
+        4294,
+        5400,
+        906,
+        7534,
+        84,
+        1302,
+        7659,
+        31085,
+        10848,
+        3252,
+        7534,
+        64,
+        4294,
+        5400,
+        906,
+        7534,
+        84,
+        1302,
+        11950,
+        18583
+      ]
+    }
+  ]
+}

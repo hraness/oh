@@ -40,6 +40,12 @@ framework comparisons. They preserve session equivalence and occurrence
 identity, reject invalid splits, and require an explicit tokenizer. Their
 synthetic checks do not establish provider readiness or a new quality result.
 
+The [framework adapters](FRAMEWORK_PILOT_ADAPTERS_V1.md) add fresh Oh and BM25
+retrieval, a bounded Supermemory lifecycle, and explicit common reader routes.
+The [offline tokenizer](FRAMEWORK_PILOT_TOKENIZER_V1.md) counts complete context
+strings against pinned OpenAI tokenizer artifacts. Live campaign qualification
+and matched quality results remain separate from these source checks.
+
 The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
 answer or recall gain from shipped hybrid search over matched vector retrieval.
 The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) confirmed an evidence-recall
