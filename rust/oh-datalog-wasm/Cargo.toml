@@ -1,0 +1,22 @@
+[package]
+name = "oh-datalog-wasm"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "WASM bindings for the Oh positive-Datalog engine."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+oh-datalog = { path = "../oh-datalog" }
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
+serde-wasm-bindgen.workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

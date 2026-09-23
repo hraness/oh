@@ -181,7 +181,6 @@ a:focus-visible {
 .record-link a,
 .interface-link a,
 .install-note a,
-.hraness-marketing-maker__links a,
 .hraness-marketing-question__answer a {
   color: var(--foreground);
   text-decoration: underline;
@@ -192,9 +191,155 @@ a:focus-visible {
 .record-link a:hover,
 .interface-link a:hover,
 .install-note a:hover,
-.hraness-marketing-maker__links a:hover,
 .hraness-marketing-question__answer a:hover {
   text-decoration-color: currentColor;
+}
+
+/* The benchmark uses the shared section grammar and a semantic comparison table. */
+#benchmarks[data-layout="split"] {
+  align-items: start;
+}
+
+.benchmark-comparison {
+  min-inline-size: 0;
+}
+
+.benchmark-answer {
+  margin-block-start: 1rem;
+}
+
+.benchmark-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: start;
+}
+
+.benchmark-table caption {
+  padding-block-end: 1rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: start;
+}
+
+.benchmark-table th,
+.benchmark-table td {
+  padding-block: 1rem;
+  border-block-end: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.benchmark-table th {
+  font-weight: 500;
+}
+
+.benchmark-table th:first-child {
+  inline-size: 60%;
+  padding-inline-end: 1rem;
+}
+
+.benchmark-table thead {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.benchmark-table th:last-child,
+.benchmark-table td {
+  text-align: end;
+}
+
+.benchmark-table td {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.benchmark-delta {
+  display: grid;
+  gap: 0.2rem;
+  margin-block: 1.25rem;
+}
+
+.benchmark-delta strong {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.benchmark-delta span,
+.benchmark-note {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.benchmark-note {
+  margin: 0;
+  max-inline-size: 64ch;
+}
+
+.benchmark-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.benchmark-links a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 3rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.benchmark-links a,
+.benchmark-transfer a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+  text-underline-offset: 0.18em;
+}
+
+.benchmark-links a:hover,
+.benchmark-transfer a:hover {
+  text-decoration-color: currentColor;
+}
+
+.benchmark-transfer {
+  padding-block-start: 1.25rem;
+  border-block-start: 1px solid var(--line);
+}
+
+@media (max-width: 22rem) {
+  .benchmark-table thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .benchmark-table tbody,
+  .benchmark-table tbody tr {
+    display: grid;
+  }
+
+  .benchmark-table tbody th:first-child {
+    inline-size: auto;
+    padding-inline-end: 0;
+    padding-block-end: 0.25rem;
+    border-block-end: 0;
+    text-align: start;
+  }
+
+  .benchmark-table td {
+    padding-block-start: 0;
+    text-align: start;
+  }
 }
 
 /* The trace section: the heading group stays at the top of its column and
@@ -243,16 +388,12 @@ a:focus-visible {
   line-height: 1.5;
 }
 
-/* Ask AI row and footer */
+/* Ask AI row */
 
-.ask-ai,
-.site-footer {
+.ask-ai {
   inline-size: min(100%, 72rem);
   margin-inline: auto;
   padding-inline: clamp(1.25rem, 4vw, 3rem);
-}
-
-.ask-ai {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -307,39 +448,6 @@ a:focus-visible {
 .ask-ai [data-slot="ask-ai-about-this-icon"] {
   display: block;
   flex: 0 0 auto;
-}
-
-.site-footer {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 1rem 3rem;
-  padding-block: 2rem 4rem;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
-.site-footer p {
-  margin: 0;
-  max-inline-size: 40ch;
-}
-
-.site-footer nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
-}
-
-.site-footer a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.site-footer a:hover {
-  color: var(--foreground);
-  text-decoration: underline;
 }
 
 .skip-link {
@@ -628,7 +736,7 @@ a:focus-visible {
 @media (pointer: coarse) {
   .ask-ai [data-slot="ask-ai-about-this-link"],
   .spec-nav a,
-  .site-footer a,
+  .hraness-marketing-footer__nav a,
   .hraness-marketing-header__nav a {
     display: inline-flex;
     align-items: center;
@@ -641,3 +749,6 @@ a:focus-visible {
     scroll-behavior: auto;
   }
 }
+
+/* Decorative topic icons (agent-generated line art, public/icons/). */
+.oh-topic-icon { display: block; width: 88px; height: 88px; margin: 0 0 18px; }

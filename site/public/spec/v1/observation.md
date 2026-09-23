@@ -148,24 +148,62 @@ outside the examined set; the link reports `candidatesTruncated` and the
 receipt lists the affected observation keys so a consumer can re-link them or
 account for the degradation.
 
-## Rendering
+## Reading a supersession chain
 
-A renderer places observations ahead of raw turns as
-`Memory: [<statedAt>] <speaker> (<kind>): <text>`, followed by the event date
-and its expression when present, `(superseded on <date>)` when a rendered
-successor exists, and an explicit both-dates marker on an ordering conflict.
-For a query that matches a bounded recommendation pattern, `preference`
-observations are grouped first under `Remembered preferences (<facets>)`. The
-renderer uses no model and is re-runnable from the stored records alone.
+`ohObservationSupersessionV1` follows `supersedes` from one observation toward the
+oldest record and reports how far it got. It needs a synchronous `get` and nothing
+else, and it never writes.
 
-## Boundaries
+It counts recorded links, not restatements. A link comes from the policy above,
+which matches on facet and speaker over a bounded candidate lookup, so a fact
+whose extracted facet changed between sessions starts a fresh chain and reads a
+lower depth than the number of times it was stated. `depth` describes the link
+graph the store holds.
 
-- The library never dispatches a model call. The caller supplies an observer
-  with a model identifier and an `observe(prompt)` function.
-- Observations never replace raw turns; they are added beside them.
-- The record codec can be registered only in a store whose `edition` kind is
-  reserved for this profile: a registry keeps one parser per kind, so in a
-  store that also holds turn records the turns would fail to parse. The
-  library never registers it, and it is not part of the contract manifest.
-- No ontology assertion is written, because an observation binds no subject,
-  predicate, and object.
+This is the churn a per-record revision count cannot see. A revision count reports
+rewrites of one key, and this profile records a correction as a new key. The two
+are not independent: applying the supersession policy re-puts a record when its
+link changes, so a key linked that way reports one revision, while a key linked
+during extraction is written once and reports none.
+
+`depth` is the number of links followed, so a first statement reads 0. `resolved`
+is true only when the walk ended at a record that supersedes nothing, and only
+then does `origin` name the oldest record and `depth` equal the distance to it.
+`resolved` says nothing about whether the link graph is complete: a chain the
+lookup never joined still resolves.
+
+`candidateLookup` reports what the walked records' receipts recorded about the
+bounded lookup their link was chosen from. It has three values because the honest
+answer has three cases.
+
+`named` means a receipt named one of the walked records, so its lookup saturated.
+The chain may then be short by an unknown amount even though the walk completed,
+and `depth` is not a floor on the links that exist.
+
+`unreadable` means a receipt could not be read as one, so nothing is known. A
+boolean would have to fold that state into one of the others, and folding it into
+the absence of saturation would report a fact the read never established.
+
+`none-recorded` means every walked record's receipt was readable and named none of
+them. It is deliberately not called complete. A receipt covers the lookup
+performed when the observation was extracted. Applying the supersession policy
+re-links an already committed record against its original receipt and writes no
+receipt of its own, so a link the policy chose from a saturated lookup is recorded
+nowhere this read can see. `none-recorded` rules out recorded saturation and
+nothing further. A facet that changed between sessions leaves no signal this read
+can report either.
+
+Each walked record costs one receipt read, memoised per session, so a chain whose
+links all come from one session reads one receipt and a chain whose links come
+from different sessions reads one per link.
+
+A link is followed only when the record parses as an observation record, so a
+record of another kind stored at an observation key is reported as damage instead
+of counted. At most 8192 observation records are read, so the longest chain that can resolve
+carries 8191 links, and with one receipt per link a walk performs up to 16384
+reads in total.
+
+The count carries no meaning. A long chain may be contested, progressively
+refined, or simply a subject discussed often, and this profile does not
+distinguish those. Whether a depth warrants review is the application's decision,
+as it is for a revision count.

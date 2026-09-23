@@ -17220,6 +17220,121 @@ function replayOhOperationsV1(spaceId, values3, maximumRecords = OH_GRAPH_LIMITS
   }
   return { head: head5, records: sortedRecords(records.values()), v: 1 };
 }
+var OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
+  changesPerKey: 65536,
+  operationsPerRead: 1000
+});
+function parseOhRecordRevisionChangeV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["kind", "recordSha256", "sequence", "v"]) || value.v !== 1 || value.kind !== "put" && value.kind !== "tombstone")
+    return null;
+  const recordSha256 = parseSha256Hex(value.recordSha256);
+  const sequence = Number.isSafeInteger(value.sequence) && value.sequence > 0 ? value.sequence : null;
+  return recordSha256 !== null && sequence !== null ? { kind: value.kind, recordSha256, sequence, v: 1 } : null;
+}
+function reduceOhRecordRevisionsV1(input) {
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["changes", "fromSequence", "key", "through", "truncated"]) || !Array.isArray(input.changes)) {
+    throw new TypeError("Invalid record revision input.");
+  }
+  const key = safeCode(input.key, 512);
+  const through = Number.isSafeInteger(input.through) && input.through >= 0 ? input.through : null;
+  const fromSequence = Number.isSafeInteger(input.fromSequence) && input.fromSequence >= 0 ? input.fromSequence : null;
+  if (key === null || through === null || fromSequence === null || typeof input.truncated !== "boolean") {
+    throw new TypeError("Invalid record revision input.");
+  }
+  if (fromSequence > 0 && through > 0 && fromSequence > through) {
+    throw new RangeError("A record revision read cannot start after the sequence it was read through.");
+  }
+  const truncated = input.truncated || through > 0 && fromSequence !== 1;
+  if (input.changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
+    throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
+  }
+  const parsed = [];
+  const sequences = new Set;
+  for (const value of input.changes) {
+    const change = parseOhRecordRevisionChangeV1(value);
+    if (change === null)
+      throw new TypeError("Invalid record revision change.");
+    if (change.sequence > through)
+      throw new RangeError("A record revision change is ahead of its through sequence.");
+    if (sequences.has(change.sequence))
+      throw new TypeError("A record key has two changes at one sequence.");
+    sequences.add(change.sequence);
+    parsed.push(change);
+  }
+  parsed.sort((left3, right3) => left3.sequence - right3.sequence);
+  const digests = new Set;
+  let puts = 0;
+  let tombstones = 0;
+  let idempotentPuts = 0;
+  let priorPutDigest = null;
+  for (const change of parsed) {
+    if (change.kind === "put") {
+      puts += 1;
+      digests.add(change.recordSha256);
+      if (priorPutDigest === change.recordSha256)
+        idempotentPuts += 1;
+      priorPutDigest = change.recordSha256;
+    } else {
+      tombstones += 1;
+      priorPutDigest = null;
+    }
+  }
+  const latest = parsed.at(-1) ?? null;
+  return {
+    changes: parsed.length,
+    distinctPutDigests: digests.size,
+    idempotentPuts,
+    key,
+    latestKind: latest === null ? null : latest.kind,
+    latestSequence: latest?.sequence ?? null,
+    oldestObservedSequence: parsed[0]?.sequence ?? null,
+    puts,
+    revisions: puts === 0 ? 0 : puts - 1,
+    through,
+    tombstones,
+    truncated,
+    v: 1
+  };
+}
+function ohRecordRevisionChangesFromOperationsV1(input) {
+  if (!isPlainRecord(input) || !Array.isArray(input.operations)) {
+    throw new TypeError("Invalid record revision operation input.");
+  }
+  const key = safeCode(input.key, 512);
+  const spaceId = safeCode(input.spaceId);
+  if (key === null)
+    throw new TypeError("Invalid record key.");
+  if (spaceId === null)
+    throw new TypeError("Invalid space ID.");
+  if (input.operations.length > OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead) {
+    throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.operationsPerRead} operations.`);
+  }
+  const changes = [];
+  let prior = null;
+  let first = 0;
+  for (const value of input.operations) {
+    const operation = parseOhOperationV1(value);
+    if (operation === null)
+      throw new OhIntegrityError("A revision source operation is invalid.");
+    if (prior === null)
+      first = operation.sequence;
+    if (operation.spaceId !== spaceId) {
+      throw new TypeError(`A revision source operation belongs to ${operation.spaceId}, not ${spaceId}.`);
+    }
+    if (prior !== null && (operation.sequence !== prior.sequence + 1 || operation.parentOperationSha256 !== prior.operationSha256)) {
+      throw new TypeError("Record revision operations must be one contiguous run in sequence order.");
+    }
+    prior = operation;
+    for (const change of operation.changes) {
+      if (change.kind === "put" && change.record.key === key) {
+        changes.push({ kind: "put", recordSha256: change.record.recordSha256, sequence: operation.sequence, v: 1 });
+      } else if (change.kind === "tombstone" && change.key === key) {
+        changes.push({ kind: "tombstone", recordSha256: change.priorSha256, sequence: operation.sequence, v: 1 });
+      }
+    }
+  }
+  return { changes, fromSequence: prior === null ? 0 : first };
+}
 function transitionOhSnapshotV1(input) {
   const actorId = safeCode(input.actorId);
   const operationId = safeCode(input.operationId);
@@ -18070,6 +18185,65 @@ function resolveOhSupersessionV1(store, draft, exclude3 = new Set) {
   const orderingConflict = orderingConflictBetween({ order: head5.order, statedAt: head5.value.statedAt }, draft);
   return { candidatesTruncated, orderingConflict, supersedes: head5.key };
 }
+function ohObservationSupersessionV1(store, key) {
+  const start3 = safeCode(key, 512);
+  if (start3 === null || !start3.startsWith(OH_OBSERVATION_KEY_PREFIX_V1)) {
+    throw new TypeError("Invalid observation key.");
+  }
+  const onPath = new Set;
+  const receipts = new Map;
+  const receiptFor = (activityKey) => {
+    const known = receipts.get(activityKey);
+    if (known !== undefined)
+      return known;
+    const record = store.get(activityKey);
+    const value = record === null || record.kind !== "activity" ? null : parseOhObservationActivityValueV1(record.value);
+    receipts.set(activityKey, value);
+    return value;
+  };
+  let current = start3;
+  let origin = start3;
+  let depth = 0;
+  let loop3 = false;
+  let truncated = false;
+  let named = false;
+  let unreadable = false;
+  let missing = null;
+  let resolved = false;
+  for (;; ) {
+    if (onPath.has(current)) {
+      loop3 = true;
+      break;
+    }
+    if (onPath.size >= OH_OBSERVATION_LIMITS_V1.supersessionChain) {
+      truncated = true;
+      break;
+    }
+    onPath.add(current);
+    const parsed = parseOhObservationRecordV1(store.get(current));
+    if (parsed === null) {
+      missing = current;
+      break;
+    }
+    const value = parsed.value;
+    const activityKey = parsed.dependencies.find((dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
+    const receipt = activityKey === undefined ? null : receiptFor(activityKey);
+    if (receipt === null) {
+      unreadable = true;
+    } else if (receipt.candidatesTruncated.includes(current)) {
+      named = true;
+    }
+    origin = current;
+    if (value.supersedes === null) {
+      resolved = true;
+      break;
+    }
+    current = value.supersedes;
+    depth += 1;
+  }
+  const candidateLookup = named ? "named" : unreadable ? "unreadable" : "none-recorded";
+  return { candidateLookup, depth, key: start3, loop: loop3, missing, origin, resolved, truncated, v: 1 };
+}
 function observationRecord(key, activityKey, value) {
   const dependencies = sortedDependencies([
     activityKey,
@@ -18327,6 +18501,7 @@ export {
   resolveOhSupersessionV1,
   replayOhOperationsV1,
   renderOhObservationContextV1,
+  reduceOhRecordRevisionsV1,
   reduceKnowledgeGraphRevisionsV1,
   parseSha256Hex,
   parseOhSyncHeadV1,
@@ -18335,6 +18510,7 @@ export {
   parseOhStoreProfileV1,
   parseOhStoreBindingV1,
   parseOhSpacePurgeReceiptV1,
+  parseOhRecordRevisionChangeV1,
   parseOhOperationV1,
   parseOhObservationValueV1,
   parseOhObservationStatedAtInstantV1,
@@ -18369,6 +18545,8 @@ export {
   parseCanonicalInstantV1,
   orderedUnique,
   opaqueId,
+  ohRecordRevisionChangesFromOperationsV1,
+  ohObservationSupersessionV1,
   ohObservationKeyV1,
   ohObservationIndexV1,
   ohObservationActivityKeyV1,
@@ -18423,6 +18601,7 @@ export {
   OH_SYNC_BUNDLE_MAX_BYTES_V1,
   OH_SCHEMA_KINDS_V1,
   OH_SCHEMA_FORMAT_VERSION_V1,
+  OH_RECORD_REVISIONS_LIMITS_V1,
   OH_OPERATION_SIZE_ERROR_CODE_V1,
   OH_OPERATION_MAX_BYTES_V1,
   OH_ONTOLOGY_VERSION_V1,

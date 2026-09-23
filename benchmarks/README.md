@@ -7,11 +7,32 @@ state tests does not establish that an agent writes useful memories.
 
 For fast development sweeps across shared corpus indexes, use the [development lab](DEVELOPMENT.md). It compares retrieval variants without model calls and records full development results before promoting candidates to paid answer comparisons.
 
+The [source-bound answer-program probe](ANSWER_PROGRAM_SPIKE.md) separates semantic field attribution from exact joins and citation rendering. Its authored recommendation cases measure a restricted candidate inventory, not representative retrieval or memory quality.
+
+The [fresh identity test](FRESH_IDENTITY_RESULTS.md) reuses a frozen exact-identity guard on 20 new authored cases. It removes two false semantic admissions while retaining all 45 supported candidates; its finite cleanup result does not establish representative memory quality.
+
+The [compact-repair confirmation](COMPACT_REPAIR_CONFIRMATION.md) reports an unchanged Jev-assisted instruction-repair procedure on 24 history-disjoint BEAM questions. It improved two cases without regressions, but its confidence interval includes zero and the frozen success rule failed.
+
+The [instruction-selection results](INSTRUCTION_SELECTION.md) combine a positive
+pointwise Jev retrieval diagnostic with a negative complete-inventory reader
+test. They define a provider-neutral benchmark seam while leaving Wordcell's
+note policy and Oh's public API unchanged.
+
 The [answer-audit development results](ANSWER_AUDIT_V1_RESULTS.md) report a completed diagnostic continuation: mean answer accuracy changed from 92.67% to 93.33% across three repeats of 100 development questions, with seven improvements and five regressions. The original experiment remains aborted and the audit was not promoted.
 
 For an installed Claude Code subscription, use the separate [subscription benchmark](CLAUDE_SUBSCRIPTION.md). It keeps its model procedure and checkpoint evidence separate from the paid API experiments below. The separately frozen [Gateway amendment](GATEWAY_STUDY_V3.md) preserves closed subscription responses and uses budgeted Gateway calls for unattempted work.
 
 The [protocol card](PROTOCOL_CARD.md) and [pre-registered analysis plan](ANALYSIS_PLAN.md) fix the matched settings, strata and statistics for every current LongMemEval comparison. The [full 500-question comparison](EVOLUTION_RELEASE_RESULTS.md) reports the latest completed outcomes: with the nano reader BM25 window 378/500, Oh semantic 379/500 and full history 355/500; with GPT-5 mini on the same contexts BM25 427/500 and Oh semantic 449/500; and on the previously evaluated LoCoMo comparison (1,540 questions, published judge protocol) Oh semantic 84.4% with GPT-5 mini and 81.0% with nano against 81.6% and 78.1% for BM25, with exposure and protocol limits and a table of published results. The earlier [120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) remain closed.
+
+The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
+answer or recall gain from shipped hybrid search over matched vector retrieval.
+The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) confirmed an evidence-recall
+gain (90.08% versus 88.93%), but its completed 300-question answer comparison
+did not establish an accuracy gain (77.33% versus 78.11%).
+The subsequent [conversation-order development test](LOCOMO_ORDER_DEV_RESULT_V1.md)
+also failed its advancement rule: restoring source order scored 73.54% versus
+74.38% for the same selected evidence in its existing order.
+These studies preserve their controls, uncertainty and prior-exposure limits.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
 
@@ -564,3 +585,21 @@ cannot certify an incomplete matrix. Run it from the frozen source tree.
 The [frozen Gateway continuation](GATEWAY_STUDY_V6_TAKEOVER.md) is complete and independently audited: `oh-fact` **81/120**, `bm25-window` **78/120**, `bm25-record-window` **79/120**. It did not pass the fixed criterion for the fact-retrieval arm. The [final numerical report](results/memory-gateway-final-v6.json) retains all 360 cases and both primary and adverse reader-failure sensitivity, with mixed extraction provenance and the post-start scoring amendment disclosed. This is not an official leaderboard or saturation claim.
 
 The separate [reserved reader pair](results/memory-reserved-reader-profile-v1.json) scored 84/100 with 96 KB versus 78/100 with 24 KB. See [the development guide](DEVELOPMENT.md) for its distinct procedure, faster loop, rejected experiments and evaluation boundaries.
+
+## Deductive memory and calibrated selection seam
+
+The [deductive memory seam](DEDUCTIVE_MEMORY.md) adds five benchmark-scoped primitives: a proof-carrying bounded Datalog engine ported from ALGAL, consistency rule packs, isotonic/Platt score calibration, split-conformal coverage selection, and budgeted submodular channel packing — composed in `scripts/benchmarks/deductive-memory.ts`. On the frozen pointwise captures, isotonic recalibration cut held-out ECE from 0.155 to 0.019. These are benchmark seams only: they change no production retrieval, store, or wire contract.
+
+## Curation triage and evidence obedience
+
+The [curation triage card](CURATION_TRIAGE.md) reports external-corpus
+measurements on which signal predicts a bad stored claim, and is not a matched
+arm of any comparison under the protocol card. Inter-model disagreement is the
+only signal that beat equal-size random review on both models (1.88x and 2.38x,
+intervals clear of 1.0); the coarse self-reported confidence split is
+undemonstrated on that corpus and on a third party's published field, though one
+model's `low` bucket alone did beat random; a lexical source-support check is
+worse than random on two corpora. It also
+records that both models tested reproduced 37 of 37 false claims from a permuted
+evidence table with confident citations and flagged none, so a citation records
+where a claim came from and not whether its source was right.

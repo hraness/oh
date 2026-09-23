@@ -35,7 +35,33 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function prohibitedPublicIdentifiers(source: string): string[] {
+  // This exact artwork path is already public and used by the content footer.
+  // Admit only the quoted asset reference, not its provider-name token elsewhere.
+  const withoutPublicArtwork = source.replaceAll('"/marks/oh-computer.svg"', '""');
+  const tokens = new Set(
+    withoutPublicArtwork.toLocaleLowerCase("en-US").match(/[a-z][a-z0-9-]*/gu) ?? [],
+  );
+  return [...tokens].filter((token) => prohibitedPublicIdentifierSha256.has(sha256(token)));
+}
+
 describe("Oh site source contract", () => {
+  test("admits only the exact public artwork reference in the identifier boundary", async () => {
+    expect(prohibitedPublicIdentifiers('brandMark="/marks/oh-computer.svg"')).toEqual([]);
+    for (const source of [
+      "oh-computer",
+      'project="oh-computer"',
+      'brandMark="/private/oh-computer.svg"',
+      'brandMark="/marks/oh-computer.svg?private=1"',
+      'brandMark="/marks/oh-computer.svg" project="oh-computer"',
+    ]) {
+      expect(prohibitedPublicIdentifiers(source)).toEqual(["oh-computer"]);
+    }
+    expect(sha256(await read("public/marks/oh-computer.svg"))).toBe(
+      "b9c62d7ef8168eae34a8cf388efb8d1ac9ec609a6d3d31b8e81af5c7a9f5724d",
+    );
+  });
+
   test("keeps first-party styling independent of Tailwind", async () => {
     const [packageJson, lockfile, postcss, globals] = await Promise.all([
       read("package.json"),
@@ -55,11 +81,45 @@ describe("Oh site source contract", () => {
       read("bun.lock"),
     ]);
     const dependencies = record(record(JSON.parse(packageJson), "package").dependencies, "dependencies");
-    for (const name of ["@hraness/ui", "@hraness/design-kit"]) {
+    for (const name of ["@hraness/ui", "@hraness/design-kit", "@hraness/site-footer"]) {
       const pin = dependencies[name];
-      expect(pin).toMatch(/^github:hraness\/(?:ui|design-kit)#v\d+\.\d+\.\d+$/u);
+      expect(pin).toMatch(/^github:hraness\/(?:ui|design-kit|site-footer)#v\d+\.\d+\.\d+$/u);
       expect(lockfile).toContain(`${JSON.stringify(name)}: ${JSON.stringify(pin)}`);
     }
+  });
+
+  test("renders the shared organization footer once for every page and no maker section", async () => {
+    const [packageJson, layout, home, specification, globals, contentFooter] = await Promise.all([
+      read("package.json"),
+      read("app/layout.tsx"),
+      read("app/page.tsx"),
+      read("app/spec/page.tsx"),
+      read("app/globals.css"),
+      read("app/site-footer.tsx"),
+    ]);
+
+    expect(packageJson).toContain(
+      '"@hraness/site-footer": "github:hraness/site-footer#v0.15.0"',
+    );
+    expect(layout).toContain('import { HranessSiteFooter } from "@hraness/site-footer/react"');
+    expect(layout).toContain(
+      '<HranessSiteFooter placement="flow" mailingList={{ kind: "none" }} support={ohSupportProfile} />',
+    );
+    expect(globals).toContain('@import "@hraness/site-footer/styles.css";');
+    expect(contentFooter).toContain(
+      'import { MarketingSiteFooter } from "@hraness/design-kit/react/server"',
+    );
+    expect(contentFooter).toContain("export function OhContentFooter()");
+    for (const page of [home, specification]) {
+      expect(page).not.toContain("HranessSiteFooter");
+      expect(page).not.toContain("MarketingMaker");
+      expect(page).not.toContain("Ben Guo");
+      expect(page).not.toContain("hranessAttribution");
+      expect(page).toContain("OhContentFooter");
+    }
+    expect(home).toContain("Hraness is an advanced software research organization");
+    expect(globals).not.toContain("hraness-marketing-maker");
+    expect(globals).not.toContain(".site-footer");
   });
 
   test("derives available installs from verified publication and preserves the historical capture", async () => {
@@ -72,10 +132,10 @@ describe("Oh site source contract", () => {
     const packageJson = record(JSON.parse(packageSource) as unknown, "source package");
 
     expect(publishedRelease).toEqual({
-      version: "0.10.2",
-      verificationRun: "https://github.com/hraness/oh/actions/runs/35070815434",
+      version: "0.11.0",
+      verificationRun: "https://github.com/hraness/oh/actions/runs/00000000000",
     });
-    expect(packageJson.version).toBe("0.10.2");
+    expect(packageJson.version).toBe("0.11.0");
     expect(home).toContain('import publishedRelease from "../published-release.json"');
     expect(home).toContain("const releaseVersion = publishedRelease.version;");
     expect(home).not.toContain("package.json");
@@ -95,7 +155,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/ui": "github:hraness/ui#v0.5.13"',
+      '"@hraness/ui": "github:hraness/ui#v0.5.16"',
     );
     expect(home).toContain('import { AskAiAboutThis } from "@hraness/ui"');
     expect(home).toContain(
@@ -116,7 +176,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.8.0"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.11.1"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([
@@ -148,6 +208,39 @@ describe("Oh site source contract", () => {
     expect(sitemap).toContain("<loc>https://oh.computer/spec</loc>");
     expect(sitemap).not.toContain("https://oh.computer/spec/");
     expect(sitemap).not.toContain("https://oh.computer/spec/v1");
+  });
+
+  test("publishes an llms.txt index that lists only real canonical destinations", async () => {
+    const [llms, sitemap, nextConfig] = await Promise.all([
+      read("public/llms.txt"),
+      read("public/sitemap.xml"),
+      read("next.config.ts"),
+    ]);
+
+    expect(llms).toStartWith("# Oh\n");
+    expect(llms).toContain("\n> ");
+    expect(llms).toContain("## Pages");
+    expect(llms).toContain("](https://oh.computer)");
+    expect(llms).toContain("](https://oh.computer/spec)");
+    expect(llms).not.toContain("/spec/v1");
+    expect(nextConfig).toContain('rel="describedby"');
+    expect(nextConfig).toContain("/llms.txt");
+
+    const canonicalRoutes = new Set(
+      [...sitemap.matchAll(/<loc>(https:\/\/oh\.computer[^<]*)<\/loc>/gu)]
+        .map(([, url]) => url),
+    );
+    const siteUrls = [...llms.matchAll(/\]\((https:\/\/oh\.computer[^)\s]*)\)/gu)]
+      .map(([, url]) => url ?? "");
+    expect(siteUrls.length).toBeGreaterThan(0);
+    for (const url of siteUrls) {
+      const normalized = url === "https://oh.computer" ? "https://oh.computer/" : url;
+      if (canonicalRoutes.has(normalized)) {
+        continue;
+      }
+      const path = normalized.slice("https://oh.computer".length);
+      expect(await Bun.file(join(site, "public", path)).exists()).toBe(true);
+    }
   });
 
   test("keeps page-specific social metadata and the Oh icon explicit", async () => {
@@ -237,6 +330,7 @@ describe("Oh site source contract", () => {
       "app/layout.tsx",
       "app/page.tsx",
       "app/spec/page.tsx",
+      "public/llms.txt",
       "public/spec/v1/migration.md",
     ];
     const providerBoundaryPaths = [
@@ -263,9 +357,6 @@ describe("Oh site source contract", () => {
     const vercelConfig = JSON.parse(vercelConfigSource) as unknown;
     const providerBoundary = (await Promise.all(providerBoundaryPaths.map(read))).join("\n");
     const publicSource = [packageJsonSource, vercelConfigSource, ...publicSources].join("\n");
-    const tokens = new Set(
-      publicSource.toLocaleLowerCase("en-US").match(/[a-z][a-z0-9-]*/gu) ?? [],
-    );
 
     expect(packageJson.name).toBe("oh-site");
     expect(packageJson.packageManager).toBe("bun@1.3.14");
@@ -294,7 +385,6 @@ describe("Oh site source contract", () => {
     expect(await Bun.file(join(site, ".openai/hosting.json")).exists()).toBe(false);
     expect(await Bun.file(join(site, "vite.config.ts")).exists()).toBe(false);
     expect(publicSource).not.toMatch(/\/Users\/[^/\s]+|\/private\/tmp\/[^\s)]+/iu);
-    expect([...tokens].filter((token) => prohibitedPublicIdentifierSha256.has(sha256(token))))
-      .toEqual([]);
+    expect(prohibitedPublicIdentifiers(publicSource)).toEqual([]);
   });
 });

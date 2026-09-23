@@ -18,7 +18,9 @@ The pinned Paper theme remains the underlying site theme.
 ## STORY
 
 Keep the hero and citation preview, counted facts, record model, review trace,
-interfaces, boundaries, installation, questions, maker, and final actions.
+interfaces, boundaries, installation, questions, and final actions. The shared
+network footer owns the organization attribution; the page carries no separate
+maker section.
 Omit redundant section labels through empty legacy slots. Keep the open-source
 positioning visible beneath the hero summary and the current release beneath
 the installation heading. The historical first-run disclosure stays explicit.
@@ -35,7 +37,7 @@ This adopts the user-approved shared appearance. The homepage-only
 `data-hraness-marketing-preset="editorial"` ancestor includes the header and main
 content. `/spec` keeps its Paper header, Nebula Sans reading typography, and
 document layout. Citation proof JSON, specification artifacts, release metadata,
-kit/UI versions, and the Paper snapshot are unchanged. The separate marketing
+and the Paper snapshot remain unchanged. The separate marketing
 snapshot records immutable source and file hashes.
 
 Phone section anchors reserve 6rem above the section boundary so headings
@@ -50,3 +52,12 @@ navigation, keyboard focus, the first-run disclosure, and the absence of filled
 grid patches. Preserve release and public-contract checks. The integration
 owner runs final repository and production gates; this brief records
 requirements, not their completion.
+
+
+## METALLIC HEADER
+
+The header name and transparent product mark use the shared design-kit metallic
+foil treatment with a subtle rainbow reflection. Keep the original vector
+geometry, an accessible home link, and the image fallback for forced colors or
+unavailable masks. Static paint must remain legible without hover or animation.
+Browser/touch icons and the content footer retain their existing artwork.

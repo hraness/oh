@@ -32,9 +32,9 @@ oh version
 
 For an existing installation, use its installed CLI and matching versioned
 specifications. The following publication receipt is for a fresh installation.
-Use the verified public CLI `@hraness/oh@0.10.2`. Its identical tarball and
-checksum are mirrored by the immutable GitHub Release `v0.10.2`.
-[Public release verification](https://github.com/hraness/oh/actions/runs/35070815434).
+Use the verified public CLI `@hraness/oh@0.11.0`. Its identical tarball and
+checksum are mirrored by the immutable GitHub Release `v0.11.0`.
+[Public release verification](https://github.com/hraness/oh/actions/runs/00000000000).
 It requires Bun 1.3.14 or newer. The versioned contract is published at
 <https://oh.computer/spec/>.
 
@@ -347,6 +347,21 @@ recordings or editions, with their source and contrary evidence. Resolve the
 exact dependency lock. Listed query paths are declarative guidance, not executed
 results; credits confer no employment, ownership or execution permission.
 Catalogs V1–V6 remain available with unchanged identities.
+
+With version 0.11.0 or newer, `oh research catalog-v8` adds six
+research-evidence packs. Use `sponge.temporal-roles` predicates
+(`event-time`, `observation-time`, `available-at`, `first-seen-at`,
+`entered-at`, `searched-at`, `as-of-time`, `reviewed-at`, `reassess-by`,
+`superseded-at`) only where a predicate declares them as qualifiers; frozen
+V1–V7 allowlists reject them. Use `sponge.evidence-grading` for stratum, tier,
+grade, corroboration, criteria-era, verbatim-binding, correction and bounded
+absence records, `sponge.citation` for ordered cited items with locators,
+selectors and intent, `sponge.research-ops` for monitors, run ledgers,
+rejections, review events and publication policies, `sponge.source-quality`
+for measured scorecards, and `sponge.source-policy` for recorded capability
+decisions. Each record is attributed evidence: a grade is not a review state,
+corroboration is not truth, a bounded null result is not nonexistence, and a
+policy record grants no authorization. Catalogs V1–V7 remain unchanged.
 
 ## Optional development support
 

@@ -10,3 +10,9 @@ coverage/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+rust/target/
+rust/**/pkg/
+rust/**/*.node
+/dist/rust-artifacts/
+/public/
+.vercel

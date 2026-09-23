@@ -3,7 +3,6 @@ import {
   MarketingFlow,
   MarketingInstallPanel,
   MarketingInterfaceGrid,
-  MarketingMaker,
   MarketingPage,
   MarketingPrimitives,
   MarketingProofFrame,
@@ -19,9 +18,18 @@ import { AskAiAboutThis } from "@hraness/ui";
 import { OhField } from "./oh-field";
 
 import publishedRelease from "../published-release.json";
+import { OhContentFooter } from "./site-footer";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
 import manifest from "../public/spec/manifest.json";
+
+function TopicIcon({ slug }: Readonly<{ slug: string }>) {
+  // Decorative local SVG; next/image cannot optimize vector sources.
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="oh-topic-icon" src={`/icons/${slug}.svg`} alt="" aria-hidden="true" width="88" height="88" loading="lazy" decoding="async" />
+  );
+}
 
 const currentVersion = manifest.versions.find((version) => version.id === manifest.current) ??
   (() => {
@@ -72,31 +80,37 @@ const stats = [
 
 const researchObjects = [
   {
+    icon: "question",
     label: "Question",
     kind: "inquiry",
     summary: "Save what you are trying to find out, along with the investigation that follows.",
   },
   {
+    icon: "source",
     label: "Source",
     kind: "entity",
     summary: "Identify the paper, dataset, person, or system you are researching, even if its title or URL changes.",
   },
   {
+    icon: "capture",
     label: "Capture",
     kind: "edition",
     summary: "Keep track of the particular edition or extract you used, not just the source as it looks today.",
   },
   {
+    icon: "claim",
     label: "Claim",
     kind: "statement",
     summary: "Write down what is being claimed. Record who accepts it and the evidence for it separately.",
   },
   {
+    icon: "citation",
     label: "Citation",
     kind: "evidence",
     summary: "Point to a passage, table, or observation, and explain how it supports or challenges a claim.",
   },
   {
+    icon: "artifact",
     label: "Artifact",
     kind: "view",
     summary: "Build a brief or answer that keeps links to the records it draws on.",
@@ -159,7 +173,7 @@ const questions = [
   },
   {
     question: "Who made it?",
-    answer: "Ben Guo, a musician and builder, formerly a founder and engineering leader at companies including Venmo and Stripe, now building from Puerto Rico. Oh is published by Hraness under the MIT license.",
+    answer: "Hraness is an advanced software research organization dedicated to advancing the frontier of machine intelligence. Oh is its open-source kernel for research done with agents, published under the MIT license.",
   },
 ] as const;
 
@@ -171,22 +185,6 @@ const navigation = [
   { href: "/spec", label: "Specification" },
   { href: repository, label: "GitHub" },
 ] as const;
-
-function BrandMark() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="brand-mark">
-      <circle cx="12" cy="12" r="12" fill="currentColor" />
-      <circle cx="7.7" cy="13.2" r="3" fill="none" stroke="var(--background)" strokeWidth="2.1" />
-      <path
-        d="M12.8 6.7v9.5m0-3.2c.1-2.2 1.3-3.5 3-3.5 1.8 0 2.8 1.2 2.8 3.3v3.4"
-        fill="none"
-        stroke="var(--background)"
-        strokeLinecap="round"
-        strokeWidth="2.1"
-      />
-    </svg>
-  );
-}
 
 export default function Home() {
   const structuredData = [
@@ -221,7 +219,8 @@ export default function Home() {
       <a className="skip-link" href="#main">Skip to content</a>
       <MarketingSiteHeader
         action={{ href: "#install", label: "Install Oh" }}
-        brand={<><BrandMark />Oh</>}
+        brand="Oh"
+        brandMark="/marks/oh-computer.svg"
         brandLabel="Oh home"
         className="hraness-material-chrome"
         links={navigation}
@@ -288,9 +287,12 @@ export default function Home() {
               label: object.label,
               summary: object.summary,
               example: (
-                <p className="record-kind">
-                  Record kind <code>{object.kind}</code>
-                </p>
+                <>
+                  <TopicIcon slug={object.icon} />
+                  <p className="record-kind">
+                    Record kind <code>{object.kind}</code>
+                  </p>
+                </>
               ),
             }))}
             label=""
@@ -372,6 +374,95 @@ oh get evidence:table-2 \\
             summary="The CLI, TypeScript SDK, and packaged Agent Skill operate the same records and contract. There is no separate agent-only path behind the convenient one."
           />
 
+          <MarketingSection
+            heading="More evidence within 12 KB."
+            headingId="benchmarks-title"
+            id="benchmarks"
+            label="Agent-run benchmark"
+            layout="split"
+            summary="On LoCoMo, a benchmark of long conversations, query-aware packing recovered more annotated source turns from the same vector rankings."
+          >
+            <div className="benchmark-comparison">
+              <table className="benchmark-table">
+                <caption>Evidence recall · 12,000-byte context ceiling</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Context policy</th>
+                    <th scope="col">Evidence recall</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Query-aware packing</th>
+                    <td>90.08%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Vector windows</th>
+                    <td>88.93%</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="benchmark-delta">
+                <strong>+1.15 percentage points</strong>
+                <span>95% conversation-cluster interval: +0.62 to +1.70 points.</span>
+              </p>
+              <p className="benchmark-note">
+                Mean share of annotated source turns recovered per question.
+                Recall covers 1,224 annotated questions across eight conversations.
+                Both policies use the same top 20 vector results and whole turns.
+                Across all 1,586 confirmation questions, query-aware packing used
+                236 more bytes on average.
+              </p>
+            </div>
+            <div className="benchmark-comparison benchmark-answer">
+              <table className="benchmark-table">
+                <caption>Model-judged answer accuracy</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Context policy</th>
+                    <th scope="col">Answer accuracy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Query-aware packing</th>
+                    <td>77.33%</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Vector windows</th>
+                    <td>78.11%</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="benchmark-delta">
+                <strong>No established answer improvement</strong>
+                <span>−0.78 percentage points; 95% conversation-cluster interval: −4.64 to +2.34 points.</span>
+              </p>
+              <p className="benchmark-note">
+                300 questions balanced across the same eight conversations, with
+                three reader attempts per question and policy. GPT-4o mini served
+                as reader and judge; identical judge prompts shared one judgment.
+                The model alias did not identify an immutable snapshot.
+              </p>
+            </div>
+            <p className="benchmark-note">
+              Benchmark policy <code>anchors-query-4</code> was selected on two
+              other conversations. All ten conversations had prior project
+              exposure. This policy is experimental; these retrieval scores do
+              not establish answer quality.
+            </p>
+            <ul className="benchmark-links" aria-label="LoCoMo benchmark evidence">
+              <li><a href={`${repository}/blob/main/benchmarks/LOCOMO_WINDOW_QA_V1.md`}>Protocol and limitations</a></li>
+              <li><a href={`${repository}/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json`}>Retrieval results</a></li>
+              <li><a href={`${repository}/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json`}>Answer-quality results</a></li>
+            </ul>
+            <p className="benchmark-note benchmark-transfer">
+              On CloneMem, a separate personal-memory benchmark, Oh hybrid search
+              did not establish a multiple-choice accuracy gain over vector search.{" "}
+              <a href={`${repository}/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md`}>Read the CloneMem comparison</a>.
+            </p>
+          </MarketingSection>
+
           <MarketingTrustBoundary
             heading="Small enough to trust. Complete enough to build on."
             headingId="kernel-title"
@@ -426,25 +517,6 @@ oh verify`}</code></pre>
             }))}
           />
 
-          <MarketingMaker
-            heading="Built by Ben Guo"
-            headingId="maker-title"
-            id="maker"
-            label=""
-            links={[
-              { href: "https://hraness.com", label: "hraness.com" },
-              { href: "https://x.com/hraness", label: "@hraness" },
-              { href: repository, label: "GitHub" },
-            ]}
-          >
-            <p>
-              Oh is built by Ben Guo, a musician and builder, formerly a founder and engineering
-              leader at companies including Venmo and Stripe, now building from Puerto Rico. Oh is
-              his open-source kernel for research done with agents, published by Hraness under the
-              MIT license.
-            </p>
-          </MarketingMaker>
-
           <MarketingCallToAction
             actions={[
               { href: "#install", label: "Install Oh" },
@@ -460,14 +532,7 @@ oh verify`}</code></pre>
 
       <AskAiAboutThis className="ask-ai" url="https://oh.computer" />
 
-      <div className="site-footer">
-        <p>Oh is open source for researchers and the agents working beside them.</p>
-        <nav aria-label="Project links">
-          <a href="/spec">Ontology v1</a>
-          <a href={repository}>hraness/oh</a>
-          <a href="https://hraness.com/projects">Hraness projects</a>
-        </nav>
-      </div>
+      <OhContentFooter />
     </div>
   );
 }

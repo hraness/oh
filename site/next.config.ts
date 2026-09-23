@@ -2,6 +2,14 @@ import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        headers: [{ key: "Link", value: '</llms.txt>; rel="describedby"' }],
+        source: "/:path*",
+      },
+    ];
+  },
   outputFileTracingRoot: fileURLToPath(new URL(".", import.meta.url)),
   webpack(config) {
     // Next does not register custom PostCSS inputs in its filesystem cache.

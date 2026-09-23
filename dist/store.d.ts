@@ -152,6 +152,103 @@ export declare function createOhStoreBindingV1(input: Readonly<{
 }>): OhStoreBindingV1;
 export declare function parseOhStoreBindingV1(value: unknown): OhStoreBindingV1 | null;
 export declare function replayOhOperationsV1(spaceId: string, values: readonly OhOperationV1[], maximumRecords?: number): OhSnapshotV1;
+export declare const OH_RECORD_REVISIONS_LIMITS_V1: Readonly<{
+    changesPerKey: 65536;
+    operationsPerRead: 1000;
+}>;
+/**
+ * One append-only log change that touched a single record key. A put carries
+ * the digest it wrote; a tombstone carries the prior digest it removed, which
+ * is exactly what the operation log persists for each change kind.
+ */
+export type OhRecordRevisionChangeV1 = Readonly<{
+    kind: "put" | "tombstone";
+    recordSha256: Sha256Hex;
+    sequence: number;
+    v: 1;
+}>;
+/**
+ * Derived revision facts for one record key, read from the append-only log.
+ * The kernel reports counts and nothing else: no threshold, ranking, or trust
+ * judgement belongs here.
+ *
+ * `revisions` is the number of puts after the first one — how many times the
+ * key was written again. `distinctPutDigests` counts the contents those puts
+ * stored. `distinctPutDigests` is therefore how many distinct contents the key
+ * ever held, and nothing more: a key put as A, B, A stores three puts and two
+ * digests without ever rewriting identical bytes, so comparing `puts` to
+ * `distinctPutDigests` does not separate a rewrite from a content change.
+ * `idempotentPuts` is the quantity that does — a put whose digest equals the
+ * immediately preceding put's digest advanced the log without changing the
+ * record. `latestKind` is `"put"` when the last observed change materialized the
+ * record and `"tombstone"` when it removed it. The counts follow one record key:
+ * a correction an application models as a new record superseding an older one is
+ * a separate key with its own counts.
+ *
+ * A reader returns `truncated: true` when it hit its change bound or did not
+ * observe the log from its first operation. Truncation drops the oldest changes,
+ * never the newest, so `latestKind`, `latestSequence` and `through` stay exact
+ * while `changes`, `puts`, `tombstones`, `revisions`, `idempotentPuts` and
+ * `distinctPutDigests` become lower bounds and `oldestObservedSequence`
+ * describes only the observed window.
+ */
+export type OhRecordRevisionsV1 = Readonly<{
+    changes: number;
+    distinctPutDigests: number;
+    idempotentPuts: number;
+    key: string;
+    latestKind: "put" | "tombstone" | null;
+    latestSequence: number | null;
+    oldestObservedSequence: number | null;
+    puts: number;
+    revisions: number;
+    through: number;
+    tombstones: number;
+    truncated: boolean;
+    v: 1;
+}>;
+export declare function parseOhRecordRevisionChangeV1(value: unknown): OhRecordRevisionChangeV1 | null;
+/**
+ * Reduces a bounded, unordered set of log changes for one key into its
+ * revision facts. Changes are sorted by sequence here, so no caller depends on
+ * a read order, and a repeated sequence is rejected because the log admits one
+ * change per key per operation.
+ */
+export declare function reduceOhRecordRevisionsV1(input: Readonly<{
+    changes: readonly unknown[];
+    fromSequence: number;
+    key: string;
+    through: number;
+    truncated: boolean;
+}>): OhRecordRevisionsV1;
+/**
+ * Collects one key's log changes from already parsed operations, so a reader
+ * with a change feed rather than local SQL derives the same facts. It reads
+ * operations; it never mutates or commits.
+ *
+ * The caller names the space. A sequence numbers an operation within one space,
+ * so operations from the wrong space would otherwise reduce to counts that look
+ * plausible and are wrong, which inferring the space from the feed cannot
+ * detect. The operations must also be one contiguous run in sequence order,
+ * because a feed missing a page would otherwise lower every count with nothing
+ * reporting it.
+ *
+ * It returns the first sequence it observed alongside the changes, because
+ * contiguity within one call does not establish that the run began at the start
+ * of the log, and a consumer following a live feed from its cursor never does.
+ * Passing that `fromSequence` to `reduceOhRecordRevisionsV1` is what marks such
+ * a read a lower bound instead of an exact count. A caller stitching several
+ * calls together concatenates the changes and reduces once with the earliest
+ * `fromSequence`.
+ */
+export declare function ohRecordRevisionChangesFromOperationsV1(input: Readonly<{
+    key: string;
+    operations: readonly OhOperationV1[];
+    spaceId: string;
+}>): Readonly<{
+    changes: readonly OhRecordRevisionChangeV1[];
+    fromSequence: number;
+}>;
 export declare function transitionOhSnapshotV1(input: Readonly<{
     actorId: string;
     changes: readonly KnowledgeGraphChangeV1[];

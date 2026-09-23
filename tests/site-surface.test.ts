@@ -15,6 +15,16 @@ const prohibitedPublicIdentifierSha256 = new Set([
   "b58a1778c90889520d25f664dd029108a700c3be64aedcdc72b67d283128cefc",
 ]);
 
+function prohibitedPublicIdentifiers(source: string): string[] {
+  // Admit only the exact public artwork reference, as in the site's own gate.
+  // Provider-name tokens in prose, metadata and every other path stay forbidden.
+  const withoutPublicArtwork = source.replaceAll('"/marks/oh-computer.svg"', '""');
+  const tokens = new Set(
+    withoutPublicArtwork.toLocaleLowerCase("en-US").match(/[a-z][a-z0-9-]*/gu) ?? [],
+  );
+  return [...tokens].filter((token) => prohibitedPublicIdentifierSha256.has(sha256Hex(token)));
+}
+
 async function relativeFiles(directory: string): Promise<string[]> {
   const output: string[] = [];
   const visit = async (current: string): Promise<void> => {
@@ -46,6 +56,22 @@ function contrast(left: string, right: string): number {
 }
 
 describe("public site surface", () => {
+  test("admits only the exact checked public artwork path", async () => {
+    expect(prohibitedPublicIdentifiers('brandMark="/marks/oh-computer.svg"')).toEqual([]);
+    for (const source of [
+      "oh-computer",
+      'project="oh-computer"',
+      'brandMark="/private/oh-computer.svg"',
+      'brandMark="/marks/oh-computer.svg?private=1"',
+      'brandMark="/marks/oh-computer.svg" project="oh-computer"',
+    ]) {
+      expect(prohibitedPublicIdentifiers(source)).toEqual(["oh-computer"]);
+    }
+    expect(sha256Hex(await readFile(join(root, "site/public/marks/oh-computer.svg"), "utf8"))).toBe(
+      "b9c62d7ef8168eae34a8cf388efb8d1ac9ec609a6d3d31b8e81af5c7a9f5724d",
+    );
+  });
+
   test("mirrors every canonical specification byte at its public URL", async () => {
     const canonical = join(root, "spec");
     const mirrored = join(root, "site/public/spec");
@@ -112,8 +138,7 @@ describe("public site surface", () => {
       "site/public/spec/manifest.json",
     ];
     const text = (await Promise.all(paths.map(async (path) => await readFile(join(root, path), "utf8")))).join("\n");
-    const tokens = new Set(text.toLocaleLowerCase("en-US").match(/[a-z][a-z0-9-]*/gu) ?? []);
-    expect([...tokens].some((token) => prohibitedPublicIdentifierSha256.has(sha256Hex(token)))).toBe(false);
+    expect(prohibitedPublicIdentifiers(text)).toEqual([]);
     expect(text).not.toMatch(/\/Users\/[^/\s]+|\/private\/tmp\/[^\s)]+/u);
   });
 });

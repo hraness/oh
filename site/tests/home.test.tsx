@@ -5,14 +5,65 @@ import Specification from "../app/spec/page";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import publishedRelease from "../published-release.json";
 import RootLayout from "../app/layout";
+import recallResult from "../../benchmarks/results/memory-locomo-window-confirmation-v1.json";
+import answerResult from "../../benchmarks/results/memory-locomo-window-qa-v1.json";
 
-test("both public pages have one optional support footer and no product signup", () => {
+test("publishes both measured benchmark outcomes with their scope and source evidence", () => {
+  const html = renderToStaticMarkup(<Home />);
+  const tables: string[][] = [];
+  const links: string[] = [];
+  let copy = "";
+  new HTMLRewriter()
+    .on("#benchmarks table", { element() { tables.push([]); } })
+    .on("#benchmarks td", { text(chunk) { if (chunk.text) tables.at(-1)?.push(chunk.text); } })
+    .on("#benchmarks a", { element(element) { links.push(element.getAttribute("href") ?? ""); } })
+    .on("#benchmarks", { text(chunk) { copy += chunk.text; } })
+    .transform(html);
+  const percent = (value: number) => `${(value * 100).toFixed(2)}%`;
+  expect(tables).toEqual([
+    [percent(recallResult.summaries["anchors-query-4"].turnRecall), percent(recallResult.summaries["vector-window"].turnRecall)],
+    ["anchors-query-4", "vector-window"].map((arm) => percent(answerResult.scores.reader.arms.find((row) => row.armId === arm)!.accuracy)),
+  ]);
+  expect(answerResult.scores.claims.modelJudgedQaImprovement).toBe(false);
+  for (const qualification of ["Agent-run benchmark", "1,224 annotated questions", "1,586 confirmation questions", "300 questions", "three reader attempts", "identical judge prompts shared one judgment", "immutable snapshot", "prior project exposure", "No established answer improvement", "multiple-choice accuracy gain"]) {
+    expect(copy.replace(/\s+/gu, " ")).toContain(qualification);
+  }
+  expect(links).toEqual([
+    "https://github.com/hraness/oh/blob/main/benchmarks/LOCOMO_WINDOW_QA_V1.md",
+    "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-confirmation-v1.json",
+    "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-locomo-window-qa-v1.json",
+    "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md",
+  ]);
+  expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
+  expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));
+});
+
+test("both public pages render the in-flow content footer above the shared footer", () => {
   for (const page of [<Home key="home" />, <Specification key="spec" />]) {
     const html = renderToStaticMarkup(<RootLayout>{page}</RootLayout>);
-    expect(html.match(/<footer\b/gu)).toHaveLength(1);
+    expect(html.match(/<footer\b/gu)).toHaveLength(2);
+    const contentFooter = html.indexOf('data-hraness-marketing="footer"');
+    const networkFooter = html.indexOf('data-slot="hraness-site-footer"');
+    expect(contentFooter).toBeGreaterThan(-1);
+    expect(networkFooter).toBeGreaterThan(contentFooter);
+    expect(html).toContain("hraness-marketing-footer__brand");
+    expect(html).toContain('class="brand-mark"');
+    expect(html).toContain("Oh is open source for researchers and the agents working beside them.");
+    expect(html).toContain('id="hraness-site-footer"');
     expect(html).toContain("https://account.hraness.com/support?product=oh-computer&amp;source=web#support");
     expect(html).not.toContain('type="email"');
     expect(html).not.toContain("action=updates");
+  }
+});
+
+test("both public pages attribute the site to Hraness through the shared footer only", () => {
+  for (const page of [<Home key="home" />, <Specification key="spec" />]) {
+    const html = renderToStaticMarkup(<RootLayout>{page}</RootLayout>);
+    expect(html.match(/aria-label="Hraness home"/gu)).toHaveLength(1);
+    expect(html).toContain(">by Hraness</span>");
+    expect(html).not.toContain("Ben Guo");
+    expect(html).not.toContain("hraness-marketing-maker");
+    expect(html).not.toContain('id="maker"');
   }
 });
 
@@ -78,4 +129,40 @@ test("confines Lantern to the homepage chrome, hero wall, citation plane and rea
   expect(hooks).toEqual(["island", "chrome", "hero", "citation", "disclosure"]);
   expect(html).not.toContain('data-selected');
   expect(html).not.toContain('hraness-marketing-field');
+});
+
+
+test("the header keeps a named home link and exact-artwork foil fallback", () => {
+  for (const Page of [Home, Specification]) {
+    const html = renderToStaticMarkup(<Page />);
+    const homeLinks: string[] = [];
+    const marks: string[] = [];
+    const fallbackImages: string[] = [];
+    const masks: string[] = [];
+    new HTMLRewriter()
+      .on('header a[aria-label="Oh home"]', {
+        element(element) {
+          homeLinks.push(element.getAttribute("href") ?? "");
+          expect(element.hasAttribute("data-foil")).toBe(true);
+        },
+      })
+      .on('header a[aria-label="Oh home"] .hraness-foil-mark', {
+        element(element) { marks.push(element.getAttribute("aria-hidden") ?? ""); },
+      })
+      .on('header a[aria-label="Oh home"] .hraness-foil-mark img', {
+        element(element) {
+          fallbackImages.push(element.getAttribute("src") ?? "");
+          expect(element.hasAttribute("alt")).toBe(true);
+          expect(element.getAttribute("alt") ?? "").toBe("");
+        },
+      })
+      .on('header a[aria-label="Oh home"] .hraness-foil-mark__paint', {
+        element(element) { masks.push((element.getAttribute("style") ?? "").replaceAll("&quot;", '"')); },
+      })
+      .transform(html);
+    expect(homeLinks).toEqual(["/"]);
+    expect(marks).toEqual(["true"]);
+    expect(fallbackImages).toEqual(["/marks/oh-computer.svg"]);
+    expect(masks).toEqual(['--hraness-foil-mask:url("/marks/oh-computer.svg")']);
+  }
 });

@@ -7358,11 +7358,1026 @@ var init_knowledge_domain_catalog_v7 = __esm(() => {
   init_knowledge_vocabulary_pack_v1();
 });
 
+// src/research/knowledge-citation.ts
+function required9(result) {
+  if (!result.ok)
+    throw new Error(`Invalid citation pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels11(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical8(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs7(refs3) {
+  return [...refs3].sort((a, b) => canonical8(a) < canonical8(b) ? -1 : 1);
+}
+async function createSpongeCitationPackV1(previous) {
+  const dependencyIds2 = ["sponge.core", "sponge.foundation", "sponge.reference"];
+  const dependencies = dependencyIds2.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing citation dependency ${packId}.`);
+    return pack;
+  });
+  const ref2 = (packId, code2) => {
+    const schema2 = dependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing citation schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required9(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels11("Sponge citations"),
+    namespace: "sponge.citation",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels11(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels11(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const entity = ref2("sponge.core", "entity");
+  const entityRange3 = { concepts: [entity], kind: "entity-concepts", v: 1 };
+  const cluster = required9(await createKnowledgeSchemaRevisionV1({
+    ...base("citation-cluster", "An ordered set of citations attached to one citing entity, such as a synthesis, document or claim record. Ordering is recorded per item; the cluster never claims completeness."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "information-resource")]
+  }));
+  const intent = required9(await createKnowledgeSchemaRevisionV1({
+    ...base("citation-intent-descriptor", "A stated reason an item is cited, such as support, method, data, background or disagreement. A corpus declares its own instances."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "concept")]
+  }));
+  const wemi = required9(await createKnowledgeSchemaRevisionV1({
+    ...base("wemi-level-descriptor", "The abstraction level at which an entity was cited: work, expression, manifestation or item. A citation to an expression does not transfer to other expressions of the work."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "concept")]
+  }));
+  const qualifiers = sortedRefs7(dependencies.filter((pack) => pack.packId === "sponge.reference" || pack.packId === "sponge.foundation").flatMap((pack) => pack.schemas).filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref));
+  const predicates = [];
+  const add = async (code2, definition, domains, range2, qualifierPredicates = qualifiers) => {
+    const predicate = required9(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: sortedRefs7(domains),
+      inversePredicate: null,
+      qualifierPredicates: sortedRefs7(qualifierPredicates),
+      range: range2
+    }));
+    if (predicate.kind !== "predicate")
+      throw new Error(`Expected citation predicate ${code2}.`);
+    predicates.push(predicate);
+    return predicate;
+  };
+  const citationOrder = await add("citation-order", "The item's ordinal position in its citation cluster.", [entity], { kind: "value-kinds", valueKinds: ["integer"], v: 1 }, []);
+  const citationLocator = await add("citation-locator", "The page, section or locator string inside the cited entity.", [entity], { kind: "value-kinds", valueKinds: ["string"], v: 1 }, []);
+  const quotationSelector = await add("quotation-selector", "A verbatim quotation selector binding the citation to exact content in the cited entity.", [entity], { kind: "value-kinds", valueKinds: ["string"], v: 1 }, []);
+  const citationIntent = await add("citation-intent", "The citation-intent-descriptor entity stating why the item is cited.", [entity], { concepts: [intent.ref], kind: "entity-concepts", v: 1 }, []);
+  const citedFrom = await add("cited-from", "The citing entity whose citation list this cluster is.", [cluster.ref], entityRange3);
+  const citesItem = await add("cites-item", "One cited entity in this cluster, typically a source or retained content version. Citation-order, citation-locator, quotation-selector and citation-intent may qualify the statement.", [cluster.ref], entityRange3, [...qualifiers, citationOrder.ref, citationLocator.ref, quotationSelector.ref, citationIntent.ref]);
+  const wemiLevel = await add("wemi-level", "The wemi-level-descriptor entity stating the abstraction level at which this entity was cited.", [entity], { concepts: [wemi.ref], kind: "entity-concepts", v: 1 });
+  const shape = required9(await createKnowledgeExecutableShapeV1({
+    appliesToConcepts: [cluster.ref],
+    closed: false,
+    extends: [],
+    maximumInheritanceDepth: 1,
+    rules: [citedFrom, citesItem].map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: predicate === citedFrom ? 1 : null, minimum: 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: { kind: "value-kinds", valueKinds: ["entity"], v: 1 },
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical8({ predicate: a.predicate, purpose: a.purpose }) < canonical8({ predicate: b.predicate, purpose: b.purpose }) ? -1 : 1),
+    shape: cluster.ref,
+    v: 1
+  }));
+  const schemas = [cluster, intent, wemi, ...predicates];
+  return freezeKnowledgeDeclaration(required9(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: dependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive ordered citation clusters with locators, quotation selectors, stated intent and WEMI levels. Existing V1\u2013V7 declarations and locks remain unchanged. A citation records what a citing entity pointed at and why; it does not verify support, match selectors to bytes, establish completeness, or grant access or publication rights. Typed external identifiers remain under sponge.foundation/external-identifier and sponge.identity-context.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: [shape],
+    queries: [
+      {
+        description: "Declarative join guidance, not an executable query: for a cited entity, return its wemi-level statements and each cites-item that references it, with intent and locator qualifiers. A citation to one expression does not reach the work or other expressions.",
+        id: "cited-level",
+        predicates: sortedRefs7([citesItem.ref, wemiLevel.ref]),
+        v: 1
+      },
+      {
+        description: "Declarative join guidance, not an executable query: reverse cited-from from the citing entity to its clusters, then follow cites-item to each cited entity, returning citation-order, citation-locator, quotation-selector and citation-intent qualifiers where supplied. Sort by citation-order; keep unqualified items in recorded order rather than inferring position.",
+        id: "ordered-citations",
+        predicates: sortedRefs7([citedFrom.ref, citesItem.ref, citationOrder.ref, citationLocator.ref, quotationSelector.ref, citationIntent.ref]),
+        v: 1
+      }
+    ],
+    sources: [{
+      contentSha256: "42bd258b03ce78b2b85ffadf7f1da2a852c23b1473e1906d3f23adcfcb64fb06",
+      license: "MIT",
+      revision: "2026-09-16",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/citation-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+var init_knowledge_citation = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-evidence-grading.ts
+function required10(result) {
+  if (!result.ok)
+    throw new Error(`Invalid evidence-grading pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels12(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical9(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs8(refs3) {
+  return [...refs3].sort((a, b) => canonical9(a) < canonical9(b) ? -1 : 1);
+}
+async function createSpongeEvidenceGradingPackV1(previous, temporalRolesPack) {
+  const dependencyIds2 = ["sponge.content-occurrences", "sponge.core", "sponge.foundation", "sponge.reference", "sponge.research"];
+  const dependencies = dependencyIds2.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing evidence-grading dependency ${packId}.`);
+    return pack;
+  });
+  const allDependencies = [...dependencies, temporalRolesPack];
+  const ref2 = (packId, code2) => {
+    const schema2 = allDependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing evidence-grading schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required10(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels12("Sponge evidence grading"),
+    namespace: "sponge.evidence-grading",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels12(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels12(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const concept = (code2, definition, broader) => {
+    return createKnowledgeSchemaRevisionV1({ ...base(code2, definition), kind: "concept", broader: [broader] });
+  };
+  const entity = ref2("sponge.core", "entity");
+  const entityRange3 = { concepts: [entity], kind: "entity-concepts", v: 1 };
+  const entityConcepts = (...targets) => ({ concepts: sortedRefs8(targets), kind: "entity-concepts", v: 1 });
+  const valueKinds = (...kinds) => ({ kind: "value-kinds", valueKinds: [...kinds].sort(), v: 1 });
+  const textRange2 = { kind: "text", languages: null, maximumBytes: 65536, v: 1 };
+  const enumRange2 = (...values) => ({ kind: "enum", values: values.sort().map((value) => ({ kind: "string", value, v: 1 })), v: 1 });
+  const stratum = required10(await concept("evidence-stratum", "An evidence channel class that owns its own tier ladder. A corpus declares the instances, such as clinical, community, historical, registry or licensed channels. A stratum is never collapsed into another stratum.", ref2("sponge.core", "concept")));
+  const tier = required10(await concept("stratum-tier", "One rung of exactly one stratum's tier ladder. A tier is meaningless across strata; a strong community tier is not a weaker clinical tier.", ref2("sponge.core", "concept")));
+  const grade = required10(await concept("epistemic-grade-descriptor", "A recorded epistemic grade a policy assigns to a record, such as established, emerging, contested, community-signal, historical-record or refuted. The grade is attributed data, not an assertion's review state or a verdict.", ref2("sponge.core", "concept")));
+  const corroboration = required10(await concept("corroboration-descriptor", "A recorded corroboration state a policy assigns, such as convergent, contested, refuted or single-source. Multi-stratum records may carry contested or refuted honestly.", ref2("sponge.core", "concept")));
+  const absence = required10(await concept("absence-finding", "A bounded-search record reporting that a stated scope, searched with a stated method inside a stated source set, produced no result or insufficient coverage. It is evidence about the search, never about nonexistence.", ref2("sponge.core", "information-resource")));
+  const qualifiers = sortedRefs8([...allDependencies.filter((pack) => pack.packId === "sponge.reference" || pack.packId === "sponge.foundation" || pack.packId === "sponge.temporal-roles").flatMap((pack) => pack.schemas).filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref)]);
+  const predicates = [];
+  const add = async (code2, definition, domains, range2) => {
+    const predicate = required10(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: sortedRefs8(domains),
+      inversePredicate: null,
+      qualifierPredicates: qualifiers,
+      range: range2
+    }));
+    if (predicate.kind !== "predicate")
+      throw new Error(`Expected evidence-grading predicate ${code2}.`);
+    predicates.push(predicate);
+    return predicate;
+  };
+  const ofStratum = await add("of-stratum", "The stratum a record was admitted under. Admission is recorded; it does not verify the channel or grade the record.", [entity], entityConcepts(stratum.ref));
+  const ofTier = await add("of-tier", "The tier the record holds on its own stratum's ladder.", [entity], entityConcepts(tier.ref));
+  const tierInStratum = await add("tier-in-stratum", "The stratum ladder this tier belongs to.", [tier.ref], entityConcepts(stratum.ref));
+  const tierRank = await add("tier-rank", "The tier's ordinal rank within its own ladder, for ordering only. Ranks do not compare across ladders.", [tier.ref], valueKinds("integer"));
+  const epistemicGrade = await add("epistemic-grade", "The recorded epistemic grade a policy assigned to this record. Grading is source-scoped evidence, not acceptance.", [entity], entityConcepts(grade.ref));
+  const corroborationState = await add("corroboration-state", "The recorded corroboration state of this record under its policy.", [entity], entityConcepts(corroboration.ref));
+  const corroboratedBy = await add("corroborated-by", "An explicitly identified record or source that corroborates or contests the subject. Contesting evidence stays attached.", [entity], entityRange3);
+  const assessedUnder = await add("assessed-under", "The criteria version or era entity under which this record was assessed. Documentation under an earlier era is not endorsement under a later one.", [entity], entityRange3);
+  const corpusNovelty = await add("corpus-novelty", "How this record relates to the existing corpus: known, new, unknown or update.", [entity], enumRange2("known", "new", "unknown", "update"));
+  const boundSelector = await add("bound-selector", "The verbatim selector or quote span locating this claim's support inside its bound payload. A selector that matches nothing is itself evidence about the claim.", [entity], valueKinds("string"));
+  const boundPayload = await add("bound-payload", "The exact retained content version or source this record's selector reads from. Binding to a version does not verify its bytes.", [entity], entityConcepts(ref2("sponge.content-occurrences", "retained-content-version"), ref2("sponge.core", "source")));
+  const corrects = await add("corrects", "The earlier record this record corrects or retracts. Corrections supersede; they do not rewrite, and the corrected record remains.", [entity], entityRange3);
+  const absenceOutcome = await add("absence-outcome", "The recorded outcome of this bounded search: insufficient-coverage or no-result. Not-searched and not-applicable are not findings.", [absence.ref], enumRange2("insufficient-coverage", "no-result"));
+  const searchScope = await add("search-scope", "The declared scope of this bounded search: the queries, source set and window actually covered.", [absence.ref], textRange2);
+  const searchedWithin = await add("searched-within", "The corpus or source entity this bounded search covered.", [absence.ref], entityConcepts(ref2("sponge.core", "source")));
+  const searchMethod = await add("search-method", "The method entity used for this bounded search.", [absence.ref], entityConcepts(ref2("sponge.research", "method")));
+  const shape = required10(await createKnowledgeExecutableShapeV1({
+    appliesToConcepts: [absence.ref],
+    closed: false,
+    extends: [],
+    maximumInheritanceDepth: 1,
+    rules: [
+      { cardinality: { maximum: 1, minimum: 1 }, predicate: absenceOutcome },
+      { cardinality: { maximum: null, minimum: 0 }, predicate: searchMethod },
+      { cardinality: { maximum: 1, minimum: 1 }, predicate: searchScope },
+      { cardinality: { maximum: null, minimum: 1 }, predicate: searchedWithin }
+    ].map((rule) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: rule.cardinality.maximum, minimum: rule.cardinality.minimum, v: 1 },
+      predicate: rule.predicate.ref,
+      purpose: "private-research",
+      range: rule.predicate.range.kind === "entity-concepts" ? valueKinds("entity") : rule.predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical9({ predicate: a.predicate, purpose: a.purpose }) < canonical9({ predicate: b.predicate, purpose: b.purpose }) ? -1 : 1),
+    shape: absence.ref,
+    v: 1
+  }));
+  const schemas = [stratum, tier, grade, corroboration, absence, ...predicates];
+  return freezeKnowledgeDeclaration(required10(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: allDependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive recorded grading, corroboration, verbatim binding, correction and bounded absence findings. Existing V1\u2013V7 declarations and locks remain unchanged. A recorded grade or corroboration state is attributed evidence, never assertion review state, truth, acceptance, identity equivalence or publication authority. Strata are never collapsed; corrections append rather than rewrite; a null search result does not imply nonexistence.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: [shape],
+    queries: [
+      {
+        description: "Declarative join guidance, not an executable query: enumerate absence-finding records with their search-scope, searched-within, search-method and absence-outcome, and carry the temporal searched-at role. An absence finding bounds its stated scope only; it never implies nonexistence outside it.",
+        id: "absence-ledger",
+        predicates: sortedRefs8([
+          absenceOutcome.ref,
+          searchScope.ref,
+          searchedWithin.ref,
+          searchMethod.ref,
+          ref2("sponge.temporal-roles", "searched-at")
+        ]),
+        v: 1
+      },
+      {
+        description: "Declarative join guidance, not an executable query: follow of-stratum and of-tier from a record, then tier-in-stratum and tier-rank on the tier. Return epistemic-grade, corroboration-state, corroborated-by, assessed-under and corpus-novelty statements with their temporal-role qualifiers. Keep contested and refuted records; do not collapse strata or select one current grade.",
+        id: "graded-record",
+        predicates: sortedRefs8([
+          ofStratum.ref,
+          ofTier.ref,
+          tierInStratum.ref,
+          tierRank.ref,
+          epistemicGrade.ref,
+          corroborationState.ref,
+          corroboratedBy.ref,
+          assessedUnder.ref,
+          corpusNovelty.ref
+        ]),
+        v: 1
+      },
+      {
+        description: "Declarative join guidance, not an executable query: follow bound-payload from a claim to its retained content version or source, then evaluate bound-selector verbatim against that version. Follow corrects to earlier records and return them alongside rather than replacing them.",
+        id: "verbatim-binding",
+        predicates: sortedRefs8([boundPayload.ref, boundSelector.ref, corrects.ref]),
+        v: 1
+      }
+    ],
+    sources: [{
+      contentSha256: "a2ed1580b94c6f3f2aae041810695bb8104f1c03f0d278fb7aa8c090d7dcee48",
+      license: "MIT",
+      revision: "2026-09-16",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/evidence-grading-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+var init_knowledge_evidence_grading = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-research-ops.ts
+function required11(result) {
+  if (!result.ok)
+    throw new Error(`Invalid research-ops pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels13(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical10(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs9(refs3) {
+  return [...refs3].sort((a, b) => canonical10(a) < canonical10(b) ? -1 : 1);
+}
+async function createSpongeResearchOpsPackV1(previous, temporalRolesPack) {
+  const dependencyIds2 = ["sponge.core", "sponge.foundation", "sponge.reference"];
+  const dependencies = dependencyIds2.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing research-ops dependency ${packId}.`);
+    return pack;
+  });
+  const allDependencies = [...dependencies, temporalRolesPack];
+  const ref2 = (packId, code2) => {
+    const schema2 = allDependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing research-ops schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required11(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels13("Sponge research operations"),
+    namespace: "sponge.research-ops",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels13(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels13(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const entity = ref2("sponge.core", "entity");
+  const entityRange3 = { concepts: [entity], kind: "entity-concepts", v: 1 };
+  const entityConcepts = (...targets) => ({ concepts: sortedRefs9(targets), kind: "entity-concepts", v: 1 });
+  const valueKinds = (...kinds) => ({ kind: "value-kinds", valueKinds: [...kinds].sort(), v: 1 });
+  const textRange2 = { kind: "text", languages: null, maximumBytes: 65536, v: 1 };
+  const monitor = required11(await createKnowledgeSchemaRevisionV1({
+    ...base("research-monitor", "A declared bounded input a corpus checks on a stated cadence, such as a watched source or venue. Declaring a monitor does not schedule or run it."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "information-resource")]
+  }));
+  const run = required11(await createKnowledgeSchemaRevisionV1({
+    ...base("monitor-run", "One recorded execution of a monitor or a declared manual sweep. Runs are append-only ledger entries; a later run adds to the ledger rather than rewriting it."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "process")]
+  }));
+  const rejection = required11(await createKnowledgeSchemaRevisionV1({
+    ...base("rejection-record", "A recorded decision not to admit a candidate in a run, with its stated reason. Rejection records preserve disagreement and refusal; they are not errors."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "information-resource")]
+  }));
+  const review = required11(await createKnowledgeSchemaRevisionV1({
+    ...base("review-event", "One recorded review decision about an entity. The review's times stay under temporal roles; the outcome stays a descriptor entity."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "event")]
+  }));
+  const policy = required11(await createKnowledgeSchemaRevisionV1({
+    ...base("publication-policy", "A stated policy governing which record classes may be published automatically, which require review, and which are never publishable. The record is the policy, not its enforcement."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "information-resource")]
+  }));
+  const outcome = required11(await createKnowledgeSchemaRevisionV1({
+    ...base("review-outcome-descriptor", "A recorded review outcome a corpus declares, such as admitted, rejected, deferred or escalated."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "concept")]
+  }));
+  const policyClass = required11(await createKnowledgeSchemaRevisionV1({
+    ...base("policy-class-descriptor", "A publication class a policy declares, such as auto-publishable, review-required or not-publishable."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "concept")]
+  }));
+  const qualifiers = sortedRefs9(allDependencies.filter((pack) => pack.packId === "sponge.reference" || pack.packId === "sponge.foundation" || pack.packId === "sponge.temporal-roles").flatMap((pack) => pack.schemas).filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref));
+  const predicates = [];
+  const add = async (code2, definition, domains, range2) => {
+    const predicate = required11(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: sortedRefs9(domains),
+      inversePredicate: null,
+      qualifierPredicates: qualifiers,
+      range: range2
+    }));
+    if (predicate.kind !== "predicate")
+      throw new Error(`Expected research-ops predicate ${code2}.`);
+    predicates.push(predicate);
+    return predicate;
+  };
+  const monitorsInquiry = await add("monitors-inquiry", "The inquiry this monitor watches for.", [monitor.ref], entityConcepts(ref2("sponge.core", "inquiry")));
+  const monitorTarget = await add("monitor-target", "The source or venue entity this monitor checks.", [monitor.ref], entityRange3);
+  const monitorCadenceDays = await add("monitor-cadence-days", "The stated check cadence in whole days. The cadence is declared, not scheduled.", [monitor.ref], valueKinds("integer"));
+  const monitorStatus = await add("monitor-status", "The recorded monitor status: active, paused or retired.", [monitor.ref], { kind: "enum", values: ["active", "paused", "retired"].map((value) => ({ kind: "string", value, v: 1 })), v: 1 });
+  const runOfMonitor = await add("run-of-monitor", "The monitor this run executed. A run without a monitor is a declared manual sweep.", [run.ref], entityConcepts(monitor.ref));
+  const runScope = await add("run-scope", "The declared scope of this sweep: what the run actually covered.", [run.ref], textRange2);
+  const admittedInRun = await add("admitted-in-run", "An entity this run admitted. Recorded admission is evidence about a decision, not authority over the admitted content.", [run.ref], entityRange3);
+  const rejectedInRun = await add("rejected-in-run", "The run this rejection decision belongs to.", [rejection.ref], entityConcepts(run.ref));
+  const rejectionOf = await add("rejection-of", "The candidate entity this rejection declined to admit.", [rejection.ref], entityRange3);
+  const rejectionReason = await add("rejection-reason", "The stated reason the candidate was not admitted.", [rejection.ref], textRange2);
+  const reviewOf = await add("review-of", "The entity this review event decided about.", [review.ref], entityRange3);
+  const reviewOutcome = await add("review-outcome", "The review-outcome-descriptor entity naming this review's recorded outcome.", [review.ref], entityConcepts(outcome.ref));
+  const policyClassPredicate = await add("policy-class", "The policy-class-descriptor entity naming the publication class this policy assigns.", [policy.ref], entityConcepts(policyClass.ref));
+  const policyAppliesTo = await add("policy-applies-to", "The stratum, grade descriptor or record class entity this policy governs.", [policy.ref], entityRange3);
+  const reassessmentWindowDays = await add("reassessment-window-days", "The stated reassessment window in whole days. Records governed by the class must be reassessed within it; the window is declared, not enforced.", [policy.ref], valueKinds("integer"));
+  const policyReference = await add("policy-reference", "A URI for the governing policy document this record cites.", [policy.ref], valueKinds("uri"));
+  const shapeFor = async (conceptRef2, requiredCodes) => required11(await createKnowledgeExecutableShapeV1({
+    appliesToConcepts: [conceptRef2],
+    closed: false,
+    extends: [],
+    maximumInheritanceDepth: 1,
+    rules: predicates.filter((predicate) => predicate.domainConcepts.some((domain) => canonical10(domain) === canonical10(conceptRef2))).map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: requiredCodes.includes(predicate.identity.code) ? 1 : 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate.range.kind === "entity-concepts" ? valueKinds("entity") : predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical10({ predicate: a.predicate, purpose: a.purpose }) < canonical10({ predicate: b.predicate, purpose: b.purpose }) ? -1 : 1),
+    shape: conceptRef2,
+    v: 1
+  }));
+  const shapes = [
+    await shapeFor(monitor.ref, []),
+    await shapeFor(run.ref, []),
+    await shapeFor(rejection.ref, ["rejected-in-run", "rejection-of", "rejection-reason"]),
+    await shapeFor(review.ref, ["review-of", "review-outcome"]),
+    await shapeFor(policy.ref, [])
+  ].sort((a, b) => a.shape.code < b.shape.code ? -1 : 1);
+  const schemas = [monitor, run, rejection, review, policy, outcome, policyClass, ...predicates];
+  return freezeKnowledgeDeclaration(required11(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: allDependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive declared monitors, append-only run ledgers, rejection records, review events and publication policies. Existing V1\u2013V7 declarations and locks remain unchanged. These records describe what a corpus declared and decided; they do not run monitors, enforce cadences or deadlines, grant publication authority, or delete rejected candidates and refuted records.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes,
+    queries: [
+      {
+        description: "Declarative join guidance, not an executable query: from a monitor follow monitors-inquiry, monitor-target, monitor-cadence-days and monitor-status, then run-of-monitor to each run. For each run return run-scope, admitted-in-run and every rejection-record reached through rejected-in-run with its rejection-of and rejection-reason. Runs are append-only; return all of them rather than collapsing to a latest state.",
+        id: "monitor-ledger",
+        predicates: sortedRefs9([
+          monitorsInquiry.ref,
+          monitorTarget.ref,
+          monitorCadenceDays.ref,
+          monitorStatus.ref,
+          runOfMonitor.ref,
+          runScope.ref,
+          admittedInRun.ref,
+          rejectedInRun.ref,
+          rejectionOf.ref,
+          rejectionReason.ref
+        ]),
+        v: 1
+      },
+      {
+        description: "Declarative join guidance, not an executable query: from a governed record follow review-of in reverse to its review events with review-outcome, and read its policy through policy-applies-to, policy-class and reassessment-window-days. Carry temporal reviewed-at and reassess-by roles where recorded. A review event records a decision; it does not grant publication.",
+        id: "review-and-policy",
+        predicates: sortedRefs9([
+          reviewOf.ref,
+          reviewOutcome.ref,
+          policyClassPredicate.ref,
+          policyAppliesTo.ref,
+          reassessmentWindowDays.ref,
+          policyReference.ref,
+          ref2("sponge.temporal-roles", "reviewed-at"),
+          ref2("sponge.temporal-roles", "reassess-by")
+        ]),
+        v: 1
+      }
+    ],
+    sources: [{
+      contentSha256: "1501985d78ba233a7d1d4003a3d70be04ffd4b96df654a019619cedc7c89d20b",
+      license: "MIT",
+      revision: "2026-09-16",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/research-ops-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+var init_knowledge_research_ops = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-source-policy.ts
+function required12(result) {
+  if (!result.ok)
+    throw new Error(`Invalid source-policy pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels14(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical11(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs10(refs3) {
+  return [...refs3].sort((a, b) => canonical11(a) < canonical11(b) ? -1 : 1);
+}
+async function createSpongeSourcePolicyPackV1(previous) {
+  const dependencyIds2 = ["sponge.core", "sponge.foundation", "sponge.reference"];
+  const dependencies = dependencyIds2.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing source-policy dependency ${packId}.`);
+    return pack;
+  });
+  const ref2 = (packId, code2) => {
+    const schema2 = dependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing source-policy schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required12(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels14("Sponge source policy"),
+    namespace: "sponge.source-policy",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels14(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels14(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const entityConcepts = (...targets) => ({ concepts: sortedRefs10(targets), kind: "entity-concepts", v: 1 });
+  const valueKinds = (...kinds) => ({ kind: "value-kinds", valueKinds: [...kinds].sort(), v: 1 });
+  const capability = required12(await createKnowledgeSchemaRevisionV1({
+    ...base("capability-policy", "One recorded policy decision for one source: which capabilities its material may be used for, under which status, reason, terms document and policy revision. The record is the decision; it grants no rights by itself."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "information-resource")]
+  }));
+  const status = required12(await createKnowledgeSchemaRevisionV1({
+    ...base("policy-status-descriptor", "A recorded policy status a corpus declares, such as denied, requires-entry, prohibited-pending-permission or allowed-with-review."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "concept")]
+  }));
+  const qualifiers = sortedRefs10(dependencies.filter((pack) => pack.packId === "sponge.reference" || pack.packId === "sponge.foundation").flatMap((pack) => pack.schemas).filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref));
+  const predicates = [];
+  const add = async (code2, definition, domains, range2) => {
+    const predicate = required12(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: sortedRefs10(domains),
+      inversePredicate: null,
+      qualifierPredicates: qualifiers,
+      range: range2
+    }));
+    if (predicate.kind !== "predicate")
+      throw new Error(`Expected source-policy predicate ${code2}.`);
+    predicates.push(predicate);
+    return predicate;
+  };
+  const policyForSource = await add("policy-for-source", "The source entity this decision governs.", [capability.ref], entityConcepts(ref2("sponge.core", "source")));
+  const policyStatus = await add("policy-status", "The policy-status-descriptor entity recording this decision's status.", [capability.ref], entityConcepts(status.ref));
+  const capabilityPredicates = [];
+  for (const [code2, noun] of [
+    ["capability-storage", "stored"],
+    ["capability-features", "shown as features"],
+    ["capability-labels", "used as labels"],
+    ["capability-ml", "used for machine learning"],
+    ["capability-network", "fetched over the network"]
+  ]) {
+    capabilityPredicates.push(await add(code2, `Whether this decision permits the source's material to be ${noun}. Absence of the statement is not permission.`, [capability.ref], valueKinds("boolean")));
+  }
+  const policyReason = await add("policy-reason", "The stated basis for this decision.", [capability.ref], { kind: "text", languages: null, maximumBytes: 65536, v: 1 });
+  const termsReference = await add("terms-reference", "A URI for the license or terms document this decision cites.", [capability.ref], valueKinds("uri"));
+  const policyRevision = await add("policy-revision", "The integer revision of the policy that produced this decision, keeping the decision attributable after policy text changes.", [capability.ref], valueKinds("integer"));
+  const shape = required12(await createKnowledgeExecutableShapeV1({
+    appliesToConcepts: [capability.ref],
+    closed: false,
+    extends: [],
+    maximumInheritanceDepth: 1,
+    rules: [policyForSource, policyStatus, policyReason, termsReference, policyRevision, ...capabilityPredicates].map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: predicate === policyForSource || predicate === policyStatus ? 1 : 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate.range.kind === "entity-concepts" ? valueKinds("entity") : predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical11({ predicate: a.predicate, purpose: a.purpose }) < canonical11({ predicate: b.predicate, purpose: b.purpose }) ? -1 : 1),
+    shape: capability.ref,
+    v: 1
+  }));
+  const schemas = [capability, status, ...predicates];
+  return freezeKnowledgeDeclaration(required12(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: dependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive recorded per-source capability and rights decisions. Existing V1\u2013V7 declarations and locks remain unchanged. A capability policy records what was decided under which revision; it does not grant rights, execute the decision, or prevent supersession. Where no policy record exists for a source, the safe consumer default is to deny; this pack does not create that default.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: [shape],
+    queries: [
+      {
+        description: "Declarative join guidance, not an executable query: reverse policy-for-source from a source to its capability-policy records, and return each record's policy-status, policy-reason, terms-reference, policy-revision and the five capability booleans. Where several decisions exist, keep them all with their revisions rather than selecting a latest policy.",
+        id: "source-decisions",
+        predicates: sortedRefs10([
+          policyForSource.ref,
+          policyStatus.ref,
+          policyReason.ref,
+          termsReference.ref,
+          policyRevision.ref,
+          ...capabilityPredicates.map((predicate) => predicate.ref)
+        ]),
+        v: 1
+      }
+    ],
+    sources: [{
+      contentSha256: "c0dcf36c1b0e20d967c919e51da9de4b38b7686f3a484dd614e6a6b58e3c3a4b",
+      license: "MIT",
+      revision: "2026-09-16",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/source-policy-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+var init_knowledge_source_policy = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-source-quality.ts
+function required13(result) {
+  if (!result.ok)
+    throw new Error(`Invalid source-quality pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels15(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical12(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs11(refs3) {
+  return [...refs3].sort((a, b) => canonical12(a) < canonical12(b) ? -1 : 1);
+}
+async function createSpongeSourceQualityPackV1(previous) {
+  const dependencyIds2 = ["sponge.core", "sponge.foundation", "sponge.reference"];
+  const dependencies = dependencyIds2.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing source-quality dependency ${packId}.`);
+    return pack;
+  });
+  const ref2 = (packId, code2) => {
+    const schema2 = dependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing source-quality schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required13(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels15("Sponge source quality"),
+    namespace: "sponge.source-quality",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const base = (code2, definition) => ({
+    definitions: labels15(definition),
+    identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+    labels: labels15(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+    previousRevisionSha256: null,
+    reviewDecisionSha256: null,
+    vocabularySha256: vocabulary.revisionSha256,
+    v: 1
+  });
+  const entity = ref2("sponge.core", "entity");
+  const entityConcepts = (...targets) => ({ concepts: sortedRefs11(targets), kind: "entity-concepts", v: 1 });
+  const valueKinds = (...kinds) => ({ kind: "value-kinds", valueKinds: [...kinds].sort(), v: 1 });
+  const scorecard = required13(await createKnowledgeSchemaRevisionV1({
+    ...base("source-scorecard", "One measured performance record for a source at a stated horizon over a stated sample. It is recorded data about the source, not a truth score, and it never generalizes beyond its stated domain."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "information-resource")]
+  }));
+  const maturity = required13(await createKnowledgeSchemaRevisionV1({
+    ...base("maturity-descriptor", "The recorded maturity of a scorecard's measurement, such as provisional, calibrated, established or retired. A corpus declares its own instances."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "concept")]
+  }));
+  const vetoRule = required13(await createKnowledgeSchemaRevisionV1({
+    ...base("veto-rule", "A stated rule that disqualifies a source for a purpose regardless of its measured rate, such as undisclosed sponsorship or a retracted record."),
+    kind: "concept",
+    broader: [ref2("sponge.core", "concept")]
+  }));
+  const qualifiers = sortedRefs11(dependencies.filter((pack) => pack.packId === "sponge.reference" || pack.packId === "sponge.foundation").flatMap((pack) => pack.schemas).filter((schema2) => schema2.kind === "predicate" && schema2.qualifierPredicates.length === 0).map((schema2) => schema2.ref));
+  const predicates = [];
+  const add = async (code2, definition, domains, range2) => {
+    const predicate = required13(await createKnowledgeSchemaRevisionV1({
+      ...base(code2, definition),
+      kind: "predicate",
+      domainConcepts: sortedRefs11(domains),
+      inversePredicate: null,
+      qualifierPredicates: qualifiers,
+      range: range2
+    }));
+    if (predicate.kind !== "predicate")
+      throw new Error(`Expected source-quality predicate ${code2}.`);
+    predicates.push(predicate);
+    return predicate;
+  };
+  const scorecardSource = await add("scorecard-source", "The source entity this scorecard measures.", [scorecard.ref], entityConcepts(ref2("sponge.core", "source")));
+  const horizonDays = await add("horizon-days", "The evaluation horizon in whole days: the window after which the source's predictions or claims were checked.", [scorecard.ref], valueKinds("integer"));
+  const hitRate = await add("hit-rate", "The measured hit rate as a decimal between 0 and 1, computed over this scorecard's stated sample only.", [scorecard.ref], { kind: "numeric", lowerBound: "0", upperBound: "1", unit: null, v: 1 });
+  const observationCount = await add("observation-count", "The number of scored observations behind this scorecard.", [scorecard.ref], valueKinds("integer"));
+  const preregisteredSample = await add("preregistered-sample", "The sample size committed before scoring. Comparing observation-count with it is the recorded basis for trusting or discounting the rate.", [scorecard.ref], valueKinds("integer"));
+  const scorecardMaturity = await add("scorecard-maturity", "The maturity-descriptor entity recording this measurement's maturity.", [scorecard.ref], entityConcepts(maturity.ref));
+  const appliesToDomain = await add("applies-to-domain", "The domain entity this measurement covers. A scorecard measured on one domain does not score the source on another.", [scorecard.ref], { concepts: [entity], kind: "entity-concepts", v: 1 });
+  const triggeredVeto = await add("triggered-veto", "The veto-rule entity that fired against this scorecard or record. A triggered veto is recorded evidence; it does not delete or rewrite the record.", [entity], entityConcepts(vetoRule.ref));
+  const vetoRuleText = await add("veto-rule-text", "The stated rule a veto-rule applies.", [vetoRule.ref], { kind: "text", languages: null, maximumBytes: 65536, v: 1 });
+  const shape = required13(await createKnowledgeExecutableShapeV1({
+    appliesToConcepts: [scorecard.ref],
+    closed: false,
+    extends: [],
+    maximumInheritanceDepth: 1,
+    rules: [scorecardSource, horizonDays, hitRate, observationCount, preregisteredSample, scorecardMaturity, appliesToDomain].map((predicate) => ({
+      allowedDisclosures: ["private"],
+      cardinality: { maximum: null, minimum: predicate === scorecardSource ? 1 : 0, v: 1 },
+      predicate: predicate.ref,
+      purpose: "private-research",
+      range: predicate.range.kind === "entity-concepts" ? valueKinds("entity") : predicate.range,
+      requiredEvidenceBearings: [],
+      severity: "error",
+      v: 1
+    })).sort((a, b) => canonical12({ predicate: a.predicate, purpose: a.purpose }) < canonical12({ predicate: b.predicate, purpose: b.purpose }) ? -1 : 1),
+    shape: scorecard.ref,
+    v: 1
+  }));
+  const schemas = [scorecard, maturity, vetoRule, ...predicates];
+  return freezeKnowledgeDeclaration(required13(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: dependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive measured source scorecards, maturity descriptors and veto rules. Existing V1\u2013V7 declarations and locks remain unchanged. A scorecard carries its own horizon, sample and domain parameters; it does not compute rates, verify pre-registration, select trusted sources or rank sources for any purpose.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: [shape],
+    queries: [
+      {
+        description: "Declarative join guidance, not an executable query: reverse scorecard-source from a source to its scorecards, and return each card's horizon-days, hit-rate, observation-count, preregistered-sample, scorecard-maturity and applies-to-domain with any triggered-veto. Compare rates only inside one stated horizon and domain.",
+        id: "source-scorecards",
+        predicates: sortedRefs11([
+          scorecardSource.ref,
+          horizonDays.ref,
+          hitRate.ref,
+          observationCount.ref,
+          preregisteredSample.ref,
+          scorecardMaturity.ref,
+          appliesToDomain.ref,
+          triggeredVeto.ref
+        ]),
+        v: 1
+      }
+    ],
+    sources: [{
+      contentSha256: "5039e9ffe27bf568bde319cc77cecb36fb1ac0440eeaf0bddfcaef1e733bb128",
+      license: "MIT",
+      revision: "2026-09-16",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/source-quality-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+var init_knowledge_source_quality = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+});
+
+// src/research/knowledge-temporal-roles.ts
+function required14(result) {
+  if (!result.ok)
+    throw new Error(`Invalid temporal-roles pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function labels16(text2) {
+  return [{ language: "en", text: text2, v: 1 }];
+}
+function canonical13(value) {
+  return canonicalJson2(value);
+}
+function sortedRefs12(refs3) {
+  return [...refs3].sort((a, b) => canonical13(a) < canonical13(b) ? -1 : 1);
+}
+async function createSpongeTemporalRolesPackV1(previous) {
+  const dependencyIds2 = ["sponge.core", "sponge.foundation", "sponge.reference"];
+  const dependencies = dependencyIds2.map((packId) => {
+    const pack = previous.packs.find((item) => item.packId === packId);
+    if (pack === undefined)
+      throw new Error(`Missing temporal-roles dependency ${packId}.`);
+    return pack;
+  });
+  const ref2 = (packId, code2) => {
+    const schema2 = dependencies.find((pack) => pack.packId === packId)?.schemas.find((item) => item.identity.code === code2);
+    if (schema2 === undefined)
+      throw new Error(`Missing temporal-roles schema ${packId}/${code2}.`);
+    return schema2.ref;
+  };
+  const core = previous.corePack;
+  const vocabulary = required14(await createKnowledgeVocabularyRevisionV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    labels: labels16("Sponge temporal roles"),
+    namespace: "sponge.temporal-roles",
+    ownerEntityId: core.vocabulary.ownerEntityId,
+    previousRevisionSha256: null,
+    revision: 1,
+    state: "private",
+    v: 1
+  }));
+  const schemas = [];
+  for (const [code2, definition] of TEMPORAL_ROLE_PREDICATES_V1) {
+    const predicate = required14(await createKnowledgeSchemaRevisionV1({
+      definitions: labels16(`${definition} The recorded time does not verify it; contradictory roles from different sources remain separate.`),
+      identity: { code: code2, namespace: vocabulary.namespace, revision: 1, v: 1 },
+      labels: labels16(code2.split("-").map((word) => `${word[0]?.toUpperCase()}${word.slice(1)}`).join(" ")),
+      previousRevisionSha256: null,
+      reviewDecisionSha256: null,
+      vocabularySha256: vocabulary.revisionSha256,
+      kind: "predicate",
+      domainConcepts: [ref2("sponge.core", "entity")],
+      inversePredicate: null,
+      qualifierPredicates: [],
+      range: { kind: "value-kinds", valueKinds: ["time"], v: 1 },
+      v: 1
+    }));
+    schemas.push(predicate);
+  }
+  return freezeKnowledgeDeclaration(required14(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: core.canonicalizerSha256,
+    dependencies: dependencies.map(knowledgeVocabularyPackPinV1),
+    display: core.display,
+    examples: [],
+    migrationNotes: "Additive named time roles. Existing V1\u2013V7 declarations, their frozen qualifier sets and all prior locks remain unchanged. These roles may qualify V8 predicates that declare them; they do not verify times, establish ordering or freshness, enforce a reassessment deadline, or replace at-time, valid-during, retrieved-at, measured-at or captured-at.",
+    packId: vocabulary.namespace,
+    previousManifestSha256: null,
+    revision: 1,
+    schemas: schemas.sort((a, b) => a.identity.code < b.identity.code ? -1 : 1),
+    shapes: [],
+    queries: [
+      {
+        description: "Declarative join guidance, not an executable query: enumerate every temporal-role statement whose subject is the record, and return each role's time value with its declared calendar, precision and certainty. No role implies another; absence of a role means it was not recorded, not that it does not exist.",
+        id: "record-temporal-roles",
+        predicates: sortedRefs12(schemas.map((schema2) => schema2.ref)),
+        v: 1
+      }
+    ],
+    sources: [{
+      contentSha256: "d734855f0bf89d33d47471ffb1a3434fd23956738f20089b69df929ff8481f35",
+      license: "MIT",
+      revision: "2026-09-16",
+      uri: "https://github.com/hraness/oh/blob/main/spec/research-v1/temporal-roles-v1.md",
+      v: 1
+    }],
+    supportedCodecs: [],
+    v: 1,
+    vocabulary
+  })));
+}
+var TEMPORAL_ROLE_PREDICATES_V1;
+var init_knowledge_temporal_roles = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+  TEMPORAL_ROLE_PREDICATES_V1 = [
+    ["event-time", "The time the reported event or occurrence happened, as the source states it. It never doubles as the time the report was written, retrieved or reviewed."],
+    ["observation-time", "The time the source observed or collected the reported content. It is distinct from a location claim and from a measurement record's own time."],
+    ["available-at", "The time the content became retrievable to the observer. A claim admitted under point-in-time discipline uses this role rather than the source's reported publication date."],
+    ["first-seen-at", "The time the recording system first observed the content, however stale its original publication."],
+    ["entered-at", "The time the record entered the local store. It asserts nothing about the source or the event."],
+    ["searched-at", "The time a bounded search ran. Pair with an absence-finding record when the search's outcome is itself recorded."],
+    ["as-of-time", "The point in time the record's content describes, where a source publishes data as of a stated snapshot."],
+    ["reviewed-at", "The time a review or reassessment decision was recorded. The decision and its outcome stay a separate review event."],
+    ["reassess-by", "The recorded time by which the record must be reassessed under its declared policy. The deadline is stated, not enforced; passing it changes nothing by itself."],
+    ["superseded-at", "The time the record was superseded by a correction or withdrawal. The superseding record remains a separate entity."]
+  ];
+});
+
+// src/research/knowledge-domain-catalog-v8.ts
+function spongeKnowledgeDomainCatalogV8() {
+  catalogPromise12 ??= buildCatalog8();
+  return catalogPromise12;
+}
+async function buildCatalog8() {
+  const previous = await spongeKnowledgeDomainCatalogV7();
+  const temporalRolesPack = await createSpongeTemporalRolesPackV1(previous);
+  const evidenceGradingPack = await createSpongeEvidenceGradingPackV1(previous, temporalRolesPack);
+  const researchOpsPack = await createSpongeResearchOpsPackV1(previous, temporalRolesPack);
+  const [citationPack, sourceQualityPack, sourcePolicyPack] = await Promise.all([
+    createSpongeCitationPackV1(previous),
+    createSpongeSourceQualityPackV1(previous),
+    createSpongeSourcePolicyPackV1(previous)
+  ]);
+  const extensions = [temporalRolesPack, evidenceGradingPack, citationPack, researchOpsPack, sourceQualityPack, sourcePolicyPack];
+  const packs = [...previous.packs, ...extensions].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const roots = [...previous.lock.roots, ...extensions.map(knowledgeVocabularyPackPinV1)].sort((a, b) => a.packId < b.packId ? -1 : 1);
+  const resolved = await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots });
+  if (!resolved.ok)
+    throw new Error(`Invalid research evidence catalog: ${resolved.error.field}:${resolved.error.code}.`);
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    temporalRolesPack,
+    evidenceGradingPack,
+    citationPack,
+    researchOpsPack,
+    sourceQualityPack,
+    sourcePolicyPack,
+    lock: resolved.value.lock,
+    packs,
+    schemas: packs.flatMap((pack) => pack.schemas),
+    vocabularies: packs.map((pack) => pack.vocabulary)
+  });
+}
+var catalogPromise12;
+var init_knowledge_domain_catalog_v8 = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_domain_catalog_v7();
+  init_knowledge_citation();
+  init_knowledge_evidence_grading();
+  init_knowledge_research_ops();
+  init_knowledge_source_policy();
+  init_knowledge_source_quality();
+  init_knowledge_temporal_roles();
+  init_knowledge_vocabulary_pack_v1();
+});
+
 // src/research/knowledge-proposal-v3.ts
 function key2(value) {
   return typeof value === "string" && value.length <= 96 && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value);
 }
-function canonical8(value) {
+function canonical14(value) {
   return canonicalJson2(value);
 }
 function ref2(value) {
@@ -7375,8 +8390,8 @@ function refs3(value) {
   const parsed = value.map(ref2);
   if (parsed.some((item) => item === null))
     return null;
-  const sorted = parsed.sort((a, b) => canonical8(a) < canonical8(b) ? -1 : 1);
-  return new Set(sorted.map(canonical8)).size === sorted.length ? sorted : null;
+  const sorted = parsed.sort((a, b) => canonical14(a) < canonical14(b) ? -1 : 1);
+  return new Set(sorted.map(canonical14)).size === sorted.length ? sorted : null;
 }
 function entityReference(value) {
   if (!isPlainRecord2(value))
@@ -7403,8 +8418,8 @@ function draftValue(value, depth = 0) {
       return null;
     const parsed2 = values;
     if (value["kind"] === "set") {
-      parsed2.sort((a, b) => canonical8(a) < canonical8(b) ? -1 : 1);
-      if (new Set(parsed2.map(canonical8)).size !== parsed2.length)
+      parsed2.sort((a, b) => canonical14(a) < canonical14(b) ? -1 : 1);
+      if (new Set(parsed2.map(canonical14)).size !== parsed2.length)
         return null;
     }
     return { kind: value["kind"], values: parsed2, v: 1 };
@@ -7425,8 +8440,8 @@ function dimensions(value) {
       return null;
     parsed.push({ predicate, value: child });
   }
-  parsed.sort((a, b) => canonical8(a) < canonical8(b) ? -1 : 1);
-  return new Set(parsed.map(canonical8)).size === parsed.length ? parsed : null;
+  parsed.sort((a, b) => canonical14(a) < canonical14(b) ? -1 : 1);
+  return new Set(parsed.map(canonical14)).size === parsed.length ? parsed : null;
 }
 function parseSpongeKnowledgeProposalDraftV3(foreign) {
   const value = knowledgeDeclarativeJson(foreign, 256 * 1024);
@@ -8300,11 +9315,11 @@ async function readInput(path) {
 async function runOhResearchCli(arguments_) {
   const command = arguments_[0];
   let output;
-  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
-    output = command === "catalog-v7" ? await spongeKnowledgeDomainCatalogV7() : command === "catalog-v6" ? await spongeKnowledgeDomainCatalogV6() : command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
+  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "catalog-v8", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
+    output = command === "catalog-v8" ? await spongeKnowledgeDomainCatalogV8() : command === "catalog-v7" ? await spongeKnowledgeDomainCatalogV7() : command === "catalog-v6" ? await spongeKnowledgeDomainCatalogV6() : command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
   } else {
     if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"].includes(command ?? "") || arguments_.length !== 3 || arguments_[1] !== "--file") {
-      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
+      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|catalog-v8|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
     }
     const input = await readInput(arguments_[2]);
     if (command === "validate-draft")
@@ -8345,6 +9360,7 @@ var init_research_cli = __esm(() => {
   init_knowledge_domain_catalog_v5();
   init_knowledge_domain_catalog_v6();
   init_knowledge_domain_catalog_v7();
+  init_knowledge_domain_catalog_v8();
   init_knowledge_domain_catalog_v2();
   init_knowledge_wikidata_import_v2();
   init_knowledge_domain_catalog();
@@ -8559,6 +9575,78 @@ function replayOhOperationsV1(spaceId, values, maximumRecords = OH_GRAPH_LIMITS_
   }
   return { head, records: sortedRecords(records.values()), v: 1 };
 }
+function parseOhRecordRevisionChangeV1(value) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["kind", "recordSha256", "sequence", "v"]) || value.v !== 1 || value.kind !== "put" && value.kind !== "tombstone")
+    return null;
+  const recordSha256 = parseSha256Hex(value.recordSha256);
+  const sequence = Number.isSafeInteger(value.sequence) && value.sequence > 0 ? value.sequence : null;
+  return recordSha256 !== null && sequence !== null ? { kind: value.kind, recordSha256, sequence, v: 1 } : null;
+}
+function reduceOhRecordRevisionsV1(input) {
+  if (!isPlainRecord(input) || !hasExactKeys(input, ["changes", "fromSequence", "key", "through", "truncated"]) || !Array.isArray(input.changes)) {
+    throw new TypeError("Invalid record revision input.");
+  }
+  const key3 = safeCode(input.key, 512);
+  const through = Number.isSafeInteger(input.through) && input.through >= 0 ? input.through : null;
+  const fromSequence = Number.isSafeInteger(input.fromSequence) && input.fromSequence >= 0 ? input.fromSequence : null;
+  if (key3 === null || through === null || fromSequence === null || typeof input.truncated !== "boolean") {
+    throw new TypeError("Invalid record revision input.");
+  }
+  if (fromSequence > 0 && through > 0 && fromSequence > through) {
+    throw new RangeError("A record revision read cannot start after the sequence it was read through.");
+  }
+  const truncated = input.truncated || through > 0 && fromSequence !== 1;
+  if (input.changes.length > OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey) {
+    throw new RangeError(`A record revision read accepts at most ${OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey} changes.`);
+  }
+  const parsed = [];
+  const sequences = new Set;
+  for (const value of input.changes) {
+    const change = parseOhRecordRevisionChangeV1(value);
+    if (change === null)
+      throw new TypeError("Invalid record revision change.");
+    if (change.sequence > through)
+      throw new RangeError("A record revision change is ahead of its through sequence.");
+    if (sequences.has(change.sequence))
+      throw new TypeError("A record key has two changes at one sequence.");
+    sequences.add(change.sequence);
+    parsed.push(change);
+  }
+  parsed.sort((left, right) => left.sequence - right.sequence);
+  const digests = new Set;
+  let puts = 0;
+  let tombstones = 0;
+  let idempotentPuts = 0;
+  let priorPutDigest = null;
+  for (const change of parsed) {
+    if (change.kind === "put") {
+      puts += 1;
+      digests.add(change.recordSha256);
+      if (priorPutDigest === change.recordSha256)
+        idempotentPuts += 1;
+      priorPutDigest = change.recordSha256;
+    } else {
+      tombstones += 1;
+      priorPutDigest = null;
+    }
+  }
+  const latest = parsed.at(-1) ?? null;
+  return {
+    changes: parsed.length,
+    distinctPutDigests: digests.size,
+    idempotentPuts,
+    key: key3,
+    latestKind: latest === null ? null : latest.kind,
+    latestSequence: latest?.sequence ?? null,
+    oldestObservedSequence: parsed[0]?.sequence ?? null,
+    puts,
+    revisions: puts === 0 ? 0 : puts - 1,
+    through,
+    tombstones,
+    truncated,
+    v: 1
+  };
+}
 function normalizeRoots(values) {
   if (!Array.isArray(values) || values.length < 1 || values.length > OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots) {
     throw new RangeError(`A dependency closure needs 1 through ${OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots} roots.`);
@@ -8707,10 +9795,10 @@ class OhSemanticBundleIngressV1 {
         throw new TypeError("Invalid semantic bundle tombstone.");
       changes.push({ key: item.key, kind: "tombstone", priorSha256, v: 1 });
     }
-    const canonical9 = canonicalKnowledgeGraphChangesV1(changes);
+    const canonical15 = canonicalKnowledgeGraphChangesV1(changes);
     return await this.#store.commit({
       actorId,
-      changes: canonical9,
+      changes: canonical15,
       expectedHead: {
         generation: expected.generation,
         operationSha256: expected.operationSha256
@@ -8720,7 +9808,7 @@ class OhSemanticBundleIngressV1 {
     });
   }
 }
-var OH_CANONICAL_STORE_PROFILE_V1, OH_WORKING_STORE_PROFILE_V1, OH_DEPENDENCY_CLOSURE_LIMITS_V1, OhPurgedSpaceError, EMPTY_RECORDS_SHA256;
+var OH_CANONICAL_STORE_PROFILE_V1, OH_WORKING_STORE_PROFILE_V1, OH_DEPENDENCY_CLOSURE_LIMITS_V1, OhPurgedSpaceError, EMPTY_RECORDS_SHA256, OH_RECORD_REVISIONS_LIMITS_V1;
 var init_store = __esm(() => {
   init_canonical();
   init_contract();
@@ -8772,6 +9860,10 @@ var init_store = __esm(() => {
     }
   };
   EMPTY_RECORDS_SHA256 = canonicalSha256([]);
+  OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
+    changesPerKey: 65536,
+    operationsPerRead: 1000
+  });
 });
 
 // src/sqlite/runtime.ts
@@ -8933,7 +10025,12 @@ function extractSearchText(value, maximumBytes = 1024 * 1024) {
       for (const item of candidate)
         visit(item, depth + 1);
     } else if (candidate !== null) {
-      for (const [key3, item] of Object.entries(candidate)) {
+      const keys = Object.keys(candidate).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+      const object = candidate;
+      for (const key3 of keys) {
+        const item = object[key3];
+        if (item === undefined)
+          throw new TypeError("Search value contains an undefined property.");
         parts.push(key3);
         bytes += key3.length + 1;
         visit(item, depth + 1);
@@ -9496,6 +10593,37 @@ class OhSqliteStore {
     const rows = this.database.query(`SELECT ${OPERATION_COLUMNS} FROM oh_operations
        WHERE space_id = ? ORDER BY sequence DESC LIMIT ?`).all(this.spaceId, normalizeLimit(limit));
     return rows.map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
+  }
+  recordRevisions(key3, options = {}) {
+    this.#assertOpen();
+    const parsedKey = safeCode(key3, 512);
+    if (parsedKey === null)
+      throw new TypeError("Invalid record key.");
+    const limit = normalizeLimit(options.limit, OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey, OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey);
+    return withReadTransaction(this.database, () => {
+      const head = this.head();
+      const rows = this.database.query(`SELECT operation.sequence AS sequence, changed.change_kind AS change_kind,
+           changed.record_sha256 AS record_sha256
+         FROM oh_operation_records AS changed
+         JOIN oh_operations AS operation ON operation.operation_sha256 = changed.operation_sha256
+         WHERE operation.space_id = ? AND changed.record_key = ? AND operation.sequence <= ?
+         ORDER BY operation.sequence DESC LIMIT ?`).all(this.spaceId, parsedKey, head.sequence, limit + 1);
+      const truncated = rows.length > limit;
+      const changes = rows.slice(0, limit).map((row) => {
+        const recordSha256 = parseSha256Hex(row.record_sha256);
+        if (recordSha256 === null || row.change_kind !== "put" && row.change_kind !== "tombstone") {
+          throw new OhIntegrityError("A stored log change carries an invalid record revision.");
+        }
+        return { kind: row.change_kind, recordSha256, sequence: row.sequence, v: 1 };
+      });
+      return reduceOhRecordRevisionsV1({
+        changes,
+        fromSequence: head.sequence === 0 ? 0 : 1,
+        key: parsedKey,
+        through: head.sequence,
+        truncated
+      });
+    });
   }
   searchKeyword(query, limit = 20) {
     this.#assertOpen();
@@ -18032,7 +19160,7 @@ var init_core_effect = __esm(() => {
   tagMetrics = /* @__PURE__ */ dual((args2) => isEffect(args2[0]), function() {
     return labelMetrics(arguments[0], typeof arguments[1] === "string" ? [make27(arguments[1], arguments[2])] : Object.entries(arguments[1]).map(([k, v]) => make27(k, v)));
   });
-  labelMetrics = /* @__PURE__ */ dual(2, (self, labels11) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels11)));
+  labelMetrics = /* @__PURE__ */ dual(2, (self, labels17) => fiberRefLocallyWith(self, currentMetricLabels, (old) => union(old, labels17)));
   takeUntil = /* @__PURE__ */ dual(2, (elements, predicate) => suspend(() => {
     const iterator = elements[Symbol.iterator]();
     const builder = [];
@@ -19996,7 +21124,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
         return flatMap7(scopeFork(scope, sequential4), (inner) => scopeExtend(self, inner));
     }
   }
-})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels11) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels11)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
+})), tagMetricsScoped = (key3, value) => labelMetricsScoped([make27(key3, value)]), labelMetricsScoped = (labels17) => fiberRefLocallyScopedWith(currentMetricLabels, (old) => union(old, labels17)), using, validate, validateWith, validateFirst, withClockScoped = (c) => fiberRefLocallyScopedWith(currentServices, add4(clockTag, c)), withRandomScoped = (value) => fiberRefLocallyScopedWith(currentServices, add4(randomTag, value)), withConfigProviderScoped = (provider) => fiberRefLocallyScopedWith(currentServices, add4(configProviderTag, provider)), withEarlyRelease = (self) => scopeWith((parent) => flatMap7(scopeFork(parent, sequential3), (child) => pipe(self, scopeExtend(child), map8((value) => [fiberIdWith((fiberId2) => scopeClose(child, exitInterrupt(fiberId2))), value])))), zipOptions, zipLeftOptions, zipRightOptions, zipWithOptions, withRuntimeFlagsScoped = (update5) => {
   if (update5 === empty15) {
     return void_2;
   }
@@ -25395,7 +26523,7 @@ init_recall();
 init_migrations();
 init_sync_model();
 import { lstat, readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.10.2";
+var OH_PACKAGE_VERSION = "0.11.0";
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",
@@ -25624,7 +26752,7 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
-  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
+  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|catalog-v8|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
   oh research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH
   oh contract
   oh version

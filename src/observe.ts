@@ -686,6 +686,164 @@ export function resolveOhSupersessionV1(store: OhObserveStoreV1, draft: OhSupers
   return { candidatesTruncated, orderingConflict, supersedes: head.key };
 }
 
+/**
+ * The minimum a supersession read needs: a synchronous `get`, because a read
+ * never commits. `OhSqliteStore` and the SDK store satisfy it today. The async
+ * `OhStoreV1` port does not, and neither does a snapshot or a change feed, so
+ * this widens nothing yet; it states the actual requirement rather than a store.
+ */
+export type OhObservationReadStoreV1 = Readonly<{
+  get(key: string): KnowledgeGraphRecordV1 | null;
+}>;
+
+/**
+ * How far one observation's `supersedes` chain reaches, counted by following the
+ * link from `key` toward the oldest record.
+ *
+ * It counts recorded links, not restatements. A link is produced by
+ * `resolveOhSupersessionV1`, which matches on facet and speaker over a bounded
+ * candidate lookup, so a fact whose extracted facet changed between sessions
+ * starts a fresh chain and reads a lower depth than it was restated. `depth` is
+ * therefore a statement about the link graph the store holds.
+ *
+ * It is the churn a per-record revision count cannot see. A revision count
+ * reports rewrites of one key, and this profile records a correction as a new
+ * key. The two are not independent: `applySupersessionPolicyV1` re-puts a record
+ * when its link changes, so a key linked by that path reads one revision, while
+ * a key linked during `observeOhV1({ supersession: true })` is written once and
+ * reads none. Neither number subsumes the other.
+ *
+ * `depth` is the number of links followed, so a first statement reads 0.
+ * `resolved` is true only when the walk ended at a record that supersedes
+ * nothing, and only then does `origin` name the oldest record and `depth` equal
+ * the distance to it. It says nothing about whether the link graph is complete:
+ * a chain the linker never joined still resolves.
+ *
+ * `candidateLookup` reports what the walked records' receipts recorded about
+ * the bounded lookup their link was chosen from, and it is three-valued because
+ * the honest answer has three cases.
+ *
+ * `"named"` means a receipt named one of the walked records, so its lookup
+ * saturated, the chain may be short by an unknown amount even though the walk
+ * completed, and `depth` is not a floor on the links that exist.
+ *
+ * `"unreadable"` means some receipt could not be read as one, so nothing is
+ * known. A boolean would have to report that state as one of the other two, and
+ * reporting it as the absence of saturation would be asserting a fact this read
+ * never established.
+ *
+ * `"none-recorded"` means every walked record's receipt was readable and named
+ * none of them. It is deliberately not called complete. A receipt records the
+ * lookup performed when the observation was extracted; `applySupersessionPolicyV1`
+ * re-links an already committed record against its original receipt and never
+ * writes one, so a link that policy chose from a saturated lookup is recorded
+ * nowhere this read can see. `"none-recorded"` therefore rules out recorded
+ * saturation and nothing more. A facet that drifted between sessions leaves no
+ * signal this read can report either.
+ *
+ * When `resolved` is false the walk stopped on a cycle, on the record bound, or
+ * on a record that is absent or is not a well-formed observation. `depth` then
+ * counts one link past the last record it could read, so it exceeds the distance
+ * to `origin` by one, and `origin` is merely the oldest readable key. `missing`
+ * names the key that could not be read, and `missing === key` is the case where
+ * nothing was read at all. `loop` reports a cycle found inside the bound; a
+ * cycle that closes beyond it reports `truncated` instead. A damaged chain is
+ * reported, never repaired and never silently completed.
+ *
+ * At most 8192 observation records are read, so the longest chain that can
+ * resolve carries 8191 links. Each one also costs a receipt read, memoised per
+ * session, so a chain whose links all come from different sessions performs up
+ * to 16384 reads in total.
+ *
+ * The count carries no meaning. A long chain may be contested, progressively
+ * refined, or simply a subject discussed often; whether that warrants review is
+ * the application's decision.
+ */
+/**
+ * What the walked records' receipts recorded about their candidate lookup.
+ * `"named"` beats `"unreadable"`, which beats `"none-recorded"`: a lookup known
+ * to have saturated is reported even when another receipt could not be read.
+ */
+export type OhObservationCandidateLookupV1 = "named" | "none-recorded" | "unreadable";
+
+export type OhObservationSupersessionV1 = Readonly<{
+  candidateLookup: OhObservationCandidateLookupV1;
+  depth: number;
+  key: string;
+  loop: boolean;
+  missing: string | null;
+  origin: string;
+  resolved: boolean;
+  truncated: boolean;
+  v: 1;
+}>;
+
+export function ohObservationSupersessionV1(
+  store: OhObservationReadStoreV1,
+  key: string,
+): OhObservationSupersessionV1 {
+  const start = safeCode(key, 512);
+  if (start === null || !start.startsWith(OH_OBSERVATION_KEY_PREFIX_V1)) {
+    throw new TypeError("Invalid observation key.");
+  }
+  const onPath = new Set<string>();
+  // One receipt covers a whole session, so a chain of observations from one
+  // session reads it once.
+  const receipts = new Map<string, OhObservationActivityValueV1 | null>();
+  const receiptFor = (activityKey: string): OhObservationActivityValueV1 | null => {
+    const known = receipts.get(activityKey);
+    if (known !== undefined) return known;
+    const record = store.get(activityKey);
+    const value = record === null || record.kind !== "activity"
+      ? null
+      : parseOhObservationActivityValueV1(record.value);
+    receipts.set(activityKey, value);
+    return value;
+  };
+  let current = start;
+  let origin = start;
+  let depth = 0;
+  let loop = false;
+  let truncated = false;
+  let named = false;
+  let unreadable = false;
+  let missing: string | null = null;
+  let resolved = false;
+  for (;;) {
+    if (onPath.has(current)) { loop = true; break; }
+    if (onPath.size >= OH_OBSERVATION_LIMITS_V1.supersessionChain) { truncated = true; break; }
+    onPath.add(current);
+    // Gate on the record, not just its value. Every other reader in this file
+    // goes through parseOhObservationRecordV1, and a record stored at an
+    // observation key under another kind must not be counted as a link.
+    const parsed = parseOhObservationRecordV1(store.get(current));
+    if (parsed === null) { missing = current; break; }
+    const value = parsed.value;
+    // The link that produced this record came from a bounded candidate lookup.
+    // When that lookup hit its bound the true predecessor may never have been
+    // examined, so the chain can be short by an unknown amount even though the
+    // walk itself completed. A receipt is the only place that is recorded, and
+    // only for the lookup performed at extraction, so a receipt that names
+    // nothing is not evidence that nothing saturated.
+    const activityKey = parsed.dependencies.find(
+      (dependency) => dependency.startsWith(OH_OBSERVATION_ACTIVITY_KEY_PREFIX_V1));
+    const receipt = activityKey === undefined ? null : receiptFor(activityKey);
+    if (receipt === null) {
+      unreadable = true;
+    } else if (receipt.candidatesTruncated.includes(current)) {
+      named = true;
+    }
+    origin = current;
+    if (value.supersedes === null) { resolved = true; break; }
+    current = value.supersedes;
+    depth += 1;
+  }
+  const candidateLookup: OhObservationCandidateLookupV1 = named
+    ? "named"
+    : unreadable ? "unreadable" : "none-recorded";
+  return { candidateLookup, depth, key: start, loop, missing, origin, resolved, truncated, v: 1 };
+}
+
 function observationRecord(key: string, activityKey: string, value: OhObservationValueV1): KnowledgeGraphRecordV1 {
   const dependencies = sortedDependencies([activityKey, ...value.sources.map((source) => source.key),
     ...(value.supersedes === null ? [] : [value.supersedes])]);

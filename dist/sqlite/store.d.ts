@@ -2,12 +2,15 @@ import { type Sha256Hex } from "../canonical";
 import { OH_CONTRACT_MANIFEST_V1 } from "../contract";
 import { type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "../graph";
 import { type OhOperationV1 } from "../operation";
-import { isOhConflictError, isOhDependencyError, isOhIntegrityError, isOhOperationSizeError, isOhProfileError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, type OhChangesPageV1, type OhCommitInputV1, type OhDependencyClosureV1, type OhHeadRefV1, type OhHeadV1, type OhSnapshotV1, type OhSpacePurgeReceiptV1, type OhStoreBindingV1 } from "../store";
+import { isOhConflictError, isOhDependencyError, isOhIntegrityError, isOhOperationSizeError, isOhProfileError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, type OhChangesPageV1, type OhCommitInputV1, type OhDependencyClosureV1, type OhHeadRefV1, type OhHeadV1, type OhRecordRevisionsV1, type OhSnapshotV1, type OhSpacePurgeReceiptV1, type OhStoreBindingV1 } from "../store";
 import { type OhSqliteDatabase } from "./driver";
 export { isOhConflictError, isOhDependencyError, isOhIntegrityError, isOhOperationSizeError, isOhProfileError, OH_OPERATION_SIZE_ERROR_CODE_V1, OhConflictError, OhDependencyError, OhIntegrityError, OhOperationSizeError, OhProfileError, OhPurgedSpaceError, };
 export type { OhCommitInputV1, OhHeadV1 };
 export type OhRecordListOptions = Readonly<{
     kind?: KnowledgeGraphRecordKindV1;
+    limit?: number;
+}>;
+export type OhRecordRevisionsOptions = Readonly<{
     limit?: number;
 }>;
 export type OhKeywordSearchResultV1 = Readonly<{
@@ -78,6 +81,16 @@ export declare class OhSqliteStore {
     list(options?: OhRecordListOptions): readonly KnowledgeGraphRecordV1[];
     snapshotRecords(maximum?: number): readonly KnowledgeGraphRecordV1[];
     log(limit?: number): readonly OhOperationV1[];
+    /**
+     * Reports how often one record key was written in this space, derived from
+     * the append-only log and nothing else. It reads the log; it records no
+     * policy about what a revision count means.
+     *
+     * The read costs one index probe for each operation in the space and returns
+     * at most `limit` changes, newest first, so a heavily rewritten key stays
+     * queryable and a long log cannot return an unbounded result.
+     */
+    recordRevisions(key: string, options?: OhRecordRevisionsOptions): OhRecordRevisionsV1;
     searchKeyword(query: string, limit?: number): readonly OhKeywordSearchResultV1[];
     syncState(remoteId: string): Readonly<{
         pulledSequence: number;

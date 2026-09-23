@@ -598,6 +598,10 @@ function parseOhStoreBindingV1(value) {
 function sortedRecords(records) {
   return [...records].sort((left, right) => left.key < right.key ? -1 : left.key > right.key ? 1 : 0);
 }
+var OH_RECORD_REVISIONS_LIMITS_V1 = Object.freeze({
+  changesPerKey: 65536,
+  operationsPerRead: 1000
+});
 function normalizeRoots(values) {
   if (!Array.isArray(values) || values.length < 1 || values.length > OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots) {
     throw new RangeError(`A dependency closure needs 1 through ${OH_DEPENDENCY_CLOSURE_LIMITS_V1.roots} roots.`);

@@ -39,6 +39,7 @@ import {
   isOhOperationSizeError,
   isOhProfileError,
   OH_OPERATION_SIZE_ERROR_CODE_V1,
+  OH_RECORD_REVISIONS_LIMITS_V1,
   OhConflictError,
   OhDependencyError,
   OhIntegrityError,
@@ -48,12 +49,15 @@ import {
   parseOhHeadRefV1,
   parseOhSpacePurgeReceiptV1,
   parseOhStoreBindingV1,
+  reduceOhRecordRevisionsV1,
   replayOhOperationsV1,
   type OhChangesPageV1,
   type OhCommitInputV1,
   type OhDependencyClosureV1,
   type OhHeadRefV1,
   type OhHeadV1,
+  type OhRecordRevisionChangeV1,
+  type OhRecordRevisionsV1,
   type OhSnapshotV1,
   type OhSpacePurgeReceiptV1,
   type OhStoreBindingV1,
@@ -82,6 +86,10 @@ export type { OhCommitInputV1, OhHeadV1 };
 
 export type OhRecordListOptions = Readonly<{
   kind?: KnowledgeGraphRecordKindV1;
+  limit?: number;
+}>;
+
+export type OhRecordRevisionsOptions = Readonly<{
   limit?: number;
 }>;
 
@@ -246,7 +254,17 @@ function extractSearchText(value: JsonValue, maximumBytes = 1024 * 1024): string
     } else if (Array.isArray(candidate)) {
       for (const item of candidate) visit(item, depth + 1);
     } else if (candidate !== null) {
-      for (const [key, item] of Object.entries(candidate)) {
+      // Records are hashed and replayed through canonical JSON, whose object
+      // members use code-unit lexicographic order. JavaScript's ordinary
+      // property enumeration gives integer-looking keys a different order,
+      // so using Object.entries here can materialize an index that replay
+      // rejects even though the authoritative record is valid.
+      const keys = Object.keys(candidate).sort((left, right) =>
+        left < right ? -1 : left > right ? 1 : 0);
+      const object = candidate as { readonly [key: string]: JsonValue };
+      for (const key of keys) {
+        const item = object[key];
+        if (item === undefined) throw new TypeError("Search value contains an undefined property.");
         parts.push(key); bytes += key.length + 1;
         visit(item, depth + 1);
       }
@@ -878,6 +896,47 @@ export class OhSqliteStore {
        WHERE space_id = ? ORDER BY sequence DESC LIMIT ?`,
     ).all(this.spaceId, normalizeLimit(limit));
     return rows.map((row) => parseStoredOperationRow(row, { spaceId: this.spaceId }));
+  }
+
+  /**
+   * Reports how often one record key was written in this space, derived from
+   * the append-only log and nothing else. It reads the log; it records no
+   * policy about what a revision count means.
+   *
+   * The read costs one index probe for each operation in the space and returns
+   * at most `limit` changes, newest first, so a heavily rewritten key stays
+   * queryable and a long log cannot return an unbounded result.
+   */
+  recordRevisions(key: string, options: OhRecordRevisionsOptions = {}): OhRecordRevisionsV1 {
+    this.#assertOpen();
+    const parsedKey = safeCode(key, 512);
+    if (parsedKey === null) throw new TypeError("Invalid record key.");
+    const limit = normalizeLimit(options.limit, OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey,
+      OH_RECORD_REVISIONS_LIMITS_V1.changesPerKey);
+    return withReadTransaction(this.database, () => {
+      const head = this.head();
+      type RevisionRow = { change_kind: string; record_sha256: string | null; sequence: number };
+      const rows = this.database.query<RevisionRow, [string, string, number, number]>(
+        `SELECT operation.sequence AS sequence, changed.change_kind AS change_kind,
+           changed.record_sha256 AS record_sha256
+         FROM oh_operation_records AS changed
+         JOIN oh_operations AS operation ON operation.operation_sha256 = changed.operation_sha256
+         WHERE operation.space_id = ? AND changed.record_key = ? AND operation.sequence <= ?
+         ORDER BY operation.sequence DESC LIMIT ?`,
+      ).all(this.spaceId, parsedKey, head.sequence, limit + 1);
+      const truncated = rows.length > limit;
+      const changes: OhRecordRevisionChangeV1[] = rows.slice(0, limit).map((row) => {
+        const recordSha256 = parseSha256Hex(row.record_sha256);
+        if (recordSha256 === null || (row.change_kind !== "put" && row.change_kind !== "tombstone")) {
+          throw new OhIntegrityError("A stored log change carries an invalid record revision.");
+        }
+        return { kind: row.change_kind, recordSha256, sequence: row.sequence, v: 1 };
+      });
+      // The scan covers the space from its first operation, so the window is
+      // only ever narrowed by `limit`, never by where the read started.
+      return reduceOhRecordRevisionsV1({ changes, fromSequence: head.sequence === 0 ? 0 : 1,
+        key: parsedKey, through: head.sequence, truncated });
+    });
   }
 
   searchKeyword(query: string, limit = 20): readonly OhKeywordSearchResultV1[] {

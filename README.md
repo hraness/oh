@@ -75,8 +75,8 @@ selected profiles do not provide complete semantic coverage of Wikidata;
 preserved properties are not all mapped to local relations. Historical catalogs
 and definitions remain available.
 
-The installation instructions below use `0.10.2`, the
-[verified public release](https://github.com/hraness/oh/actions/runs/35070815434).
+The installation instructions below use `0.11.0`, the
+[verified public release](https://github.com/hraness/oh/actions/runs/00000000000).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
 CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
@@ -84,16 +84,16 @@ direct libSQL authority also support Node 24 serverless runtimes. Install the
 exact verified public release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.10.2
+bun add --global @hraness/oh@0.11.0
 oh --help
 ```
 
 The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.10.2),
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.11.0),
 including the mirrored
-[`hraness-oh-0.10.2.tgz`](https://github.com/hraness/oh/releases/download/v0.10.2/hraness-oh-0.10.2.tgz)
+[`hraness-oh-0.11.0.tgz`](https://github.com/hraness/oh/releases/download/v0.11.0/hraness-oh-0.11.0.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.10.2/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.11.0/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
 path or space. Keep `.oh/` out of source control.
@@ -151,7 +151,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.10.2"
+    "@hraness/oh": "0.11.0"
   }
 }
 ```
@@ -733,9 +733,9 @@ keep remote sync explicit.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.10.2 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.10.2 Release at
-https://github.com/hraness/oh/releases/tag/v0.10.2. Verify the CLI with
+Install @hraness/oh@0.11.0 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.11.0 Release at
+https://github.com/hraness/oh/releases/tag/v0.11.0. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```
@@ -776,6 +776,25 @@ enforce canonical ordering, byte limits, referential integrity, and digest
 preimages that JSON Schema cannot express.
 
 ## Benchmark memory
+
+An experimental conversation-packing policy recovered **90.08%** of annotated
+LoCoMo evidence, versus **88.93%** for vector windows under the same
+12,000-byte ceiling. The gain was **1.15 percentage points**, with a 95%
+conversation-cluster interval of **+0.62 to +1.70 points**, across 1,224 questions
+in eight conversations. Both policies used the same top 20 vector results and
+whole original turns. Across all 1,586 confirmation questions, the candidate
+used 236 more bytes on average.
+
+The matched answer follow-up did **not establish an accuracy gain**: 77.33%
+versus 78.11%, difference −0.78 points (95% interval −4.64 to +2.34). It used
+300 conversation-balanced questions, three GPT-4o mini reader attempts per
+question and policy, and a GPT-4o mini judge. These are agent-run measurements
+on previously evaluated source data. The policy is experimental; it does not
+change SDK defaults or establish a framework leaderboard ranking. Inspect the
+[protocol, results and runnable reproduction](benchmarks/LOCOMO_WINDOW_QA_V1.md).
+The separate [CloneMem comparison](benchmarks/CLONEMEM_TRANSFER_V1.md) also did
+not establish a multiple-choice accuracy gain from Oh hybrid search over vector
+search.
 
 Run the network-free state and projection checks from a checkout:
 
@@ -889,6 +908,22 @@ source evidence. Existing organization assignments can use the same role
 descriptors. Listed query paths are declarative guidance; they do not execute
 joins or infer employment, ownership or rights.
 Catalogs V1–V6 retain their exact declarations and locks.
+
+Source version 0.11.0 adds `oh research catalog-v8` with six optional
+research-evidence vocabularies: [temporal roles](spec/research-v1/temporal-roles-v1.md),
+[evidence grading](spec/research-v1/evidence-grading-v1.md),
+[citations](spec/research-v1/citation-v1.md),
+[research operations](spec/research-v1/research-ops-v1.md),
+[source quality](spec/research-v1/source-quality-v1.md) and
+[source policy](spec/research-v1/source-policy-v1.md). A record can now carry
+its event, observation, availability, entry and review times as named roles;
+hold a graded stratum, tier and corroboration state under a stated criteria
+era; bind a claim to a verbatim selector in a retained payload; document a
+bounded search that found nothing; and record monitor runs, rejections,
+review events, measured scorecards and per-source capability decisions.
+Everything stays attributed: a grade is not a review state, corroboration is
+not truth, a bounded null result is not nonexistence and a policy record is
+not an authorization. Catalogs V1–V7 retain their exact declarations and locks.
 
 ## Optional development support
 

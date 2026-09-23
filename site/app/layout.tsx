@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { HranessSiteFooter } from "@hraness/site-footer/react";
 import { ohSupportProfile } from "../../src/support-profile";
+import { FoilController } from "./foil-controller";
 import "./globals.css";
 
 const title = "Oh: a research graph your agents can inspect";
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     images: [{
       alt: "open-source tools for agentic research",
       height: 630,
-      url: "/og.png",
+      url: "/opengraph-image",
       width: 1200,
     }],
     siteName: "Oh",
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title,
     description,
-    images: ["/og.png"],
+    images: ["/opengraph-image"],
   },
 };
 
@@ -53,6 +54,7 @@ export default function RootLayout({
         <div className="network-footer">
           <HranessSiteFooter placement="flow" mailingList={{ kind: "none" }} support={ohSupportProfile} />
         </div>
+        <FoilController />
       </body>
     </html>
   );

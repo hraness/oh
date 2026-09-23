@@ -1,6 +1,6 @@
 {
   "name": "@hraness/oh",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "description": "open-source tools for agentic research",
   "type": "module",
   "license": "MIT",
@@ -52,6 +52,10 @@
       "types": "./dist/sqlite/index.d.ts",
       "import": "./dist/sqlite/index.js"
     },
+    "./sqlite-snapshot": {
+      "types": "./dist/sqlite-snapshot.d.ts",
+      "import": "./dist/sqlite-snapshot.js"
+    },
     "./sync": {
       "types": "./dist/sync.d.ts",
       "import": "./dist/sync.js"
@@ -76,6 +80,10 @@
       "types": "./dist/projection-public.d.ts",
       "import": "./dist/projection-public.js"
     },
+    "./projection/rust": {
+      "types": "./dist/projection-rust.d.ts",
+      "import": "./dist/projection-rust.js"
+    },
     "./experimental/projection-suss": {
       "types": "./dist/projection-suss.d.ts",
       "import": "./dist/projection-suss.js"
@@ -92,6 +100,23 @@
     "./research-store": {
       "types": "./dist/research-store.d.ts",
       "import": "./dist/research-runtime/research-store.js"
+    },
+    "./canonical-rust": {
+      "types": "./dist/canonical-rust.d.ts",
+      "import": "./dist/canonical-rust.js"
+    },
+    "./canonical-rust/raw-wasm": "./dist/rust-artifacts/oh-canonical-raw-wasm/oh_canonical_raw_wasm.wasm",
+    "./canonical-rust/artifact": "./dist/rust-artifacts/oh-canonical-raw-wasm/artifact.js",
+    "./archive-wasm": "./dist/rust-artifacts/oh-archive-wasm/oh_archive_wasm.js",
+    "./archive-strict-wasm": "./dist/rust-artifacts/oh-archive-strict-wasm/oh_archive_strict_wasm.wasm",
+    "./datalog-wasm": "./dist/rust-artifacts/oh-datalog-wasm/oh_datalog_wasm.js",
+    "./artifact-manifest": {
+      "types": "./dist/artifact-manifest.d.ts",
+      "import": "./dist/artifact-manifest.js"
+    },
+    "./rust-fallback": {
+      "types": "./dist/rust-fallback.d.ts",
+      "import": "./dist/rust-fallback.js"
     }
   },
   "files": [
@@ -108,6 +133,9 @@
     "registry": "https://registry.npmjs.org"
   },
   "scripts": {
+    "bench:deductive:control": "bun run ./scripts/benchmarks/deductive-frozen-control.ts",
+    "bench:deductive": "bun run ./scripts/benchmarks/deductive-recall.ts",
+    "bench:deductive:fusion": "bun run ./scripts/benchmarks/deductive-fusion-probe.ts",
     "bench:memory": "bun run ./scripts/benchmark-memory.ts",
     "bench:lab": "bun run ./scripts/benchmarks/lab.ts",
     "bench:lab:paid": "bun run ./scripts/benchmarks/lab-paid.ts",
@@ -122,12 +150,15 @@
     "bench:stress:sqlite": "bun run ./scripts/benchmarks/stress-sqlite-crash.ts",
     "bench:stress:retrieval": "bun run ./scripts/benchmarks/stress-retrieval.ts",
     "test:benchmarks": "bun test ./tests/memory-benchmark*.test.ts",
-    "build": "bun run build:js && bun run build:portable && bun run build:types",
-    "build:js": "bun build ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sync.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
+    "build": "bun run rust:build:artifacts && bun run build:js && bun run build:portable && bun run build:types",
+    "vercel-build": "bun run ./scripts/vercel-build.ts",
+    "build:js": "bun build --root=./src ./src/index.ts ./src/sdk.ts ./src/sqlite/index.ts ./src/sqlite-snapshot.ts ./src/sync.ts ./src/canonical-rust.ts ./src/projection-rust.ts ./src/rust-fallback.ts ./src/artifact-manifest.ts --outdir ./dist --target bun --format esm --external bun:sqlite && bun run ./scripts/build-cli.ts && bun build ./src/semantic.ts --outdir ./dist --target bun --format esm --external bun:sqlite",
+    "rust:build:artifacts": "bun run ./scripts/build-rust-artifacts.ts",
+    "rust:build:manifest": "bun run ./scripts/build-rust-manifest.ts",
     "build:portable": "bun build ./src/store.ts ./src/projection-public.ts ./src/projection-suss.ts ./src/memory-page.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/semantic-cloud.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/libsql.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun build ./src/memory.ts --outdir ./dist --target node --format esm --external @suss/datalog && bun run build:research",
     "build:types": "tsc -p tsconfig.build.json",
     "check:cost-surfaces": "bun ./scripts/check-cost-surfaces.mjs",
-    "check": "bun run check:cost-surfaces && bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:research-package && bun run test:package",
+    "check": "bun run check:cost-surfaces && bun run rust:build:artifacts && bun run typecheck && bun run typecheck:scripts && bun run check:effect && bun run test && bun run build && bun run test:types:node && bun run test:node && bun run test:node-projection && bun run test:research-package && bun run test:package",
     "test:node": "node ./tests/node-portable.mjs",
     "test:types:node": "tsc -p tsconfig.node-portable.json --noEmit",
     "test:package": "bun run ./scripts/package-smoke.ts",
@@ -139,7 +170,13 @@
     "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
     "check:effect": "bun run ./scripts/check-effect-architecture.ts && bun test ./scripts/effect-architecture.test.ts",
     "bench:lab:profile": "bun scripts/benchmarks/lab-reader-profile-run.ts",
-    "build:research": "bun run ./scripts/build-research.ts"
+    "build:research": "bun run ./scripts/build-research.ts",
+    "rust:check": "export PATH=\"${HOME}/.cargo/bin:$PATH\" && cd rust && cargo check --locked && cargo clippy -- -D warnings && cargo test --locked",
+    "rust:build:canonical:wasm": "export PATH=\"${HOME}/.cargo/bin:$PATH\" && cd rust/oh-canonical-wasm && wasm-pack build --target web --out-dir pkg",
+    "rust:build:canonical:raw:wasm": "export PATH=\"${HOME}/.cargo/bin:$PATH\" && cd rust && cargo build --release --target wasm32-unknown-unknown -p oh-canonical-raw-wasm",
+    "rust:build:archive:wasm": "export PATH=\"${HOME}/.cargo/bin:$PATH\" && cd rust/oh-archive-wasm && wasm-pack build --target web --out-dir pkg",
+    "rust:build:datalog:wasm": "export PATH=\"${HOME}/.cargo/bin:$PATH\" && cd rust/oh-datalog-wasm && wasm-pack build --target web --out-dir pkg",
+    "rust:build": "bun run rust:build:canonical:wasm && bun run rust:build:canonical:raw:wasm && bun run rust:build:archive:wasm && bun run rust:build:datalog:wasm"
   },
   "devDependencies": {
     "@suss/datalog": "0.20.0",

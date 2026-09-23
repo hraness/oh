@@ -32,6 +32,7 @@ const EFFECT_RUNTIME_GRAPHS = new Set([
 const TEXT_EXTENSIONS = new Set([
   "", ".css", ".js", ".json", ".map", ".md", ".mjs", ".sh", ".sql", ".ts", ".txt", ".yaml", ".yml",
 ]);
+const REVIEWED_BINARY_EXTENSIONS = new Set([".wasm"]);
 const DATABASE_EXTENSIONS = new Set([".db", ".sqlite", ".sqlite3"]);
 // This is one reviewed source corpus, not a general compressed-file allowance.
 const REVIEWED_WIKIDATA_ARCHIVE = "spec/research-v1/wikidata/2026-09-13/sources.jsonl.gz";
@@ -179,6 +180,14 @@ export async function scanPackage(root: string): Promise<void> {
     }
     if ([".env", ".npmrc"].includes(basename(path))) {
       problems.push(`${packagePath} contains a private configuration artifact`);
+    }
+    if (REVIEWED_BINARY_EXTENSIONS.has(extension)) {
+      return;
+    }
+    // Native SQLite sidecars are compiled binaries and may contain build-path
+    // strings from the Rust toolchain that are not part of the package contract.
+    if (packagePath.startsWith("dist/rust-artifacts/oh-sqlite/") && packagePath.endsWith("/oh-sqlite-cli")) {
+      return;
     }
     if (packagePath === REVIEWED_WIKIDATA_ARCHIVE) {
       try {

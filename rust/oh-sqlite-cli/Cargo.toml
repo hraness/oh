@@ -1,0 +1,20 @@
+[package]
+name = "oh-sqlite-cli"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Product-neutral sidecar binary for SQLite snapshot isolation."
+
+[dependencies]
+oh-sqlite = { path = "../oh-sqlite" }
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "oh-sqlite-cli"
+path = "src/main.rs"
