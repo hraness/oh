@@ -423,6 +423,21 @@
         "preparedBytes": 524288
       }
     },
+    "benchmark:sdk-retrieval-audit": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "benchmarks/audit/sdk-retrieval-qualification-v1/audit-sdk-qualification.py",
+      "source": "scripts/benchmarks/sdk-retrieval-qualification-run.ts",
+      "budget": {
+        "manifestBytes": 65536,
+        "reportBytes": 524288,
+        "combinedPublicBytes": 524288,
+        "reports": 2,
+        "questionsPerReport": 146,
+        "logicalCasesPerReport": 876,
+        "providerCalls": 0
+      }
+    },
     "benchmark:clonemem-rerank-confirmation": {
       "kind": "derived",
       "retention": "persistent",

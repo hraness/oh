@@ -4,45 +4,14 @@
 
 Oh is an open-source memory framework for agents. Store facts with their sources,
 retrieve context, derive graph answers with proofs, and inspect how accepted
-records changed. A TypeScript SDK, CLI, and Agent Skill share one versioned
+records changed.
+
+A TypeScript SDK, CLI, and Agent Skill share one versioned
 record model and an append-only operation log. Local SQLite storage works
 without an account or hosted model; search indexes stay rebuildable.
 
 [Website](https://oh.computer) · [Versioned specification](spec/README.md) ·
 [Agent Skill](skills/oh/SKILL.md)
-
-## From a question to an inspectable artifact
-
-Oh supplies a versioned graph envelope and a small ontology kernel. A research
-application can map familiar work onto explicit records without hiding meaning
-in a database convention:
-
-| Research object | Oh record kind | What becomes inspectable |
-| --- | --- | --- |
-| Question | `inquiry` | The question and its durable investigation trail. |
-| Source | `entity` | A stable identity for a paper, dataset, person, or system. |
-| Capture | `edition` | A bounded source edition or extract under an application profile. |
-| Claim | `statement` | The proposition, separate from who accepts it. |
-| Citation | `evidence` | How a passage, table, or observation bears on an assertion. |
-| Artifact | `view` | A derived brief or answer with addressable inputs. |
-
-An attributable `assertion` sits between a claim and the evidence that bears on
-it. A small review can therefore leave an inspectable path instead of one
-opaque answer:
-
-```text
-inquiry:primary-endpoint
-  → entity:trial-report
-  → edition:trial-report-v1
-  → statement:endpoint-12-weeks
-  → assertion:endpoint-12-weeks
-  → evidence:table-2
-  → view:review-brief
-```
-
-The [homepage trace](https://oh.computer/#trace) shows the exact CLI read and a
-schema-checked illustrative evidence record. It is a model of record custody,
-not a claim about a real study.
 
 ## Why Oh
 
@@ -66,13 +35,6 @@ not a claim about a real study.
   lane, conflict, record, and proof provenance.
 
 ## Install and first run
-
-Version `0.10.0` includes 24 packs and 341 schemas in catalog V7. It adds dated
-participation and role descriptions alongside measurement context, monetary
-values and quotes, and occurrences tied to retained source versions. These
-selected profiles do not provide complete semantic coverage of Wikidata;
-preserved properties are not all mapped to local relations. Historical catalogs
-and definitions remain available.
 
 The installation instructions below use `0.11.0`, the
 [verified public release](https://github.com/hraness/oh/actions/runs/35759877197).
@@ -142,6 +104,39 @@ evidence, context, inquiry, and projection. The generic graph envelope also
 supports schema, vocabulary, review, rights, edition, and activity records.
 Product-specific meaning belongs in registered codecs and versioned schema
 records, not in hidden storage conventions.
+
+## From a question to an inspectable artifact
+
+Oh supplies a versioned graph envelope and a small ontology kernel. A research
+application can map familiar work onto explicit records without hiding meaning
+in a database convention:
+
+| Research object | Oh record kind | What becomes inspectable |
+| --- | --- | --- |
+| Question | `inquiry` | The question and its durable investigation trail. |
+| Source | `entity` | A stable identity for a paper, dataset, person, or system. |
+| Capture | `edition` | A bounded source edition or extract under an application profile. |
+| Claim | `statement` | The proposition, separate from who accepts it. |
+| Citation | `evidence` | How a passage, table, or observation bears on an assertion. |
+| Artifact | `view` | A derived brief or answer with addressable inputs. |
+
+An attributable `assertion` sits between a claim and the evidence that bears on
+it. A small review can therefore leave an inspectable path instead of one
+opaque answer:
+
+```text
+inquiry:primary-endpoint
+  → entity:trial-report
+  → edition:trial-report-v1
+  → statement:endpoint-12-weeks
+  → assertion:endpoint-12-weeks
+  → evidence:table-2
+  → view:review-brief
+```
+
+The [homepage trace](https://oh.computer/#trace) shows the exact CLI read and a
+schema-checked illustrative evidence record. It is a model of record custody,
+not a claim about a real study.
 
 ## Use the SDK
 
@@ -575,13 +570,12 @@ try {
 ```
 
 The exact V1 profile is documented in
-[the embedding specification](spec/v1/embedding.md). The model download and
-all inference stay local. Keyword mode remains available when QMD or the model
-is absent.
+[the embedding specification](spec/v1/embedding.md). QMD may download its embedding model on first use; inference stays local.
+Keyword mode remains available when QMD or the model is absent.
 
 ## Use the best configured retrieval
 
-Search and recall select the strongest configured path automatically: local
+In version 0.12.0, search and recall select the strongest configured path automatically: local
 reranking when a reranker is present, hybrid search when a semantic backend is
 present, and keyword search otherwise. There is no experimental switch.
 An explicit `mode` remains available when an application needs a particular
@@ -590,13 +584,15 @@ retrieval policy or a reproducible comparison.
 ```ts
 import { Oh } from "@hraness/oh/sdk";
 import { OhQmdRerankBackendV1 } from "@hraness/oh/rerank";
+import { OhQmdSemanticBackendV1 } from "@hraness/oh/semantic";
 
+const backend = new OhQmdSemanticBackendV1({ cacheDirectory: ".oh/semantic" });
 const reranker = new OhQmdRerankBackendV1({
   modelPath: "/absolute/path/to/qwen3-reranker-0.6b-q8_0.gguf",
 });
-// `backend` is the semantic backend configured in the preceding example.
 const oh = Oh.open({ semanticBackend: backend, rerankBackend: reranker });
 try {
+  await oh.indexSemantic();
   const result = await oh.search("early programmable machines");
   console.log(result.mode, result.results, result.diagnostics);
 } finally {
@@ -606,19 +602,21 @@ try {
 
 The lexical and semantic pools form a bounded union. The local cross-encoder
 scores its documents against the original question and returns the best matches.
-The optional `@tobilu/qmd@2.5.3` backend uses a local model you supply; ordinary
-search never downloads weights or starts a hosted service. The pinned model
+The optional `@tobilu/qmd@2.5.3` rerank backend uses a local model you supply; it never
+downloads reranker weights or starts a hosted service. The pinned model
 identity and 4,096-token limit are recorded in `OH_RERANK_PROFILE_V1`.
 
 Unavailable backends produce diagnostics and retain the available retrieval
 results. Inspect those diagnostics when a workflow requires semantic or reranked
-results. Local reranking trades compute for relevance: the recorded CloneMem
-procedure had approximately 14.3-second warm query p95 on its test machine.
-That measurement is not a latency promise for the SDK or your hardware.
+results. Local reranking trades compute for relevance: the
+[SDK qualification](benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md)
+measured a 12.34-second warm reranker p95 on an Apple M5 Max. Historical
+semantic rankings were replayed, so this excludes semantic inference and is
+not an end-to-end latency promise for your hardware.
 
-The [CloneMem study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md) evaluates
-the retrieval procedure with its own source renderer. It is evidence for that
-setup; applications need their own evaluation of record rendering and workload.
+That study exercises the actual default SDK route and record rendering.
+It uses two previously exposed development personas; applications still need
+their own evaluation of the records and workload they serve.
 
 ## Add a hosted semantic cache
 
@@ -788,6 +786,8 @@ Do not create or modify an Oh database until I name its path and ask you to.
   package subpath for SQLite, sync, projection, or optional semantics.
 - **Give Oh to an agent:** install the [Oh Agent Skill](skills/oh/SKILL.md) and
   keep its database, space, sync target, and mutation authority explicit.
+- **Work with a Markdown vault:** read [Oh and Wordcell](docs/wordcell.md)
+  to see how authored notes become rebuildable graph answers with proofs.
 - **Implement or change a contract:** begin with the
   [specification map](spec/README.md), then read the applicable V1 narrative and
   machine-readable schema together.
@@ -817,7 +817,24 @@ preimages that JSON Schema cannot express.
 
 ## Benchmark memory
 
-In the [CloneMem reserved-persona study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md),
+The [production SDK qualification](benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md)
+scored **80.59%** answer accuracy with configured default reranking against
+**69.86%** for matched semantic retrieval: **+10.73 percentage points**.
+Both personas improved, and evidence recall@10 rose from **12.05% to 26.10%**.
+All 876 reader cases completed on 146 previously exposed development questions,
+with three repeats per arm. A separate comparison against ordinary hybrid
+retrieval scored **80.59% versus 64.16%**, using fresh reader responses.
+The two candidate samples remain separate even though their aggregate scores match.
+
+The SDK route met the original numerical development thresholds under a
+documented pre-paid interpretation of one handled Metal startup diagnostic.
+Literal zero-error-log admission would fail; there were no reranker execution
+or cleanup failures. The reader was the Gateway GPT-4o mini alias, with exact
+option-ID scoring and no judge. This is a development qualification, not a
+pristine holdout or population-level confidence claim. Both paired comparisons
+together used 1,752 reader calls and **$1.461086** in accounted exposure.
+
+In the earlier [CloneMem reserved-persona study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md),
 Oh’s lexical/vector candidate union plus local Qwen3 reranking scored **77.82%**
 answer accuracy against **70.54%** for vector retrieval. The paired gain was
 **7.28 percentage points**, with a 95% persona-cluster bootstrap interval of
@@ -833,7 +850,7 @@ execution; their captures and costs remain recorded. An
 the scores and interval; assigning all missing first-attempt responses against
 Oh still left a +6.16-point gain. The reader was the
 Gateway GPT-4o mini alias, without a verified immutable snapshot. Scores refer
-to the benchmark renderer and candidate preparation, not every SDK deployment.
+to that study’s benchmark renderer and candidate preparation, not every SDK deployment.
 
 Oh has **not established superiority over Letta, Supermemory, or other memory
 frameworks**. Vendor-published results use different protocols; the
@@ -917,6 +934,10 @@ source-preserving proposal compilation, offline Wikidata capture verification
 and checked research packet storage. Start with `oh research catalog`; it
 prints the available definitions without opening a database.
 
+These selected profiles do not provide complete semantic coverage of Wikidata;
+preserved properties are not all mapped to local relations. Historical catalogs
+and definitions remain available.
+
 The profile preserves source identities and digests while exposing the same
 public contract to independent hosts. A host supplies authorization, installed
 vocabularies, review and publication policy. See the
@@ -956,7 +977,8 @@ cultural influence.
 
 Source version 0.10.0 adds `oh research catalog-v7` and the optional
 [participation roles profile](spec/research-v1/participation-roles-v1.md) for
-dated assignments and credits. Separate participation records keep an agent's
+dated assignments and credits. That version contains 24 packs and 341 schemas in catalog V7.
+Separate participation records keep an agent's
 role tied to the exact recording, edition or other credited subject, with its
 source evidence. Existing organization assignments can use the same role
 descriptors. Listed query paths are declarative guidance; they do not execute

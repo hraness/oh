@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 
 const evidenceLinks = [
-  "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md",
-  "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-clonemem-rerank-confirm-v1.json",
-  "https://github.com/hraness/oh/blob/main/benchmarks/CLONEMEM_RERANK_CONFIRM_AUDIT_V2.md",
+  "https://github.com/hraness/oh/blob/main/benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md",
+  "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-sdk-retrieval-qualification-v1.json",
+  "https://github.com/hraness/oh/blob/main/benchmarks/audit/sdk-retrieval-qualification-v1/README.md",
 ];
 
 async function settled(page) {
@@ -98,8 +98,8 @@ export async function inspectBenchmark(page, label, artifacts) {
   }
   assert.deepEqual(metrics.issues, [], `${label}: benchmark text clipping or overlap`);
   assert.equal(await page.locator("#benchmarks table").count(), 1);
-  assert.equal(await page.locator("#benchmarks .hraness-design-bar-list-chart").count(), 1);
-  assert.deepEqual(await page.locator("#benchmarks > div .benchmark-links a").evaluateAll((links) => links.map((link) => link.href)), evidenceLinks);
+  assert.equal(await page.locator("#benchmarks .hraness-design-bar-list-chart").count(), 2);
+  assert.deepEqual(await page.locator("#benchmarks .memory-benchmark > .benchmark-links a").evaluateAll((links) => links.map((link) => link.href)), evidenceLinks);
   return metrics;
 }
 

@@ -154,7 +154,7 @@ const questions = [
   },
   {
     question: "Is semantic search required?",
-    answer: "No. Keyword search works without a model. Local semantic search uses the optional QMD peer dependency with a pinned EmbeddingGemma profile, and a hosted embedding cache through Cloudflare Workers AI and libSQL is a separate, explicit profile. Both are rebuildable views joined back to the current record digest.",
+    answer: "No. Keyword search works without a model. When you configure a semantic backend, SDK search uses hybrid retrieval; adding a local reranker makes reranking the default. There is no experimental switch. Local models use the optional QMD peer; hosted embedding through Cloudflare Workers AI and libSQL is a separate profile. Search results are joined back to the current record digest.",
   },
   {
     question: "Does a passing verification mean a claim is true?",
@@ -166,7 +166,7 @@ const questions = [
   },
   {
     question: "What does it cost?",
-    answer: "Nothing. Oh is MIT licensed and published on npm as @hraness/oh. The base package has no required runtime dependencies; the optional peers for local semantic search, libSQL, and Datalog projection install only when you use them.",
+    answer: "The software is free and MIT licensed, published as @hraness/oh. Local retrieval uses your hardware; hosted adapters use the provider plans you configure. The base package has no required runtime dependencies.",
   },
   {
     question: "Where can I run it?",
@@ -382,7 +382,7 @@ oh get evidence:table-2 \\
             id="benchmarks"
             label=""
             layout="split"
-            summary="On a fixed CloneMem comparison, lexical and vector retrieval followed by a local reranker improved answer accuracy. Read the setup, uncertainty, and limits alongside the result."
+            summary="The configured default SDK route improved answer accuracy in a fixed CloneMem development comparison. Read the measured gain alongside its population, compute cost, and limitations."
           >
             <MemoryBenchmarkComparison />
           </MarketingSection>

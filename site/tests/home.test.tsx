@@ -6,6 +6,7 @@ import citationRecord from "../public/examples/evidence-table-2.json";
 import publishedRelease from "../published-release.json";
 import RootLayout from "../app/layout";
 import rerankResult from "../../benchmarks/results/memory-clonemem-rerank-confirm-v1.json";
+import sdkResult from "../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
 
 test("ties the matched chart to evidence and keeps vendor protocols separate", () => {
   const html = renderToStaticMarkup(<Home />);
@@ -16,14 +17,16 @@ test("ties the matched chart to evidence and keeps vendor protocols separate", (
     .on("#benchmarks", { text(chunk) { copy += chunk.text; } })
     .transform(html);
   const percent = (value: number) => `${(value * 100).toFixed(2)}%`;
-  expect(values).toEqual([percent(rerankResult.pooledReader.candidate), percent(rerankResult.pooledReader.baseline)]);
-  for (const qualification of ["861 questions", "prior project exposure", "immutable snapshot", "retry rule added during execution", "not every SDK integration", "not a matched ranking against Oh", "no established answer improvement"]) {
+  expect(values).toEqual([percent(sdkResult.primary.reader.pairedQuestions.candidate), percent(sdkResult.primary.reader.pairedQuestions.baseline), percent(rerankResult.pooledReader.candidate), percent(rerankResult.pooledReader.baseline)]);
+  for (const qualification of ["146 questions", "two previously exposed personas", "excludes semantic inference", "handled Metal startup diagnostic", "fresh reader responses", "861 questions", "prior project exposure", "immutable snapshot", "retry rule added during execution", "not every SDK integration", "not a matched ranking against Oh", "no established answer improvement"]) {
     expect(copy.replace(/\s+/gu, " ")).toContain(qualification);
   }
   expect(html).toContain("https://www.letta.com/blog/benchmarking-ai-agent-memory/");
   expect(html).toContain("https://supermemory.ai/research/longmembench/");
   expect(html).toContain("CLONEMEM_RERANK_CONFIRM_RESULT_V1.md");
   expect(html).toContain("memory-clonemem-rerank-confirm-v1.json");
+  expect(html).toContain("SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md");
+  expect(html).toContain("memory-sdk-retrieval-qualification-v1.json");
   expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
   expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));
   expect(html).toContain("Markdown files stay authoritative");
