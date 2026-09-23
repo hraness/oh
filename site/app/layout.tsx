@@ -2,11 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { HranessSiteFooter } from "@hraness/site-footer/react";
 import { ohSupportProfile } from "../../src/support-profile";
 import { FoilController } from "./foil-controller";
+import { homeDescription as description, homeTitle as title } from "./metadata-copy";
 import "./globals.css";
-
-const title = "Oh: a research graph your agents can inspect";
-const description =
-  "Oh gives your agents a local path from a question to a cited artifact: sources, claims, citations, and a verifiable history of every change, in one SQLite file on your machine.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://oh.computer"),
@@ -20,7 +17,7 @@ export const metadata: Metadata = {
     title,
     description,
     images: [{
-      alt: "open-source tools for agentic research",
+      alt: title,
       height: 630,
       url: "/opengraph-image",
       width: 1200,

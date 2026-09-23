@@ -254,7 +254,7 @@ describe("Oh site source contract", () => {
     expect(specification).toContain("twitter: {");
     expect(specification).toContain("title: specificationTitle");
     expect(specification).toContain("description: specificationDescription");
-    expect(specification).toContain('images: ["/og.png"]');
+    expect(specification).toContain('images: ["/spec/opengraph-image"]');
     expect(favicon).toContain('fill="#b43a1d"');
     expect(favicon).toContain('stroke="#fff"');
     expect(favicon).not.toMatch(/#(?:0c79d8|2e9eff|68c4ff)/iu);

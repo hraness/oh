@@ -85,9 +85,11 @@ describe("public site surface", () => {
   test("keeps the exact public identity and only supported CLI examples", async () => {
     const page = await readFile(join(root, "site/app/page.tsx"), "utf8");
     const layout = await readFile(join(root, "site/app/layout.tsx"), "utf8");
+    const metadataCopy = await readFile(join(root, "site/app/metadata-copy.ts"), "utf8");
     expect(page).toContain('const heading = "A research graph your agents can inspect"');
     expect(page).toContain('headingId="hero-title"');
-    expect(layout).toContain("Oh: a research graph your agents can inspect");
+    expect(metadataCopy).toContain('homeTitle = "Oh: a research graph your agents can inspect"');
+    expect(layout).toContain("homeTitle as title");
     expect(page).toContain("$ oh init --db research.db");
     expect(page).toContain("$ oh verify --db research.db");
     expect(page).toContain("$ oh get evidence:table-2 --db research.db");
@@ -100,7 +102,9 @@ describe("public site surface", () => {
     const workflow = await readFile(join(root, ".github/workflows/ci.yml"), "utf8");
     expect(specification).toContain('import contract from "../../public/spec/v1/contract.json"');
     expect(specification).toContain("contract.recordKinds.map");
-    expect(specification).toContain("The additive V2 facade");
+    expect(specification).toContain("V2 query interface");
+    expect(specification).toContain("pages of at most 256 rows");
+    expect(specification.replace(/\s+/gu, " ")).toContain("exceed 8,192 records or 32 MiB");
     expect(workflow).toContain("Require an exact public specification mirror");
     expect(workflow).toContain("working-directory: site");
     expect(workflow).toContain("bun run lint");
@@ -132,6 +136,7 @@ describe("public site surface", () => {
   test("contains no private predecessor or filesystem provenance", async () => {
     const paths = [
       "site/app/layout.tsx",
+      "site/app/metadata-copy.ts",
       "site/app/page.tsx",
       "site/app/spec/page.tsx",
       "site/public/spec/v1/migration.md",

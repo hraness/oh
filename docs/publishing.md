@@ -115,7 +115,7 @@ The tag workflow then:
 3. installs and exercises that unchanged tarball on Ubuntu and macOS;
 4. creates and reads back an exact `immutable: true` Latest GitHub Release in a
    dependency-free job with only `contents: write`, using the same tarball and
-   `SHA256SUMS`—with exactly the same tarball and checksum bytes as the tested
+   `SHA256SUMS`, with exactly the same tarball and checksum bytes as the tested
    artifact; npm mutation cannot begin unless this proof succeeds;
 5. publishes the tarball through a separate dependency-free job with only
    `id-token: write`, a no-reviewer `npm-release` environment restricted to
