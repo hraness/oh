@@ -15,6 +15,8 @@ import {
 } from "@hraness/design-kit/react/server";
 import { AskAiAboutThis } from "@hraness/ui";
 
+import { OhField } from "./oh-field";
+
 import publishedRelease from "../published-release.json";
 import { MemoryBenchmarkComparison } from "./benchmark-comparison";
 import { OhContentFooter } from "./site-footer";
@@ -229,6 +231,7 @@ export default function Home() {
       <main id="main" tabIndex={-1}>
         <MarketingPage>
           <div className="hraness-material-wall">
+          <OhField />
           <ProductHero
             actions={[
               { href: "#install", label: "Install Oh" },
@@ -239,24 +242,31 @@ export default function Home() {
             eyebrow=""
             example="Open-source memory for agents"
             frame={(
-              <MarketingProofFrame
-                className="hraness-material-pane"
-                caption="An illustrative review, not evidence from a real study. The public citation record is checked against its schema and digest."
-                credit={`${currentVersion.contractId} · ${currentVersion.status}`}
-                title="From a claim to its source"
-              >
-                <div className="citation-preview">
-                  <h2>What backs the 12-week endpoint?</h2>
-                  <p>A citation connects the claim’s stance to the version of the report you read.</p>
-                  <dl>
-                    <div><dt>Source</dt><dd>Trial report <code>{citationRecord.value.source}</code></dd></div>
-                    <div><dt>Look here</dt><dd>{citationRecord.value.locator}</dd></div>
-                    <div><dt>Relationship</dt><dd>{citationRecord.value.relationship}</dd></div>
-                    <div><dt>Linked records</dt><dd>{citationRecord.dependencies.map(key => <code key={key}>{key}</code>)}</dd></div>
-                  </dl>
-                  <a href="#trace">Follow the full research trail</a>
+              <div className="oh-board">
+                <div className="oh-record-card" aria-hidden="true">
+                  <p className="oh-record-label">{citationRecord.key} · canonical JSON</p>
+                  <pre>{JSON.stringify(citationRecord, null, 2).split("\n").slice(0, 17).join("\n")}</pre>
                 </div>
-              </MarketingProofFrame>
+                <MarketingProofFrame
+                  className="hraness-material-pane"
+                  caption="An illustrative review, not evidence from a real study. The public citation record is checked against its schema and digest."
+                  credit={`${currentVersion.contractId} · ${currentVersion.status}`}
+                  title="From a claim to its source"
+                >
+                  <div className="citation-preview">
+                    <h2>What backs the 12-week endpoint?</h2>
+                    <p>A citation connects the claim’s stance to the version of the report you read.</p>
+                    <dl>
+                      <div><dt>Source</dt><dd>Trial report <code>{citationRecord.value.source}</code></dd></div>
+                      <div><dt>Look here</dt><dd>{citationRecord.value.locator}</dd></div>
+                      <div><dt>Relationship</dt><dd>{citationRecord.value.relationship}</dd></div>
+                      <div><dt>Linked records</dt><dd>{citationRecord.dependencies.map(key => <code key={key}>{key}</code>)}</dd></div>
+                    </dl>
+                    <a href="#trace">Follow the full research trail</a>
+                  </div>
+                </MarketingProofFrame>
+                <p className="oh-chip">{citationRecord.kind}:{citationRecord.key.split(":")[1]} · sha256:{citationRecord.recordSha256.slice(0, 19)}…</p>
+              </div>
             )}
             heading={heading}
             headingId="hero-title"
