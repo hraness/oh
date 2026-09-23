@@ -24,6 +24,34 @@ For an installed Claude Code subscription, use the separate [subscription benchm
 
 The [protocol card](PROTOCOL_CARD.md) and [pre-registered analysis plan](ANALYSIS_PLAN.md) fix the matched settings, strata and statistics for every current LongMemEval comparison. The [full 500-question comparison](EVOLUTION_RELEASE_RESULTS.md) reports the latest completed outcomes: with the nano reader BM25 window 378/500, Oh semantic 379/500 and full history 355/500; with GPT-5 mini on the same contexts BM25 427/500 and Oh semantic 449/500; and on the previously evaluated LoCoMo comparison (1,540 questions, published judge protocol) Oh semantic 84.4% with GPT-5 mini and 81.0% with nano against 81.6% and 78.1% for BM25, with exposure and protocol limits and a table of published results. The earlier [120-family comparison](GATEWAY_STUDY_V6_TAKEOVER.md) and [locked reserved reader result](results/memory-reserved-reader-profile-v1.json) remain closed.
 
+The [LongMemEval identifier audit](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md), dated
+2026-09-23, records an additional limit: original session identifiers reached
+indexes and reader context, and a fixed pipeline sample included identifiers
+with answer-label wording. The effect on scores is unmeasured. New comparisons
+require neutral identifiers and fresh indexes, retrieval and reader runs.
+The current parser assigns those neutral identifiers by default and preserves
+duplicate-session grouping and evidence denominators. Previously prepared
+artifacts must be rebuilt; historical reproduction uses the original frozen
+source commit.
+
+The [shared preparation contracts](FRAMEWORK_PILOT_SOURCE_V1.md) validate
+answer-blind, lossless source units and deterministic context packing for future
+framework comparisons. They preserve session equivalence and occurrence
+identity, reject invalid splits, and require an explicit tokenizer. Their
+synthetic checks do not establish provider readiness or a new quality result.
+
+The [framework adapters](FRAMEWORK_PILOT_ADAPTERS_V1.md) add fresh Oh and BM25
+retrieval, a bounded Supermemory lifecycle, and explicit common reader routes.
+The [offline tokenizer](FRAMEWORK_PILOT_TOKENIZER_V1.md) counts complete context
+strings against pinned OpenAI tokenizer artifacts. Live campaign qualification
+and matched quality results remain separate from these source checks.
+
+The [pilot source, evidence and reader contract](FRAMEWORK_PILOT_EVIDENCE_V1.md)
+publishes the fixed 60-question selection and prior-exposure record. Its raw
+source bridge reconciles complete histories while separating evaluator fields;
+its common renderer distinguishes original source from provider-generated
+evidence and enforces the shared context budget. No matched score is reported.
+
 The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
 answer or recall gain from shipped hybrid search over matched vector retrieval.
 The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) confirmed an evidence-recall
@@ -163,9 +191,12 @@ The state, projection, and retrieval paths use SQLite `:memory:`. The SQLite
 crash stress helper is the one exception: it uses a disposable database file in
 a temporary directory that it creates, owns, and removes. Downloads and reports live in
 `.cache/benchmarks/`; no production database, hosted cache, or sync destination
-is read or written. Ingestion receives only raw turns, dates, speakers, and
-provided image captions. Answers, evidence labels, and supplied summaries stay
-outside the memory adapters. Images are not fetched.
+is read or written. Ingestion receives raw turns, prepared source identifiers, dates,
+speakers, and provided image captions. Explicit answer and evidence-label fields,
+and supplied summaries, stay outside the memory adapters. LongMemEval session
+and turn identifiers are neutralized before ingestion. The
+[identifier audit](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md) explains the legacy
+exposure and why new comparisons require fresh artifacts. Images are not fetched.
 
 The baselines include no memory, recent turns, unbounded full context, raw
 SQLite BM25, and Oh's actual keyword API. Focused-query and neighboring-turn
@@ -284,10 +315,13 @@ different labels merely because different systems produced them.
 ## Question-blind memory units
 
 A separate ingest-time experiment extracts dated, self-contained facts with
-verbatim source quotes. It receives only conversation segments: never benchmark
-questions, answers, evidence labels, or answer-location annotations. Each
-segment stays within one session occurrence and date, and oversized turns are
-split losslessly. Invalid individual claims are counted and rejected. Malformed
+verbatim source quotes. Its input projection omits benchmark questions, explicit
+answer and evidence-label fields, and answer-location annotations. It retains
+prepared turn identifiers, which are neutral for current LongMemEval input.
+Legacy extraction artifacts remain subject to the
+[identifier limitation](LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md). Each segment stays within one session occurrence
+and date, and oversized turns are split losslessly. Invalid individual claims
+are counted and rejected. Malformed
 or clipped batches stop the run without automatic retries.
 
 Extraction requests strict JSON-schema output and runs three requests concurrently by

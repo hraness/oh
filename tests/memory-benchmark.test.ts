@@ -68,10 +68,10 @@ describe("benchmark data boundaries", () => {
   test("separates LongMemEval answer-location labels and retains numeric zero and question time", () => {
     const data = parseLongMemEval([longmem()]);
     expect(data.questions[0]).toMatchObject({ answer: "0", questionDate: "2023/05/10 (Wed) 12:00",
-      evidenceSessionIds: ["session-b"], evidenceTurnIds: ["session-b:0"] });
+      evidenceSessionIds: ["s0001"], evidenceTurnIds: ["s0001#0:0"] });
     expect(JSON.stringify(data.corpora)).not.toContain("has_answer");
     expect(data.corpora[0]?.turns.map((turn) => turn.speaker)).toContain("assistant");
-    expect(data.corpora[0]?.turns.map((turn) => turn.sessionId)).toEqual(["session-a", "session-b"]);
+    expect(data.corpora[0]?.turns.map((turn) => turn.sessionId)).toEqual(["s0002", "s0001"]);
     expect(parseLongMemEval([longmem("question-a_abs")]).questions[0]?.unanswerable).toBe(true);
   });
 
@@ -180,13 +180,13 @@ describe("isolated memory retrieval", () => {
       haystack_dates: ["2023/05/09 (Tue) 10:00", "2023/05/09 (Tue) 10:00"],
       haystack_sessions: [[{ role: "user", content: "tangerine", has_answer: true }],
         [{ role: "user", content: "dolphin" }]], answer_session_ids: ["shared"] }]);
-    expect(data.corpora[0]?.turns.map((turn) => turn.id)).toEqual(["shared#0:0", "shared#1:0"]);
-    expect(data.questions[0]?.evidenceTurnIds).toEqual(["shared#0:0"]);
-    expect(data.questions[0]?.evidenceSessionIds).toEqual(["shared"]);
+    expect(data.corpora[0]?.turns.map((turn) => turn.id)).toEqual(["s0001#0:0", "s0001#1:0"]);
+    expect(data.questions[0]?.evidenceTurnIds).toEqual(["s0001#0:0"]);
+    expect(data.questions[0]?.evidenceSessionIds).toEqual(["s0001"]);
     const retrievers = createRetrievers(data.corpora[0]!);
     try {
       const result = await retrievers.retrieve("oh-window", "tangerine", { topK: 1, contextBytes: 2_000 });
-      expect(result.turnIds).toEqual(["shared#0:0"]);
+      expect(result.turnIds).toEqual(["s0001#0:0"]);
     } finally { retrievers.close(); }
   });
 

@@ -1,0 +1,98 @@
+{
+  "protocol": "oh.framework-pilot-tokenizer-artifacts.v1",
+  "name": "o200k_base",
+  "tiktokenVersion": "0.14.0",
+  "sourceCommit": "4e71bbe0c078468e00fefbf94b39849389f346e5",
+  "sourceUrl": "https://github.com/openai/tiktoken/tree/4e71bbe0c078468e00fefbf94b39849389f346e5",
+  "pythonAbi": "cp314",
+  "specialTokens": "ordinary-text",
+  "scope": "context-string-only",
+  "asset": {
+    "filename": "o200k_base.tiktoken",
+    "url": "https://openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken",
+    "bytes": 3613922,
+    "sha256": "446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d"
+  },
+  "wheels": [
+    {
+      "platform": "darwin",
+      "architecture": "arm64",
+      "filename": "tiktoken-0.14.0-cp314-cp314-macosx_11_0_arm64.whl",
+      "url": "https://files.pythonhosted.org/packages/62/85/2ae74575e321148484147e10b53c3b1717c59ebaa9edb4fe18b1f5c055f8/tiktoken-0.14.0-cp314-cp314-macosx_11_0_arm64.whl",
+      "bytes": 1040269,
+      "sha256": "f2af4a336ea56d6c14f27741a0e1d8294a35dd0b038bcf990d232ebb54eb994b",
+      "members": [
+        {
+          "name": "tiktoken/__init__.py",
+          "bytes": 346,
+          "sha256": "18437b6f0b99172cee1250a8de94e9acf6372f25ee3122144683b9e34811ab86"
+        },
+        {
+          "name": "tiktoken/_tiktoken.cpython-314-darwin.so",
+          "bytes": 2935904,
+          "sha256": "447f4012e3cb1ef5d0ee8bb2e19e0966caf6b68f0747d94a31da67f860f23a30"
+        },
+        {
+          "name": "tiktoken/core.py",
+          "bytes": 17601,
+          "sha256": "3c136f06b05992855dc329216dfa1fa5b6718cccd3d79f658262de8f871f45f0"
+        },
+        {
+          "name": "tiktoken/model.py",
+          "bytes": 3909,
+          "sha256": "600f26902d1cf6a1a5f54e37be988b3e0d911f1ff17ba7060bb361f9b5295521"
+        },
+        {
+          "name": "tiktoken/registry.py",
+          "bytes": 3256,
+          "sha256": "edf92d65b27529c9bcb15c968047c8cbe6717d4bdc5eea4b50d5ca3df486c105"
+        },
+        {
+          "name": "tiktoken_ext/openai_public.py",
+          "bytes": 5613,
+          "sha256": "954392738e60d0fb6dca1dad80872efc47c8e2733babecbbf0a23970ed66c2cb"
+        }
+      ]
+    },
+    {
+      "platform": "linux",
+      "architecture": "x86_64",
+      "filename": "tiktoken-0.14.0-cp314-cp314-manylinux_2_28_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/5b/7d/144af98dc5ad68108451a82e2f5a17f80e2663f5115058b8dfd215c1ad02/tiktoken-0.14.0-cp314-cp314-manylinux_2_28_x86_64.whl",
+      "bytes": 1204457,
+      "sha256": "e3442bbb2f0c588cec876061e37ae67b455b9df9978b003c8fe30e45f2ef5b42",
+      "members": [
+        {
+          "name": "tiktoken/__init__.py",
+          "bytes": 346,
+          "sha256": "18437b6f0b99172cee1250a8de94e9acf6372f25ee3122144683b9e34811ab86"
+        },
+        {
+          "name": "tiktoken/_tiktoken.cpython-314-x86_64-linux-gnu.so",
+          "bytes": 3729456,
+          "sha256": "5f84809264618d40909475fff75b514569f9b16ea79038e5849d759e73ab7fa1"
+        },
+        {
+          "name": "tiktoken/core.py",
+          "bytes": 17601,
+          "sha256": "3c136f06b05992855dc329216dfa1fa5b6718cccd3d79f658262de8f871f45f0"
+        },
+        {
+          "name": "tiktoken/model.py",
+          "bytes": 3909,
+          "sha256": "600f26902d1cf6a1a5f54e37be988b3e0d911f1ff17ba7060bb361f9b5295521"
+        },
+        {
+          "name": "tiktoken/registry.py",
+          "bytes": 3256,
+          "sha256": "edf92d65b27529c9bcb15c968047c8cbe6717d4bdc5eea4b50d5ca3df486c105"
+        },
+        {
+          "name": "tiktoken_ext/openai_public.py",
+          "bytes": 5613,
+          "sha256": "954392738e60d0fb6dca1dad80872efc47c8e2733babecbbf0a23970ed66c2cb"
+        }
+      ]
+    }
+  ]
+}

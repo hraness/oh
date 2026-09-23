@@ -32,17 +32,26 @@ export const EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID = "gpt5-mini-task-complet
 export type EvolutionTaskCompleteReaderProfileId = typeof EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID;
 export const EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID = "gpt4o-mini-clonemem-choice-v1-reader";
 export type EvolutionCloneMemChoiceReaderProfileId = typeof EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID;
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId | EvolutionCloneMemChoiceReaderProfileId;
+export const EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID = "gpt4o-20240806-framework-pilot-v1-reader";
+export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID = "gpt4o-gateway-framework-pilot-v1-reader";
+export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID = "gpt4o-gateway-framework-pilot-16-v1-judge";
+export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID = "gpt4o-gateway-framework-pilot-alias-v1-reader";
+export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID = "gpt4o-gateway-framework-pilot-16-alias-v1-judge";
+export type EvolutionFrameworkPilotProfileId = typeof EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID
+  | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
+  | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID;
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId | EvolutionCloneMemChoiceReaderProfileId | EvolutionFrameworkPilotProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionExtractorResponseFormat = typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT | typeof OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
   endpoint: string; contextWindow: number; maxOutputTokens: number; timeoutMs: number;
   qualification: "gateway-alias" | "official-snapshot-request"; expectedSnapshot: string | null;
+  requiredResolvedSnapshot?: "gpt-4o-2024-08-06";
   settings: Readonly<{ temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }> }>;
   responseFormat?: EvolutionExtractorResponseFormat;
   answerAuditContract?: Readonly<{ policySha256: string; instructionSha256: string }>;
-  pricingCheckedAt: "2026-09-09"; prices: readonly PriceTier[];
+  pricingCheckedAt: "2026-09-09" | "2026-09-23"; prices: readonly PriceTier[];
   readerContract?: Readonly<{ baseReader: EvolutionBaseReaderId; id: EvolutionReaderAblationContractId; instructionSha256: string }> }>;
 type Body = Readonly<{ model: string; messages: readonly Message[]; stream: false; store: false; max_tokens: number;
   temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }>;
@@ -185,7 +194,29 @@ const CLONEMEM_CHOICE_PROFILES: Readonly<Record<EvolutionCloneMemChoiceReaderPro
   [EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-mini-reader"],
     id: EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, maxOutputTokens: 512, settings: { temperature: 0.1 } },
 });
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES, ...CLONEMEM_CHOICE_PROFILES });
+/** Fixed framework-pilot reader/judge routes: one user message and distinct request identities.
+ * The local context tokenizer qualifies the context string only. Existing conservative request
+ * reservations and response-usage checks remain in force; this catalog entry proves no live access.
+ * Prices and snapshot listing checked at https://developers.openai.com/api/docs/models/gpt-4o. */
+const FRAMEWORK_PILOT_PROFILES: Readonly<Record<EvolutionFrameworkPilotProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-official-snapshot-judge"],
+    id: EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, maxOutputTokens: 512, pricingCheckedAt: "2026-09-23" },
+  // Gateway exposes an alias. Require the exact reported resolution without calling that a pinned request.
+  [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-gateway-native-rubric-judge-v1"],
+    id: EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID, maxOutputTokens: 512, pricingCheckedAt: "2026-09-23",
+    requiredResolvedSnapshot: "gpt-4o-2024-08-06" },
+  // The Gateway's observed minimum is 16. This explicit treatment differs from the official 10-token judge.
+  [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-gateway-native-rubric-16-judge-v1"],
+    id: EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, pricingCheckedAt: "2026-09-23",
+    requiredResolvedSnapshot: "gpt-4o-2024-08-06" },
+  // Explicit unpinned treatments for Gateway responses that expose only the family alias.
+  // These distinct identities never reinterpret captures from the strict profiles above.
+  [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-gateway-native-rubric-judge-v1"],
+    id: EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, maxOutputTokens: 512, pricingCheckedAt: "2026-09-23" },
+  [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-gateway-native-rubric-16-judge-v1"],
+    id: EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID, pricingCheckedAt: "2026-09-23" },
+});
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES, ...CLONEMEM_CHOICE_PROFILES, ...FRAMEWORK_PILOT_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
@@ -202,7 +233,9 @@ function getProfile(value: unknown): EvolutionModelProfile {
   return EVOLUTION_PROFILES[value as EvolutionProfileId];
 }
 function validMessages(value: unknown, selected: EvolutionModelProfile): value is readonly Message[] {
-  const nativeJudge = selected.id === EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID || selected.qualification === "official-snapshot-request" || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
+  const nativeJudge = selected.id === EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID || selected.qualification === "official-snapshot-request" || selected.requiredResolvedSnapshot !== undefined
+    || selected.id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID || selected.id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
+    || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
     || selected.id === "gpt4o-beam-event-extraction-v1" || selected.id === "gpt4o-beam-nugget-v1";
   return Array.isArray(value) && (nativeJudge
     ? value.length === 1 && value[0]?.role === "user"
@@ -322,6 +355,9 @@ function identity(envelope: Record<string, unknown>, gateway: Record<string, unk
   const strip = (model: string) => model.includes("/") ? model.slice(model.indexOf("/") + 1) : model;
   const family = strip(selected.model), reported = strip(envelope.model);
   if (typeof resolved === "string" && reported !== family && strip(resolved) !== family && strip(resolved) !== reported) fail("conflicting resolved snapshots");
+  if (selected.requiredResolvedSnapshot !== undefined
+    && (typeof resolved !== "string" || strip(resolved) !== selected.requiredResolvedSnapshot
+      || reported !== family && reported !== selected.requiredResolvedSnapshot)) fail("required Gateway snapshot resolution missing or mismatched");
   // An alias request is never retroactively promoted to the official snapshot treatment.
   return { requestedModel: selected.model, reportedModel: envelope.model, finalProvider: selected.provider,
     resolvedProviderApiModelId: typeof resolved === "string" ? resolved : null,
