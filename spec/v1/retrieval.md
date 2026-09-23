@@ -56,8 +56,16 @@ contracts.
 
 ## Evaluation scope
 
-The CloneMem study uses a benchmark-specific source renderer and captured
-semantic rankings. Its numerical results are not a guarantee for the SDK's
-record renderer, an arbitrary embedding backend, or a consumer application.
-Compare the actual application pipeline with matched context, reader, and
-scoring settings; report failures and latency alongside quality.
+The earlier CloneMem reserved-persona study uses a benchmark-specific source
+renderer and captured semantic rankings. A separate SDK qualification uses
+`Oh.search` and its record renderer on 146 previously exposed development
+questions, with replayed semantic rankings and a local reranker. Its measured
+latency excludes semantic inference, and its report records a handled native
+initialization diagnostic.
+
+Neither study establishes performance for an arbitrary embedding backend or
+consumer application, or superiority over another memory framework. Compare
+the actual application pipeline with matched context, reader, and scoring
+settings; report failures and latency alongside quality. See the
+[SDK qualification report](https://github.com/hraness/oh/blob/main/benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md)
+for the protocol, results, and limitations.
