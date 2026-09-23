@@ -59,6 +59,90 @@ function closeTo(actual, expected, label) {
   assert.ok(Math.abs(Number.parseFloat(actual) - expected) < 0.15, `${label}: ${actual}, expected ${expected}px`);
 }
 
+async function inspectOhFieldLifecycle(page, context, origin) {
+  const transforms = () => page.locator(".oh-organism").evaluateAll((nodes) => nodes.map((node) => node.style.transform));
+  const awaitAdvance = (before) => page.waitForFunction((values) => {
+    const nodes = [...document.querySelectorAll(".oh-organism")];
+    return nodes.length === values.length && nodes.some((node, index) => node.style.transform !== values[index]);
+  }, before, { timeout: 5000 });
+  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+  await page.waitForFunction(() => {
+    const field = document.querySelector(".oh-field"), nodes = [...document.querySelectorAll(".oh-organism")];
+    const rect = field?.getBoundingClientRect();
+    return !document.hidden && rect && rect.bottom > 0 && rect.top < innerHeight
+      && nodes.length > 0 && nodes.every((node) => node.style.transform !== "");
+  });
+  const visibleBefore = await transforms();
+  await awaitAdvance(visibleBefore);
+  const visibleAfter = await transforms();
+
+  await page.locator("#benchmarks").scrollIntoViewIfNeeded();
+  // A fresh intersection observation plus two frames lets the component's
+  // observer process the same offscreen transition before sampling its output.
+  await page.evaluate(async () => {
+    const field = document.querySelector(".oh-field");
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        observer.disconnect();
+        reject(new Error("Hero did not become offscreen within 5 seconds"));
+      }, 5000);
+      const observer = new IntersectionObserver(([entry]) => {
+        if (!entry.isIntersecting) {
+          clearTimeout(timeout);
+          observer.disconnect();
+          resolve();
+        }
+      });
+      observer.observe(field);
+    });
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  const samplePaused = (dispatchVisibility) => page.evaluate(async (dispatch) => {
+    const field = document.querySelector(".oh-field"), nodes = [...document.querySelectorAll(".oh-organism")];
+    const before = nodes.map((node) => node.style.transform), started = performance.now();
+    if (dispatch) document.dispatchEvent(new Event("visibilitychange"));
+    let changedFrames = 0;
+    for (let frame = 0; frame < 8; frame++) {
+      await new Promise(requestAnimationFrame);
+      if (nodes.some((node, index) => node.style.transform !== before[index])) changedFrames++;
+    }
+    return { documentVisible: !document.hidden, offscreen: field.getBoundingClientRect().bottom <= 0,
+      organisms: nodes.length, frames: 8, changedFrames, elapsedMs: performance.now() - started };
+  }, dispatchVisibility);
+  const offscreen = await samplePaused(false);
+  const visibilityEvent = await samplePaused(true);
+  for (const sample of [offscreen, visibilityEvent]) {
+    assert.equal(sample.documentVisible && sample.offscreen, true, "Hero must be offscreen in a visible document");
+    assert.equal(sample.organisms, visibleBefore.length);
+    assert.equal(sample.changedFrames, 0, "Offscreen inline transforms must stay paused, including after visibilitychange");
+  }
+  const paused = await transforms();
+  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+  await awaitAdvance(paused);
+  const resumed = await transforms();
+
+  // Reduced motion must be set before navigation: the effect should never
+  // create organisms. Computed CSS morph animation is deliberately not tested.
+  const reducedPage = await context.newPage();
+  const reducedErrors = [];
+  reducedPage.on("pageerror", (error) => reducedErrors.push(error.message));
+  let reducedMotion;
+  try {
+    await reducedPage.emulateMedia({ reducedMotion: "reduce" });
+    assert.equal((await reducedPage.goto(origin, { waitUntil: "networkidle" })).status(), 200);
+    reducedMotion = await reducedPage.evaluate(async () => {
+      await document.fonts.ready;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return { requested: matchMedia("(prefers-reduced-motion: reduce)").matches,
+        fields: document.querySelectorAll(".oh-field").length, organisms: document.querySelectorAll(".oh-organism").length };
+    });
+    assert.deepEqual(reducedMotion, { requested: true, fields: 1, organisms: 0 });
+    assert.deepEqual(reducedErrors, [], "Reduced-motion page must have no uncaught browser errors");
+  } finally { await reducedPage.close(); }
+  return { visible: { organisms: visibleBefore.length, transformsAdvanced: visibleAfter.some((value, index) => value !== visibleBefore[index]) },
+    offscreen, visibilityEvent, resumed: resumed.some((value, index) => value !== paused[index]), reducedMotion };
+}
+
 
 // Immutable design-kit v0.8.0 assets, checked independently of the current build.
 async function assertWallAssets(context, background, origin) {
@@ -239,6 +323,7 @@ try {
           assert.equal(await askLink.evaluate((element) => element.matches(":focus-visible") && Number.parseFloat(getComputedStyle(element).outlineWidth) >= 2), true);
           if (mobile) assert.ok((await askLink.boundingBox()).height >= 48, "Coarse hit target must be at least 48px");
           if (route === "/") {
+            metrics.ohFieldLifecycle = await inspectOhFieldLifecycle(page, context, origin);
             const details = page.locator("details.first-run-details");
             assert.equal(await details.evaluate((element) => element.open), false);
             await details.locator("summary").focus();

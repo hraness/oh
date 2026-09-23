@@ -1,8 +1,8 @@
 # Benchmark memory
 
 Run these commands from the repository root. The checkout includes three separate measurements: typed memory-state
-correctness, evidence retrieval from public conversations, and an opt-in
-model reader. A retrieval score is not an answer-accuracy score, and passing
+correctness, evidence retrieval from public conversations, and a separately
+budgeted model reader. A retrieval score is not an answer-accuracy score, and passing
 state tests does not establish that an agent writes useful memories.
 
 For fast development sweeps across shared corpus indexes, use the [development lab](DEVELOPMENT.md). It compares retrieval variants without model calls and records full development results before promoting candidates to paid answer comparisons.
@@ -33,6 +33,50 @@ The subsequent [conversation-order development test](LOCOMO_ORDER_DEV_RESULT_V1.
 also failed its advancement rule: restoring source order scored 73.54% versus
 74.38% for the same selected evidence in its existing order.
 These studies preserve their controls, uncertainty and prior-exposure limits.
+These dated results did not select a production default. Current SDK routing
+is documented in the [main README](../README.md#use-the-best-configured-retrieval). The completed
+[composition development screen](LOCOMO_COMPOSITION_DEV_RESULT_V1.md) also failed
+its advancement rule: 74.17% versus 75.42% over identical vector-window context.
+It changed only the reading instruction on 160 previously exposed questions.
+The completed [CloneMem keyword development screen](CLONEMEM_KEYWORD_DEV_RESULT_V1.md)
+also failed its advancement rule: 67.35% answer accuracy versus 68.95% for vector
+retrieval on all 146 questions from two previously exposed personas. Recall@10
+rose from 12.05% to 15.17%, but the answer-quality gate failed; the candidate
+does not advance to confirmation or change a default.
+The subsequent [ranking diagnostics](CLONEMEM_RANKING_DIAGNOSTIC_V1.md) rejected
+equal fusion weights and measured candidate-pool label coverage without new model calls.
+The completed [CloneMem local-reranker development screen](CLONEMEM_RERANK_DEV_RESULT_V1.md)
+passed its advancement rule: 78.77% answer accuracy versus 68.72% for vector
+retrieval on all 146 questions from two previously exposed personas, with
+recall@10 up from 12.05% to 25.66% and 23.47% smaller contexts.
+The [reserved-persona result](CLONEMEM_RERANK_CONFIRM_RESULT_V1.md)
+met the originally specified numerical thresholds: 77.82% answer accuracy
+versus 70.54% for vector retrieval across all 861 questions from seven
+personas (+7.28 points, 95% persona-cluster bootstrap lower bound +4.61),
+recall@10 up from 14.48% to 32.80%, nonnegative reader delta in every
+persona and 22.1% smaller contexts, on 5,166 completed cases across three
+selected campaigns. These personas had prior project exposure. A retry rule
+was added after two failed campaign attempts; the final procedure was not
+unchanged or fully preregistered. The [additive audit](CLONEMEM_RERANK_CONFIRM_AUDIT_V2.md)
+reproduced the complete-case arithmetic and retained the failed attempts in
+sensitivity analyses: assigning every missing first-attempt response against
+the candidate still yielded a +6.16-point gain. This is a benchmark-renderer
+result on the fixed exposed population, with no external-framework comparison.
+
+The separate [production SDK qualification](SDK_RETRIEVAL_QUALIFICATION_V1.md)
+freezes all 146 previously exposed development questions and captures fresh
+local reranker inference through the actual default `Oh.search` path and its
+`recordDocument` format. It compares the candidate with the same-store semantic
+control and an ordinary-hybrid control. Historical semantic scores are replayed;
+the reported local timings therefore exclude live semantic inference. Its
+result must preserve the original complete matrix, errors and fixed advancement
+rule; the secondary comparison cannot rescue a failed primary. This qualification
+does not establish state-of-the-art performance or superiority to another framework.
+The [completed SDK result](SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md) passed the
+numerical primary gate: 80.59% versus 69.86% answer accuracy (+10.73 points),
+with all 876 cases complete and both personas improving. It records the pre-paid
+Metal startup interpretation, separate hybrid comparison, exact audit code,
+and $1.461086 total exposure across the two reader campaigns.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
 

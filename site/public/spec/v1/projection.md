@@ -149,7 +149,7 @@ cross-snapshot maintenance.
 
 ## Optional Suss equivalence lane
 
-`@hraness/oh/experimental/projection-suss` supports exactly
+`@hraness/oh/projection-suss` supports exactly
 `@suss/datalog@0.20.0` as an optional peer. It encodes every JSON primitive atom
 into canonical JSON text, evaluates the positive rules with Suss, and compares
 every complete relation to the Oh reference semantics. It returns only after

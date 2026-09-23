@@ -1,0 +1,13 @@
+{
+  "contextSize": 4096,
+  "engine": "@tobilu/qmd@2.5.3 LlamaCpp.rerank",
+  "language": "en",
+  "lexicalQuery": "normalized original query stem",
+  "model": "Qwen3-Reranker-0.6B Q8_0 GGUF",
+  "modelSha256": "22c9979ce4fbcdc5acdc310c6641c32797eff1aa980b8f7a2db8a8ea23429a48",
+  "modelRevision": "a02f48bb4f057028298c21fa033da2b30d7742d5",
+  "normalization": "NFC; en-US lowercase; token regex; first-occurrence deduplication; fixed stopword removal; first16",
+  "ranking": "score descending, then ASCII key ascending",
+  "semanticQuery": "unchanged original query stem",
+  "v": 1
+}

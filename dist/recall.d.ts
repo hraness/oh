@@ -1,4 +1,5 @@
 import type { KnowledgeGraphRecordV1 } from "./graph";
+import type { OhRerankBackendV1 } from "./rerank-model";
 import { type OhSearchModeV1 } from "./search";
 import type { OhSemanticSearchBackend } from "./semantic";
 import type { OhSqliteStore } from "./sqlite/store";
@@ -20,7 +21,7 @@ export type OhRecallWindowV1 = Readonly<{
     v: 1;
 }>;
 export type OhRecallDiagnosticV1 = Readonly<{
-    code: "semantic-unavailable" | "window-unavailable";
+    code: "rerank-unavailable" | "semantic-unavailable" | "window-unavailable";
     message: string;
     v: 1;
 }>;
@@ -285,6 +286,8 @@ export declare function recallOhV1(input: Readonly<{
     limit?: number;
     mode?: OhSearchModeV1;
     queries: readonly string[];
+    reranker?: OhRerankBackendV1;
+    rerankPoolSize?: number;
     store: OhSqliteStore;
     view?: OhRecallViewV1;
     window?: OhRecallWindowV1 | null;

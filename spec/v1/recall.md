@@ -12,9 +12,11 @@ rejoined to the current record digest by the underlying V1 search.
 
 `recallOhV1` accepts 1 through 6 distinct queries, each nonempty and at most
 16,384 UTF-8 bytes, a per-query limit of 1 through 100 (default 10), a search
-mode (`keyword`, `semantic`, or `hybrid`; default `keyword`), an `asOf`
+mode (`keyword`, `semantic`, `hybrid`, or `rerank`), an `asOf`
 question instant or `null`, an optional window, and an optional view. Every
-query is one ordinary V1 search with that limit and mode.
+query is one ordinary V1 search with that limit and mode. When mode is omitted,
+the SDK selects the strongest configured backend as described in
+[search and local reranking](retrieval.md).
 
 Fusion is reciprocal rank: each lane contributes `1 / (60 + rank)` for a record
 at 1-based `rank` in that lane; a record's score is the sum over lanes. Results
@@ -24,7 +26,7 @@ at most `(queries + 1) × limit` results.
 | Field | Contract |
 | --- | --- |
 | `asOf` | The canonical UTC instant supplied by the caller, or `null`. |
-| `diagnostics` | `semantic-unavailable` entries from the underlying searches and `window-unavailable` when the window scan could not run. |
+| `diagnostics` | `semantic-unavailable` and `rerank-unavailable` entries from the underlying searches and `window-unavailable` when the window scan could not run. |
 | `mode` | The search mode applied to every query. |
 | `queries` | The distinct queries in the order they were fused. |
 | `results` | Fused results, each with `evidence` (`lane`, `query` index or `null`, `rank`, lane `score`), the current record, and the fused `score`. |

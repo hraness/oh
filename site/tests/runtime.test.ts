@@ -158,7 +158,7 @@ describe("built Oh site", () => {
       expect(home).toContain("@hraness/oh@0.11.0");
       expect(home).not.toContain("@hraness/oh@0.4.3");
       expect(home).toContain("source CLI 0.4.0");
-      expect(home).toContain("https://github.com/hraness/oh/actions/runs/00000000000");
+      expect(home).toContain("https://github.com/hraness/oh/actions/runs/35759877197");
       expect(specificationResponse.status).toBe(200);
       expect(slashAliasResponse.status).toBe(308);
       expect(slashAliasResponse.headers.get("location")).toBe("/spec");

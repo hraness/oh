@@ -1,6 +1,7 @@
 import { type JsonValue } from "./canonical";
 import { type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
 import { type OhRecallResponseV1, type OhRecallWindowV1 } from "./recall";
+import type { OhRerankBackendV1 } from "./rerank-model";
 import { type OhSearchModeV1, type OhSearchResponseV1 } from "./search";
 import type { OhSemanticSearchBackend } from "./semantic";
 import { OhSqliteStore, type OhHeadV1, type OhReplayVerificationV1 } from "./sqlite/store";
@@ -10,6 +11,7 @@ export { defaultOhRecallViewV1, OH_RECALL_DATE_GRAMMAR_V1, OH_RECALL_LIMITS_V1, 
 export type { OhRecallDateRuleV1, OhRecallDateWindowV1, OhRecallDiagnosticV1, OhRecallEvidenceV1, OhRecallRecordViewV1, OhRecallRenderingV1, OhRecallResponseV1, OhRecallResultV1, OhRecallViewV1, OhRecallWindowV1 } from "./recall";
 export type OhOpenOptionsV1 = Readonly<{
     databasePath?: string;
+    rerankBackend?: OhRerankBackendV1;
     semanticBackend?: OhSemanticSearchBackend;
     spaceId?: string;
 }>;
@@ -17,6 +19,7 @@ export declare class Oh {
     #private;
     readonly store: OhSqliteStore;
     readonly semanticBackend: OhSemanticSearchBackend | undefined;
+    readonly rerankBackend: OhRerankBackendV1 | undefined;
     private constructor();
     static open(options?: OhOpenOptionsV1): Oh;
     head(): OhHeadV1;
@@ -46,12 +49,14 @@ export declare class Oh {
     search(query: string, options?: Readonly<{
         limit?: number;
         mode?: OhSearchModeV1;
+        rerankPoolSize?: number;
     }>): Promise<OhSearchResponseV1>;
     /** Fused recall over bounded V1 searches; `asOf` defaults to no question instant. */
     recall(queries: string | readonly string[], options?: Readonly<{
         asOf?: string | null;
         limit?: number;
         mode?: OhSearchModeV1;
+        rerankPoolSize?: number;
         window?: OhRecallWindowV1 | null;
     }>): Promise<OhRecallResponseV1>;
     sync(transport: OhOperationSyncTransportV1, options?: Parameters<typeof synchronizeOhStoreV1>[2]): Promise<OhSyncResultV1>;

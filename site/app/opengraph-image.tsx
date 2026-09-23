@@ -3,19 +3,18 @@ import {
   socialImageContentType as contentType,
   socialImageSize as size,
 } from "@hraness/web-discovery/social-image";
-import { homeDescription, homeTitle } from "./metadata-copy";
 import { OhSocialMark, ohSocialTheme } from "./social-mark";
 
-export const alt = homeTitle;
+export const alt = "Oh: memory your agents can trace";
 export { contentType, size };
 
 export default function OpenGraphImage() {
   return createSocialImageResponse({
-    description: homeDescription,
+    description: "Source-backed records, local retrieval, graph proofs, and a verifiable change history. An open-source memory framework for agents.",
     domain: "oh.computer",
     eyebrow: "Oh",
     mark: <OhSocialMark />,
     theme: ohSocialTheme,
-    title: "A research graph your agents can inspect",
+    title: "Memory your agents can trace",
   });
 }

@@ -85,11 +85,9 @@ describe("public site surface", () => {
   test("keeps the exact public identity and only supported CLI examples", async () => {
     const page = await readFile(join(root, "site/app/page.tsx"), "utf8");
     const layout = await readFile(join(root, "site/app/layout.tsx"), "utf8");
-    const metadataCopy = await readFile(join(root, "site/app/metadata-copy.ts"), "utf8");
-    expect(page).toContain('const heading = "A research graph your agents can inspect"');
+    expect(page).toContain('const heading = "Memory your agents can trace"');
     expect(page).toContain('headingId="hero-title"');
-    expect(metadataCopy).toContain('homeTitle = "Oh: a research graph your agents can inspect"');
-    expect(layout).toContain("homeTitle as title");
+    expect(layout).toContain("Oh: memory your agents can trace");
     expect(page).toContain("$ oh init --db research.db");
     expect(page).toContain("$ oh verify --db research.db");
     expect(page).toContain("$ oh get evidence:table-2 --db research.db");

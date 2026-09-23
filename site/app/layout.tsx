@@ -2,8 +2,11 @@ import type { Metadata, Viewport } from "next";
 import { HranessSiteFooter } from "@hraness/site-footer/react";
 import { ohSupportProfile } from "../../src/support-profile";
 import { FoilController } from "./foil-controller";
-import { homeDescription as description, homeTitle as title } from "./metadata-copy";
 import "./globals.css";
+
+const title = "Oh: memory your agents can trace";
+const description =
+  "An open-source memory framework for agents: source-backed records, local retrieval, graph proofs, and a verifiable change history. TypeScript SDK, CLI, and SQLite storage.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://oh.computer"),
@@ -17,7 +20,7 @@ export const metadata: Metadata = {
     title,
     description,
     images: [{
-      alt: title,
+      alt: "Open-source memory for agents",
       height: 630,
       url: "/opengraph-image",
       width: 1200,
