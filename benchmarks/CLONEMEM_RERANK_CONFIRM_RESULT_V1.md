@@ -75,8 +75,9 @@ The pre-registered gate required, on the pooled 861-question matrix:
 The screen yields `confirmedImprovement: true`. The decision still sets
 `externalFrameworkSuperiority: false` and `defaultChangeAuthorized:
 false`: confirmation applies to this reserved population only, not a
-leaderboard claim, and promotion to a default remains a separate reviewed
-change.
+leaderboard claim. The measured procedure shipped as the opt-in
+`mode: "rerank"` SDK search path (`oh/rerank`, `OhQmdRerankBackendV1`);
+Oh's default retrieval remains unchanged.
 
 ## Model settings, context and cost
 
