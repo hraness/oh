@@ -796,13 +796,16 @@ The separate [CloneMem comparison](benchmarks/CLONEMEM_TRANSFER_V1.md) also did
 not establish a multiple-choice accuracy gain from Oh hybrid search over vector
 search.
 
-Answer-quality development is active. The latest
-[CloneMem local-reranker screen](benchmarks/CLONEMEM_RERANK_DEV_RESULT_V1.md)
-passed its development gate — +10.05 answer points and +13.61 recall points
-over vector retrieval on two previously exposed personas — and advances to a
-separately frozen confirmation on the reserved personas. Defaults remain
-unchanged until that screen; the [experiment history](benchmarks/README.md)
-includes the earlier keyword, conversation-order and composition tests.
+Answer-quality development is active. The
+[CloneMem local-reranker confirmation](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md)
+passed its pre-registered gate on all 861 questions from seven reserved
+personas: +7.28 answer points (95% persona-cluster bootstrap lower bound
++4.61) and +18.32 recall points over vector retrieval, with nonnegative
+reader delta in every persona and 22.1% smaller contexts. The result is
+confirmed on this reserved, project-exposed population only; it does not
+change a default or claim external-framework superiority. The
+[experiment history](benchmarks/README.md) includes the earlier keyword,
+conversation-order and composition tests.
 
 Run the network-free state and projection checks from a checkout:
 

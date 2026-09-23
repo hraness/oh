@@ -453,11 +453,14 @@ oh get evidence:table-2 \\
               <a href={`${repository}/blob/main/benchmarks/CLONEMEM_TRANSFER_V1.md`}>Read the CloneMem comparison</a>.
             </p>
             <p className="benchmark-note">
-              The latest completed{" "}
-              <a href={`${repository}/blob/main/benchmarks/CLONEMEM_RERANK_DEV_RESULT_V1.md`}>CloneMem local-reranker screen</a>{" "}
-              passed its development gate (+10.05 answer points, +13.61 recall
-              points) on two previously exposed personas and advances to a
-              separately frozen confirmation. Defaults remain unchanged.
+              The{" "}
+              <a href={`${repository}/blob/main/benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md`}>CloneMem local-reranker confirmation</a>{" "}
+              passed its pre-registered gate on all 861 questions from seven
+              reserved personas: +7.28 answer points (95% bootstrap lower
+              bound +4.61) and +18.32 recall points over vector retrieval,
+              with every persona nonnegative and 22.1% smaller contexts.
+              Confirmed on this reserved, project-exposed population only;
+              defaults remain unchanged.
             </p>
           </MarketingSection>
 

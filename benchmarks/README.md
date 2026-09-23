@@ -48,9 +48,16 @@ equal fusion weights and measured candidate-pool label coverage without new mode
 The completed [CloneMem local-reranker development screen](CLONEMEM_RERANK_DEV_RESULT_V1.md)
 passed its advancement rule: 78.77% answer accuracy versus 68.72% for vector
 retrieval on all 146 questions from two previously exposed personas, with
-recall@10 up from 12.05% to 25.66% and 23.47% smaller contexts. The candidate
-advances to a separately frozen confirmation on the seven reserved personas;
-it does not change a default.
+recall@10 up from 12.05% to 25.66% and 23.47% smaller contexts.
+The separately frozen [reserved-persona confirmation](CLONEMEM_RERANK_CONFIRM_RESULT_V1.md)
+then passed its pre-registered gate: 77.82% answer accuracy versus 70.54%
+for vector retrieval across all 861 questions from the seven reserved
+personas (+7.28 points, 95% persona-cluster bootstrap lower bound +4.61),
+recall@10 up from 14.48% to 32.80%, nonnegative reader delta in every
+persona and 22.1% smaller contexts, on 5,166 completed cases across three
+sequential campaigns. The result confirms improvement on this reserved,
+project-exposed population only; it does not change a default or claim
+external-framework superiority.
 
 To score Oh inside a third-party memory harness that supplies its own reader and judge, use the retrieval-only command. It reads one normalized conversation (MemEval's `session_N` / `session_N_date_time` shape), prepares an Oh corpus and prints the packed context for one question, with no model or provider call:
 
