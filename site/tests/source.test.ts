@@ -155,7 +155,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/ui": "github:hraness/ui#v0.5.17"',
+      '"@hraness/ui": "github:hraness/ui#v0.5.18"',
     );
     expect(home).toContain('import { AskAiAboutThis } from "@hraness/ui"');
     expect(home).toContain(
@@ -176,7 +176,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.16.1"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.16.2"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([

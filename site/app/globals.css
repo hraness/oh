@@ -83,7 +83,11 @@ a:focus-visible {
 }
 
 /* A culture of record organisms, revealed by the shared hero light. */
-.hraness-material-wall { position: relative; isolation: isolate; }
+.hraness-material-wall {
+  position: relative;
+  isolation: isolate;
+  --hraness-pattern-image: repeating-conic-gradient(from 45deg, color-mix(in srgb, var(--primary) 2%, transparent) 0% 25%, transparent 0% 50%);
+}
 .hraness-material-wall > :not(.oh-field) { position: relative; z-index: 1; }
 .oh-field { position: absolute; inset: 0; z-index: 0; overflow: clip; pointer-events: none; mask-image: linear-gradient(to bottom, #000 65%, transparent); }
 .oh-organism {
@@ -310,6 +314,10 @@ a:focus-visible {
 
 /* The specification retains its existing phone navigation behavior. */
 @media (max-width: 48rem) {
+  .hraness-marketing-header__actions {
+    margin-inline-start: auto;
+  }
+
   .spec-header {
     position: static;
   }

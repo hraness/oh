@@ -59,6 +59,16 @@ function closeTo(actual, expected, label) {
   assert.ok(Math.abs(Number.parseFloat(actual) - expected) < 0.15, `${label}: ${actual}, expected ${expected}px`);
 }
 
+function collectPageFailures(page) {
+  const failures = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  page.on("response", (response) => {
+    if (response.status() >= 400) failures.push(`${response.status()} ${new URL(response.url()).pathname}`);
+  });
+  page.on("requestfailed", (request) => failures.push(`Request failed: ${new URL(request.url()).pathname}`));
+  return failures;
+}
+
 const nativeMediaSessions = new WeakMap();
 async function nativeMediaSession(page) {
   let session = nativeMediaSessions.get(page);
@@ -160,10 +170,11 @@ async function inspectOhFieldLifecycle(page, mobile) {
 async function inspectAppearanceCases(browser, origin) {
   const rows = [];
   const expected = { light: "rgb(251, 241, 199)", dark: "rgb(40, 40, 40)" };
-  for (const width of [390, 1440]) for (const colorScheme of ["light", "dark"]) {
+  for (const width of [320, 390, 1440]) for (const colorScheme of ["light", "dark"]) {
     const context = await browser.newContext({ javaScriptEnabled: false, colorScheme, viewport: { width, height: 900 } });
     try {
       const page = await context.newPage();
+      const failures = collectPageFailures(page);
       for (const route of ["/", "/spec"]) {
         assert.equal((await page.goto(`${origin}${route}`, { waitUntil: "networkidle" })).status(), 200);
         const paint = await page.evaluate(async () => {
@@ -180,14 +191,16 @@ async function inspectAppearanceCases(browser, origin) {
         assert.equal(paint.viewportWidth, width, "Overflow must not expand the mobile viewport");
         assert.ok(paint.heading);
         assert.equal(paint.organisms, route === "/" ? 12 : 0);
-        rows.push({ label: `no-js-${width}-${colorScheme}-${route === "/" ? "home" : "spec"}`, paint });
+        assert.deepEqual(failures, [], `No-JavaScript ${width} ${colorScheme} ${route}: runtime/resource failures`);
+        rows.push({ label: `no-js-${width}-${colorScheme}-${route === "/" ? "home" : "spec"}`, paint, failures: [...failures] });
       }
     } finally { await context.close(); }
   }
-  for (const width of [390, 1440]) {
+  for (const width of [320, 390, 1440]) {
     const context = await browser.newContext({ colorScheme: "light", viewport: { width, height: 900 } });
     try {
       const page = await context.newPage();
+      const failures = collectPageFailures(page);
       assert.equal((await page.goto(origin, { waitUntil: "networkidle" })).status(), 200);
       const menu = page.locator('[data-hraness-appearance-menu]');
       assert.equal(await menu.count(), 1);
@@ -198,7 +211,7 @@ async function inspectAppearanceCases(browser, origin) {
       await menu.getByRole("radio", { name: "Dark", exact: true }).check();
       await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === "rgb(26, 27, 38)");
       const panel = await menu.locator(":scope > div").boundingBox();
-      assert.ok(panel && panel.x >= 0 && panel.x + panel.width <= width, "Appearance choices stay inside viewport");
+      assert.ok(panel && panel.x >= 0 && panel.x + panel.width <= width, `Appearance choices stay inside ${width}px viewport: ${JSON.stringify(panel)}`);
       await page.keyboard.press("Escape");
       assert.equal(await menu.evaluate((node) => node.open), false);
       assert.equal(await menu.locator("summary").evaluate((node) => document.activeElement === node), true);
@@ -211,7 +224,8 @@ async function inspectAppearanceCases(browser, origin) {
       await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === "rgb(40, 40, 40)");
       await selectNativeMedia(page, { "prefers-color-scheme": "light" });
       await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === "rgb(251, 241, 199)");
-      rows.push({ label: `appearance-${width}`, savedPalette: "tokyo-night", savedMode: "dark", liveSystem: ["dark", "light"], keyboard: "passed", boundedPanel: panel });
+      assert.deepEqual(failures, [], `Appearance ${width}: runtime/resource failures`);
+      rows.push({ label: `appearance-${width}`, savedPalette: "tokyo-night", savedMode: "dark", liveSystem: ["dark", "light"], keyboard: "passed", boundedPanel: panel, failures });
     } finally { await context.close(); }
   }
   return rows;
@@ -282,12 +296,7 @@ try {
       try {
         const page = await context.newPage();
         await selectNativeMedia(page, { "prefers-reduced-transparency": "no-preference" });
-        const failures = [];
-        page.on("pageerror", (error) => failures.push(error.message));
-        page.on("response", (response) => {
-          if (response.status() >= 400) failures.push(`${response.status()} ${new URL(response.url()).pathname}`);
-        });
-        page.on("requestfailed", (request) => failures.push(`Request failed: ${new URL(request.url()).pathname}`));
+        const failures = collectPageFailures(page);
         for (const route of ["/", "/spec"]) {
           assert.equal((await page.goto(`${origin}${route}`, { waitUntil: "networkidle" })).status(), 200);
           await page.evaluate(async () => {
