@@ -10,13 +10,13 @@
 - `benchmarks/` – source/protocol audit and compact reproducibility evidence; datasets and full run artifacts stay in ignored `.cache/benchmarks/`.
 - `.github/` – public contribution templates, branch validation, dependency updates, and exact-artifact release automation.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` – public usage, project policy, threat model, and terms.
-- `STYLE.md` – the public and reader-facing prose contract.
+- `STYLE.md` and `WRITING.md` – public and internal writing guides synced from hraness/.github; rules for this repository sit under “Repository additions”.
 - `package.json`, `tsconfig.json`, and `bun.lock` – package identity, exported surfaces, and frozen Bun toolchain.
 
 # Guidelines
 
 - Use Bun 1.3.14 for installs, scripts, tests, builds, and package checks. Keep the base package free of required runtime dependencies.
-- Follow `STYLE.md` for the public website, specifications, documentation, README, and Agent Skill prose.
+- Follow `STYLE.md` for the public website, specifications, documentation, README, and Agent Skill prose, including its benchmark-results rule, and `WRITING.md` for commits, pull requests, plans, and agent notes.
 - Keep `site/` deployable as an ordinary Vercel Next.js root. Do not add OpenAI Sites, Vinext, Cloudflare Worker, Wrangler, or alternate hosting configuration.
 - Build the site on the pinned Hraness design-kit release and its `product-marketing` grammar: use the shared editorial preset for homepage marketing display headings, and Nebula Sans for body text and specification display roles. Use the Wordcell family Gruvbox default with system-resolved light/dark appearance and preserve saved palette choices, sentence-case labels, and one accent. Keep true monospace for code, commands, and data surfaces only.
 - The homepage alone opts into the immutable Lantern material snapshot in `site/vendor/hraness-lantern`. Keep citation reading on an opaque pane, glazing on the hero and scrolling header, and the specification and code transcripts unchanged. The exact-byte PostCSS bridge moves only the admitted Lantern component layer after the editorial layer; its base tokens and all package layers stay intact. `check:theme` runs the canonical snapshot checker before site tests/builds.
@@ -35,6 +35,13 @@
 - Rebuild `dist/` after production source changes. Require the complete `bun run check`, reproducible generated tree, and packed root/subpath/`oh --help` checks before source admission. For pull requests, fresh successful CI on the exact governed head and current base may supply that source aggregate under the conditions in [CONTRIBUTING.md](CONTRIBUTING.md#validate-a-pull-request). Run focused local checks first; do not repeat equivalent local source aggregates when those CI conditions hold. Keep private benchmark, coupled-run, provider, authenticated, native, installation, release and deployment evidence separate whenever CI does not execute it. Use the local aggregate when CI is unavailable or equivalence is uncertain.
 - Run focused changed-area tests for benchmark changes. `bun run test:benchmarks` remains the complete benchmark-only subset; qualified PR CI already runs every test in that subset through `bun run check`, so a duplicate local subset run is not required. Use `bun run bench:memory --help` for isolated experiments; keep dataset labels outside ingestion, tune only on development groups, and distinguish state correctness, evidence recall, and reader scores. Paid calls require explicit limits and either a benchmark-only key or an explicitly selected Vercel project OIDC token; preserve the shared spending ledger across readers, transports, and judges. Keep Gateway aliases distinct from verified snapshots, and give gold references only to the separate judge.
 - Enable GitHub release immutability and configure npm trusted publishing for `.github/workflows/release.yml` before the next stable release. Release only a new annotated `v*` tag at exact current `main`. Build one npm tarball, test those unchanged bytes on Linux and macOS, publish them through npm OIDC with provenance, then attach that same tarball and `SHA256SUMS` to the immutable GitHub Release. Never move or reuse a release tag.
+
+<!-- hraness-public-copy:start -->
+- Public copy (websites, READMEs, docs, package and GitHub descriptions, CLI help, `llms.txt`, generated pages) follows `STYLE.md`, synced from hraness/.github. Text a model writes for publication also follows `GENERATION_STYLE.md`.
+- The delivery vocabulary in this file (admission, qualification, custody, receipt, bounded, lane, gate, surface, projection) is internal. Translate it into what the reader gets.
+- Take one-line product and sibling descriptions from the portfolio registry and versions from the release record. Tests pin facts, not prose.
+- Run `bun run check:copy` before handoff when the repository has it.
+<!-- hraness-public-copy:end -->
 
 <!-- oompa-local-efficiency:start -->
 - Treat the user's request to change this repository as standing authorization for routine task-owned commits, pushes, pull requests, merges, releases, deployments, and production verification after the gates applicable to that action pass. Do not ask for duplicate confirmation. Build confidence through relevant automated checks, bounded diagnostics, and independent review, not another human approval. Passing checks does not expand task scope or authority.

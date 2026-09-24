@@ -197,15 +197,26 @@ describe("built Oh site", () => {
       expect(metadataContent(specification, "property", "og:title")).toBe(
         "Oh ontology specification v1",
       );
-      expect(metadataContent(specification, "property", "og:image")).toBe(
-        "https://oh.computer/og.png",
+      expect(metadataContent(specification, "property", "og:image")).toMatch(
+        /^https:\/\/oh\.computer\/spec\/opengraph-image(?:\?[0-9a-f]+)?$/u,
+      );
+      expect(metadataContent(specification, "name", "twitter:image")).toBe(
+        "https://oh.computer/spec/opengraph-image",
       );
       expect(metadataContent(specification, "name", "twitter:title")).toBe(
         "Oh ontology specification v1",
       );
-      expect(metadataContent(specification, "name", "twitter:description")).toBe(
-        "The current, local-first ontology and storage contract behind Oh.",
-      );
+      const specificationDescription = metadataContent(specification, "name", "description");
+      expect(specificationDescription).not.toBe(metadataContent(home, "name", "description"));
+      expect(specificationDescription?.length).toBeGreaterThanOrEqual(110);
+      expect(specificationDescription?.length).toBeLessThanOrEqual(160);
+      for (const key of ["og:description", "twitter:description"]) {
+        const attributeName = key.startsWith("og:") ? "property" : "name";
+        expect(metadataContent(specification, attributeName, key)).toBe(specificationDescription);
+      }
+      const specificationImage = await fetch(`${server.origin}/spec/opengraph-image`);
+      expect(specificationImage.status).toBe(200);
+      expect(specificationImage.headers.get("content-type")).toContain("image/png");
     } finally {
       await stopBuiltSite(server);
     }

@@ -30,6 +30,10 @@ function fake(input: Input, options: { hook?: Hook; pendingPolls?: number; failA
     claims: new Set<string>(), stored: new Map<string, Row>(), polls: new Map<string, number>(), sleeping: [] as number[], deleted: false };
   const doc = (documentId: string, body: Row) => ({ id: documentId, customId: body.customId, containerTags: [input.namespace],
     metadata: body.metadata, status: "done", dreamingStatus: "done", raw: body.content });
+  // Real list responses carry ownership and status, but no dreamingStatus/raw/content.
+  const listedDoc = (documentId: string, body: Row) => ({ id: documentId, customId: body.customId, containerTags: [input.namespace],
+    metadata: body.metadata, status: "done", connectionId: null, filepath: null, title: "Synthetic document", summary: null,
+    type: "text", createdAt: "2025-03-01T00:00:00Z", updatedAt: "2025-03-01T00:00:00Z" });
   const refs = () => [...state.stored.keys()].map(id => ({ id, createdAt: "2025-03-01T00:00:00Z", updatedAt: "2025-03-01T00:00:00Z" }));
   const io: FrameworkPilotSupermemoryIOV1 = {
     target: input.target, now: () => state.time,
@@ -46,7 +50,7 @@ function fake(input: Input, options: { hook?: Hook; pendingPolls?: number; failA
       let result: ReturnType<typeof response>;
       if (request.operation === "inventory") {
         const documents = request.path === "/v3/documents/list";
-        const rows = documents ? [...state.stored].map(([id, value]) => doc(id, value))
+        const rows = documents ? [...state.stored].map(([id, value]) => listedDoc(id, value))
           : state.stored.size ? [{ id: "mem_1", documentIds: [...state.stored.keys()] }] : [];
         const page = body.page as number;
         result = response({ [documents ? "memories" : "memoryEntries"]: rows.slice((page - 1) * 100, page * 100),
@@ -141,6 +145,17 @@ describe("framework pilot Supermemory lifecycle source contract", () => {
     expect(state.calls.filter(call => call.operation === "search")).toHaveLength(1);
     expect(state.calls.findIndex(call => call.operation === "readiness")).toBeGreaterThan(state.calls.findLastIndex(call => call.operation === "ingest"));
     expect(state.calls.filter(call => call.operation === "inventory" && state.deleted).length).toBeGreaterThanOrEqual(4);
+    const cleanupList = state.calls.find(call => call.phase === "cleanup" && call.path === "/v3/documents/list")!;
+    expect(JSON.parse(cleanupList.body!)).toEqual({ containerTags: [input.namespace], limit: 100, page: 1 });
+    const cleanupResponse = state.journal.find(entry => entry.kind === "response" && entry.sequence === cleanupList.sequence)!;
+    const listed = JSON.parse(Buffer.from(cleanupResponse.bodyBase64 as string, "base64").toString()).memories;
+    expect(listed).toHaveLength(2);
+    for (const row of listed) {
+      expect(row.status).toBe("done");
+      expect(row).not.toHaveProperty("dreamingStatus");
+      expect(row).not.toHaveProperty("raw");
+      expect(row).not.toHaveProperty("content");
+    }
     expect(state.sleeping).toEqual([5_000, 5_000, 5_000, 5_000, 10_000]);
     expect(state.journal.at(-1)).toMatchObject({ kind: "outcome", result });
     expect(Object.isFrozen(result.evidence[0]!.documentReferences[0])).toBeTrue();
@@ -154,6 +169,53 @@ describe("framework pilot Supermemory lifecycle source contract", () => {
     expect(state.calls.length).toBe(calls);
     await expect(runFrameworkPilotSupermemoryV1(input, { ...io, target: { ...io.target, projectId: "other" } })).rejects.toThrow("target-binding");
     expect(state.calls.length).toBe(calls);
+  });
+
+  test("joins search custom IDs through the verified GET identity and emits canonical document IDs", async () => {
+    const input = fixture(), { io, state, plan } = fake(input, { hook: (request, normal) =>
+      request.operation === "search" ? mutate(normal, value => {
+        for (const row of value.results) for (const ref of row.documents) {
+          const index = Number(ref.id.slice(4)) - 1, source = plan.documents[index]!;
+          ref.id = source.customId; ref.metadata = { ...source.metadata, temporalContext: { documentDate: "2025-03-01" } };
+        }
+      }) : normal });
+    const result = await runFrameworkPilotSupermemoryV1(input, io);
+    expect(result.success).toBeTrue(); expect(result.cleanupObservedAbsent).toBeTrue();
+    expect(result.evidence[0]!.documentReferences.map(ref => ref.documentId)).toEqual(["doc_1", "doc_2"]);
+    expect(result.evidence[0]!.documentReferences.map(ref => ref.sourceUnitId)).toEqual(["u000001", "u000002"]);
+    expect(result.evidence[1]!.documentReferences[0]!.documentId).toBe("doc_1");
+    const searchRaw = state.journal.find(row => row.kind === "response" && row.sequence === state.calls.find(call => call.operation === "search")!.sequence)!;
+    expect(Buffer.from(searchRaw.bodyBase64 as string, "base64").toString()).toContain(plan.documents[0]!.customId);
+  });
+
+  test("rejects foreign, duplicate alias and contradictory metadata search references without relaxing cleanup", async () => {
+    for (const kind of ["foreign", "duplicate-alias", "wrong-source-metadata", "missing-source-metadata"]) {
+      const input = fixture(), { io, plan } = fake(input, { hook: (request, normal) => request.operation === "search"
+        ? mutate(normal, value => {
+          const refs = value.results[0].documents;
+          if (kind === "foreign") refs[0].id = "oh_fp1_ffffffffffffffffffffffffffffffff_u000001";
+          if (kind === "duplicate-alias") refs[1].id = plan.documents[0]!.customId;
+          if (kind === "wrong-source-metadata") { refs[0].id = plan.documents[0]!.customId; refs[0].metadata = plan.documents[1]!.metadata; }
+          if (kind === "missing-source-metadata") { refs[0].id = plan.documents[0]!.customId; refs[0].metadata = { unrelated: true }; }
+        }) : normal });
+      const result = await runFrameworkPilotSupermemoryV1(input, io);
+      expect(result.success).toBeFalse(); expect(result.retrievalCaptured).toBeFalse();
+      expect(result.cleanupObservedAbsent).toBeTrue(); expect(result.evidence).toEqual([]);
+      expect(result.errors).toEqual([{ stage: "work", code: kind.endsWith("metadata") ? "search-source-metadata" : "search-source-ownership" }]);
+    }
+  });
+
+  test("rejects ambiguous internal-ID/custom-ID aliases before querying", async () => {
+    const input = fixture(), { io, state, plan } = fake(input, { hook: (request, normal, current) => {
+      if (request.operation !== "ingest" || current.stored.size !== 1) return normal;
+      const value = JSON.parse(Buffer.from(normal.body).toString()), body = current.stored.get(value.id)!;
+      current.stored.delete(value.id); value.id = plan.documents[1]!.customId; current.stored.set(value.id, body);
+      return response(value);
+    } });
+    const result = await runFrameworkPilotSupermemoryV1(input, io);
+    expect(result.errors).toEqual([{ stage: "work", code: "ambiguous-search-document-alias" }]);
+    expect(result.success).toBeFalse(); expect(result.cleanupObservedAbsent).toBeTrue();
+    expect(state.calls.filter(call => call.operation === "search")).toHaveLength(0);
   });
 
   test("fresh-scope collisions cause no ingest, search or deletion", async () => {
@@ -191,6 +253,64 @@ describe("framework pilot Supermemory lifecycle source contract", () => {
       expect(result.acceptedDocuments).toHaveLength(visible ? 1 : 0);
       expect(state.journal.some(entry => entry.kind === "failure" && entry.uncertainAttempt === true)).toBeTrue();
       expect(result.responseBytes.work).toBeGreaterThanOrEqual(input.budget.maximumResponseBytes + 1);
+    }
+  });
+
+  test("cleans up owned pending and failed documents while retaining the complete readiness GET barrier", async () => {
+    const cases: Array<{ status: string; change: (row: Row) => void; code: string }> = [
+      { status: "queued", change: row => { row.status = "queued"; row.dreamingStatus = "dreaming"; }, code: "document-dreaming-readiness-incomplete" },
+      { status: "failed", change: row => { row.status = "failed"; }, code: "document-processing-failed" },
+      { status: "done", change: row => { delete row.dreamingStatus; }, code: "document-lifecycle" },
+      { status: "done", change: row => { delete row.raw; }, code: "ready-source-echo" },
+    ];
+    for (const example of cases) {
+      const input = fixture(); input.budget.maximumPollsPerDocument = 1;
+      const { io, state } = fake(input, { hook: (request, normal) => {
+        if (request.operation === "readiness") return mutate(normal, example.change);
+        if (request.phase === "cleanup" && request.path === "/v3/documents/list") return mutate(normal, value => {
+          for (const row of value.memories) row.status = example.status;
+        });
+        return normal;
+      } });
+      const result = await runFrameworkPilotSupermemoryV1(input, io);
+      expect(result.success).toBeFalse(); expect(result.retrievalCaptured).toBeFalse();
+      expect(result.readyDocuments).toBe(0); expect(result.cleanupObservedAbsent).toBeTrue();
+      expect(result.errors).toEqual([{ stage: "work", code: example.code }]);
+      expect(result.acceptedDocuments).toHaveLength(2);
+      expect(state.calls.filter(call => call.operation === "search")).toHaveLength(0);
+      expect(state.calls.filter(call => call.operation === "delete")).toHaveLength(1);
+      expect(state.calls.filter(call => call.operation === "absence")).toHaveLength(2);
+    }
+  });
+
+  test("list schema tolerance never weakens exact cleanup ownership or accepted identity", async () => {
+    const changes: Array<(row: Row) => void> = [
+      row => { delete row.id; },
+      row => { row.id = "different_accepted_id"; },
+      row => { delete row.customId; },
+      row => { row.customId = "foreign"; },
+      row => { delete row.containerTags; },
+      row => { row.containerTags = ["foreign"]; },
+      row => { (row.containerTags as string[]).push("foreign"); },
+      row => { delete row.metadata; },
+      row => { row.metadata = null; },
+      row => { row.metadata = []; },
+    ];
+    const ownershipFields = ["ohFrameworkPilot", "sourceSha256", "sourceBundleSha256", "sourceUnitId", "sourceUnitSha256", "sourceContentSha256"];
+    for (const key of ownershipFields) {
+      changes.push(row => { delete (row.metadata as Row)[key]; });
+      changes.push(row => { (row.metadata as Row)[key] = "foreign"; });
+    }
+    for (const change of changes) {
+      const input = fixture(), { io, state } = fake(input, { hook: (request, normal) =>
+        request.phase === "cleanup" && request.path === "/v3/documents/list"
+          ? mutate(normal, value => { change(value.memories[0]); }) : normal });
+      const result = await runFrameworkPilotSupermemoryV1(input, io);
+      expect(result.retrievalCaptured).toBeTrue(); expect(result.success).toBeFalse();
+      expect(result.cleanupObservedAbsent).toBeFalse();
+      expect(result.errors).toHaveLength(1); expect(result.errors[0]!.stage).toBe("cleanup");
+      expect(state.calls.filter(call => call.operation === "delete")).toHaveLength(0);
+      expect(state.stored.size).toBe(2);
     }
   });
 

@@ -15,7 +15,7 @@ export function OhContentFooter() {
       brandHref="/"
       brandLabel="Oh home"
       links={[
-        { href: "/spec", label: "Ontology v1" },
+        { href: "/spec", label: "Specification" },
         { href: repository, label: "hraness/oh" },
         { href: "https://hraness.com/projects", label: "Hraness projects" },
       ]}
