@@ -188,11 +188,14 @@ function parseResponse(bytes: Uint8Array): unknown {
   }
   return parsed;
 }
-function document(value: unknown, body: DocumentBody, expectedId: string): "pending" | "ready" | "failed" {
+function documentOwnership(value: unknown, body: DocumentBody, expectedId: string): asserts value is Record<string, unknown> {
   need(isPlainRecord(value), "document-response");
   need(value.id === expectedId && value.customId === body.customId && canonicalJson(value.containerTags) === canonicalJson([body.containerTag]), "document-identity");
   const metadata = value.metadata;
   need(isPlainRecord(metadata) && Object.entries(body.metadata).every(([key, expected]) => metadata[key] === expected), "document-source-ownership");
+}
+function document(value: unknown, body: DocumentBody, expectedId: string): "pending" | "ready" | "failed" {
+  documentOwnership(value, body, expectedId);
   need(["unknown", "queued", "extracting", "chunking", "embedding", "indexing", "done", "failed"].includes(String(value.status))
     && ["dreaming", "done"].includes(String(value.dreamingStatus)), "document-lifecycle");
   if (value.status === "failed") return "failed";
@@ -313,10 +316,17 @@ export async function runFrameworkPilotSupermemoryV1(input: unknown, suppliedIO:
     }
     ingestionElapsedMs = now() - ingestStart;
     need(readyDocuments === plan.documents.length, "complete-ingestion-barrier");
+    // Search can name a document by its submitted customId. Readiness has
+    // already authenticated each customId/internal-ID/source tuple by GET.
+    const owned = new Map<string, { id: string; body: DocumentBody }>();
+    for (const row of accepted.values()) for (const alias of [row.id, row.body.customId]) {
+      need(!owned.has(alias) || owned.get(alias)!.id === row.id, "ambiguous-search-document-alias");
+      owned.set(alias, row);
+    }
     const searchStart = now();
     const response = record((await call("search", "POST", "/v4/search", plan.search)).value, ["results", "total", "timing"]);
     searchElapsedMs = now() - searchStart;
-    const rows = list(response.results, 20), owned = new Map([...accepted.values()].map(row => [row.id, row.body]));
+    const rows = list(response.results, 20);
     need(number(response.total, 0, 20) === rows.length && typeof response.timing === "number"
       && Number.isFinite(response.timing) && response.timing >= 0, "search-total-or-timing");
     providerSearchTimingMs = response.timing;
@@ -338,9 +348,15 @@ export async function runFrameworkPilotSupermemoryV1(input: unknown, suppliedIO:
       const refs = list(row.documents, b.maximumDocuments), seenRefs = new Set<string>();
       need(refs.length > 0, "unmapped-search-evidence");
       const documentReferences = refs.map(rawRef => {
-        const ref = record(rawRef, ["id", "createdAt", "updatedAt"], ["title", "type", "metadata", "summary"]), documentId = id(ref.id);
-        const source = owned.get(documentId); need(source && !seenRefs.has(documentId), "search-source-ownership"); seenRefs.add(documentId);
-        return { documentId, sourceUnitId: source.metadata.sourceUnitId, sourceUnitSha256: source.metadata.sourceUnitSha256 };
+        const ref = record(rawRef, ["id", "createdAt", "updatedAt"], ["title", "type", "metadata", "summary"]);
+        const source = owned.get(id(ref.id));
+        need(source && !seenRefs.has(source.id), "search-source-ownership"); seenRefs.add(source.id);
+        if (ref.metadata !== undefined && ref.metadata !== null) {
+          const metadata = ref.metadata;
+          need(isPlainRecord(metadata) && Object.entries(source.body.metadata).every(([key, value]) => metadata[key] === value),
+            "search-source-metadata");
+        }
+        return { documentId: source.id, sourceUnitId: source.body.metadata.sourceUnitId, sourceUnitSha256: source.body.metadata.sourceUnitSha256 };
       });
       return { rank: index + 1, kind: Object.hasOwn(row, "memory") ? "provider-generated-memory" as const : "provider-document-chunk" as const,
         providerId, content: text(row.memory ?? row.chunk, 65_536), similarity: row.similarity,
@@ -356,7 +372,9 @@ export async function runFrameworkPilotSupermemoryV1(input: unknown, suppliedIO:
         const customId = text(doc.customId, 100), body = submitted.get(customId), documentId = id(doc.id);
         need(body && !found.has(customId), "foreign-or-duplicate-cleanup-document");
         need(!accepted.has(customId) || accepted.get(customId)!.id === documentId, "cleanup-accepted-identity");
-        document(doc, body, documentId); found.add(customId); owned.add(documentId);
+        // List rows omit dreaming/content fields. Ownership admits cleanup even
+        // when a submitted document is still processing or has failed.
+        documentOwnership(doc, body, documentId); found.add(customId); owned.add(documentId);
         if (!accepted.has(customId)) accepted.set(customId, { id: documentId, body, submittedAt: submissionStarted.get(customId)! });
       }
       for (const memory of memories) {

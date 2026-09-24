@@ -22,6 +22,19 @@ The native 768-dimensional output follows the
 Implementations MUST NOT silently truncate it to another Matryoshka dimension
 under profile V1.
 
+For this local profile, `normalization: "l2"` describes cosine comparison:
+the dot product is divided by both vectors' L2 magnitudes. QMD stores model
+output as float32 vectors, whose magnitudes can vary. Its sqlite-vec cosine
+index applies that normalization when calculating distance, as defined by the
+[cosine implementation](https://github.com/asg017/sqlite-vec/blob/e9f598abfa0c06b328d8fe5da9c3760cce74be10/sqlite-vec.c#L436).
+The backend exposes source-bound hits and scores; its vector cache is private,
+derived state.
+
+`normalizeOhEmbeddingV1` explicitly returns a unit-length vector.
+`cosineSimilarityV1` accepts finite nonzero 768-dimensional vectors and
+normalizes them for comparison. The separate [hosted cache contract](semantic-cloud.md)
+specifies normalized stored vector bytes.
+
 ## Derived document contract
 
 For each current record, Oh writes one local Markdown document whose filename

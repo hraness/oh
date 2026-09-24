@@ -52,6 +52,10 @@ source bridge reconciles complete histories while separating evaluator fields;
 its common renderer distinguishes original source from provider-generated
 evidence and enforces the shared context budget. No matched score is reported.
 
+The [separate reader and judge stages](FRAMEWORK_PILOT_PAID_STAGES_V1.md) preserve
+all 180 logical cells, share identical first requests and retain unresolved
+charges. Gold references become available only after reader results close.
+
 The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
 answer or recall gain from shipped hybrid search over matched vector retrieval.
 The [LoCoMo packing study](LOCOMO_WINDOW_QA_V1.md) confirmed an evidence-recall

@@ -87,6 +87,10 @@ will fit. Request counts exclude provider-internal work and are not a cash cap.
 Results distinguish `provider-generated-memory` from
 `provider-document-chunk`. Returned document references join to accepted source
 units, but neither result kind is claimed to be authenticated original text.
+The join accepts an internal document ID or the custom ID already verified by
+the readiness GET. It emits the accepted internal ID and rejects ambiguous
+aliases, duplicate references and contradictory source metadata. Exact provider
+response bytes retain the original reference spelling.
 They must not be relabeled as source-unit Recall@20. The
 [common evidence renderer](FRAMEWORK_PILOT_EVIDENCE_V1.md#comparable-evidence-strings)
 retains the evidence kind when preparing a reader context.
@@ -94,8 +98,32 @@ retains the evidence kind when preparing a reader context.
 Cleanup requires complete scoped inventories and ownership checks. It deletes
 only the owned namespace, checks known document IDs for absence, and observes
 two empty inventories separated by the declared delay. Uncertain writes retain
-their identities for reconciliation. Scoped absence does not prove physical
+their identities for reconciliation. List rows establish ownership; they need
+not contain the dreaming status or source echo required from readiness GETs.
+Owned documents can be cleaned up while processing or after a processing failure.
+Scoped absence does not prove physical
 erasure, cancellation of internal work or final billing settlement.
+
+### Batch preparation
+
+The [V2 batch helper](../scripts/benchmarks/framework-pilot-supermemory-batch-v2.ts)
+packs complete document objects in source order, under an explicit 32 or 128 KiB
+request ceiling and at most 600 documents per batch. It never splits, trims,
+reorders or substitutes source text. These byte ceilings are client bounds;
+they do not establish provider capacity.
+
+Batch acknowledgments do not identify source documents by position. The helper
+joins their unordered IDs to a separately captured inventory using exact custom
+IDs, namespace and source metadata. The transport owner must stop further
+ingestion after partial or uncertain responses and preserve every possible write
+for cleanup. A complete membership
+join still requires independent pagination, readiness and process verification
+before search or deletion.
+
+Batch size and dreaming policy are explicit parts of the procedure. The pinned
+provider schema describes processing by document date within a batch; it does
+not establish cross-batch or equal-date order. Source request order and provider
+processing order remain distinct observations.
 
 ## Reader and judge routes
 

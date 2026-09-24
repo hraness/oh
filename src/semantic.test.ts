@@ -84,6 +84,21 @@ describe("local EmbeddingGemma profile", () => {
     expect(cosineSimilarityV1(vector, vector)).toBeCloseTo(1);
     expect(() => normalizeOhEmbeddingV1([1, 2])).toThrow("768");
   });
+
+  test("cosine comparison preserves direction when non-unit vectors are scaled", () => {
+    const document = Array.from({ length: 768 }, (_, index) => index === 0 ? 3 : index === 1 ? 4 : 0);
+    const query = Array.from({ length: 768 }, (_, index) => index === 0 ? 7 : 0);
+    // The 3-4-5 triangle has cosine 3/5 against the first axis, regardless of positive scale.
+    expect(cosineSimilarityV1(query, document)).toBeCloseTo(0.6, 12);
+    expect(cosineSimilarityV1(query.map(value => value * 8), document)).toBeCloseTo(0.6, 12);
+    expect(cosineSimilarityV1(query, document.map(value => value * 64))).toBeCloseTo(0.6, 12);
+    expect(cosineSimilarityV1(query.map(value => value * 8), document.map(value => value * 64))).toBeCloseTo(0.6, 12);
+    expect(cosineSimilarityV1(query.map(value => -value), document)).toBeCloseTo(-0.6, 12);
+    expect(query[0]).toBe(7);
+    expect(document.slice(0, 2)).toEqual([3, 4]);
+    expect(() => cosineSimilarityV1(query.map(() => 0), document)).toThrow("nonzero magnitude");
+    expect(() => cosineSimilarityV1([NaN, ...query.slice(1)], document)).toThrow("finite values");
+  });
 });
 
 describe("QMD derived index confinement", () => {
