@@ -3,6 +3,7 @@ import { AskAiAboutThis } from "@hraness/ui";
 import type { Metadata } from "next";
 import contract from "../../public/spec/v1/contract.json";
 import manifest from "../../public/spec/manifest.json";
+import { specificationDescription, specificationTitle } from "../metadata-copy";
 import { OhContentFooter } from "../site-footer";
 
 const currentVersion = manifest.versions.find((version) => version.id === manifest.current) ??
@@ -10,22 +11,17 @@ const currentVersion = manifest.versions.find((version) => version.id === manife
     throw new Error("The public specification manifest has no current version.");
   })();
 
-const specificationTitle = "Oh ontology specification v1";
-const specificationDescription =
-  "The current, local-first ontology and storage contract behind Oh.";
-
 export const metadata: Metadata = {
   title: specificationTitle,
-  description:
-    "The versioned contract for Oh records, graph revisions, SQLite and libSQL authority, projections, and composite memory.",
+  description: specificationDescription,
   alternates: { canonical: "/spec" },
   openGraph: {
     title: specificationTitle,
     description: specificationDescription,
     images: [{
-      alt: "open-source tools for agentic research",
+      alt: specificationTitle,
       height: 630,
-      url: "/og.png",
+      url: "/spec/opengraph-image",
       width: 1200,
     }],
     url: "/spec",
@@ -34,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: specificationTitle,
     description: specificationDescription,
-    images: ["/og.png"],
+    images: ["/spec/opengraph-image"],
   },
 };
 
@@ -83,9 +79,11 @@ export default function Specification() {
               <h1>Oh ontology<br />specification</h1>
             </div>
             <p>
-              A deterministic contract for agents that create, connect, query,
-              and synchronize research knowledge. Local SQLite is authoritative;
-              every network and semantic capability is replaceable.
+              This specification defines the records, storage, and sync
+              protocol that independent Oh implementations need to
+              interoperate, down to the canonical bytes. By default the local
+              SQLite database is the source of truth, and network sync and
+              semantic search are optional and replaceable.
             </p>
           </header>
 
@@ -206,12 +204,13 @@ export default function Specification() {
                 exact current authoritative record digest.
               </p>
               <p className="callout">
-                Semantic V2 data is a derived cache keyed by profile and exact
-                renderer, host-controlled isolation, authority generation, and
-                record digest. Isolation scopes vector reuse and purge without
-                changing provider text. Keyword search stays available without
-                a model; hosted failure never weakens exact graph or Datalog
-                operations.
+                Semantic V2 data is a rebuildable cache. Its entries are keyed
+                by embedding profile and exact renderer, an isolation digest the
+                host controls, the cache generation, and the record digest. The
+                isolation digest limits which vectors are reused or purged
+                together and never changes the text sent to the provider.
+                Keyword search works without a model, and a hosted failure never
+                weakens exact graph or Datalog operations.
               </p>
             </div>
           </section>
@@ -239,29 +238,43 @@ export default function Specification() {
             <div>
               <h2>Composite agent memory</h2>
               <p>
-                One stable host-bound facade composes a separately governed
-                working authority with one exact canonical head. Host-purposed
-                named programs see lane-tagged facts, visible conflicts, exact
-                physical authority and extractor digests, and bounded proofs
-                without receiving store locators or canonical mutation handles.
-                The additive V2 facade lets a host declare primitive query-body
-                parameters and stable bounded pages. Its authenticated bearer
-                cursors fail if the physical heads, program, bindings, or
-                complete result change; a stable host key carries exact cursors
-                across facade reconstruction. Explanation evidence shares one
-                bounded cache and clock guard across canonical rollover.
+                Composite memory gives an agent one interface over two Oh
+                stores. The agent writes to a working store, which the host can
+                purge, and reads a canonical store pinned at one head the host
+                selects. The agent runs only the named query programs the host
+                registers. Those programs see each fact tagged with the store it
+                came from, conflicts between the two stores, the fact pack or
+                extractor digest behind each fact, and size-limited proofs. The
+                agent object exposes no store location and no way to write to
+                the canonical store.
+              </p>
+              <p>
+                The V2 query interface lets the host name the query variables an
+                agent may fill with primitive JSON values, and returns results
+                in pages of at most 256 rows. Each continuation cursor is
+                authenticated and stops working if either store’s head, the
+                program, the parameters, or the complete result changes. A host
+                that rebuilds the interface or routes cursors to another replica
+                supplies the same private key, so its cursors still
+                authenticate. When the host advances the canonical pin,
+                explanations keep one shared cache, capped at 256 entries and 64
+                MiB, and one set of clock checks.
               </p>
               <p className="callout">
-                Working nominations are verified dependency-closure proposals.
-                The separate host control re-exports each proposal and adopts
-                absent records through one compare-and-swap operation. A
-                different canonical digest fails closed unless trusted host
-                code names the exact logical key and exact reviewed prior
-                digest; stale or partial replacement claims cannot write.
-                Prospective snapshots over the lane limits also fail closed. It
-                reconciles the physical head after the commit, so a replay
-                cannot install an obsolete head. A derived result never
-                promotes itself.
+                An agent proposes records for the canonical store by nominating
+                them together with every record they depend on. Only host code
+                can adopt a nomination. Adoption re-exports the records from the
+                working store, requires them to match the proposal byte for
+                byte, and adds the records the canonical store lacks in one
+                compare-and-swap operation. If the canonical store holds a
+                different version of a record, adoption fails unless trusted
+                host code names that record’s key and the exact prior digest
+                it reviewed; a stale or missing replacement claim blocks the
+                whole write. Adoption also fails if the canonical snapshot would
+                exceed 8,192 records or 32 MiB. After the commit, adoption pins
+                the new head only if it is still the store’s current head, so
+                a replayed request cannot pin an older one. A derived result
+                never enters the canonical store on its own.
               </p>
               <p>
                 The stable memory-page profile carries bounded Markdown,
