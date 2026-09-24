@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 // Playwright 1.62 has no reduced-transparency option. Use its owned Chromium
 // session for this one preference, preserving all existing media and scroll.
-export async function withReducedTransparency(page, inspect) {
+export async function withReducedTransparency(page, inspect, ownedSession) {
   const initial = await page.evaluate(() => ({
     scrollX, scrollY,
     features: [
@@ -12,7 +12,7 @@ export async function withReducedTransparency(page, inspect) {
       { name: "forced-colors", value: matchMedia("(forced-colors: active)").matches ? "active" : "none" },
     ],
   }));
-  const session = await page.context().newCDPSession(page);
+  const session = ownedSession ?? await page.context().newCDPSession(page);
   const select = async (features) => {
     await session.send("Emulation.setEmulatedMedia", { features });
     assert.equal(await page.evaluate((features) => features.every(({ name, value }) =>
@@ -29,7 +29,11 @@ export async function withReducedTransparency(page, inspect) {
     try {
       await page.evaluate(({ scrollX, scrollY }) => scrollTo({ left: scrollX, top: scrollY, behavior: "instant" }), initial);
     } catch (error) { failures.push(error); }
-    try { await session.detach(); } catch (error) { failures.push(error); }
+    // A supplied page-owned session must stay attached: Chromium resets native
+    // media overrides when the debugging session detaches.
+    if (!ownedSession) {
+      try { await session.detach(); } catch (error) { failures.push(error); }
+    }
   }
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1) throw new AggregateError(failures, "Native transparency inspection and cleanup failed");

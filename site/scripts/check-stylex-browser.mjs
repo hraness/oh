@@ -59,96 +59,168 @@ function closeTo(actual, expected, label) {
   assert.ok(Math.abs(Number.parseFloat(actual) - expected) < 0.15, `${label}: ${actual}, expected ${expected}px`);
 }
 
-async function inspectOhFieldLifecycle(page, context, origin) {
-  const transforms = () => page.locator(".oh-organism").evaluateAll((nodes) => nodes.map((node) => node.style.transform));
-  const awaitAdvance = (before) => page.waitForFunction((values) => {
-    const nodes = [...document.querySelectorAll(".oh-organism")];
-    return nodes.length === values.length && nodes.some((node, index) => node.style.transform !== values[index]);
-  }, before, { timeout: 5000 });
-  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
-  await page.waitForFunction(() => {
-    const field = document.querySelector(".oh-field"), nodes = [...document.querySelectorAll(".oh-organism")];
-    const rect = field?.getBoundingClientRect();
-    return !document.hidden && rect && rect.bottom > 0 && rect.top < innerHeight
-      && nodes.length > 0 && nodes.every((node) => node.style.transform !== "");
-  });
-  const visibleBefore = await transforms();
-  await awaitAdvance(visibleBefore);
-  const visibleAfter = await transforms();
+const nativeMediaSessions = new WeakMap();
+async function nativeMediaSession(page) {
+  let session = nativeMediaSessions.get(page);
+  if (!session) {
+    session = await page.context().newCDPSession(page);
+    nativeMediaSessions.set(page, session);
+  }
+  // Chromium clears emulated media on detach. The page/context owns this
+  // session for the entire case and closes it in the existing finally block.
+  return session;
+}
 
-  await page.locator("#benchmarks").scrollIntoViewIfNeeded();
-  // A fresh intersection observation plus two frames lets the component's
-  // observer process the same offscreen transition before sampling its output.
-  await page.evaluate(async () => {
-    const field = document.querySelector(".oh-field");
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        observer.disconnect();
-        reject(new Error("Hero did not become offscreen within 5 seconds"));
-      }, 5000);
-      const observer = new IntersectionObserver(([entry]) => {
-        if (!entry.isIntersecting) {
-          clearTimeout(timeout);
-          observer.disconnect();
-          resolve();
-        }
-      });
-      observer.observe(field);
-    });
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+async function selectNativeMedia(page, overrides) {
+  const features = await page.evaluate((overrides) => Object.entries({
+    "prefers-color-scheme": matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+    "prefers-reduced-motion": matchMedia("(prefers-reduced-motion: reduce)").matches ? "reduce" : "no-preference",
+    "prefers-reduced-transparency": matchMedia("(prefers-reduced-transparency: reduce)").matches ? "reduce" : "no-preference",
+    "forced-colors": matchMedia("(forced-colors: active)").matches ? "active" : "none",
+    ...overrides,
+  }).map(([name, value]) => ({ name, value })), overrides);
+  const session = await nativeMediaSession(page);
+  await session.send("Emulation.setEmulatedMedia", { features });
+  assert.equal(await page.evaluate((features) => features.every(({ name, value }) => matchMedia(`(${name}: ${value})`).matches), features), true);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
+async function inspectOhFieldLifecycle(page, mobile) {
+  await page.bringToFront();
+  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+  await page.waitForFunction(() => scrollY === 0);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const host = page.locator(".hraness-material-wall");
+  const light = () => host.evaluate((element) => element.style.getPropertyValue("--hraness-hero-light-x"));
+  const eligible = await page.evaluate(() => matchMedia("(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) and (forced-colors: none)").matches);
+  assert.equal(eligible, !mobile, "Native pointer media must match this desktop/mobile case");
+  assert.equal(await page.locator(".oh-organism").count(), 12, "All authored organisms exist before pointer interaction");
+  const move = async () => {
+    const box = await host.boundingBox();
+    assert.ok(box && box.height > 0);
+    await page.mouse.move(box.x + box.width * .22, Math.max(90, box.y + 80));
+  };
+  const headingGeometry = () => page.locator("h1").evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
   });
-  const samplePaused = (dispatchVisibility) => page.evaluate(async (dispatch) => {
-    const field = document.querySelector(".oh-field"), nodes = [...document.querySelectorAll(".oh-organism")];
-    const before = nodes.map((node) => node.style.transform), started = performance.now();
-    if (dispatch) document.dispatchEvent(new Event("visibilitychange"));
+  const headingBefore = await headingGeometry();
+  await move();
+  if (eligible) {
+    await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") !== "");
+    await page.waitForFunction(() => [...document.querySelectorAll(".oh-organism")].some((node) => Number(node.style.getPropertyValue("--hraness-hero-proximity")) > 0));
+  } else {
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await light(), "", "Coarse input keeps the authored field still");
+  }
+  assert.deepEqual(await headingGeometry(), headingBefore, "Pointer light never moves the headline in the document");
+  const activeLight = await light();
+  if (eligible) {
+    // Exercise the subscribed visibility handler while paint is active, as
+    // well as checking below that it cannot restart an offscreen field.
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    assert.equal(await light(), "", "Visibility notification clears active light");
+    assert.equal(await page.locator(".oh-organism").evaluateAll((nodes) => nodes.every((node) => !node.style.getPropertyValue("--hraness-hero-proximity"))), true);
+    await move();
+    await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") !== "");
+  }
+  await page.locator("#benchmarks").scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelector(".hraness-material-wall").getBoundingClientRect().bottom <= 0);
+  await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") === "");
+  const offscreen = await page.evaluate(async () => {
+    const host = document.querySelector(".hraness-material-wall");
+    const nodes = [...document.querySelectorAll(".oh-organism")];
+    document.dispatchEvent(new Event("visibilitychange"));
     let changedFrames = 0;
     for (let frame = 0; frame < 8; frame++) {
       await new Promise(requestAnimationFrame);
-      if (nodes.some((node, index) => node.style.transform !== before[index])) changedFrames++;
+      if (host.style.getPropertyValue("--hraness-hero-light-x") || nodes.some((node) => node.style.getPropertyValue("--hraness-hero-proximity"))) changedFrames++;
     }
-    return { documentVisible: !document.hidden, offscreen: field.getBoundingClientRect().bottom <= 0,
-      organisms: nodes.length, frames: 8, changedFrames, elapsedMs: performance.now() - started };
-  }, dispatchVisibility);
-  const offscreen = await samplePaused(false);
-  const visibilityEvent = await samplePaused(true);
-  for (const sample of [offscreen, visibilityEvent]) {
-    assert.equal(sample.documentVisible && sample.offscreen, true, "Hero must be offscreen in a visible document");
-    assert.equal(sample.organisms, visibleBefore.length);
-    assert.equal(sample.changedFrames, 0, "Offscreen inline transforms must stay paused, including after visibilitychange");
-  }
-  const paused = await transforms();
+    return { documentVisible: !document.hidden, offscreen: host.getBoundingClientRect().bottom <= 0, organisms: nodes.length, frames: 8, changedFrames };
+  });
+  assert.deepEqual(offscreen, { documentVisible: true, offscreen: true, organisms: 12, frames: 8, changedFrames: 0 });
   await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
-  await awaitAdvance(paused);
-  const resumed = await transforms();
-
-  // Reduced motion must be set before navigation: the effect should never
-  // create organisms. Computed CSS morph animation is deliberately not tested.
-  const reducedPage = await context.newPage();
-  const reducedErrors = [];
-  reducedPage.on("pageerror", (error) => reducedErrors.push(error.message));
-  let reducedMotion;
-  try {
-    await reducedPage.emulateMedia({ reducedMotion: "reduce" });
-    assert.equal((await reducedPage.goto(origin, { waitUntil: "networkidle" })).status(), 200);
-    reducedMotion = await reducedPage.evaluate(async () => {
-      await document.fonts.ready;
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      return { requested: matchMedia("(prefers-reduced-motion: reduce)").matches,
-        fields: document.querySelectorAll(".oh-field").length, organisms: document.querySelectorAll(".oh-organism").length };
-    });
-    assert.deepEqual(reducedMotion, { requested: true, fields: 1, organisms: 0 });
-    assert.deepEqual(reducedErrors, [], "Reduced-motion page must have no uncaught browser errors");
-  } finally { await reducedPage.close(); }
-  return { visible: { organisms: visibleBefore.length, transformsAdvanced: visibleAfter.some((value, index) => value !== visibleBefore[index]) },
-    offscreen, visibilityEvent, resumed: resumed.some((value, index) => value !== paused[index]), reducedMotion };
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await move();
+  if (eligible) await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") !== "");
+  const resumedLight = await light();
+  await selectNativeMedia(page, { "prefers-reduced-motion": "reduce" });
+  await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") === "");
+  await move();
+  const reducedMotion = await page.locator(".oh-organism").evaluateAll((nodes) => ({
+    requested: matchMedia("(prefers-reduced-motion: reduce)").matches,
+    organisms: nodes.length,
+    stationary: nodes.every((node) => getComputedStyle(node).transform === "none" && !node.style.getPropertyValue("--hraness-hero-proximity")),
+  }));
+  assert.deepEqual(reducedMotion, { requested: true, organisms: 12, stationary: true });
+  await selectNativeMedia(page, { "prefers-reduced-motion": "no-preference" });
+  return { eligible, activeLight, offscreen, resumedLight, reducedMotion };
 }
 
+async function inspectAppearanceCases(browser, origin) {
+  const rows = [];
+  const expected = { light: "rgb(251, 241, 199)", dark: "rgb(40, 40, 40)" };
+  for (const width of [390, 1440]) for (const colorScheme of ["light", "dark"]) {
+    const context = await browser.newContext({ javaScriptEnabled: false, colorScheme, viewport: { width, height: 900 } });
+    try {
+      const page = await context.newPage();
+      for (const route of ["/", "/spec"]) {
+        assert.equal((await page.goto(`${origin}${route}`, { waitUntil: "networkidle" })).status(), 200);
+        const paint = await page.evaluate(async () => {
+          await document.fonts.ready;
+          return { background: getComputedStyle(document.body).backgroundColor,
+            palette: document.documentElement.dataset.palette,
+            scrollWidth: document.documentElement.scrollWidth, viewportWidth: innerWidth,
+            heading: document.querySelector("h1")?.textContent,
+            organisms: document.querySelectorAll(".oh-organism").length };
+        });
+        assert.equal(paint.background, expected[colorScheme]);
+        assert.equal(paint.palette, "gruvbox");
+        assert.ok(paint.scrollWidth <= width, `No-JavaScript content stays inside ${width}px viewport`);
+        assert.equal(paint.viewportWidth, width, "Overflow must not expand the mobile viewport");
+        assert.ok(paint.heading);
+        assert.equal(paint.organisms, route === "/" ? 12 : 0);
+        rows.push({ label: `no-js-${width}-${colorScheme}-${route === "/" ? "home" : "spec"}`, paint });
+      }
+    } finally { await context.close(); }
+  }
+  for (const width of [390, 1440]) {
+    const context = await browser.newContext({ colorScheme: "light", viewport: { width, height: 900 } });
+    try {
+      const page = await context.newPage();
+      assert.equal((await page.goto(origin, { waitUntil: "networkidle" })).status(), 200);
+      const menu = page.locator('[data-hraness-appearance-menu]');
+      assert.equal(await menu.count(), 1);
+      await page.waitForFunction(() => document.querySelector('[data-hraness-appearance-menu]')?.dataset.ready === "true");
+      await menu.locator("summary").focus();
+      await page.keyboard.press("Enter");
+      await menu.getByRole("radio", { name: "Tokyo Night", exact: true }).check();
+      await menu.getByRole("radio", { name: "Dark", exact: true }).check();
+      await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === "rgb(26, 27, 38)");
+      const panel = await menu.locator(":scope > div").boundingBox();
+      assert.ok(panel && panel.x >= 0 && panel.x + panel.width <= width, "Appearance choices stay inside viewport");
+      await page.keyboard.press("Escape");
+      assert.equal(await menu.evaluate((node) => node.open), false);
+      assert.equal(await menu.locator("summary").evaluate((node) => document.activeElement === node), true);
+      await page.goto(`${origin}/spec`, { waitUntil: "networkidle" });
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(26, 27, 38)", "Saved choice survives route and reload");
+      await menu.locator("summary").click();
+      await menu.getByRole("radio", { name: "Gruvbox", exact: true }).check();
+      await menu.getByRole("radio", { name: "System", exact: true }).check();
+      await selectNativeMedia(page, { "prefers-color-scheme": "dark" });
+      await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === "rgb(40, 40, 40)");
+      await selectNativeMedia(page, { "prefers-color-scheme": "light" });
+      await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === "rgb(251, 241, 199)");
+      rows.push({ label: `appearance-${width}`, savedPalette: "tokyo-night", savedMode: "dark", liveSystem: ["dark", "light"], keyboard: "passed", boundedPanel: panel });
+    } finally { await context.close(); }
+  }
+  return rows;
+}
 
-// Immutable design-kit v0.8.0 assets, checked independently of the current build.
+// The weave field retains the immutable grain asset; its pattern is authored CSS.
 async function assertWallAssets(context, background, origin) {
   const expected = [
     ['grain', 152319, 'b40c33a0e382c8e9d0518b4720321b5c262a929c28d40a190a902d07acd06553'],
-    ['cells', 17102, 'be9b12eefeae91772f024ed24ccda5be6173fb626921374b7e5270c298611b01'],
   ];
   const urls = [...background.matchAll(/url\("([^"]+)"\)/gu)].map(match => new URL(match[1], origin));
   assert.equal(urls.length, expected.length);
@@ -196,6 +268,7 @@ try {
   launchPromise = chromium.launch({
     executablePath, headless: true, timeout: 15_000,
     handleSIGHUP: false, handleSIGINT: false, handleSIGTERM: false,
+    args: ["--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4"],
   });
   browser = await launchPromise;
   assert.equal(interrupted, false, "Browser run interrupted");
@@ -204,10 +277,11 @@ try {
     for (const colorScheme of ["light", "dark"]) {
       const context = await browser.newContext({
         viewport: { width: mobile ? 390 : 1440, height: 900 },
-        isMobile: mobile, hasTouch: mobile, colorScheme,
+        isMobile: mobile, hasTouch: mobile, colorScheme, reducedMotion: "no-preference", forcedColors: "none",
       });
       try {
         const page = await context.newPage();
+        await selectNativeMedia(page, { "prefers-reduced-transparency": "no-preference" });
         const failures = [];
         page.on("pageerror", (error) => failures.push(error.message));
         page.on("response", (response) => {
@@ -228,7 +302,7 @@ try {
               return Object.fromEntries([
                 "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing",
                 "textTransform", "minBlockSize", "paddingBlockStart", "paddingBlockEnd", "backgroundImage",
-                "backgroundColor", "backgroundSize", "color", "backdropFilter", "borderTopStyle", "borderTopWidth",
+                "backgroundColor", "backgroundSize", "color", "backdropFilter", "borderTopStyle", "borderTopWidth", "boxShadow",
               ].map((name) => [name, style[name]]));
             };
             const layers = [];
@@ -247,9 +321,10 @@ try {
             };
             for (const sheet of document.styleSheets) visit(sheet.cssRules);
             return {
-              overflow: document.documentElement.scrollWidth > innerWidth,
+              scrollWidth: document.documentElement.scrollWidth, viewportWidth: innerWidth,
               background: getComputedStyle(document.body).backgroundColor,
               body: styles("body"), heading: styles("h1"),
+              primaryAction: styles('.hraness-marketing-header .hraness-marketing-action[data-emphasis="primary"]'),
               sectionHeading: styles(".hraness-marketing-section__heading"),
               header: styles(".hraness-marketing-header__inner"),
               hero: styles(".hraness-marketing-hero"), field: styles(".hraness-material-wall"),
@@ -265,9 +340,12 @@ try {
           const label = `${mobile ? "mobile" : "desktop"}-${colorScheme}-${route === "/" ? "home" : "spec"}`;
           evidence.push({ label, metrics });
           if (artifacts) await page.screenshot({ path: join(artifacts, `${label}.png`) });
-          assert.equal(metrics.overflow, false, `${label}: horizontal overflow`);
-          assert.equal(metrics.background, colorScheme === "light" ? "rgb(248, 247, 244)" : "rgb(18, 16, 15)");
+          assert.ok(metrics.scrollWidth <= (mobile ? 390 : 1440), `${label}: horizontal overflow`);
+          assert.equal(metrics.viewportWidth, mobile ? 390 : 1440, `${label}: requested viewport remains fixed`);
+          assert.equal(metrics.background, colorScheme === "light" ? "rgb(251, 241, 199)" : "rgb(40, 40, 40)");
           assert.match(metrics.body.fontFamily, /Nebula Sans/u);
+          assert.equal(metrics.primaryAction.color, colorScheme === "light" ? "rgb(251, 241, 199)" : "rgb(40, 40, 40)", "Primary action uses paired Gruvbox ink");
+          assert.ok(metrics.primaryAction.backgroundImage.includes(colorScheme === "light" ? "rgb(6, 89, 104)" : "rgb(169, 193, 184)"), "Primary action foil uses the selected palette surface");
           assert.equal(metrics.fonts.body, true);
           assert.ok(metrics.loadedFonts.includes("Nebula Sans"), "Nebula Sans must be a loaded font face");
           assert.match(metrics.label.fontFamily, /Nebula Sans/u);
@@ -281,22 +359,25 @@ try {
             assert.equal(metrics.fonts.display, true);
             assert.ok(metrics.loadedFonts.includes("Instrument Serif"), "Instrument Serif must be a loaded font face");
             assert.match(metrics.heading.fontFamily, /Instrument Serif/u);
-            closeTo(metrics.heading.fontSize, mobile ? 44 : 64, "editorial h1");
-            closeTo(metrics.heading.lineHeight, (mobile ? 44 : 64) * 1.06, "editorial h1 leading");
-            closeTo(metrics.header.minBlockSize, 72, "editorial header");
-            closeTo(metrics.hero.paddingBlockStart, mobile ? 44 : 56, "editorial hero start");
-            closeTo(metrics.hero.paddingBlockEnd, mobile ? 72 : 64, "editorial hero end");
-            closeTo(metrics.sectionHeading.fontSize, mobile ? 38.4 : 52, "editorial h2");
+            closeTo(metrics.heading.fontSize, mobile ? 49.98 : 88, "editorial h1");
+            closeTo(metrics.heading.lineHeight, (mobile ? 49.98 : 88) * 1.02, "editorial h1 leading");
+            closeTo(metrics.header.minBlockSize, 52, "editorial header");
+            closeTo(metrics.hero.paddingBlockStart, mobile ? 56 : 112, "editorial hero start");
+            closeTo(metrics.hero.paddingBlockEnd, mobile ? 72 : 128, "editorial hero end");
+            closeTo(metrics.sectionHeading.fontSize, mobile ? 34 : 56, "editorial h2");
             assert.ok(metrics.layers.some((layer) => layer.startsWith("oh-marketing")), "Editorial override layer missing");
             assert.equal(metrics.material, true);
             assert.ok(metrics.layers.includes("oh-material"), "Lantern override layer missing");
-            assert.equal((metrics.field.backgroundImage.match(/gradient\(/gu) ?? []).length, 2);
+            assert.equal((metrics.field.backgroundImage.match(/gradient\(/gu) ?? []).length, 3);
             assert.equal((metrics.field.backgroundImage.match(/radial-gradient\(/gu) ?? []).length, 1);
+            assert.equal((metrics.field.backgroundImage.match(/repeating-conic-gradient\(/gu) ?? []).length, 1);
             assert.doesNotMatch(metrics.field.backgroundImage, /repeating-linear-gradient\(/u);
-            assert.equal(metrics.field.backgroundSize, `64px 64px, ${mobile ? 576 : 768}px ${mobile ? 576 : 768}px, 100% 100%, 100% 100%`);
+            assert.equal(metrics.field.backgroundSize, "64px 64px, 24px 24px, 100% 100%, 100% 100%");
             metrics.textures = await assertWallAssets(context, metrics.field.backgroundImage, origin);
-            assert.equal(metrics.pane.backgroundColor, colorScheme === "light" ? "rgb(255, 254, 250)" : "rgb(29, 26, 24)", "Opaque Paper reading pane");
-            assert.equal(metrics.pane.color, colorScheme === "light" ? "rgb(28, 25, 23)" : "rgb(245, 242, 237)", "Paired reading ink");
+            assert.equal(metrics.pane.backgroundColor, colorScheme === "light" ? "rgb(249, 245, 215)" : "rgb(29, 32, 33)", "Opaque Gruvbox reading pane");
+            // Canonical accessible Gruvbox foreground from palette-system.css.
+            assert.equal(metrics.pane.color, colorScheme === "light" ? "rgb(57, 53, 51)" : "rgb(240, 229, 199)", "Paired reading ink");
+            assert.notEqual(metrics.pane.boxShadow, "none", "Shared soft reading depth");
             assert.equal(metrics.pane.borderTopStyle, "solid");
             closeTo(metrics.pane.borderTopWidth, 1, "reading seam");
             assert.equal(metrics.chrome.backdropFilter, "blur(20px) saturate(1.1)");
@@ -316,14 +397,14 @@ try {
           await page.waitForFunction((hash) => location.hash === hash, target);
           await page.waitForFunction((selector) => {
             const element = document.querySelector(selector);
-            return document.activeElement === element || Math.abs(element.getBoundingClientRect().top) < 2;
+            return document.activeElement === element;
           }, target);
           const askLink = page.locator('[data-slot="ask-ai-about-this-link"]').first();
           await askLink.focus();
           assert.equal(await askLink.evaluate((element) => element.matches(":focus-visible") && Number.parseFloat(getComputedStyle(element).outlineWidth) >= 2), true);
           if (mobile) assert.ok((await askLink.boundingBox()).height >= 48, "Coarse hit target must be at least 48px");
           if (route === "/") {
-            metrics.ohFieldLifecycle = await inspectOhFieldLifecycle(page, context, origin);
+            metrics.ohFieldLifecycle = await inspectOhFieldLifecycle(page, mobile);
             const details = page.locator("details.first-run-details");
             assert.equal(await details.evaluate((element) => element.open), false);
             await details.locator("summary").focus();
@@ -350,8 +431,8 @@ try {
               assert.equal(fallback.chrome.backdrop, "none");
               assert.equal(fallback.chrome.background, metrics.pane.backgroundColor, "Reduced-transparency opaque chrome");
               assert.equal(fallback.pane.background, metrics.pane.backgroundColor);
-            });
-            await page.emulateMedia({ forcedColors: "active" });
+            }, await nativeMediaSession(page));
+            await selectNativeMedia(page, { "forced-colors": "active" });
             try {
               const fallback = await readMaterial();
               for (const surface of [fallback.wall, fallback.chrome, fallback.pane]) {
@@ -364,7 +445,7 @@ try {
               await details.locator("summary").focus();
               assert.equal(await details.locator("summary").evaluate((element) =>
                 element.matches(":focus-visible") && Number.parseFloat(getComputedStyle(element).outlineWidth) >= 2), true);
-            } finally { await page.emulateMedia({ forcedColors: "none" }); }
+            } finally { await selectNativeMedia(page, { "forced-colors": "none" }); }
             assert.equal((await readMaterial()).wall.image, metrics.field.backgroundImage, "Material restores after native media changes");
             metrics.benchmark = await inspectBenchmark(page, label, artifacts);
           }
@@ -375,6 +456,7 @@ try {
     }
   }
   evidence.push(...await runBenchmarkAccessibilityCases(browser, origin, artifacts));
+  evidence.push(...await inspectAppearanceCases(browser, origin));
 } catch (error) {
   log(JSON.stringify({ completed: false, evidence }, null, 2));
   throw error;

@@ -16,6 +16,7 @@ import {
 import { AskAiAboutThis } from "@hraness/ui";
 
 import { OhField } from "./oh-field";
+import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 
 import publishedRelease from "../published-release.json";
 import { MemoryBenchmarkComparison } from "./benchmark-comparison";
@@ -213,7 +214,7 @@ export default function Home() {
   ];
 
   return (
-    <div data-hraness-marketing-preset="editorial" data-hraness-material="lantern">
+    <div data-hraness-marketing-preset="editorial" data-hraness-material="lantern" data-hraness-pattern="weave">
       <script
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         type="application/ld+json"
@@ -226,6 +227,7 @@ export default function Home() {
         brandLabel="Oh home"
         className="hraness-material-chrome"
         links={navigation}
+        trailing={<DesignPaletteMenuButton />}
       />
 
       <main id="main" tabIndex={-1}>
@@ -233,6 +235,7 @@ export default function Home() {
           <div className="hraness-material-wall">
           <OhField />
           <ProductHero
+            backdrop={false}
             actions={[
               { href: "#install", label: "Install Oh" },
               { href: "#trace", label: "See the trace" },

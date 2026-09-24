@@ -1,4 +1,5 @@
 import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
+import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 import { AskAiAboutThis } from "@hraness/ui";
 import type { Metadata } from "next";
 import contract from "../../public/spec/v1/contract.json";
@@ -55,6 +56,7 @@ export default function Specification() {
     <>
       <a className="skip-link" href="#spec-main">Skip to specification</a>
       <MarketingSiteHeader
+        trailing={<DesignPaletteMenuButton />}
         action={{ href: "/#install", label: "Install Oh" }}
         ariaLabel="Specification navigation"
         brand="Oh"
@@ -68,7 +70,7 @@ export default function Specification() {
         ]}
       />
 
-      <main className="spec-shell" id="spec-main">
+      <main className="spec-shell" id="spec-main" tabIndex={-1}>
         <aside className="spec-nav" aria-label="On this page">
           <p>Ontology v1</p>
           {sections.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}

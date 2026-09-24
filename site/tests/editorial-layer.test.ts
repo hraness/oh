@@ -122,7 +122,7 @@ test("Lantern layer relocation preserves arbitrary interleaved inert nodes and t
 });
 
 test("native transparency override changes only its preference and restores media, scroll and session on success or failure", async () => {
-  for (const failure of [false, true]) {
+  for (const failure of [false, true]) for (const owned of [false, true]) {
     const initial = { scrollX: 0, scrollY: 321, features: [
       { name: "prefers-color-scheme", value: "dark" },
       { name: "prefers-reduced-motion", value: "reduce" },
@@ -144,7 +144,7 @@ test("native transparency override changes only its preference and restores medi
       },
     };
     const cause = new Error("inspection failed");
-    const operation = withReducedTransparency(page, async () => { if (failure) throw cause; });
+    const operation = withReducedTransparency(page, async () => { if (failure) throw cause; }, owned ? session : undefined);
     if (failure) await expect(operation).rejects.toBe(cause);
     else await operation;
     expect(sent).toEqual([
@@ -153,6 +153,6 @@ test("native transparency override changes only its preference and restores medi
     ]);
     expect(verified).toBe(2);
     expect(scrolled).toEqual([initial]);
-    expect(detached).toBe(true);
+    expect(detached).toBe(!owned);
   }
 });

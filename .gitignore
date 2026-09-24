@@ -16,3 +16,6 @@ rust/**/*.node
 /dist/rust-artifacts/
 /public/
 .vercel
+
+# Generated prepaint appearance bundle.
+/site/public/theme-bootstrap.js
