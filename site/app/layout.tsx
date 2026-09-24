@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { HranessSiteFooter } from "@hraness/site-footer/react";
+import { DesignPaletteProvider, ThemeColorSync } from "@hraness/design-kit/react";
+import { ohDefaultAppearance, ohInitialTheme } from "../appearance";
 import { ohSupportProfile } from "../../src/support-profile";
 import { FoilController } from "./foil-controller";
 import "./globals.css";
@@ -39,8 +41,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { color: "#f8f7f4", media: "(prefers-color-scheme: light)" },
-    { color: "#12100f", media: "(prefers-color-scheme: dark)" },
+    { color: "#fbf1c7", media: "(prefers-color-scheme: light)" },
+    { color: "#282828", media: "(prefers-color-scheme: dark)" },
   ],
 };
 
@@ -48,13 +50,21 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html data-hraness-theme="paper" lang="en">
+    <html className={ohInitialTheme.className} data-palette={ohDefaultAppearance.palette} data-hraness-theme="paper" lang="en" suppressHydrationWarning>
+      <head>
+        {/* Apply a saved preference before paint. This is a same-origin, build-owned script. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/theme-bootstrap.js" />
+      </head>
       <body>
+        <DesignPaletteProvider defaultPreference={ohDefaultAppearance}>
+        <ThemeColorSync />
         {children}
         <div className="network-footer">
           <HranessSiteFooter placement="flow" mailingList={{ kind: "none" }} support={ohSupportProfile} />
         </div>
         <FoilController />
+        </DesignPaletteProvider>
       </body>
     </html>
   );

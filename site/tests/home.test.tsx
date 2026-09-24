@@ -9,7 +9,7 @@ import rerankResult from "../../benchmarks/results/memory-clonemem-rerank-confir
 import sdkResult from "../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
 
 test("ties the matched chart to evidence and keeps vendor protocols separate", () => {
-  const html = renderToStaticMarkup(<Home />);
+  const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
   const values: string[] = [];
   let copy = "";
   new HTMLRewriter()
@@ -63,8 +63,20 @@ test("both public pages attribute the site to Hraness through the shared footer 
   }
 });
 
+test("skip links transfer keyboard focus to each page's main landmark", () => {
+  for (const [Page, id] of [[Home, "main"], [Specification, "spec-main"]] as const) {
+    const html = renderToStaticMarkup(<RootLayout><Page /></RootLayout>);
+    const targets: string[] = [];
+    new HTMLRewriter().on(`main#${id}`, {
+      element(element) { targets.push(element.getAttribute("tabindex") ?? ""); },
+    }).transform(html);
+    expect(html).toContain(`href="#${id}"`);
+    expect(targets).toEqual(["-1"]);
+  }
+});
+
 test("makes the illustrative citation readable while keeping historical output available", () => {
-  const html = renderToStaticMarkup(<Home />);
+  const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
   const hero = /data-hraness-marketing="hero"[\s\S]*?<\/header>/u.exec(html)?.[0] ?? "";
   expect(html.match(/<h1\b/gu)).toHaveLength(1);
   expect(hero).toContain("What backs the 12-week endpoint?");
@@ -92,7 +104,7 @@ test("makes the illustrative citation readable while keeping historical output a
 });
 
 test("scopes the editorial preset to the homepage and keeps the citation in its field", () => {
-  const html = renderToStaticMarkup(<Home />);
+  const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
   const elements: string[] = [];
   new HTMLRewriter()
     .on('[data-hraness-marketing-preset="editorial"] .hraness-marketing-header', {
@@ -105,7 +117,7 @@ test("scopes the editorial preset to the homepage and keeps the citation in its 
   expect(elements).toEqual(["header", "citation"]);
   expect(html).toContain(`<p class="install-note">Current release · v${publishedRelease.version}</p>`);
 
-  const specification = renderToStaticMarkup(<Specification />);
+  const specification = renderToStaticMarkup(<RootLayout><Specification /></RootLayout>);
   expect(specification).not.toContain("data-hraness-marketing-preset");
   expect(specification).toContain("spec-header");
   expect(specification).toContain("spec-document");
@@ -114,7 +126,7 @@ test("scopes the editorial preset to the homepage and keeps the citation in its 
 });
 
 test("confines Lantern to the homepage chrome, hero wall, citation plane and real disclosure", () => {
-  const html = renderToStaticMarkup(<Home />), hooks: string[] = [];
+  const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>), hooks: string[] = [];
   new HTMLRewriter()
     .on('[data-hraness-material="lantern"]', { element() { hooks.push("island"); } })
     .on('header.hraness-material-chrome', { element() { hooks.push("chrome"); } })
@@ -130,7 +142,7 @@ test("confines Lantern to the homepage chrome, hero wall, citation plane and rea
 
 test("the header keeps a named home link and exact-artwork foil fallback", () => {
   for (const Page of [Home, Specification]) {
-    const html = renderToStaticMarkup(<Page />);
+    const html = renderToStaticMarkup(<RootLayout><Page /></RootLayout>);
     const homeLinks: string[] = [];
     const marks: string[] = [];
     const fallbackImages: string[] = [];

@@ -5,6 +5,7 @@
 @import "../vendor/hraness-marketing/product-marketing-preset.css";
 @import "../vendor/hraness-lantern/lantern-material.css";
 @import "@hraness/site-footer/styles.css";
+@import "@hraness/design-kit/palette-bridge.css";
 
 @media (width < 47.5rem) {
   .network-footer { padding-block-start: 2.5rem; }
@@ -14,10 +15,12 @@
  * oh-marketing layer and Lantern paint in oh-material. Paper and product-specific
  * rules remain unlayered; specification pages never opt into Lantern. */
 
-/* Paper owns the common palette; this local alias keeps the specification and
+/* The shared palette owns color; this local alias keeps the specification and
  * existing proof components independent of the shared stylesheet's layout. */
 :root {
   --inverse-background: var(--inverse);
+  --hraness-site-accent: var(--primary);
+  --hraness-site-accent-ink: var(--primary-foreground);
   font-family: var(--font-text);
   font-synthesis: none;
   line-height: 1.55;
@@ -53,7 +56,7 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
-/* The specification keeps its existing Paper header and reading typography. */
+/* The specification keeps a quiet header and shared reading typography. */
 .spec-header {
   --hraness-marketing-ink: var(--foreground);
   --hraness-marketing-muted: var(--muted);
@@ -79,37 +82,50 @@ a:focus-visible {
   padding-inline: var(--hraness-marketing-gutter);
 }
 
-/* Record organisms — a decorative culture drifting behind the hero wall.
- * Blurred at rest; oh-field.tsx raises --oo-focus with cursor proximity and
- * rare self-reveal pulses, sharpening and brightening each organism. The
- * three tints stay quiet: the accent, the warm muted, and one cool teal. */
-.hraness-material-wall { position: relative; }
-.hraness-material-wall > :not(.oh-field) { position: relative; z-index: 1; }
-.oh-field { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.oh-organism { position: absolute; left: 0; top: 0; padding: .78rem 1rem; border: 1.5px solid var(--oo-edge); background: var(--oo-fill); border-radius: 42% 58% 63% 37% / 45% 40% 60% 55%; animation: oo-morph var(--oo-dur, 9s) ease-in-out infinite alternate; filter: blur(calc((1 - var(--oo-focus, 0)) * 6px)); opacity: calc(.5 + var(--oo-focus, 0) * .5); will-change: transform, filter; }
-.oh-tag { display: flex; flex-direction: column; align-items: center; gap: .14rem; font-family: var(--font-mono); line-height: 1.25; text-align: center; white-space: nowrap; }
-.oh-tag b { font-size: .66rem; font-weight: 650; color: var(--oo-ink); letter-spacing: .01em; }
-.oh-tag i { font-size: .56rem; font-style: normal; color: var(--oo-muted); }
-@keyframes oo-morph {
-  0%   { border-radius: 42% 58% 63% 37% / 45% 40% 60% 55%; }
-  33%  { border-radius: 58% 42% 37% 63% / 52% 58% 42% 48%; }
-  66%  { border-radius: 36% 64% 55% 45% / 62% 38% 55% 45%; }
-  100% { border-radius: 42% 58% 63% 37% / 45% 40% 60% 55%; }
+/* A culture of record organisms, revealed by the shared hero light. */
+.hraness-material-wall {
+  position: relative;
+  isolation: isolate;
+  --hraness-pattern-image: repeating-conic-gradient(from 45deg, color-mix(in srgb, var(--primary) 2%, transparent) 0% 25%, transparent 0% 50%);
 }
-.oo-pop { animation: oo-pop .55s ease-out, oo-morph var(--oo-dur, 9s) ease-in-out infinite alternate; }
-@keyframes oo-pop { 35% { scale: 1.22; } }
-.oo-daughter { animation: oo-born .7s cubic-bezier(.2, .8, .3, 1.25), oo-morph var(--oo-dur, 9s) ease-in-out infinite alternate; }
-@keyframes oo-born { from { scale: .08; } }
-.oo-a { --oo-fill: light-dark(rgba(30, 90, 225, .14), rgba(143, 176, 255, .2)); --oo-edge: light-dark(rgba(30, 90, 225, .42), rgba(143, 176, 255, .5)); --oo-ink: light-dark(#1e5ae1, #8fb0ff); --oo-muted: light-dark(rgba(30, 90, 225, .8), rgba(143, 176, 255, .85)); }
-.oo-b { --oo-fill: light-dark(rgba(108, 102, 95, .13), rgba(170, 162, 154, .18)); --oo-edge: light-dark(rgba(108, 102, 95, .38), rgba(170, 162, 154, .42)); --oo-ink: light-dark(#6c665f, #aaa29a); --oo-muted: light-dark(rgba(108, 102, 95, .8), rgba(170, 162, 154, .85)); }
-.oo-c { --oo-fill: light-dark(rgba(15, 118, 110, .13), rgba(94, 234, 212, .16)); --oo-edge: light-dark(rgba(15, 118, 110, .4), rgba(94, 234, 212, .4)); --oo-ink: light-dark(#0f766e, #5eead4); --oo-muted: light-dark(rgba(15, 118, 110, .8), rgba(94, 234, 212, .85)); }
-@media (prefers-reduced-motion: reduce) { .oh-field { display: none; } }
-@media (forced-colors: active) { .oh-field { display: none; } }
+.hraness-material-wall > :not(.oh-field) { position: relative; z-index: 1; }
+.oh-field { position: absolute; inset: 0; z-index: 0; overflow: clip; pointer-events: none; mask-image: linear-gradient(to bottom, #000 65%, transparent); }
+.oh-organism {
+  --oo-focus: var(--hraness-hero-proximity, 0);
+  position: absolute; padding: 1rem 1.3rem; border: 1px solid transparent;
+  background: color-mix(in oklch, var(--oo-ink) 8%, var(--surface));
+  border-radius: 42% 58% 63% 37% / 45% 40% 60% 55%;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 12%, transparent), 0 6px 20px color-mix(in srgb, var(--foreground) 8%, transparent);
+  filter: blur(calc((1 - var(--oo-focus)) * 3px));
+  opacity: calc(.22 + var(--oo-focus) * .48);
+  transform: translate(var(--hraness-hero-drift-x, 0px), var(--hraness-hero-drift-y, 0px));
+}
+.oh-tag { display: grid; justify-items: center; gap: .3rem; font-family: var(--font-mono); line-height: 1.4; text-align: center; white-space: nowrap; }
+.oh-tag b { font-size: .8125rem; font-weight: 600; color: var(--oo-ink); }
+.oh-tag i { font-size: .6875rem; font-style: normal; color: var(--muted); }
+.oo-a { --oo-ink: var(--primary); }
+.oo-b { --oo-ink: var(--warning); }
+.oo-c { --oo-ink: var(--success); }
+.oh-organism[data-organism="0"] { left: 4%; top: 10%; }
+.oh-organism[data-organism="1"] { left: 75%; top: 8%; }
+.oh-organism[data-organism="2"] { left: 84%; top: 30%; }
+.oh-organism[data-organism="3"] { left: 67%; top: 56%; }
+.oh-organism[data-organism="4"] { left: 7%; top: 52%; }
+.oh-organism[data-organism="5"] { left: 43%; top: 7%; }
+.oh-organism[data-organism="6"] { left: 55%; top: 72%; }
+.oh-organism[data-organism="7"] { left: 18%; top: 77%; }
+.oh-organism[data-organism="8"] { left: 86%; top: 75%; }
+.oh-organism[data-organism="9"] { left: 29%; top: 27%; }
+.oh-organism[data-organism="10"] { left: 58%; top: 28%; }
+.oh-organism[data-organism="11"] { left: 39%; top: 56%; }
+@media (width < 46rem) { .oh-organism:nth-child(n + 7) { display: none; } .oh-field { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .oh-organism { transform: none; filter: blur(2px); opacity: .22; } }
+@media (forced-colors: active), (prefers-reduced-transparency: reduce) { .oh-field { display: none; } }
 
 /* The hero board — the citation pane in front, its canonical record tilted
  * behind, and the record's own digest stamped at the edge. */
 .oh-board { position: relative; }
-.oh-record-card { position: absolute; z-index: 0; inset-block-start: -2.4rem; inset-inline-end: -1.2rem; width: min(23rem, 42%); transform: rotate(2.4deg); background: var(--surface); border: 1px solid var(--line); border-radius: .65rem; box-shadow: 0 14px 34px rgba(28, 25, 23, .1); padding: .75rem .9rem; }
+.oh-record-card { position: absolute; z-index: 0; inset-block-start: -2.4rem; inset-inline-end: -1.2rem; width: min(23rem, 42%); transform: rotate(2.4deg); background: var(--surface); border: 1px solid transparent; border-radius: 1rem; box-shadow: var(--hraness-material-lift); padding: .75rem .9rem; }
 .oh-record-label { margin: 0 0 .4rem; font: .6rem var(--font-mono); color: var(--muted); letter-spacing: .02em; }
 .oh-record-card pre { margin: 0; font: .58rem/1.6 var(--font-mono); color: var(--muted); max-block-size: 10.5rem; overflow: hidden; -webkit-mask-image: linear-gradient(#000 68%, transparent); mask-image: linear-gradient(#000 68%, transparent); }
 .oh-board > .hraness-marketing-proof-frame { position: relative; z-index: 1; }
@@ -161,7 +177,7 @@ a:focus-visible {
 .first-run-details { margin-block-start: 1rem; min-inline-size: 0; }
 .first-run-details > summary { min-block-size: 3rem; padding-block: 0.75rem; cursor: pointer; font-weight: 500; }
 .first-run-details > summary:hover { text-decoration: underline; text-underline-offset: 0.2em; }
-#main:focus { outline: none; }
+#main:focus, #spec-main:focus { outline: none; }
 @media (max-width: 30rem) {
   .citation-preview dl > div { grid-template-columns: minmax(0, 1fr); }
 }
@@ -184,7 +200,7 @@ a:focus-visible {
 .hraness-marketing-question__answer a {
   color: var(--foreground);
   text-decoration: underline;
-  text-decoration-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent);
   text-underline-offset: 0.18em;
 }
 
@@ -269,7 +285,7 @@ a:focus-visible {
 .benchmark-transfer a {
   color: var(--foreground);
   text-decoration: underline;
-  text-decoration-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent);
   text-underline-offset: 0.18em;
 }
 
@@ -298,6 +314,10 @@ a:focus-visible {
 
 /* The specification retains its existing phone navigation behavior. */
 @media (max-width: 48rem) {
+  .hraness-marketing-header__actions {
+    margin-inline-start: auto;
+  }
+
   .spec-header {
     position: static;
   }
@@ -363,21 +383,23 @@ a:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 1.875rem;
-  padding: 0 0.625rem;
-  border: 1px solid var(--line);
-  border-radius: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: var(--elevation-low);
   color: inherit;
   gap: 0.25rem;
   font-family: var(--font-text);
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 1;
   text-decoration: none;
 }
 
 .ask-ai [data-slot="ask-ai-about-this-link"]:hover {
-  border-color: currentColor;
+  background: var(--surface-hover);
   color: var(--foreground);
 }
 
@@ -424,7 +446,7 @@ a:focus-visible {
   flex-direction: column;
   gap: 0.75rem;
   padding: clamp(2.5rem, 6vw, 4rem) 1.5rem 2rem 0;
-  border-right: 1px solid var(--line);
+  box-shadow: 1px 0 14px color-mix(in srgb, var(--foreground) 4%, transparent);
 }
 
 .spec-nav p {
@@ -524,7 +546,7 @@ a:focus-visible {
 .spec-section p code {
   padding: 0.08em 0.38em;
   border-radius: 0.3em;
-  background: color-mix(in oklch, var(--foreground) 7%, transparent);
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
   color: var(--foreground);
   font-size: 0.9em;
 }
@@ -541,9 +563,10 @@ a:focus-visible {
   flex-direction: column;
   gap: 0.35rem;
   padding: 1rem 1.15rem;
-  border: 1px solid var(--line);
-  border-radius: 0.625rem;
+  border: 1px solid transparent;
+  border-radius: 1rem;
   background: var(--surface);
+  box-shadow: var(--elevation-low);
 }
 
 .fact-grid span {
@@ -561,17 +584,20 @@ a:focus-visible {
 .kind-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 1rem;
+  gap: 0.75rem;
   margin: 1.5rem 0 0;
   padding: 0;
   list-style: none;
 }
 
 .kind-grid li {
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: var(--elevation-inset);
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.875rem;
 }
 
 .spec-code {
@@ -581,14 +607,18 @@ a:focus-visible {
   border-radius: 0.625rem;
   background: var(--inverse-background);
   color: var(--inverse-foreground);
-  font-size: 0.85rem;
-  line-height: 1.6;
+  font-size: 0.875rem;
+  line-height: 1.65;
 }
 
+.spec-code code { font-size: inherit; }
+
 .spec-section p.callout {
-  padding-block: 0.5rem;
-  padding-inline: 1.15rem 0;
-  border-inline-start: 1px solid var(--line);
+  padding: 1rem 1.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.875rem;
+  background: var(--surface);
+  box-shadow: var(--elevation-inset);
   color: var(--foreground);
 }
 
@@ -693,3 +723,12 @@ a:focus-visible {
 
 /* Decorative topic icons (agent-generated line art, public/icons/). */
 .oh-topic-icon { display: block; width: 88px; height: 88px; margin: 0 0 18px; }
+
+@media (forced-colors: active), (prefers-contrast: more) {
+  .oh-record-card, .fact-grid div, .kind-grid li, .spec-section p.callout,
+  .ask-ai [data-slot="ask-ai-about-this-link"] { border-color: currentColor; box-shadow: none; }
+  .spec-nav { border-inline-end: 1px solid currentColor; box-shadow: none; }
+  @media (max-width: 48rem) {
+    .spec-nav { border-inline-end: 0; border-block-end: 1px solid currentColor; }
+  }
+}

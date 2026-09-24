@@ -155,7 +155,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/ui": "github:hraness/ui#v0.5.16"',
+      '"@hraness/ui": "github:hraness/ui#v0.5.18"',
     );
     expect(home).toContain('import { AskAiAboutThis } from "@hraness/ui"');
     expect(home).toContain(
@@ -168,7 +168,7 @@ describe("Oh site source contract", () => {
     expect(redirect).not.toContain("AskAiAboutThis");
   });
 
-  test("keeps Paper reading type and pinned packages alongside the marketing preset", async () => {
+  test("keeps shared reading type and pinned packages alongside the marketing preset", async () => {
     const [packageJson, globals, paper] = await Promise.all([
       read("package.json"),
       read("app/globals.css"),
@@ -176,7 +176,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.11.1"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.16.2"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([
@@ -185,6 +185,7 @@ describe("Oh site source contract", () => {
       '@import "../vendor/hraness-marketing/product-marketing-preset.css";',
       '@import "../vendor/hraness-lantern/lantern-material.css";',
       '@import "@hraness/site-footer/styles.css";',
+      '@import "@hraness/design-kit/palette-bridge.css";',
     ]);
     expect(paper).toContain('--font-text: "Nebula Sans"');
     expect(globals).toContain("font-family: var(--font-text)");
@@ -364,10 +365,11 @@ describe("Oh site source contract", () => {
     expect(scripts).toEqual({
       build: "next build --webpack",
       "check:theme": "bun scripts/check-paper-theme.mjs",
-      dev: "next dev --webpack",
+      dev: "bun run build:theme && next dev --webpack",
+      "build:theme": "bun scripts/build-theme-bootstrap.ts",
       lint: "eslint . --ignore-pattern .next",
       postbuild: "bun test ./tests/runtime.test.ts",
-      prebuild: "bun run test",
+      prebuild: "bun run build:theme && bun run test",
       start: "next start",
       test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/editorial-layer.test.ts",
       "test:browser": "bun scripts/check-stylex-browser.mjs",
