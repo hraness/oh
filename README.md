@@ -34,6 +34,8 @@ without an account or hosted model; search indexes stay rebuildable.
   purgeable working authority with one pinned canonical head while preserving
   lane, conflict, record, and proof provenance.
 
+Oh keeps records and operations in one SQLite file you control, makes every accepted change inspectable through digests and replay, and treats search and derivation as views that never become graph authority: the design every Hraness project shares. [The thread through hraness](https://hraness.com/writing/the-thread-through-hraness) follows that design across the projects, and the [ALGAL vision](https://algal.computer/docs/vision/) states the bet behind it.
+
 ## Install and first run
 
 The installation instructions below use `0.12.0`, the
