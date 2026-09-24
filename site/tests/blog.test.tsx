@@ -107,6 +107,11 @@ describe("Oh blog", () => {
       expect(llms).not.toContain(article.slug);
     }
     expect(urls).toContain(`${origin}/blog`);
+    for (const [, url] of llms.matchAll(/\]\((https:\/\/oh\.computer\/blog[^)\s]*)\)/gu)) {
+      expect(urls.includes(url ?? "") || url === `${origin}/blog/feed.xml`).toBe(true);
+    }
+    expect(urls).toContain(`${origin}/spec`);
+    expect(urls.filter((url) => url.startsWith(`${origin}/spec/`))).toEqual([]);
     const entries = sitemap().filter(({ url }) => url.startsWith(`${origin}/blog`));
     for (const entry of entries) expect(entry.lastModified).toBeDefined();
     expect(index).toContain('"@type":"Blog"');

@@ -2,12 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import sitemap from "../app/sitemap";
 
 const site = join(import.meta.dir, "..");
 const read = async (path: string): Promise<string> =>
   await readFile(join(site, path), "utf8");
-const sitemapUrls = (): string[] => sitemap().map(({ url }) => url);
 
 function githubHeadingFragment(heading: string): string {
   return heading
@@ -200,20 +198,22 @@ describe("Oh site source contract", () => {
   });
 
   test("publishes one canonical specification page without redirecting links", async () => {
-    const [home, specification, redirect] = await Promise.all([
+    // The root check runs this file without site dependencies, so it reads the
+    // sitemap source; tests/blog.test.tsx checks the generated sitemap itself.
+    const [home, specification, redirect, sitemap] = await Promise.all([
       read("app/page.tsx"),
       read("app/spec/page.tsx"),
       read("app/spec/v1/page.tsx"),
+      read("app/sitemap.ts"),
     ]);
-    const urls = sitemapUrls();
 
     expect(home).not.toContain('href="/spec/"');
     expect(specification).not.toContain('href="/spec/"');
     expect(specification).toContain('alternates: { canonical: "/spec" }');
     expect(specification).toContain('url: "/spec"');
     expect(redirect).toContain('permanentRedirect("/spec")');
-    expect(urls).toContain("https://oh.computer/spec");
-    expect(urls.filter((url) => url.startsWith("https://oh.computer/spec/"))).toEqual([]);
+    expect(sitemap).toContain('path: "/spec"');
+    expect(sitemap).not.toContain('"/spec/');
   });
 
   test("publishes an llms.txt index that lists only real canonical destinations", async () => {
@@ -231,15 +231,15 @@ describe("Oh site source contract", () => {
     expect(nextConfig).toContain('rel="describedby"');
     expect(nextConfig).toContain("/llms.txt");
 
-    const canonicalRoutes = new Set(sitemapUrls());
-    const generatedRoutes = new Set(["https://oh.computer/sitemap.xml", "https://oh.computer/blog/feed.xml"]);
+    // Generated routes, not public files. tests/blog.test.tsx checks that every
+    // blog URL listed here is in the generated sitemap or is the feed.
+    const generatedRoutes = new Set(["https://oh.computer/", "https://oh.computer/spec", "https://oh.computer/sitemap.xml"]);
     const siteUrls = [...llms.matchAll(/\]\((https:\/\/oh\.computer[^)\s]*)\)/gu)]
       .map(([, url]) => url ?? "");
     expect(siteUrls.length).toBeGreaterThan(0);
     for (const url of siteUrls) {
       const normalized = url === "https://oh.computer" ? "https://oh.computer/" : url;
-      // The sitemap and the feed are generated routes, not public files.
-      if (canonicalRoutes.has(normalized) || generatedRoutes.has(normalized)) {
+      if (generatedRoutes.has(normalized) || normalized.startsWith("https://oh.computer/blog")) {
         continue;
       }
       const path = normalized.slice("https://oh.computer".length);
