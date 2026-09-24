@@ -106,11 +106,17 @@ erasure, cancellation of internal work or final billing settlement.
 
 ### Batch preparation
 
-The [V2 batch helper](../scripts/benchmarks/framework-pilot-supermemory-batch-v2.ts)
-packs complete document objects in source order, under an explicit 32 or 128 KiB
-request ceiling and at most 600 documents per batch. It never splits, trims,
-reorders or substitutes source text. These byte ceilings are client bounds;
-they do not establish provider capacity.
+The [V3 batch helper](../scripts/benchmarks/framework-pilot-supermemory-batch-v3.ts)
+places `dreaming` on the request and packs documents in source order, under an
+explicit 32 or 128 KiB request ceiling and at most 600 documents per batch. Each
+document keeps its content, date, task, custom ID, tags and source metadata.
+The byte ceiling includes the entire request envelope. The helper never splits,
+trims, reorders or substitutes source text. These byte ceilings are client
+bounds; they do not establish provider capacity.
+
+V2 remains available to reproduce its saved plans. Its per-document `dreaming`
+field was rejected by the provider's batch endpoint. V3 uses separate request,
+plan and observation identities so the correction cannot change a saved V2 run.
 
 Batch acknowledgments do not identify source documents by position. The helper
 joins their unordered IDs to a separately captured inventory using exact custom
