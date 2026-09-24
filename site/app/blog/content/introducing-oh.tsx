@@ -1,4 +1,5 @@
 // Converted from the reviewed draft. Keep the prose; edit facts only with a new review.
+// The draft's links to the consumer posts wait until those posts are live.
 import publishedRelease from "../../../published-release.json";
 
 export const toc = [
@@ -49,7 +50,7 @@ export function IntroducingOhBody() {
         <li><a href="https://sponge.computer">Sponge</a> keeps its hosted agent&apos;s working memory in a server-side Oh store that expires with the session, separate from the product data in Sponge&apos;s own databases.</li>
         <li><a href="https://wordcell.io">Wordcell</a> rebuilds a disposable Oh graph from your Markdown to answer named graph queries with source proofs. Markdown and Git stay the record, and search does not use Oh&apos;s memory retrieval.</li>
       </ul>
-      <p>The <a href="/blog/built-on-oh">list of products built on Oh</a> collects these, and each has its own post: <a href="https://sponge.computer/docs/how-sponge-uses-oh">how Sponge uses Oh</a> and <a href="https://wordcell.io/blog/how-wordcell-uses-oh">how Wordcell uses Oh</a>.</p>
+      <p>The <a href="/blog/built-on-oh">list of products built on Oh</a> collects these.</p>
       <h2 id="limits-of-the-current-release">Limits of the current release</h2>
       <p>Oh does not claim to retrieve better than other memory frameworks. Its README states that superiority over Letta, Supermemory, and other frameworks has not been established.</p>
       <p>Sync accepts only histories that extend each other. When two copies diverge, sync stops and reports the divergence without merging. Graph answers derived by rules come with proofs, and the store never adopts them as records on its own. The CLI and local SQLite store need Bun 1.3.14 or newer; the libSQL store also runs on Node 24 serverless runtimes. The optional research vocabularies map selected Wikidata properties, not all of Wikidata.</p>

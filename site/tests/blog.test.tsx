@@ -118,8 +118,6 @@ describe("Oh blog", () => {
     const external = new Set([
       "https://sponge.computer",
       "https://wordcell.io",
-      "https://sponge.computer/docs/how-sponge-uses-oh",
-      "https://wordcell.io/blog/how-wordcell-uses-oh",
     ]);
     for (const article of articles) {
       const html = await renderArticle(article.slug);
