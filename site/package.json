@@ -14,19 +14,19 @@
     "postbuild": "bun test ./tests/runtime.test.ts",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
-    "test": "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/editorial-layer.test.ts",
+    "test": "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/editorial-layer.test.ts",
     "test:browser": "bun scripts/check-stylex-browser.mjs",
     "typecheck": "tsc --noEmit",
     "build:theme": "bun scripts/build-theme-bootstrap.ts"
   },
   "dependencies": {
-    "@hraness/design-kit": "github:hraness/design-kit#v0.16.2",
+    "@hraness/design-kit": "github:hraness/design-kit#v0.17.0",
     "@hraness/ui": "github:hraness/ui#v0.5.18",
     "next": "16.3.3",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "@hraness/site-footer": "github:hraness/site-footer#v0.15.0",
-    "@hraness/web-discovery": "github:hraness/web-discovery#v0.6.0"
+    "@hraness/web-discovery": "github:hraness/web-discovery#v0.8.0"
   },
   "devDependencies": {
     "@types/bun": "1.3.14",

@@ -3,15 +3,22 @@
 When to use this site:
 - Use oh.computer to evaluate Oh for your agents: the memory and research-graph model, the CLI, TypeScript SDK, and Agent Skill interfaces, and the local install commands.
 - Use /spec for the human-readable Oh ontology and storage contract.
+- Use /blog for articles that explain how Oh works and what it guarantees.
 - Use /spec/manifest.json for the machine-readable index of every specification version, schema, and narrative file.
 - Use the GitHub repository for the source, the README install and SDK guides, the packaged Agent Skill, and issues.
 
 ## Pages
 - [Oh](https://oh.computer): Product overview covering the memory and research-graph model, record kinds, verifiable operation history, interfaces, trust boundaries, and local installation.
 - [Oh ontology specification](https://oh.computer/spec): The versioned contract for Oh records, graph revisions, SQLite and libSQL storage, sync, semantic search, projections, and composite memory.
+- [Oh blog](https://oh.computer/blog): Articles about Oh, the open-source memory framework for agents: how it works, what it guarantees, and which products build on it.
+
+## Articles
+- [Introducing Oh](https://oh.computer/blog/introducing-oh): What Oh is, who it is for, the first run, how working notes and reviewed knowledge stay apart, and the limits of the current release.
+- [How Oh keeps two implementations byte for byte](https://oh.computer/blog/oh-rust-typescript-parity): How property tests keep Oh's opt-in Rust encoder identical to the TypeScript reference, and what those tests do not prove.
 
 ## Optional
 - [sitemap](https://oh.computer/sitemap.xml): Indexable HTML URLs.
+- [blog feed](https://oh.computer/blog/feed.xml): Atom feed of published articles.
 - [specification manifest](https://oh.computer/spec/manifest.json): Machine-readable index pinning the current contract version and its schemas and narrative files.
 - [example citation record](https://oh.computer/examples/evidence-table-2.json): One canonical v1 evidence record connecting a stance on a claim to the edition it cites.
 - [GitHub](https://github.com/hraness/oh): Source code, README, Agent Skill, releases, and issues.

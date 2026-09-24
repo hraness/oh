@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import sitemap from "../app/sitemap";
 
 const site = join(import.meta.dir, "..");
 const read = async (path: string): Promise<string> =>
   await readFile(join(site, path), "utf8");
+const sitemapUrls = (): string[] => sitemap().map(({ url }) => url);
 
 function githubHeadingFragment(heading: string): string {
   return heading
@@ -22,8 +24,9 @@ function record(value: unknown, label: string): Readonly<Record<string, unknown>
   return value as Readonly<Record<string, unknown>>;
 }
 
+// Sponge left this list when the README began naming it as a public product
+// that builds on Oh; the blog links to its public site.
 const prohibitedPublicIdentifierSha256 = new Set([
-  "46248ac689828800502186d8753cc5717c5c2b47712e8158705a510dc892f00b",
   "763268b8dbdcf327570527acbf826901b855f9bb1921e7d92b3b69a3d69052b6",
   "8bdc3c22e340202bfd1c2dd177012ba9ebc208a7437740eb8a835a225f41bcf2",
   "d71b1bd8a7c2fe43ea18caecde71fa88662f0394ade77253c5df4967b29c855e",
@@ -89,11 +92,13 @@ describe("Oh site source contract", () => {
   });
 
   test("renders the shared organization footer once for every page and no maker section", async () => {
-    const [packageJson, layout, home, specification, globals, contentFooter] = await Promise.all([
+    const [packageJson, layout, home, specification, blogIndex, blogPost, globals, contentFooter] = await Promise.all([
       read("package.json"),
       read("app/layout.tsx"),
       read("app/page.tsx"),
       read("app/spec/page.tsx"),
+      read("app/blog/page.tsx"),
+      read("app/blog/[slug]/page.tsx"),
       read("app/globals.css"),
       read("app/site-footer.tsx"),
     ]);
@@ -110,13 +115,14 @@ describe("Oh site source contract", () => {
       'import { MarketingSiteFooter } from "@hraness/design-kit/react/server"',
     );
     expect(contentFooter).toContain("export function OhContentFooter()");
-    for (const page of [home, specification]) {
+    for (const page of [home, specification, blogIndex, blogPost]) {
       expect(page).not.toContain("HranessSiteFooter");
       expect(page).not.toContain("MarketingMaker");
       expect(page).not.toContain("Ben Guo");
       expect(page).not.toContain("hranessAttribution");
       expect(page).toContain("OhContentFooter");
     }
+    expect(contentFooter).toContain('{ href: "/blog", label: "Blog" }');
     expect(home).toContain("Hraness is an advanced software research organization");
     expect(globals).not.toContain("hraness-marketing-maker");
     expect(globals).not.toContain(".site-footer");
@@ -176,7 +182,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.16.2"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.17.0"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([
@@ -194,27 +200,25 @@ describe("Oh site source contract", () => {
   });
 
   test("publishes one canonical specification page without redirecting links", async () => {
-    const [home, specification, redirect, sitemap] = await Promise.all([
+    const [home, specification, redirect] = await Promise.all([
       read("app/page.tsx"),
       read("app/spec/page.tsx"),
       read("app/spec/v1/page.tsx"),
-      read("public/sitemap.xml"),
     ]);
+    const urls = sitemapUrls();
 
     expect(home).not.toContain('href="/spec/"');
     expect(specification).not.toContain('href="/spec/"');
     expect(specification).toContain('alternates: { canonical: "/spec" }');
     expect(specification).toContain('url: "/spec"');
     expect(redirect).toContain('permanentRedirect("/spec")');
-    expect(sitemap).toContain("<loc>https://oh.computer/spec</loc>");
-    expect(sitemap).not.toContain("https://oh.computer/spec/");
-    expect(sitemap).not.toContain("https://oh.computer/spec/v1");
+    expect(urls).toContain("https://oh.computer/spec");
+    expect(urls.filter((url) => url.startsWith("https://oh.computer/spec/"))).toEqual([]);
   });
 
   test("publishes an llms.txt index that lists only real canonical destinations", async () => {
-    const [llms, sitemap, nextConfig] = await Promise.all([
+    const [llms, nextConfig] = await Promise.all([
       read("public/llms.txt"),
-      read("public/sitemap.xml"),
       read("next.config.ts"),
     ]);
 
@@ -227,16 +231,15 @@ describe("Oh site source contract", () => {
     expect(nextConfig).toContain('rel="describedby"');
     expect(nextConfig).toContain("/llms.txt");
 
-    const canonicalRoutes = new Set(
-      [...sitemap.matchAll(/<loc>(https:\/\/oh\.computer[^<]*)<\/loc>/gu)]
-        .map(([, url]) => url),
-    );
+    const canonicalRoutes = new Set(sitemapUrls());
+    const generatedRoutes = new Set(["https://oh.computer/sitemap.xml", "https://oh.computer/blog/feed.xml"]);
     const siteUrls = [...llms.matchAll(/\]\((https:\/\/oh\.computer[^)\s]*)\)/gu)]
       .map(([, url]) => url ?? "");
     expect(siteUrls.length).toBeGreaterThan(0);
     for (const url of siteUrls) {
       const normalized = url === "https://oh.computer" ? "https://oh.computer/" : url;
-      if (canonicalRoutes.has(normalized)) {
+      // The sitemap and the feed are generated routes, not public files.
+      if (canonicalRoutes.has(normalized) || generatedRoutes.has(normalized)) {
         continue;
       }
       const path = normalized.slice("https://oh.computer".length);
@@ -331,6 +334,11 @@ describe("Oh site source contract", () => {
       "app/layout.tsx",
       "app/page.tsx",
       "app/spec/page.tsx",
+      "app/blog/admissions.ts",
+      "app/blog/articles.ts",
+      "app/blog/content/built-on-oh.tsx",
+      "app/blog/content/introducing-oh.tsx",
+      "app/blog/content/oh-rust-typescript-parity.tsx",
       "public/llms.txt",
       "public/spec/v1/migration.md",
     ];
@@ -371,7 +379,7 @@ describe("Oh site source contract", () => {
       postbuild: "bun test ./tests/runtime.test.ts",
       prebuild: "bun run build:theme && bun run test",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/editorial-layer.test.ts",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/editorial-layer.test.ts",
       "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });

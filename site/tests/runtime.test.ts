@@ -221,4 +221,63 @@ describe("built Oh site", () => {
       await stopBuiltSite(server);
     }
   }, 20_000);
+
+  test("serves the blog, its feed, and a sitemap of indexable pages only", async () => {
+    const server = await startBuiltSite();
+    try {
+      const [indexResponse, introducingResponse, quarantinedResponse, feedResponse, sitemapResponse,
+        imageResponse, missingResponse] = await Promise.all([
+        fetch(`${server.origin}/blog`, { redirect: "manual" }),
+        fetch(`${server.origin}/blog/introducing-oh`, { redirect: "manual" }),
+        fetch(`${server.origin}/blog/built-on-oh`, { redirect: "manual" }),
+        fetch(`${server.origin}/blog/feed.xml`, { redirect: "manual" }),
+        fetch(`${server.origin}/sitemap.xml`, { redirect: "manual" }),
+        fetch(`${server.origin}/blog/introducing-oh/opengraph-image`, { redirect: "manual" }),
+        fetch(`${server.origin}/blog/not-a-post`, { redirect: "manual" }),
+      ]);
+      const [index, introducing, quarantined, feed, sitemap] = await Promise.all([
+        indexResponse.text(),
+        introducingResponse.text(),
+        quarantinedResponse.text(),
+        feedResponse.text(),
+        sitemapResponse.text(),
+      ]);
+
+      expect(indexResponse.status).toBe(200);
+      expect(index).toContain('<link rel="canonical" href="https://oh.computer/blog"');
+      expect(index).toContain('type="application/atom+xml"');
+      expect(index).toContain('href="/blog/introducing-oh"');
+      expect(index).not.toContain("/blog/built-on-oh");
+
+      expect(introducingResponse.status).toBe(200);
+      expect(introducing).toContain('<link rel="canonical" href="https://oh.computer/blog/introducing-oh"');
+      expect(introducing).toContain('<meta name="robots" content="index, follow');
+      expect(metadataContent(introducing, "property", "og:type")).toBe("article");
+      expect(metadataContent(introducing, "property", "og:title")).toBe("Introducing Oh");
+      expect(introducing).toContain('"@type":"BlogPosting"');
+      expect(introducing).toContain("reviewed by Claude Opus 5.5 (claude-opus-5-5) editorial review.");
+
+      expect(quarantinedResponse.status).toBe(200);
+      expect(quarantined).toContain('<meta name="robots" content="noindex, nofollow');
+      expect(quarantined).toContain("reviewed by Claude Opus 5.5 (claude-opus-5-5) editorial review.");
+
+      expect(feedResponse.status).toBe(200);
+      expect(feedResponse.headers.get("content-type")).toContain("application/atom+xml");
+      expect(feed).toContain("<id>https://oh.computer/blog/introducing-oh</id>");
+      expect(feed).not.toContain("built-on-oh");
+
+      expect(sitemapResponse.status).toBe(200);
+      expect(sitemap).toContain("<loc>https://oh.computer/</loc>");
+      expect(sitemap).toContain("<loc>https://oh.computer/spec</loc>");
+      expect(sitemap).toContain("<loc>https://oh.computer/blog/introducing-oh</loc>");
+      expect(sitemap).toContain("<lastmod>2026-09-24T00:00:00.000Z</lastmod>");
+      expect(sitemap).not.toContain("built-on-oh");
+
+      expect(imageResponse.status).toBe(200);
+      expect(imageResponse.headers.get("content-type")).toContain("image/png");
+      expect(missingResponse.status).toBe(404);
+    } finally {
+      await stopBuiltSite(server);
+    }
+  }, 20_000);
 });
