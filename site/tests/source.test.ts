@@ -102,7 +102,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/site-footer": "github:hraness/site-footer#v0.15.0"',
+      '"@hraness/site-footer": "github:hraness/site-footer#v0.18.0"',
     );
     expect(layout).toContain('import { HranessSiteFooter } from "@hraness/site-footer/react"');
     expect(layout).toContain(
