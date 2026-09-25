@@ -854,8 +854,19 @@ Oh still left a +6.16-point gain. The reader was the
 Gateway GPT-4o mini alias, without a verified immutable snapshot. Scores refer
 to that study’s benchmark renderer and candidate preparation, not every SDK deployment.
 
+The first [matched framework pilot](benchmarks/FRAMEWORK_PILOT_RESULT_V1.md)
+scored Supermemory **75.00%** conservative success, Oh **71.67%**, and a BM25
+baseline **68.33%** — a paired Oh–Supermemory difference of **−3.33 points**
+whose 95% within-type bootstrap interval (−13.33 to +6.67) crosses zero. All
+three arms shared the same 60 previously exposed LongMemEval-S questions,
+single query, 20-item retrieval limit, 8,192-token evidence renderer, GPT-4o
+reader, and frozen-rubric judge, with every planned cell kept in the
+denominator. The pilot is one configuration on development data and does not
+establish superiority or state-of-the-art performance for any system.
+
 Oh has **not established superiority over Letta, Supermemory, or other memory
-frameworks**. Vendor-published results use different protocols; the
+frameworks**. The pilot above is a single matched sample; other
+vendor-published results use different protocols, and the
 [website comparison](https://oh.computer/#benchmarks) keeps them separate from
 our matched runs. A framework-level claim needs a common dataset, reader,
 scoring procedure, context allowance, failure accounting, and production adapter.

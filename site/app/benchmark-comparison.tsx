@@ -1,16 +1,53 @@
 import result from "../../benchmarks/results/memory-clonemem-rerank-confirm-v1.json";
 import sdkResult from "../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
+import pilotResult from "../../benchmarks/results/memory-framework-pilot-v1.json";
 import { BenchmarkChart } from "./benchmark-chart";
 
 const evidence = "https://github.com/hraness/oh/blob/main/benchmarks";
 const percentage = (value: number) => value * 100;
+const signed = (value: number) => `${value < 0 ? "\u2212" : "+"}${Math.abs(value).toFixed(1)}`;
+const pilotArm = (arm: string) => {
+  const row = pilotResult.quality.arms.find(entry => entry.arm === arm);
+  if (!row) throw new Error(`framework pilot arm missing: ${arm}`);
+  return row;
+};
 
 export function MemoryBenchmarkComparison() {
   const primary = sdkResult.primary.reader.pairedQuestions;
   const secondary = sdkResult.secondary.reader.pairedQuestions;
   const recall = sdkResult.primary.retrieval.pairedQuestions;
+  const pilot = pilotResult.quality.comparisons;
   return (
     <div className="memory-benchmark">
+      <h3>LongMemEval · matched framework pilot</h3>
+      <p className="benchmark-note">Same 60 questions, evidence budget, reader, and judge for each system. Higher is better.</p>
+      <BenchmarkChart label="LongMemEval framework pilot, conservative success rate, zero to one hundred percent" rows={[
+        { id: "pilot-oh", label: "Oh default retrieval", value: percentage(pilotArm("oh").conservativeSuccessRate.value) },
+        { id: "pilot-supermemory", label: "Supermemory (session documents)", value: percentage(pilotArm("supermemory").conservativeSuccessRate.value) },
+        { id: "pilot-bm25", label: "BM25 baseline", value: percentage(pilotArm("bm25").conservativeSuccessRate.value) },
+      ]} />
+      <p className="benchmark-delta">
+        <strong>{signed(pilot.primary.estimate)} percentage points versus Supermemory</strong>
+        <span>95% paired bootstrap interval: {signed(pilot.primary.interval95.lower)} to {signed(pilot.primary.interval95.upper)} points, resampled within question types.</span>
+      </p>
+      <dl className="benchmark-method">
+        <div><dt>Population</dt><dd>60 previously exposed LongMemEval-S questions · 10 per question type · one attempt per cell</dd></div>
+        <div><dt>Reader and judge</dt><dd>GPT-4o via Gateway, unpinned alias · 512 answer tokens · frozen LongMemEval rubric · gold opened after the reader closed</dd></div>
+        <div><dt>Retrieval</dt><dd>Top 20 for every arm · Supermemory hybrid search with reranking over session documents · Oh and BM25 over turn-level units</dd></div>
+        <div><dt>Context</dt><dd>Shared typed evidence renderer · 8,192-token ceiling · no shortened source text</dd></div>
+      </dl>
+      <p className="benchmark-note">
+        Agent-run development pilot, September 24, 2026. Conservative success counts a failed or
+        unattempted stage as zero successes; every planned cell stays in the denominator.
+        Supermemory received one document per session, following its published method, while
+        the local arms indexed turns. The interval describes resampling within this sample,
+        not an unseen population. No system is claimed state of the art.
+      </p>
+      <ul className="benchmark-links" aria-label="Framework pilot evidence">
+        <li><a href={`${evidence}/FRAMEWORK_PILOT_RESULT_V1.md`}>Pilot results and limits</a></li>
+        <li><a href={`${evidence}/results/memory-framework-pilot-v1.json`}>Machine-readable results</a></li>
+        <li><a href={`${evidence}/FRAMEWORK_PILOT_EVIDENCE_V1.md`}>Protocol and question selection</a></li>
+      </ul>
       <h3>CloneMem · default SDK answer accuracy</h3>
       <p className="benchmark-note">Same questions, reader, prompt, and context ceiling. Higher is better.</p>
       <BenchmarkChart label="CloneMem default SDK answer accuracy, matched comparison, zero to one hundred percent" rows={[
@@ -97,9 +134,12 @@ export function MemoryBenchmarkComparison() {
             <tr><th scope="row"><a href="https://supermemory.ai/research/longmembench/">Supermemory</a></th><td>97% reported overall</td><td>LongMemEval-S · 500 questions · labeled Recall@20 with aggregation and answer evaluation</td></tr>
           </tbody>
         </table>
-        <p>Neither has been evaluated in our CloneMem protocol. Oh has not established
-          superiority over these frameworks. A head-to-head comparison needs the same
-          data, reader, scoring, context budget, and accounting for each system.</p>
+        <p>Letta has not been evaluated in our protocols. Supermemory appears in the
+          matched pilot above under our protocol, not under its own. That pilot does not
+          establish superiority over either framework: it is one configuration on 60
+          previously exposed questions. A general claim needs more data, more
+          configurations, and the same reader, scoring, context budget, and accounting
+          for each system.</p>
       </details>
       <details className="benchmark-literature">
         <summary>Earlier results, including approaches that did not improve answers</summary>

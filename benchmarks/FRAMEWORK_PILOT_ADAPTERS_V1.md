@@ -179,3 +179,33 @@ separate gold access, and reporting over every intended case.
 Capture all retrieval contexts or failures before opening gold for judging.
 Keep ingestion, local compute, query, reader, judge and cleanup costs and times
 in the final report, including unknown or unsettled charges.
+
+## Session-level Supermemory ingestion (executed profile, 2026-09-24)
+
+The first live attempt at the unit-level profile above did not reach readiness.
+For c0001, all 521 unit documents were accepted in eight batches and reached
+processing `done`, but after five readiness rounds only 136 also reported
+`dreamingStatus: done`; the other 385 were still dreaming when the 1,800-second
+window closed. No search ran. The namespace was deleted and later reconciled
+absent with read-only checks (521 known IDs returned 404, two empty document and
+memory inventories). That attempt cost $0.205 in provider credits.
+
+The completed pilot therefore used a session-level profile,
+`session-occurrence.v1`, which follows Supermemory's own published LongMemBench
+method. Each session occurrence in the fixed source becomes one document whose
+content is the canonical JSON of that session's date, neutral session
+identifier, session index and turns. The custom ID carries the session index,
+so two occurrences of the same session identifier inside one case remain
+separate documents. The document date is the civil date of the session. Batches
+keep source order under the 128 KiB request ceiling, and every request carries
+`dreaming: dynamic`. Search, readiness, ownership and cleanup requirements are
+unchanged: each accepted document must report processing and dreaming
+completion with an exact content echo before the single fixed search; the run
+deletes only the owned namespace and verifies absence twice.
+
+This profile changes what Supermemory indexes, not what the reader sees. Its
+returned memories and document chunks still join to the same validated source
+units that the Oh and BM25 arms index as turn-level records, and the common
+renderer packs all three arms under the same 8,192-token budget. The
+granularity difference is part of the result: Supermemory received session
+documents while the local arms indexed turns.

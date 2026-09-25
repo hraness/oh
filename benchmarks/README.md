@@ -50,11 +50,21 @@ The [pilot source, evidence and reader contract](FRAMEWORK_PILOT_EVIDENCE_V1.md)
 publishes the fixed 60-question selection and prior-exposure record. Its raw
 source bridge reconciles complete histories while separating evaluator fields;
 its common renderer distinguishes original source from provider-generated
-evidence and enforces the shared context budget. No matched score is reported.
+evidence and enforces the shared context budget. It reports no matched score
+itself; the result is separate below.
 
 The [separate reader and judge stages](FRAMEWORK_PILOT_PAID_STAGES_V1.md) preserve
 all 180 logical cells, share identical first requests and retain unresolved
 charges. Gold references become available only after reader results close.
+
+The [completed matched pilot](FRAMEWORK_PILOT_RESULT_V1.md) reports the outcome:
+Supermemory 75.00% conservative success, Oh 71.67% and BM25 68.33% over all 60
+planned questions. The paired Oh–Supermemory difference is −3.33 points inside a
+95% within-type bootstrap interval of −13.33 to +6.67, and Oh − BM25 is +3.33
+points (−1.67 to +8.33); both intervals cross zero. Every planned cell stayed in
+its denominator, including the three locally failed or unattempted cells and the
+four Supermemory searches that returned no candidates. The result does not
+establish superiority for any arm.
 
 The [CloneMem transfer comparison](CLONEMEM_TRANSFER_V1.md) found no established
 answer or recall gain from shipped hybrid search over matched vector retrieval.
