@@ -732,3 +732,15 @@ a:focus-visible {
     .spec-nav { border-inline-end: 0; border-block-end: 1px solid currentColor; }
   }
 }
+
+/* Blog index and articles use the shared plain-publication article layout. */
+.blog-shell {
+  inline-size: min(100%, 72rem);
+  margin-inline: auto;
+  padding: clamp(2rem, 5vw, 4rem) clamp(1rem, 4vw, 3rem) clamp(3rem, 7vw, 6rem);
+}
+
+.blog-feed-link {
+  margin-block-start: 2rem;
+  color: var(--muted);
+}

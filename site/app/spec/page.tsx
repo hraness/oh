@@ -61,6 +61,7 @@ export default function Specification() {
         className="spec-header"
         links={[
           { href: "/", label: "Overview" },
+          { href: "/blog", label: "Blog" },
           { current: true, href: "/spec", label: "Specification" },
           { href: "https://github.com/hraness/oh", label: "GitHub" },
         ]}
