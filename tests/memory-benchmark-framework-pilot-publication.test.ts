@@ -65,9 +65,10 @@ describe("framework pilot public result", () => {
 
   test("publishes aggregates only", () => {
     const text = JSON.stringify(result);
-    for (const forbidden of ["question_id", "haystack", "\"answer\":", "\"reference\":", "oh_fp1_", "/Users/", "VERCEL_OIDC", "Bearer "]) {
+    for (const forbidden of ["question_id", "haystack", "\"answer\":", "\"reference\":", "oh_fp1_", "VERCEL_OIDC", "Bearer "]) {
       expect(text).not.toContain(forbidden);
     }
+    expect(text).not.toMatch(/\/Users\/[^/\s]+|\/private\/tmp\/[^\s)]+/u);
     expect(result.limitations.some(line => line.includes("session"))).toBeTrue();
     expect(result.limitations.some(line => line.includes("state-of-the-art"))).toBeTrue();
   });
