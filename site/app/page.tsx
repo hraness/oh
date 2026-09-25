@@ -44,9 +44,11 @@ const capturedVersion = "0.4.0";
 const capturedOn = "September 5, 2026";
 const repository = "https://github.com/hraness/oh";
 
-const heading = "Memory your agents can trace";
+const heading = "Agent memory that shows its work.";
 const lead =
-  "Oh is an open-source memory framework for agents. Store facts with their sources, retrieve useful context, and follow every accepted change through a verifiable history. Build on it with a TypeScript SDK, CLI, and local SQLite storage.";
+  "Store each fact with the sources it rests on, keep every change in a replayable history, and get answers with their evidence.";
+const metaDescription =
+  "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.";
 const footnote =
   `Free and MIT licensed. Bun 1.3.14 or newer, no account, no hosted model. Current release v${releaseVersion}.`;
 
@@ -175,7 +177,7 @@ const questions = [
   },
   {
     question: "Who made it?",
-    answer: "Hraness is an advanced software research organization dedicated to advancing the frontier of machine intelligence. Oh is its open-source memory framework for agents, published under the MIT license.",
+    answer: "Hraness builds tools for agents and humans. Oh is its open-source memory framework for agents, published under the MIT license.",
   },
 ] as const;
 
@@ -196,7 +198,7 @@ export default function Home() {
       "@context": "https://schema.org",
       "@type": "SoftwareSourceCode",
       codeRepository: repository,
-      description: lead,
+      description: metaDescription,
       license: "https://opensource.org/license/mit",
       name: "Oh",
       programmingLanguage: "TypeScript",
@@ -239,12 +241,12 @@ export default function Home() {
             backdrop={false}
             actions={[
               { href: "#install", label: "Install Oh" },
-              { href: "#trace", label: "See the trace" },
+              { href: "#model", label: "See the memory model" },
             ]}
             boundary={footnote}
             className="oh-marketing-hero"
-            eyebrow=""
-            example="Open-source memory for agents"
+            eyebrow="Agent memory framework"
+            example="Memory for agents that stores each fact with its sources and history"
             frame={(
               <div className="oh-board">
                 <div className="oh-record-card" aria-hidden="true">

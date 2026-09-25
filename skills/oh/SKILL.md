@@ -1,6 +1,6 @@
 ---
 name: oh
-description: Operate the local hraness/oh memory framework through its checked CLI or SDK. Use when a coding agent needs to initialize, inspect, write, search, verify, export, import, or synchronize source-backed memory and research records in an Oh SQLite space.
+description: Operate Oh, the open-source memory framework for agents, through its CLI or SDK. Use when a coding agent needs to initialize, inspect, write, search, verify, export, import, or sync memory records in an Oh SQLite database.
 ---
 
 # Operate Oh

@@ -1,10 +1,10 @@
-# Oh — memory your agents can trace
+# Oh
 
 [![skills.sh](https://skills.sh/b/hraness/oh)](https://skills.sh/hraness/oh)
 
-Oh is an open-source memory framework for agents. Store facts with their sources,
-retrieve context, derive graph answers with proofs, and inspect how accepted
-records changed.
+Oh is an open-source memory framework for agents. It stores each fact with
+the sources it rests on, keeps every change in a history you can replay, and
+answers with the evidence behind them.
 
 A TypeScript SDK, CLI, and Agent Skill share one versioned
 record model and an append-only operation log. Local SQLite storage works
@@ -12,6 +12,9 @@ without an account or hosted model; search indexes stay rebuildable.
 
 [Website](https://oh.computer) · [Versioned specification](spec/README.md) ·
 [Agent Skill](skills/oh/SKILL.md)
+
+Latest release: [v0.12.0](https://github.com/hraness/oh/releases/tag/v0.12.0)
+on [npm](https://www.npmjs.com/package/@hraness/oh), free and MIT licensed.
 
 ## Why Oh
 
@@ -34,7 +37,7 @@ without an account or hosted model; search indexes stay rebuildable.
   purgeable working authority with one pinned canonical head while preserving
   lane, conflict, record, and proof provenance.
 
-Oh keeps records and operations in one SQLite file you control, makes every accepted change inspectable through digests and replay, and treats search and derivation as views that never become graph authority: the design every Hraness project shares. [The thread through hraness](https://hraness.com/writing/the-thread-through-hraness) follows that design across the projects, and the [ALGAL vision](https://algal.computer/docs/vision/) states the bet behind it.
+Oh keeps records and operations in one SQLite file you control, makes every accepted change inspectable through digests and replay, and treats search and derivation as views that never become graph authority. [The thread through hraness](https://hraness.com/writing/the-thread-through-hraness) follows that design across the projects, and the [ALGAL vision](https://algal.computer/docs/vision/) states the bet behind it.
 
 ## Install and first run
 

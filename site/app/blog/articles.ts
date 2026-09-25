@@ -31,12 +31,12 @@ export const blogDescription =
 
 export const ohSearchSite: SearchSite = {
   description:
-    "An open-source memory framework for agents: source-backed records, local retrieval, graph proofs, and a verifiable change history.",
+    "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.",
   language: "en-US",
   locale: "en_US",
   name: "Oh",
   origin: "https://oh.computer",
-  title: "Oh: memory your agents can trace",
+  title: "Oh: Agent memory that shows its work.",
 };
 
 export const articleAuthor: ArticleAuthor = { kind: "organization", name: "Hraness", href: "https://hraness.com" };
@@ -70,7 +70,7 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "introducing-oh",
     title: "Introducing Oh",
-    dek: "Oh is an open-source memory store for agents that keeps every fact linked to its sources and history, so you can trace an answer back to what it rests on.",
+    dek: "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.",
     eyebrow: "Release",
     published: "2026-09-24",
     keywords: ["agent memory", "provenance", "knowledge graphs", "canonical JSON", "TypeScript", "Rust"],

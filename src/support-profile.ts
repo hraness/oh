@@ -2,6 +2,6 @@
 export const ohSupportProfile = {
   id: "oh-computer",
   name: "Oh",
-  valueProposition: "Support ongoing development of inspectable research records and memory tools for agents.",
+  valueProposition: "Support ongoing development of Oh, the open-source memory framework for agents.",
   updates: false,
 } as const;

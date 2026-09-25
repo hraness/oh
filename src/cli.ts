@@ -221,7 +221,7 @@ async function readSyncBundleFile(path: string): Promise<unknown> {
   return JSON.parse(contents.toString("utf8")) as unknown;
 }
 
-const HELP = `oh ${OH_PACKAGE_VERSION}
+const HELP = `oh ${OH_PACKAGE_VERSION} · Agent memory that shows its work.
 
 Usage:
   oh init [--db PATH] [--space ID]

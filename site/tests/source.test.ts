@@ -121,7 +121,7 @@ describe("Oh site source contract", () => {
       expect(page).toContain("OhContentFooter");
     }
     expect(contentFooter).toContain('{ href: "/blog", label: "Blog" }');
-    expect(home).toContain("Hraness is an advanced software research organization");
+    expect(home).toContain("Hraness builds tools for agents and humans");
     expect(globals).not.toContain("hraness-marketing-maker");
     expect(globals).not.toContain(".site-footer");
   });

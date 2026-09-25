@@ -1,5 +1,8 @@
 # Oh
-> Oh is an open-source memory framework for agents: source-backed records, local retrieval, graph proofs, and verifiable change history. TypeScript SDK, CLI, and SQLite storage. Free and MIT licensed.
+> Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.
+
+Agent memory usually means a vector store: facts go in, answers come out, and nobody can say why. Oh is an open-source memory framework that keeps the reasoning visible. Each fact is stored with the sources it rests on, every change lands in a history you can replay, and queries return the evidence behind the answer. It runs locally as a CLI, SDK, and Agent Skill. Oh is free and MIT licensed.
+
 When to use this site:
 - Use oh.computer to evaluate Oh for your agents: the memory and research-graph model, the CLI, TypeScript SDK, and Agent Skill interfaces, and the local install commands.
 - Use /spec for the human-readable Oh ontology and storage contract.
