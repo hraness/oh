@@ -461,6 +461,22 @@
         "publicBytes": 524288,
         "privateObservationsBytes": 4194304
       }
+    },
+    "benchmark:framework-pilot-result": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/framework-pilot-report-v1.ts",
+      "source": "scripts/benchmarks/framework-pilot-paid-judge-v1.ts",
+      "budget": {
+        "reportBytes": 65536,
+        "plannedCases": 60,
+        "arms": 3,
+        "logicalCells": 180,
+        "maximumPhysicalCallsPerStage": 180,
+        "readerExposureMicros": 9000000,
+        "taskExposureMicros": 25000000,
+        "providerCalls": 0
+      }
     }
   },
   "exempt": []
