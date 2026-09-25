@@ -26154,7 +26154,7 @@ var init_support_profile = __esm(() => {
   ohSupportProfile = {
     id: "oh-computer",
     name: "Oh",
-    valueProposition: "Support ongoing development of inspectable research records and memory tools for agents.",
+    valueProposition: "Support ongoing development of Oh, the open-source memory framework for agents.",
     updates: false
   };
 });
@@ -26748,7 +26748,7 @@ function terminalIntro(terminal) {
     return "";
   return `  .----.
  / .--. \\   oh
-| |    | |   Local memory for your agents.
+| |    | |   Agent memory that shows its work.
  \\ '--' /
   '----'
 
@@ -26978,7 +26978,7 @@ async function readSyncBundleFile(path) {
   }
   return JSON.parse(contents.toString("utf8"));
 }
-var HELP = `oh ${OH_PACKAGE_VERSION}
+var HELP = `oh ${OH_PACKAGE_VERSION} \xB7 Agent memory that shows its work.
 
 Usage:
   oh init [--db PATH] [--space ID]

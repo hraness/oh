@@ -19,7 +19,7 @@ import {
 } from "../src/cloudflare-embedding.ts";
 
 const root = resolve(import.meta.dir, "..");
-const tagline = "Open-source memory for agents: source-backed records, retrieval, graph proofs, and verifiable history.";
+const tagline = "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.";
 
 const markdownFiles = [
   "README.md",
@@ -176,7 +176,7 @@ describe("public identity and documentation", () => {
       readFile(join(root, "skills/oh/SKILL.md"), "utf8"),
       readFile(join(root, "src/cli.ts"), "utf8"),
     ]);
-    expect(readme.startsWith("# Oh — memory your agents can trace\n")).toBe(true);
+    expect(readme.startsWith("# Oh\n")).toBe(true);
     expect(packageJson.name).toBe("@hraness/oh");
     expect(packageJson.version).toBe("0.12.0");
     expect(sitePackageJson.version).toBe(packageJson.version);

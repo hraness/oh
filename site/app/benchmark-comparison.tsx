@@ -56,7 +56,7 @@ export function MemoryBenchmarkComparison() {
       ]} />
       <p className="benchmark-delta">
         <strong>+{percentage(primary.delta).toFixed(2)} percentage points</strong>
-        <span>Both personas improved. The configured SDK route passed the specified numerical development gate.</span>
+        <span>Both personas improved. The configured SDK route met the specified numerical target for this development check.</span>
       </p>
       <dl className="benchmark-method">
         <div><dt>Population</dt><dd>146 questions · two previously exposed personas · three repeats per arm</dd></div>

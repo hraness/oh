@@ -22,7 +22,7 @@ export function OhContentFooter() {
       ]}
       name="Oh"
     >
-      <p>Oh is open source for researchers and the agents working beside them.</p>
+      <p>Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.</p>
     </MarketingSiteFooter>
   );
 }

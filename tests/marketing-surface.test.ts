@@ -32,7 +32,7 @@ describe("evidence-led product narrative", () => {
     // Attribution belongs to the shared network footer rendered by the layout.
     expect(page).not.toContain('id="maker"');
     expect(page).not.toContain("MarketingMaker");
-    expect(page).toContain('const heading = "Memory your agents can trace"');
+    expect(page).toContain('const heading = "Agent memory that shows its work."');
     expect(page).toContain("init and verify stay local and print canonical JSON");
     expect(page).toContain('"@type": "FAQPage"');
   });

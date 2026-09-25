@@ -5,16 +5,17 @@ import {
 } from "@hraness/web-discovery/social-image";
 import { OhSocialMark, ohSocialTheme } from "./social-mark";
 
-export const alt = "Oh: memory your agents can trace";
+export const alt = "Oh: Agent memory that shows its work.";
 export { contentType, size };
 
 export default function OpenGraphImage() {
   return createSocialImageResponse({
-    description: "Source-backed records, local retrieval, graph proofs, and a verifiable change history. An open-source memory framework for agents.",
+    description:
+      "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.",
     domain: "oh.computer",
     eyebrow: "Oh",
     mark: <OhSocialMark />,
     theme: ohSocialTheme,
-    title: "Memory your agents can trace",
+    title: "Agent memory that shows its work.",
   });
 }

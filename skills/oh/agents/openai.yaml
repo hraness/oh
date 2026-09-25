@@ -1,4 +1,4 @@
 interface:
   display_name: "Oh"
-  short_description: "Operate local agentic research records"
-  default_prompt: "Use $oh to inspect and safely update my local research space."
+  short_description: "Memory for agents that stores each fact with its sources and history"
+  default_prompt: "Use $oh to inspect and safely update my local memory space."

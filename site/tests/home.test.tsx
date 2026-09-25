@@ -49,7 +49,7 @@ test("both public pages render the in-flow content footer above the shared foote
     expect(networkFooter).toBeGreaterThan(contentFooter);
     expect(html).toContain("hraness-marketing-footer__brand");
     expect(html).toContain('class="brand-mark"');
-    expect(html).toContain("Oh is open source for researchers and the agents working beside them.");
+    expect(html).toContain("Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.");
     expect(html).toContain('id="hraness-site-footer"');
     expect(html).toContain("https://account.hraness.com/support?product=oh-computer&amp;source=web#support");
     expect(html).not.toContain('type="email"');
@@ -92,7 +92,7 @@ test("makes the illustrative citation readable while keeping historical output a
       text(chunk) { examples[examples.length - 1] += chunk.text; },
     })
     .transform(html);
-  expect(examples).toEqual(["Open-source memory for agents"]);
+  expect(examples).toEqual(["Memory for agents that stores each fact with its sources and history"]);
   expect(hero).not.toContain("Ask your agent to file the trial report");
   expect(hero).toContain(citationRecord.value.locator);
   expect(hero).toContain(citationRecord.value.relationship);
