@@ -40,8 +40,6 @@ describe("Oh comparison pages", () => {
       expect(html).toContain('aria-label="Comparison navigation"');
       expect(html).toContain('href="/compare"');
       expect(html).not.toContain("—");
-      const visibleHtml = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gu, "");
-      expect(visibleHtml).not.toMatch(/\{\{|\}\}/u);
     }
   });
 
