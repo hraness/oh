@@ -72,6 +72,9 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
   expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
   expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));
   expect(html).toContain("Markdown files stay authoritative");
+  expect(html).toContain(
+    '<a href="https://wordcell.io">Wordcell</a> is a Markdown knowledge base that gives agents the decisions behind code.',
+  );
   expect(html).toContain("do not carry over");
 });
 

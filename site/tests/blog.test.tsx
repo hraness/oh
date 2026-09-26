@@ -140,6 +140,6 @@ describe("Oh blog", () => {
     const related = relatedFor("oh-computer");
     const html = await renderArticle("introducing-oh");
     if (related.length === 0) expect(html).not.toContain("plain-publication__related-products");
-    else for (const item of related) expect(html).toContain(item.relationship);
+    else for (const item of related) expect(html).toContain(item.relationship.replaceAll("'", "&#x27;"));
   });
 });
