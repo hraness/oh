@@ -181,8 +181,9 @@ describe("built Oh site", () => {
       expect(specificationResponse.headers.get("link")).toBe('</llms.txt>; rel="describedby"');
       expect(missingResponse.status).toBe(404);
       // An unknown address renders the site's own page with a way home, not the framework default.
-      expect(missing).toContain("Page not found");
-      expect(missing).toContain('href="/"');
+      expect(missing).toContain("We can’t find that page");
+      expect(missing).toContain('href="/#install"');
+      expect(missing).toContain('data-hraness-status-routes=');
       expect(missing).not.toContain("This page could not be found");
       expect(homeResponse.headers.get("x-frame-options")).toBeNull();
       expect(homeResponse.headers.get("content-security-policy") ?? "")
