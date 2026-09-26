@@ -89,7 +89,7 @@ a:focus-visible {
   --hraness-pattern-image: repeating-conic-gradient(from 45deg, color-mix(in srgb, var(--primary) 2%, transparent) 0% 25%, transparent 0% 50%);
 }
 .hraness-material-wall > :not(.oh-field) { position: relative; z-index: 1; }
-.oh-field { position: absolute; inset: 0; z-index: 0; overflow: clip; pointer-events: none; mask-image: linear-gradient(to bottom, #000 65%, transparent); }
+.oh-field { position: absolute; inset: 0; z-index: 0; overflow: clip; pointer-events: none; mask-image: linear-gradient(to bottom, transparent, #000 10%, #000 65%, transparent); }
 .oh-organism {
   --oo-focus: var(--hraness-hero-proximity, 0);
   position: absolute; padding: 1rem 1.3rem; border: 1px solid transparent;
