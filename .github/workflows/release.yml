@@ -158,6 +158,10 @@ jobs:
           fi
           printf 'tag=%s\n' "$REQUESTED_TAG" >> "$GITHUB_OUTPUT"
           printf 'sha=%s\n' "$tag_commit" >> "$GITHUB_OUTPUT"
+      - name: Require release notes in the tagged changelog
+        env:
+          REQUESTED_TAG: ${{ steps.request.outputs.tag }}
+        run: bun run ./scripts/release-notes.ts check "$REQUESTED_TAG"
       - name: Install frozen root dependencies
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Run complete root release gate

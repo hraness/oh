@@ -148,6 +148,8 @@ type ReleaseIdentity = Readonly<{
 export type ReleaseIdentityInput = Readonly<{
   assets: readonly ExactReleaseAsset[];
   commitSha: string;
+  /** Visible release notes rendered from CHANGELOG.md and the release record. */
+  notes: string;
   run: GitHubReleaseRun;
   tag: string;
   tagObjectSha: string;
@@ -180,16 +182,31 @@ function releaseIdentity(
   });
 }
 
+const IDENTITY_PREFIX = "<!-- oh-release-identity:v1\n";
+const IDENTITY_SUFFIX = "\n-->";
+const MAXIMUM_RELEASE_BODY_BYTES = 64 * 1_024;
+
 function renderIdentity(identity: ReleaseIdentity): string {
-  return `<!-- oh-release-identity:v1\n${JSON.stringify(identity)}\n-->`;
+  return `${IDENTITY_PREFIX}${JSON.stringify(identity)}${IDENTITY_SUFFIX}`;
+}
+
+function notesPrefix(notes: string): string {
+  if (typeof notes !== "string" || notes.length === 0 || !notes.endsWith("\n") || notes.includes("<!--")) {
+    throw new Error("GitHub Release notes are missing or malformed.");
+  }
+  return `${notes}\n`;
+}
+
+function renderBody(input: ReleaseIdentityInput, identity: ReleaseIdentity): string {
+  return `${notesPrefix(input.notes)}${renderIdentity(identity)}`;
 }
 
 export function draftReleaseBody(input: ReleaseIdentityInput): string {
-  return renderIdentity(releaseIdentity(input, input.run.attempt, null));
+  return renderBody(input, releaseIdentity(input, input.run.attempt, null));
 }
 
 export function publishedReleaseBody(input: ReleaseIdentityInput, createdAttempt: number): string {
-  return renderIdentity(releaseIdentity(input, createdAttempt, input.run.attempt));
+  return renderBody(input, releaseIdentity(input, createdAttempt, input.run.attempt));
 }
 
 function parseIdentityBody(
@@ -197,15 +214,19 @@ function parseIdentityBody(
   input: ReleaseIdentityInput,
   expectedState: "draft" | "published",
 ): ReleaseIdentity {
-  if (typeof value !== "string" || value.length > 4_096) throw new Error("GitHub Release identity body is invalid.");
-  const prefix = "<!-- oh-release-identity:v1\n";
-  const suffix = "\n-->";
-  if (!value.startsWith(prefix) || !value.endsWith(suffix)) {
+  if (typeof value !== "string" || Buffer.byteLength(value, "utf8") > MAXIMUM_RELEASE_BODY_BYTES) {
+    throw new Error("GitHub Release identity body is invalid.");
+  }
+  const marker = value.lastIndexOf(IDENTITY_PREFIX);
+  if (marker < 0 || !value.endsWith(IDENTITY_SUFFIX) || marker + IDENTITY_PREFIX.length > value.length - IDENTITY_SUFFIX.length) {
     throw new Error("GitHub Release identity body is missing or edited.");
+  }
+  if (value.slice(0, marker) !== notesPrefix(input.notes)) {
+    throw new Error("GitHub Release notes were edited or differ from the rendered changelog notes.");
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(value.slice(prefix.length, -suffix.length)) as unknown;
+    parsed = JSON.parse(value.slice(marker + IDENTITY_PREFIX.length, -IDENTITY_SUFFIX.length)) as unknown;
   } catch {
     throw new Error("GitHub Release identity body is malformed.");
   }
@@ -253,7 +274,7 @@ function parseIdentityBody(
     throw new Error("GitHub Release identity describes different artifact bytes.");
   }
   const canonical = releaseIdentity(input, createdAttempt, publishedAttempt);
-  if (value !== renderIdentity(canonical)) throw new Error("GitHub Release identity body is not canonical.");
+  if (value !== renderBody(input, canonical)) throw new Error("GitHub Release identity body is not canonical.");
   return canonical;
 }
 
