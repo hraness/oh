@@ -9691,11 +9691,11 @@ async function readInput(path) {
 async function runOhResearchCli(arguments_) {
   const command = arguments_[0];
   let output;
-  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "catalog-v8", "catalog-v9", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
+  if (CATALOG_COMMANDS.includes(command ?? "") && arguments_.length === 1) {
     output = command === "catalog-v9" ? await spongeKnowledgeDomainCatalogV9() : command === "catalog-v8" ? await spongeKnowledgeDomainCatalogV8() : command === "catalog-v7" ? await spongeKnowledgeDomainCatalogV7() : command === "catalog-v6" ? await spongeKnowledgeDomainCatalogV6() : command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
   } else {
-    if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"].includes(command ?? "") || arguments_.length !== 3 || arguments_[1] !== "--file") {
-      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|catalog-v8|catalog-v9|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
+    if (!FILE_COMMANDS.includes(command ?? "") || arguments_.length !== 3 || arguments_[1] !== "--file") {
+      throw new TypeError(CATALOG_COMMANDS.includes(command ?? "") ? `research ${command} takes no options.` : FILE_COMMANDS.includes(command ?? "") ? `research ${command} needs --file <path> and nothing else.` : `Unknown research command "${command ?? ""}".`);
     }
     const input = await readInput(arguments_[2]);
     if (command === "validate-draft")
@@ -9727,6 +9727,7 @@ async function runOhResearchCli(arguments_) {
 `);
   return 0;
 }
+var CATALOG_COMMANDS, FILE_COMMANDS;
 var init_research_cli = __esm(() => {
   init_knowledge_wikidata_mappings_v1();
   init_knowledge_wikidata_mappings_v2();
@@ -9744,6 +9745,8 @@ var init_research_cli = __esm(() => {
   init_knowledge_proposal_v3();
   init_knowledge_wikidata_import_v1();
   init_research_packet();
+  CATALOG_COMMANDS = ["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "catalog-v8", "catalog-v9", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"];
+  FILE_COMMANDS = ["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"];
 });
 
 // src/store.ts
@@ -26911,6 +26914,8 @@ async function runOhSupportCommand(args2, options) {
 function hasUsefulOhResult(args2, exitCode) {
   if (exitCode !== 0)
     return false;
+  if (args2.includes("--help") || args2.includes("-h") || args2[0] === "help")
+    return false;
   if (args2[0] === "sync")
     return args2[1] === "export" || args2[1] === "import";
   if (args2[0] === "research")
@@ -26946,14 +26951,452 @@ function terminalIntro(terminal) {
 }
 
 // src/cli.ts
+import { existsSync as existsSync2, realpathSync } from "fs";
+import { delimiter, join as join4 } from "path";
+import { lstat, readFile } from "fs/promises";
+
+// src/cli-help.ts
+init_graph();
+var OH_DESCRIPTION = `Oh is open-source memory for agents that stores each fact with its sources
+and every change in a history you can replay.`;
+var OH_COMMANDS = [
+  "init",
+  "put",
+  "get",
+  "list",
+  "log",
+  "search",
+  "recall",
+  "tombstone",
+  "verify",
+  "sync",
+  "contract",
+  "version",
+  "research",
+  "support",
+  "help"
+];
+function wrap(words, indent, width = 80) {
+  const lines = [];
+  let line = indent;
+  for (const word of words) {
+    const next = line.trim() === "" ? `${indent}${word}` : `${line} ${word}`;
+    if (next.length > width && line.trim() !== "") {
+      lines.push(line);
+      line = `${indent}${word}`;
+    } else
+      line = next;
+  }
+  if (line.trim() !== "")
+    lines.push(line);
+  return lines.join(`
+`);
+}
+var KINDS = wrap(OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.map((kind, index, all) => index === all.length - 1 ? kind : `${kind},`), "  ");
+function bareScreen(version) {
+  return `${OH_DESCRIPTION}
+
+Start here
+  oh init                      Create a store in .oh/oh.sqlite
+  oh put --kind entity --key entity:ada --value '{"name":"Ada"}'
+                               Save a record
+  oh get entity:ada            Print one record
+  oh search Ada                Find records by keyword
+  oh verify                    Replay the history and check the store
+
+All commands: oh --help \xB7 Command help: oh help <command>
+oh ${version}
+`;
+}
+function rootHelp() {
+  return `Usage: oh <command> [options]
+
+${OH_DESCRIPTION}
+
+Start here
+  oh init                      Create the store and its space
+  oh put [options]             Save a record (oh put --help)
+  oh get <key>                 Print one record
+  oh search <query>            Find records by keyword
+  oh verify                    Replay the history and check the store
+
+Read
+  oh list                      List current records
+  oh log                       List recent changes
+  oh recall <question>         Find records for a question, with dates like
+                               "last week" read against --as-of
+
+Change
+  oh tombstone <key>           Remove a record; its history stays in the log
+  oh sync export               Print the changes as a bundle for another store
+  oh sync import --file <path> Apply a bundle made by oh sync export
+
+More
+  oh contract                  Print the data format versions this build uses
+  oh version                   Print the version
+  oh research                  Offline research tools (oh research --help)
+
+Options
+  --db <path>       Store file (default .oh/oh.sqlite)
+  --space <id>      Space in the store (default "default")
+  --json            Print JSON (the default when an agent runs oh)
+  -h, --help        Show help (also: oh <command> --help)
+  -V, --version     Show the version
+
+Optional support: oh support \xB7 Turn off: HRANESS_SUPPORT=off
+`;
+}
+var STORE_OPTIONS = `  --db <path>       Store file (default .oh/oh.sqlite)
+  --space <id>      Space in the store (default "default")
+  --json            Print JSON`;
+var WRITE_OPTIONS = `  --actor <id>      Name recorded with the change (default agent.local)
+  --operation <id>  Reuse the same ID to retry a write safely
+  --expected-generation <n>
+                    Write only if the space is still at generation n`;
+var COMMAND_HELP = {
+  init: `Usage: oh init [options]
+
+Create the store file and its space if they don't exist yet, then print the
+space's current generation. Running it again changes nothing.
+
+Options
+${STORE_OPTIONS}
+
+Example
+  oh init --db research.db
+`,
+  put: `Usage: oh put --kind <kind> --key <key> (--value <json> | --file <path>)
+
+Save a record. A record with the same key is replaced, and the change is
+added to the history.
+
+Options
+  --kind <kind>     Record kind (see below)
+  --key <key>       Record key, such as entity:ada
+  --value <json>    The record's value as JSON
+  --file <path>     Read the value from a JSON file instead
+  --depends-on <key>
+                    A record this one depends on (repeatable)
+${WRITE_OPTIONS}
+${STORE_OPTIONS}
+
+Record kinds
+${KINDS}
+
+Example
+  oh put --kind entity --key entity:ada --value '{"name":"Ada Lovelace"}'
+`,
+  get: `Usage: oh get <key> [options]
+
+Print one record. Exits 3 when no current record has that key.
+
+Options
+${STORE_OPTIONS}
+
+Example
+  oh get entity:ada
+`,
+  list: `Usage: oh list [options]
+
+List current records, 50 at a time unless you pass --limit.
+
+Options
+  --kind <kind>     Only records of this kind
+  --limit <n>       How many to list, 1 to 1000 (default 50)
+${STORE_OPTIONS}
+
+Example
+  oh list --kind entity
+`,
+  log: `Usage: oh log [options]
+
+List the most recent changes in the history, newest first.
+
+Options
+  --limit <n>       How many to list, 1 to 1000 (default 50)
+${STORE_OPTIONS}
+
+Example
+  oh log --limit 10
+`,
+  search: `Usage: oh search <query> [options]
+
+Find records by keyword.
+
+Options
+  --limit <n>       How many results, 1 to 100 (default 10)
+${STORE_OPTIONS}
+
+Example
+  oh search "mathematician"
+`,
+  recall: `Usage: oh recall <question> [options]
+
+Find records for a question and print them as text for a model to read.
+With --as-of, dates such as "last week" in the question narrow the results.
+
+Options
+  --as-of <instant> The question's date, a UTC instant with milliseconds,
+                    such as 2026-01-08T12:00:00.000Z
+  --limit <n>       How many results, 1 to 100 (default 10)
+${STORE_OPTIONS}
+
+Example
+  oh recall "what did Ada build last week" --as-of 2026-01-08T12:00:00.000Z
+`,
+  tombstone: `Usage: oh tombstone <key> [options]
+
+Remove a record. Its earlier versions stay in the history. Exits 3 when no
+current record has that key.
+
+Options
+${WRITE_OPTIONS}
+${STORE_OPTIONS}
+
+Example
+  oh tombstone entity:ada
+`,
+  verify: `Usage: oh verify [options]
+
+Check the store: run SQLite's integrity checks and replay every change in the
+history to confirm it produces the same records.
+
+Options
+${STORE_OPTIONS}
+
+Example
+  oh verify --db research.db
+`,
+  sync: `Usage: oh sync export [options]
+       oh sync import --file <path> [options]
+
+Copy changes between stores. export prints a bundle of changes as JSON;
+import checks a bundle and applies all of it or none of it.
+
+Options
+  --after <n>       export: start after change number n (default 0)
+  --limit <n>       export: at most n changes, 1 to 1000 (default 1000)
+  --file <path>     import: the bundle file
+  --db <path>       Store file (default .oh/oh.sqlite)
+  --space <id>      Space in the store (default "default")
+  --json            Print JSON (import)
+
+Example
+  oh sync export --db a.db > changes.json
+  oh sync import --db b.db --file changes.json
+`,
+  contract: `Usage: oh contract
+
+Print, as JSON, the data format versions this build of Oh reads and writes.
+A store made by a different format version won't open.
+`,
+  version: `Usage: oh version [--json]
+
+Print the version. Same as oh --version.
+`,
+  research: `Usage: oh research <command> [--file <path>]
+
+Offline research tools. They read no store and use no network, and print
+JSON.
+
+Catalogs
+  oh research catalog-v9                  The knowledge domain catalog
+  oh research wikidata-mappings-v3        The Wikidata mapping catalog
+
+Check and prepare
+  oh research validate-draft --file <path>
+                                          Check a knowledge proposal draft
+  oh research prepare-packet --file <path>
+                                          Build a research packet
+  oh research verify-packet --file <path> Check a research packet
+  oh research wikidata-preview --file <path>
+                                          Preview a Wikidata import
+  oh research wikidata-mapping-preview-v2 --file <path>
+                                          Preview a Wikidata mapping
+
+Earlier catalog and preview versions (catalog through catalog-v8,
+wikidata-mappings, wikidata-mappings-v2, wikidata-mapping-preview) still
+work for existing scripts.
+`
+};
+function commandHelp(command) {
+  return Object.hasOwn(COMMAND_HELP, command) ? COMMAND_HELP[command] : undefined;
+}
+var OH_HELP_TOPICS = Object.freeze(Object.keys(COMMAND_HELP));
+
+// src/cli-style.ts
+var AGENT_MARKERS = [
+  "AI_AGENT",
+  "CLAUDECODE",
+  "CODEX_SANDBOX",
+  "CODEX_SANDBOX_NETWORK_DISABLED",
+  "CURSOR_AGENT",
+  "GEMINI_CLI"
+];
+function detectAudience(env = process.env, stderr = process.stderr) {
+  const forced = (env.HRANESS_AUDIENCE ?? "").trim().toLowerCase();
+  if (forced === "human" || forced === "agent" || forced === "quiet")
+    return forced;
+  if (forced === "off")
+    return "quiet";
+  if (AGENT_MARKERS.some((marker) => (env[marker] ?? "") !== ""))
+    return "agent";
+  return stderr.isTTY === true ? "human" : "quiet";
+}
+function useAscii(env = process.env) {
+  if (env.HRANESS_ASCII === "1" || env.TERM === "dumb")
+    return true;
+  const locale = env.LC_ALL || env.LC_CTYPE || env.LANG || "";
+  return !/utf-?8/i.test(locale);
+}
+function useColor(stream, env = process.env) {
+  if (env.FORCE_COLOR === "1")
+    return true;
+  return stream.isTTY === true && env.TERM !== "dumb" && (env.NO_COLOR ?? "") === "";
+}
+var GLYPHS = {
+  ok: ["\u2713", "OK", "32"],
+  fail: ["\u2717", "FAIL", "31"],
+  warn: ["\u26A0", "WARN", "33"],
+  next: ["\u2192", "->", "2"],
+  on: ["\u25CF", "*", "32"],
+  off: ["\u25CB", "o", null],
+  skip: ["\u2013", "-", "2"],
+  progress: ["\u21BB", "...", null],
+  notice: ["\uD83D\uDD10", "NOTE", null]
+};
+function sym(name, stream, env = process.env) {
+  const [unicode, ascii, color] = GLYPHS[name];
+  const glyph = useAscii(env) ? ascii : unicode;
+  return color !== null && useColor(stream, env) ? `\x1B[${color}m${glyph}\x1B[0m` : glyph;
+}
+function distance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1;i <= a.length; i++) {
+    let previous = row[0];
+    row[0] = i;
+    for (let j = 1;j <= b.length; j++) {
+      const current = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
+      previous = current;
+    }
+  }
+  return row[b.length];
+}
+function closestMatch(input, known) {
+  let best;
+  for (const name of known) {
+    const d = distance(input.toLowerCase(), name.toLowerCase());
+    if (best === undefined || d < best.d)
+      best = { name, d };
+  }
+  if (best === undefined)
+    return;
+  if (best.name.startsWith(input) && input.length >= 3)
+    return best.name;
+  if (best.d >= input.length)
+    return;
+  return best.d <= Math.max(2, Math.floor(best.name.length / 3)) ? best.name : undefined;
+}
+
+// src/cli-render.ts
+var plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+function renderInit(databasePath, spaceId, head, output) {
+  return `${sym("ok", output.stream, output.env)} Store ready at ${databasePath}, space ${spaceId}, generation ${head.generation}.
+`;
+}
+function renderPut(key, head, output) {
+  return `${sym("ok", output.stream, output.env)} Saved ${key} (generation ${head.generation}).
+`;
+}
+function renderTombstone(key, head, output) {
+  return `${sym("ok", output.stream, output.env)} Removed ${key} (generation ${head.generation}). Its history stays in the log.
+`;
+}
+function renderRecord(record) {
+  const lines = [`${record.key} (${record.kind})`, JSON.stringify(record.value, null, 2)];
+  if (record.dependencies.length !== 0)
+    lines.push(`Depends on: ${record.dependencies.join(", ")}`);
+  return `${lines.join(`
+`)}
+`;
+}
+function columns(rows) {
+  const widths = [];
+  for (const row of rows)
+    row.forEach((cell, index) => {
+      widths[index] = Math.max(widths[index] ?? 0, cell.length);
+    });
+  return rows.map((row) => row.map((cell, index) => index === row.length - 1 ? cell : cell.padEnd(widths[index] ?? 0)).join("  ")).join(`
+`) + `
+`;
+}
+function renderList(records, spaceId) {
+  if (records.length === 0)
+    return `No records in space ${spaceId}.
+`;
+  return columns(records.map((record) => [record.key, record.kind]));
+}
+function describeChanges(operation) {
+  return operation.changes.map((change) => change.kind === "put" ? `put ${change.record.key}` : `tombstone ${change.key}`).join(", ");
+}
+function renderLog(operations, spaceId) {
+  if (operations.length === 0)
+    return `No changes in space ${spaceId} yet.
+`;
+  return columns(operations.map((operation) => [
+    `#${operation.sequence}`,
+    operation.instant,
+    operation.actorId,
+    describeChanges(operation)
+  ]));
+}
+function renderSearch(query, response) {
+  if (response.results.length === 0)
+    return `No records match "${query}".
+`;
+  return columns(response.results.map((result, index) => [`${index + 1}.`, result.record.key, result.record.kind]));
+}
+function renderVerify(result, output) {
+  return `${sym("ok", output.stream, output.env)} Store checked: ${plural(result.records, "record")} and ${plural(result.operations, "change")} replay to the same state (generation ${result.head.generation}).
+`;
+}
+function renderImport(imported, head, output) {
+  return imported === 0 ? `${sym("ok", output.stream, output.env)} Nothing to import; the store already has these changes.
+` : `${sym("ok", output.stream, output.env)} Imported ${plural(imported, "change")} (generation ${head.generation}).
+`;
+}
+
+// src/cli.ts
 init_canonical();
 init_contract();
 init_graph();
 init_recall();
 init_migrations();
 init_sync_model();
-import { lstat, readFile } from "fs/promises";
-var OH_PACKAGE_VERSION = "0.12.1";
+var OH_PACKAGE_VERSION = "0.13.0";
+
+class OhUsageError extends TypeError {
+  next;
+  constructor(message, next) {
+    super(message);
+    this.next = next;
+    this.name = "OhUsageError";
+  }
+}
+
+class OhCliError extends Error {
+  code;
+  next;
+  exitCode;
+  constructor(message, code2, next, exitCode) {
+    super(message);
+    this.code = code2;
+    this.next = next;
+    this.exitCode = exitCode;
+    this.name = "OhCliError";
+  }
+}
 var KNOWN_OPTIONS = new Set([
   "actor",
   "after",
@@ -26968,19 +27411,25 @@ var KNOWN_OPTIONS = new Set([
   "limit",
   "mode",
   "operation",
-  "space"
+  "space",
+  "value"
 ]);
 var RECALL_RENDER_BUDGET_BYTES = 96000;
 var GLOBAL_OPTIONS = ["db", "space"];
 var MUTATION_OPTIONS = ["actor", "expected-generation", "operation"];
-function parseArguments(arguments_) {
+function unknownOption(option3) {
+  const guess = closestMatch(option3.replace(/^-+/u, ""), [...KNOWN_OPTIONS]);
+  return new OhUsageError(`Unknown option "${option3}".${guess === undefined ? "" : ` Did you mean "--${guess}"?`}`);
+}
+function parseArguments(arguments_, command) {
   const options = new Map;
   const positionals = [];
+  let json3 = false;
   for (let index = 0;index < arguments_.length; index += 1) {
     const argument = arguments_[index];
     if (!argument.startsWith("--")) {
-      if (argument.startsWith("-"))
-        throw new TypeError(`Unknown option: ${argument}`);
+      if (argument.startsWith("-") && argument !== "-")
+        throw unknownOption(argument);
       positionals.push(argument);
       continue;
     }
@@ -26988,19 +27437,25 @@ function parseArguments(arguments_) {
     const name = equals3 === -1 ? argument.slice(2) : argument.slice(2, equals3);
     const next = equals3 === -1 ? arguments_[index + 1] : argument.slice(equals3 + 1);
     if (!KNOWN_OPTIONS.has(name))
-      throw new TypeError(`Unknown option: --${name}`);
+      throw unknownOption(`--${name}`);
+    if (name === "json" && (command !== "put" || equals3 === -1 && (next === undefined || next.startsWith("--")))) {
+      if (equals3 !== -1)
+        throw new OhUsageError("--json takes no value.");
+      json3 = true;
+      continue;
+    }
     if (next === undefined || next.length === 0 || equals3 === -1 && next.startsWith("--")) {
-      throw new TypeError(`Option --${name} needs a value.`);
+      throw new OhUsageError(`Option --${name} needs a value.`);
     }
     if (equals3 === -1)
       index += 1;
     const current = options.get(name) ?? [];
     if (name !== "depends-on" && current.length !== 0) {
-      throw new TypeError(`Option --${name} may appear only once.`);
+      throw new OhUsageError(`Option --${name} may appear only once.`);
     }
     options.set(name, [...current, next]);
   }
-  return { options, positionals };
+  return { json: json3, options, positionals };
 }
 function one(parsed, name, fallback) {
   const values3 = parsed.options.get(name);
@@ -27010,11 +27465,11 @@ function integer(value, name, minimum = 0, maximum = Number.MAX_SAFE_INTEGER) {
   if (value === undefined)
     return;
   if (!/^(?:0|[1-9][0-9]*)$/u.test(value)) {
-    throw new TypeError(`--${name} must be a canonical integer from ${minimum} through ${maximum}.`);
+    throw new OhUsageError(`--${name} must be a canonical integer from ${minimum} through ${maximum}.`);
   }
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
-    throw new TypeError(`--${name} must be a canonical integer from ${minimum} through ${maximum}.`);
+    throw new OhUsageError(`--${name} must be a canonical integer from ${minimum} through ${maximum}.`);
   }
   return parsed;
 }
@@ -27022,24 +27477,24 @@ function assertAllowedOptions(parsed, allowed) {
   const admitted = new Set(allowed);
   for (const name of parsed.options.keys()) {
     if (!admitted.has(name))
-      throw new TypeError(`Option --${name} is not valid for this command.`);
+      throw new OhUsageError(`Option --${name} is not valid for this command.`);
   }
 }
 function assertPositionals(parsed, minimum, maximum = minimum) {
   if (parsed.positionals.length < minimum || parsed.positionals.length > maximum) {
-    throw new TypeError(`This command needs ${minimum === maximum ? String(minimum) : `${minimum} through ${maximum}`} positional argument${maximum === 1 ? "" : "s"}.`);
+    throw new OhUsageError(`This command needs ${minimum === maximum ? String(minimum) : `${minimum} through ${maximum}`} positional argument${maximum === 1 ? "" : "s"}.`);
   }
 }
 function parsedSafeCode(value, label2, maximum = 128) {
   const parsed = safeCode(value, maximum);
   if (parsed === null)
-    throw new TypeError(`${label2} is invalid.`);
+    throw new OhUsageError(`${label2} is invalid.`);
   return parsed;
 }
 function validateCommon(parsed) {
   const databasePath = one(parsed, "db", ".oh/oh.sqlite");
   if (databasePath.length === 0 || databasePath.length > 4096 || databasePath.includes("\x00")) {
-    throw new TypeError("--db is invalid.");
+    throw new OhUsageError("--db is invalid.");
   }
   return { databasePath, spaceId: parsedSafeCode(one(parsed, "space", "default"), "--space") };
 }
@@ -27070,7 +27525,7 @@ async function validateInvocation(command, parsed) {
     assertPositionals(parsed, 0);
     const kind = one(parsed, "kind");
     if (kind !== undefined && !OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.includes(kind)) {
-      throw new TypeError("Unknown record kind.");
+      throw new OhUsageError("Unknown record kind.");
     }
     integer(one(parsed, "limit"), "limit", 1, 1000);
   } else if (command === "log") {
@@ -27083,7 +27538,7 @@ async function validateInvocation(command, parsed) {
     const query = parsed.positionals.join(" ");
     const mode = one(parsed, "mode", "keyword");
     if (query.trim().length === 0 || query.length > 4096 || mode !== "keyword" && mode !== "semantic" && mode !== "hybrid") {
-      throw new TypeError("search needs a bounded query and a valid mode.");
+      throw new OhUsageError("search needs a bounded query and a valid mode.");
     }
     integer(one(parsed, "limit"), "limit", 1, 100);
   } else if (command === "recall") {
@@ -27092,11 +27547,11 @@ async function validateInvocation(command, parsed) {
     const query = parsed.positionals.join(" ");
     const mode = one(parsed, "mode", "keyword");
     if (query.trim().length === 0 || query.length > 4096 || mode !== "keyword" && mode !== "semantic" && mode !== "hybrid") {
-      throw new TypeError("recall needs a bounded query and a valid mode.");
+      throw new OhUsageError("recall needs a bounded query and a valid mode.");
     }
     const asOf = one(parsed, "as-of");
     if (asOf !== undefined && parseCanonicalInstantV1(asOf) === null)
-      throw new TypeError("--as-of needs a canonical UTC instant.");
+      throw new OhUsageError("--as-of needs a canonical UTC instant.");
     integer(one(parsed, "limit"), "limit", 1, 100);
   } else if (command === "put") {
     assertAllowedOptions(parsed, [
@@ -27106,19 +27561,27 @@ async function validateInvocation(command, parsed) {
       "file",
       "json",
       "key",
-      "kind"
+      "kind",
+      "value"
     ]);
     assertPositionals(parsed, 0);
     validateMutation(parsed);
     const key3 = parsedSafeCode(one(parsed, "key"), "--key", 512);
     const kind = one(parsed, "kind");
-    const inline = one(parsed, "json");
+    if (parsed.options.has("value") && parsed.options.has("json")) {
+      throw new OhUsageError("Give the value once, with --value or --file.");
+    }
+    const inline = one(parsed, "value") ?? one(parsed, "json");
     const file = one(parsed, "file");
-    if (kind === undefined || !OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.includes(kind) || inline === undefined === (file === undefined)) {
-      throw new TypeError("put needs --key, a valid --kind, and exactly one of --json or --file.");
+    if (kind === undefined || !OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.includes(kind)) {
+      const guess = kind === undefined ? undefined : closestMatch(kind, OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1);
+      throw new OhUsageError(kind === undefined ? "put needs --kind." : `Unknown record kind "${kind}".${guess === undefined ? "" : ` Did you mean "${guess}"?`}`);
+    }
+    if (inline === undefined === (file === undefined)) {
+      throw new OhUsageError("put needs exactly one of --value or --file.");
     }
     const dependencies = (parsed.options.get("depends-on") ?? []).map((dependency) => parsedSafeCode(dependency, "--depends-on", 512)).sort();
-    const value = JSON.parse(inline ?? await readFile(file, "utf8"));
+    const value = parseValue(inline ?? await readValueFile(file), inline === undefined ? "The file" : "The --value text");
     putRecord = createKnowledgeGraphRecordV1({ dependencies, key: key3, kind, v: 1, value });
   } else if (command === "tombstone") {
     assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, ...MUTATION_OPTIONS]);
@@ -27136,19 +27599,19 @@ async function validateInvocation(command, parsed) {
       assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, "file"]);
       const file = one(parsed, "file");
       if (file === undefined)
-        throw new TypeError("sync import needs --file.");
+        throw new OhUsageError("sync import needs --file.");
       syncBundle = parseOhSyncBundleV1(await readSyncBundleFile(file));
       if (syncBundle === null)
-        throw new TypeError("Invalid sync bundle.");
+        throw new OhUsageError("Invalid sync bundle.");
     } else {
-      throw new TypeError("sync needs export or import.");
+      throw new OhUsageError("sync needs export or import.");
     }
   } else {
-    throw new TypeError(`Unknown command: ${command}`);
+    throw unknownCommand(command);
   }
   const common = validateCommon(parsed);
   if (syncBundle !== null && syncBundle.spaceId !== common.spaceId) {
-    throw new TypeError("Invalid sync bundle.");
+    throw new OhUsageError("Invalid sync bundle.");
   }
   return { ...common, putRecord, syncBundle };
 }
@@ -27156,9 +27619,33 @@ function print(value) {
   process.stdout.write(`${canonicalJson(value)}
 `);
 }
+function unknownCommand(command) {
+  const guess = closestMatch(command, OH_COMMANDS);
+  return new OhUsageError(`Unknown command "${command}".${guess === undefined ? "" : ` Did you mean "${guess}"?`}`, "oh --help");
+}
+function parseValue(text2, label2) {
+  try {
+    return JSON.parse(text2);
+  } catch {
+    throw new OhUsageError(`${label2} isn't valid JSON.`);
+  }
+}
+async function readValueFile(path) {
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT")
+      throw new OhUsageError(`No file at ${path}.`);
+    throw error;
+  }
+}
 async function readSyncBundleFile(path) {
   const maximumFileBytes = OH_SYNC_BUNDLE_MAX_BYTES_V1 + 1;
-  const metadata = await lstat(path);
+  const metadata = await lstat(path).catch((error) => {
+    if (error.code === "ENOENT")
+      throw new OhUsageError(`No file at ${path}.`);
+    throw error;
+  });
   if (!metadata.isFile() || !Number.isSafeInteger(metadata.size) || metadata.size > maximumFileBytes) {
     throw new RangeError(`Sync bundle file must be a regular file of at most ${maximumFileBytes} bytes.`);
   }
@@ -27166,102 +27653,133 @@ async function readSyncBundleFile(path) {
   if (contents.byteLength > maximumFileBytes) {
     throw new RangeError(`Sync bundle file must be at most ${maximumFileBytes} bytes.`);
   }
-  return JSON.parse(contents.toString("utf8"));
+  return parseValue(contents.toString("utf8"), "The bundle file");
 }
-var HELP = `Usage:
-  oh init
-  oh put --kind KIND --key KEY (--json JSON | --file PATH) [--depends-on KEY]...
-  oh get KEY
-  oh list [--kind KIND] [--limit N]
-  oh log [--limit N]
-  oh search QUERY [--mode keyword|semantic|hybrid] [--limit N]
-  oh recall QUERY [--as-of INSTANT] [--mode keyword|semantic|hybrid] [--limit N]
-  oh tombstone KEY
-  oh verify
-  oh sync export [--after N] [--limit N]
-  oh sync import --file PATH
-  oh contract
-  oh version
-
-Options for every command above except version:
-  --db PATH                  database file (default .oh/oh.sqlite)
-  --space ID                 space in the database (default "default")
-Options for put and tombstone:
-  --actor ID                 recorded on the operation (default agent.local)
-  --operation ID             reuse the same ID to retry a write (default random)
-  --expected-generation N    write only if the space is at generation N
-
-These commands print canonical JSON, except version, which prints only the
-version number. All but contract and version open the database, creating its
-directory, file, and space if they are missing. The get and tombstone commands
-exit 3 when KEY has no current record. Errors print "oh: MESSAGE" to stderr
-and exit 1.
-
-The list and log commands return at most 50 entries, or up to 1000 with
---limit; search and recall return at most 10, or up to 100. The --as-of option
-takes a UTC instant with milliseconds, such as 2026-01-08T12:00:00.000Z. The
-CLI has no semantic backend: semantic mode returns no results and hybrid mode
-returns keyword results, both with a semantic-unavailable diagnostic.
-
-Research (offline, no database):
-  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5
-  oh research catalog-v6|catalog-v7|catalog-v8|catalog-v9
-  oh research wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
-  oh research validate-draft|prepare-packet|verify-packet --file PATH
-  oh research wikidata-preview --file PATH
-  oh research wikidata-mapping-preview|wikidata-mapping-preview-v2 --file PATH
-
-Support (optional):
-  oh support [--json]
-  oh support protocol|offer|status --json
-  oh support shown|release ID
-  oh support dismiss|snooze|enable
-
-Every feature stays free, and you approve any payment in your browser. Agents
-run oh support protocol --json once, when closing out a useful task. Support
-notices go to stderr and never change stdout or exit codes. Set
-HRANESS_SUPPORT_AUDIENCE to agent (default), human, or off to choose who sees
-them; CI turns them off.
-`;
-async function runOhCli(arguments_) {
-  const command = arguments_[0];
-  if (command === undefined || command === "help" || command === "--help") {
-    if (arguments_.length > 1)
-      throw new TypeError("help does not accept arguments or options.");
-    const intro = terminalIntro({ isTTY: process.stdout.isTTY, columns: process.stdout.columns, term: process.env.TERM });
-    process.stdout.write(`${intro}oh ${OH_PACKAGE_VERSION}${intro === "" ? ` \xB7 ${OH_CLI_TAGLINE}` : ""}
-
-${HELP}`);
+var DEFAULT_DATABASE = ".oh/oh.sqlite";
+function shellWord(word) {
+  return /^[\w@%+=:,./-]+$/u.test(word) ? word : `'${word.replaceAll("'", "'\\''")}'`;
+}
+function scopeFlags(parsed) {
+  return ["db", "space"].flatMap((name) => {
+    const value = one(parsed, name);
+    return value === undefined ? [] : [` --${name} ${shellWord(value)}`];
+  }).join("");
+}
+function outputFor(json3) {
+  const audience2 = detectAudience();
+  return { human: audience2 === "human", json: json3 || audience2 === "agent", quiet: audience2 === "quiet" };
+}
+var style = () => ({ env: process.env, stream: process.stdout });
+function hint(output, next) {
+  if (output.human && !output.json)
+    process.stderr.write(`Next: ${next}
+`);
+}
+function warn(output, message) {
+  if (!output.json)
+    process.stderr.write(`${sym("warn", process.stderr)} ${message}
+`);
+}
+function warnAboutMode(output, mode) {
+  if (mode === "semantic")
+    warn(output, "Semantic search isn't available in the CLI, so there are no results. Use keyword search instead.");
+  if (mode === "hybrid")
+    warn(output, "Semantic search isn't available in the CLI; showing keyword results only.");
+}
+function wantsHelp(arguments_) {
+  return arguments_.includes("--help") || arguments_.includes("-h");
+}
+function printHelp(arguments_) {
+  const [command, ...rest] = arguments_;
+  const intro = () => terminalIntro({ isTTY: process.stdout.isTTY, columns: process.stdout.columns, term: process.env.TERM });
+  if (command === undefined) {
+    process.stdout.write(`${intro()}${bareScreen(OH_PACKAGE_VERSION)}`);
     return 0;
   }
-  if (command === "version" || command === "--version") {
-    if (arguments_.length !== 1)
-      throw new TypeError("version does not accept arguments or options.");
-    process.stdout.write(`${OH_PACKAGE_VERSION}
+  if (command === "help" || command === "--help" || command === "-h") {
+    if (rest.length > 1)
+      throw new OhUsageError("help takes at most one command.", "oh --help");
+    const topic = rest[0];
+    if (topic === undefined) {
+      process.stdout.write(`${intro()}${rootHelp()}`);
+      return 0;
+    }
+    const text2 = commandHelp(topic);
+    if (text2 === undefined) {
+      const guess = closestMatch(topic, OH_HELP_TOPICS);
+      throw new OhUsageError(`No help for "${topic}".${guess === undefined ? "" : ` Did you mean "${guess}"?`}`, "oh --help");
+    }
+    process.stdout.write(text2);
+    return 0;
+  }
+  if (command === "research" && (rest.length === 0 || rest[0] === "help" || wantsHelp(rest.slice(0, 1)))) {
+    process.stdout.write(commandHelp("research"));
+    return 0;
+  }
+  if (command !== "research" && wantsHelp(rest)) {
+    const text2 = commandHelp(command);
+    if (text2 === undefined)
+      throw unknownCommand(command);
+    process.stdout.write(text2);
+    return 0;
+  }
+  return;
+}
+async function runOhCli(arguments_) {
+  const helped = printHelp(arguments_);
+  if (helped !== undefined)
+    return helped;
+  const command = arguments_[0];
+  if (command === "version" || command === "--version" || command === "-V") {
+    const json3 = arguments_.length === 2 && arguments_[1] === "--json";
+    if (arguments_.length !== (json3 ? 2 : 1))
+      throw new OhUsageError("version takes no arguments.", "oh --version");
+    if (json3)
+      print({ name: "oh", version: OH_PACKAGE_VERSION });
+    else
+      process.stdout.write(`oh ${OH_PACKAGE_VERSION}
 `);
     return 0;
   }
   if (command === "research") {
     const { runOhResearchCli: runOhResearchCli2 } = await Promise.resolve().then(() => (init_research_cli(), exports_research_cli));
-    return runOhResearchCli2(arguments_.slice(1));
+    try {
+      return await runOhResearchCli2(arguments_.slice(1));
+    } catch (error) {
+      if (error instanceof TypeError && !(error instanceof OhUsageError))
+        throw new OhUsageError(error.message, "oh research --help");
+      throw error;
+    }
   }
-  const parsed = parseArguments(arguments_.slice(1));
+  const parsed = parseArguments(arguments_.slice(1), command);
   const validated = await validateInvocation(command, parsed);
   if (command === "contract") {
     print({ manifest: OH_CONTRACT_MANIFEST_V1, sqliteSchemaVersion: OH_SQLITE_SCHEMA_VERSION, v: 1 });
     return 0;
   }
+  const output = outputFor(parsed.json);
+  const scope5 = scopeFlags(parsed);
+  const creates = command === "init" || command === "put" || command === "sync" && parsed.positionals[0] === "import";
+  if (!creates && validated.databasePath !== ":memory:" && !existsSync2(validated.databasePath)) {
+    throw new OhCliError(`No Oh store at ${validated.databasePath}.`, "no_store", validated.databasePath === DEFAULT_DATABASE ? "oh init" : `oh init --db ${shellWord(validated.databasePath)}`, 1);
+  }
+  const missing = (key3) => new OhCliError(`No record named "${key3}" in space ${validated.spaceId}.`, "not_found", `oh list${scope5}`, 3);
   const { Oh: Oh2 } = await Promise.resolve().then(() => (init_sdk(), exports_sdk));
   const oh = Oh2.open({ databasePath: validated.databasePath, spaceId: validated.spaceId });
   try {
     if (command === "init") {
-      print({ head: oh.head(), spaceId: oh.store.spaceId, v: 1 });
+      const head5 = oh.head();
+      if (output.json)
+        print({ head: head5, spaceId: oh.store.spaceId, v: 1 });
+      else
+        process.stdout.write(renderInit(validated.databasePath, oh.store.spaceId, head5, style()));
+      hint(output, `oh put --kind entity --key entity:ada --value '{"name":"Ada"}'${scope5}`);
       return 0;
     }
     if (command === "put") {
       const record2 = validated.putRecord;
       if (record2 === null)
-        throw new TypeError("Invalid prepared put command.");
+        throw new OhUsageError("Invalid prepared put command.");
       const head5 = oh.head();
       const expectedGeneration = integer(one(parsed, "expected-generation"), "expected-generation");
       const operation = oh.store.commit({
@@ -27273,73 +27791,109 @@ ${HELP}`);
         },
         operationId: one(parsed, "operation") ?? opaqueId("op_")
       });
-      print(operation);
+      if (output.json)
+        print(operation);
+      else
+        process.stdout.write(renderPut(record2.key, oh.head(), style()));
+      hint(output, `oh get ${shellWord(record2.key)}${scope5}`);
       return 0;
     }
     if (command === "tombstone") {
       const key3 = parsed.positionals[0];
       if (key3 === undefined || parsed.positionals.length !== 1)
-        throw new TypeError("tombstone needs one record key.");
+        throw new OhUsageError("tombstone needs one record key.");
       const head5 = oh.head();
       const expectedGeneration = integer(one(parsed, "expected-generation"), "expected-generation");
       const record2 = oh.get(key3);
       if (record2 === null)
-        return 3;
+        throw missing(key3);
       const operation = oh.store.commit({
         actorId: one(parsed, "actor", "agent.local"),
         changes: [{ key: key3, kind: "tombstone", priorSha256: record2.recordSha256, v: 1 }],
         expectedHead: { generation: expectedGeneration ?? head5.generation, operationSha256: head5.operationSha256 },
         operationId: one(parsed, "operation") ?? opaqueId("op_")
       });
-      print(operation);
+      if (output.json)
+        print(operation);
+      else
+        process.stdout.write(renderTombstone(key3, oh.head(), style()));
       return 0;
     }
     if (command === "get") {
       const key3 = parsed.positionals[0];
       if (key3 === undefined || parsed.positionals.length !== 1)
-        throw new TypeError("get needs one record key.");
+        throw new OhUsageError("get needs one record key.");
       const record2 = oh.get(key3);
       if (record2 === null)
-        return 3;
-      print(record2);
+        throw missing(key3);
+      if (output.json)
+        print(record2);
+      else
+        process.stdout.write(renderRecord(record2));
       return 0;
     }
     if (command === "list") {
       const kind = one(parsed, "kind");
       if (kind !== undefined && !OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.includes(kind))
-        throw new TypeError("Unknown record kind.");
+        throw new OhUsageError("Unknown record kind.");
       const limit = integer(one(parsed, "limit"), "limit");
-      print({ records: oh.list({ ...kind === undefined ? {} : { kind }, ...limit === undefined ? {} : { limit } }), v: 1 });
+      const records = oh.list({ ...kind === undefined ? {} : { kind }, ...limit === undefined ? {} : { limit } });
+      if (output.json)
+        print({ records, v: 1 });
+      else
+        process.stdout.write(renderList(records, oh.store.spaceId));
+      if (records.length === 0)
+        hint(output, `oh put --help`);
       return 0;
     }
     if (command === "log") {
-      print({ operations: oh.store.log(integer(one(parsed, "limit"), "limit")), v: 1 });
+      const operations = oh.store.log(integer(one(parsed, "limit"), "limit"));
+      if (output.json)
+        print({ operations, v: 1 });
+      else
+        process.stdout.write(renderLog(operations, oh.store.spaceId));
       return 0;
     }
     if (command === "search") {
       const query = parsed.positionals.join(" ");
       const mode = one(parsed, "mode", "keyword");
       if (query.length === 0 || mode !== "keyword" && mode !== "semantic" && mode !== "hybrid")
-        throw new TypeError("search needs a query and a valid mode.");
+        throw new OhUsageError("search needs a query and a valid mode.");
       const limit = integer(one(parsed, "limit"), "limit");
-      print(await oh.search(query, { ...limit === undefined ? {} : { limit }, mode }));
+      const response = await oh.search(query, { ...limit === undefined ? {} : { limit }, mode });
+      warnAboutMode(output, mode);
+      if (output.json)
+        print(response);
+      else
+        process.stdout.write(renderSearch(query, response));
       return 0;
     }
     if (command === "recall") {
       const query = parsed.positionals.join(" ");
       const mode = one(parsed, "mode", "keyword");
       if (query.length === 0 || mode !== "keyword" && mode !== "semantic" && mode !== "hybrid")
-        throw new TypeError("recall needs a query and a valid mode.");
+        throw new OhUsageError("recall needs a query and a valid mode.");
       const limit = integer(one(parsed, "limit"), "limit");
       const asOf = parseCanonicalInstantV1(one(parsed, "as-of"));
       const resolved = asOf === null ? null : resolveRelativeDateWindowV1(query, asOf);
       const window = resolved === null ? null : { since: resolved.since, until: resolved.until, v: 1 };
       const recall = await oh.recall(query, { asOf, ...limit === undefined ? {} : { limit }, mode, window });
-      print({ recall, rendering: renderOhRecallV1(recall, { asOf, budgetBytes: RECALL_RENDER_BUDGET_BYTES }), v: 1 });
+      const rendering = renderOhRecallV1(recall, { asOf, budgetBytes: RECALL_RENDER_BUDGET_BYTES });
+      warnAboutMode(output, mode);
+      if (output.json)
+        print({ recall, rendering, v: 1 });
+      else
+        process.stdout.write(rendering.text === "" ? `No records match "${query}".
+` : `${rendering.text.replace(/\n*$/u, "")}
+`);
       return 0;
     }
     if (command === "verify") {
-      print(oh.verify());
+      const verification = oh.verify();
+      if (output.json)
+        print(verification);
+      else
+        process.stdout.write(renderVerify(verification, style()));
       return 0;
     }
     if (command === "sync") {
@@ -27355,10 +27909,14 @@ ${HELP}`);
       if (action === "import") {
         const bundle = validated.syncBundle;
         if (bundle === null)
-          throw new TypeError("Invalid prepared sync import command.");
+          throw new OhUsageError("Invalid prepared sync import command.");
         const first = bundle.operations[0];
         if (first === undefined) {
-          print({ head: oh.head(), imported: 0, v: 1 });
+          const head5 = oh.head();
+          if (output.json)
+            print({ head: head5, imported: 0, v: 1 });
+          else
+            process.stdout.write(renderImport(0, head5, style()));
           return 0;
         }
         const imported = oh.store.importOperations({
@@ -27368,20 +27926,67 @@ ${HELP}`);
           },
           operations: bundle.operations
         });
-        print({ head: imported.head, imported: imported.imported, v: 1 });
+        if (output.json)
+          print({ head: imported.head, imported: imported.imported, v: 1 });
+        else
+          process.stdout.write(renderImport(imported.imported, imported.head, style()));
         return 0;
       }
-      throw new TypeError("sync needs export or import.");
+      throw new OhUsageError("sync needs export or import.");
     }
-    throw new TypeError(`Unknown command: ${command}`);
+    throw unknownCommand(command);
   } finally {
     await oh.close();
   }
 }
+function sentence(message) {
+  const text2 = message.trim();
+  return /[.!?"]$/u.test(text2) ? text2 : `${text2}.`;
+}
+function describeOhCliError(error, arguments_) {
+  const command = arguments_[0];
+  const helpFor = command !== undefined && commandHelp(command) !== undefined ? `oh ${command} --help` : "oh --help";
+  if (error instanceof OhCliError) {
+    return { code: error.code, exitCode: error.exitCode, message: sentence(error.message), next: error.next };
+  }
+  if (error instanceof OhUsageError) {
+    return { code: "usage", exitCode: 2, message: sentence(error.message), next: error.next ?? helpFor };
+  }
+  return { code: "failed", exitCode: 1, message: sentence(error instanceof Error ? error.message : String(error)), next: helpFor };
+}
+function asksForJson(arguments_) {
+  return arguments_.some((argument, index) => argument === "--json" && (arguments_[0] !== "put" || arguments_[index + 1] === undefined || arguments_[index + 1].startsWith("--")));
+}
+function supportCommandPrefix(script = process.argv[1] ?? "", path = process.env.PATH ?? "") {
+  const fallback = [process.execPath, script];
+  let target;
+  try {
+    target = realpathSync(script);
+  } catch {
+    return fallback;
+  }
+  for (const directory of path.split(delimiter)) {
+    if (directory === "")
+      continue;
+    let found;
+    try {
+      found = realpathSync(join4(directory, "oh"));
+    } catch {
+      continue;
+    }
+    return found === target ? ["oh"] : fallback;
+  }
+  return fallback;
+}
 if (import.meta.main) {
   const args2 = process.argv.slice(2);
+  process.stdout.on("error", (error) => {
+    if (error.code === "EPIPE")
+      process.exit(0);
+    throw error;
+  });
   const { runOhSupportCommand: runOhSupportCommand2, showOhSupportInvitation: showOhSupportInvitation2, standaloneSupportEnvironment: standaloneSupportEnvironment2 } = await Promise.resolve().then(() => (init_support(), exports_support));
-  const options = { env: standaloneSupportEnvironment2(), command: [process.execPath, process.argv[1]] };
+  const options = { env: standaloneSupportEnvironment2(), command: supportCommandPrefix() };
   const run = async () => {
     if (args2[0] === "support")
       return runOhSupportCommand2(args2.slice(1), options);
@@ -27392,12 +27997,27 @@ if (import.meta.main) {
   run().then((code2) => {
     process.exitCode = code2;
   }).catch((error) => {
-    process.stderr.write(`oh: ${error instanceof Error ? error.message : String(error)}
+    const described = describeOhCliError(error, args2);
+    if (asksForJson(args2) || detectAudience() === "agent") {
+      print({ error: { code: described.code, message: described.message, next: described.next }, ok: false });
+    } else {
+      process.stderr.write(`${sym("fail", process.stderr)} ${described.message}
+${sym("next", process.stderr)} ${described.next}
 `);
-    process.exitCode = 1;
+      if (process.env.HRANESS_DEBUG === "1" && error instanceof Error && error.stack !== undefined) {
+        process.stderr.write(`  code: ${described.code}
+${error.stack}
+`);
+      }
+    }
+    process.exitCode = described.exitCode;
   });
 }
 export {
+  supportCommandPrefix,
   runOhCli,
+  describeOhCliError,
+  OhUsageError,
+  OhCliError,
   OH_PACKAGE_VERSION
 };

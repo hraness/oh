@@ -55,7 +55,7 @@ record format) this CLI implements, then verify the space:
 ```sh
 test -f .oh/oh.sqlite
 oh contract
-oh verify --db .oh/oh.sqlite --space default
+oh verify --db .oh/oh.sqlite --space default --json
 ```
 
 `oh verify` runs SQLite’s integrity and foreign-key checks, replays every
@@ -69,22 +69,24 @@ get past an integrity or contract failure.
 Use the narrowest read:
 
 ```sh
-oh get entity:ada-lovelace --db .oh/oh.sqlite --space default
-oh list --kind statement --limit 50 --db .oh/oh.sqlite --space default
-oh log --limit 20 --db .oh/oh.sqlite --space default
+oh get entity:ada-lovelace --db .oh/oh.sqlite --space default --json
+oh list --kind statement --limit 50 --db .oh/oh.sqlite --space default --json
+oh log --limit 20 --db .oh/oh.sqlite --space default --json
 oh search "analytical engine" --mode keyword --limit 10 \
-  --db .oh/oh.sqlite --space default
+  --db .oh/oh.sqlite --space default --json
 oh recall "what changed last week" --as-of 2026-01-08T12:00:00.000Z \
-  --db .oh/oh.sqlite --space default
+  --db .oh/oh.sqlite --space default --json
 ```
 
-These commands print canonical JSON (sorted keys, no extra whitespace); parse
-it. `oh list` sorts by key, and `oh log` starts with the newest operation.
+Add `--json` to every command whose output you read. Oh prints canonical JSON
+(sorted keys, no extra whitespace) with `--json`, and also by default when it
+detects a coding agent; without either it prints short sentences for people. `oh list` sorts by key, and `oh log` starts with the newest operation.
 Each returns at most 50 entries, or up to 1,000 with `--limit`, and neither
 says whether more exist, so a result that fills the limit may be incomplete.
 `oh search` and `oh recall` return at most 10 results, or up to 100 with
-`--limit`. A `get` for a key with no current record prints nothing and exits
-with status 3, which means absence, not corruption.
+`--limit`. A `get` for a key with no current record exits with status 3,
+which means absence, not corruption; with `--json` it prints
+`{"error":{"code":"not_found",...},"ok":false}`.
 
 `oh recall` runs the same search as `oh search` and adds `rendering.text`, the
 matches as one block of text in rank order. With `--as-of`, the text runs
@@ -100,8 +102,8 @@ Use a path inside the task’s project, and never overwrite an unrelated
 database or merge one into another.
 
 ```sh
-oh init --db .oh/oh.sqlite --space default
-oh verify --db .oh/oh.sqlite --space default
+oh init --db .oh/oh.sqlite --space default --json
+oh verify --db .oh/oh.sqlite --space default --json
 ```
 
 Record the head that `oh init` prints. Add the database directory to the
@@ -118,7 +120,7 @@ lists them all under `manifest.recordKinds`.
 1. Read every dependency with `oh get`.
 2. Run `oh verify` and take `head.generation` from its output.
 3. Prepare one JSON value: `--file` for structured or multiline content,
-   `--json` for a short literal.
+   `--value` for a short literal.
 4. Choose an operation ID to reuse on any retry. A retry with the same ID,
    actor, and content returns the original operation instead of writing
    twice; the same ID with a different actor or content fails.
@@ -135,7 +137,8 @@ oh put \
   --operation op_ada_program_v1 \
   --expected-generation 4 \
   --db .oh/oh.sqlite \
-  --space default
+  --space default \
+  --json
 ```
 
 Each write is a compare-and-swap. If another writer committed first, it fails
@@ -148,7 +151,7 @@ it reads just before writing, not the one you reviewed.
 After a batch of writes, run:
 
 ```sh
-oh verify --db .oh/oh.sqlite --space default
+oh verify --db .oh/oh.sqlite --space default --json
 ```
 
 ## Tombstone a record
@@ -165,8 +168,8 @@ oh tombstone statement:obsolete \
   --space default
 ```
 
-If the key has no current record, `oh tombstone` prints nothing and exits with
-status 3. If another current record depends on the key, it fails with a
+If the key has no current record, `oh tombstone` changes nothing and exits
+with status 3. If another current record depends on the key, it fails with a
 `Missing dependency` error and changes nothing. Run `oh verify` right after,
 and never edit SQLite tables to get around dependency or compare-and-swap
 checks.
@@ -212,7 +215,7 @@ the head and run `oh verify` before you retry.
 ```sh
 oh sync import --file /absolute/path/to/oh-bundle.json \
   --db .oh/oh.sqlite --space default
-oh verify --db .oh/oh.sqlite --space default
+oh verify --db .oh/oh.sqlite --space default --json
 ```
 
 Remote libSQL or Turso sync runs through the SDK, against the remote and

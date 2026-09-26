@@ -8,7 +8,7 @@ const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
 async function run(cwd: string, ...args: string[]) {
   const child = Bun.spawn([process.execPath, join(import.meta.dir, "cli.ts"), "research", ...args],
-    { cwd, env: { ...process.env, HRANESS_SUPPORT_AUDIENCE: "off" }, stdout: "pipe", stderr: "pipe" });
+    { cwd, env: { ...process.env, HRANESS_AUDIENCE: "quiet", HRANESS_SUPPORT_AUDIENCE: "off" }, stdout: "pipe", stderr: "pipe" });
   const [code, stdout, stderr] = await Promise.all([child.exited,
     new Response(child.stdout).text(), new Response(child.stderr).text()]);
   return { code, stdout, stderr };
@@ -49,6 +49,7 @@ test("offline CLI rejects unknown options, oversized files and symlinks before p
     ["validate-draft", "--file", "source.json"], ["verify-packet", "--file", "."]]) {
     const result = await run(dir, ...args);
     expect(result.code).not.toBe(0); expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/^✗ [^\n]+\n→ oh research --help\n$/u);
   }
   expect(existsSync(join(dir, "unexpected.sqlite"))).toBe(false);
   expect(existsSync(join(dir, ".oh"))).toBe(false);

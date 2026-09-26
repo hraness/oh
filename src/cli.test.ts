@@ -15,9 +15,10 @@ const CLI_PATH = join(import.meta.dir, "cli.ts");
 const REPOSITORY_ROOT = join(import.meta.dir, "..");
 afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
 
-async function run(arguments_: readonly string[], cwd = REPOSITORY_ROOT): Promise<{ code: number; stderr: string; stdout: string }> {
+async function run(arguments_: readonly string[], cwd = REPOSITORY_ROOT,
+  audience = "agent"): Promise<{ code: number; stderr: string; stdout: string }> {
   const process_ = Bun.spawn([process.execPath, CLI_PATH, ...arguments_], { cwd,
-    stderr: "pipe", stdout: "pipe", env: { ...process.env, HRANESS_SUPPORT_AUDIENCE: "off" } });
+    stderr: "pipe", stdout: "pipe", env: { ...process.env, HRANESS_AUDIENCE: audience, HRANESS_SUPPORT_AUDIENCE: "off" } });
   const [code, stdout, stderr] = await Promise.all([process_.exited,
     new Response(process_.stdout).text(), new Response(process_.stderr).text()]);
   return { code, stderr, stdout };
@@ -44,7 +45,7 @@ describe("oh CLI", () => {
       catch (error) { if (!(error instanceof TypeError)) throw error; rejected = true; }
       if (!rejected || loaded()) throw new Error("Invalid command crossed the SDK boundary");
       // A real store command is also the positive control for the cache observer.
-      if (await runOhCli(["init"]) !== 0 || !loaded()) {
+      if (await runOhCli(["init", "--json"]) !== 0 || !loaded()) {
         throw new Error("Store command did not load the runtime");
       }
     `;
@@ -84,12 +85,20 @@ describe("oh CLI", () => {
     expect(JSON.parse(verify.stdout)).toMatchObject({ operations: 1, records: 1, sqliteIntegrity: "ok" });
   });
 
-  test("returns a distinct missing-record status", async () => {
+  test("returns a distinct missing-record status with a next step", async () => {
     const root = await mkdtemp(join(tmpdir(), "oh-cli-test-"));
     roots.push(root);
-    const result = await run(["get", "entity:missing", "--db", join(root, "oh.sqlite")]);
+    const database = join(root, "oh.sqlite");
+    expect((await run(["init", "--db", database])).code).toBe(0);
+    const result = await run(["get", "entity:missing", "--db", database], REPOSITORY_ROOT, "human");
     expect(result.code).toBe(3);
     expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(`✗ No record named "entity:missing" in space default.\n→ oh list --db ${database}\n`);
+    const agent = await run(["get", "entity:missing", "--db", database]);
+    expect(agent.code).toBe(3);
+    expect(agent.stderr).toBe("");
+    expect(JSON.parse(agent.stdout)).toEqual({ error: { code: "not_found",
+      message: 'No record named "entity:missing" in space default.', next: `oh list --db ${database}` }, ok: false });
   });
 
   test("rejects malformed and command-invalid input before opening a database", async () => {
@@ -132,9 +141,9 @@ describe("oh CLI", () => {
       ["sync", "export", "--limit", "0"],
     ];
     for (const invocation of invalidInvocations) {
-      const result = await run(invocation, root);
-      expect(result.code, invocation.join(" ")).toBe(1);
-      expect(result.stderr, invocation.join(" ")).toStartWith("oh: ");
+      const result = await run(invocation, root, "human");
+      expect(result.code, invocation.join(" ")).toBe(2);
+      expect(result.stderr, invocation.join(" ")).toMatch(/^✗ [^\n]+\n→ oh [^\n]+\n$/u);
       expect(result.stdout, invocation.join(" ")).toBe("");
       expect(existsSync(join(root, ".oh")), invocation.join(" ")).toBe(false);
       expect(existsSync(database), invocation.join(" ")).toBe(false);
@@ -182,7 +191,7 @@ describe("oh CLI", () => {
       canonicalJson(createOhSyncBundleV1(source.spaceId, [first, hostileSecond])), "utf8");
     source.close();
 
-    const imported = await run(["sync", "import", "--db", database, "--file", bundlePath]);
+    const imported = await run(["sync", "import", "--db", database, "--file", bundlePath], REPOSITORY_ROOT, "quiet");
     expect(imported.code).toBe(1);
     expect(imported.stderr).toContain("does not reproduce");
     const verified = await run(["verify", "--db", database]);
@@ -197,7 +206,7 @@ describe("oh CLI", () => {
     const bundlePath = join(root, "oversized-bundle.json");
     await writeFile(bundlePath, "", "utf8");
     await truncate(bundlePath, OH_SYNC_BUNDLE_MAX_BYTES_V1 + 2);
-    const imported = await run(["sync", "import", "--db", database, "--file", bundlePath]);
+    const imported = await run(["sync", "import", "--db", database, "--file", bundlePath], REPOSITORY_ROOT, "quiet");
     expect(imported.code).toBe(1);
     expect(imported.stderr).toContain("regular file of at most");
     expect(existsSync(database)).toBe(false);

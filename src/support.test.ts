@@ -61,7 +61,8 @@ test("CI, off, probes, errors and imported runners remain quiet", async () => {
     for (const args of [["help"], ["version"], ["contract"], ["verify"]]) expect((await f.run(args)).stderr).toBe("");
     const missing = await f.run(["get", "entity:missing"]);
     expect(missing.code).toBe(3);
-    expect(missing.stderr).toBe("");
+    // No UTF-8 locale in this fixture, so the symbols fall back to ASCII.
+    expect(missing.stderr).toBe('FAIL No record named "entity:missing" in space default.\n-> oh list\n');
     const invalid = await f.run(["init", "--unknown"]);
     expect(invalid.code).not.toBe(0);
     expect(invalid.stderr).not.toContain("hraness-support");
@@ -77,7 +78,8 @@ test("eligibility is restricted to successful useful operations", () => {
     expect(hasUsefulOhResult(args, 0)).toBe(true);
     expect(hasUsefulOhResult(args, 1)).toBe(false);
   }
-  for (const args of [[], ["help"], ["version"], ["verify"], ["contract"], ["research", "catalog-v7"], ["research", "verify-packet"], ["support"]]) expect(hasUsefulOhResult(args, 0)).toBe(false);
+  for (const args of [[], ["help"], ["version"], ["verify"], ["contract"], ["research", "catalog-v7"], ["research", "verify-packet"], ["support"],
+    ["put", "--help"], ["get", "-h"], ["help", "search"], ["sync", "export", "--help"]]) expect(hasUsefulOhResult(args, 0)).toBe(false);
 });
 
 
@@ -106,12 +108,12 @@ test("cold source probes do not load the optional support dependency", async () 
       expect(result.error).toBeUndefined();
       expect(result.status).toBe(0);
       expect(result.stderr).toBe("");
-      if (args[0] === "--version" || args[0] === "version") expect(result.stdout).toBe(`${OH_PACKAGE_VERSION}\n`);
+      if (args[0] === "--version" || args[0] === "version") expect(result.stdout).toBe(`oh ${OH_PACKAGE_VERSION}\n`);
     }
     const invalid = runCold(["--version", "extra"]);
     expect(invalid.error).toBeUndefined();
-    expect(invalid.status).toBe(1);
-    expect(invalid.stderr).toContain("version does not accept arguments or options");
+    expect(invalid.status).toBe(2);
+    expect(invalid.stderr).toContain("version takes no arguments");
     expect(await access(join(sourceRoot, "node_modules")).then(() => true, () => false)).toBe(false);
     expect(await access(join(f.root, "state")).then(() => true, () => false)).toBe(false);
   } finally { await f.cleanup(); }

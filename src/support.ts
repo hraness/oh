@@ -21,6 +21,8 @@ const usefulCommands = new Set(["init", "put", "get", "list", "log", "search", "
 /** The existing parser and completed exit status have already admitted the command. */
 export function hasUsefulOhResult(args: readonly string[], exitCode: number): boolean {
   if (exitCode !== 0) return false;
+  // Help screens exit 0 but did no work.
+  if (args.includes("--help") || args.includes("-h") || args[0] === "help") return false;
   if (args[0] === "sync") return args[1] === "export" || args[1] === "import";
   if (args[0] === "research") return args[1] === "prepare-packet";
   return usefulCommands.has(args[0] ?? "");
