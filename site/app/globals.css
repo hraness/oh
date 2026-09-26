@@ -789,3 +789,89 @@ a:focus-visible {
   margin-block-start: 2rem;
   color: var(--muted);
 }
+
+/* Comparison pages reuse the specification reading layout; tables and the
+ * dated source list are local to them. */
+.compare-document .spec-section > div:last-child {
+  max-width: 70ch;
+}
+
+.compare-table-wrap {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+.compare-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.compare-table caption {
+  padding-block-end: 0.75rem;
+  color: var(--muted);
+  text-align: start;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 0.65rem 0.75rem 0.65rem 0;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.compare-table th {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.compare-table td {
+  color: var(--muted);
+}
+
+.compare-table td code {
+  padding: 0.08em 0.38em;
+  border-radius: 0.3em;
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+  color: var(--foreground);
+  font-size: 0.9em;
+}
+
+.compare-sources {
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compare-sources li {
+  padding: 0.75rem 0;
+  border-block-start: 1px solid var(--line);
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.compare-sources li:last-child {
+  border-block-end: 1px solid var(--line);
+}
+
+.compare-sources a {
+  color: var(--foreground);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent);
+  text-underline-offset: 0.18em;
+}
+
+.compare-sources a:hover {
+  text-decoration-color: currentColor;
+}
+
+@media (forced-colors: active), (prefers-contrast: more) {
+  .compare-table th,
+  .compare-table td {
+    border-block-end-color: currentColor;
+  }
+}

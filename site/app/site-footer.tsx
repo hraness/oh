@@ -18,6 +18,7 @@ export function OhContentFooter() {
       links={[
         { href: "/blog", label: "Blog" },
         { href: "/benchmarks", label: "Benchmarks" },
+        { href: "/compare", label: "Compare" },
         { href: "/spec", label: "Specification" },
         { href: repository, label: "hraness/oh" },
         { href: "https://hraness.com/projects", label: "Hraness projects" },

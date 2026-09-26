@@ -9,6 +9,15 @@ export const specificationDescription =
 export const benchmarksTitle = "Oh: Benchmarks";
 export const benchmarksDescription =
   "Every memory benchmark result Oh has published, with the score, setup, and main limit for each study and a link to its full record.";
+export const compareTitle = "Oh: Comparisons";
+export const compareDescription =
+  "How Oh compares with other agent memory systems on sourced pages: Mem0 and Supermemory so far, with a dated source for every claim.";
+export const compareMem0Title = "Oh vs Mem0";
+export const compareMem0Description =
+  "Mem0 gives a product per-end-user memory, hosted or self-hosted. Oh keeps an agent’s working memory in a local SQLite file, each fact linked to its sources.";
+export const compareSupermemoryTitle = "Oh vs Supermemory";
+export const compareSupermemoryDescription =
+  "Supermemory is a hosted memory API with connectors and per-user containers. Oh is local memory for an agent’s work; see the matched 60-question pilot.";
 
 // Image descriptions say what the card shows without repeating its headline.
 export const homeImageAlt =
@@ -17,3 +26,9 @@ export const specificationImageAlt =
   "Off-white card with the Oh mark of three linked circles, the specification’s title, a short summary, and oh.computer/spec.";
 export const benchmarksImageAlt =
   "Off-white card with the Oh mark of three linked circles, the benchmarks page title, a short summary, and oh.computer/benchmarks.";
+export const compareImageAlt =
+  "Off-white card with the Oh mark, the comparisons title, a short summary, and oh.computer/compare.";
+export const compareMem0ImageAlt =
+  "Off-white card with the Oh mark, the Oh vs Mem0 title, a short summary, and oh.computer/compare/mem0.";
+export const compareSupermemoryImageAlt =
+  "Off-white card with the Oh mark, the Oh vs Supermemory title, a summary, and oh.computer/compare/supermemory.";

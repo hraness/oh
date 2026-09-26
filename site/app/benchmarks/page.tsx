@@ -142,6 +142,7 @@ export default function Benchmarks() {
           { href: "/", label: "Overview" },
           { href: "/blog", label: "Blog" },
           { current: true, href: "/benchmarks", label: "Benchmarks" },
+          { href: "/compare", label: "Compare" },
           { href: "/spec", label: "Specification" },
           { href: "https://github.com/hraness/oh", label: "GitHub" },
         ]}

@@ -105,6 +105,7 @@ export function MemoryBenchmarkComparison() {
       <ul className="benchmark-links" aria-label="Supermemory comparison">
         <li><a href={`${evidence}/FRAMEWORK_PILOT_RESULT_V1.md`}>Full result and limits</a></li>
         <li><a href={`${evidence}/results/memory-framework-pilot-v1.json`}>Numbers as JSON</a></li>
+        <li><a href="/compare/supermemory">Oh vs Supermemory page</a></li>
       </ul>
 
       <details className="benchmark-literature">
