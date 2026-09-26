@@ -550,17 +550,19 @@ function asksForJson(arguments_: readonly string[]): boolean {
     || arguments_[index + 1] === undefined || arguments_[index + 1]!.startsWith("--")));
 }
 
-/** The support command prefix: `oh` when that name on PATH runs this file, else the full path. */
-function supportCommandPrefix(): string[] {
-  const script = process.argv[1] ?? "";
-  try {
-    const target = realpathSync(script);
-    for (const directory of (process.env.PATH ?? "").split(delimiter)) {
-      if (directory === "") continue;
-      try { if (realpathSync(join(directory, "oh")) === target) return ["oh"]; } catch { /* not this one */ }
-    }
-  } catch { /* fall back to the full path */ }
-  return [process.execPath, script];
+/** The support command prefix: `oh` when the first `oh` on PATH runs this file, else the full path. */
+export function supportCommandPrefix(script = process.argv[1] ?? "", path = process.env.PATH ?? ""): string[] {
+  const fallback = [process.execPath, script];
+  let target: string;
+  try { target = realpathSync(script); } catch { return fallback; }
+  for (const directory of path.split(delimiter)) {
+    if (directory === "") continue;
+    let found: string;
+    try { found = realpathSync(join(directory, "oh")); } catch { continue; }
+    // The shell runs the first `oh`; a later match would not be what `oh` means.
+    return found === target ? ["oh"] : fallback;
+  }
+  return fallback;
 }
 
 if (import.meta.main) {

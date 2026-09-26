@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { OH_PACKAGE_VERSION } from "./cli";
+import { OH_PACKAGE_VERSION, supportCommandPrefix } from "./cli";
 import { OH_HELP_TOPICS } from "./cli-help";
 
 const CLI = join(import.meta.dir, "cli.ts");
@@ -232,5 +232,19 @@ describe("oh support command", () => {
     const result = await oh(["support", "protocol", "--json"], { cwd: root, env });
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout).commands.protocol).toEqual(["oh", "support", "protocol", "--json"]);
+  });
+});
+
+describe("oh support command prefix", () => {
+  test("names oh only when the first oh on PATH is this script", async () => {
+    const root = await mkdtemp(join(tmpdir(), "oh-prefix-"));
+    roots.push(root);
+    const [other, mine] = [join(root, "other"), join(root, "mine")];
+    await Promise.all([mkdir(other), mkdir(mine)]);
+    await symlink(join(import.meta.dir, "cli-help.ts"), join(other, "oh"));
+    await symlink(CLI, join(mine, "oh"));
+    expect(supportCommandPrefix(CLI, mine)).toEqual(["oh"]);
+    expect(supportCommandPrefix(CLI, `${other}:${mine}`)).toEqual([process.execPath, CLI]);
+    expect(supportCommandPrefix(CLI, `${join(root, "none")}:${mine}`)).toEqual(["oh"]);
   });
 });
