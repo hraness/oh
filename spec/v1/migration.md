@@ -1,15 +1,16 @@
 # Compatibility and migration V1
 
-This document defines the supported migration path for one conforming Oh V1
-space to another storage location or Oh installation. Source and target MUST
+This document defines the supported way to move one conforming Oh V1 space to
+another storage location or Oh installation. Source and target MUST
 use contract `oh.ontology.v1` with contract digest
 `e53ae573c2af417082be9f554d0f6f3e317f054daf745181f462608e3f622594` and
 the same space ID.
 
 V1 does not ship a cross-contract transformer. A different contract digest,
-protocol identifier, or space ID fails closed before an operation is applied.
+protocol identifier, or space ID makes the import fail before any operation is
+applied.
 
-## Preserved authority
+## What migration preserves
 
 The append-only operation chain is the migration unit. Every imported operation
 MUST retain its canonical fields, record envelopes, logical keys, dependencies,
@@ -18,9 +19,10 @@ digest. A migration MUST NOT rename identifiers, rewrite record values, replace
 timestamps, recompute operations under a different contract, or reconstruct the
 chain from current-row snapshots.
 
-SQLite current-record and dependency tables are checked materializations of the
-operation chain. Search documents, FTS5 rows, and the QMD semantic directory are
-derived state and are not migration authority.
+SQLite current-record and dependency tables are materializations of the
+operation chain, and `oh verify` compares them with a replay of that chain.
+Search documents, FTS5 rows, and the QMD semantic directory are derived state.
+Migration does not treat them as authoritative.
 
 ## Offline migration
 
@@ -54,29 +56,30 @@ conflict. Oh does not merge divergent histories automatically.
 
 `synchronizeOhStoreV1` provides the same fast-forward rule through an
 `OhOperationSyncTransportV1`. The transport handshake compares the complete V1
-contract manifest before exchanging operations. Settlement succeeds only when
-both heads have the same sequence and operation digest. Applications own
-transport credentials, availability, retries, backups, and any explicit merge
+contract manifest before exchanging operations. Sync finishes only when both
+heads have the same sequence and operation digest. Applications are
+responsible for transport credentials, availability, retries, backups, and any explicit merge
 policy.
 
 ## Search state
 
-Keyword search remains available from the SQLite store after operation import.
+Keyword search works from the SQLite store after operation import, because
+import writes the keyword index with each operation.
 Semantic state MAY be rebuilt with the exact profile in
 [`embedding-profile.json`](embedding-profile.json). A semantic result is current
 only after it rejoins a record with the same record digest. Copying a semantic
-directory does not establish migration parity.
+directory does not show that the target matches the source.
 
 The optional hosted cache is rebuilt from authoritative records with both the
 exact [`cloudflare-embedding-profile.json`](cloudflare-embedding-profile.json)
 and [`cloudflare-embedding-renderer.json`](cloudflare-embedding-renderer.json)
 identities. Do not copy or mix vectors across local, hosted, profile, or
-renderer identities. A permanently purged hosted authority ID cannot be reused;
-allocate a new host-bound authority epoch and stage a complete generation from
-the current source records.
+renderer identities. A permanently purged hosted authority ID cannot be reused.
+Allocate a new authority ID with a new host session epoch, and stage a complete
+generation from the current source records.
 
-A canonical `.oh.md` file transports one complete memory-page record and
-recomputes its record digest. It does not carry an operation chain, store head,
+A canonical `.oh.md` file carries one complete memory-page record, and its
+reader recomputes the record digest. It does not carry an operation chain, store head,
 realm binding, review decision, or proof of full authority migration. Use an Oh
 operation bundle or destination-owned adoption workflow for those purposes.
 
@@ -92,14 +95,15 @@ each applied migration name and SQL digest in `oh_migrations` and refuses to
 open when an applied version has different migration bytes.
 
 SQLite schema version 2 appends `0002_store_realms` without changing the
-released `0001_oh_core` SQL. Existing spaces remain unbound after upgrade. A
-host may bind one through the promise-based store authority; once persisted,
-the exact realm and profile bytes cannot be replaced. A purged working space
+released `0001_oh_core` SQL. The upgrade leaves existing spaces without a
+binding. A host may bind one through the promise-based store authority. Once
+the binding is persisted, its exact realm and profile bytes cannot be
+replaced. A purged working space
 cannot be used as a migration source or recreated under the same identifier.
 
-The direct libSQL authority has its own `oh_authority_` schema digest. It emits
-the same V1 record and operation bytes, but it is not a destination for the
-offline CLI import procedure above. Applications moving authority between
+The direct libSQL authority has its own `oh_authority_` schema digest. It writes
+the same V1 record and operation bytes, but the offline CLI import procedure
+above cannot target it. Applications moving authority between
 adapters MUST prove an exact complete operation chain and matching head through
-a separately reviewed migration workflow. A dependency-closure capsule is a
-selective content export for adoption, not proof of full authority migration.
+a separately reviewed migration workflow. A dependency-closure capsule exports
+selected content for adoption. It does not prove a full authority migration.

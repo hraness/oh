@@ -1,6 +1,6 @@
 {
   "name": "@hraness/oh",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.",
   "type": "module",
   "license": "MIT",

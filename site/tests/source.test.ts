@@ -121,7 +121,7 @@ describe("Oh site source contract", () => {
       expect(page).toContain("OhContentFooter");
     }
     expect(contentFooter).toContain('{ href: "/blog", label: "Blog" }');
-    expect(home).toContain("Hraness builds tools for agents and humans");
+    expect(home).toContain("Hraness, which builds tools for agents and humans");
     expect(globals).not.toContain("hraness-marketing-maker");
     expect(globals).not.toContain(".site-footer");
   });
@@ -139,7 +139,7 @@ describe("Oh site source contract", () => {
       version: "0.12.0",
       verificationRun: "https://github.com/hraness/oh/actions/runs/35900362605",
     });
-    expect(packageJson.version).toBe("0.12.0");
+    expect(packageJson.version).toBe("0.12.1");
     expect(home).toContain('import publishedRelease from "../published-release.json"');
     expect(home).toContain("const releaseVersion = publishedRelease.version;");
     expect(home).not.toContain("package.json");
@@ -258,7 +258,7 @@ describe("Oh site source contract", () => {
     expect(specification).toContain("twitter: {");
     expect(specification).toContain("title: specificationTitle");
     expect(specification).toContain("description: specificationDescription");
-    expect(specification).toContain('images: ["/spec/opengraph-image"]');
+    expect(specification).toContain('images: [{ alt: specificationImageAlt, url: "/spec/opengraph-image" }]');
     expect(favicon).toContain('fill="#b43a1d"');
     expect(favicon).toContain('stroke="#fff"');
     expect(favicon).not.toMatch(/#(?:0c79d8|2e9eff|68c4ff)/iu);
@@ -271,19 +271,25 @@ describe("Oh site source contract", () => {
       read("app/spec/page.tsx"),
     ]);
     const publicCopy = `${home}\n${layout}\n${specification}`;
+    // JSX wraps the specification's prose across lines; compare it with collapsed whitespace.
+    const specificationText = specification.replace(/\s+/gu, " ");
 
     expect(publicCopy).not.toMatch(
       /every agent action|exact provenance|return typed conflicts|stable specification/iu,
     );
     expect(home).toContain("keyword index live in a SQLite file");
-    expect(home).toContain("Semantic caches are rebuildable views");
-    expect(home).toContain("hosted inference and network sync remain explicit adapters");
-    expect(specification).toContain("optional Cloudflare Workers AI profile");
-    expect(specification).toContain("canonical\n                <code>.oh.md</code>");
-    expect(home).toContain("every graph mutation inspectable and replayable");
-    expect(home).toContain("verifiable operation history");
-    expect(specification).toContain("fail closed with explicit");
-    expect(specification).toContain("conflict errors");
+    expect(home).toContain("Semantic search caches are derived from the records and can be rebuilt");
+    expect(home).toContain("used only when you configure them");
+    expect(home).toContain("Sync sends operations, never search vectors");
+    expect(specificationText).toContain("optional Cloudflare Workers AI profile");
+    expect(specificationText).toContain("canonical <code>.oh.md</code> file is a self-contained copy");
+    expect(home).toContain("Every write appends an operation to the log");
+    expect(home).toContain("replays the log from an empty graph");
+    expect(home).toContain("the log keeps every change in the order it happened");
+    expect(home).toContain("A passing verification means the records and their history are intact");
+    expect(specificationText).toContain("a mismatch fails before any operation is exchanged");
+    expect(specificationText).toContain("a chain that does not is a sync conflict");
+    expect(specificationText).toContain("There is no last-write-wins merge");
   });
 
   test("leads developers to the verified first task before reference depth", async () => {

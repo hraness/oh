@@ -1,28 +1,23 @@
 # Oh
 > Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.
 
-Agent memory usually means a vector store: facts go in, answers come out, and nobody can say why. Oh is an open-source memory framework that keeps the reasoning visible. Each fact is stored with the sources it rests on, every change lands in a history you can replay, and queries return the evidence behind the answer. It runs locally as a CLI, SDK, and Agent Skill. Oh is free and MIT licensed.
-
-When to use this site:
-- Use oh.computer to evaluate Oh for your agents: the memory and research-graph model, the CLI, TypeScript SDK, and Agent Skill interfaces, and the local install commands.
-- Use /spec for the human-readable Oh ontology and storage contract.
-- Use /blog for articles that explain how Oh works and what it guarantees.
-- Use /spec/manifest.json for the machine-readable index of every specification version, schema, and narrative file.
-- Use the GitHub repository for the source, the README install and SDK guides, the packaged Agent Skill, and issues.
+Oh ships as a CLI, a TypeScript SDK, and an Agent Skill, and by default it keeps records and the append-only log of every change in one local SQLite file. It is free and MIT licensed and needs no account or hosted model; the CLI runs on Bun 1.3.14 or newer.
 
 ## Pages
-- [Oh](https://oh.computer): Product overview covering the memory and research-graph model, record kinds, verifiable operation history, interfaces, trust boundaries, and local installation.
-- [Oh ontology specification](https://oh.computer/spec): The versioned contract for Oh records, graph revisions, SQLite and libSQL storage, sync, semantic search, projections, and composite memory.
-- [Oh blog](https://oh.computer/blog): Articles about Oh, the open-source memory framework for agents: how it works, what it guarantees, and which products build on it.
+- [Oh](https://oh.computer): The homepage follows an illustrative review from a research question to a brief through the linked records Oh keeps for each source, claim, and citation. It also reports Oh’s results on the LongMemEval-S, CloneMem, and LoCoMo memory benchmarks, including a comparison with Supermemory, explains how Wordcell uses Oh, gives the install commands, and answers common questions, such as what a passing verification proves.
+- [Oh ontology specification](https://oh.computer/spec): The versioned specification defines what an independent implementation needs to interoperate with Oh. It covers the canonical JSON encoding and SHA-256 digests of records and revisions; SQLite and libSQL storage with operation-level sync; and semantic search, Datalog rules whose answers carry proofs, and composite agent memory.
+- [Oh blog](https://oh.computer/blog): Release announcements, benchmark reports, and technique articles on how Oh works and how it is tested.
 
 ## Articles
-- [Introducing Oh](https://oh.computer/blog/introducing-oh): What Oh is, who it is for, the first run, how working notes and reviewed knowledge stay apart, and the limits of the current release.
-- [How Oh keeps two implementations byte for byte](https://oh.computer/blog/oh-rust-typescript-parity): How property tests keep Oh's opt-in Rust encoder identical to the TypeScript reference, and what those tests do not prove.
+- [Reading every user message beat retrieval alone on LongMemEval-S](https://oh.computer/blog/longmemeval-s-user-log): The benchmark report explains a pipeline that gives GPT-5 mini every message the user wrote plus the assistant replies retrieval ranks highest. It averaged 93.07% over three runs on all 500 LongMemEval-S questions, against 88.87% for Oh semantic retrieval and 86.13% for BM25, but its rules were written after studying those questions, so the score is in-sample. It also covers the six additions that lowered the score, a reference answer found in the instructions, and what the study cost.
+- [Introducing Oh](https://oh.computer/blog/introducing-oh): The release announcement explains who Oh is for and walks through a first run. It traces a research question through its source, claim, and evidence to a brief, and shows how an agent’s working notes stay apart from reviewed knowledge. It ends with the limits of the current release.
+- [Oh holds its Rust encoder to the TypeScript reference byte for byte](https://oh.computer/blog/oh-rust-typescript-parity): The technique article explains how property-based tests compare Oh’s opt-in Rust encoder with the TypeScript reference on thousands of generated inputs, and why the tests must also confirm that the Rust engine loaded, including from an installed package. It also covers number formatting, where the two languages differ by default, and what the tests do not prove.
 
 ## Optional
-- [sitemap](https://oh.computer/sitemap.xml): Indexable HTML URLs.
-- [blog feed](https://oh.computer/blog/feed.xml): Atom feed of published articles.
-- [specification manifest](https://oh.computer/spec/manifest.json): Machine-readable index pinning the current contract version and its schemas and narrative files.
-- [example citation record](https://oh.computer/examples/evidence-table-2.json): One canonical v1 evidence record connecting a stance on a claim to the edition it cites.
-- [GitHub](https://github.com/hraness/oh): Source code, README, Agent Skill, releases, and issues.
+- [sitemap](https://oh.computer/sitemap.xml): Every indexable page on oh.computer.
+- [blog feed](https://oh.computer/blog/feed.xml): An Atom feed of the blog’s articles.
+- [specification index](https://oh.computer/spec/manifest.json): JSON that names the current specification version and links each version’s documents, schemas, and digests, along with the optional research-packet profile.
+- [example citation record](https://oh.computer/examples/evidence-table-2.json): The version 1 evidence record from the homepage example, which cites table 2 of a trial report in support of an assertion and carries its dependencies and SHA-256 digest.
+- [Agent Skill](https://github.com/hraness/oh/blob/main/skills/oh/SKILL.md): Instructions a coding agent follows to operate Oh through its CLI or SDK, including when to ask the user before choosing a database, space, or sync destination.
+- [GitHub](https://github.com/hraness/oh): Source code, the README with install and SDK guides, releases, and issues.
 - [npm](https://www.npmjs.com/package/@hraness/oh): The published @hraness/oh package.

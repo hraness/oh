@@ -27,6 +27,13 @@ const markdownFiles = [
   "CONTRIBUTING.md",
   "AGENTS.md",
   "docs/publishing.md",
+  "docs/sdk.md",
+  "docs/search.md",
+  "docs/working-memory.md",
+  "docs/memory-pages.md",
+  "docs/projections.md",
+  "docs/research-profile.md",
+  "docs/development-support.md",
   "spec/README.md",
   "spec/research-v1/README.md",
   "spec/v1/canonical-json.md",
@@ -168,34 +175,36 @@ async function collectPublicTextFiles(): Promise<readonly string[]> {
 
 describe("public identity and documentation", () => {
   test("keeps source identity and verified public availability explicit", async () => {
-    const [readme, packageJson, sitePackageJson, publishedRelease, skill, cli] = await Promise.all([
+    const [readme, packageJson, sitePackageJson, publishedRelease, skill, cli, research] = await Promise.all([
       readFile(join(root, "README.md"), "utf8"),
       json("package.json"),
       json("site/package.json"),
       json("site/published-release.json"),
       readFile(join(root, "skills/oh/SKILL.md"), "utf8"),
       readFile(join(root, "src/cli.ts"), "utf8"),
+      readFile(join(root, "docs/research-profile.md"), "utf8"),
     ]);
     expect(readme.startsWith("# Oh\n")).toBe(true);
+    expect(readme).toContain(tagline);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.12.0");
+    expect(packageJson.version).toBe("0.12.1");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.12.0"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.12.1"');
     expect(publishedRelease).toEqual({
       version: "0.12.0",
       verificationRun: "https://github.com/hraness/oh/actions/runs/35900362605",
     });
     expect(readme).toContain("installation instructions below use `0.12.0`");
-    expect(skill).toContain("Use the verified public CLI `@hraness/oh@0.12.0`");
+    expect(skill).toContain("bun add --global @hraness/oh@0.12.0");
     expect(skill).toContain("For an existing installation, use its installed CLI");
-    expect(readme).toContain("Source version 0.6.1 adds `oh research catalog-v2`");
+    expect(research).toMatch(/^\| `oh research catalog-v2` \| 0\.6\.1 \|/mu);
     expect(skill).toContain("With version 0.6.1 or newer, `oh research catalog-v2`");
-    expect(readme).toContain("Source version 0.8.1 adds `oh research catalog-v4`");
+    expect(research).toMatch(/^\| `oh research catalog-v4` \| 0\.8\.1 \|/mu);
     expect(skill).toContain("With version 0.8.1 or newer, `oh research catalog-v4`");
-    expect(readme).toContain("Source version 0.9.0 adds `oh research catalog-v6`");
+    expect(research).toMatch(/^\| `oh research catalog-v6` \| 0\.9\.0 \|/mu);
     expect(skill).toContain("With version 0.9.0 or newer, `oh research catalog-v6`");
-    expect(readme).toContain("341 schemas in catalog V7");
-    expect(readme).toContain("24 packs and 341 schemas");
+    expect(research).toMatch(/^\| `oh research catalog-v7` \| 0\.10\.0 \| 24 \| 341 \|/mu);
+    expect(research).toContain("24 packs and 341 schemas");
     expect(skill).toContain("oh research catalog-v2");
     expect(skill).toContain("oh research wikidata-mappings");
     expect(skill).toContain("wikidata-mapping-preview --file PATH");
@@ -496,11 +505,13 @@ describe("versioned public contract", () => {
       specification: "./v1/memory.md",
     });
     const memory = await readFile(join(root, "spec/v1/memory.md"), "utf8");
-    expect(memory).toContain("One kernel, two authorities");
+    expect(memory).toContain("A host MUST bind two distinct physical authorities");
     expect(memory).toContain("createOhMemoryAgentV2");
     expect(memory).toContain("createOhMemoryAuthorityV1");
     expect(memory).toContain("one compare-and-swap commit");
-    expect(memory).toContain("authenticated bearer cursor, not knowledge authority");
+    expect(memory).toContain("A continuation is an authenticated bearer cursor.");
+    expect(memory).toContain("it grants no other\naccess");
+    expect(memory).toContain("HMAC-SHA-256");
     expect(memory).toContain("`resultSha256` commits that deterministic");
     expect(memory).toContain("It does not sync the working operation chain");
     const page = await readFile(join(root, "spec/v1/memory-page.md"), "utf8");

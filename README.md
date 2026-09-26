@@ -2,13 +2,12 @@
 
 [![skills.sh](https://skills.sh/b/hraness/oh)](https://skills.sh/hraness/oh)
 
-Oh is an open-source memory framework for agents. It stores each fact with
-the sources it rests on, keeps every change in a history you can replay, and
-answers with the evidence behind them.
+Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.
 
-A TypeScript SDK, CLI, and Agent Skill share one versioned
-record model and an append-only operation log. Local SQLite storage works
-without an account or hosted model; search indexes stay rebuildable.
+You get a TypeScript SDK, a CLI, and an Agent Skill. All three read and write
+the same versioned records and the same append-only log of operations. The
+default store is one SQLite file on your machine: it needs no account and no
+hosted model, and its search indexes can be deleted and rebuilt.
 
 [Website](https://oh.computer) · [Versioned specification](spec/README.md) ·
 [Agent Skill](skills/oh/SKILL.md)
@@ -18,26 +17,38 @@ on [npm](https://www.npmjs.com/package/@hraness/oh), free and MIT licensed.
 
 ## Why Oh
 
-- **Make meaning explicit.** Every record declares a kind, stable logical key,
-  ordered dependencies, and canonical JSON content under a versioned ontology
-  and schema contract.
-- **Keep changes accountable.** Content digests, append-only operations,
-  compare-and-swap writes, and replay verification make accepted graph changes
-  inspectable and stale writes visible.
-- **Keep local state authoritative.** Records and operations live in one SQLite
-  file you control. Sync is an explicit transport seam and accepts only
-  fast-forward histories after an exact contract handshake.
-- **Treat search as a view.** FTS5 documents, optional local embeddings, and a
-  separately scoped hosted cache are derived from current record digests, so
-  an index can be rebuilt without becoming graph authority.
-- **Derive without silently asserting.** Positive recursive rules run against
-  one exact graph head and fact-pack digest. Their tuples and bounded proofs
-  are deterministic, disposable output rather than accepted graph records.
-- **Remember without conflating authority.** A stable host-bound facade composes a
-  purgeable working authority with one pinned canonical head while preserving
-  lane, conflict, record, and proof provenance.
+- **Every record says what it is.** A record declares a kind, a stable key, the
+  keys it depends on, and its content as canonical JSON (one fixed byte
+  encoding, so equal content always has the same SHA-256 digest). The ontology
+  and schemas that give kinds their meaning are versioned. Oh checks shape and
+  references; it cannot tell whether a statement is true.
+- **Every change is on the record.** A write names the head it expects (the
+  space’s current generation and operation digest) and fails if another writer
+  moved it first. Accepted operations are digested, chained to their parent,
+  and never rewritten, so `oh verify` can replay the history and compare. A
+  digest shows that bytes changed; it does not encrypt data or identify who
+  wrote them.
+- **The file you control is the source of truth.** Records and operations live
+  in one SQLite file. Sync is a step you call, with a transport you supply, and
+  it accepts only histories that extend yours, after both sides confirm the same
+  contract (the versions of the record format, ontology, and schemas). Two
+  histories that diverge stop with a conflict for you to resolve.
+- **Search indexes are copies.** The keyword index, optional local embeddings,
+  and the optional hosted vector cache are built from current records and
+  rejoined to them by digest before a result is returned. Deleting an index
+  loses speed, never data.
+- **Rules derive facts without writing them.** Recursive rules run against one
+  graph head and return rows with proofs. The rows are output you can throw
+  away; saving one as knowledge takes your own reviewed write.
+- **Agents get scratch space apart from reviewed memory.** The memory
+  entry point pairs a working store the host can purge with a reviewed store
+  pinned at one head, and every answer says which store each premise came
+  from. Moving working records into the reviewed store goes through a host
+  call the agent never sees. See [Give an agent working memory](docs/working-memory.md).
 
-Oh keeps records and operations in one SQLite file you control, makes every accepted change inspectable through digests and replay, and treats search and derivation as views that never become graph authority. [The thread through hraness](https://hraness.com/writing/the-thread-through-hraness) follows that design across the projects, and the [ALGAL vision](https://algal.computer/docs/vision/) states the bet behind it.
+[The thread through hraness](https://hraness.com/writing/the-thread-through-hraness)
+follows this design across the projects, and the
+[ALGAL vision](https://algal.computer/docs/vision/) states the bet behind it.
 
 ## Install and first run
 
@@ -45,24 +56,25 @@ The installation instructions below use `0.12.0`, the
 [verified public release](https://github.com/hraness/oh/actions/runs/35900362605).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
-CLI, local SDK, and SQLite authority. The runtime-neutral store contracts and
-direct libSQL authority also support Node 24 serverless runtimes. Install the
-exact verified public release from npm:
+CLI, the SDK, and the SQLite store. The runtime-neutral store interfaces and the
+direct libSQL store also run on Node 24 and in serverless functions. Install
+the release from npm:
 
 ```sh
 bun add --global @hraness/oh@0.12.0
 oh --help
 ```
 
-The identical package bytes and their checksum are available from the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.12.0),
-including the mirrored
+The same package bytes and their checksum are attached to the
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.12.0):
 [`hraness-oh-0.12.0.tgz`](https://github.com/hraness/oh/releases/download/v0.12.0/hraness-oh-0.12.0.tgz)
 and
 [`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.12.0/SHA256SUMS).
 
-Oh writes to `.oh/oh.sqlite` and the `default` space unless you select another
-path or space. Keep `.oh/` out of source control.
+Oh writes to `.oh/oh.sqlite` and the `default` space unless you choose another
+path or space. Every command except `oh contract` and `oh version` creates that
+directory, file, and space if they are missing. Keep `.oh/` out of source
+control.
 
 ```sh
 oh init
@@ -75,59 +87,83 @@ oh search "mathematician" --mode keyword
 oh verify
 ```
 
-This first task creates one entity, reads it back, finds it through the derived
-keyword index, and verifies the authoritative operation chain. It needs no
-account, hosted model, remote database, or semantic-search dependency.
+This stores one entity, reads it back, finds it through the keyword index, and
+replays the log to check it. It needs no account, hosted model, remote
+database, or semantic-search package. `oh get` prints the record as one line of
+canonical JSON; here it is with line breaks added:
 
-## What becomes observable
+```json
+{
+  "dependencies": [],
+  "key": "entity:ada-lovelace",
+  "kind": "entity",
+  "recordSha256": "fcfe318e7248366d2408d1fa392268ac16490e72487079956c20db96b8369449",
+  "v": 1,
+  "value": { "name": "Ada Lovelace", "role": "mathematician" }
+}
+```
+
+The digest is the same on every machine because it covers only the record.
+`oh verify` ends with `"operations":1,"records":1,"sqliteIntegrity":"ok"`.
+
+The CLI may print an occasional note about optional development support on
+stderr. It never changes stdout or exit codes, CI turns it off, and
+[Optional development support](docs/development-support.md) explains how to
+switch it off yourself.
+
+## How Oh behaves
 
 Commands print canonical JSON, except `oh version` and help. A missing `oh get`
-record exits with status 3. Invalid input, an integrity failure, or a concurrent
-head conflict exits with status 1 and leaves the current log intact.
+record exits with status 3. Invalid input, an integrity failure, or a
+concurrent head conflict exits with status 1 and leaves the log as it was.
 
-Run `oh contract` to inspect the ontology, graph, schema, and SQLite versions
-compiled into the installed runtime. Opening an Oh database separately checks
-that its stored contract manifest matches that runtime.
+`oh contract` prints the ontology, graph, schema, and SQLite versions compiled
+into the installed runtime. Opening a database checks that the contract stored
+in it matches that runtime, and refuses to open it otherwise.
 
-## How Oh works
+A space holds one current graph and one append-only chain of operations:
 
-An Oh space has one current graph and one append-only operation chain:
+- A record has a stable key, one declared kind, ordered dependencies, any
+  canonical JSON content, and a SHA-256 digest over all of that.
+- An operation puts or tombstones (deletes) records in one `BEGIN IMMEDIATE`
+  transaction. Before the head moves, the store compares the caller’s expected
+  generation and operation digest with the current head and refuses a stale one.
+- Each operation’s digest covers its parent operation, the resulting graph
+  revision and record set, the contract, the actor, the timestamp, and the
+  sequence number.
+- The SQLite records and the operation log are the source of truth. The FTS5
+  keyword index and local embedding files are copies that can be rebuilt.
+- Sync exchanges size-limited bundles of operations after both sides confirm
+  the same contract. Only a history that extends the other side’s is applied
+  automatically; a divergent history stops with a conflict.
+  [Fast-forward sync](docs/sync-runtime.md) shows the libSQL and Turso
+  transport. For offline transfer, `oh sync export` writes a bundle to stdout
+  and `oh sync import --file <path>` checks it and applies it in one
+  transaction, or not at all.
 
-- A record has a stable logical key, one declared kind, ordered dependencies,
-  arbitrary canonical JSON content, and a SHA-256 digest over its envelope.
-- A mutation puts or tombstones records in one `BEGIN IMMEDIATE` transaction.
-  Compare-and-swap checks reject a stale generation before the head moves.
-- Every operation binds the parent operation, graph revision, complete record
-  set, contract, actor, timestamp, and sequence to a digest.
-- SQLite records and the operation log are authoritative. FTS5 documents and
-  local embedding files can be deleted and rebuilt.
-- Sync exchanges bounded operation bundles after an exact contract handshake.
-  Only fast-forward histories settle automatically; divergence fails closed.
+Version 1 of the ontology names seven core ideas: entity, statement,
+assertion, evidence, context, inquiry, and projection. The graph format also
+carries schema, vocabulary, review, rights, edition, and activity records.
+Meaning specific to an application belongs in registered codecs and versioned
+schema records, where anyone reading the data can find it.
 
-The V1 kernel distinguishes seven ideas: entity, statement, assertion,
-evidence, context, inquiry, and projection. The generic graph envelope also
-supports schema, vocabulary, review, rights, edition, and activity records.
-Product-specific meaning belongs in registered codecs and versioned schema
-records, not in hidden storage conventions.
+## Follow a question to its answer
 
-## From a question to an inspectable artifact
+A research application can map familiar work onto Oh records, so each step
+of a review is a record you can open:
 
-Oh supplies a versioned graph envelope and a small ontology kernel. A research
-application can map familiar work onto explicit records without hiding meaning
-in a database convention:
-
-| Research object | Oh record kind | What becomes inspectable |
+| Research object | Oh record kind | What you can inspect |
 | --- | --- | --- |
 | Question | `inquiry` | The question and its durable investigation trail. |
 | Source | `entity` | A stable identity for a paper, dataset, person, or system. |
-| Capture | `edition` | A bounded source edition or extract under an application profile. |
+| Capture | `edition` | A size-limited source edition or extract under an application profile. |
 | Claim | `statement` | The proposition, separate from who accepts it. |
 | Citation | `evidence` | How a passage, table, or observation bears on an assertion. |
 | Artifact | `view` | A derived brief or answer with addressable inputs. |
 
 An attributable `assertion` sits between a claim and the evidence that bears on
-it. A small review can therefore leave an inspectable path instead of one
-opaque answer:
+it. A small review leaves a path you can walk, where a chat answer leaves one
+paragraph:
 
 ```text
 inquiry:primary-endpoint
@@ -139,9 +175,14 @@ inquiry:primary-endpoint
   → view:review-brief
 ```
 
-The [homepage trace](https://oh.computer/#trace) shows the exact CLI read and a
-schema-checked illustrative evidence record. It is a model of record custody,
-not a claim about a real study.
+The [homepage trace](https://oh.computer/#trace) shows the CLI read and an
+illustrative evidence record that passes its schema. It models how records
+point to their sources; it makes no claim about a real study.
+
+For research data there is an optional profile with 14 domain vocabularies,
+source-preserving imports from Wikidata captures, and research packets that
+Oh validates before storing. [The research profile](docs/research-profile.md)
+lists each catalog, the version that added it, and what it covers.
 
 ## Use the SDK
 
@@ -178,7 +219,7 @@ try {
 
   const result = await oh.search("Ada", { mode: "keyword" });
   console.log(result.results[0]?.record);
-  // Fused, dated recall over the same bounded search: spec/v1/recall.md
+  // Recall fuses several searches and can add records from a date window: spec/v1/recall.md
   console.log((await oh.recall(["Ada", "engine"], { asOf: null })).results.length);
   console.log(oh.verify());
 } finally {
@@ -186,592 +227,34 @@ try {
 }
 ```
 
-Pass the head you actually reviewed when concurrent writers matter. Do not
-retry `OhConflictError` blindly. Read the new head and records, reconcile the
-intended change, then submit a new operation.
-
-The core `OhConflictError`, `OhIntegrityError`, `OhDependencyError`, and
-`OhProfileError` classes keep their `instanceof` identity across separately
-bundled Oh entrypoints. Their matching `isOhConflictError`,
-`isOhIntegrityError`, `isOhDependencyError`, and `isOhProfileError` guards
-accept unknown caught values only when they are native, immutably branded Oh
-errors; copying a name or prototype onto a plain object is not enough.
-
-The root entrypoint exports canonical JSON, ontology, schema, graph, operation,
-store, and sync contracts. Use `@hraness/oh/store` for the runtime-neutral
-promise interface, `@hraness/oh/libsql` for a direct Node 24 or serverless
-authority, `@hraness/oh/sqlite` for the local Bun store, `@hraness/oh/sdk` for
-the local `Oh` facade, `@hraness/oh/sync` for transport seams,
-`@hraness/oh/projection` for recursive derived views, and
-`@hraness/oh/semantic` for the optional local embedding backend, and
-`@hraness/oh/semantic-cloud` for the Cloudflare EmbeddingGemma plus direct
-libSQL derived-cache adapter. Use the narrow stable `@hraness/oh/memory-page`
-entrypoint for model-neutral page records and `.oh.md` interchange. The
-stable `@hraness/oh/memory` subpath composes host-bound working and canonical
-stores behind separate agent and host-control surfaces. The former
-`@hraness/oh/experimental/memory` path remains as a compatibility alias.
-
-## Open a scoped working store
-
-Working memory uses the same V1 graph and operation bytes under a different
-storage lifecycle. The host chooses and retains the realm binding. Application
-code receives the promise-based store and keeps the host object that can purge
-a working space out of agent tools. A model-facing adapter should expose strict
-semantic ingress and bounded query methods, not generic commit or change-feed
-access.
-
-```ts
-import { createClient } from "@libsql/client";
-import {
-  bootstrapOhLibSqlAuthorityV1,
-  createOhLibSqlStoreAuthorityV1,
-  purgeOhLibSqlWorkingSpaceV1,
-} from "@hraness/oh/libsql";
-import { OH_WORKING_STORE_PROFILE_V1 } from "@hraness/oh/store";
-
-// Run once during deployment with a short-lived schema credential.
-const schemaClient = createClient({
-  authToken: process.env.OH_SCHEMA_TOKEN!,
-  url: process.env.OH_DATABASE_URL!,
-});
-await bootstrapOhLibSqlAuthorityV1(schemaClient);
-schemaClient.close();
-
-// Runtime opens verify the schema and execute no DDL.
-const runtimeClient = createClient({
-  authToken: process.env.OH_RUNTIME_TOKEN!,
-  url: process.env.OH_DATABASE_URL!,
-});
-const authority = await createOhLibSqlStoreAuthorityV1(runtimeClient, {
-  profile: OH_WORKING_STORE_PROFILE_V1,
-  realmId: "tenant:example/thread:research",
-  spaceId: "thread:research",
-});
-
-const store = authority.store;
-console.log(await store.head());
-
-// A separately held purge worker either purges the exact existing binding or
-// writes an empty-head tombstone when creation never completed. It cannot
-// create a space or binding, and a delayed creator cannot resurrect custody.
-const purgeClient = createClient({
-  authToken: process.env.OH_PURGE_TOKEN!,
-  url: process.env.OH_DATABASE_URL!,
-});
-await purgeOhLibSqlWorkingSpaceV1(purgeClient, {
-  closeClient: true,
-  profile: OH_WORKING_STORE_PROFILE_V1,
-  realmId: "tenant:example/thread:research",
-  spaceId: "thread:research",
-});
-```
-
-The working profile disables operation replication. Dependency-closure export
-remains available for explicit reviewed adoption. `purgeWorkingSpace` exists
-only on `authority.host`; do not expose that object or raw database credentials
-through a model tool. Read the [store-port specification](spec/v1/store.md) for
-exact snapshot, change-feed, codec ingress, closure, and purge behavior.
-
-A Bun SQLite authority opened with the canonical profile instead exposes
-`authority.host.replication`. Its `exportBundle` result preserves the pinned
-change-feed `from`, `to`, `through`, and `hasMore` evidence; `importBundle`
-strictly parses and applies the complete bundle atomically. The capability is
-absent from `authority.store` and is `null` for working profiles. Long-running
-hosts can capture a bounded bundle, close local custody for network I/O, then
-reopen and revalidate before one atomic import.
-
-## Compose working and canonical memory
-
-The stable `@hraness/oh/memory` entrypoint uses the same Oh kernel twice, not a
-separate memory database model. Trusted host code supplies two distinct
-physical store handles, their expected binding digests, one exact canonical
-head, sealed working codecs, digest-identified fact extractors, and closed
-registries of named projection programs and nomination routes.
-
-Hosts that must fit canonical history into a narrower encrypted transport can
-set `maximumCanonicalOperationBytes`. The exact canonical operation is checked
-before its compare-and-swap persists; working-memory capacity is unaffected.
-This pre-effect refusal is an `OhOperationSizeError`, a `RangeError` subtype
-with the actual and configured canonical byte counts and the stable code
-`oh.operation-size.v1`. The class remains recognizable across Oh package
-entrypoints; `isOhOperationSizeError` is also exported for validating unknown
-caught values without accepting a plain object that merely copied those public
-fields.
-
-Use `createOhMemoryAuthorityV1` for an application integration. It returns an
-`agent` object with only `remember`, `query`, `explain`, and `nominate`, plus a
-separate `host` object for canonical-head rollover and reviewed adoption:
-
-```ts
-import { createOhMemoryAuthorityV1 } from "@hraness/oh/memory";
-
-const memory = await createOhMemoryAuthorityV1({
-  actorId: "research.memory-agent",
-  adoptionActorId: "research.memory-reviewer",
-  canonical: {
-    authorityId: "project-reviewed",
-    expectedBindingSha256: canonical.store.binding.bindingSha256,
-    expectedHead: await canonical.store.head(),
-    store: canonical.store,
-  },
-  nominationRoutes: [{
-    destinationPurpose: "kb.review",
-    nominationId: "knowledge-review",
-  }],
-  programs: [projectDependenciesProgramV2],
-  working: {
-    authorityId: "thread-working",
-    codecs,
-    expectedBindingSha256: working.store.binding.bindingSha256,
-    store: working.store,
-  },
-});
-
-const result = await memory.agent.query({
-  bindings: {},
-  continuation: null,
-  programId: "project.dependencies",
-  v: 2,
-});
-
-const nomination = await memory.agent.nominate({
-  nominationId: "knowledge-review",
-  roots: ["edition:reviewed-summary"],
-  v: 1,
-});
-await memory.host.adoptNomination({
-  expectedCanonicalHead: result.identity.canonical.head,
-  nomination,
-  v: 1,
-});
-
-// To replace an existing key, trusted host code must prove the reviewed
-// canonical digest. Omit replacements to retain strict insert-only adoption.
-await memory.host.adoptNomination({
-  expectedCanonicalHead: reviewedCanonicalHead,
-  nomination: revisedNomination,
-  replacements: [{
-    expectedPriorRecordSha256: reviewedRecord.recordSha256,
-    key: reviewedRecord.key,
-    v: 1,
-  }],
-  v: 1,
-});
-```
-
-`adoptNomination` parses the complete proposal, checks its host-selected route
-and working authority, and re-exports the closure from the exact nominated
-working head. An absent record is inserted, an equal digest is already present,
-and a different digest fails closed by default. Trusted host code can authorize
-an intentional replacement only by naming the logical key and its exact
-reviewed prior digest in a bounded `replacements` list. Missing, stale, wrong,
-duplicate, or absent-key claims fail without a partial write. Every supplied
-claim is checked, including claims for keys already at their nominated digest;
-an exact replay validates those claims against its exact reviewed head. The
-inserts and authorized replacements share one compare-and-swap operation; the existing
-parent-head and record-change bytes carry the transition without a new persisted
-format. Before that commit, the authority proves that the prospective canonical
-snapshot stays within 8,192 records and 32 MiB. After it, the authority re-reads
-the physical head, so a reachable duplicate operation or a later writer cannot
-make it install an obsolete intermediate head. A stale expected head succeeds
-only when the current physical snapshot contains every nominated digest exactly.
-
-`advanceCanonical` moves the facade's pin only from its current exact head to
-the same head or a proven descendant in the bound canonical operation chain.
-One call proves at most 16,384 operations over at most 64 bounded pages; callers
-must advance longer histories in reviewed chunks. Host mutations are
-serialized. A query already in flight keeps the immutable pin it captured,
-existing explanation capabilities survive rollover in one shared 64 MiB cache,
-and an old continuation fails when the memory identity changes.
-
-Every stable method snapshots unknown JSON input through data-property
-descriptors before validation. Accessors, symbols, proxies, sparse arrays, and
-non-JSON values fail closed, and execution uses only the detached bytes. The
-snapshot walk is capped at 128 levels, 65,536 entries per container, and
-1,048,576 total nodes, and counts canonical bytes before it clones each child.
-
-V2 evaluates one complete bounded result before paging it. Agent input may bind
-only host-declared primitive query-body parameters; it cannot choose sources,
-rules, purpose, page size, or evaluation limits. Pass an issued continuation
-back unchanged only to the same named query and do not log it. Catch
-`OhMemoryContinuationError` when a supplied cursor needs to be restarted; its
-`reason` distinguishes encoding, authentication, and exact-identity failures.
-Other store and projection failures keep their original types. The compatibility
-alias `@hraness/oh/experimental/memory` remains available, but new integrations
-should use `@hraness/oh/memory`. Read the [memory specification](spec/v1/memory.md)
-for the complete authority, conflict, pagination, and lifecycle boundary.
-
-## Use a memory page or `.oh.md` file
-
-A memory page is an ordinary `edition` record with bounded Markdown, explicit
-source observations, and a host-attestation receipt reference. It is useful
-for readable summaries and long-running-agent notes without introducing a
-second memory ontology. Its canonical `.oh.md` form contains the complete
-record key, dependencies, digest, metadata, and body:
-
-```ts
-import {
-  createOhMemoryPageRecordV1,
-  renderOhMemoryPageMarkdownV1,
-} from "@hraness/oh/memory-page";
-
-const page = createOhMemoryPageRecordV1({
-  dependencies: ["activity:memory-attestation"],
-  key: "edition:session-summary",
-  value: {
-    body: "## Current state\n\nThe provider rollout is paused before activation.",
-    createdAt: "2026-08-31T12:00:00.000Z",
-    format: "oh.memory-page.v1",
-    language: "en",
-    provenance: {
-      actorId: "host.memory",
-      attestationSha256: receiptSha256,
-      attestedAt: "2026-08-31T12:00:00.000Z",
-      kind: "host-attested",
-      v: 1,
-    },
-    sources: [],
-    summary: "The exact resumable session frontier.",
-    title: "Session frontier",
-    updatedAt: "2026-08-31T12:00:00.000Z",
-    v: 1,
-  },
-});
-
-const portable = renderOhMemoryPageMarkdownV1(page);
-```
-
-The page never stores vectors, model IDs, scores, or provider configuration.
-Treat its Markdown and source titles as untrusted data. See the
-[memory-page specification](spec/v1/memory-page.md) for the exact format and
-round-trip rules.
-
-## Derive an exact projection
-
-The projection subpath is pure TypeScript and runs in Node 24 serverless
-functions without loading SQLite. A snapshot binds the current space head and
-complete record-reference set. A fact pack binds the deterministic extractor
-that translated those records into relations. Rules and queries are typed data,
-not strings or executable callbacks.
-
-```ts
-import {
-  OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1,
-  createOhProjectionDatasetV1,
-  createOhProjectionLiteralV1,
-  createOhProjectionQueryV1,
-  createOhProjectionRecordFactsV1,
-  createOhProjectionRulePackV1,
-  createOhProjectionRuleV1,
-  createOhProjectionSnapshotV1,
-  evaluateOhProjectionV1,
-  ohProjectionVariableV1 as variable,
-} from "@hraness/oh/projection";
-
-const records = oh.store.snapshotRecords();
-const snapshot = createOhProjectionSnapshotV1({
-  head: oh.head(),
-  records,
-  spaceId: oh.store.spaceId,
-});
-const dataset = createOhProjectionDatasetV1({
-  extractorSha256: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.extractorSha256,
-  factPackId: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.factPackId,
-  factPackRevision: OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1.factPackRevision,
-  facts: createOhProjectionRecordFactsV1(records),
-  snapshot,
-});
-
-const x = variable("x");
-const y = variable("y");
-const z = variable("z");
-const literal = (relation: string, ...terms: ReturnType<typeof variable>[]) =>
-  createOhProjectionLiteralV1({ relation, terms });
-const rulePack = createOhProjectionRulePackV1({
-  rulePackId: "example.dependencies",
-  rulePackRevision: 1,
-  rules: [
-    createOhProjectionRuleV1({
-      body: [literal("oh.dependency", x, y)],
-      head: literal("depends", x, y),
-      ruleId: "depends.direct",
-    }),
-    createOhProjectionRuleV1({
-      body: [literal("depends", x, y), literal("oh.dependency", y, z)],
-      head: literal("depends", x, z),
-      ruleId: "depends.transitive",
-    }),
-  ],
-});
-const query = createOhProjectionQueryV1({
-  find: ["x", "z"],
-  queryId: "all.dependencies",
-  where: [literal("depends", x, z)],
-});
-
-const result = evaluateOhProjectionV1({ dataset, query, rulePack, snapshot });
-console.log(result.rows);
-```
-
-`result.authority` is always `derived`. Oh does not commit a result, elevate an
-agent assertion, or make a proof authoritative. Changing the snapshot,
-extracted fact set, rule pack, or query produces a new identity and requires a
-full rebuild.
-
-The reference evaluator favors bounded, transparent correctness. It supports
-positive recursion and set semantics; it does not yet support negation,
-aggregation, arithmetic, or incremental invalidation. An optional compatibility
-lane evaluates the same rules with exactly `@suss/datalog@0.20.0` and returns a
-result only after every relation agrees with the reference evaluator:
-
-```sh
-bun add @suss/datalog@0.20.0
-```
-
-```ts
-import { evaluateOhProjectionWithSussV1 } from "@hraness/oh/projection-suss";
-
-const checked = evaluateOhProjectionWithSussV1({
-  dataset,
-  query,
-  rulePack,
-  snapshot,
-});
-```
-
-Suss does not expose an execution-budget hook. Its adapter therefore applies a
-conservative finite-domain admission bound and refuses programs it cannot prove
-will stay inside the requested tuple ceiling. The built-in evaluator remains
-available for those programs. The compatibility lane deliberately runs both
-engines; it is an equivalence check, not a performance backend.
-
-## Add local semantic search
-
-Semantic state is a cache. Each QMD result is rejoined to the current SQLite
-record by exact record digest before Oh returns it.
-
-```sh
-bun add @tobilu/qmd@2.5.3
-```
-
-```ts
-import { Oh } from "@hraness/oh/sdk";
-import { OhQmdSemanticBackendV1 } from "@hraness/oh/semantic";
-
-const backend = new OhQmdSemanticBackendV1({
-  cacheDirectory: ".oh/semantic",
-});
-const oh = Oh.open({ semanticBackend: backend });
-
-try {
-  await oh.indexSemantic();
-  const result = await oh.search("early programmable machines", {
-    mode: "hybrid",
-  });
-  console.log(result.results);
-} finally {
-  await oh.close();
-}
-```
-
-The exact V1 profile is documented in
-[the embedding specification](spec/v1/embedding.md). QMD may download its embedding model on first use; inference stays local.
-Keyword mode remains available when QMD or the model is absent.
-
-## Use the best configured retrieval
-
-In version 0.12.0, search and recall select the strongest configured path automatically: local
-reranking when a reranker is present, hybrid search when a semantic backend is
-present, and keyword search otherwise. There is no experimental switch.
-An explicit `mode` remains available when an application needs a particular
-retrieval policy or a reproducible comparison.
-
-```ts
-import { Oh } from "@hraness/oh/sdk";
-import { OhQmdRerankBackendV1 } from "@hraness/oh/rerank";
-import { OhQmdSemanticBackendV1 } from "@hraness/oh/semantic";
-
-const backend = new OhQmdSemanticBackendV1({ cacheDirectory: ".oh/semantic" });
-const reranker = new OhQmdRerankBackendV1({
-  modelPath: "/absolute/path/to/qwen3-reranker-0.6b-q8_0.gguf",
-});
-const oh = Oh.open({ semanticBackend: backend, rerankBackend: reranker });
-try {
-  await oh.indexSemantic();
-  const result = await oh.search("early programmable machines");
-  console.log(result.mode, result.results, result.diagnostics);
-} finally {
-  await oh.close();
-}
-```
-
-The lexical and semantic pools form a bounded union. The local cross-encoder
-scores its documents against the original question and returns the best matches.
-The optional `@tobilu/qmd@2.5.3` rerank backend uses a local model you supply; it never
-downloads reranker weights or starts a hosted service. The pinned model
-identity and 4,096-token limit are recorded in `OH_RERANK_PROFILE_V1`.
-
-Unavailable backends produce diagnostics and retain the available retrieval
-results. Inspect those diagnostics when a workflow requires semantic or reranked
-results. Local reranking trades compute for relevance: the
-[SDK qualification](benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md)
-measured a 12.34-second warm reranker p95 on an Apple M5 Max. Historical
-semantic rankings were replayed, so this excludes semantic inference and is
-not an end-to-end latency promise for your hardware.
-
-That study exercises the actual default SDK route and record rendering.
-It uses two previously exposed development personas; applications still need
-their own evaluation of the records and workload they serve.
-
-## Add a hosted semantic cache
-
-The hosted V2 adapter uses the same source-record principle with a distinct,
-profile-bound cache. It sends bounded inputs to Cloudflare Workers AI's
-EmbeddingGemma model and stores only float32 vectors, input digests, record
-digests, immutable generation membership, and a published pointer in direct
-libSQL. It stores no title, body, record JSON, or query text.
-
-Every cache call also binds an isolation SHA-256. The helper below derives a
-safe authority-specific default. A private multi-tenant host should instead
-derive an opaque digest from its private authority handle, cache epoch, and
-profile identity, then pass that same digest to every cache operation.
-
-```ts
-import { createClient } from "@libsql/client";
-import {
-  OhCloudflareEmbeddingClientV1,
-  bootstrapOhLibSqlSemanticCacheV2,
-  deriveOhSemanticIsolationSha256V2,
-  openOhLibSqlSemanticCacheV2,
-} from "@hraness/oh/semantic-cloud";
-
-// Deploy once with a short-lived schema credential.
-const schemaClient = createClient({
-  authToken: process.env.OH_SEMANTIC_SCHEMA_TOKEN!,
-  url: process.env.OH_SEMANTIC_DATABASE_URL!,
-});
-await bootstrapOhLibSqlSemanticCacheV2(schemaClient);
-schemaClient.close();
-
-const client = createClient({
-  authToken: process.env.OH_SEMANTIC_RUNTIME_TOKEN!,
-  url: process.env.OH_SEMANTIC_DATABASE_URL!,
-});
-const cache = await openOhLibSqlSemanticCacheV2(client, { closeClient: true });
-const embedder = new OhCloudflareEmbeddingClientV1({
-  accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
-  apiToken: process.env.CLOUDFLARE_WORKERS_AI_TOKEN!,
-});
-const authorityId = "thread:research/epoch:1";
-const isolationSha256 = deriveOhSemanticIsolationSha256V2(authorityId);
-
-const staged = await cache.stage({
-  authorityId,
-  authoritySha256: snapshot.head.recordsSha256,
-  documents,
-  embeddingClient: embedder,
-  generation: snapshot.head.generation,
-  isolationSha256,
-});
-const published = await cache.publishedHead({
-  authorityId,
-  isolationSha256,
-});
-await cache.publish({
-  authorityId,
-  expectedPublishedGeneration: published?.generation ?? null,
-  generation: staged.generation,
-  isolationSha256,
-});
-```
-
-Search requires the exact current authority generation and record digests, and
-returns nothing from a stale or concurrently replaced head. Purge writes a
-permanent authority tombstone before deleting memberships and every vector in
-that authority's reserved isolation scopes. Its immutable marker and receipt
-make retries return the same first-run counts while proving zero residual cache
-rows. Distinct authority or cache-epoch isolation digests never reuse a vector,
-and the digest never enters provider text. The same authority ID cannot be
-resurrected; allocate a new epoch for a new lifetime. Hosted failure is a
-missing convenience lane, never permission to weaken exact graph or Datalog
-operations. Read the
-[isolated hosted semantic-cache V2 specification](spec/v2/semantic-cloud.md).
-The [hosted V2 lifecycle](docs/hosted-semantic-runtime.md) documents native
-operation drain, client ownership and the bundled runtime boundary.
-The released V1 API and digests remain available unchanged for compatibility;
-V1 and V2 cannot open the same semantic database simultaneously.
-
-## Sync through libSQL or Turso
-
-`createLibSqlOperationSyncTransportV1` accepts the `execute` and `batch` shape
-implemented by libSQL clients. Oh creates two remote tables for the contract
-manifest and immutable operation chain. It does not send semantic cache files.
-
-```sh
-bun add @libsql/client@^0.17.4
-```
-
-```ts
-import { createClient } from "@libsql/client";
-import { Oh } from "@hraness/oh/sdk";
-import { createLibSqlOperationSyncTransportV1 } from "@hraness/oh/sync";
-
-const client = createClient({ url: process.env.TURSO_DATABASE_URL! });
-const oh = Oh.open();
-
-try {
-  const transport = createLibSqlOperationSyncTransportV1(client);
-  const result = await oh.sync(transport, { remoteId: "research-cloud" });
-  console.log(result);
-} finally {
-  await oh.close();
-  client.close();
-}
-```
-
-The consumer owns credentials, client construction, retry policy, and remote
-availability. The transport handshakes before exchanging data and refuses a
-different contract or a non-fast-forward history. Canonical bundles share one
-64 MiB plus 4 KiB byte/node budget across at most 1,000 operations. If a retry
-finds that another writer has advanced beyond its submitted tail, the libSQL
-adapter acknowledges that tail only after every submitted sequence, digest,
-and canonical operation still matches the bounded remote row range. Histories
-larger than one bundle advance through the largest fitting operation prefix in
-each direction.
-
-For offline transfer, `oh sync export` writes a bounded bundle to stdout and
-`oh sync import --file <path>` verifies and imports it idempotently in one
-atomic transaction. Import refuses non-regular or oversized bundle files before
-opening the local authority.
-
-## Boundaries and limitations
-
-- Digests detect changed contract, record, operation, and bundle bytes. They do
-  not encrypt data, authenticate an actor, authorize a write, or prove that a
-  research statement is true.
-- Oh does not redact record values. Protect the database, filesystem, backups,
-  and any sync destination according to the sensitivity of the research graph.
-- The optional QMD cache contains derived record text. Its pinned model and
-  inference stay local, but the cache still needs the same deliberate handling
-  as its source data.
-- The libSQL seam validates exact contracts and fast-forward history. The
-  consumer remains responsible for credentials, transport security, access
-  control, tenant isolation, backup, retry, and remote availability.
-- Divergent histories do not merge automatically. Oh returns an explicit
-  conflict and leaves reconciliation policy to the consumer.
-- Projection tuples and proofs are derived cache output. Persisting or
-  publishing them as knowledge requires an explicit application-level review
-  and a new authoritative graph operation.
-
-Read [SECURITY.md](SECURITY.md) for the complete public threat model.
+Pass the head you reviewed when concurrent writers matter. After an
+`OhConflictError`, read the new head and records, reconcile your change, and
+submit a new operation; retrying the same call fails the same way.
+
+[Call Oh from TypeScript](docs/sdk.md) covers every SDK method, batch writes,
+error classes, and the table of entry points (`@hraness/oh/store`,
+`@hraness/oh/libsql`, `@hraness/oh/sqlite`, `@hraness/oh/sync`,
+`@hraness/oh/projection`, `@hraness/oh/memory`, and the rest), with the
+runtimes each one is tested under.
+
+### Use the best configured retrieval
+
+With no `mode`, search and recall pick the strongest path you have configured:
+local reranking when a reranker is present, hybrid keyword and semantic search
+when a semantic backend is present, and keyword search otherwise. There is no
+experimental switch. Pass `mode` when you need a particular policy or a
+reproducible comparison. A backend that is missing adds a diagnostic to the
+response and leaves the other results in place.
+[Search and recall](docs/search.md) shows how to add local embeddings, a local
+reranker, or the hosted cache, and what each costs.
 
 ## Give Oh to a coding agent
 
 The repository includes an installable Agent Skill at
 [`skills/oh`](skills/oh/SKILL.md). Copy or link that directory into the skill
-location used by your agent runner. The skill teaches an agent to inspect the
-contract and current head, use generation-checked writes, verify replay, and
-keep remote sync explicit.
+location your agent runner uses. The skill teaches an agent to read the
+contract and current head, write with the expected generation, verify the
+replay, and sync only where you tell it to.
 
 You can also give an agent this prompt:
 
@@ -783,27 +266,131 @@ https://github.com/hraness/oh/releases/tag/v0.12.0. Verify the CLI with
 Do not create or modify an Oh database until I name its path and ask you to.
 ```
 
-## Find the right documentation
+## Limits
 
-- **Install and prove the local path:** follow
-  [Install and first run](#install-and-first-run).
-- **Embed Oh in a tool:** use [the SDK](#use-the-sdk), then select the narrow
-  package subpath for SQLite, sync, projection, or optional semantics.
-- **Give Oh to an agent:** install the [Oh Agent Skill](skills/oh/SKILL.md) and
-  keep its database, space, sync target, and mutation authority explicit.
-- **Work with a Markdown vault:** read [Oh and Wordcell](docs/wordcell.md)
-  to see how authored notes become rebuildable graph answers with proofs.
-- **Implement or change a contract:** begin with the
-  [specification map](spec/README.md), then read the applicable V1 narrative and
-  machine-readable schema together.
-- **Contribute or report a vulnerability:** follow
-  [CONTRIBUTING.md](CONTRIBUTING.md) or the private process in
-  [SECURITY.md](SECURITY.md).
+- Digests detect changed contract, record, operation, and bundle bytes. They do
+  not encrypt data, authenticate an actor, authorize a write, or prove that a
+  research statement is true.
+- Oh does not redact record values. Protect the database, filesystem, backups,
+  and any sync destination according to the sensitivity of what you store.
+- The optional QMD semantic cache holds text derived from records. Its model
+  and inference stay local, but the cache needs the same care as the records.
+- The libSQL sync transport checks the contract and that histories extend each
+  other. You handle credentials, transport security, access control, tenant
+  isolation, backup, retry, and remote availability.
+- Divergent histories never merge automatically. Oh reports the conflict and
+  leaves reconciliation to you.
+- Derived rows and proofs are disposable output. Publishing one as knowledge
+  takes an application-level review and a new write to the graph.
+
+Read [SECURITY.md](SECURITY.md) for the full public threat model.
+
+## Benchmarks
+
+On all 500 [LongMemEval-S](benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md)
+questions, with GPT-5 mini answering each question three times and GPT-4o
+judging with LongMemEval’s prompts, Oh semantic retrieval scored **88.87%** and
+BM25 keyword retrieval **86.13%** (mean of three runs). On questions answered
+correctly in at least two of three runs, the measure fixed before the runs, Oh
+leads BM25 by 2.8 points with a 95% interval from 0.0 to 5.6, which does not
+rule out a tie. A lab pipeline that gives the model every message the user
+wrote, plus the assistant replies retrieval ranks highest, scored **93.07%**
+(474 of 500 on the two-of-three measure). Its instructions and rules were
+written after studying all 500 questions, so that score is in-sample, and the
+pipeline is not part of the package. The
+[benchmark report](https://oh.computer/blog/longmemeval-s-user-log) explains how
+it works and what the study cost.
+
+The [SDK retrieval evaluation](benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md)
+scored **80.59%** answer accuracy with the configured default reranking against
+**69.86%** for matched semantic retrieval, a gain of **10.73 percentage
+points**. Both personas improved, and evidence recall@10 rose from **12.05% to
+26.10%**. All 876 reader cases completed on 146 development questions the
+project had already seen, with three repeats per arm. A separate comparison
+against ordinary hybrid retrieval, with fresh reader responses, scored **80.59%
+against 64.16%**; the two candidate samples are kept apart even though their
+scores match. The reader was the Gateway GPT-4o mini alias, scored by exact
+option ID with no judge. The route met its development thresholds only by
+counting one handled Metal startup message as allowed; a rule allowing no error
+logs at all would have failed it. No reranker run or cleanup failed. This is a
+development result, with no untouched holdout and no population-level
+confidence claim. Both comparisons used 1,752 reader calls and cost
+**$1.461086**.
+
+In the earlier [CloneMem reserved-persona study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md),
+Oh’s combined lexical and vector candidates with local Qwen3 reranking scored
+**77.82%** answer accuracy against **70.54%** for vector retrieval, a paired
+gain of **7.28 percentage points** with a 95% persona-cluster bootstrap
+interval of **+4.61 to +10.27 points**. The study covers 861 questions from
+seven personas, three reader repeats per arm, and 5,166 completed cases. Mean
+evidence recall@10 rose from **14.48% to 32.80%**, with **22.1% fewer context
+bytes**. The seven personas were held out from immediate development, but the
+project had seen the data before. Two failed campaign attempts were excluded
+under a retry rule added during the run; their captures and costs are recorded.
+An [independent audit](benchmarks/CLONEMEM_RERANK_CONFIRM_AUDIT_V2.md)
+reproduced the scores and interval, and counting every missing first-attempt
+response against Oh left a gain of 6.16 points. The reader was the Gateway
+GPT-4o mini alias, with no verified fixed snapshot, and the scores describe
+that study’s renderer and candidate preparation, not every SDK deployment.
+
+In the [matched framework pilot](benchmarks/FRAMEWORK_PILOT_RESULT_V1.md),
+Supermemory scored **75.00%**, Oh **71.67%**, and a BM25 baseline **68.33%**.
+The paired Oh and Supermemory difference was **−3.33 points**, with a 95%
+within-type bootstrap interval from −13.33 to +6.67 that includes zero. All
+three shared the same 60 LongMemEval-S questions the project had already seen,
+a single query, a 20-item retrieval limit, an 8,192-token evidence renderer, a
+GPT-4o reader, and a fixed-rubric judge, with every planned case counted. The
+pilot is one configuration on development data.
+
+Oh has not shown that it outperforms Letta, Supermemory, or other memory
+frameworks. Published results from other projects use their own protocols, and
+the [website comparison](https://oh.computer/#benchmarks) keeps them apart from
+Oh’s matched runs. A comparison between frameworks needs a common dataset,
+reader, scoring procedure, context allowance, failure accounting, and
+production adapter.
+
+Results that did not pass are kept. On LoCoMo, query-aware packing raised
+evidence recall (90.08% against 88.93%) without an answer-quality gain (77.33%
+against 78.11%). Earlier CloneMem hybrid and keyword-fusion screens also missed
+their answer-quality targets. The
+[experiment history and reproduction guide](benchmarks/README.md) lists every
+study.
+
+Run the network-free state and projection checks from a checkout:
+
+```sh
+bun run test:benchmarks
+bun run bench:memory state
+bun run bench:memory projection
+```
+
+The state suite checks updates, conflicts, provenance, and stale-write rejection.
+Reusing canonical tuple keys cut local median projection time by 25% to 34%
+across the recorded 16-, 32-, and 48-node cases, with identical result digests,
+proofs, and work counts. These microbenchmarks do not predict production
+latency.
+
+The [memory benchmark guide](benchmarks/README.md) covers checksum-pinned
+datasets, raw and extracted memory comparisons, spending limits for paid runs,
+recorded reader results, and how to reproduce each one. Retrieval recall,
+answer quality, and how an agent writes memory are measured separately. The
+benchmark adapters exist to reproduce past studies; the SDK defaults are
+described in [Use the SDK](#use-the-sdk).
+
+## Verify a checkout
+
+```sh
+bun install --frozen-lockfile --ignore-scripts
+bun run check
+```
+
+`bun run check` type-checks the package, runs every test, rebuilds the
+committed `dist/` entry points, and fails if any tracked file changes.
 
 ## Specification
 
-[`spec/manifest.json`](spec/manifest.json) is the machine-readable discovery
-document. The current contract is V1:
+[`spec/manifest.json`](spec/manifest.json) is the machine-readable index of the
+contracts. The current contract is version 1:
 
 - [Canonical JSON and digests](spec/v1/canonical-json.md)
 - [Ontology](spec/v1/ontology.md)
@@ -816,222 +403,59 @@ document. The current contract is V1:
 - [Derived projections](spec/v1/projection.md)
 - [Compatibility and migration](spec/v1/migration.md)
 
-The JSON Schemas describe exchange envelopes. Runtime parsers additionally
-enforce canonical ordering, byte limits, referential integrity, and digest
-preimages that JSON Schema cannot express.
-
-## Benchmark memory
-
-The [production SDK qualification](benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md)
-scored **80.59%** answer accuracy with configured default reranking against
-**69.86%** for matched semantic retrieval: **+10.73 percentage points**.
-Both personas improved, and evidence recall@10 rose from **12.05% to 26.10%**.
-All 876 reader cases completed on 146 previously exposed development questions,
-with three repeats per arm. A separate comparison against ordinary hybrid
-retrieval scored **80.59% versus 64.16%**, using fresh reader responses.
-The two candidate samples remain separate even though their aggregate scores match.
-
-The SDK route met the original numerical development thresholds under a
-documented pre-paid interpretation of one handled Metal startup diagnostic.
-Literal zero-error-log admission would fail; there were no reranker execution
-or cleanup failures. The reader was the Gateway GPT-4o mini alias, with exact
-option-ID scoring and no judge. This is a development qualification, not a
-pristine holdout or population-level confidence claim. Both paired comparisons
-together used 1,752 reader calls and **$1.461086** in accounted exposure.
-
-In the earlier [CloneMem reserved-persona study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md),
-Oh’s lexical/vector candidate union plus local Qwen3 reranking scored **77.82%**
-answer accuracy against **70.54%** for vector retrieval. The paired gain was
-**7.28 percentage points**, with a 95% persona-cluster bootstrap interval of
-**+4.61 to +10.27 points**. The study covers 861 questions from seven personas,
-three reader repeats per arm, and 5,166 completed cases. Mean evidence
-recall@10 rose from **14.48% to 32.80%**, with **22.1% fewer context bytes**.
-
-These are agent-run measurements on data with prior project exposure. The seven
-personas were reserved from immediate development, not a pristine holdout.
-Two failed campaign attempts were excluded under a retry rule added during
-execution; their captures and costs remain recorded. An
-[independent audit](benchmarks/CLONEMEM_RERANK_CONFIRM_AUDIT_V2.md) reproduced
-the scores and interval; assigning all missing first-attempt responses against
-Oh still left a +6.16-point gain. The reader was the
-Gateway GPT-4o mini alias, without a verified immutable snapshot. Scores refer
-to that study’s benchmark renderer and candidate preparation, not every SDK deployment.
-
-The first [matched framework pilot](benchmarks/FRAMEWORK_PILOT_RESULT_V1.md)
-scored Supermemory **75.00%** conservative success, Oh **71.67%**, and a BM25
-baseline **68.33%** — a paired Oh–Supermemory difference of **−3.33 points**
-whose 95% within-type bootstrap interval (−13.33 to +6.67) crosses zero. All
-three arms shared the same 60 previously exposed LongMemEval-S questions,
-single query, 20-item retrieval limit, 8,192-token evidence renderer, GPT-4o
-reader, and frozen-rubric judge, with every planned cell kept in the
-denominator. The pilot is one configuration on development data and does not
-establish superiority or state-of-the-art performance for any system.
-
-Oh has **not established superiority over Letta, Supermemory, or other memory
-frameworks**. The pilot above is a single matched sample; other
-vendor-published results use different protocols, and the
-[website comparison](https://oh.computer/#benchmarks) keeps them separate from
-our matched runs. A framework-level claim needs a common dataset, reader,
-scoring procedure, context allowance, failure accounting, and production adapter.
-
-We retain negative results. On LoCoMo, query-aware packing improved evidence
-recall (90.08% versus 88.93%) but did not establish an answer-quality gain
-(77.33% versus 78.11%). Earlier CloneMem hybrid and keyword-fusion screens also
-failed their answer-quality advancement rules. Read the
-[experiment history and reproduction guide](benchmarks/README.md).
-
-Run the network-free state and projection checks from a checkout:
-
-```sh
-bun run test:benchmarks
-bun run bench:memory state
-bun run bench:memory projection
-```
-
-The state suite checks updates, conflicts, provenance, and stale-write rejection.
-Reusing canonical tuple keys reduces local median projection time by 25–34%
-across the recorded 16-, 32-, and 48-node cases, with identical complete result
-digests, proofs, and work counts. These microbenchmarks are not production
-latency guarantees.
-
-The [memory benchmark guide](https://github.com/hraness/oh/blob/main/benchmarks/README.md) covers checksum-pinned
-datasets, raw and extracted memory comparisons, explicit paid-run limits,
-recorded reader results, and reproducibility evidence. Retrieval recall,
-downstream answer quality, and agent memory-writing behavior are separate
-measurements. Historical benchmark adapters remain reproducibility tools; the SDK defaults
-are documented separately above.
-
-## Verify a checkout
-
-```sh
-bun install --frozen-lockfile --ignore-scripts
-bun run check
-```
-
-The complete gate type-checks the package, runs the complete test suite,
-rebuilds the committed `dist/` entrypoints, and must leave tracked files
-unchanged.
+The JSON Schemas describe the exchanged formats. The runtime parsers also
+enforce canonical ordering, byte limits, references between records, and the
+exact bytes each digest covers, which JSON Schema cannot express.
 
 ## Who builds on Oh
 
-Use Oh to build an application’s memory layer. Use Wordcell to maintain and
-query a Markdown knowledge base. Each
-consumer pins an immutable release and upgrades independently:
+Use Oh to build an application’s memory layer. Use Wordcell to maintain and query a Markdown knowledge base.
+Each consumer pins an immutable release and upgrades on its own schedule:
 
 - [Wordcell](https://wordcell.io)
-  ([source](https://github.com/hraness/wordcell)) keeps an authored Markdown
-  vault as its only authoritative store and embeds Oh as the derived graph
-  authority. An explicit `wordcell graph rebuild` writes a disposable,
-  gitignored `.wordcell/oh.sqlite` projection behind an engine-neutral port,
-  and no query or rebuild writes back into notes.
-- [Sponge](https://sponge.computer) runs the store, libSQL authority,
-  projection, and memory-host surfaces as the server-side agent
-  working-memory layer of its research workspace.
+  ([source](https://github.com/hraness/wordcell)) is a knowledge base for
+  agents: markdown, backlinks, search, ontology, and git context. Its Markdown
+  vault is the only source of truth. `wordcell graph rebuild` writes a
+  disposable, gitignored `.wordcell/oh.sqlite` copy of the graph, and no query
+  or rebuild writes back into notes.
+- [Sponge](https://sponge.computer) builds deep research tools for connected,
+  cited knowledge, exploring self-evolution. Its server-side agents use the Oh
+  store, the libSQL store, rules, and the memory host as working memory, and
+  that store is the source of truth.
 
-The [Wordcell integration guide](docs/wordcell.md) explains the boundary.
-Wordcell evaluates its own search pipeline; Oh memory-study scores do not
-automatically transfer to it. In these two integrations, Wordcell derives
-a replaceable projection from files that are already the record; Sponge keeps
-host-owned working records whose authority is the store itself.
+[Oh and Wordcell](docs/wordcell.md) explains where one ends and the other
+begins. Wordcell measures its own search pipeline; Oh’s memory benchmark
+scores do not carry over to it.
 
-## Contribute
+## Find the right documentation
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing a wire contract or
+- **Try it:** [Install and first run](#install-and-first-run).
+- **Build on it in TypeScript:** [Use the SDK](#use-the-sdk), then
+  [Call Oh from TypeScript](docs/sdk.md) and
+  [Search and recall](docs/search.md).
+- **Store data somewhere other than a local file:**
+  [Direct libSQL store](docs/libsql-runtime.md) and
+  [Fast-forward sync](docs/sync-runtime.md).
+- **Give an agent memory:** [Give an agent working memory](docs/working-memory.md),
+  [Memory pages and `.oh.md` files](docs/memory-pages.md), and
+  [How memory host calls run](docs/memory-runtime.md).
+- **Derive facts with rules:** [Derive facts with rules](docs/projections.md).
+- **Run semantic search:**
+  [Local semantic backend lifecycle](docs/semantic-lifecycle.md) and
+  [Hosted semantic cache V2 lifecycle](docs/hosted-semantic-runtime.md).
+- **Store research sources:** [The research profile](docs/research-profile.md).
+- **Hand Oh to an agent or work with a Markdown vault:** the
+  [Oh Agent Skill](skills/oh/SKILL.md) or [Oh and Wordcell](docs/wordcell.md).
+- **Implement or change a contract:** start at the
+  [specification map](spec/README.md), then read the version 1 text and its
+  JSON Schema together.
+- **Contribute or report a vulnerability:** [CONTRIBUTING.md](CONTRIBUTING.md)
+  or the private process in [SECURITY.md](SECURITY.md).
+
+## Contribute and license
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing a wire format or a
 migration. Report security issues through the private process in
 [SECURITY.md](SECURITY.md).
 
 Oh is available under the [MIT License](LICENSE).
-
-## Portable research profile
-
-Version 0.5.0 adds optional `@hraness/oh/research` and
-`@hraness/oh/research-store` entry points: typed values, 14 domain vocabularies,
-source-preserving proposal compilation, offline Wikidata capture verification
-and checked research packet storage. Start with `oh research catalog`; it
-prints the available definitions without opening a database.
-
-These selected profiles do not provide complete semantic coverage of Wikidata;
-preserved properties are not all mapped to local relations. Historical catalogs
-and definitions remain available.
-
-The profile preserves source identities and digests while exposing the same
-public contract to independent hosts. A host supplies authorization, installed
-vocabularies, review and publication policy. See the
-[research profile](spec/research-v1/README.md) for the exact boundary, limits
-and source-to-store workflow.
-
-Source version 0.6.1 adds `oh research catalog-v2`, qualified domain revisions,
-explicit units and identity schemes, and an all-present Wikidata importer.
-The [coverage guide](spec/research-v1/coverage-v2.md) explains source preservation,
-typed relation checks, historical compatibility and the pinned property inventory.
-Installation links above remain tied to the last verified publication.
-
-Source version 0.7.1 adds `oh research catalog-v3`, a separate source-relations
-pack and `wikidata-mappings-v2` / `wikidata-mapping-preview-v2` commands. The
-[relationship guide](spec/research-v1/source-relations-v1.md) lists twelve added
-source attributions and their limits. Earlier catalog and mapping versions
-remain unchanged; installation availability above is separately verified.
-
-Source version 0.8.1 adds `oh research catalog-v4` for identity and context
-records, `oh research catalog-v5` for an additive `sponge.bridge-relations`
-pack, and `wikidata-mappings-v3` for source-pinned preservation of additional
-high-value properties. The bridge pack defines fourteen explicit cross-domain joins (offers,
-assays, editorial placements, event series, music, finance, simulations, agent
-work, profiles, organizations and language). The [bridge relation guide](spec/research-v1/bridge-relations-v1.md)
-describes the open ranges and review boundary. Catalog-v3 and earlier pack
-identities remain unchanged.
-
-Source version 0.9.0 adds `oh research catalog-v6` with three independently
-selectable profiles: [measurement results](spec/research-v1/measurement-results-v1.md),
-[monetary values and quotes](spec/research-v1/monetary-values-v1.md), and
-[content occurrences](spec/research-v1/content-occurrences-v1.md). A measurement
-can identify its model version, metric and dataset split; an offer price can
-retain an exact decimal amount, currency and quantity basis; a text or cultural
-occurrence can identify its containing source version. These explicit links
-preserve catalogs V1–V5 and do not infer comparability, current prices or
-cultural influence.
-
-Source version 0.10.0 adds `oh research catalog-v7` and the optional
-[participation roles profile](spec/research-v1/participation-roles-v1.md) for
-dated assignments and credits. That version contains 24 packs and 341 schemas in catalog V7.
-Separate participation records keep an agent's
-role tied to the exact recording, edition or other credited subject, with its
-source evidence. Existing organization assignments can use the same role
-descriptors. Listed query paths are declarative guidance; they do not execute
-joins or infer employment, ownership or rights.
-Catalogs V1–V6 retain their exact declarations and locks.
-
-Source version 0.11.0 adds `oh research catalog-v8` with six optional
-research-evidence vocabularies: [temporal roles](spec/research-v1/temporal-roles-v1.md),
-[evidence grading](spec/research-v1/evidence-grading-v1.md),
-[citations](spec/research-v1/citation-v1.md),
-[research operations](spec/research-v1/research-ops-v1.md),
-[source quality](spec/research-v1/source-quality-v1.md) and
-[source policy](spec/research-v1/source-policy-v1.md). A record can now carry
-its event, observation, availability, entry and review times as named roles;
-hold a graded stratum, tier and corroboration state under a stated criteria
-era; bind a claim to a verbatim selector in a retained payload; document a
-bounded search that found nothing; and record monitor runs, rejections,
-review events, measured scorecards and per-source capability decisions.
-Everything stays attributed: a grade is not a review state, corroboration is
-not truth, a bounded null result is not nonexistence and a policy record is
-not an authorization. Catalogs V1–V7 retain their exact declarations and locks.
-
-## Optional development support
-
-Source version 0.10.1 adds `oh support` for optional development support.
-The verified installation baseline above advances only after release checks
-pass. Oh remains free and does not require an account. There is no product
-newsletter or email lookup. The person reviews current terms and confirms any
-payment in their browser.
-
-After useful standalone work, the CLI may emit a throttled discovery record on
-stderr. Agents read `oh support protocol --json` once at task closeout and follow
-its delivery procedure. Ordinary command output and exit status stay unchanged;
-SDK calls, help, contract checks, verification and suppressed audiences stay
-quiet. The default audience is an agent, including in a pseudo-terminal.
-`HRANESS_SUPPORT_AUDIENCE=human` selects human terminal rendering explicitly;
-`HRANESS_SUPPORT_AUDIENCE=off` suppresses incidental invitations.
-
-`oh support dismiss`, `snooze`, `enable`, and `status --json` manage separate
-shared preferences. They never open or modify an Oh database.
