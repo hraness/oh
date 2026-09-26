@@ -241,9 +241,9 @@ export const articleAdmissions = [
   },
   {
     href: "/blog/built-on-oh",
-    // Stays out of search until the Sponge and Wordcell relations with Oh are registered with
-    // detail sentences and each entry renders from its relation.
-    lifecycle: "quarantined",
+    // Both relations are registered in the portfolio facts with detail
+    // sentences, and each entry renders from its relation.
+    lifecycle: "indexable",
     readerJob: "Find out which products use Oh, what each uses it for, and whether my own project needs Oh or Wordcell.",
     nonObviousAnswer:
       "The two uses sit at opposite ends: Sponge's Oh store is the record for its hosted agent's working notes and expires 24 hours after each session opens, while Wordcell keeps no record in Oh and rebuilds a disposable graph from Markdown to answer a query.",
@@ -275,7 +275,7 @@ export const articleAdmissions = [
       readerUtility: 1,
       originalEvidence: 1,
       factualConfidence: 2,
-      hostFit: 1,
+      hostFit: 2,
       voiceIntegrity: 2,
       maintenanceValue: 1,
     },
