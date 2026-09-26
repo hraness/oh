@@ -221,7 +221,7 @@ async function tryLoadWasm(moduleUrl, wasmUrl) {
   }
 }
 async function loadWasmModule() {
-  return await tryLoadWasm(new URL("../rust-artifacts/oh-canonical-wasm/oh_canonical_wasm.js", import.meta.url), new URL("../rust-artifacts/oh-canonical-wasm/oh_canonical_wasm_bg.wasm", import.meta.url)) ?? await tryLoadWasm(new URL("../rust/oh-canonical-wasm/pkg/oh_canonical_wasm.js", import.meta.url), new URL("../rust/oh-canonical-wasm/pkg/oh_canonical_wasm_bg.wasm", import.meta.url));
+  return await tryLoadWasm(new URL("./rust-artifacts/oh-canonical-wasm/oh_canonical_wasm.js", import.meta.url), new URL("./rust-artifacts/oh-canonical-wasm/oh_canonical_wasm_bg.wasm", import.meta.url)) ?? await tryLoadWasm(new URL("../rust/oh-canonical-wasm/pkg/oh_canonical_wasm.js", import.meta.url), new URL("../rust/oh-canonical-wasm/pkg/oh_canonical_wasm_bg.wasm", import.meta.url));
 }
 async function loadCanonicalRustTextEngine() {
   const wasm = await loadWasmModule();

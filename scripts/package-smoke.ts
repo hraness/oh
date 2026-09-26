@@ -530,6 +530,22 @@ copy.records[0].value.source.value.identityRevision = 2;
 assert.equal(await research.verifyOhResearchPacketV1(copy), null);
 `, { mode: 0o600 });
     await run(["node", "./research-profile.mjs"], consumer);
+    // The opt-in Rust engines must load from the installed package, not fall back.
+    await writeFile(join(consumer, "rust-engines.mjs"), `
+import { loadCanonicalRustTextEngine } from "@hraness/oh/canonical-rust";
+import { loadProjectionRustEngineV1 } from "@hraness/oh/projection/rust";
+const canonical = await loadCanonicalRustTextEngine();
+if (canonical.implementation !== "rust-wasm") {
+  throw new Error("The packed canonical engine fell back to TypeScript.");
+}
+if (canonical.canonicalJson('{"b":1,"a":2}') !== '{"a":2,"b":1}') {
+  throw new Error("The packed canonical engine changed canonical bytes.");
+}
+if (await loadProjectionRustEngineV1() === null) {
+  throw new Error("The packed Datalog engine did not load.");
+}
+`, { mode: 0o600 });
+    await run([process.execPath, "run", "./rust-engines.mjs"], consumer);
     console.log(`Verified packed ${PACKAGE_NAME}@${String(manifest.version)} without private artifacts.`);
   } finally {
     await rm(work, { force: true, recursive: true });
