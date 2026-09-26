@@ -29,9 +29,9 @@ vocabularies it installs, and its review and publication policy.
 
 ## Catalogs by version
 
-Each catalog adds packs and keeps every earlier catalog’s declarations and
-lock digests byte for byte, so a record written against catalog V3 reads the
-same under catalog V8. Every catalog command prints canonical JSON and takes
+Each catalog adds or revises packs and keeps every earlier catalog’s
+declarations and lock digests byte for byte, so a record written against
+catalog V3 reads the same under catalog V9. Every catalog command prints canonical JSON and takes
 no arguments.
 
 | Command | Requires | Packs | Schemas | Adds |
@@ -44,6 +44,7 @@ no arguments.
 | `oh research catalog-v6` | 0.9.0 | 23 | 336 | Measurement results, monetary values, and content occurrences. |
 | `oh research catalog-v7` | 0.10.0 | 24 | 341 | Dated participation roles and credits. |
 | `oh research catalog-v8` | 0.10.3 | 30 | 429 | Six research-evidence vocabularies. |
+| `oh research catalog-v9` | Next release | 30 | 429 | Revision 2 of the eleven packs that pin a guide, with plain-style V2 guides. |
 
 Catalog V7 holds 24 packs and 341 schemas.
 
@@ -65,20 +66,20 @@ lists them and their limits.
 the `sponge.bridge-relations` pack with fourteen explicit joins across domains:
 offers, assays, editorial placements, event series, music, finance,
 simulations, agent work, profiles, organizations, and language. The
-[bridge relations guide](../spec/research-v1/bridge-relations-v1.md) describes
+[bridge relations guide](../spec/research-v1/bridge-relations-v2.md) describes
 their open ranges and what needs review before use.
 
 **V6.** Three profiles you can adopt separately.
-[Measurement results](../spec/research-v1/measurement-results-v1.md) name the
+[Measurement results](../spec/research-v1/measurement-results-v2.md) name the
 model version, metric, and dataset split.
-[Monetary values and quotes](../spec/research-v1/monetary-values-v1.md) keep an
+[Monetary values and quotes](../spec/research-v1/monetary-values-v2.md) keep an
 exact decimal amount, currency, and quantity basis.
-[Content occurrences](../spec/research-v1/content-occurrences-v1.md) name the
+[Content occurrences](../spec/research-v1/content-occurrences-v2.md) name the
 source version that contains a text or cultural work. These links do not infer
 that two measurements are comparable, that a price is current, or that one
 work influenced another.
 
-**V7.** [Participation roles](../spec/research-v1/participation-roles-v1.md)
+**V7.** [Participation roles](../spec/research-v1/participation-roles-v2.md)
 record dated assignments and credits. A participation record ties a person’s
 or organization’s role to the exact recording, edition, or other credited
 subject, with its source evidence, and organization assignments can use the
@@ -87,23 +88,29 @@ joins or infer employment, ownership, or rights.
 
 **V8.** Six optional vocabularies for research evidence:
 
-- [Temporal roles](../spec/research-v1/temporal-roles-v1.md) name a record’s
+- [Temporal roles](../spec/research-v1/temporal-roles-v2.md) name a record’s
   event, observation, availability, entry, and review times.
-- [Evidence grading](../spec/research-v1/evidence-grading-v1.md) holds a
+- [Evidence grading](../spec/research-v1/evidence-grading-v2.md) holds a
   graded stratum, tier, and corroboration state under stated criteria.
-- [Citations](../spec/research-v1/citation-v1.md) bind a claim to a verbatim
+- [Citations](../spec/research-v1/citation-v2.md) bind a claim to a verbatim
   selector in a stored payload.
-- [Research operations](../spec/research-v1/research-ops-v1.md) record a
+- [Research operations](../spec/research-v1/research-ops-v2.md) record a
   search that found nothing within a stated scope, monitor runs, rejections,
   and review events.
-- [Source quality](../spec/research-v1/source-quality-v1.md) records measured
+- [Source quality](../spec/research-v1/source-quality-v2.md) records measured
   scorecards.
-- [Source policy](../spec/research-v1/source-policy-v1.md) records what each
+- [Source policy](../spec/research-v1/source-policy-v2.md) records what each
   source may be used for.
 
 Every one of these stays attributed to whoever recorded it. A grade is not a
 review decision, corroboration is not truth, a search that found nothing is not
 proof that nothing exists, and a policy record grants no permission.
+
+**V9.** The eleven packs above that pin a guide move to revision 2, and each
+revision 2 manifest pins the V2 guide linked here. The guides are rewritten in
+plain style; every concept, predicate, definition, shape, query and example
+has the same meaning as in revision 1. Each revision 2 manifest names its
+revision 1 predecessor, and catalog V8 resolves the V1 guides.
 
 ## Wikidata mappings and file commands
 

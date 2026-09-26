@@ -99,3 +99,23 @@ test("offline CLI exposes the research evidence packs without changing the V7 co
   expect(catalog.lock.roots).toHaveLength(27);
   expect(existsSync(join(dir, ".oh"))).toBe(false);
 });
+
+test("offline CLI exposes revision 2 guide packs without changing the V8 command", async () => {
+  const dir = await root();
+  const [previous, result] = await Promise.all([run(dir, "catalog-v8"), run(dir, "catalog-v9")]);
+  expect(result.code).toBe(0);
+  expect(result.stderr).toBe("");
+  const catalog = JSON.parse(result.stdout);
+  const v8 = JSON.parse(previous.stdout);
+  expect(catalog.packs).toHaveLength(30);
+  expect(catalog.schemas).toHaveLength(429);
+  expect(catalog.lock.roots).toHaveLength(27);
+  for (const field of ["bridgeRelationsPack", "temporalRolesPack", "evidenceGradingPack", "citationPack", "researchOpsPack",
+    "sourceQualityPack", "sourcePolicyPack", "measurementResultsPack", "monetaryValuesPack", "contentOccurrencesPack",
+    "participationRolesPack"]) {
+    expect(catalog[field].revision).toBe(2);
+    expect(catalog[field].previousManifestSha256).toBe(v8[field].manifestSha256);
+    expect(catalog[field].sources[0].uri).toEndWith("-v2.md");
+  }
+  expect(existsSync(join(dir, ".oh"))).toBe(false);
+}, 30_000);

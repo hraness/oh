@@ -258,7 +258,7 @@ returns keyword results, both with a semantic-unavailable diagnostic.
 
 Research (offline, no database):
   oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5
-  oh research catalog-v6|catalog-v7|catalog-v8
+  oh research catalog-v6|catalog-v7|catalog-v8|catalog-v9
   oh research wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
   oh research validate-draft|prepare-packet|verify-packet --file PATH
   oh research wikidata-preview --file PATH

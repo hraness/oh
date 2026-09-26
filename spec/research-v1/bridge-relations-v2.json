@@ -1,0 +1,56 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV9",
+    "previousCatalogFactory": "spongeKnowledgeDomainCatalogV8",
+    "revisedPack": "sponge.bridge-relations",
+    "packRevision": 2,
+    "previousPackRevision": 1
+  },
+  "previousGuide": "bridge-relations-v1.md",
+  "concepts": [
+    "price"
+  ],
+  "relations": [
+    "assay-produces-result",
+    "assay-uses-method",
+    "lexeme-in-language-system",
+    "listing-at-venue",
+    "offer-for-product",
+    "offer-has-price",
+    "placement-in-article",
+    "profile-for-account",
+    "role-assignment-at-organization",
+    "series-has-member-event",
+    "snapshot-of-simulation",
+    "task-pursues-goal",
+    "track-has-recording",
+    "trajectory-has-attempt"
+  ],
+  "directDependencies": [
+    "sponge.agent-work",
+    "sponge.body",
+    "sponge.core",
+    "sponge.culture",
+    "sponge.editorial",
+    "sponge.finance",
+    "sponge.formal-systems",
+    "sponge.foundation",
+    "sponge.identity-context",
+    "sponge.language",
+    "sponge.music",
+    "sponge.natural-world",
+    "sponge.organizations",
+    "sponge.people",
+    "sponge.reference",
+    "sponge.research",
+    "sponge.software",
+    "sponge.source-relations",
+    "sponge.substances"
+  ],
+  "queries": [
+    "bridge-relations"
+  ],
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

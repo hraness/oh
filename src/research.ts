@@ -38,3 +38,4 @@ export * from "./research/knowledge-research-ops";
 export * from "./research/knowledge-source-quality";
 export * from "./research/knowledge-source-policy";
 export * from "./research/knowledge-domain-catalog-v8";
+export * from "./research/knowledge-domain-catalog-v9";

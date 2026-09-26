@@ -210,6 +210,7 @@ The CLI opens no database and performs no network calls for these commands:
 oh research catalog
 oh research catalog-v7
 oh research catalog-v8
+oh research catalog-v9
 oh research validate-draft --file proposal.json
 oh research wikidata-preview --file captures.json
 oh research prepare-packet --file source-records.json
@@ -274,3 +275,21 @@ Each pack is additive and keeps every claim attributed to its source. A grade is
 corroboration does not establish truth. A null result from a limited search
 does not show that something is absent. A policy record does not authorize
 anything.
+
+`catalog-v9` moves the eleven packs whose manifests pin a guide to revision 2.
+Each revision 2 pack pins a V2 guide that rewrites the V1 guide in plain style:
+[bridge relations](bridge-relations-v2.md),
+[measurement results](measurement-results-v2.md),
+[monetary values and quotes](monetary-values-v2.md),
+[content occurrences](content-occurrences-v2.md),
+[participation roles](participation-roles-v2.md),
+[temporal roles](temporal-roles-v2.md),
+[evidence grading](evidence-grading-v2.md), [citations](citation-v2.md),
+[research operations](research-ops-v2.md),
+[source quality](source-quality-v2.md) and
+[source policy](source-policy-v2.md). Concepts, predicates, definitions,
+shapes, queries and examples have the same meaning as revision 1. Schema
+references and dependency pins point at the revision 2 packs, and each manifest
+names its revision 1 predecessor. Catalog V9 has the same 30 packs and 429
+schemas as catalog V8. The V1 guides and catalogs V1 through V8 keep their
+bytes and digests.

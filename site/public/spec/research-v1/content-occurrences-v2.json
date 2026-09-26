@@ -1,0 +1,36 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV9",
+    "previousCatalogFactory": "spongeKnowledgeDomainCatalogV8",
+    "revisedPack": "sponge.content-occurrences",
+    "packRevision": 2,
+    "previousPackRevision": 1
+  },
+  "previousGuide": "content-occurrences-v1.md",
+  "concepts": [
+    "retained-content-version"
+  ],
+  "relations": [
+    "content-version-of",
+    "form-in-language-system",
+    "occurrence-in-version",
+    "retained-content",
+    "source-native-locator",
+    "text-expresses-sense",
+    "text-in-language-system",
+    "text-realizes-form"
+  ],
+  "directDependencies": [
+    "sponge.core",
+    "sponge.culture",
+    "sponge.foundation",
+    "sponge.language",
+    "sponge.reference"
+  ],
+  "queries": [
+    "retained-occurrences"
+  ],
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}
