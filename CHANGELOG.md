@@ -4,6 +4,14 @@ Each section below describes one release of Oh. The release workflow copies a
 version's section onto its GitHub Release page, so write the section in the
 pull request that bumps the version.
 
+## 0.13.1 - 2026-09-26
+
+The 0.13.0 release stopped before publishing because its version check read
+`oh --version`, which now prints `oh 0.13.0` for people. The check reads
+`oh --version --json` instead. The package is otherwise the same as 0.13.0.
+
+- Everything listed under 0.13.0 ships in this release.
+
 ## 0.13.0 - 2026-09-26
 
 The `oh` command line now prints short sentences for people and keeps
