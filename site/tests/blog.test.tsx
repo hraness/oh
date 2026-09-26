@@ -40,7 +40,7 @@ describe("Oh blog", () => {
       expect(record.review.reviewerType).toBe("ai");
       expect(record.humanReview).toBeNull();
     }
-    expect(indexableArticles.map((article) => article.slug)).toEqual(["introducing-oh", "oh-rust-typescript-parity"]);
+    expect(indexableArticles.map((article) => article.slug)).toEqual(["longmemeval-s-user-log", "introducing-oh", "oh-rust-typescript-parity"]);
     expect(quarantined.map((article) => article.slug)).toEqual(["built-on-oh"]);
   });
 
@@ -72,7 +72,7 @@ describe("Oh blog", () => {
   test("renders the release version from the release record", async () => {
     const html = await renderArticle("introducing-oh");
     expect(html).toContain(`Latest release: v${publishedRelease.version}.`);
-    for (const slug of ["introducing-oh", "built-on-oh", "oh-rust-typescript-parity"]) {
+    for (const slug of ["longmemeval-s-user-log", "introducing-oh", "built-on-oh", "oh-rust-typescript-parity"]) {
       const source = await readFile(join(site, "app/blog/content", `${slug}.tsx`), "utf8");
       expect(source).not.toContain(publishedRelease.version);
     }

@@ -3,10 +3,10 @@ import {
   socialImageContentType as contentType,
   socialImageSize as size,
 } from "@hraness/web-discovery/social-image";
-import { specificationDescription, specificationTitle } from "../metadata-copy";
+import { specificationDescription, specificationImageAlt } from "../metadata-copy";
 import { OhSocialMark, ohSocialTheme } from "../social-mark";
 
-export const alt = specificationTitle;
+export const alt = specificationImageAlt;
 export { contentType, size };
 
 export default function SpecificationImage() {

@@ -154,7 +154,7 @@ describe("built Oh site", () => {
       ]);
 
       expect(homeResponse.status).toBe(200);
-      expect(home).toContain("Current release v0.12.0");
+      expect(home).toContain("Latest release: v0.12.0");
       expect(home).toContain("@hraness/oh@0.12.0");
       expect(home).not.toContain("@hraness/oh@0.4.3");
       expect(home).toContain("source CLI 0.4.0");
@@ -180,6 +180,10 @@ describe("built Oh site", () => {
       expect(homeResponse.headers.get("link")).toBe('</llms.txt>; rel="describedby"');
       expect(specificationResponse.headers.get("link")).toBe('</llms.txt>; rel="describedby"');
       expect(missingResponse.status).toBe(404);
+      // An unknown address renders the site's own page with a way home, not the framework default.
+      expect(missing).toContain("Page not found");
+      expect(missing).toContain('href="/"');
+      expect(missing).not.toContain("This page could not be found");
       expect(homeResponse.headers.get("x-frame-options")).toBeNull();
       expect(homeResponse.headers.get("content-security-policy") ?? "")
         .not.toContain("frame-ancestors 'none'");
@@ -195,7 +199,7 @@ describe("built Oh site", () => {
         '<link rel="canonical" href="https://oh.computer/spec"',
       );
       expect(metadataContent(specification, "property", "og:title")).toBe(
-        "Oh ontology specification v1",
+        "Oh: Ontology specification v1",
       );
       expect(metadataContent(specification, "property", "og:image")).toMatch(
         /^https:\/\/oh\.computer\/spec\/opengraph-image(?:\?[0-9a-f]+)?$/u,
@@ -204,7 +208,7 @@ describe("built Oh site", () => {
         "https://oh.computer/spec/opengraph-image",
       );
       expect(metadataContent(specification, "name", "twitter:title")).toBe(
-        "Oh ontology specification v1",
+        "Oh: Ontology specification v1",
       );
       const specificationDescription = metadataContent(specification, "name", "description");
       expect(specificationDescription).not.toBe(metadataContent(home, "name", "description"));

@@ -1,5 +1,5 @@
 name: Bug report
-description: Report reproducible incorrect behavior in Oh
+description: Report incorrect behavior in Oh that you can reproduce
 title: "bug: "
 labels:
   - bug
@@ -7,20 +7,20 @@ body:
   - type: markdown
     attributes:
       value: |
-        Do not include credentials, private research records, or an unpatched vulnerability. Use the private security advisory link for security reports.
+        This form is public. Leave out credentials and private research records, and report a security vulnerability through a [private security advisory](https://github.com/hraness/oh/security/advisories/new) instead of this form.
   - type: input
     id: version
     attributes:
       label: Oh version
-      description: Paste the output of `oh version`.
-      placeholder: 0.1.1
+      description: Paste the output of `oh version`, or the `@hraness/oh` version in your lockfile.
+      placeholder: x.y.z
     validations:
       required: true
   - type: input
     id: environment
     attributes:
       label: Environment
-      description: Include the Bun version and operating system.
+      description: Include the runtime (Bun or Node.js) with its version, and the operating system.
       placeholder: Bun 1.3.14 on macOS 15.6
     validations:
       required: true
@@ -28,7 +28,7 @@ body:
     id: reproduction
     attributes:
       label: Minimal reproduction
-      description: Provide the smallest commands or public fixture that reproduce the problem.
+      description: Give the smallest commands, code, or public fixture that reproduce the problem.
     validations:
       required: true
   - type: textarea
@@ -41,14 +41,14 @@ body:
     id: actual
     attributes:
       label: Actual behavior
-      description: Include sanitized output and exit status. Do not attach a sensitive database.
+      description: Paste the output, with secrets removed, and the exit status. Do not attach a database that holds sensitive data.
     validations:
       required: true
   - type: textarea
     id: verification
     attributes:
       label: Replay verification
-      description: If safe, include the sanitized result of `oh verify`.
+      description: If the store holds nothing sensitive, paste the output of `oh verify`. It checks SQLite integrity and replays every operation in the space, then prints digests and counts but no record content. Add `--db PATH` if the store is not at `.oh/oh.sqlite`, and `--space ID` if the space is not `default`.
   - type: checkboxes
     id: checks
     attributes:
@@ -58,5 +58,5 @@ body:
           required: true
         - label: This report contains no secrets or private research data.
           required: true
-        - label: This is not an unpatched security vulnerability.
+        - label: This report does not describe an unpatched security vulnerability.
           required: true

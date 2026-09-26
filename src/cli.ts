@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { terminalIntro } from "./cli-intro";
+import { OH_CLI_TAGLINE, terminalIntro } from "./cli-intro";
 import { lstat, readFile } from "node:fs/promises";
 
 import { canonicalJson, opaqueId, parseCanonicalInstantV1, safeCode, type JsonValue } from "./canonical";
@@ -10,7 +10,7 @@ import { renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
 import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
-export const OH_PACKAGE_VERSION = "0.12.0" as const;
+export const OH_PACKAGE_VERSION = "0.12.1" as const;
 
 type ParsedArguments = { options: Map<string, string[]>; positionals: string[] };
 type ValidatedInvocation = Readonly<{
@@ -221,11 +221,9 @@ async function readSyncBundleFile(path: string): Promise<unknown> {
   return JSON.parse(contents.toString("utf8")) as unknown;
 }
 
-const HELP = `oh ${OH_PACKAGE_VERSION} · Agent memory that shows its work.
-
-Usage:
-  oh init [--db PATH] [--space ID]
-  oh put --kind KIND --key KEY (--json JSON | --file PATH) [--depends-on KEY]
+const HELP = `Usage:
+  oh init
+  oh put --kind KIND --key KEY (--json JSON | --file PATH) [--depends-on KEY]...
   oh get KEY
   oh list [--kind KIND] [--limit N]
   oh log [--limit N]
@@ -235,29 +233,57 @@ Usage:
   oh verify
   oh sync export [--after N] [--limit N]
   oh sync import --file PATH
-  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|catalog-v8|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
-  oh research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH
   oh contract
   oh version
-  oh support protocol --json
-  oh support offer --json
-  oh support status --json
-  oh support dismiss | snooze | enable
 
-Research commands are offline and do not open a database.
-Store options: --db PATH (default .oh/oh.sqlite), --space ID (default default)
-Mutation options: --actor ID, --operation ID, --expected-generation N
-Optional development support requires human approval in the browser. Features stay free.
-Agents: read the support protocol once at a useful task closeout; ordinary stdout stays unchanged.
-HRANESS_SUPPORT_AUDIENCE=agent|human|off; CI and off suppress incidental invitations.
+Options for every command above except version:
+  --db PATH                  database file (default .oh/oh.sqlite)
+  --space ID                 space in the database (default "default")
+Options for put and tombstone:
+  --actor ID                 recorded on the operation (default agent.local)
+  --operation ID             reuse the same ID to retry a write (default random)
+  --expected-generation N    write only if the space is at generation N
+
+These commands print canonical JSON, except version, which prints only the
+version number. All but contract and version open the database, creating its
+directory, file, and space if they are missing. The get and tombstone commands
+exit 3 when KEY has no current record. Errors print "oh: MESSAGE" to stderr
+and exit 1.
+
+The list and log commands return at most 50 entries, or up to 1000 with
+--limit; search and recall return at most 10, or up to 100. The --as-of option
+takes a UTC instant with milliseconds, such as 2026-01-08T12:00:00.000Z. The
+CLI has no semantic backend: semantic mode returns no results and hybrid mode
+returns keyword results, both with a semantic-unavailable diagnostic.
+
+Research (offline, no database):
+  oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5
+  oh research catalog-v6|catalog-v7|catalog-v8
+  oh research wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
+  oh research validate-draft|prepare-packet|verify-packet --file PATH
+  oh research wikidata-preview --file PATH
+  oh research wikidata-mapping-preview|wikidata-mapping-preview-v2 --file PATH
+
+Support (optional):
+  oh support [--json]
+  oh support protocol|offer|status --json
+  oh support shown|release ID
+  oh support dismiss|snooze|enable
+
+Every feature stays free, and you approve any payment in your browser. Agents
+run oh support protocol --json once, when closing out a useful task. Support
+notices go to stderr and never change stdout or exit codes. Set
+HRANESS_SUPPORT_AUDIENCE to agent (default), human, or off to choose who sees
+them; CI turns them off.
 `;
 
 export async function runOhCli(arguments_: readonly string[]): Promise<number> {
   const command = arguments_[0];
   if (command === undefined || command === "help" || command === "--help") {
     if (arguments_.length > 1) throw new TypeError("help does not accept arguments or options.");
-    process.stdout.write(terminalIntro({ isTTY: process.stdout.isTTY, columns: process.stdout.columns, term: process.env.TERM }));
-    process.stdout.write(HELP);
+    const intro = terminalIntro({ isTTY: process.stdout.isTTY, columns: process.stdout.columns, term: process.env.TERM });
+    // The terminal banner already carries the tagline, so the version line omits it there.
+    process.stdout.write(`${intro}oh ${OH_PACKAGE_VERSION}${intro === "" ? ` · ${OH_CLI_TAGLINE}` : ""}\n\n${HELP}`);
     return 0;
   }
   if (command === "version" || command === "--version") {

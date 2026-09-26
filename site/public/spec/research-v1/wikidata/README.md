@@ -6,12 +6,13 @@ It does not establish that the local research vocabularies describe every topic,
 that their meanings are mutually exclusive, or that imported claims are true.
 
 The [2026-09-13 inventory](2026-09-13/inventory.json) contains 13,904 property IDs,
-each with its declared datatype, exact revision and a SHA-256 reference to the
+each with its declared datatype, revision, and a SHA-256 reference to the
 original API response. All 13,904 properties have one preservation classification
-under the V2 importer. All 18 observed datatypes have typed source-value support;
-unrecognized future datatypes have the separate opaque source-value path.
-A datatype classification says which value parser applies. Individual malformed
-values still require opaque preservation or an explicit omission record.
+under the V2 importer. All 18 observed datatypes are classified
+`typed-source-value`. Datatypes that Wikidata adds later take the separate
+`opaque-source-value` path. A datatype classification says which value parser
+applies. An individual malformed value needs opaque preservation or an explicit
+omission record.
 
 ## What was captured
 
@@ -19,62 +20,66 @@ The acquisition completed 28 pages of the public
 [MediaWiki `allpages` API](https://www.mediawiki.org/wiki/API:Allpages), restricted
 to nonredirect pages in the Property namespace (120). It then used
 `wbgetentities` with `props=datatype|info` in batches of 50 to capture property
-identity, datatype and revision together. Every listed property was described;
-there were no missing-property omissions in this capture.
+identity, datatype, and revision together. Every listed property was described,
+so this capture has no missing-property omissions.
 
 The 374 responses arrived between 14:17:37.795 and 14:19:37.236 UTC on
-2026-09-13. Wikidata can change during traversal: these are pinned responses
-from a capture window, rather than an atomic database snapshot. Deleted pages,
-redirect pages, future properties and changes outside that window are outside
+2026-09-13. Wikidata can change during traversal, so these are pinned responses
+from a capture window, not an atomic snapshot of the database. Deleted pages,
+redirect pages, future properties, and changes outside that window are outside
 the inventory. The inventory does not contain all statements or all classes
 from Wikidata.
 
-The [source archive](2026-09-13/sources.jsonl.gz) retains the exact UTF-8 response
-body, source URL, acquisition time, byte length and SHA-256 for every request.
-It also contains 67 complete item, property and lexeme captures selected for
+The [source archive](2026-09-13/sources.jsonl.gz) keeps the UTF-8 response
+body, source URL, acquisition time, byte length, and SHA-256 for every request.
+It also contains 67 complete item, property, and lexeme captures selected for
 language, culture, natural phenomena, anatomy, research, substances,
-organizations, events, software, music, people, finance and formal systems.
-These include units, calendars and a coordinate reference system. Capture
-selection and its reasons are maintained in `WIKIDATA_CORPUS_SELECTION_V1` in
-`scripts/capture-wikidata-inventory.ts`.
+organizations, events, software, music, people, finance, and formal systems.
+These include units, calendars, and a coordinate reference system. Each
+captured entity and the reason for selecting it are listed in
+`WIKIDATA_CORPUS_SELECTION_V1` in `scripts/capture-wikidata-inventory.ts`.
 
-The selected properties retain 716 property-constraint statements, including
-qualifiers, exceptions, ranks and references. The class-neighborhood projection
-retains 243 direct `P31`, `P279` and `P361` edges from the captured entities.
-It does not expand their transitive closure or equate these three relations.
+The selected properties keep 716 property-constraint statements, including
+qualifiers, exceptions, ranks, and references. The class neighborhood keeps 243
+direct `P31`, `P279`, and `P361` edges from the captured entities. It does not
+expand their transitive closure or treat these three relations as equal.
 [Wikidata constraints](https://www.wikidata.org/wiki/Help:Property_constraints_portal)
-provide guidance with exceptions; their presence here does not install a local
-validation rule or confer authority on a claim.
+provide guidance with exceptions. Their presence here does not install a local
+validation rule or make any claim authoritative.
 
 The captured structured data uses Wikidata's
 [CC0 license](https://www.wikidata.org/wiki/Wikidata:Licensing). Referenced web
-pages and media retain their own terms and are not downloaded by this script.
-Acquisition metadata is recorded by the capture tool. It is not a signed
-provider attestation, and importing it does not authorize disclosure.
+pages and media keep their own terms, and this script does not download them.
+The capture tool records the acquisition metadata; Wikidata does not sign it.
+Importing the metadata does not authorize disclosure.
 
 ## Measured importer behavior
 
 [The preservation report](2026-09-13/preservation-coverage.json) is generated by
-running the actual V2 importer separately against each frozen complete capture
-with `properties: "all-present"`. It verifies original body bytes, property
-URIs, statement selectors, GUIDs and raw statement values against those sources.
+running the package's V2 importer separately against each frozen complete
+capture with `properties: "all-present"`. It verifies original body bytes,
+property URIs, statement selectors, GUIDs, and raw statement values against
+those sources.
 
 The report contains 4,656 statements, including statements on lexeme forms and
-senses. All 4,656 become source assertions; the corpus produces 11,779 typed
-snaks and 30 occurrence-scoped unknown/no-value snaks, with no omissions. The
-real statement values exercise 14 of the 18 declared datatypes, including
-EntitySchema references. The inventory covers all 18 declared property types;
-the 67-entity corpus alone is not a live example suite for every value type.
-Separate synthetic conformance tests cover those parser cases and bounds.
+senses. All 4,656 become source assertions. The corpus produces 11,779 typed
+snaks and 30 unknown-value or no-value snaks, each scoped to its occurrence,
+with no omissions. The captured statement values exercise 14 of the 18
+declared datatypes, including EntitySchema references. The inventory covers
+all 18 declared property types, but the 67-entity corpus alone does not include
+a live example of every value type. Separate synthetic conformance tests cover
+those parser cases and limits.
 
-Source assertions retain foreign subject and property identities without
-requiring a local topic mapping. They remain unadmitted and source-attributed.
-The report deliberately leaves meaning coverage unmeasured and grants no
-local review, identity, publication or constraint-enforcement authority.
+Source assertions keep foreign subject and property identities without
+requiring a local topic mapping. Each preview has `status` `unadmitted`, and
+each source assertion has `eligibleForAdmission: false` and stays attributed to
+its source. The report records `meaningCoverage: "not-measured"` and
+`localAdmission: "never-granted"`. It grants no authority for local review,
+identity, publication, or constraint enforcement.
 
-The corpus exposed historic lowercase entity prefixes in statement GUIDs.
-The V2 importer now recognizes the prefix without changing any GUID bytes.
-Published V1 behavior remains unchanged.
+The corpus exposed historic lowercase entity prefixes in statement GUIDs. The
+V2 importer recognizes such a prefix without changing any GUID bytes. The V1
+importer keeps its published behavior.
 
 ## Reproduce and refresh
 
@@ -89,22 +94,23 @@ bun test tests/research-wikidata-inventory.test.ts
 
 The tests pin both source-archive and inventory hashes, verify complete
 continuation and metadata coverage, reject inconsistent or oversized files,
-and compare current importer behavior with the saved preservation report.
-The offline `--write` mode regenerates the derived preservation report from
-the verified sources when an intentional importer change warrants review.
+and compare the importer's output with the saved preservation report. The
+offline `--write` mode regenerates the derived preservation report from the
+verified sources when a deliberate importer change needs review.
 
-To acquire another inventory, choose a new directory and review its changes
-before adopting it. Capture never overwrites an existing source archive or
-inventory:
+To acquire another inventory, choose a different directory and review its
+changes before adopting it. Capture never overwrites a source archive or
+inventory that is already there:
 
 ```sh
 bun scripts/capture-wikidata-inventory.ts --capture spec/research-v1/wikidata/NEW-SNAPSHOT
 bun scripts/wikidata-inventory-coverage.ts --write spec/research-v1/wikidata/NEW-SNAPSHOT
 ```
 
-The acquisition uses serial public GET requests, a descriptive user agent and
-`maxlag=5`; it stops on HTTP or API errors. Bounds are 20,000 properties, 512
-responses, 2 MiB per response and 20 minutes for the capture. Offline verification
-also bounds compressed and expanded archives. An incomplete acquisition must
-not be presented as a complete inventory. Updating fixtures requires reviewing
-new datatypes, omissions, revision changes and the finite coverage claim.
+The acquisition uses serial public GET requests, a descriptive user agent, and
+`maxlag=5`; it stops on HTTP or API errors. Limits are 20,000 properties, 512
+responses, 2 MiB per response, and 20 minutes for the capture. Offline
+verification also limits the compressed archive to 16 MiB and the expanded
+archive to 48 MiB. An incomplete acquisition must not be presented as a
+complete inventory. Updating fixtures requires reviewing datatypes not seen
+before, omissions, revision changes, and the finite coverage claim.

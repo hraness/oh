@@ -3,35 +3,38 @@ description: Propose a focused addition to Oh
 title: "request: "
 body:
   - type: textarea
-    id: problem
+    id: workflow
     attributes:
-      label: Research workflow
-      description: Describe the agentic research task that is difficult today.
+      label: Workflow
+      description: Describe the agent or research task that is hard to do with Oh today, and how you handle it now.
     validations:
       required: true
   - type: textarea
     id: outcome
     attributes:
       label: Desired outcome
-      description: State the observable behavior without prescribing an implementation when several designs could work.
+      description: Describe the behavior you want to observe. Leave the design open when more than one could work.
     validations:
       required: true
   - type: dropdown
-    id: boundary
+    id: area
     attributes:
-      label: Primary boundary
+      label: Area
       options:
         - CLI or SDK
+        - Agent memory
+        - Search, recall, or embeddings
+        - Projections (Datalog rules)
         - Ontology or schema
-        - SQLite storage
+        - SQLite or libSQL storage
         - Sync
-        - Search or embeddings
+        - Research profile
         - Agent Skill
-        - Documentation or site
+        - Documentation or website
     validations:
       required: true
   - type: textarea
     id: compatibility
     attributes:
       label: Compatibility constraints
-      description: Name any existing records, digests, schemas, or integrations that must remain compatible.
+      description: Name the records, digests, schemas, or integrations you rely on that must stay compatible.

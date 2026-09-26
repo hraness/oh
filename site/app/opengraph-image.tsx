@@ -3,15 +3,15 @@ import {
   socialImageContentType as contentType,
   socialImageSize as size,
 } from "@hraness/web-discovery/social-image";
+import { homeDescription, homeImageAlt } from "./metadata-copy";
 import { OhSocialMark, ohSocialTheme } from "./social-mark";
 
-export const alt = "Oh: Agent memory that shows its work.";
+export const alt = homeImageAlt;
 export { contentType, size };
 
 export default function OpenGraphImage() {
   return createSocialImageResponse({
-    description:
-      "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.",
+    description: homeDescription,
     domain: "oh.computer",
     eyebrow: "Oh",
     mark: <OhSocialMark />,

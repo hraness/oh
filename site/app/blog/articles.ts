@@ -18,20 +18,21 @@ import type {
 } from "@hraness/web-discovery";
 import type { ComponentType } from "react";
 
+import { homeDescription } from "../metadata-copy";
 import { articleAdmissions } from "./admissions";
 import { BuiltOnOhBody, toc as builtOnOhToc } from "./content/built-on-oh";
 import { IntroducingOhBody, toc as introducingOhToc } from "./content/introducing-oh";
+import { LongMemEvalUserLogBody, toc as longMemEvalUserLogToc } from "./content/longmemeval-s-user-log";
 import { ParityBody, toc as parityToc } from "./content/oh-rust-typescript-parity";
 
 export const blogPath = "/blog" as const;
 export const feedPath = "/blog/feed.xml" as const;
 export const blogTitle = "Oh blog";
 export const blogDescription =
-  "Articles about Oh, the open-source memory framework for agents: how it works, what it guarantees, and which products build on it.";
+  "Articles from Hraness about how Oh works and how it is tested, from a run on all 500 LongMemEval-S questions to the property tests behind its Rust encoder.";
 
 export const ohSearchSite: SearchSite = {
-  description:
-    "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.",
+  description: homeDescription,
   language: "en-US",
   locale: "en_US",
   name: "Oh",
@@ -68,9 +69,20 @@ function admissionFor(slug: string): ArticleAdmission {
 // Newest first. Every post has an admission record; the record decides indexing.
 export const articles: readonly OhArticle[] = [
   {
+    slug: "longmemeval-s-user-log",
+    title: "Reading every user message beat retrieval alone on LongMemEval-S",
+    dek: "A pipeline that gives GPT-5 mini every user message averaged 93.07% over three runs on the 500 LongMemEval-S questions it was tuned on, against 88.87% for Oh semantic retrieval and 86.13% for BM25.",
+    eyebrow: "Benchmark",
+    published: "2026-09-26",
+    keywords: ["LongMemEval", "agent memory", "long-term memory", "retrieval", "BM25", "semantic search", "GPT-5 mini"],
+    toc: longMemEvalUserLogToc,
+    Body: LongMemEvalUserLogBody,
+    admission: admissionFor("longmemeval-s-user-log"),
+  },
+  {
     slug: "introducing-oh",
     title: "Introducing Oh",
-    dek: "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.",
+    dek: "An agent using Oh can write and nominate notes, but only your application’s own code can adopt them into reviewed knowledge, and the host sets each note’s author and timestamp.",
     eyebrow: "Release",
     published: "2026-09-24",
     keywords: ["agent memory", "provenance", "knowledge graphs", "canonical JSON", "TypeScript", "Rust"],
@@ -80,8 +92,8 @@ export const articles: readonly OhArticle[] = [
   },
   {
     slug: "oh-rust-typescript-parity",
-    title: "How Oh keeps two implementations byte for byte",
-    dek: "Oh's parity suite requires its opt-in Rust encoder to match the TypeScript reference byte for byte, and digest for digest, on thousands of generated JSON documents.",
+    title: "Oh holds its Rust encoder to the TypeScript reference byte for byte",
+    dek: "Oh tests its opt-in Rust encoder against the TypeScript reference on thousands of generated inputs, and checks that an installed copy loads the Rust engine at all.",
     eyebrow: "Technique",
     published: "2026-09-24",
     keywords: [
@@ -100,7 +112,7 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "built-on-oh",
     title: "Built on Oh",
-    dek: "Two Hraness products use Oh for different jobs: Sponge keeps its hosted agent's working memory in it, and Wordcell answers graph questions about your Markdown with it.",
+    dek: "Two Hraness products use Oh for different jobs: Sponge keeps its hosted agent’s working memory in it, and Wordcell answers graph questions about your Markdown with it.",
     eyebrow: "Integration",
     published: "2026-09-24",
     keywords: ["oh", "agent memory", "knowledge graphs", "sponge", "wordcell"],

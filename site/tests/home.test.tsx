@@ -5,11 +5,15 @@ import Specification from "../app/spec/page";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import publishedRelease from "../published-release.json";
 import RootLayout from "../app/layout";
-import rerankResult from "../../benchmarks/results/memory-clonemem-rerank-confirm-v1.json";
-import sdkResult from "../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
+import longMemEval from "../../benchmarks/results/memory-longmemeval-s-500-v1.json";
 import pilotResult from "../../benchmarks/results/memory-framework-pilot-v1.json";
+import sdkResult from "../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
+import rerankResult from "../../benchmarks/results/memory-clonemem-rerank-confirm-v1.json";
+import locomoAnswers from "../../benchmarks/results/memory-locomo-window-qa-v1.json";
+import locomoRecall from "../../benchmarks/results/memory-locomo-window-confirmation-v1.json";
+import { indexableArticles } from "../app/blog/articles";
 
-test("ties the matched chart to evidence and keeps vendor protocols separate", () => {
+test("leads the benchmarks with the LongMemEval-S result and ties every figure to its result file", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
   const values: string[] = [];
   let copy = "";
@@ -17,25 +21,58 @@ test("ties the matched chart to evidence and keeps vendor protocols separate", (
     .on("#benchmarks .hraness-design-chart-row__value", { text(chunk) { if (chunk.text) values.push(chunk.text); } })
     .on("#benchmarks", { text(chunk) { copy += chunk.text; } })
     .transform(html);
-  const percent = (value: number) => `${(value * 100).toFixed(2)}%`;
-  const pilotRate = (arm: string) => percent(pilotResult.quality.arms.find(row => row.arm === arm)?.conservativeSuccessRate.value ?? Number.NaN);
-  expect(values).toEqual([pilotRate("oh"), pilotRate("supermemory"), pilotRate("bm25"), percent(sdkResult.primary.reader.pairedQuestions.candidate), percent(sdkResult.primary.reader.pairedQuestions.baseline), percent(rerankResult.pooledReader.candidate), percent(rerankResult.pooledReader.baseline)]);
-  for (const qualification of ["60 previously exposed LongMemEval-S questions", "one attempt per cell", "unpinned alias", "one document per session", "not an unseen population", "No system is claimed state of the art", "does not establish superiority over either framework", "146 questions", "two previously exposed personas", "excludes semantic inference", "handled Metal startup diagnostic", "fresh reader responses", "861 questions", "prior project exposure", "immutable snapshot", "retry rule added during execution", "not every SDK integration", "not a matched ranking against Oh", "no established answer improvement"]) {
-    expect(copy.replace(/\s+/gu, " ")).toContain(qualification);
-  }
-  expect(html).toContain("https://www.letta.com/blog/benchmarking-ai-agent-memory/");
-  expect(html).toContain("https://supermemory.ai/research/longmembench/");
-  expect(html).toContain("FRAMEWORK_PILOT_RESULT_V1.md");
-  expect(html).toContain("memory-framework-pilot-v1.json");
-  expect(html).toContain("FRAMEWORK_PILOT_EVIDENCE_V1.md");
-  expect(html).toContain("CLONEMEM_RERANK_CONFIRM_RESULT_V1.md");
-  expect(html).toContain("memory-clonemem-rerank-confirm-v1.json");
-  expect(html).toContain("SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md");
-  expect(html).toContain("memory-sdk-retrieval-qualification-v1.json");
+  const text = copy.replace(/\s+/gu, " ");
+  const fixed = (value: number) => value.toFixed(2);
+  const system = (id: string) => `${fixed(longMemEval.systems.find((entry) => entry.id === id)?.percent ?? Number.NaN)}%`;
+  const pilotRate = (arm: string) => `${fixed((pilotResult.quality.arms.find((row) => row.arm === arm)?.conservativeSuccessRate.value ?? Number.NaN) * 100)}%`;
+  const share = (value: number) => `${fixed(value * 100)}%`;
+  const signed = (value: number) => `${value < 0 ? "\u2212" : "+"}${fixed(Math.abs(value))}`;
+  expect(values).toEqual([
+    system("oh-reading-pipeline"), system("oh-semantic-96k"), system("bm25-96k"),
+    pilotRate("supermemory"), pilotRate("oh"), pilotRate("bm25"),
+  ]);
+
+  let heading = "";
+  new HTMLRewriter().on("#benchmarks-title", { text(chunk) { heading += chunk.text; } }).transform(html);
+  expect(heading).toContain(system("oh-semantic-96k"));
+  const frozen = longMemEval.comparisons.find((entry) => entry.left === "oh-semantic-96k" && entry.right === "bm25-96k")?.correctInTwoOrThreeRuns;
+  const tenth = (value: number | undefined) => (value ?? Number.NaN).toFixed(1);
+
+  const pilot = pilotResult.quality.comparisons.primary;
+  const sdk = sdkResult.primary.reader.pairedQuestions;
+  const locomo = locomoAnswers.scores.reader.comparison;
+  for (const fact of [
+    `Oh semantic retrieval scored ${system("oh-semantic-96k")}`,
+    `BM25 ${system("bm25-96k")}`,
+    `scored ${system("oh-reading-pipeline")}`,
+    "GPT-5 mini answered every question three times",
+    `lead over BM25 is ${tenth(frozen?.differencePoints)} points with a 95% interval from ${tenth(frozen?.interval95[0])} to ${tenth(frozen?.interval95[1])}`,
+    "in-sample",
+    "not part of the Oh package",
+    "up to 97%",
+    `${signed(pilot.estimate)} points, with a 95% interval from ${signed(pilot.interval95.lower)} to ${signed(pilot.interval95.upper)}`,
+    `${share(sdk.candidate)} correctly against ${share(sdk.baseline)}`,
+    `${(sdkResult.primary.native.warmRerankerMs.p50 / 1000).toFixed(1)} seconds of reranking per search`,
+    `${share(rerankResult.pooledReader.candidate)} correctly against ${share(rerankResult.pooledReader.baseline)}`,
+    `from ${fixed(rerankResult.bootstrap.lowerBound95 * 100)} to ${fixed(rerankResult.bootstrap.upperBound95 * 100)}`,
+    `${share(locomoRecall.summaries["anchors-query-4"].turnRecall)} of the marked evidence against ${share(locomoRecall.summaries["vector-window"].turnRecall)}`,
+    `answers scored ${share(locomo.candidate)} against ${share(locomo.baseline)}`,
+    `${signed(locomo.paired.delta * 100)} points with a 95% interval from ${signed(locomo.paired.lower * 100)} to ${signed(locomo.paired.upper * 100)}`,
+    "AI agents ran these studies",
+  ]) expect(text).toContain(fact);
+
+  for (const file of [
+    "LONGMEMEVAL_S_500_RESULT_V1.md", "results/memory-longmemeval-s-500-v1.json",
+    "FRAMEWORK_PILOT_RESULT_V1.md", "results/memory-framework-pilot-v1.json",
+    "SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md", "CLONEMEM_RERANK_CONFIRM_RESULT_V1.md", "LOCOMO_WINDOW_QA_V1.md",
+  ]) expect(html).toContain(`href="https://github.com/hraness/oh/blob/main/benchmarks/${file}"`);
+  const postIndexable = indexableArticles.some((article) => article.slug === "longmemeval-s-user-log");
+  expect(html.includes('href="/blog/longmemeval-s-user-log"')).toBe(postIndexable);
+
   expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
   expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));
   expect(html).toContain("Markdown files stay authoritative");
-  expect(html).toContain("does not automatically inherit");
+  expect(html).toContain("do not carry over");
 });
 
 
@@ -98,7 +135,7 @@ test("makes the illustrative citation readable while keeping historical output a
   expect(hero).toContain(citationRecord.value.relationship);
   for (const key of citationRecord.dependencies) expect(hero).toContain(key);
   expect(hero).not.toContain("recordsSha256");
-  expect(html).toContain("An illustrative review, not evidence from a real study");
+  expect(html).toContain("An illustrative review of a fictional trial report");
   expect(html).toContain('href="#trace"');
   expect(html).toContain('<details class="first-run-details hraness-material-disclosure">');
   expect(html).toContain("This historical capture predates the current install version above");
@@ -120,7 +157,7 @@ test("scopes the editorial preset to the homepage and keeps the citation in its 
     })
     .transform(html);
   expect(elements).toEqual(["header", "citation"]);
-  expect(html).toContain(`<p class="install-note">Current release · v${publishedRelease.version}</p>`);
+  expect(html).toContain(`<p class="install-note">Latest release: v${publishedRelease.version}</p>`);
 
   const specification = renderToStaticMarkup(<RootLayout><Specification /></RootLayout>);
   expect(specification).not.toContain("data-hraness-marketing-preset");

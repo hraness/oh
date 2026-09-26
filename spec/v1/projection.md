@@ -5,17 +5,16 @@ snapshot. The runtime exposes the same typed rule, query, identity, and result
 contract through `@hraness/oh/projection` without changing the V1 graph record,
 operation, canonical JSON, or SQLite formats.
 
-## Authority boundary
+## Derived status
 
 A projection result has `authority: "derived"`. Its tuples and proof trees are
 cache output. They MUST NOT be interpreted as graph assertions, review
 decisions, accepted knowledge, or operation history. An application that wants
 to retain a conclusion MUST create and review new graph records through its
-ordinary authority path.
+ordinary write path.
 
 The projection module imports no SQLite runtime. A caller supplies an exact
-snapshot assembled from the authority it selected. This keeps the same contract
-usable in a Node 24 serverless process, a local agent, or an application-owned
+snapshot assembled from the store it selected, so the same contract works in a Node 24 serverless process, a local agent, or an application-owned
 remote-store adapter.
 
 ## Exact input identity
@@ -32,8 +31,8 @@ record snapshot. It:
 
 A fact is one relation tuple plus one or more exact source record keys and
 digests. A dataset rejects a source that is not current at its snapshot.
-Duplicate relation tuples are coalesced and retain the union of their source
-records. The dataset identity binds:
+Duplicate relation tuples are merged and keep the union of their source
+records. The dataset identity covers:
 
 - the snapshot digest;
 - a fact-pack ID and revision;
@@ -41,8 +40,8 @@ records. The dataset identity binds:
 - the canonical ordered fact set.
 
 Oh supplies structural `oh.record(key, kind, digest)` and
-`oh.dependency(key, dependency)` facts. Domain packs may emit richer relations,
-but their extractor digest and every source record remain explicit. The
+`oh.dependency(key, dependency)` facts. Domain packs may emit richer relations.
+Their extractor digest and every source record stay explicit. The
 package-owned structural extractor profile is published as
 `OH_PROJECTION_RECORD_FACT_EXTRACTOR_V1`.
 
@@ -64,13 +63,13 @@ Rule packs are sorted by rule ID and content-addressed. A query declares an
 ordered `find` variable list, a nonempty positive body, and an output limit.
 Query results use set semantics and sort tuples by canonical JSON. Declaration,
 fact, and insertion order do not affect rule-pack identity or output bytes.
-The projection identity also binds the selected engine and resolved evaluation
+The projection identity also covers the selected engine and resolved evaluation
 limits, so results created with different engines, proof budgets, or work
 budgets cannot share a cache identity.
 
 ## Evaluation limits
 
-The implementation checks hard ceilings before or during work:
+The implementation checks these hard limits before or during work:
 
 | Item | Maximum |
 | --- | ---: |
@@ -90,11 +89,11 @@ The implementation checks hard ceilings before or during work:
 | Canonical result bytes | 16 MiB |
 
 A caller may request smaller derived-tuple, round, proof-depth, proof-node, and
-global tuple-unification work bounds. The global work counter spans every rule,
+global tuple-unification work limits. The global work counter spans every rule,
 round, and the final query, including unsuccessful candidate matches. Exceeding
-a work bound fails closed. Result construction additionally stops before the
-aggregate proof-node or canonical-byte ceilings. A query's declared output
-limit or the result-byte ceiling returns a canonical prefix, sets
+a work limit fails the evaluation and returns no result. Result construction
+also stops before the aggregate proof-node or canonical-byte limits. A query’s
+declared output limit or the result-byte limit returns a canonical prefix, sets
 `stats.truncated: true`, and lists `query-limit` or `result-bytes` in
 `stats.truncationReasons`.
 
@@ -102,52 +101,51 @@ limit or the result-byte ceiling returns a canonical prefix, sets
 
 Each returned row carries one proof for each literal in one canonical supporting
 query-body match. `supportCount` reports how many complete matches produced the
-same projected value tuple; V1 deliberately does not serialize every alternate
-witness. A fact leaf names its relation, tuple, and exact source record
+same projected value tuple. V1 does not serialize every alternate witness. A fact leaf names its relation, tuple, and exact source record
 references. A derived node names the rule ID and digest and recursively contains
 its premises. Depth and cycle guards emit an explicit `truncated` node. If a
 node or byte budget ends between sibling premises, the enclosing derived node
-sets `premisesTruncated: true`; if it ends between query-body proofs, the row
+sets `premisesTruncated: true`. If it ends between query-body proofs, the row
 sets `proofsTruncated: true`.
 `stats.proofsTruncated` reports either form across all returned rows. A proof
-establishes how the bounded evaluator derived a tuple from the supplied bytes;
-it does not establish that a proposition is true.
+shows how the evaluator, within its limits, derived a tuple from the supplied
+bytes. It does not show that a proposition is true.
 
-## Safe cached ingress
+## Parsing cached results
 
 Projection declarations and cache output are untrusted exchange data. The
 `parseOhProjectionRulePackV1`, `parseOhProjectionQueryV1`, and
 `parseOhProjectionIdentityV1` parsers reject unknown keys and invalid digest
 preimages. `parseOhProjectionProofV1` additionally applies the public proof
-depth, node, tuple, source, atom-byte, and aggregate-byte ceilings before
+depth, node, tuple, source, atom-byte, and aggregate-byte limits before
 returning a proof tree.
 
-`parseOhProjectionResultV1` is the cache-ingress boundary. It verifies the
+`parseOhProjectionResultV1` is the parser for cached results. It verifies the
 result digest; canonical row and source order; `supportCount`; proof-node,
 work-unit, relation, match, round, and byte totals; every proof and result
-truncation marker; and all declared evaluation ceilings. It also recomputes the
+truncation marker; and all declared evaluation limits. It also recomputes the
 engine and evaluation digests and requires them to match the projection
 identity. A valid SHA-256 string by itself is not enough to make an envelope
 acceptable. Cache readers SHOULD pass the projection digest they requested as
-the parser's second argument; an internally consistent envelope does not prove
+the parser’s second argument. An internally consistent envelope does not prove
 that a cache returned the requested identity.
 
 The discovery manifest publishes machine-readable schemas for rule packs,
 queries, identities, and result envelopes. JSON Schema describes the exchange
-shape and static maxima. The runtime parsers remain normative for canonical
+shape and static maxima. The runtime parsers are normative for canonical
 ordering, digest preimages, aggregate budgets, and cross-field consistency that
 the schemas cannot express.
 
 ## Cache invalidation
 
-`projectionSha256` binds the current contract, snapshot, dataset, rule pack,
+`projectionSha256` covers the current contract, snapshot, dataset, rule pack,
 query, engine, resolved evaluation limits, and positive-Datalog semantics. A cached
 result is reusable only when that digest is unchanged. Any snapshot, dataset,
 rule-pack, query, engine, or evaluation-limit change has `kind: "full-rebuild"` and
 lists the changed identities. V1 does not claim incremental deletion or
 cross-snapshot maintenance.
 
-## Optional Suss equivalence lane
+## Optional Suss equivalence check
 
 `@hraness/oh/projection-suss` supports exactly
 `@suss/datalog@0.20.0` as an optional peer. It encodes every JSON primitive atom
@@ -155,11 +153,11 @@ into canonical JSON text, evaluates the positive rules with Suss, and compares
 every complete relation to the Oh reference semantics. It returns only after
 exact set agreement.
 
-Suss's public evaluator does not expose an execution-budget hook. Before calling
-it, the adapter first runs the bounded reference evaluator, then computes a
+Suss’s public evaluator does not expose an execution-budget hook. Before calling
+it, the adapter runs the reference evaluator with its limits, then computes a
 conservative finite-domain upper bound on new tuples in rule-head relations and
-refuses a program it cannot prove will remain under the requested derived-tuple
-ceiling. It compares Suss's complete result to the reference materialization and
-uses the reference witnesses for canonical proof construction. This lane
-evaluates compatibility, not performance. Refusal does not disable the built-in
+refuses a program it cannot prove will stay under the requested derived-tuple
+limit. It compares Suss’s complete result to the reference materialization and
+uses the reference witnesses for canonical proof construction. This adapter
+measures compatibility. It does not measure performance. Refusal does not disable the built-in
 evaluator.

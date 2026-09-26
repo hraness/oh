@@ -4,11 +4,10 @@ import { DesignPaletteProvider, ThemeColorSync } from "@hraness/design-kit/react
 import { ohDefaultAppearance, ohInitialTheme } from "../appearance";
 import { ohSupportProfile } from "../../src/support-profile";
 import { FoilController } from "./foil-controller";
+import { homeDescription as description, homeImageAlt } from "./metadata-copy";
 import "./globals.css";
 
 const title = "Oh: Agent memory that shows its work.";
-const description =
-  "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://oh.computer"),
@@ -22,7 +21,7 @@ export const metadata: Metadata = {
     title,
     description,
     images: [{
-      alt: "Oh: Agent memory that shows its work.",
+      alt: homeImageAlt,
       height: 630,
       url: "/opengraph-image",
       width: 1200,
@@ -35,7 +34,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title,
     description,
-    images: ["/opengraph-image"],
+    images: [{ alt: homeImageAlt, url: "/opengraph-image" }],
   },
 };
 

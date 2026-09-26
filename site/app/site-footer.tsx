@@ -1,4 +1,5 @@
 import { MarketingSiteFooter } from "@hraness/design-kit/react/server";
+import { homeDescription } from "./metadata-copy";
 
 const repository = "https://github.com/hraness/oh";
 
@@ -22,7 +23,7 @@ export function OhContentFooter() {
       ]}
       name="Oh"
     >
-      <p>Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.</p>
+      <p>{homeDescription}</p>
     </MarketingSiteFooter>
   );
 }
