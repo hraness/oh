@@ -9,6 +9,7 @@ export const dynamic = "force-static";
 export default function sitemap(): MetadataRoute.Sitemap {
   return createSitemap(ohSearchSite.origin, [
     { changeFrequency: "monthly", path: "/", priority: 1 },
+    { changeFrequency: "monthly", path: "/benchmarks", priority: 0.8 },
     { changeFrequency: "monthly", path: "/compare", priority: 0.8 },
     { changeFrequency: "monthly", path: "/compare/mem0", priority: 0.8 },
     { changeFrequency: "monthly", path: "/compare/supermemory", priority: 0.8 },

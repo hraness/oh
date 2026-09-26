@@ -1,6 +1,9 @@
+import { breadcrumbJsonLd } from "@hraness/web-discovery";
+import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
 
 import memEval from "../../../../benchmarks/results/memory-evolution-memeval-102-v1.json";
+import { ohSearchSite } from "../../blog/articles";
 import { compareMem0Description, compareMem0ImageAlt, compareMem0Title } from "../../metadata-copy";
 import { benchmarkEvidence, ComparePage, CompareSection, CompareSources, repository } from "../compare";
 
@@ -121,6 +124,16 @@ export default function CompareMem0() {
     <ComparePage
       canonical="https://oh.computer/compare/mem0"
       eyebrow="Comparison"
+      jsonLd={
+        <JsonLdScript
+          data={breadcrumbJsonLd(ohSearchSite.origin, [
+            { name: "Oh", path: "/" },
+            { name: "Comparisons", path: "/compare" },
+            { name: "Oh vs Mem0", path: "/compare/mem0" },
+          ])}
+          id="compare-mem0-json-ld"
+        />
+      }
       lead="Mem0 gives an application a memory for each of its users: messages go in, distilled facts come back. Oh keeps an agent’s own working memory in a local SQLite file, where each fact stays linked to the records it came from. The two overlap on the word “memory” more than on the job."
       nav={nav}
       navLabel="Oh vs Mem0"

@@ -28,6 +28,7 @@ export function CompareHeader() {
       links={[
         { href: "/", label: "Overview" },
         { href: "/blog", label: "Blog" },
+        { href: "/benchmarks", label: "Benchmarks" },
         { current: true, href: "/compare", label: "Compare" },
         { href: "/spec", label: "Specification" },
         { href: repository, label: "GitHub" },
@@ -36,10 +37,11 @@ export function CompareHeader() {
   );
 }
 
-export function ComparePage({ canonical, children, eyebrow, lead, nav, navLabel, title }: Readonly<{
+export function ComparePage({ canonical, children, eyebrow, jsonLd, lead, nav, navLabel, title }: Readonly<{
   canonical: `https://oh.computer${string}`;
   children: ReactNode;
   eyebrow: string;
+  jsonLd?: ReactNode;
   lead: ReactNode;
   nav: readonly Readonly<{ href: string; label: string }>[];
   navLabel: string;
@@ -50,6 +52,7 @@ export function ComparePage({ canonical, children, eyebrow, lead, nav, navLabel,
       <a className="skip-link" href="#compare-main">Skip to comparison</a>
       <CompareHeader />
       <main className="spec-shell" id="compare-main" tabIndex={-1}>
+        {jsonLd}
         <aside className="spec-nav" aria-label="On this page">
           <p>{navLabel}</p>
           {nav.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}

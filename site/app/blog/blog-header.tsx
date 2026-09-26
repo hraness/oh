@@ -14,6 +14,7 @@ export function BlogHeader({ current }: Readonly<{ current: "index" | "post" }>)
       links={[
         { href: "/", label: "Overview" },
         { current: current === "index", href: "/blog", label: "Blog" },
+        { href: "/benchmarks", label: "Benchmarks" },
         { href: "/compare", label: "Compare" },
         { href: "/spec", label: "Specification" },
         { href: "https://github.com/hraness/oh", label: "GitHub" },

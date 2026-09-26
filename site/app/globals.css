@@ -89,7 +89,7 @@ a:focus-visible {
   --hraness-pattern-image: repeating-conic-gradient(from 45deg, color-mix(in srgb, var(--primary) 2%, transparent) 0% 25%, transparent 0% 50%);
 }
 .hraness-material-wall > :not(.oh-field) { position: relative; z-index: 1; }
-.oh-field { position: absolute; inset: 0; z-index: 0; overflow: clip; pointer-events: none; mask-image: linear-gradient(to bottom, #000 65%, transparent); }
+.oh-field { position: absolute; inset: 0; z-index: 0; overflow: clip; pointer-events: none; mask-image: linear-gradient(to bottom, transparent, #000 10%, #000 65%, transparent); }
 .oh-organism {
   --oo-focus: var(--hraness-hero-proximity, 0);
   position: absolute; padding: 1rem 1.3rem; border: 1px solid transparent;
@@ -297,6 +297,49 @@ a:focus-visible {
 .benchmark-transfer {
   padding-block-start: 1.25rem;
   border-block-start: 1px solid var(--line);
+}
+
+/* The benchmarks index uses the specification's document layout. */
+.benchmark-meta {
+  margin: -0.75rem 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.benchmark-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  margin-block: 0.5rem 1.5rem;
+}
+
+.benchmark-table caption {
+  padding-block-end: 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: start;
+}
+
+.benchmark-table th,
+.benchmark-table td {
+  padding: 0.6rem 1rem 0.6rem 0;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+
+.benchmark-table thead th {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.benchmark-table tbody th {
+  font-weight: 500;
+}
+
+.benchmark-table td {
+  font-variant-numeric: tabular-nums;
 }
 
 /* The trace section: the heading group stays at the top of its column and

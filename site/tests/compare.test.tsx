@@ -40,7 +40,8 @@ describe("Oh comparison pages", () => {
       expect(html).toContain('aria-label="Comparison navigation"');
       expect(html).toContain('href="/compare"');
       expect(html).not.toContain("—");
-      expect(html).not.toMatch(/\{\{|\}\}/u);
+      const visibleHtml = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gu, "");
+      expect(visibleHtml).not.toMatch(/\{\{|\}\}/u);
     }
   });
 
@@ -65,7 +66,8 @@ describe("Oh comparison pages", () => {
     expect(html).toContain('href="/compare/mem0"');
     expect(html).toContain('href="/compare/supermemory"');
     expect(html).toContain("https://github.com/hraness/oh/blob/main/benchmarks");
-    expect(html).toContain('href="/#benchmarks"');
+    expect(html).toContain('href="/benchmarks"');
+    expect(html).toContain('"@type":"CollectionPage"');
   });
 
   test("the Supermemory page renders only the checked-in pilot numbers", () => {

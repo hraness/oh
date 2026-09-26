@@ -90,11 +90,12 @@ describe("Oh site source contract", () => {
   });
 
   test("renders the shared organization footer once for every page and no maker section", async () => {
-    const [packageJson, layout, home, specification, blogIndex, blogPost, compareShell, globals, contentFooter] = await Promise.all([
+    const [packageJson, layout, home, specification, benchmarks, blogIndex, blogPost, compareShell, globals, contentFooter] = await Promise.all([
       read("package.json"),
       read("app/layout.tsx"),
       read("app/page.tsx"),
       read("app/spec/page.tsx"),
+      read("app/benchmarks/page.tsx"),
       read("app/blog/page.tsx"),
       read("app/blog/[slug]/page.tsx"),
       read("app/compare/compare.tsx"),
@@ -114,7 +115,7 @@ describe("Oh site source contract", () => {
       'import { MarketingSiteFooter } from "@hraness/design-kit/react/server"',
     );
     expect(contentFooter).toContain("export function OhContentFooter()");
-    for (const page of [home, specification, blogIndex, blogPost, compareShell]) {
+    for (const page of [home, specification, benchmarks, blogIndex, blogPost, compareShell]) {
       expect(page).not.toContain("HranessSiteFooter");
       expect(page).not.toContain("MarketingMaker");
       expect(page).not.toContain("Ben Guo");
@@ -151,11 +152,12 @@ describe("Oh site source contract", () => {
     expect(home).not.toContain("@hraness/oh ${releaseVersion} · captured");
   });
 
-  test("renders the shared Ask AI links for both canonical pages", async () => {
-    const [packageJson, home, specification, redirect] = await Promise.all([
+  test("renders the shared Ask AI links for every canonical page", async () => {
+    const [packageJson, home, specification, benchmarks, redirect] = await Promise.all([
       read("package.json"),
       read("app/page.tsx"),
       read("app/spec/page.tsx"),
+      read("app/benchmarks/page.tsx"),
       read("app/spec/v1/page.tsx"),
     ]);
 
@@ -169,6 +171,10 @@ describe("Oh site source contract", () => {
     expect(specification).toContain('import { AskAiAboutThis } from "@hraness/ui"');
     expect(specification).toContain(
       '<AskAiAboutThis className="ask-ai" url="https://oh.computer/spec" />',
+    );
+    expect(benchmarks).toContain('import { AskAiAboutThis } from "@hraness/ui"');
+    expect(benchmarks).toContain(
+      '<AskAiAboutThis className="ask-ai" url="https://oh.computer/benchmarks" />',
     );
     expect(redirect).not.toContain("AskAiAboutThis");
   });
@@ -238,6 +244,7 @@ describe("Oh site source contract", () => {
     const generatedRoutes = new Set([
       "https://oh.computer/",
       "https://oh.computer/spec",
+      "https://oh.computer/benchmarks",
       "https://oh.computer/compare",
       "https://oh.computer/compare/mem0",
       "https://oh.computer/compare/supermemory",
@@ -349,6 +356,7 @@ describe("Oh site source contract", () => {
       "app/layout.tsx",
       "app/page.tsx",
       "app/spec/page.tsx",
+      "app/benchmarks/page.tsx",
       "app/metadata-copy.ts",
       "app/compare/compare.tsx",
       "app/compare/page.tsx",

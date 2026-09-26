@@ -1,6 +1,9 @@
+import { breadcrumbJsonLd } from "@hraness/web-discovery";
+import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
 
 import pilotResult from "../../../../benchmarks/results/memory-framework-pilot-v1.json";
+import { ohSearchSite } from "../../blog/articles";
 import { BenchmarkChart } from "../../benchmark-chart";
 import { compareSupermemoryDescription, compareSupermemoryImageAlt, compareSupermemoryTitle } from "../../metadata-copy";
 import { benchmarkEvidence, ComparePage, CompareSection, CompareSources, repository } from "../compare";
@@ -107,6 +110,16 @@ export default function CompareSupermemory() {
     <ComparePage
       canonical="https://oh.computer/compare/supermemory"
       eyebrow="Comparison"
+      jsonLd={
+        <JsonLdScript
+          data={breadcrumbJsonLd(ohSearchSite.origin, [
+            { name: "Oh", path: "/" },
+            { name: "Comparisons", path: "/compare" },
+            { name: "Oh vs Supermemory", path: "/compare/supermemory" },
+          ])}
+          id="compare-supermemory-json-ld"
+        />
+      }
       lead="Supermemory is a hosted memory API for products: connectors sync documents into containers partitioned per user, and calls draw down monthly credits. Oh is MIT-licensed memory for an agent’s own work in one local SQLite file. The two ran the same 60 benchmark questions here, and Supermemory scored higher on the headline measure without a statistically clean separation."
       nav={nav}
       navLabel="Oh vs Supermemory"

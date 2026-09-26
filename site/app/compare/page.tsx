@@ -1,5 +1,8 @@
+import { collectionPageJsonLd } from "@hraness/web-discovery";
+import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
 
+import { ohSearchSite } from "../blog/articles";
 import { compareDescription, compareImageAlt, compareTitle } from "../metadata-copy";
 import { benchmarkEvidence, ComparePage, comparePages, CompareSection, repository } from "./compare";
 
@@ -31,6 +34,25 @@ export default function CompareIndex() {
     <ComparePage
       canonical="https://oh.computer/compare"
       eyebrow="Comparisons"
+      jsonLd={
+        <JsonLdScript
+          data={collectionPageJsonLd(ohSearchSite, {
+            breadcrumb: [
+              { name: "Oh", path: "/" },
+              { name: "Comparisons", path: "/compare" },
+            ],
+            dateModified: "2026-09-26",
+            description: compareDescription,
+            name: compareTitle,
+            path: "/compare",
+            items: comparePages.map((page) => ({
+              name: page.label,
+              url: `https://oh.computer${page.href}`,
+            })),
+          })}
+          id="compare-json-ld"
+        />
+      }
       lead="Oh is open-source memory for agents: linked records in one local SQLite file, each fact keeping the sources behind it and every change in a history you can replay. These pages compare it with other memory systems, naming a dated source for each outside claim and a checked-in document for each Oh claim."
       nav={comparePages.map((page) => ({ href: page.href, label: page.label }))}
       navLabel="Compare"
@@ -66,11 +88,12 @@ export default function CompareIndex() {
         <p>
           Every figure on these pages comes from a checked-in result document in the
           repository’s <code>benchmarks</code> directory or from the other product’s own
-          documentation, dated where prices and feature lists can drift. The homepage charts the
-          same studies under <a href="/#benchmarks">Benchmarks</a>, and each result links its
-          protocol, costs, and limits.
+          documentation, dated where prices and feature lists can drift. The{" "}
+          <a href="/benchmarks">benchmark index</a> lists every published study, and each result
+          links its protocol, costs, and limits.
         </p>
         <ul className="benchmark-links">
+          <li><a href="/benchmarks">All benchmark results</a></li>
           <li><a href={benchmarkEvidence}>Benchmark evidence</a></li>
           <li><a href={repository}>hraness/oh on GitHub</a></li>
         </ul>

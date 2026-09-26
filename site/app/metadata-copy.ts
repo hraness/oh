@@ -6,6 +6,9 @@ export const homeDescription =
 export const specificationTitle = "Oh: Ontology specification v1";
 export const specificationDescription =
   "Oh’s v1 specification defines how records are encoded, stored in SQLite, and synced between databases, down to the bytes each SHA-256 digest covers.";
+export const benchmarksTitle = "Oh: Benchmarks";
+export const benchmarksDescription =
+  "Every memory benchmark result Oh has published, with the score, setup, and main limit for each study and a link to its full record.";
 export const compareTitle = "Oh: Comparisons";
 export const compareDescription =
   "How Oh compares with other agent memory systems on sourced pages: Mem0 and Supermemory so far, with a dated source for every claim.";
@@ -21,6 +24,8 @@ export const homeImageAlt =
   "Off-white card with the Oh mark of three linked circles, a bold headline, a short summary, and the oh.computer address.";
 export const specificationImageAlt =
   "Off-white card with the Oh mark of three linked circles, the specification’s title, a short summary, and oh.computer/spec.";
+export const benchmarksImageAlt =
+  "Off-white card with the Oh mark of three linked circles, the benchmarks page title, a short summary, and oh.computer/benchmarks.";
 export const compareImageAlt =
   "Off-white card with the Oh mark, the comparisons title, a short summary, and oh.computer/compare.";
 export const compareMem0ImageAlt =
