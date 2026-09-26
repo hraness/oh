@@ -249,7 +249,7 @@ export default function CompareSupermemory() {
         </ul>
         <p>
           The pilot did not separate them on answer quality, so if memory quality for your
-          workload decides the choice, run both on your own questions. The pilot’s contract,
+          workload decides the choice, run both on your own questions. The pilot’s protocol,
           adapters, and cost ledger are checked into the repository.
         </p>
       </CompareSection>

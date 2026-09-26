@@ -257,7 +257,7 @@ export default function CompareMem0() {
           Mem0’s <code>add</code> asks a model to distill messages into facts; what it stores is the
           extraction. Oh stores the record you write, unchanged. The claim, the stance taken on it,
           and the evidence for it live in separate linked records, each carrying a SHA-256 digest of
-          its canonical bytes. Revising a fact appends a new operation instead of editing history,
+          the record’s exact bytes. Revising a fact appends a new operation instead of editing history,
           and the log replays under <code>oh verify</code>.
         </p>
         <p>
@@ -281,7 +281,7 @@ export default function CompareMem0() {
       <CompareSection id="limits" number="06" title="Limits of this comparison">
         <ul className="sequence">
           <li><span>Dated claims</span> Mem0’s feature split, provider counts, and published scores come from its own documentation and research page, checked {checkedOn}, and can change.</li>
-          <li><span>One bounded study</span> The matched run covers 30 previously exposed questions under a harness that lowers every score, run by agents and not audited by any person or outside group.</li>
+          <li><span>One 30-question study</span> The matched run covers previously exposed questions under a harness that lowers every score, run by agents and not audited by any person or outside group.</li>
           <li><span>Different protocols</span> Mem0’s published figures and Oh’s benchmark figures use different readers, judges, and ingestion paths; this page reports them as published claims, not matched results.</li>
           <li><span>Oh’s gaps</span> Oh has no dashboard, no hosted service, and no per-end-user scoping API; it also runs no extraction step, so the records an agent writes are exactly what it stores.</li>
         </ul>
