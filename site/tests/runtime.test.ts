@@ -154,11 +154,11 @@ describe("built Oh site", () => {
       ]);
 
       expect(homeResponse.status).toBe(200);
-      expect(home).toContain("Latest release: v0.12.0");
-      expect(home).toContain("@hraness/oh@0.12.0");
+      expect(home).toContain("Latest release: v0.12.1");
+      expect(home).toContain("@hraness/oh@0.12.1");
       expect(home).not.toContain("@hraness/oh@0.4.3");
       expect(home).toContain("source CLI 0.4.0");
-      expect(home).toContain("https://github.com/hraness/oh/actions/runs/35900362605");
+      expect(home).toContain("https://github.com/hraness/oh/actions/runs/36254650324");
       expect(specificationResponse.status).toBe(200);
       expect(slashAliasResponse.status).toBe(308);
       expect(slashAliasResponse.headers.get("location")).toBe("/spec");

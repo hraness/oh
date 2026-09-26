@@ -12,7 +12,7 @@ hosted model, and its search indexes can be deleted and rebuilt.
 [Website](https://oh.computer) · [Versioned specification](spec/README.md) ·
 [Agent Skill](skills/oh/SKILL.md)
 
-Latest release: [v0.12.0](https://github.com/hraness/oh/releases/tag/v0.12.0)
+Latest release: [v0.12.1](https://github.com/hraness/oh/releases/tag/v0.12.1)
 on [npm](https://www.npmjs.com/package/@hraness/oh), free and MIT licensed.
 
 ## Why Oh
@@ -52,8 +52,8 @@ follows this design across the projects, and the
 
 ## Install and first run
 
-The installation instructions below use `0.12.0`, the
-[verified public release](https://github.com/hraness/oh/actions/runs/35900362605).
+The installation instructions below use `0.12.1`, the
+[verified public release](https://github.com/hraness/oh/actions/runs/36254650324).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
 CLI, the SDK, and the SQLite store. The runtime-neutral store interfaces and the
@@ -61,15 +61,15 @@ direct libSQL store also run on Node 24 and in serverless functions. Install
 the release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.12.0
+bun add --global @hraness/oh@0.12.1
 oh --help
 ```
 
 The same package bytes and their checksum are attached to the
-[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.12.0):
-[`hraness-oh-0.12.0.tgz`](https://github.com/hraness/oh/releases/download/v0.12.0/hraness-oh-0.12.0.tgz)
+[immutable GitHub Release](https://github.com/hraness/oh/releases/tag/v0.12.1):
+[`hraness-oh-0.12.1.tgz`](https://github.com/hraness/oh/releases/download/v0.12.1/hraness-oh-0.12.1.tgz)
 and
-[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.12.0/SHA256SUMS).
+[`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.12.1/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you choose another
 path or space. Every command except `oh contract` and `oh version` creates that
@@ -191,7 +191,7 @@ For a project dependency, pin the same immutable release in `package.json`:
 ```json
 {
   "dependencies": {
-    "@hraness/oh": "0.12.0"
+    "@hraness/oh": "0.12.1"
   }
 }
 ```
@@ -259,9 +259,9 @@ replay, and sync only where you tell it to.
 You can also give an agent this prompt:
 
 ```text
-Install @hraness/oh@0.12.0 from npm and use its packaged Oh Agent Skill. The
-exact npm tarball and SHA256SUMS are mirrored by the immutable v0.12.0 Release at
-https://github.com/hraness/oh/releases/tag/v0.12.0. Verify the CLI with
+Install @hraness/oh@0.12.1 from npm and use its packaged Oh Agent Skill. The
+exact npm tarball and SHA256SUMS are mirrored by the immutable v0.12.1 Release at
+https://github.com/hraness/oh/releases/tag/v0.12.1. Verify the CLI with
 `oh --help` and `oh version`.
 Do not create or modify an Oh database until I name its path and ask you to.
 ```
