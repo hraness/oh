@@ -243,13 +243,11 @@ mod tests {
 
     #[test]
     fn sha256_matches_reference() {
-        let digest = canonical_sha256_str(r#"{"a":1,"b":2}"#).unwrap();
-        assert_eq!(digest.len(), 64);
-        // The reference TypeScript implementation produces this exact digest.
-        let expected = {
-            let canonical = canonical_json_str(r#"{"a":1,"b":2}"#).unwrap();
-            hex::encode(Sha256::digest(canonical))
-        };
-        assert_eq!(digest, expected);
+        let digest = canonical_sha256_str(r#"{"b":2,"a":1}"#).unwrap();
+        // canonicalSha256({ a: 1, b: 2 }) from the TypeScript reference.
+        assert_eq!(
+            digest,
+            "43258cff783fe7036d8a43033f830adfc60ec037382473548ac742b888292777"
+        );
     }
 }

@@ -1999,7 +1999,7 @@ async function tryLoadWasm(moduleUrl, wasmUrl) {
   }
 }
 async function loadWasmModule() {
-  return await tryLoadWasm(new URL("../rust-artifacts/oh-datalog-wasm/oh_datalog_wasm.js", import.meta.url), new URL("../rust-artifacts/oh-datalog-wasm/oh_datalog_wasm_bg.wasm", import.meta.url)) ?? await tryLoadWasm(new URL("../rust/oh-datalog-wasm/pkg/oh_datalog_wasm.js", import.meta.url), new URL("../rust/oh-datalog-wasm/pkg/oh_datalog_wasm_bg.wasm", import.meta.url));
+  return await tryLoadWasm(new URL("./rust-artifacts/oh-datalog-wasm/oh_datalog_wasm.js", import.meta.url), new URL("./rust-artifacts/oh-datalog-wasm/oh_datalog_wasm_bg.wasm", import.meta.url)) ?? await tryLoadWasm(new URL("../rust/oh-datalog-wasm/pkg/oh_datalog_wasm.js", import.meta.url), new URL("../rust/oh-datalog-wasm/pkg/oh_datalog_wasm_bg.wasm", import.meta.url));
 }
 var OH_PROJECTION_RUST_ENGINE_V1 = "oh.projection.rust.v1";
 async function loadProjectionRustEngineV1() {

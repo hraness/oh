@@ -78,6 +78,8 @@ describe("canonical-rust text engine parity", () => {
       '"\\ud83d\\ude00"',
       '{"b":1,"a":2}',
       '{"B":1,"A":2,"a":3}',
+      // UTF-16 order puts U+1F600 (a surrogate pair) before U+FF61; code-point order does not.
+      '{"\\uff61":2,"\\ud83d\\ude00":1}',
       '{"x":[{"y":1}]}',
       '{"a":null,"b":true,"c":false,"d":"str","e":1,"f":1.5,"g":[1,2,3]}',
     ];

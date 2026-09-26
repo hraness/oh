@@ -28,10 +28,12 @@ async function tryLoadWasm(moduleUrl: URL, wasmUrl: URL): Promise<WasmModule | n
 }
 
 async function loadWasmModule(): Promise<WasmModule | null> {
+  // The built module sits in dist/, beside the packaged dist/rust-artifacts/.
+  // From src/ in development, fall back to the source crate output.
   return (
     (await tryLoadWasm(
-      new URL("../rust-artifacts/oh-datalog-wasm/oh_datalog_wasm.js", import.meta.url),
-      new URL("../rust-artifacts/oh-datalog-wasm/oh_datalog_wasm_bg.wasm", import.meta.url),
+      new URL("./rust-artifacts/oh-datalog-wasm/oh_datalog_wasm.js", import.meta.url),
+      new URL("./rust-artifacts/oh-datalog-wasm/oh_datalog_wasm_bg.wasm", import.meta.url),
     )) ??
     (await tryLoadWasm(
       new URL("../rust/oh-datalog-wasm/pkg/oh_datalog_wasm.js", import.meta.url),
