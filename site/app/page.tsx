@@ -13,7 +13,7 @@ import {
   MarketingTrustBoundary,
   ProductHero,
 } from "@hraness/design-kit/react/server";
-import { product } from "@hraness/design-kit/portfolio";
+import { product, relatedFor } from "@hraness/design-kit/portfolio";
 import { AskAiAboutThis } from "@hraness/ui";
 
 import { OhField } from "./oh-field";
@@ -46,6 +46,10 @@ const capturedVersion = "0.4.0";
 const capturedOn = "September 5, 2026";
 const repository = "https://github.com/hraness/oh";
 const wordcell = product("kb");
+// The Wordcell section links a sibling product, so it needs a registered relation.
+if (!relatedFor(wordcell.id, { kinds: ["runtime"] }).some((item) => item.name === "Oh")) {
+  throw new Error("The portfolio registry has no runtime relation between Oh and Wordcell.");
+}
 
 const heading = "Agent memory that shows its work.";
 const lead =
@@ -419,7 +423,7 @@ oh get evidence:table-2 \\
             <p>Oh provides records, search, and query results that carry the path back
               to their sources. The application built on it decides what counts as a
               memory, when one may be written, and who can use it.</p>
-            <p><a href={wordcell.canonicalUrl}>{wordcell.name}</a> is {wordcell.oneLiner}.
+            <p><a href={wordcell.canonicalUrl}>{wordcell.name}</a> is a {wordcell.oneLiner}.
               Your Markdown files stay authoritative, and {wordcell.name} derives an Oh
               graph from them to answer queries with a path back to each note.
               Rebuilding or deleting that graph never changes a note.</p>

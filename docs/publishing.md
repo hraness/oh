@@ -89,7 +89,10 @@ read the repository’s administration settings.
 ## Release a version
 
 1. Set the new version in `package.json`, `site/package.json`, and
-   `OH_PACKAGE_VERSION` in `src/cli.ts`.
+   `OH_PACKAGE_VERSION` in `src/cli.ts`. Add a `## <version> - <date>` section
+   to `CHANGELOG.md`: a summary paragraph that says what the version changes
+   for someone using it, then one bullet per change a user would notice. The
+   workflow copies this section onto the Release page.
 2. Update the version pins in `tests/public-surface.test.ts` and
    `site/tests/source.test.ts`.
 3. Run `bun run check` and commit the rebuilt `dist/` files with the version
@@ -130,8 +133,10 @@ run at the same time. Its jobs run in this order:
 2. `Verify and build exact release` checks the tag. It must arrive as a tag
    push, be annotated, be named `v` plus the version, be the newest stable tag,
    and point to a commit that is `HEAD` and an ancestor of `main`. `package.json`,
-   `site/package.json`, and the compiled CLI must report the same version. The
-   job then installs dependencies from the lockfile, runs `bun run check`, tests
+   `site/package.json`, and the compiled CLI must report the same version.
+   `CHANGELOG.md` must have a section for the version with a summary and at
+   least one bullet; the job stops when the section is missing, empty, or still
+   says Unreleased. The job then installs dependencies from the lockfile, runs `bun run check`, tests
    and builds the site, and fails if any of this changed the working tree. It
    adds the three sidecar binaries, packs one npm tarball, and writes its
    SHA-256 to `SHA256SUMS`.
@@ -141,7 +146,11 @@ run at the same time. Its jobs run in this order:
    marks it Latest, and serves it with exactly the same tarball and
    `SHA256SUMS` bytes that the install jobs tested. It downloads both files back
    and requires `immutable: true`. Nothing is published to npm unless this job
-   succeeds.
+   succeeds. The Release page is the version's `CHANGELOG.md` section, then
+   Install and Verify sections generated from the tag, the commit, and the
+   tarball's SHA-256, then the identity record described in
+   [How the GitHub Release job resumes](#how-the-github-release-job-resumes) as
+   an HTML comment at the very end. GitHub's generated notes are never used.
 5. `Admit npm retry state` confirms that npm either lacks the version or holds
    the same bytes published earlier by this run (see
    [How the npm jobs resume](#how-the-npm-jobs-resume)).
@@ -198,7 +207,9 @@ pins in `tests/public-surface.test.ts` and the site tests.
 ## When a run fails
 
 Never move, delete, or reuse a tag, replace an npm version, or edit a
-published Release.
+published Release's files or identity record. To correct the notes on a
+published page, change `CHANGELOG.md` and the page in the same pull request
+and keep the identity record byte for byte.
 Never weaken provenance, manually publish the npm half of a GitHub-only release,
 or publish different bytes under the failed tag.
 
@@ -241,7 +252,10 @@ draft. If an earlier publishing step may have run, the later attempt waits for
 that draft or Release to appear instead of creating a second one.
 
 The draft must be authored by GitHub Actions and carry the expected title,
-state, and one identity marker. The marker records the repository ID, workflow
+state, notes, and identity marker. The job reads the marker from the last
+`<!-- oh-release-identity:v1` comment, requires the body to end with `-->`,
+and requires the text above it to match the notes rendered from
+`CHANGELOG.md` byte for byte, so an edited page fails like any other change. The marker records the repository ID, workflow
 ref, run ID, creating attempt, annotated tag object, commit, and the name,
 length, and SHA-256 of both assets. The creating attempt must be positive and
 no greater than the current one. The job fails on a draft from another run or

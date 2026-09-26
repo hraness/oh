@@ -40,8 +40,8 @@ describe("Oh blog", () => {
       expect(record.review.reviewerType).toBe("ai");
       expect(record.humanReview).toBeNull();
     }
-    expect(indexableArticles.map((article) => article.slug)).toEqual(["longmemeval-s-user-log", "introducing-oh", "oh-rust-typescript-parity"]);
-    expect(quarantined.map((article) => article.slug)).toEqual(["built-on-oh"]);
+    expect(indexableArticles.map((article) => article.slug)).toEqual(["longmemeval-s-user-log", "introducing-oh", "oh-rust-typescript-parity", "built-on-oh"]);
+    expect(quarantined.map((article) => article.slug)).toEqual([]);
   });
 
   test("prerenders one page per article", () => {
@@ -140,6 +140,6 @@ describe("Oh blog", () => {
     const related = relatedFor("oh-computer");
     const html = await renderArticle("introducing-oh");
     if (related.length === 0) expect(html).not.toContain("plain-publication__related-products");
-    else for (const item of related) expect(html).toContain(item.relationship);
+    else for (const item of related) expect(html).toContain(item.relationship.replaceAll("'", "&#x27;"));
   });
 });

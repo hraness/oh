@@ -30,6 +30,7 @@ import {
   publicRepository,
   releaseArchiveName,
 } from "./release-policy";
+import { readChangelog, renderReleaseNotes } from "./release-notes";
 import { verifyRemoteReleaseAuthority } from "./verify-release-authority";
 import { githubReleaseEnvironment } from "./release-process-environment";
 import { runBoundedProcess, type BoundedProcessResult } from "./run-bounded-process";
@@ -70,6 +71,14 @@ if (
 const tarballBytes = readFileSync(tarball);
 const checksumBytes = readFileSync(checksum);
 const assets = exactReleaseAssets(manifest.version, tarballBytes, checksumBytes);
+const tarballAsset = assets.find((asset) => asset.name === releaseArchiveName(releaseVersion));
+if (tarballAsset === undefined) throw new Error("The exact release tarball is missing from the asset set.");
+const releaseNotes = renderReleaseNotes({
+  changelog: readChangelog(),
+  commitSha: verifiedSha,
+  tag: tagArgument,
+  tarballSha256: tarballAsset.digest,
+});
 const paths = new Map([
   [basename(tarball), tarball],
   [basename(checksum), checksum],
@@ -359,6 +368,7 @@ const initialAuthority = await verifyRemoteReleaseAuthority();
 const identityInput: ReleaseIdentityInput = Object.freeze({
   assets,
   commitSha: verifiedSha,
+  notes: releaseNotes,
   run: runIdentity,
   tag: tagArgument,
   tagObjectSha: initialAuthority.tagObjectSha,

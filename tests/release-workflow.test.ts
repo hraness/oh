@@ -17,6 +17,7 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
     'default_head="$(git rev-parse --verify "origin/$DEFAULT_BRANCH^{commit}")"',
     "newest_stable_tag=",
     "bun run check",
+    'bun run ./scripts/release-notes.ts check "$REQUESTED_TAG"',
     "npm pack --ignore-scripts --pack-destination artifacts .",
     "release-artifact-checksum.ts write",
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
@@ -78,6 +79,7 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
   const github = workflow.indexOf("publish-github-release.ts");
   const npm = workflow.indexOf("publish-npm-release.ts artifacts/*.tgz");
   const admission = workflow.indexOf("check-public-release.ts");
+  expect(workflow.indexOf("release-notes.ts check")).toBeLessThan(pack);
   expect(validation).toBeGreaterThan(pack);
   expect(npm).toBeGreaterThan(validation);
   expect(npm).toBeGreaterThan(github);
@@ -187,6 +189,9 @@ test("publication is tokenless, bounded, provenance-bound, and idempotent only f
   expect(githubPublisher).not.toContain('"gh", "release", "upload"');
   expect(githubPublisher).not.toContain("target_commitish");
   expect(githubPublisher).toContain("parseGitHubRelease");
+  expect(githubPublisher).toContain("renderReleaseNotes({");
+  expect(githubPublisher).toContain("changelog: readChangelog()");
+  expect(githubPublisher).toContain('"--field", "generate_release_notes=false"');
   expect(authority).toContain('tagObject.type !== "tag"');
   expect(authority).toContain("target.sha !== input.sha");
   expect(authority).toContain("expectedComparisonUrl");
