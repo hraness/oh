@@ -16,6 +16,8 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
     'tag_commit="$(git rev-parse --verify "refs/tags/$REQUESTED_TAG^{commit}")"',
     'default_head="$(git rev-parse --verify "origin/$DEFAULT_BRANCH^{commit}")"',
     "newest_stable_tag=",
+    // Plain `--version` is for people (`oh 0.13.1`); the gate compares the JSON version.
+    'cli_version="$(bun src/cli.ts --version --json | bun -e',
     "bun run check",
     'bun run ./scripts/release-notes.ts check "$REQUESTED_TAG"',
     "npm pack --ignore-scripts --pack-destination artifacts .",
@@ -260,4 +262,12 @@ test("release controls have explicit ownership and document the public MIT bound
   expect(guide).toContain("same workflow run may complete it");
   expect(guide).toContain("adds the attempt that published the Release");
   expect(guide).toContain("never uses the `target_commitish` field");
+});
+
+test("the release gate's CLI version read matches package.json", async () => {
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as { version: string };
+  const result = Bun.spawnSync(["/bin/sh", "-c", `"${process.execPath}" src/cli.ts --version --json | "${process.execPath}" -e 'const value = JSON.parse(await Bun.stdin.text()); if (typeof value.version !== "string") process.exit(1); process.stdout.write(value.version)'`], {
+    cwd: root, env: { ...process.env, HRANESS_SUPPORT: "off", HRANESS_AUDIENCE: "human" },
+  });
+  expect({ status: result.exitCode, stdout: result.stdout.toString() }).toEqual({ status: 0, stdout: packageJson.version });
 });

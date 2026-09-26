@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-export declare const OH_PACKAGE_VERSION: "0.13.0";
+export declare const OH_PACKAGE_VERSION: "0.13.1";
 /** A problem with how the command was typed: exit 2 and point at the command's help. */
 export declare class OhUsageError extends TypeError {
     readonly next?: string | undefined;
