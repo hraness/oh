@@ -4,6 +4,33 @@ Each section below describes one release of Oh. The release workflow copies a
 version's section onto its GitHub Release page, so write the section in the
 pull request that bumps the version.
 
+## 0.13.0 - 2026-09-26
+
+The `oh` command line now prints short sentences for people and keeps
+canonical JSON for scripts and agents. Scripts that read `oh` output must add
+`--json`; coding agents get JSON by default. The library, SQLite format and
+JSON shapes are unchanged.
+
+- In a terminal, commands print a short result, such as
+  `✓ Saved entity:ada (generation 1).`, and at most one `Next:` hint on
+  stderr. `--json` prints the same canonical JSON as before. When Claude Code,
+  Codex, Cursor, Gemini CLI or `AI_AGENT` is detected, JSON is the default;
+  `HRANESS_AUDIENCE=human` or `agent` overrides the guess.
+- Running `oh` alone prints a short start screen, `oh --help` is grouped, and
+  every command has its own help (`oh put --help`, `oh help put`).
+- `oh put` takes the value as `--value`; `--json VALUE` still works.
+- Reading commands no longer create `.oh/oh.sqlite` when it is missing. They
+  stop with `No Oh store at .oh/oh.sqlite` and point at `oh init`.
+- Errors are one sentence and one next command, such as
+  `✗ No record named "entity:ada" in space default.` then `→ oh list`. A
+  missing record exits 3 as before; a mistyped command or option now exits 2
+  with a suggestion. With `--json` or an agent, errors are one
+  `{"ok":false,"error":{...}}` object on stdout.
+- `oh search` and `oh recall` warn that the CLI has only keyword search when
+  asked for `--mode semantic` or `hybrid`.
+- `oh --version` prints `oh 0.13.0`. The support commands name `oh` instead of
+  the runtime path when `oh` on your PATH runs the same file.
+
 ## 0.12.1 - 2026-09-26
 
 Installed copies of Oh now run the Rust text engine. Releases 0.10.3 through

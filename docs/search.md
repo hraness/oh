@@ -34,10 +34,11 @@ at which rank. When a backend is missing or fails, the response gains a
 the other sources found. Check `diagnostics` when a workflow depends on
 semantic or reranked results.
 
-From the CLI, `oh search QUERY` and `oh recall QUERY` take
-`--mode keyword|semantic|hybrid` and `--limit N`. The CLI has no semantic
-backend: semantic mode returns no results and hybrid mode returns keyword
-results, both with a `semantic-unavailable` diagnostic. The retrieval format is
+From the CLI, `oh search QUERY` and `oh recall QUERY` search by keyword and
+take `--limit N`. The CLI has no semantic backend. For existing scripts it
+still accepts `--mode semantic`, which returns no results, and `--mode hybrid`,
+which returns keyword results; both add a `semantic-unavailable` diagnostic to
+the JSON and print a warning in a terminal. The retrieval format is
 in the [retrieval specification](../spec/v1/retrieval.md).
 
 ## Add local semantic search

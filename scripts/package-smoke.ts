@@ -341,19 +341,20 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     if (protocol.offer?.product?.id !== "oh-computer"
       || protocol.offer.actions?.map(action => action.kind).join() !== "support"
       || JSON.stringify(protocol.commands?.protocol) !== JSON.stringify([process.execPath, cli, "support", "protocol", "--json"])) {
+      // The consumer's PATH has no oh, so the protocol names the packed file.
       throw new Error("Packed standalone support protocol lost its product or executable identity.");
     }
     if (
-      !help.includes("Usage:\n  oh init")
+      !help.startsWith("Usage: oh <command> [options]\n")
       || installedBinHelp !== help
-      || version !== `${manifest.version}\n`
+      || version !== `oh ${manifest.version}\n`
     ) {
       throw new Error("Packed CLI help or version does not match the manifest.");
     }
     const database = join(work, "synthetic.sqlite");
     await run([process.execPath, cli, "init", "--db", database], consumer, true);
     const verification = JSON.parse(await run([
-      process.execPath, cli, "verify", "--db", database,
+      process.execPath, cli, "verify", "--db", database, "--json",
     ], consumer, true)) as Readonly<{ sqliteIntegrity?: unknown; v?: unknown }>;
     if (verification.sqliteIntegrity !== "ok" || verification.v !== 1) {
       throw new Error("Packed CLI failed its isolated synthetic database check.");

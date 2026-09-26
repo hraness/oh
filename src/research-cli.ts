@@ -41,11 +41,14 @@ async function readInput(path: string): Promise<unknown> {
   } finally { await handle.close(); }
 }
 
+const CATALOG_COMMANDS = ["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "catalog-v8", "catalog-v9", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"];
+const FILE_COMMANDS = ["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"];
+
 /** Offline commands have no store, host identity, credentials, or network client. */
 export async function runOhResearchCli(arguments_: readonly string[]): Promise<number> {
   const command = arguments_[0];
   let output: unknown;
-  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "catalog-v8", "catalog-v9", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
+  if (CATALOG_COMMANDS.includes(command ?? "") && arguments_.length === 1) {
     output = command === "catalog-v9" ? await spongeKnowledgeDomainCatalogV9()
       : command === "catalog-v8" ? await spongeKnowledgeDomainCatalogV8()
       : command === "catalog-v7" ? await spongeKnowledgeDomainCatalogV7()
@@ -58,9 +61,11 @@ export async function runOhResearchCli(arguments_: readonly string[]): Promise<n
       : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1()
       : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
   } else {
-    if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"].includes(command ?? "")
+    if (!FILE_COMMANDS.includes(command ?? "")
       || arguments_.length !== 3 || arguments_[1] !== "--file") {
-      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|catalog-v8|catalog-v9|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
+      throw new TypeError(CATALOG_COMMANDS.includes(command ?? "") ? `research ${command} takes no options.`
+        : FILE_COMMANDS.includes(command ?? "") ? `research ${command} needs --file <path> and nothing else.`
+        : `Unknown research command "${command ?? ""}".`);
     }
     const input = await readInput(arguments_[2] as string);
     if (command === "validate-draft") output = parseSpongeKnowledgeProposalDraftV3(input);

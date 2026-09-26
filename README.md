@@ -72,25 +72,27 @@ and
 [`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.12.1/SHA256SUMS).
 
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you choose another
-path or space. Every command except `oh contract` and `oh version` creates that
-directory, file, and space if they are missing. Keep `.oh/` out of source
-control.
+path or space. `oh init`, `oh put`, and `oh sync import` create that directory,
+file, and space if they are missing; reading commands stop with
+`No Oh store at .oh/oh.sqlite` instead. Keep `.oh/` out of source control.
 
 ```sh
 oh init
 oh put \
   --kind entity \
   --key entity:ada-lovelace \
-  --json '{"name":"Ada Lovelace","role":"mathematician"}'
+  --value '{"name":"Ada Lovelace","role":"mathematician"}'
 oh get entity:ada-lovelace
-oh search "mathematician" --mode keyword
+oh search "mathematician"
 oh verify
 ```
 
 This stores one entity, reads it back, finds it through the keyword index, and
 replays the log to check it. It needs no account, hosted model, remote
-database, or semantic-search package. `oh get` prints the record as one line of
-canonical JSON; here it is with line breaks added:
+database, or semantic-search package. In a terminal each command prints a short
+result, such as `✓ Saved entity:ada-lovelace (generation 1).` Add `--json` for
+canonical JSON; `oh get entity:ada-lovelace --json` prints the record on one
+line, shown here with line breaks added:
 
 ```json
 {
@@ -104,7 +106,7 @@ canonical JSON; here it is with line breaks added:
 ```
 
 The digest is the same on every machine because it covers only the record.
-`oh verify` ends with `"operations":1,"records":1,"sqliteIntegrity":"ok"`.
+`oh verify --json` ends with `"operations":1,"records":1,"sqliteIntegrity":"ok"`.
 
 The CLI may print an occasional note about optional development support on
 stderr. It never changes stdout or exit codes, CI turns it off, and
@@ -113,9 +115,15 @@ switch it off yourself.
 
 ## How Oh behaves
 
-Commands print canonical JSON, except `oh version` and help. A missing `oh get`
-record exits with status 3. Invalid input, an integrity failure, or a
-concurrent head conflict exits with status 1 and leaves the log as it was.
+Commands print short text for people and canonical JSON with `--json`. When an
+agent runs Oh (Claude Code, Codex, Cursor, Gemini CLI, or `AI_AGENT` is set),
+JSON is the default; `HRANESS_AUDIENCE=human` or `agent` overrides the guess.
+`oh sync export` and `oh contract` always print JSON. A missing `oh get` or
+`oh tombstone` record exits with status 3. A mistyped command or option exits
+with status 2. A missing store, an integrity failure, or a concurrent head
+conflict exits with status 1 and leaves the log as it was. Errors name what
+went wrong and the command to run next; with `--json` they are one
+`{"ok":false,"error":{...}}` object on stdout.
 
 `oh contract` prints the ontology, graph, schema, and SQLite versions compiled
 into the installed runtime. Opening a database checks that the contract stored
