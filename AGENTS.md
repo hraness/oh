@@ -10,6 +10,7 @@
 - `benchmarks/` – source/protocol audit and compact reproducibility evidence; datasets and full run artifacts stay in ignored `.cache/benchmarks/`.
 - `.github/` – public contribution templates, branch validation, dependency updates, and exact-artifact release automation.
 - `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` – public usage, project policy, threat model, and terms.
+- `CHANGELOG.md` – one section per release; the release workflow copies the version's section onto its GitHub Release page.
 - `STYLE.md` and `WRITING.md` – public and internal writing guides synced from hraness/.github; rules for this repository sit under “Repository additions”.
 - `package.json`, `tsconfig.json`, and `bun.lock` – package identity, exported surfaces, and frozen Bun toolchain.
 
@@ -42,6 +43,11 @@
 - Take one-line product and sibling descriptions from the portfolio registry and versions from the release record. Tests pin facts, not prose.
 - Run `bun run check:copy` before handoff when the repository has it.
 <!-- hraness-public-copy:end -->
+
+<!-- hraness-releases:start -->
+- GitHub Release pages follow `RELEASES.md` in hraness/.github: the title is the registry product name and the tag, and the body is a summary, `## Changes`, `## Install`, `## Verify`, then the repository's identity record as a trailing HTML comment.
+- The summary and changes come from the version's section of `CHANGELOG.md` in the tagged commit. Write that section in the version bump pull request. The release workflow copies it, generates Install and Verify from the release record, fails when the section is missing or empty, and never uses GitHub's generated notes.
+<!-- hraness-releases:end -->
 
 <!-- hraness-articles:start -->
 - Essays and blog posts follow the essay addendum in `GENERATION_STYLE.md` and `ARTICLE_COPY.md` in `@hraness/design-kit`. The byline is “Hraness”, every post shows the provenance note naming its recorded reviewer, and no AI-drafted post is credited to a person unless that person rewrites and adopts it.

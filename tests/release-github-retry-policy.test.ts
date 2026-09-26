@@ -21,6 +21,7 @@ import {
   type GitHubReleaseRun,
   type ReleaseIdentityInput,
 } from "../scripts/release-github-retry-policy";
+import { renderReleaseNotes } from "../scripts/release-notes";
 
 const tag = "v0.2.3";
 const commitSha = "1".repeat(40);
@@ -29,6 +30,17 @@ const tarballBytes = Buffer.from("exact Oh tarball bytes");
 const tarballDigest = createHash("sha256").update(tarballBytes).digest("hex");
 const checksumBytes = Buffer.from(`${tarballDigest}  hraness-oh-0.2.3.tgz\n`);
 const assets = exactReleaseAssets("0.2.3", tarballBytes, checksumBytes);
+const changelog = [
+  "# Changelog",
+  "",
+  "## 0.2.3 - 2026-08-30",
+  "",
+  "Oh opens stores faster.",
+  "",
+  "- `oh init` reuses an existing store.",
+  "",
+].join("\n");
+const notes = renderReleaseNotes({ changelog, commitSha, tag, tarballSha256: tarballDigest });
 
 function environment(runId = "70000000001", attempt = "1"): NodeJS.ProcessEnv {
   const workflowRef = `hraness/oh/.github/workflows/release.yml@refs/tags/${tag}`;
@@ -50,7 +62,7 @@ function environment(runId = "70000000001", attempt = "1"): NodeJS.ProcessEnv {
 }
 
 function input(run: GitHubReleaseRun): ReleaseIdentityInput {
-  return Object.freeze({ assets, commitSha, run, tag, tagObjectSha });
+  return Object.freeze({ assets, commitSha, notes, run, tag, tagObjectSha });
 }
 
 const actionsBot = Object.freeze({ id: 41_898_282, login: "github-actions[bot]", type: "Bot" });
@@ -291,5 +303,44 @@ describe("same-run draft recovery", () => {
     }));
     expect(() => assertPublishedReleaseIdentity(wrongUploader, secondInput)).toThrow("Actions bot");
     expect(() => assertPublishedReleaseIdentity(publishedRecord(publishedReleaseBody(secondInput, 1)), firstInput)).toThrow("attempt ordering");
+  });
+});
+
+describe("release page body", () => {
+  const run = githubReleaseRun(tag, environment("70000000001", "1"));
+  const exact = input(run);
+  const body = publishedReleaseBody(exact, 1);
+  const marker = "<!-- oh-release-identity:v1\n";
+
+  test("renders changelog notes, Install, Verify, then the identity record as the final bytes", () => {
+    expect(body.startsWith("Oh opens stores faster.\n\n## Changes\n\n- `oh init` reuses an existing store.\n\n## Install\n")).toBe(true);
+    expect(body).toContain("## Verify");
+    expect(body.indexOf("## Install")).toBeLessThan(body.indexOf("## Verify"));
+    expect(body.indexOf("## Verify")).toBeLessThan(body.lastIndexOf(marker));
+    expect(body.endsWith("\n-->")).toBe(true);
+    expect(body.slice(0, body.lastIndexOf(marker))).toBe(`${notes}\n`);
+    expect(body.match(/<!--/gu)).toHaveLength(1);
+    for (const forbidden of ["What's Changed", "Full Changelog", "Generated with", "Automated release", "Canonical GitHub release for"]) {
+      expect(body).not.toContain(forbidden);
+    }
+  });
+
+  test("still parses the unchanged identity record from the end of the body", () => {
+    expect(() => assertPublishedReleaseIdentity(publishedRecord(body), exact)).not.toThrow();
+    const identity = JSON.parse(body.slice(body.lastIndexOf(marker) + marker.length, -"\n-->".length)) as Record<string, unknown>;
+    expect(identity).toMatchObject({ commitSha, createdAttempt: 1, publishedAttempt: 1, repository: "hraness/oh", tag, tagObjectSha });
+    expect(parseRecoverableDraft(draftRecord(draftReleaseBody(exact)), exact).createdAttempt).toBe(1);
+  });
+
+  test("detects tampered notes, a missing trailer, and a relocated identity record", () => {
+    expect(() => assertPublishedReleaseIdentity(publishedRecord(body.replace("reuses", "replaces")), exact)).toThrow("notes were edited");
+    expect(() => assertPublishedReleaseIdentity(publishedRecord(`extra\n${body}`), exact)).toThrow("notes were edited");
+    expect(() => assertPublishedReleaseIdentity(publishedRecord(`${body}\n`), exact)).toThrow("missing or edited");
+    const identity = body.slice(body.lastIndexOf(marker));
+    expect(() => assertPublishedReleaseIdentity(publishedRecord(`${identity}\n\n${notes}`), exact)).toThrow("missing or edited");
+    expect(() => assertPublishedReleaseIdentity(publishedRecord(identity), exact)).toThrow("notes were edited");
+    expect(() => assertPublishedReleaseIdentity(publishedRecord(`${notes}\n${identity}${identity}`), exact)).toThrow("notes were edited");
+    const otherNotes = renderReleaseNotes({ changelog: changelog.replace("faster", "slower"), commitSha, tag, tarballSha256: tarballDigest });
+    expect(() => assertPublishedReleaseIdentity(publishedRecord(body), { ...exact, notes: otherNotes })).toThrow("notes were edited");
   });
 });
