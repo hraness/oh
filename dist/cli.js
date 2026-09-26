@@ -8561,11 +8561,199 @@ var init_knowledge_domain_catalog_v8 = __esm(() => {
   init_knowledge_vocabulary_pack_v1();
 });
 
+// src/research/knowledge-domain-catalog-v9.ts
+function spongeKnowledgeDomainCatalogV9() {
+  catalogPromise13 ??= buildCatalog9();
+  return catalogPromise13;
+}
+function canonical14(value) {
+  return canonicalJson2(value);
+}
+function unwrap5(result) {
+  if (!result.ok)
+    throw new Error(`Invalid revised guide pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function isRef(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const keys = Object.keys(value).sort();
+  return keys.join(",") === "code,namespace,revision,schemaSha256,v";
+}
+function refsIn(value, found = []) {
+  if (Array.isArray(value))
+    for (const item of value)
+      refsIn(item, found);
+  else if (isRef(value))
+    found.push(value);
+  else if (typeof value === "object" && value !== null)
+    for (const item of Object.values(value))
+      refsIn(item, found);
+  return found;
+}
+function remap(value, refs3) {
+  if (Array.isArray(value)) {
+    const items = value.map((item) => remap(item, refs3));
+    return items.length > 0 && items.every(isRef) ? items.sort((left, right) => canonical14(left) < canonical14(right) ? -1 : 1) : items;
+  }
+  if (isRef(value))
+    return refs3.get(canonical14(value)) ?? value;
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key2, item]) => [key2, remap(item, refs3)]));
+  }
+  return value;
+}
+function withoutKeys(value, keys) {
+  return Object.fromEntries(Object.entries(value).filter(([key2]) => !keys.includes(key2)));
+}
+async function reviseSchemas(previous, vocabularySha256, refs3) {
+  const pending = new Map(previous.schemas.map((schema2) => [canonical14(schema2.ref), schema2]));
+  const revised = [];
+  while (pending.size > 0) {
+    const ready = [...pending.values()].filter((schema2) => refsIn(withoutKeys(schema2, ["ref"])).every((ref2) => !pending.has(canonical14(ref2))));
+    if (ready.length === 0)
+      throw new Error(`Cyclic schema references in ${previous.packId}.`);
+    for (const schema2 of ready) {
+      const input = remap(withoutKeys(schema2, ["ref", "revisionSha256"]), refs3);
+      const next = unwrap5(await createKnowledgeSchemaRevisionV1({
+        ...input,
+        identity: { ...schema2.identity, revision: schema2.identity.revision + 1 },
+        previousRevisionSha256: schema2.revisionSha256,
+        reviewDecisionSha256: null,
+        vocabularySha256
+      }));
+      refs3.set(canonical14(schema2.ref), next.ref);
+      revised.push(next);
+      pending.delete(canonical14(schema2.ref));
+    }
+  }
+  return revised.sort((left, right) => left.identity.code < right.identity.code ? -1 : 1);
+}
+async function reviseShape(shape, refs3) {
+  const input = remap(withoutKeys(shape, ["shapeSha256"]), refs3);
+  const rules = [...input.rules].sort((left, right) => canonical14({ predicate: left.predicate, purpose: left.purpose }) < canonical14({ predicate: right.predicate, purpose: right.purpose }) ? -1 : 1);
+  return unwrap5(await createKnowledgeExecutableShapeV1({ ...input, rules }));
+}
+async function revisePack(previous, refs3, pins2) {
+  const packId = previous.packId;
+  const vocabulary = unwrap5(await createKnowledgeVocabularyRevisionV1({
+    ...withoutKeys(previous.vocabulary, ["revisionSha256"]),
+    previousRevisionSha256: previous.vocabulary.revisionSha256,
+    revision: previous.vocabulary.revision + 1
+  }));
+  const schemas = await reviseSchemas(previous, vocabulary.revisionSha256, refs3);
+  const shapes = [];
+  for (const shape of previous.shapes)
+    shapes.push(await reviseShape(shape, refs3));
+  const name = packId.slice("sponge.".length);
+  return unwrap5(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: previous.canonicalizerSha256,
+    dependencies: previous.dependencies.map((pin) => pins2.get(pin.packId) ?? pin),
+    display: remap(previous.display, refs3),
+    examples: remap(previous.examples, refs3),
+    migrationNotes: MIGRATION_NOTES_V9,
+    packId,
+    previousManifestSha256: previous.manifestSha256,
+    queries: remap(previous.queries, refs3),
+    revision: previous.revision + 1,
+    schemas,
+    shapes,
+    sources: [{
+      contentSha256: GUIDE_SHA256_V9[packId],
+      license: "MIT",
+      revision: GUIDE_REVISION_V9,
+      uri: `https://github.com/hraness/oh/blob/main/spec/research-v1/${name}-v2.md`,
+      v: 1
+    }],
+    supportedCodecs: previous.supportedCodecs,
+    v: 1,
+    vocabulary
+  }));
+}
+async function buildCatalog9() {
+  const previous = await spongeKnowledgeDomainCatalogV8();
+  const revisedIds = new Set(SPONGE_KNOWLEDGE_REVISED_PACK_IDS_V9);
+  const replaced = previous.packs.filter((pack2) => revisedIds.has(pack2.packId));
+  if (replaced.length !== revisedIds.size)
+    throw new Error("Missing a catalog V8 guide pack.");
+  const refs3 = new Map;
+  const pins2 = new Map;
+  const revised = new Map;
+  while (revised.size < replaced.length) {
+    const ready = replaced.filter((pack2) => !revised.has(pack2.packId) && pack2.dependencies.every((pin) => !revisedIds.has(pin.packId) || revised.has(pin.packId)));
+    if (ready.length === 0)
+      throw new Error("Cyclic guide pack dependencies.");
+    for (const pack2 of ready) {
+      const next = await revisePack(pack2, refs3, pins2);
+      revised.set(pack2.packId, next);
+      pins2.set(pack2.packId, knowledgeVocabularyPackPinV1(next));
+    }
+  }
+  const pack = (id) => revised.get(id);
+  const packs = previous.packs.map((item) => revised.get(item.packId) ?? item);
+  const roots = previous.lock.roots.map((pin) => pins2.get(pin.packId) ?? pin);
+  const resolved = await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots });
+  if (!resolved.ok)
+    throw new Error(`Invalid revised guide catalog: ${resolved.error.field}:${resolved.error.code}.`);
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    bridgeRelationsPack: pack("sponge.bridge-relations"),
+    citationPack: pack("sponge.citation"),
+    contentOccurrencesPack: pack("sponge.content-occurrences"),
+    evidenceGradingPack: pack("sponge.evidence-grading"),
+    historicalPacks: [...previous.historicalPacks, ...replaced],
+    lock: resolved.value.lock,
+    measurementResultsPack: pack("sponge.measurement-results"),
+    monetaryValuesPack: pack("sponge.monetary-values"),
+    packs,
+    participationRolesPack: pack("sponge.participation-roles"),
+    researchOpsPack: pack("sponge.research-ops"),
+    schemas: packs.flatMap((item) => item.schemas),
+    sourcePolicyPack: pack("sponge.source-policy"),
+    sourceQualityPack: pack("sponge.source-quality"),
+    temporalRolesPack: pack("sponge.temporal-roles"),
+    vocabularies: packs.map((item) => item.vocabulary)
+  });
+}
+var SPONGE_KNOWLEDGE_REVISED_PACK_IDS_V9, GUIDE_REVISION_V9 = "2026-09-26", GUIDE_SHA256_V9, MIGRATION_NOTES_V9 = "Revision 2 pins the V2 guide, which rewrites the V1 guide prose in plain style. Concepts, predicates, labels, definitions, ranges, qualifiers, shapes, queries and examples have the same meaning as revision 1; schema references point at revision 2 schemas and dependency pins point at catalog V9 manifests. Revision 1 manifests and digests are unchanged and resolve from catalog V8. No entity is retyped, no accepted statement is rewritten, and no publication or identity authority is granted.", catalogPromise13;
+var init_knowledge_domain_catalog_v9 = __esm(() => {
+  init_knowledge_declarative_json();
+  init_knowledge_domain_catalog_v8();
+  init_knowledge_ontology_contract_v1();
+  init_knowledge_vocabulary_pack_v1();
+  SPONGE_KNOWLEDGE_REVISED_PACK_IDS_V9 = [
+    "sponge.bridge-relations",
+    "sponge.citation",
+    "sponge.content-occurrences",
+    "sponge.evidence-grading",
+    "sponge.measurement-results",
+    "sponge.monetary-values",
+    "sponge.participation-roles",
+    "sponge.research-ops",
+    "sponge.source-policy",
+    "sponge.source-quality",
+    "sponge.temporal-roles"
+  ];
+  GUIDE_SHA256_V9 = {
+    "sponge.bridge-relations": "aa43285f5d74e36daf65c63092d90ac01795f8ea31cbe692b9f38152ef7dbc24",
+    "sponge.citation": "637574160df2d2c44e53d413641b06342260843fae682a6e140c834e1ae1e7d9",
+    "sponge.content-occurrences": "481cc7d5255943b2b9ab99f42ca8d581dd322a457442d8dab583a67fe153de00",
+    "sponge.evidence-grading": "368703e54b0ca282783484efc3ab9f9c2a870554c42a732c3d82b24985b7a889",
+    "sponge.measurement-results": "5262d3571bce145d59cf6ce757d53ec3f721d0394cae8668ca75fbfcca9ff80b",
+    "sponge.monetary-values": "c26f2739317539c714596f49985e502ff74fc833516b02bedf0dd6f315a494c6",
+    "sponge.participation-roles": "b804396f5234cbce44a8866135338aaae74d81b71ef98dca4f502c3ab559ff0b",
+    "sponge.research-ops": "2dade72875ff7a4956fbcc971e9a03940de54d83b1bd45b71fcf89c845e1d033",
+    "sponge.source-policy": "43c3d120dcb7c7af08b8efcdde36cc935971d350c8b2fee761b909270c8c65ec",
+    "sponge.source-quality": "609a2b04597ffc98933dbb8c7e7ac04f7995ee98e53f5b49a155d2d3205c23c3",
+    "sponge.temporal-roles": "4f2626634b52767727386633b6359a613b67eef3f60f10e9c3842702463adcc1"
+  };
+});
+
 // src/research/knowledge-proposal-v3.ts
 function key2(value) {
   return typeof value === "string" && value.length <= 96 && /^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$/u.test(value);
 }
-function canonical14(value) {
+function canonical15(value) {
   return canonicalJson2(value);
 }
 function ref2(value) {
@@ -8578,8 +8766,8 @@ function refs3(value) {
   const parsed = value.map(ref2);
   if (parsed.some((item) => item === null))
     return null;
-  const sorted = parsed.sort((a, b) => canonical14(a) < canonical14(b) ? -1 : 1);
-  return new Set(sorted.map(canonical14)).size === sorted.length ? sorted : null;
+  const sorted = parsed.sort((a, b) => canonical15(a) < canonical15(b) ? -1 : 1);
+  return new Set(sorted.map(canonical15)).size === sorted.length ? sorted : null;
 }
 function entityReference(value) {
   if (!isPlainRecord2(value))
@@ -8606,8 +8794,8 @@ function draftValue(value, depth = 0) {
       return null;
     const parsed2 = values;
     if (value["kind"] === "set") {
-      parsed2.sort((a, b) => canonical14(a) < canonical14(b) ? -1 : 1);
-      if (new Set(parsed2.map(canonical14)).size !== parsed2.length)
+      parsed2.sort((a, b) => canonical15(a) < canonical15(b) ? -1 : 1);
+      if (new Set(parsed2.map(canonical15)).size !== parsed2.length)
         return null;
     }
     return { kind: value["kind"], values: parsed2, v: 1 };
@@ -8628,8 +8816,8 @@ function dimensions(value) {
       return null;
     parsed.push({ predicate, value: child });
   }
-  parsed.sort((a, b) => canonical14(a) < canonical14(b) ? -1 : 1);
-  return new Set(parsed.map(canonical14)).size === parsed.length ? parsed : null;
+  parsed.sort((a, b) => canonical15(a) < canonical15(b) ? -1 : 1);
+  return new Set(parsed.map(canonical15)).size === parsed.length ? parsed : null;
 }
 function parseSpongeKnowledgeProposalDraftV3(foreign) {
   const value = knowledgeDeclarativeJson(foreign, 256 * 1024);
@@ -9503,11 +9691,11 @@ async function readInput(path) {
 async function runOhResearchCli(arguments_) {
   const command = arguments_[0];
   let output;
-  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "catalog-v8", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
-    output = command === "catalog-v8" ? await spongeKnowledgeDomainCatalogV8() : command === "catalog-v7" ? await spongeKnowledgeDomainCatalogV7() : command === "catalog-v6" ? await spongeKnowledgeDomainCatalogV6() : command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
+  if (["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "catalog-v8", "catalog-v9", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"].includes(command ?? "") && arguments_.length === 1) {
+    output = command === "catalog-v9" ? await spongeKnowledgeDomainCatalogV9() : command === "catalog-v8" ? await spongeKnowledgeDomainCatalogV8() : command === "catalog-v7" ? await spongeKnowledgeDomainCatalogV7() : command === "catalog-v6" ? await spongeKnowledgeDomainCatalogV6() : command === "catalog-v5" ? await spongeKnowledgeDomainCatalogV5() : command === "catalog-v4" ? await spongeKnowledgeDomainCatalogV4() : command === "catalog-v3" ? await spongeKnowledgeDomainCatalogV3() : command === "wikidata-mappings-v3" ? await spongeKnowledgeWikidataMappingCatalogV3() : command === "wikidata-mappings-v2" ? await spongeKnowledgeWikidataMappingCatalogV2() : command === "wikidata-mappings" ? await spongeKnowledgeWikidataMappingCatalogV1() : command === "catalog-v2" ? await spongeKnowledgeDomainCatalogV2() : await spongeKnowledgeDomainCatalog();
   } else {
     if (!["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"].includes(command ?? "") || arguments_.length !== 3 || arguments_[1] !== "--file") {
-      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|catalog-v8|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
+      throw new TypeError("Use research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5|catalog-v6|catalog-v7|catalog-v8|catalog-v9|wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3 or research validate-draft|wikidata-preview|wikidata-mapping-preview|wikidata-mapping-preview-v2|prepare-packet|verify-packet --file PATH.");
     }
     const input = await readInput(arguments_[2]);
     if (command === "validate-draft")
@@ -9549,6 +9737,7 @@ var init_research_cli = __esm(() => {
   init_knowledge_domain_catalog_v6();
   init_knowledge_domain_catalog_v7();
   init_knowledge_domain_catalog_v8();
+  init_knowledge_domain_catalog_v9();
   init_knowledge_domain_catalog_v2();
   init_knowledge_wikidata_import_v2();
   init_knowledge_domain_catalog();
@@ -9983,10 +10172,10 @@ class OhSemanticBundleIngressV1 {
         throw new TypeError("Invalid semantic bundle tombstone.");
       changes.push({ key: item.key, kind: "tombstone", priorSha256, v: 1 });
     }
-    const canonical15 = canonicalKnowledgeGraphChangesV1(changes);
+    const canonical16 = canonicalKnowledgeGraphChangesV1(changes);
     return await this.#store.commit({
       actorId,
-      changes: canonical15,
+      changes: canonical16,
       expectedHead: {
         generation: expected.generation,
         operationSha256: expected.operationSha256
@@ -27016,7 +27205,7 @@ returns keyword results, both with a semantic-unavailable diagnostic.
 
 Research (offline, no database):
   oh research catalog|catalog-v2|catalog-v3|catalog-v4|catalog-v5
-  oh research catalog-v6|catalog-v7|catalog-v8
+  oh research catalog-v6|catalog-v7|catalog-v8|catalog-v9
   oh research wikidata-mappings|wikidata-mappings-v2|wikidata-mappings-v3
   oh research validate-draft|prepare-packet|verify-packet --file PATH
   oh research wikidata-preview --file PATH

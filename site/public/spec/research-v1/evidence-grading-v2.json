@@ -1,0 +1,51 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV9",
+    "previousCatalogFactory": "spongeKnowledgeDomainCatalogV8",
+    "revisedPack": "sponge.evidence-grading",
+    "packRevision": 2,
+    "previousPackRevision": 1
+  },
+  "previousGuide": "evidence-grading-v1.md",
+  "concepts": [
+    "absence-finding",
+    "corroboration-descriptor",
+    "epistemic-grade-descriptor",
+    "evidence-stratum",
+    "stratum-tier"
+  ],
+  "relations": [
+    "absence-outcome",
+    "assessed-under",
+    "bound-payload",
+    "bound-selector",
+    "corpus-novelty",
+    "corrects",
+    "corroborated-by",
+    "corroboration-state",
+    "epistemic-grade",
+    "of-stratum",
+    "of-tier",
+    "search-method",
+    "search-scope",
+    "searched-within",
+    "tier-in-stratum",
+    "tier-rank"
+  ],
+  "directDependencies": [
+    "sponge.content-occurrences",
+    "sponge.core",
+    "sponge.foundation",
+    "sponge.reference",
+    "sponge.research",
+    "sponge.temporal-roles"
+  ],
+  "queries": [
+    "absence-ledger",
+    "graded-record",
+    "verbatim-binding"
+  ],
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

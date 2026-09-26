@@ -1,0 +1,50 @@
+{
+  "v": 1,
+  "catalog": {
+    "factory": "spongeKnowledgeDomainCatalogV9",
+    "previousCatalogFactory": "spongeKnowledgeDomainCatalogV8",
+    "revisedPack": "sponge.research-ops",
+    "packRevision": 2,
+    "previousPackRevision": 1
+  },
+  "previousGuide": "research-ops-v1.md",
+  "concepts": [
+    "monitor-run",
+    "policy-class-descriptor",
+    "publication-policy",
+    "rejection-record",
+    "research-monitor",
+    "review-event",
+    "review-outcome-descriptor"
+  ],
+  "relations": [
+    "admitted-in-run",
+    "monitor-cadence-days",
+    "monitor-status",
+    "monitor-target",
+    "monitors-inquiry",
+    "policy-applies-to",
+    "policy-class",
+    "policy-reference",
+    "reassessment-window-days",
+    "rejected-in-run",
+    "rejection-of",
+    "rejection-reason",
+    "review-of",
+    "review-outcome",
+    "run-of-monitor",
+    "run-scope"
+  ],
+  "directDependencies": [
+    "sponge.core",
+    "sponge.foundation",
+    "sponge.reference",
+    "sponge.temporal-roles"
+  ],
+  "queries": [
+    "monitor-ledger",
+    "review-and-policy"
+  ],
+  "semanticCompleteness": "not-claimed",
+  "authority": "unadmitted"
+}

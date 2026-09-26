@@ -455,6 +455,12 @@ may also qualify `sponge.evidence-grading` and `sponge.research-ops`
 predicates, which declare them; predicates from catalogs V1–V7 do not accept
 them as qualifiers.
 
+When `oh --help` lists `catalog-v9`, `oh research catalog-v9` has the same 30
+packs with the eleven guide-pinned packs at revision 2. The predicates and
+their meanings are the same as in catalog V8; only the schema digests, the
+revision numbers and the pinned V2 guides differ. Use one catalog's lock for a
+whole proposal and do not mix revision 1 and revision 2 references.
+
 ## Handle optional development support
 
 If `oh --help` lists `support`, run the read-only `oh support protocol --json`

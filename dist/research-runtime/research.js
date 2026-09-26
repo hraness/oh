@@ -5601,6 +5601,189 @@ async function buildCatalog8() {
     vocabularies: packs.map((pack) => pack.vocabulary)
   });
 }
+// src/research/knowledge-domain-catalog-v9.ts
+var SPONGE_KNOWLEDGE_REVISED_PACK_IDS_V9 = [
+  "sponge.bridge-relations",
+  "sponge.citation",
+  "sponge.content-occurrences",
+  "sponge.evidence-grading",
+  "sponge.measurement-results",
+  "sponge.monetary-values",
+  "sponge.participation-roles",
+  "sponge.research-ops",
+  "sponge.source-policy",
+  "sponge.source-quality",
+  "sponge.temporal-roles"
+];
+var GUIDE_REVISION_V9 = "2026-09-26";
+var GUIDE_SHA256_V9 = {
+  "sponge.bridge-relations": "aa43285f5d74e36daf65c63092d90ac01795f8ea31cbe692b9f38152ef7dbc24",
+  "sponge.citation": "637574160df2d2c44e53d413641b06342260843fae682a6e140c834e1ae1e7d9",
+  "sponge.content-occurrences": "481cc7d5255943b2b9ab99f42ca8d581dd322a457442d8dab583a67fe153de00",
+  "sponge.evidence-grading": "368703e54b0ca282783484efc3ab9f9c2a870554c42a732c3d82b24985b7a889",
+  "sponge.measurement-results": "5262d3571bce145d59cf6ce757d53ec3f721d0394cae8668ca75fbfcca9ff80b",
+  "sponge.monetary-values": "c26f2739317539c714596f49985e502ff74fc833516b02bedf0dd6f315a494c6",
+  "sponge.participation-roles": "b804396f5234cbce44a8866135338aaae74d81b71ef98dca4f502c3ab559ff0b",
+  "sponge.research-ops": "2dade72875ff7a4956fbcc971e9a03940de54d83b1bd45b71fcf89c845e1d033",
+  "sponge.source-policy": "43c3d120dcb7c7af08b8efcdde36cc935971d350c8b2fee761b909270c8c65ec",
+  "sponge.source-quality": "609a2b04597ffc98933dbb8c7e7ac04f7995ee98e53f5b49a155d2d3205c23c3",
+  "sponge.temporal-roles": "4f2626634b52767727386633b6359a613b67eef3f60f10e9c3842702463adcc1"
+};
+var MIGRATION_NOTES_V9 = "Revision 2 pins the V2 guide, which rewrites the V1 guide prose in plain style. Concepts, predicates, labels, definitions, ranges, qualifiers, shapes, queries and examples have the same meaning as revision 1; schema references point at revision 2 schemas and dependency pins point at catalog V9 manifests. Revision 1 manifests and digests are unchanged and resolve from catalog V8. No entity is retyped, no accepted statement is rewritten, and no publication or identity authority is granted.";
+var catalogPromise13;
+function spongeKnowledgeDomainCatalogV9() {
+  catalogPromise13 ??= buildCatalog9();
+  return catalogPromise13;
+}
+function canonical16(value) {
+  return canonicalJson(value);
+}
+function unwrap5(result) {
+  if (!result.ok)
+    throw new Error(`Invalid revised guide pack: ${result.error.field}:${result.error.code}.`);
+  return result.value;
+}
+function isRef(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const keys = Object.keys(value).sort();
+  return keys.join(",") === "code,namespace,revision,schemaSha256,v";
+}
+function refsIn(value, found = []) {
+  if (Array.isArray(value))
+    for (const item of value)
+      refsIn(item, found);
+  else if (isRef(value))
+    found.push(value);
+  else if (typeof value === "object" && value !== null)
+    for (const item of Object.values(value))
+      refsIn(item, found);
+  return found;
+}
+function remap(value, refs4) {
+  if (Array.isArray(value)) {
+    const items = value.map((item) => remap(item, refs4));
+    return items.length > 0 && items.every(isRef) ? items.sort((left, right) => canonical16(left) < canonical16(right) ? -1 : 1) : items;
+  }
+  if (isRef(value))
+    return refs4.get(canonical16(value)) ?? value;
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key3, item]) => [key3, remap(item, refs4)]));
+  }
+  return value;
+}
+function withoutKeys(value, keys) {
+  return Object.fromEntries(Object.entries(value).filter(([key3]) => !keys.includes(key3)));
+}
+async function reviseSchemas(previous, vocabularySha256, refs4) {
+  const pending = new Map(previous.schemas.map((schema2) => [canonical16(schema2.ref), schema2]));
+  const revised = [];
+  while (pending.size > 0) {
+    const ready = [...pending.values()].filter((schema2) => refsIn(withoutKeys(schema2, ["ref"])).every((ref3) => !pending.has(canonical16(ref3))));
+    if (ready.length === 0)
+      throw new Error(`Cyclic schema references in ${previous.packId}.`);
+    for (const schema2 of ready) {
+      const input = remap(withoutKeys(schema2, ["ref", "revisionSha256"]), refs4);
+      const next = unwrap5(await createKnowledgeSchemaRevisionV1({
+        ...input,
+        identity: { ...schema2.identity, revision: schema2.identity.revision + 1 },
+        previousRevisionSha256: schema2.revisionSha256,
+        reviewDecisionSha256: null,
+        vocabularySha256
+      }));
+      refs4.set(canonical16(schema2.ref), next.ref);
+      revised.push(next);
+      pending.delete(canonical16(schema2.ref));
+    }
+  }
+  return revised.sort((left, right) => left.identity.code < right.identity.code ? -1 : 1);
+}
+async function reviseShape(shape, refs4) {
+  const input = remap(withoutKeys(shape, ["shapeSha256"]), refs4);
+  const rules = [...input.rules].sort((left, right) => canonical16({ predicate: left.predicate, purpose: left.purpose }) < canonical16({ predicate: right.predicate, purpose: right.purpose }) ? -1 : 1);
+  return unwrap5(await createKnowledgeExecutableShapeV1({ ...input, rules }));
+}
+async function revisePack(previous, refs4, pins2) {
+  const packId = previous.packId;
+  const vocabulary = unwrap5(await createKnowledgeVocabularyRevisionV1({
+    ...withoutKeys(previous.vocabulary, ["revisionSha256"]),
+    previousRevisionSha256: previous.vocabulary.revisionSha256,
+    revision: previous.vocabulary.revision + 1
+  }));
+  const schemas = await reviseSchemas(previous, vocabulary.revisionSha256, refs4);
+  const shapes = [];
+  for (const shape of previous.shapes)
+    shapes.push(await reviseShape(shape, refs4));
+  const name = packId.slice("sponge.".length);
+  return unwrap5(await createKnowledgeVocabularyPackManifestV1({
+    canonicalizerSha256: previous.canonicalizerSha256,
+    dependencies: previous.dependencies.map((pin) => pins2.get(pin.packId) ?? pin),
+    display: remap(previous.display, refs4),
+    examples: remap(previous.examples, refs4),
+    migrationNotes: MIGRATION_NOTES_V9,
+    packId,
+    previousManifestSha256: previous.manifestSha256,
+    queries: remap(previous.queries, refs4),
+    revision: previous.revision + 1,
+    schemas,
+    shapes,
+    sources: [{
+      contentSha256: GUIDE_SHA256_V9[packId],
+      license: "MIT",
+      revision: GUIDE_REVISION_V9,
+      uri: `https://github.com/hraness/oh/blob/main/spec/research-v1/${name}-v2.md`,
+      v: 1
+    }],
+    supportedCodecs: previous.supportedCodecs,
+    v: 1,
+    vocabulary
+  }));
+}
+async function buildCatalog9() {
+  const previous = await spongeKnowledgeDomainCatalogV8();
+  const revisedIds = new Set(SPONGE_KNOWLEDGE_REVISED_PACK_IDS_V9);
+  const replaced = previous.packs.filter((pack2) => revisedIds.has(pack2.packId));
+  if (replaced.length !== revisedIds.size)
+    throw new Error("Missing a catalog V8 guide pack.");
+  const refs4 = new Map;
+  const pins2 = new Map;
+  const revised = new Map;
+  while (revised.size < replaced.length) {
+    const ready = replaced.filter((pack2) => !revised.has(pack2.packId) && pack2.dependencies.every((pin) => !revisedIds.has(pin.packId) || revised.has(pin.packId)));
+    if (ready.length === 0)
+      throw new Error("Cyclic guide pack dependencies.");
+    for (const pack2 of ready) {
+      const next = await revisePack(pack2, refs4, pins2);
+      revised.set(pack2.packId, next);
+      pins2.set(pack2.packId, knowledgeVocabularyPackPinV1(next));
+    }
+  }
+  const pack = (id) => revised.get(id);
+  const packs = previous.packs.map((item) => revised.get(item.packId) ?? item);
+  const roots = previous.lock.roots.map((pin) => pins2.get(pin.packId) ?? pin);
+  const resolved = await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots });
+  if (!resolved.ok)
+    throw new Error(`Invalid revised guide catalog: ${resolved.error.field}:${resolved.error.code}.`);
+  return freezeKnowledgeDeclaration({
+    ...previous,
+    bridgeRelationsPack: pack("sponge.bridge-relations"),
+    citationPack: pack("sponge.citation"),
+    contentOccurrencesPack: pack("sponge.content-occurrences"),
+    evidenceGradingPack: pack("sponge.evidence-grading"),
+    historicalPacks: [...previous.historicalPacks, ...replaced],
+    lock: resolved.value.lock,
+    measurementResultsPack: pack("sponge.measurement-results"),
+    monetaryValuesPack: pack("sponge.monetary-values"),
+    packs,
+    participationRolesPack: pack("sponge.participation-roles"),
+    researchOpsPack: pack("sponge.research-ops"),
+    schemas: packs.flatMap((item) => item.schemas),
+    sourcePolicyPack: pack("sponge.source-policy"),
+    sourceQualityPack: pack("sponge.source-quality"),
+    temporalRolesPack: pack("sponge.temporal-roles"),
+    vocabularies: packs.map((item) => item.vocabulary)
+  });
+}
 export {
   verifyOhResearchPacketV1,
   verifyKnowledgeWikidataMappingPreviewV2,
@@ -5618,6 +5801,7 @@ export {
   spongeKnowledgeWikidataMappingCatalogV2,
   spongeKnowledgeWikidataMappingCatalogV1,
   spongeKnowledgeReferenceCatalog,
+  spongeKnowledgeDomainCatalogV9,
   spongeKnowledgeDomainCatalogV8,
   spongeKnowledgeDomainCatalogV7,
   spongeKnowledgeDomainCatalogV6,
@@ -5743,6 +5927,7 @@ export {
   boundedKnowledgeWikidataPreviewJsonV2,
   SPONGE_SHA256_HEX_PATTERN,
   SPONGE_KNOWLEDGE_SCENARIOS_V1,
+  SPONGE_KNOWLEDGE_REVISED_PACK_IDS_V9,
   SPONGE_KNOWLEDGE_REVIEW_SUBJECT_KINDS_V1,
   SPONGE_KNOWLEDGE_PUBLIC_PURPOSE_V1,
   SPONGE_KNOWLEDGE_PACK_CODECS_V1,

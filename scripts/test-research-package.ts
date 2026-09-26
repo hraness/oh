@@ -86,6 +86,15 @@ globalThis.researchProbe = (async () => {
   }
   const evidenceResolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: evidence.packs, roots: evidence.lock.roots });
   if (!evidenceResolution.ok || evidenceResolution.value.lock.lockSha256 !== evidence.lock.lockSha256) throw new Error("V8 catalog cannot resolve its complete dependency lock in the browser.");
+  const revised = await research.spongeKnowledgeDomainCatalogV9();
+  if (revised.packs.length !== evidence.packs.length || revised.schemas.length !== 429
+    || research.SPONGE_KNOWLEDGE_REVISED_PACK_IDS_V9.length !== 11
+    || research.SPONGE_KNOWLEDGE_REVISED_PACK_IDS_V9.some(packId => revised.packs.find(pack => pack.packId === packId)?.revision !== 2)
+    || revised.citationPack.previousManifestSha256 !== evidence.citationPack.manifestSha256) {
+    throw new Error("Missing revision 2 guide packs in the built browser export.");
+  }
+  const revisedResolution = await research.resolveKnowledgeVocabularyPacksV1({ manifests: revised.packs, roots: revised.lock.roots });
+  if (!revisedResolution.ok || revisedResolution.value.lock.lockSha256 !== revised.lock.lockSha256) throw new Error("V9 catalog cannot resolve its complete dependency lock in the browser.");
   const input = { v: 2, properties: "all-present", mappingVersion: "browser-probe", captures: [{
     requestedId: "Q1", resolvedId: "Q1", sourceUri: "https://www.wikidata.org/w/api.php", redirects: [],
     capturedAt: "2026-09-13T00:00:00.000Z", coverage: { kind: "complete-entity" },
