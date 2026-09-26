@@ -78,7 +78,8 @@ test("eligibility is restricted to successful useful operations", () => {
     expect(hasUsefulOhResult(args, 0)).toBe(true);
     expect(hasUsefulOhResult(args, 1)).toBe(false);
   }
-  for (const args of [[], ["help"], ["version"], ["verify"], ["contract"], ["research", "catalog-v7"], ["research", "verify-packet"], ["support"]]) expect(hasUsefulOhResult(args, 0)).toBe(false);
+  for (const args of [[], ["help"], ["version"], ["verify"], ["contract"], ["research", "catalog-v7"], ["research", "verify-packet"], ["support"],
+    ["put", "--help"], ["get", "-h"], ["help", "search"], ["sync", "export", "--help"]]) expect(hasUsefulOhResult(args, 0)).toBe(false);
 });
 
 

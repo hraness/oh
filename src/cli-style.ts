@@ -81,6 +81,8 @@ export function closestMatch(input: string, known: readonly string[]): string | 
   }
   if (best === undefined) return undefined;
   if (best.name.startsWith(input) && input.length >= 3) return best.name;
+  // A guess must keep at least one typed character: "n" is not a typo of "db".
+  if (best.d >= input.length) return undefined;
   return best.d <= Math.max(2, Math.floor(best.name.length / 3)) ? best.name : undefined;
 }
 

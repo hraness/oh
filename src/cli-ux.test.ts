@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import { OH_PACKAGE_VERSION, supportCommandPrefix } from "./cli";
 import { OH_HELP_TOPICS } from "./cli-help";
+import { closestMatch } from "./cli-style";
 
 const CLI = join(import.meta.dir, "cli.ts");
 const roots: string[] = [];
@@ -246,5 +247,16 @@ describe("oh support command prefix", () => {
     expect(supportCommandPrefix(CLI, mine)).toEqual(["oh"]);
     expect(supportCommandPrefix(CLI, `${other}:${mine}`)).toEqual([process.execPath, CLI]);
     expect(supportCommandPrefix(CLI, `${join(root, "none")}:${mine}`)).toEqual(["oh"]);
+  });
+});
+
+describe("closestMatch", () => {
+  test("suggests likely typos and never a guess that keeps no typed character", () => {
+    const options = ["db", "space", "json", "limit", "kind"];
+    expect(closestMatch("jsn", options)).toBe("json");
+    expect(closestMatch("limt", options)).toBe("limit");
+    expect(closestMatch("n", options)).toBeUndefined();
+    expect(closestMatch("x", options)).toBeUndefined();
+    expect(closestMatch("rnu", ["run", "list"])).toBe("run");
   });
 });

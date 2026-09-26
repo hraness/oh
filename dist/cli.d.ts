@@ -21,5 +21,7 @@ type DescribedError = Readonly<{
 }>;
 /** One sentence, one next command and an exit status for any error (SPEC § D5). */
 export declare function describeOhCliError(error: unknown, arguments_: readonly string[]): DescribedError;
+/** The support command prefix: `oh` when the first `oh` on PATH runs this file, else the full path. */
+export declare function supportCommandPrefix(script?: string, path?: string): string[];
 export {};
 //# sourceMappingURL=cli.d.ts.map

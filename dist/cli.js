@@ -26914,6 +26914,8 @@ async function runOhSupportCommand(args2, options) {
 function hasUsefulOhResult(args2, exitCode) {
   if (exitCode !== 0)
     return false;
+  if (args2.includes("--help") || args2.includes("-h") || args2[0] === "help")
+    return false;
   if (args2[0] === "sync")
     return args2[1] === "export" || args2[1] === "import";
   if (args2[0] === "research")
@@ -27292,6 +27294,8 @@ function closestMatch(input, known) {
     return;
   if (best.name.startsWith(input) && input.length >= 3)
     return best.name;
+  if (best.d >= input.length)
+    return;
   return best.d <= Math.max(2, Math.floor(best.name.length / 3)) ? best.name : undefined;
 }
 
@@ -27953,20 +27957,26 @@ function describeOhCliError(error, arguments_) {
 function asksForJson(arguments_) {
   return arguments_.some((argument, index) => argument === "--json" && (arguments_[0] !== "put" || arguments_[index + 1] === undefined || arguments_[index + 1].startsWith("--")));
 }
-function supportCommandPrefix() {
-  const script = process.argv[1] ?? "";
+function supportCommandPrefix(script = process.argv[1] ?? "", path = process.env.PATH ?? "") {
+  const fallback = [process.execPath, script];
+  let target;
   try {
-    const target = realpathSync(script);
-    for (const directory of (process.env.PATH ?? "").split(delimiter)) {
-      if (directory === "")
-        continue;
-      try {
-        if (realpathSync(join4(directory, "oh")) === target)
-          return ["oh"];
-      } catch {}
+    target = realpathSync(script);
+  } catch {
+    return fallback;
+  }
+  for (const directory of path.split(delimiter)) {
+    if (directory === "")
+      continue;
+    let found;
+    try {
+      found = realpathSync(join4(directory, "oh"));
+    } catch {
+      continue;
     }
-  } catch {}
-  return [process.execPath, script];
+    return found === target ? ["oh"] : fallback;
+  }
+  return fallback;
 }
 if (import.meta.main) {
   const args2 = process.argv.slice(2);
@@ -28004,6 +28014,7 @@ ${error.stack}
   });
 }
 export {
+  supportCommandPrefix,
   runOhCli,
   describeOhCliError,
   OhUsageError,
