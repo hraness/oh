@@ -141,7 +141,7 @@ describe("Oh site source contract", () => {
       version: "0.12.1",
       verificationRun: "https://github.com/hraness/oh/actions/runs/36254650324",
     });
-    expect(packageJson.version).toBe("0.13.0");
+    expect(packageJson.version).toBe("0.13.1");
     expect(home).toContain('import publishedRelease from "../published-release.json"');
     expect(home).toContain("const releaseVersion = publishedRelease.version;");
     expect(home).not.toContain("package.json");
