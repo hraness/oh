@@ -15,6 +15,7 @@ When to use this site:
 ## Articles
 - [Introducing Oh](https://oh.computer/blog/introducing-oh): What Oh is, who it is for, the first run, how working notes and reviewed knowledge stay apart, and the limits of the current release.
 - [How Oh keeps two implementations byte for byte](https://oh.computer/blog/oh-rust-typescript-parity): How property tests keep Oh's opt-in Rust encoder identical to the TypeScript reference, and what those tests do not prove.
+- [Built on Oh](https://oh.computer/blog/built-on-oh): Which products use Oh, what each uses it for, and whether a project needs Oh or Wordcell.
 
 ## Optional
 - [sitemap](https://oh.computer/sitemap.xml): Indexable HTML URLs.

@@ -40,8 +40,8 @@ describe("Oh blog", () => {
       expect(record.review.reviewerType).toBe("ai");
       expect(record.humanReview).toBeNull();
     }
-    expect(indexableArticles.map((article) => article.slug)).toEqual(["introducing-oh", "oh-rust-typescript-parity"]);
-    expect(quarantined.map((article) => article.slug)).toEqual(["built-on-oh"]);
+    expect(indexableArticles.map((article) => article.slug)).toEqual(["introducing-oh", "oh-rust-typescript-parity", "built-on-oh"]);
+    expect(quarantined.map((article) => article.slug)).toEqual([]);
   });
 
   test("prerenders one page per article", () => {

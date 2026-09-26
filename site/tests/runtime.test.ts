@@ -247,7 +247,7 @@ describe("built Oh site", () => {
       expect(index).toContain('<link rel="canonical" href="https://oh.computer/blog"');
       expect(index).toContain('type="application/atom+xml"');
       expect(index).toContain('href="/blog/introducing-oh"');
-      expect(index).not.toContain("/blog/built-on-oh");
+      expect(index).toContain('href="/blog/built-on-oh"');
 
       expect(introducingResponse.status).toBe(200);
       expect(introducing).toContain('<link rel="canonical" href="https://oh.computer/blog/introducing-oh"');
@@ -258,20 +258,20 @@ describe("built Oh site", () => {
       expect(introducing).toContain("reviewed by Claude Opus 5.5 (claude-opus-5-5) editorial review.");
 
       expect(quarantinedResponse.status).toBe(200);
-      expect(quarantined).toContain('<meta name="robots" content="noindex, nofollow');
+      expect(quarantined).toContain('<meta name="robots" content="index, follow');
       expect(quarantined).toContain("reviewed by Claude Opus 5.5 (claude-opus-5-5) editorial review.");
 
       expect(feedResponse.status).toBe(200);
       expect(feedResponse.headers.get("content-type")).toContain("application/atom+xml");
       expect(feed).toContain("<id>https://oh.computer/blog/introducing-oh</id>");
-      expect(feed).not.toContain("built-on-oh");
+      expect(feed).toContain("<id>https://oh.computer/blog/built-on-oh</id>");
 
       expect(sitemapResponse.status).toBe(200);
       expect(sitemap).toContain("<loc>https://oh.computer/</loc>");
       expect(sitemap).toContain("<loc>https://oh.computer/spec</loc>");
       expect(sitemap).toContain("<loc>https://oh.computer/blog/introducing-oh</loc>");
       expect(sitemap).toContain("<lastmod>2026-09-24T00:00:00.000Z</lastmod>");
-      expect(sitemap).not.toContain("built-on-oh");
+      expect(sitemap).toContain("<loc>https://oh.computer/blog/built-on-oh</loc>");
 
       expect(imageResponse.status).toBe(200);
       expect(imageResponse.headers.get("content-type")).toContain("image/png");
