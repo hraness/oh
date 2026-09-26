@@ -4,7 +4,7 @@ const path = require("node:path");
 const { createHash } = require("node:crypto");
 
 const preset = path.resolve(__dirname, "../vendor/hraness-marketing/product-marketing-preset.css");
-const presetSha256 = "ab78b17a454385c190e36172ea660aa396cd08e7ef371e249b91342ec411044d";
+const presetSha256 = "279d8878f8e233e355202c9e0a19797a32ea7999486e711dae7836497879a1e6";
 const material = path.resolve(__dirname, "../vendor/hraness-lantern/lantern-material.css");
 const materialSha256 = "fc456d2c7b51b37b51d6b086be90f102ca856c07849a0d7487b2e74e8981f8ac";
 
