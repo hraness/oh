@@ -299,6 +299,49 @@ a:focus-visible {
   border-block-start: 1px solid var(--line);
 }
 
+/* The benchmarks index uses the specification's document layout. */
+.benchmark-meta {
+  margin: -0.75rem 0 1.5rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.benchmark-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  margin-block: 0.5rem 1.5rem;
+}
+
+.benchmark-table caption {
+  padding-block-end: 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: start;
+}
+
+.benchmark-table th,
+.benchmark-table td {
+  padding: 0.6rem 1rem 0.6rem 0;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+
+.benchmark-table thead th {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.benchmark-table tbody th {
+  font-weight: 500;
+}
+
+.benchmark-table td {
+  font-variant-numeric: tabular-nums;
+}
+
 /* The trace section: the heading group stays at the top of its column and
  * follows the reader while the trace and record scroll past. */
 #trace[data-layout="split"] {

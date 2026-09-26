@@ -6,6 +6,7 @@ Oh ships as a CLI, a TypeScript SDK, and an Agent Skill, and by default it keeps
 ## Pages
 - [Oh](https://oh.computer): The homepage follows an illustrative review from a research question to a brief through the linked records Oh keeps for each source, claim, and citation. It also reports Oh’s results on the LongMemEval-S, CloneMem, and LoCoMo memory benchmarks, including a comparison with Supermemory, explains how Wordcell uses Oh, gives the install commands, and answers common questions, such as what a passing verification proves.
 - [Oh ontology specification](https://oh.computer/spec): The versioned specification defines what an independent implementation needs to interoperate with Oh. It covers the canonical JSON encoding and SHA-256 digests of records and revisions; SQLite and libSQL storage with operation-level sync; and semantic search, Datalog rules whose answers carry proofs, and composite agent memory.
+- [Oh benchmark results](https://oh.computer/benchmarks): Every published Oh memory benchmark, including LongMemEval-S, LoCoMo, CloneMem, and a matched pilot against Supermemory, with each study’s headline scores, run date, main limit, and a link to its full record in the repository.
 - [Oh blog](https://oh.computer/blog): Release announcements, benchmark reports, and technique articles on how Oh works and how it is tested.
 
 ## Articles

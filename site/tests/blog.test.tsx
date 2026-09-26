@@ -111,6 +111,7 @@ describe("Oh blog", () => {
       expect(urls.includes(url ?? "") || url === `${origin}/blog/feed.xml`).toBe(true);
     }
     expect(urls).toContain(`${origin}/spec`);
+    expect(urls).toContain(`${origin}/benchmarks`);
     expect(urls.filter((url) => url.startsWith(`${origin}/spec/`))).toEqual([]);
     const entries = sitemap().filter(({ url }) => url.startsWith(`${origin}/blog`));
     for (const entry of entries) expect(entry.lastModified).toBeDefined();
