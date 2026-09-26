@@ -5,7 +5,7 @@ writes records or installs a model as a side effect of a query.
 
 ## Default selection
 
-In SDK version 0.12.0, an omitted search or recall mode selects `rerank` when a
+From SDK version 0.12.0, an omitted search or recall mode selects `rerank` when a
 reranker is configured, `hybrid` when only a semantic backend is configured,
 and `keyword` otherwise. Explicit `keyword`, `semantic`, `hybrid`, and `rerank`
 requests are also accepted. The response reports the resolved mode.

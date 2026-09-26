@@ -136,8 +136,8 @@ describe("Oh site source contract", () => {
     const packageJson = record(JSON.parse(packageSource) as unknown, "source package");
 
     expect(publishedRelease).toEqual({
-      version: "0.12.0",
-      verificationRun: "https://github.com/hraness/oh/actions/runs/35900362605",
+      version: "0.12.1",
+      verificationRun: "https://github.com/hraness/oh/actions/runs/36254650324",
     });
     expect(packageJson.version).toBe("0.12.1");
     expect(home).toContain('import publishedRelease from "../published-release.json"');

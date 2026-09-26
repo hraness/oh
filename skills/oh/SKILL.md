@@ -35,15 +35,15 @@ oh version
 
 For an existing installation, use its installed CLI and the specifications for
 its version. When the user wants a fresh installation, install
-`@hraness/oh@0.12.0`, which needs Bun 1.3.14 or newer:
+`@hraness/oh@0.12.1`, which needs Bun 1.3.14 or newer:
 
 ```sh
-bun add --global @hraness/oh@0.12.0
+bun add --global @hraness/oh@0.12.1
 ```
 
-[GitHub Actions run 35900362605](https://github.com/hraness/oh/actions/runs/35900362605)
+[GitHub Actions run 36254650324](https://github.com/hraness/oh/actions/runs/36254650324)
 built that package, installed it on Linux and macOS, and published the same
-tarball to npm and to the immutable GitHub Release `v0.12.0`, which also
+tarball to npm and to the immutable GitHub Release `v0.12.1`, which also
 carries `SHA256SUMS`. The versioned specifications are at
 <https://oh.computer/spec>.
 
@@ -346,7 +346,7 @@ success by its output, not by exit codes alone.
 mapping-list commands take no options; the others take only `--file PATH`, a
 regular JSON file (not a symbolic link) of at most 16 MiB. Check `oh version`
 first: each version named below added commands without changing earlier
-output, and 0.12.0 has them all. Before compiling claims against a pack,
+output, and 0.12.1 has them all. Before compiling claims against a pack,
 resolve its whole pinned dependency lock.
 
 Version 0.5.0 added `oh research catalog`, `validate-draft`,
