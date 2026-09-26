@@ -208,6 +208,7 @@ const navigation = [
   { href: "#benchmarks", label: "Benchmarks" },
   { href: "#questions", label: "Questions" },
   { href: "/blog", label: "Blog" },
+  { href: "/compare", label: "Compare" },
   { href: "/spec", label: "Specification" },
   { href: repository, label: "GitHub" },
 ] as const;

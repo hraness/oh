@@ -90,13 +90,14 @@ describe("Oh site source contract", () => {
   });
 
   test("renders the shared organization footer once for every page and no maker section", async () => {
-    const [packageJson, layout, home, specification, blogIndex, blogPost, globals, contentFooter] = await Promise.all([
+    const [packageJson, layout, home, specification, blogIndex, blogPost, compareShell, globals, contentFooter] = await Promise.all([
       read("package.json"),
       read("app/layout.tsx"),
       read("app/page.tsx"),
       read("app/spec/page.tsx"),
       read("app/blog/page.tsx"),
       read("app/blog/[slug]/page.tsx"),
+      read("app/compare/compare.tsx"),
       read("app/globals.css"),
       read("app/site-footer.tsx"),
     ]);
@@ -113,7 +114,7 @@ describe("Oh site source contract", () => {
       'import { MarketingSiteFooter } from "@hraness/design-kit/react/server"',
     );
     expect(contentFooter).toContain("export function OhContentFooter()");
-    for (const page of [home, specification, blogIndex, blogPost]) {
+    for (const page of [home, specification, blogIndex, blogPost, compareShell]) {
       expect(page).not.toContain("HranessSiteFooter");
       expect(page).not.toContain("MarketingMaker");
       expect(page).not.toContain("Ben Guo");
@@ -232,8 +233,16 @@ describe("Oh site source contract", () => {
     expect(nextConfig).toContain("/llms.txt");
 
     // Generated routes, not public files. tests/blog.test.tsx checks that every
-    // blog URL listed here is in the generated sitemap or is the feed.
-    const generatedRoutes = new Set(["https://oh.computer/", "https://oh.computer/spec", "https://oh.computer/sitemap.xml"]);
+    // blog URL listed here is in the generated sitemap or is the feed, and
+    // tests/compare.test.tsx checks the same for the comparison pages.
+    const generatedRoutes = new Set([
+      "https://oh.computer/",
+      "https://oh.computer/spec",
+      "https://oh.computer/compare",
+      "https://oh.computer/compare/mem0",
+      "https://oh.computer/compare/supermemory",
+      "https://oh.computer/sitemap.xml",
+    ]);
     const siteUrls = [...llms.matchAll(/\]\((https:\/\/oh\.computer[^)\s]*)\)/gu)]
       .map(([, url]) => url ?? "");
     expect(siteUrls.length).toBeGreaterThan(0);
@@ -340,6 +349,11 @@ describe("Oh site source contract", () => {
       "app/layout.tsx",
       "app/page.tsx",
       "app/spec/page.tsx",
+      "app/metadata-copy.ts",
+      "app/compare/compare.tsx",
+      "app/compare/page.tsx",
+      "app/compare/mem0/page.tsx",
+      "app/compare/supermemory/page.tsx",
       "app/blog/admissions.ts",
       "app/blog/articles.ts",
       "app/blog/content/built-on-oh.tsx",
@@ -385,7 +399,7 @@ describe("Oh site source contract", () => {
       postbuild: "bun test ./tests/runtime.test.ts",
       prebuild: "bun run build:theme && bun run test",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/editorial-layer.test.ts",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts",
       "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });
