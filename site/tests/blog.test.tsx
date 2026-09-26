@@ -140,6 +140,14 @@ describe("Oh blog", () => {
     const related = relatedFor("oh-computer");
     const html = await renderArticle("introducing-oh");
     if (related.length === 0) expect(html).not.toContain("plain-publication__related-products");
-    else for (const item of related) expect(html).toContain(item.relationship.replaceAll("'", "&#x27;"));
+    else for (const item of related) {
+      // Cards show the mark, name, and one-line role; the relation sentence is not rendered.
+      expect(html).toContain(`href="${item.href}"`);
+      expect(html).toContain(item.name);
+      expect(html).toContain(item.role);
+      expect(html).not.toContain(item.relationship.replaceAll("'", "&#x27;"));
+      expect(item.mark).toStartWith("data:image/svg+xml,");
+    }
+    if (related.length > 0) expect(html).toContain("hraness-marketing-related__card-mark");
   });
 });
