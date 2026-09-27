@@ -106,6 +106,7 @@ async function inspectAppearanceCases(browser, origin) {
     const failedRequests = [];
     let auditedRequestCount = 0;
     let failures;
+    let scenarioError;
     try {
       const page = await context.newPage();
       failures = collectPageFailures(page, failedRequests);
@@ -117,14 +118,16 @@ async function inspectAppearanceCases(browser, origin) {
             palette: document.documentElement.dataset.palette,
             scrollWidth: document.documentElement.scrollWidth, viewportWidth: innerWidth,
             heading: document.querySelector("h1")?.textContent,
-            organisms: document.querySelectorAll(".oh-organism").length };
+            recordKinds: [...document.querySelectorAll(".oh-rows dt code")].map(element => element.textContent),
+            proof: document.querySelector(".oh-proof pre")?.textContent ?? null };
         });
         assert.equal(paint.background, expected[colorScheme]);
         assert.equal(paint.palette, "gruvbox");
         assert.ok(paint.scrollWidth <= width, `No-JavaScript content stays inside ${width}px viewport`);
         assert.equal(paint.viewportWidth, width, "Overflow must not expand the mobile viewport");
         assert.ok(paint.heading);
-        assert.equal(paint.organisms, route === "/" ? 12 : 0);
+        assert.deepEqual(paint.recordKinds, route === "/" ? ["inquiry", "entity", "edition", "statement", "evidence", "view"] : []);
+        if (route === "/") assert.match(paint.proof, /oh put --kind evidence/u);
         const declaredScripts = await page.locator('script[src], link[as="script"][href]').evaluateAll((nodes) => nodes.map((node) => node.src || node.href));
         // In a context with scripting explicitly disabled, Chromium cancels the
         // declared Next webpack preload with the exact "csp" reason. Retain the
@@ -143,11 +146,19 @@ async function inspectAppearanceCases(browser, origin) {
         rows.push({ label: `no-js-${width}-${colorScheme}-${route === "/" ? "home" : "spec"}`, paint, failures: [...failures], failedRequests: currentRequests, disabledScriptCancellations });
         auditedRequestCount = failedRequests.length;
       }
+    } catch (error) {
+      scenarioError = error;
     } finally {
       await context.close();
-      assert.equal(failedRequests.length, auditedRequestCount, "No unclassified late no-JavaScript request failures");
-      if (failures) assert.deepEqual(failures, [], "No late no-JavaScript runtime/resource failures");
+      try {
+        assert.equal(failedRequests.length, auditedRequestCount, `No unclassified late no-JavaScript request failures: ${JSON.stringify(failedRequests.slice(auditedRequestCount))}`);
+        if (failures) assert.deepEqual(failures, [], "No late no-JavaScript runtime/resource failures");
+      } catch (lateError) {
+        if (scenarioError) throw new AggregateError([scenarioError, lateError], "No-JavaScript scenario and late request audit failed");
+        throw lateError;
+      }
     }
+    if (scenarioError) throw scenarioError;
   }
   for (const width of [320, 390, 1440]) {
     const context = await browser.newContext({ colorScheme: "light", viewport: { width, height: 900 } });
