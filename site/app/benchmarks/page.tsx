@@ -183,10 +183,10 @@ export default function Benchmarks() {
               <h1>Benchmark results</h1>
             </div>
             <p>
-              Oh measures its memory on public benchmarks and publishes each
-              study’s protocol, cost, and limits in the repository. This page
-              lists every completed comparison with its headline scores and
-              date. Scores are the share of questions an answering model
+              Oh’s memory is tested on LongMemEval-S, LoCoMo, and CloneMem, and
+              the repository publishes each study’s protocol, cost, and
+              limits. This page lists every completed
+              comparison with its headline scores and date. Scores are the share of questions an answering model
               answered correctly from the memory each system prepared. AI
               agents ran these studies, and no person or outside group has
               audited them.
@@ -288,9 +288,9 @@ export default function Benchmarks() {
               <p>
                 GPT-4o mini picked an answer from each question’s options three
                 times, reading the top 10 results within 96 KiB; a pick counted
-                when it matched the correct option. The candidate is the real
-                {" "}<code>Oh.search</code> route with the local reranker, and the
-                control is the same store’s semantic search. The gain
+                when it matched the correct option. The tested system is the
+                {" "}<code>Oh.search</code> route the package ships, with the local
+                reranker, and the control is the same store’s semantic search. The gain
                 is {points(sdk.pairedQuestions.delta * 100)} points with a 95%
                 bootstrap interval of {points(sdkInterval.lower95 * 100)} to
                 {" "}{points(sdkInterval.upper95 * 100)}. Both personas improved,
@@ -341,7 +341,7 @@ export default function Benchmarks() {
           <section id="locomo-window" className="spec-section">
             <div className="spec-number">05</div>
             <div>
-              <h2>LoCoMo: packing context with matched turns</h2>
+              <h2>LoCoMo: packing context with matched turns lowered accuracy</h2>
               <p className="benchmark-meta">LoCoMo · 300 questions, three reader attempts each · 2026-09-22 · Failed its rule</p>
               <table className="benchmark-table">
                 <caption>Share of answers judged correct.</caption>
@@ -364,7 +364,7 @@ export default function Benchmarks() {
                 {" "}{points(locomoWindow.paired.upper * 100)}. GPT-4o mini
                 answered three times per method from the same top 20 vector
                 matches within 12,000 bytes. The variant stayed an experimental
-                adapter, not a change to Oh’s default search.
+                adapter and did not change Oh’s default search.
               </p>
               <ul className="benchmark-links" aria-label="LoCoMo window packing result">
                 <li><a href={`${evidence}/LOCOMO_WINDOW_QA_V1.md`}>Full result and limits</a></li>
@@ -496,7 +496,7 @@ export default function Benchmarks() {
           <section id="history" className="spec-section">
             <div className="spec-number">09</div>
             <div>
-              <h2>Every study, passed and failed</h2>
+              <h2>The repository lists every study, including the failed ones</h2>
               <p>
                 The repository’s benchmark README lists every study, including
                 the ones that failed their pre-set rules and the ones a later

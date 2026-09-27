@@ -53,7 +53,7 @@ export default function CompareIndex() {
           id="compare-json-ld"
         />
       }
-      lead="Oh is open-source memory for agents: linked records in one local SQLite file, each fact keeping the sources behind it and every change in a history you can replay. These pages compare it with other memory systems, naming a dated source for each outside claim and a checked-in document for each Oh claim."
+      lead="Oh is open-source memory for an agent’s own work: each fact is a record linked to its sources, kept in a local SQLite file with a history you can replay. Mem0 and Supermemory give a product memory for each of its end users instead. Each page says who should pick which, reports the matched run Oh’s repository has against that product, and dates and sources every claim about it."
       nav={comparePages.map((page) => ({ href: page.href, label: page.label }))}
       navLabel="Compare"
       title="Compare Oh"
@@ -66,16 +66,16 @@ export default function CompareIndex() {
               into facts scoped by <code>user_id</code>, so a product can remember each of its end
               users, either on the hosted Platform or through the self-hosted Apache-2.0 SDK. Oh
               keeps an agent’s own working memory instead, with source links on every fact. The page
-              includes the repository’s one matched run so far, a 30-question observation inside a
-              third-party harness that is not a superiority claim.
+              reports the one matched run so far: 30 questions in a third-party harness, too few to
+              support a claim that either system is better.
             </p>
           ) : (
             <p>
               Supermemory is a hosted memory API: connectors sync Google Drive, Gmail, Notion, and
               more into containers partitioned per user, and usage is metered in credits on paid
-              tiers. The page reports the repository’s matched 60-question LongMemEval-S pilot,
-              where Supermemory scored higher on the headline measure without a statistically clean
-              separation, plus what each system does that the other does not.
+              tiers. The page reports the matched 60-question LongMemEval-S pilot, where Supermemory
+              scored higher by a margin the pilot could not separate from a tie, and what each
+              system does that the other does not.
             </p>
           )}
           <ul className="benchmark-links">

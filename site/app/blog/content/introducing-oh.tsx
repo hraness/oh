@@ -1,13 +1,13 @@
 // Converted from the reviewed draft. Keep the prose; edit facts only with a new review.
-// Sponge and Wordcell stay unlinked until the portfolio registers their relations to Oh.
+// Sponge and Wordcell are named without links here; the built-on-oh hub links them along their registered relations.
 import publishedRelease from "../../../published-release.json";
 
 export const toc = [
-  { href: "#a-memory-you-can-question-later", label: "A memory you can question later" },
+  { href: "#trace-a-claim-back-to-its-source", label: "Trace a claim back to its source" },
   { href: "#who-oh-is-for", label: "Who Oh is for" },
   { href: "#what-oh-does-today", label: "What Oh does today" },
-  { href: "#shared-parts-for-other-hraness-products", label: "Shared parts for other Hraness products" },
-  { href: "#limits-of-the-current-release", label: "Limits of the current release" },
+  { href: "#other-hraness-products-build-on-oh", label: "Other Hraness products build on Oh" },
+  { href: "#what-the-current-release-does-not-do", label: "What the current release does not do" },
 ] as const;
 
 export function IntroducingOhBody() {
@@ -15,9 +15,9 @@ export function IntroducingOhBody() {
   return (
     <>
       <p>Oh is an open-source memory store for agents. It keeps each fact as a record with its sources attached and writes every accepted change to a log you can replay. The notes an agent writes while it works stay apart from reviewed knowledge, which only your application’s own code can add to, so when an agent tells you something wrong, you can see what it stored, where that came from, and whether your application accepted it.</p>
-      <h2 id="a-memory-you-can-question-later">A memory you can question later</h2>
-      <p>Picture a research assistant that reads a trial report on Monday and tells a colleague on Thursday that the study’s primary endpoint was measured at 12 weeks. If the memory is a pile of text chunks in a vector index, the best you can do is search for similar text and hope the right chunk comes back. You can’t see which report the claim came from, which table supported it, or whether the agent wrote it before or after someone corrected the source.</p>
-      <p>Oh stores that same work as linked records. The question, the source, the captured edition of the source, the claim, the evidence that bears on it, and the brief that came out of it are separate records, each with a stable key and a digest of its content. The README walks through this chain:</p>
+      <h2 id="trace-a-claim-back-to-its-source">Trace a claim back to its source</h2>
+      <p>Picture a research assistant that reads a trial report on Monday and tells a colleague on Thursday that the study’s primary endpoint was measured at 12 weeks. If the memory is a pile of text chunks in a vector index, you can only search for similar text and hope the right chunk comes back. You can’t see which report the claim came from, which table supported it, or whether the agent wrote it before or after someone corrected the source.</p>
+      <p>Oh stores the same work as linked records. The question, the source, the captured edition of the source, the claim, the evidence that bears on it, and the brief that came out of it are separate records, each with a stable key and a digest of its content. The README walks through this chain:</p>
       <pre data-language="text"><code>{"inquiry:primary-endpoint\n  → entity:trial-report\n  → edition:trial-report-v1\n  → statement:endpoint-12-weeks\n  → assertion:endpoint-12-weeks\n  → evidence:table-2\n  → view:review-brief"}</code></pre>
       <p>Months later you can follow that path back from the brief to the table it rests on. A claim and the act of accepting it are separate records, so “the report says 12 weeks” and “our reviewer accepted that” can be checked one at a time.</p>
       <h2 id="who-oh-is-for">Who Oh is for</h2>
@@ -42,15 +42,14 @@ export function IntroducingOhBody() {
       <p>Oh’s records use one encoding, canonical JSON: object keys are sorted in a fixed order and each number prints one way. A record’s digest is the SHA-256 of its canonical bytes. If two programs encode the same record differently by a single byte, the digests differ and the history no longer verifies.</p>
       <p>Oh has a TypeScript reference encoder and a Rust encoder compiled to WebAssembly. The Rust crate is written to produce output byte for byte identical to the TypeScript reference for every plain JSON value the reference accepts. The property the tests check is short:</p>
       <pre data-language="ts"><code>{"// Checked on each generated JSON text:\nrust.canonicalJson(text) === canonicalJson(JSON.parse(text));\nrust.canonicalSha256(text) === canonicalSha256(JSON.parse(text));\n\n// Keys sort; both engines agree on the bytes.\ncanonicalJson({ b: 1, a: 2 }); // '{\"a\":2,\"b\":1}'\n\n// Negative zero is refused by both.\nrust.canonicalJson(\"-0\"); // throws"}</code></pre>
-      <p>The parity suite checks this on generated inputs: 1,000 generated documents for the encoding, 1,000 for the digest, and 20,000 generated finite floating-point numbers to check that Rust formats numbers exactly as JavaScript does. The generated documents share one fixed shape (short integer arrays, small string-keyed maps, and a nested flag), and a list of hand-written edge cases covers empty values, escapes, surrogate pairs, and key order. Both encoders agree on every input these tests have tried. The TypeScript version stays the reference. The Rust engine is optional, and the base package has no required runtime dependencies. The companion post on <a href="/blog/oh-rust-typescript-parity">keeping the TypeScript and Rust encoders identical</a> goes through the method.</p>
-      <h2 id="shared-parts-for-other-hraness-products">Shared parts for other Hraness products</h2>
-      <p>Oh keeps records and operations in one SQLite file you control. Every accepted change can be inspected through digests and replay, and search and derived answers are treated as views that never become the record.</p>
-      <p>A Hraness plan for shared Rust code extends that. It builds Rust versions of shared code, including the canonical encoding, a reader for untrusted ZIP archives, and the rule engine for graph queries, so other Hraness products can reuse them, with WebAssembly as the default and native bindings as an opt-in. The TypeScript implementations stay the reference, and each Rust replacement has to match them byte for byte in property tests. Two Hraness products build on Oh, each pinning its own release:</p>
+      <p>The parity suite checks this on generated inputs: 1,000 generated documents for the encoding, 1,000 for the digest, and 20,000 generated finite floating-point numbers to check that Rust formats numbers exactly as JavaScript does. The generated documents share one fixed shape (short integer arrays, small string-keyed maps, and a nested flag), and a list of hand-written edge cases covers empty values, escapes, surrogate pairs, and key order. Both encoders agree on every input these tests have tried. The TypeScript version stays the reference, the Rust engine is optional, and the base package has no required runtime dependencies. The companion post on <a href="/blog/oh-rust-typescript-parity">keeping the TypeScript and Rust encoders identical</a> goes through the method.</p>
+      <h2 id="other-hraness-products-build-on-oh">Other Hraness products build on Oh</h2>
+      <p>A Hraness plan for shared Rust code builds Rust versions of code that other Hraness products can reuse, including the canonical encoding, a reader for untrusted ZIP archives, and the rule engine for graph queries, with WebAssembly as the default and native bindings as an opt-in. The TypeScript implementations stay the reference, and each Rust replacement has to match them byte for byte in property tests. Two Hraness products build on Oh, each pinning its own release:</p>
       <ul>
         <li>Sponge keeps its hosted agent’s working notes in a separate server-side Oh store that expires 24 hours after each session opens; the hosted agent finishes only work Sponge accepted before 2026-09-12.</li>
         <li>Wordcell rebuilds a disposable Oh graph from your Markdown to answer named graph queries with source proofs. Markdown and Git stay the record, and search does not use Oh’s memory retrieval.</li>
       </ul>
-      <h2 id="limits-of-the-current-release">Limits of the current release</h2>
+      <h2 id="what-the-current-release-does-not-do">What the current release does not do</h2>
       <p>Oh does not claim to retrieve better than other memory frameworks. Its README states that superiority over Letta, Supermemory, and other frameworks has not been established.</p>
       <p>Sync accepts only histories that extend each other. When two copies diverge, sync stops and reports the divergence without merging. Graph answers derived by rules come with proofs, and the store never adopts them as records on its own. The CLI and local SQLite store need Bun 1.3.14 or newer; the libSQL store also runs on Node 24 serverless runtimes. The optional research vocabularies map selected Wikidata properties, not all of Wikidata.</p>
       <p>Oh is MIT-licensed and free, with no account required. Latest release: v{releaseVersion}.</p>

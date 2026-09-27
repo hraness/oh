@@ -134,12 +134,12 @@ export default function CompareMem0() {
           id="compare-mem0-json-ld"
         />
       }
-      lead="Mem0 gives an application a memory for each of its users: messages go in, distilled facts come back. Oh keeps an agent’s own working memory in a local SQLite file, where each fact stays linked to the records it came from. The two overlap on the word “memory” more than on the job."
+      lead="Mem0 gives an application a memory for each of its users: messages go in, distilled facts come back. Oh keeps an agent’s own working memory in a local SQLite file, where each fact stays linked to the records it came from. If your product needs to remember each end user, Mem0 is built for that and Oh has no per-end-user scoping API."
       nav={nav}
       navLabel="Oh vs Mem0"
       title="Oh vs Mem0"
     >
-      <CompareSection id="different-jobs" number="01" title="Different products, different jobs">
+      <CompareSection id="different-jobs" number="01" title="Mem0 remembers users; Oh records an agent’s work">
         <p>
           Mem0 is a memory layer for AI applications. Its core calls are <code>add</code>, which
           extracts facts from the messages you send, and <code>search</code>, which returns the
@@ -149,7 +149,7 @@ export default function CompareMem0() {
           under Apache-2.0 that you run on your own stack.
         </p>
         <p>
-          Oh is memory for the agent’s own work rather than for its users. You or your agent write
+          Oh is memory for the agent’s own work. You or your agent write
           records with <code>oh put</code> and read them with <code>oh get</code>; a record’s
           dependencies link it to the records it rests on, so a brief can be traced back to the
           passage or table behind each claim. One local SQLite file holds the records, the
@@ -181,7 +181,7 @@ export default function CompareMem0() {
         </p>
       </CompareSection>
 
-      <CompareSection id="matched-run" number="03" title="The one matched run so far">
+      <CompareSection id="matched-run" number="03" title="One matched run on 30 questions">
         <p>
           In September 2026 this repository ran both systems through{" "}
           <a href="https://github.com/ProsusAI/MemEval">ProsusAI’s MemEval</a>, a third-party
@@ -236,15 +236,16 @@ export default function CompareMem0() {
           With the same reader on the same 30 questions, Oh answered {matchedMini.correct}
           {" "}to Mem0’s {mem0Correct}. Mem0’s run spent about 9.0 million tokens across{" "}
           {mem0Arm.tokens.calls.toLocaleString("en-US")} calls, most of them extraction, against
-          about 0.55 million for Oh on the same questions. The result document is direct about the
-          bound: thirty questions cannot support a precise margin, so this is a matched observation,
-          not a superiority claim. Mem0’s ingestion took about twelve minutes per question, which is
-          what kept the run at 30.
+          about 0.55 million for Oh on the same questions. Mem0’s ingestion took about twelve minutes
+          per question, which is what kept the run at 30. Thirty questions cannot support a precise
+          margin, so the result document calls this a matched observation, not a superiority claim.
+          The questions had been used in earlier Oh studies, and AI agents ran the study; no person
+          or outside group has audited it.
         </p>
         <p>
           Mem0 publishes higher figures from its own protocol, 94.4 on LongMemEval and 92.5 on
-          LoCoMo at mem0.ai/research, with a different reader, judge, and ingestion path. Those
-          scores do not compare directly with a matched run.
+          LoCoMo at mem0.ai/research, with a different reader, judge, and ingestion path, so they
+          do not compare directly with this run or with Oh’s other benchmark figures.
         </p>
         <ul className="benchmark-links" aria-label="Matched run evidence">
           <li><a href={`${benchmarkEvidence}/EVOLUTION_RELEASE_RESULTS.md`}>Full result and limits</a></li>
@@ -252,7 +253,7 @@ export default function CompareMem0() {
         </ul>
       </CompareSection>
 
-      <CompareSection id="oh-records" number="04" title="What Oh keeps that a distilled memory drops">
+      <CompareSection id="oh-records" number="04" title="Oh stores what you write; Mem0 stores what a model extracts">
         <p>
           Mem0’s <code>add</code> asks a model to distill messages into facts; what it stores is the
           extraction. Oh stores the record you write, unchanged. The claim, the stance taken on it,
@@ -261,8 +262,8 @@ export default function CompareMem0() {
           and the log replays under <code>oh verify</code>.
         </p>
         <p>
-          That shape suits an agent’s working memory, where “what is this answer resting on” must
-          have an answer, more than it suits per-user personalization inside a product. Oh has no{" "}
+          That shape suits an agent’s working memory, where you need to know what an answer rests
+          on, more than it suits per-user personalization inside a product. Oh has no{" "}
           <code>user_id</code> model; its nearest analogue is the named space inside a database, and
           multi-tenant rules are the application’s job. Semantic search is optional and runs on a
           local model by default, keyword search needs no model at all, and sync to a libSQL
@@ -270,7 +271,7 @@ export default function CompareMem0() {
         </p>
       </CompareSection>
 
-      <CompareSection id="choosing" number="05" title="Choosing between them">
+      <CompareSection id="choosing" number="05" title="Who should pick which">
         <ul className="sequence">
           <li><span>Choose Mem0 Platform</span> when a product needs per-end-user memory and you want the vector store, models, webhooks, and retention tooling managed for you.</li>
           <li><span>Choose Mem0 open source</span> for the same memory model on your own infrastructure, with the providers you pick.</li>
@@ -278,12 +279,10 @@ export default function CompareMem0() {
         </ul>
       </CompareSection>
 
-      <CompareSection id="limits" number="06" title="Limits of this comparison">
+      <CompareSection id="limits" number="06" title="What Oh lacks, and which claims can change">
         <ul className="sequence">
           <li><span>Dated claims</span> Mem0’s feature split, provider counts, and published scores come from its own documentation and research page, checked {checkedOn}, and can change.</li>
-          <li><span>One 30-question study</span> The matched run covers previously exposed questions under a harness that lowers every score, run by agents and not audited by any person or outside group.</li>
-          <li><span>Different protocols</span> Mem0’s published figures and Oh’s benchmark figures use different readers, judges, and ingestion paths; this page reports them as published claims, not matched results.</li>
-          <li><span>Oh’s gaps</span> Oh has no dashboard, no hosted service, and no per-end-user scoping API; it also runs no extraction step, so the records an agent writes are exactly what it stores.</li>
+          <li><span>Oh’s gaps</span> Oh has no dashboard, no hosted service, no per-end-user scoping API, and no extraction step that distills messages into facts.</li>
         </ul>
       </CompareSection>
 
