@@ -36,7 +36,7 @@ if (!relatedFor(wordcell.id, { kinds: ["runtime"] }).some((item) => item.name ==
   throw new Error("The portfolio registry has no runtime relation between Oh and Wordcell.");
 }
 
-const eyebrow = product("oh-computer").messaging.category;
+const eyebrow = "Agent memory framework";
 const heading = "Agent memory that shows its work.";
 const lead =
   "Oh is an open-source memory framework for developers building agents. Your agent saves what it learns as linked records in a SQLite file, so later you can trace an answer back to the passage or table behind it.";
