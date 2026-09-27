@@ -41,7 +41,12 @@ export const ohSearchSite: SearchSite = {
 };
 
 export const articleAuthor: ArticleAuthor = { kind: "organization", name: "Hraness", href: "https://hraness.com" };
-export const articleParty: ArticleParty = { kind: "Organization", name: "Hraness" };
+export const articleParty: ArticleParty = {
+  kind: "Organization",
+  name: "Hraness",
+  sameAs: ["https://github.com/hraness"],
+  url: "https://hraness.com",
+};
 
 type TocItem = Readonly<{ href: `#${string}`; label: string }>;
 
