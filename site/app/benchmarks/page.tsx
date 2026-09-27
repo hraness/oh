@@ -341,7 +341,7 @@ export default function Benchmarks() {
           <section id="locomo-window" className="spec-section">
             <div className="spec-number">05</div>
             <div>
-              <h2>LoCoMo: packing context with matched turns lowered accuracy</h2>
+              <h2>LoCoMo: packing context with matched turns did not improve accuracy</h2>
               <p className="benchmark-meta">LoCoMo · 300 questions, three reader attempts each · 2026-09-22 · Failed its rule</p>
               <table className="benchmark-table">
                 <caption>Share of answers judged correct.</caption>
