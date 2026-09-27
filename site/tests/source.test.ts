@@ -38,8 +38,8 @@ function sha256(value: string): string {
 
 function prohibitedPublicIdentifiers(source: string): string[] {
   // This exact artwork path is already public and used by the content footer.
-  // Admit only the quoted asset reference, not its provider-name token elsewhere.
-  const withoutPublicArtwork = source.replaceAll('"/marks/oh-computer.svg"', '""');
+  // Admit the artwork reference and exact registered product lookup only.
+  const withoutPublicArtwork = source.replaceAll('"/marks/oh-computer.svg"', '""').replaceAll('product("oh-computer")', 'product("")');
   const tokens = new Set(
     withoutPublicArtwork.toLocaleLowerCase("en-US").match(/[a-z][a-z0-9-]*/gu) ?? [],
   );
@@ -49,6 +49,7 @@ function prohibitedPublicIdentifiers(source: string): string[] {
 describe("Oh site source contract", () => {
   test("admits only the exact public artwork reference in the identifier boundary", async () => {
     expect(prohibitedPublicIdentifiers('brandMark="/marks/oh-computer.svg"')).toEqual([]);
+    expect(prohibitedPublicIdentifiers('product("oh-computer")')).toEqual([]);
     for (const source of [
       "oh-computer",
       'project="oh-computer"',
@@ -104,11 +105,11 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/site-footer": "github:hraness/site-footer#v0.19.3"',
+      '"@hraness/site-footer": "github:hraness/site-footer#v0.20.0"',
     );
     expect(layout).toContain('import { HranessSiteFooter } from "@hraness/site-footer/react"');
     expect(layout).toContain(
-      '<HranessSiteFooter placement="flow" mailingList={{ kind: "none" }} support={ohSupportProfile} />',
+      '<HranessSiteFooter mailingList={{ kind: "none" }} support={ohSupportProfile} />',
     );
     expect(globals).toContain('@import "@hraness/site-footer/styles.css";');
     expect(contentFooter).toContain(
@@ -128,7 +129,7 @@ describe("Oh site source contract", () => {
     expect(globals).not.toContain(".site-footer");
   });
 
-  test("derives available installs from verified publication and preserves the historical capture", async () => {
+  test("derives available installs from verified publication and uses the current CLI proof", async () => {
     const [home, publication, packageSource] = await Promise.all([
       read("app/page.tsx"),
       read("published-release.json"),
@@ -138,16 +139,15 @@ describe("Oh site source contract", () => {
     const packageJson = record(JSON.parse(packageSource) as unknown, "source package");
 
     expect(publishedRelease).toEqual({
-      version: "0.12.1",
-      verificationRun: "https://github.com/hraness/oh/actions/runs/36254650324",
+      version: "0.13.1",
+      verificationRun: "https://github.com/hraness/oh/actions/runs/36273380689",
     });
     expect(packageJson.version).toBe("0.13.1");
     expect(home).toContain('import publishedRelease from "../published-release.json"');
     expect(home).toContain("const releaseVersion = publishedRelease.version;");
     expect(home).not.toContain("package.json");
-    expect(home).toContain('const capturedVersion = "0.4.0";');
-    expect(home).toContain('const capturedOn = "September 5, 2026";');
-    expect(home).toContain("source CLI ${capturedVersion} · captured ${capturedOn}");
+    expect(home).toContain("const proofTranscript =");
+    expect(home).not.toContain("const capturedVersion");
     expect(home).toContain('href={publishedRelease.verificationRun}');
     expect(home).not.toContain("@hraness/oh ${releaseVersion} · captured");
   });
@@ -187,7 +187,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.21.0"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.23.0"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([
@@ -315,7 +315,7 @@ describe("Oh site source contract", () => {
       'href="https://github.com/hraness/oh#install-and-first-run"',
     );
     expect(home).toContain("Install and start");
-    expect(home).toContain('{ href: "/spec", label: "Read the v1 specification" }');
+    expect(home).toContain('{ href: "/spec", label: "Specification" }');
   });
 
   test("links the install action to an existing README heading", async () => {

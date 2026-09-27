@@ -38,6 +38,9 @@ html {
 }
 
 body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   margin: 0;
   font-family: var(--font-text);
   overflow-x: clip;
@@ -71,72 +74,6 @@ a:focus-visible {
 
 .brand-mark {
   color: var(--hraness-site-accent);
-}
-
-.oh-marketing-hero .hraness-marketing-hero__heading {
-  max-inline-size: 22ch;
-}
-
-/* Preserve the hero's content gutter while Lantern owns the backdrop. */
-.hraness-material-wall > .oh-marketing-hero {
-  padding-inline: var(--hraness-marketing-gutter);
-}
-
-/* A culture of record organisms, revealed by the shared hero light. */
-.hraness-material-wall {
-  position: relative;
-  isolation: isolate;
-  --hraness-pattern-image: repeating-conic-gradient(from 45deg, color-mix(in srgb, var(--primary) 2%, transparent) 0% 25%, transparent 0% 50%);
-}
-.hraness-material-wall > :not(.oh-field) { position: relative; z-index: 1; }
-.oh-field { position: absolute; inset: 0; z-index: 0; overflow: clip; pointer-events: none; mask-image: linear-gradient(to bottom, transparent, #000 10%, #000 65%, transparent); }
-.oh-organism {
-  --oo-focus: var(--hraness-hero-proximity, 0);
-  position: absolute; padding: 1rem 1.3rem; border: 1px solid transparent;
-  background: color-mix(in oklch, var(--oo-ink) 8%, var(--surface));
-  border-radius: 42% 58% 63% 37% / 45% 40% 60% 55%;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 12%, transparent), 0 6px 20px color-mix(in srgb, var(--foreground) 8%, transparent);
-  filter: blur(calc((1 - var(--oo-focus)) * 3px));
-  opacity: calc(.22 + var(--oo-focus) * .48);
-  transform: translate(var(--hraness-hero-drift-x, 0px), var(--hraness-hero-drift-y, 0px));
-}
-.oh-tag { display: grid; justify-items: center; gap: .3rem; font-family: var(--font-mono); line-height: 1.4; text-align: center; white-space: nowrap; }
-.oh-tag b { font-size: .8125rem; font-weight: 600; color: var(--oo-ink); }
-.oh-tag i { font-size: .6875rem; font-style: normal; color: var(--muted); }
-.oo-a { --oo-ink: var(--primary); }
-.oo-b { --oo-ink: var(--warning); }
-.oo-c { --oo-ink: var(--success); }
-.oh-organism[data-organism="0"] { left: 4%; top: 10%; }
-.oh-organism[data-organism="1"] { left: 75%; top: 8%; }
-.oh-organism[data-organism="2"] { left: 84%; top: 30%; }
-.oh-organism[data-organism="3"] { left: 67%; top: 56%; }
-.oh-organism[data-organism="4"] { left: 7%; top: 52%; }
-.oh-organism[data-organism="5"] { left: 43%; top: 7%; }
-.oh-organism[data-organism="6"] { left: 55%; top: 72%; }
-.oh-organism[data-organism="7"] { left: 18%; top: 77%; }
-.oh-organism[data-organism="8"] { left: 86%; top: 75%; }
-.oh-organism[data-organism="9"] { left: 29%; top: 27%; }
-.oh-organism[data-organism="10"] { left: 58%; top: 28%; }
-.oh-organism[data-organism="11"] { left: 39%; top: 56%; }
-@media (width < 46rem) { .oh-organism:nth-child(n + 7) { display: none; } .oh-field { opacity: .6; } }
-@media (prefers-reduced-motion: reduce) { .oh-organism { transform: none; filter: blur(2px); opacity: .22; } }
-@media (forced-colors: active), (prefers-reduced-transparency: reduce) { .oh-field { display: none; } }
-
-/* The hero board — the citation pane in front, its canonical record tilted
- * behind, and the record's own digest stamped at the edge. */
-.oh-board { position: relative; }
-.oh-record-card { position: absolute; z-index: 0; inset-block-start: -2.4rem; inset-inline-end: -1.2rem; width: min(23rem, 42%); transform: rotate(2.4deg); background: var(--surface); border: 1px solid transparent; border-radius: 1rem; box-shadow: var(--hraness-material-lift); padding: .75rem .9rem; }
-.oh-record-label { margin: 0 0 .4rem; font: .6rem var(--font-mono); color: var(--muted); letter-spacing: .02em; }
-.oh-record-card pre { margin: 0; font: .58rem/1.6 var(--font-mono); color: var(--muted); max-block-size: 10.5rem; overflow: hidden; -webkit-mask-image: linear-gradient(#000 68%, transparent); mask-image: linear-gradient(#000 68%, transparent); }
-.oh-board > .hraness-marketing-proof-frame { position: relative; z-index: 1; }
-.oh-chip { position: absolute; z-index: 2; inset-inline-start: 1.4rem; inset-block-end: -.85rem; margin: 0; transform: rotate(1.4deg); font: .64rem var(--font-mono); letter-spacing: .02em; background: var(--foreground); color: var(--background); padding: .32rem .55rem; border-radius: .3rem; box-shadow: 0 8px 20px rgba(28, 25, 23, .16); }
-@media (width < 46rem) {
-  .oh-record-card { display: none; }
-  .oh-chip { position: static; display: inline-block; margin-block-start: .9rem; transform: none; }
-}
-
-.hraness-marketing-stats {
-  --hraness-marketing-fact-columns: 4;
 }
 
 .transcript {
@@ -431,7 +368,7 @@ a:focus-visible {
   border: 1px solid transparent;
   border-radius: 0.75rem;
   background: var(--surface);
-  box-shadow: var(--elevation-low);
+  box-shadow: none;
   color: inherit;
   gap: 0.25rem;
   font-family: var(--font-text);
@@ -489,7 +426,7 @@ a:focus-visible {
   flex-direction: column;
   gap: 0.75rem;
   padding: clamp(2.5rem, 6vw, 4rem) 1.5rem 2rem 0;
-  box-shadow: 1px 0 14px color-mix(in srgb, var(--foreground) 4%, transparent);
+  box-shadow: none;
 }
 
 .spec-nav p {
@@ -611,7 +548,7 @@ a:focus-visible {
   border: 1px solid transparent;
   border-radius: 1rem;
   background: var(--surface);
-  box-shadow: var(--elevation-low);
+  box-shadow: none;
 }
 
 .fact-grid span {
@@ -640,7 +577,7 @@ a:focus-visible {
   border: 1px solid transparent;
   border-radius: 0.75rem;
   background: var(--surface);
-  box-shadow: var(--elevation-inset);
+  box-shadow: none;
   font-family: var(--font-mono);
   font-size: 0.875rem;
 }
@@ -663,7 +600,7 @@ a:focus-visible {
   border: 1px solid transparent;
   border-radius: 0.875rem;
   background: var(--surface);
-  box-shadow: var(--elevation-inset);
+  box-shadow: none;
   color: var(--foreground);
 }
 
@@ -766,8 +703,6 @@ a:focus-visible {
   }
 }
 
-/* Decorative topic icons (agent-generated line art, public/icons/). */
-.oh-topic-icon { display: block; width: 88px; height: 88px; margin: 0 0 18px; }
 
 @media (forced-colors: active), (prefers-contrast: more) {
   .oh-record-card, .fact-grid div, .kind-grid li, .spec-section p.callout,
@@ -874,4 +809,28 @@ a:focus-visible {
   .compare-table td {
     border-block-end-color: currentColor;
   }
+}
+
+body > :not(.network-footer) { min-inline-size: 0; }
+.network-footer { margin-block-start: auto; --hraness-site-footer-measure: 72rem; }
+.oh-hero { grid-template-columns: minmax(0, 1fr); }
+.oh-hero .hraness-marketing-hero__heading { max-inline-size: 22ch; }
+.oh-hero .hraness-marketing-hero__frame { inline-size: 100%; max-inline-size: 54rem; }
+.oh-proof { margin: 0; }
+.oh-proof figcaption { margin-block-start: 1rem; max-inline-size: 60ch; color: var(--muted); font-size: .875rem; }
+.oh-terminal { margin: 0; padding: clamp(1rem, 3vw, 1.75rem); background: var(--surface); color: var(--foreground); border: 1px solid var(--line); border-radius: .375rem; overflow-x: auto; font-size: .8125rem; line-height: 1.7; white-space: pre; }
+.oh-terminal code { font: inherit; }
+.oh-terminal__command { color: var(--primary); }
+.oh-rows { margin: 0; }
+.oh-rows > div { display: grid; grid-template-columns: minmax(8rem, .5fr) minmax(0, 1fr); gap: 1rem 2rem; padding-block: 1.25rem; border-block-start: 1px solid var(--line); }
+.oh-rows dt { font-weight: 550; }
+.oh-rows dd { margin: 0; color: var(--muted); }
+@media (width < 30rem) { .oh-rows > div { grid-template-columns: minmax(0, 1fr); gap: .4rem; } }
+
+@media (forced-colors: active) {
+  .oh-hero, .oh-terminal, .hraness-marketing-header { background: Canvas; color: CanvasText; box-shadow: none; }
+}
+
+.hraness-marketing-header__brand, .hraness-marketing-header__nav a {
+  display: inline-flex; align-items: center; min-block-size: 2.75rem;
 }

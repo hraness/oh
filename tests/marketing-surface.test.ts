@@ -3,9 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { canonicalJson } from "../src/canonical.ts";
 import { parseKnowledgeGraphRecordV1 } from "../src/graph.ts";
-import { Oh } from "../src/sdk.ts";
 
 const root = join(import.meta.dir, "..");
 const read = async (path: string): Promise<string> =>
@@ -16,14 +14,12 @@ describe("evidence-led product narrative", () => {
     const page = await read("site/app/page.tsx");
     const landmarks = [
       "<ProductHero",
-      "<MarketingStatStrip",
       'id="model"',
       'id="trace"',
       'id="interfaces"',
-      'id="kernel"',
       'id="install"',
+      'id="kernel"',
       'id="questions"',
-      "<MarketingCallToAction",
     ];
     const positions = landmarks.map((landmark) => page.indexOf(landmark));
 
@@ -33,7 +29,7 @@ describe("evidence-led product narrative", () => {
     expect(page).not.toContain('id="maker"');
     expect(page).not.toContain("MarketingMaker");
     expect(page).toContain('const heading = "Agent memory that shows its work."');
-    expect(page).toContain("init and verify stay local and print canonical JSON");
+    expect(page).toContain("Add <code>--json</code> for canonical JSON.");
     expect(page).toContain('"@type": "FAQPage"');
   });
 
@@ -77,14 +73,47 @@ describe("evidence-led product narrative", () => {
     );
   });
 
-  test("shows the exact fresh-database verification output", async () => {
+  test("replays the hero CLI proof against a fresh local database", async () => {
     const directory = await mkdtemp(join(tmpdir(), "oh-marketing-"));
     const page = await read("site/app/page.tsx");
-    const oh = Oh.open({ databasePath: join(directory, "research.db") });
+    const raw = /const proofTranscript = `([\s\S]*?)`;/u.exec(page)?.[1];
+    expect(raw).toBeDefined();
+    const transcript = raw!.replaceAll("\\\\", "\\");
+    const run = async (args: string[]) => {
+      const child = Bun.spawn([process.execPath, join(root, "src/cli.ts"), ...args], {
+        cwd: directory,
+        env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: directory,
+          LANG: "en_US.UTF-8", HRANESS_AUDIENCE: "human", HRANESS_SUPPORT: "off", NO_COLOR: "1" },
+        stdout: "pipe", stderr: "pipe",
+      });
+      const [code, stdout, stderr] = await Promise.all([child.exited,
+        new Response(child.stdout).text(), new Response(child.stderr).text()]);
+      expect(code).toBe(0);
+      return stdout + stderr;
+    };
     try {
-      expect(page).toContain(canonicalJson(oh.verify()));
+      await run(["init"]);
+      for (const [kind, key, dependencies] of [
+        ["entity", "entity:trial-report", []],
+        ["edition", "edition:trial-report-v1", ["entity:trial-report"]],
+        ["statement", "statement:endpoint-12-weeks", []],
+        ["assertion", "assertion:endpoint-12-weeks", ["statement:endpoint-12-weeks"]],
+      ] as const) {
+        await run(["put", "--kind", kind, "--key", key, "--value", "{}",
+          ...dependencies.flatMap((key) => ["--depends-on", key])]);
+      }
+      const blocks = transcript.split("\n\n$ ");
+      expect(blocks).toHaveLength(3);
+      for (const block of blocks) {
+        const logical = block.replaceAll("\\\n", " ").replace(/^\$ /u, "");
+        const [command, ...output] = logical.split("\n");
+        // The public example has single-quoted JSON and otherwise simple argv.
+        const words = command!.match(/'[^']*'|[^\s]+/gu) ?? [];
+        expect(words.shift()).toBe("oh");
+        const args = words.map((word) => word.startsWith("'") ? word.slice(1, -1) : word);
+        expect((await run(args)).trimEnd()).toBe(output.join("\n").trimEnd());
+      }
     } finally {
-      await oh.close();
       await rm(directory, { force: true, recursive: true });
     }
   });
