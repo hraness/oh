@@ -120,12 +120,12 @@ export default function CompareSupermemory() {
           id="compare-supermemory-json-ld"
         />
       }
-      lead="Supermemory is a hosted memory API for products: connectors sync documents into containers partitioned per user, and calls draw down monthly credits. Oh is MIT-licensed memory for an agent’s own work in one local SQLite file. The two ran the same 60 benchmark questions here, and Supermemory scored higher on the headline measure without a statistically clean separation."
+      lead="Supermemory is a hosted memory API for products: connectors sync documents into containers partitioned per user, and calls draw down monthly credits. Oh is MIT-licensed memory for an agent’s own work in one local SQLite file. On the same 60 benchmark questions, Supermemory answered more correctly than Oh, by a margin too small for 60 questions to separate from a tie."
       nav={nav}
       navLabel="Oh vs Supermemory"
       title="Oh vs Supermemory"
     >
-      <CompareSection id="head-to-head" number="01" title="Head to head on LongMemEval-S">
+      <CompareSection id="head-to-head" number="01" title="Supermemory led a 60-question pilot by a margin too small to separate">
         <p>
           On September 24, 2026, this repository ran a matched pilot: the same 60 LongMemEval-S
           questions went to Supermemory, Oh’s default SDK search, and a BM25 control, each limited
@@ -150,7 +150,8 @@ export default function CompareSupermemory() {
           {percent(bm25.conservativeSuccessRate.value * 100)}. On the comparison fixed before the
           run, the Oh − Supermemory difference is {points(primary.estimate)} points with a 95%
           interval from {points(primary.interval95.lower)} to {points(primary.interval95.upper)}:
-          60 questions, all used earlier in Oh’s development, cannot separate them.
+          60 questions, all used earlier in Oh’s development and run once, cannot separate them. The
+          interval describes resampling within this sample only.
         </p>
         <div className="compare-table-wrap">
           <table className="compare-table">
@@ -190,7 +191,8 @@ export default function CompareSupermemory() {
           one second as a hosted API call, while Oh’s median was 12.5 seconds including local
           reranker inference on the benchmark machine, a development measurement rather than a
           hosted-service comparison. On the ingestion side, Supermemory’s asynchronous pipeline
-          took a median 61.5 minutes to readiness per case, up to 141 minutes, while Oh indexed
+          took a median 61.5 minutes to readiness per case, up to 141 minutes, under a 16-case
+          concurrent load, while Oh indexed
           each case in a disposable local store. The Supermemory side spent about $43 of Pro-plan
           credits across the runs, and the shared reader and judge cost $2.28.
         </p>
@@ -242,7 +244,7 @@ export default function CompareSupermemory() {
         </p>
       </CompareSection>
 
-      <CompareSection id="choosing" number="04" title="Choosing between them">
+      <CompareSection id="choosing" number="04" title="Who should pick which">
         <ul className="sequence">
           <li><span>Supermemory</span> when your product needs per-end-user memory with managed ingestion, connectors, scoped keys, and someone else running the retrieval stack, at metered prices.</li>
           <li><span>Oh</span> when the memory is your agent’s own working knowledge: local by default, every fact linked to its sources, and no account or per-call cost.</li>
@@ -254,12 +256,10 @@ export default function CompareSupermemory() {
         </p>
       </CompareSection>
 
-      <CompareSection id="limits" number="05" title="Limits of this evidence">
+      <CompareSection id="limits" number="05" title="What the pilot does not show, and which claims can change">
         <ul className="sequence">
-          <li><span>60 exposed questions</span> The sample is previously exposed development questions, run once; the interval describes resampling within this sample only.</li>
           <li><span>Unpinned models</span> The GPT-4o reader and judge ran as gateway aliases, so a returned model name does not identify an immutable snapshot.</li>
-          <li><span>Uneven granularity</span> Supermemory indexed session documents while Oh and BM25 indexed turns; the run is not a claim about Supermemory’s defaults, its best configuration, or its published Recall@20 result.</li>
-          <li><span>Asymmetric latency</span> Oh’s search time includes local reranker inference on the benchmark machine, and Supermemory’s readiness wait reflects its asynchronous pipeline under a 16-case concurrent load; neither is a like-for-like hosted comparison.</li>
+          <li><span>Not Supermemory’s best setup</span> Because Supermemory indexed session documents while Oh and BM25 indexed turns, the run is not a claim about Supermemory’s defaults, its best configuration, or its published Recall@20 result.</li>
           <li><span>Agent-run</span> AI agents ran this study, and no person or outside group has audited it.</li>
           <li><span>Dated claims</span> Supermemory’s pricing, connector list, and self-hosting notes come from its own pages, checked {checkedOn}, and can change.</li>
         </ul>
