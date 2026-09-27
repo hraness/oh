@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { buildAskAiProviderLinks } from "@hraness/ui";
 import { join } from "node:path";
 
+import publishedRelease from "../published-release.json";
+
 const site = join(import.meta.dir, "..");
 
 async function startBuiltSite() {
@@ -154,11 +156,11 @@ describe("built Oh site", () => {
       ]);
 
       expect(homeResponse.status).toBe(200);
-      expect(home).toContain("Latest release: v0.12.1");
-      expect(home).toContain("@hraness/oh@0.12.1");
+      expect(home).toContain(`Latest release: v${publishedRelease.version}`);
+      expect(home).toContain(`@hraness/oh@${publishedRelease.version}`);
       expect(home).not.toContain("@hraness/oh@0.4.3");
       expect(home).toContain("source CLI 0.4.0");
-      expect(home).toContain("https://github.com/hraness/oh/actions/runs/36254650324");
+      expect(home).toContain(publishedRelease.verificationRun);
       expect(specificationResponse.status).toBe(200);
       expect(slashAliasResponse.status).toBe(308);
       expect(slashAliasResponse.headers.get("location")).toBe("/spec");
