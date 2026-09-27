@@ -884,45 +884,69 @@ function windowFor(rule, count, weekday, unit, asOfDay) {
     }
   }
 }
-function resolveRelativeDateWindowV1(query, asOf) {
-  const text = bounded(query, OH_RECALL_LIMITS_V1.maximumQueryBytes, "query").normalize("NFC").toLowerCase();
-  const asOfInstant = parseCanonicalInstantV1(asOf);
-  if (asOfInstant === null)
-    throw new TypeError("Recall asOf must be a canonical UTC instant.");
+function admittedDateMatches(text) {
   const numbers = OH_RECALL_DATE_GRAMMAR_V1.numbers;
   const articles = OH_RECALL_DATE_GRAMMAR_V1.articles;
   const numberPattern = `(\\d{1,3}|${Object.keys(numbers).join("|")})`;
   const weekdayPattern = `(${WEEKDAY_NAMES.join("|")})`, unitPattern = "(day|week|month|year)";
   const found = [];
-  for (const rule2 of OH_RECALL_DATE_GRAMMAR_V1.rules) {
-    const source = rule2.pattern.replace("(NUMBER)", numberPattern).replace("(WEEKDAY)", weekdayPattern).replace("(UNIT)", unitPattern);
+  for (const rule of OH_RECALL_DATE_GRAMMAR_V1.rules) {
+    const source = rule.pattern.replace("(NUMBER)", numberPattern).replace("(WEEKDAY)", weekdayPattern).replace("(UNIT)", unitPattern);
     for (const match of text.matchAll(new RegExp(source, "gu"))) {
       const capture = match[1] ?? "";
-      let count2 = 0, weekday2 = null, unit2 = null;
-      if (rule2.kind === "weekday")
-        weekday2 = WEEKDAY_NAMES.indexOf(capture);
-      else if (rule2.kind === "around" || rule2.kind === "past") {
-        count2 = capture.length === 0 && rule2.kind === "past" ? 1 : /^\d+$/u.test(capture) ? Number(capture) : numbers[capture] ?? 0;
-        if (count2 < 1)
+      let count = 0, weekday = null, unit = null;
+      if (rule.kind === "weekday")
+        weekday = WEEKDAY_NAMES.indexOf(capture);
+      else if (rule.kind === "around" || rule.kind === "past") {
+        count = capture.length === 0 && rule.kind === "past" ? 1 : /^\d+$/u.test(capture) ? Number(capture) : numbers[capture] ?? 0;
+        if (count < 1)
           continue;
         if (articles.includes(capture) && /\b(?:days|weeks|months|years)\b/u.test(match[0]))
           continue;
-        if (rule2.kind === "past")
-          unit2 = match[2] ?? null;
+        if (rule.kind === "past")
+          unit = match[2] ?? null;
       }
       const start = match.index ?? 0;
-      found.push({ expression: match[0], rule: rule2, count: count2, weekday: weekday2, unit: unit2, start, end: start + match[0].length });
+      found.push({ expression: match[0], rule, count, weekday, unit, start, end: start + match[0].length });
     }
   }
   const outer = found.filter((item) => !found.some((other) => other !== item && other.start <= item.start && other.end >= item.end && other.end - other.start > item.end - item.start));
   const exclusions = OH_RECALL_DATE_GRAMMAR_V1.exclusions.map((exclusion) => new RegExp(exclusion.pattern, "u"));
-  const admitted = outer.filter((item) => !exclusions.some((exclusion) => exclusion.test(text.slice(0, item.start))));
-  const distinct = new Map(admitted.map((item) => [`${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`, item]));
+  return outer.filter((item) => !exclusions.some((exclusion) => exclusion.test(text.slice(0, item.start))));
+}
+function dateKey(item) {
+  return `${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`;
+}
+function dateWindow(item, anchorDay) {
+  const [first, last] = windowFor(item.rule, item.count, item.weekday, item.unit, anchorDay);
+  return { expression: item.expression, rule: item.rule.id, since: dayStart(first), until: dayEnd(last), v: 1 };
+}
+function resolveRelativeDateWindowV1(query, asOf) {
+  const text = bounded(query, OH_RECALL_LIMITS_V1.maximumQueryBytes, "query").normalize("NFC").toLowerCase();
+  const asOfInstant = parseCanonicalInstantV1(asOf);
+  if (asOfInstant === null)
+    throw new TypeError("Recall asOf must be a canonical UTC instant.");
+  const distinct = new Map(admittedDateMatches(text).map((item) => [dateKey(item), item]));
   if (distinct.size !== 1)
     return null;
-  const [{ expression, rule, count, weekday, unit }] = [...distinct.values()];
-  const [first, last] = windowFor(rule, count, weekday, unit, dayNumber(asOfInstant));
-  return { expression, rule: rule.id, since: dayStart(first), until: dayEnd(last), v: 1 };
+  return dateWindow([...distinct.values()][0], dayNumber(asOfInstant));
+}
+function resolveRelativeDatesV1(text, anchor) {
+  if (typeof text !== "string" || utf8ByteLength(text) > OH_RECALL_LIMITS_V1.maximumBudgetBytes) {
+    throw new TypeError(`Date resolution text must be at most ${OH_RECALL_LIMITS_V1.maximumBudgetBytes} bytes.`);
+  }
+  const anchorInstant = parseCanonicalInstantV1(anchor);
+  if (anchorInstant === null)
+    throw new TypeError("Date resolution anchor must be a canonical UTC instant.");
+  const seen = new Set, windows = [];
+  for (const item of [...admittedDateMatches(text.normalize("NFC").toLowerCase())].sort((left, right) => left.start - right.start)) {
+    const key = dateKey(item);
+    if (seen.has(key))
+      continue;
+    seen.add(key);
+    windows.push(dateWindow(item, dayNumber(anchorInstant)));
+  }
+  return windows;
 }
 function offsetLabel(days) {
   if (days === 0)
@@ -9747,6 +9771,375 @@ var init_research_cli = __esm(() => {
   init_research_packet();
   CATALOG_COMMANDS = ["catalog", "catalog-v2", "catalog-v3", "catalog-v4", "catalog-v5", "catalog-v6", "catalog-v7", "catalog-v8", "catalog-v9", "wikidata-mappings", "wikidata-mappings-v2", "wikidata-mappings-v3"];
   FILE_COMMANDS = ["validate-draft", "wikidata-preview", "wikidata-mapping-preview", "wikidata-mapping-preview-v2", "prepare-packet", "verify-packet"];
+});
+
+// src/author-log.ts
+function objectValue(record) {
+  const value = record.value;
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
+}
+function dateInstant(value) {
+  const instant = parseCanonicalInstantV1(value);
+  if (instant !== null)
+    return instant;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/u.test(value))
+    return null;
+  return parseCanonicalInstantV1(`${value}T00:00:00.000Z`);
+}
+function defaultOhAuthorLogViewV1(record) {
+  const object = objectValue(record);
+  if (object === null)
+    return { instant: null, order: null, session: record.key, speaker: null, text: canonicalJson(record.value) };
+  const instant = parseCanonicalInstantV1(object.observedAt) ?? dateInstant(object.date);
+  const session = typeof object.sessionId === "string" && object.sessionId.length > 0 && utf8ByteLength(object.sessionId) <= 512 ? object.sessionId : record.key;
+  const orderValue = object.sessionIndex ?? object.turnIndex;
+  const order = Number.isSafeInteger(orderValue) ? orderValue : null;
+  const speakerValue = object.speaker ?? object.role;
+  const speaker = typeof speakerValue === "string" && speakerValue.length > 0 && utf8ByteLength(speakerValue) <= OH_AUTHOR_LOG_LIMITS_V1.maximumAuthorBytes ? speakerValue : null;
+  const text2 = typeof object.text === "string" ? object.text : canonicalJson(record.value);
+  return { instant, order, session, speaker, text: text2 };
+}
+function checkedView2(view, record) {
+  if (typeof record !== "object" || record === null || typeof record.key !== "string")
+    throw new TypeError("Author log needs records.");
+  const result = view(record);
+  if (typeof result !== "object" || result === null || Array.isArray(result))
+    throw new TypeError("Author log view must return an object.");
+  const candidate = result;
+  if (Object.keys(candidate).sort().join(",") !== "instant,order,session,speaker,text") {
+    throw new TypeError("Author log view needs exactly instant, order, session, speaker, and text.");
+  }
+  const instant = instantOrNull(candidate.instant, "view instant");
+  if (candidate.order !== null && !Number.isSafeInteger(candidate.order))
+    throw new TypeError("Author log view order must be null or an integer.");
+  if (typeof candidate.session !== "string" || candidate.session.length === 0 || utf8ByteLength(candidate.session) > 512) {
+    throw new TypeError("Author log view session must be nonempty text of at most 512 bytes.");
+  }
+  if (candidate.speaker !== null && (typeof candidate.speaker !== "string" || candidate.speaker.length === 0 || utf8ByteLength(candidate.speaker) > OH_AUTHOR_LOG_LIMITS_V1.maximumAuthorBytes)) {
+    throw new TypeError(`Author log view speaker must be null or nonempty text of at most ${OH_AUTHOR_LOG_LIMITS_V1.maximumAuthorBytes} bytes.`);
+  }
+  if (typeof candidate.text !== "string" || utf8ByteLength(candidate.text) > OH_RECALL_LIMITS_V1.maximumBudgetBytes) {
+    throw new TypeError(`Author log view text exceeds ${OH_RECALL_LIMITS_V1.maximumBudgetBytes} bytes.`);
+  }
+  return { key: record.key, view: {
+    instant,
+    order: candidate.order,
+    session: candidate.session,
+    speaker: candidate.speaker,
+    text: candidate.text
+  } };
+}
+function checkedBytes(value, fallback, label2, minimum = 1) {
+  const bytes = value ?? fallback;
+  if (!Number.isSafeInteger(bytes) || bytes < minimum || bytes > OH_RECALL_LIMITS_V1.maximumBudgetBytes) {
+    throw new RangeError(`Author log ${label2} must be ${minimum} through ${OH_RECALL_LIMITS_V1.maximumBudgetBytes} bytes.`);
+  }
+  return bytes;
+}
+function checkedRecords(value, label2) {
+  if (!Array.isArray(value) || value.length > OH_AUTHOR_LOG_LIMITS_V1.maximumRecords) {
+    throw new RangeError(`Author log ${label2} accepts at most ${OH_AUTHOR_LOG_LIMITS_V1.maximumRecords} records.`);
+  }
+  return value;
+}
+function checkedRanked(value) {
+  if (!Array.isArray(value) || value.length > OH_RECALL_LIMITS_V1.maximumRenderedResults) {
+    throw new RangeError(`Author log ranking accepts at most ${OH_RECALL_LIMITS_V1.maximumRenderedResults} results.`);
+  }
+  return value.map((result) => result.record);
+}
+function compareViewed(left, right) {
+  return compareInstants(left.view.instant, right.view.instant) || compareOrders(left.view.order, right.view.order) || compareKeys2(left.key, right.key);
+}
+function sessionsOf(viewed) {
+  const groups = new Map;
+  for (const item of viewed) {
+    const members = groups.get(item.view.session);
+    if (members === undefined)
+      groups.set(item.view.session, [item]);
+    else
+      members.push(item);
+  }
+  return [...groups.entries()].map(([id, members]) => {
+    const sorted = [...members].sort(compareViewed);
+    const first = sorted.find((item) => item.view.instant !== null);
+    return { day: first === undefined ? null : dayNumber(first.view.instant), id, members: sorted };
+  }).sort((left, right) => (left.day ?? Infinity) - (right.day ?? Infinity) || compareKeys2(left.id, right.id));
+}
+function sessionHeader(session, asOfDay) {
+  if (session.day === null)
+    return `## Session ${session.id}: date unknown`;
+  return `## Session ${session.id}: ${formatDay(session.day)}${asOfDay === null ? "" : `, ${offsetLabel(session.day - asOfDay)}`}`;
+}
+function dateLabel(day, asOfDay) {
+  return `${formatDay(day)}${asOfDay === null ? "" : `, ${offsetLabel(day - asOfDay)}`}`;
+}
+function resolvedLine(item, asOfDay) {
+  if (item.view.instant === null)
+    return null;
+  const windows = resolveRelativeDatesV1(item.view.text, item.view.instant);
+  if (windows.length === 0)
+    return null;
+  const parts = windows.map((window) => {
+    const first = dayNumber(window.since), last = dayNumber(window.until);
+    if (first === last)
+      return `"${window.expression}" = ${dateLabel(first, asOfDay)}`;
+    if (RULE_KINDS.get(window.rule) === "around")
+      return `"${window.expression}" \u2248 ${dateLabel(Math.round((first + last) / 2), asOfDay)}`;
+    return `"${window.expression}" = ${formatDay(first)} to ${formatDay(last)}${asOfDay === null ? "" : `, ending ${offsetLabel(last - asOfDay)}`}`;
+  });
+  return `Resolved dates (from this message's date ${formatDay(dayNumber(item.view.instant))}): ${parts.join("; ")}`;
+}
+function authorEntry(item, author, asOfDay) {
+  const resolved = resolvedLine(item, asOfDay);
+  return `[${item.key}] ${author}: ${item.view.text}${resolved === null ? "" : `
+${resolved}`}`;
+}
+function logText(heading, sessions, entries, asOfDay) {
+  const blocks = sessions.flatMap((session) => {
+    const lines = session.members.flatMap((item) => entries.has(item.key) ? [entries.get(item.key)] : []);
+    return lines.length === 0 ? [] : [`${sessionHeader(session, asOfDay)}
+${lines.join(`
+`)}`];
+  });
+  return blocks.length === 0 ? heading : `${heading}
+
+${blocks.join(`
+
+`)}`;
+}
+function renderOhAuthorLogV1(input, options) {
+  const records = checkedRecords(input.records, "records"), ranked = checkedRanked(input.ranked);
+  const asOf = instantOrNull(options.asOf, "asOf"), asOfDay = asOf === null ? null : dayNumber(asOf);
+  const author = options.author ?? OH_AUTHOR_LOG_LIMITS_V1.defaultAuthor;
+  if (typeof author !== "string" || author.length === 0 || utf8ByteLength(author) > OH_AUTHOR_LOG_LIMITS_V1.maximumAuthorBytes || /[\r\n]/u.test(author)) {
+    throw new TypeError(`Author must be one line of 1 through ${OH_AUTHOR_LOG_LIMITS_V1.maximumAuthorBytes} bytes.`);
+  }
+  const budget = checkedBytes(options.budgetBytes, OH_AUTHOR_LOG_LIMITS_V1.defaultBudgetBytes, "budget");
+  const retrievedCap = checkedBytes(options.retrievedBytes, Math.min(OH_AUTHOR_LOG_LIMITS_V1.defaultRetrievedBytes, budget), "retrieved budget", 0);
+  const reserve = checkedBytes(options.logReserveBytes, Math.min(OH_AUTHOR_LOG_LIMITS_V1.defaultLogReserveBytes, budget), "log reserve", 0);
+  if (reserve > budget)
+    throw new RangeError("Author log reserve cannot exceed the budget.");
+  if (options.view !== undefined && typeof options.view !== "function")
+    throw new TypeError("Author log view must be a function.");
+  const view = options.view ?? defaultOhAuthorLogViewV1;
+  const viewed = new Map;
+  for (const record of records)
+    if (!viewed.has(record.key))
+      viewed.set(record.key, checkedView2(view, record));
+  const authored = [...viewed.values()].filter((item) => item.view.speaker === author);
+  const sessions = sessionsOf(authored);
+  const allSessions = sessionsOf([...viewed.values()]);
+  const sharedTimestamp = allSessions.length > 1 && allSessions.every((session) => session.day !== null && session.day === allSessions[0]?.day);
+  const entries = new Map(authored.map((item) => [item.key, authorEntry(item, author, asOfDay)]));
+  const question = asOfDay === null ? "" : `Question date: ${formatDay(asOfDay)}.`;
+  const shared = !sharedTimestamp ? "" : `${question === "" ? "" : " "}Every session in this history carries the same timestamp` + ` (${formatDay(allSessions[0]?.day)}), so session dates give no order or elapsed time between sessions,` + " and resolved dates are computed from that shared timestamp; date and order events by the dates and tense stated inside the messages.";
+  const preamble = `${question}${shared}`;
+  const completeHeading = `# Complete log of ${author} messages: all ${authored.length} messages from ${sessions.length} sessions, verbatim, in chronological order`;
+  const withPreamble = (text3) => preamble === "" ? text3 : `${preamble}
+
+${text3}`;
+  let log = withPreamble(logText(completeHeading, sessions, entries, asOfDay));
+  let mode = "complete", included = authored.length;
+  if (utf8ByteLength(log) > budget - reserve) {
+    mode = "ranked";
+    const priority = [], seen = new Set;
+    for (const record of ranked) {
+      const item = viewed.get(record?.key);
+      if (item !== undefined && item.view.speaker === author && !seen.has(item.key)) {
+        seen.add(item.key);
+        priority.push(item);
+      }
+    }
+    for (const item of [...authored].sort((left, right) => compareViewed(right, left)))
+      if (!seen.has(item.key))
+        priority.push(item);
+    const partialHeading = (count) => `# Partial log of ${author} messages: ${count} of ${authored.length} messages from ` + `${sessions.length} sessions, chosen by relevance to the question and then recency, verbatim, in chronological order`;
+    const logBudget = budget - reserve, kept = new Map, openSessions = new Set;
+    let bound = utf8ByteLength(withPreamble(partialHeading(authored.length)));
+    for (const item of priority) {
+      const entry = entries.get(item.key);
+      const header = openSessions.has(item.view.session) ? 0 : utf8ByteLength(sessionHeader(sessions.find((session) => session.id === item.view.session), asOfDay)) + 2;
+      const growth = utf8ByteLength(entry) + 1 + header;
+      if (bound + growth > logBudget)
+        continue;
+      kept.set(item.key, entry);
+      openSessions.add(item.view.session);
+      bound += growth;
+    }
+    included = kept.size;
+    log = withPreamble(logText(partialHeading(included), sessions, kept, asOfDay));
+  }
+  const retrievedHeading = "# Other messages retrieved for the question: verbatim, in order of relevance; only a subset of the history";
+  const authorKeys = new Set(authored.map((item) => item.key));
+  const previousAuthor = new Map;
+  for (const session of allSessions) {
+    let last = null;
+    for (const item of session.members) {
+      if (authorKeys.has(item.key))
+        last = item.key;
+      else if (last !== null)
+        previousAuthor.set(item.key, last);
+    }
+  }
+  let text2 = log, retrievedBytes = 0, omitted = 0;
+  const retrievedKeys = [], retrievedSeen = new Set;
+  const headingBytes = utf8ByteLength(`
+
+${retrievedHeading}`);
+  for (const record of ranked) {
+    const item = viewed.get(record?.key);
+    if (item === undefined || item.view.speaker === author || retrievedSeen.has(item.key))
+      continue;
+    retrievedSeen.add(item.key);
+    const date = item.view.instant === null ? "date unknown" : formatDay(dayNumber(item.view.instant));
+    const follows = previousAuthor.get(item.key);
+    const line = `[${item.key}] [${date}] ${item.view.speaker ?? "record"}${follows === undefined ? "" : ` (follows [${follows}])`}: ${item.view.text}`;
+    const growth = utf8ByteLength(line) + 2 + (retrievedKeys.length === 0 ? headingBytes : 0);
+    if (utf8ByteLength(text2) + growth > budget || retrievedBytes + growth > retrievedCap) {
+      omitted += 1;
+      continue;
+    }
+    text2 += `${retrievedKeys.length === 0 ? `
+
+${retrievedHeading}` : ""}
+
+${line}`;
+    retrievedKeys.push(item.key);
+    retrievedBytes += growth;
+  }
+  const logKeys = sessions.flatMap((session) => session.members.filter((item) => mode === "complete" || log.includes(`[${item.key}] ${author}: `)).map((item) => item.key));
+  const bytes = utf8ByteLength(text2);
+  if (bytes > budget)
+    throw new RangeError("Author log framing exceeds the budget; raise the budget or the log reserve.");
+  return {
+    bytes,
+    keys: [...logKeys, ...retrievedKeys],
+    log: { bytes: utf8ByteLength(log), included, mode, total: authored.length },
+    renderer: OH_AUTHOR_LOG_RENDERER_V1,
+    retrieved: { bytes: retrievedBytes, included: retrievedKeys.length, omitted },
+    sharedTimestamp,
+    text: text2,
+    v: 1
+  };
+}
+function isOhDeclineAnswerV1(answer) {
+  if (typeof answer !== "string")
+    throw new TypeError("Answer must be text.");
+  return DECLINE_PATTERN_V1.test(answer);
+}
+function contentWords(question) {
+  return [...new Set(question.normalize("NFC").toLowerCase().match(/\p{L}[\p{L}'$-]{3,}/gu) ?? [])].filter((word) => !STOP_WORDS.has(word));
+}
+function renderOhSessionZoomV1(input, options) {
+  const records = checkedRecords(input.records, "records"), ranked = checkedRanked(input.ranked);
+  if (typeof input.question !== "string" || input.question.length === 0 || utf8ByteLength(input.question) > OH_RECALL_LIMITS_V1.maximumQueryBytes) {
+    throw new TypeError(`Session zoom question must be nonempty text of at most ${OH_RECALL_LIMITS_V1.maximumQueryBytes} bytes.`);
+  }
+  const asOf = instantOrNull(options.asOf, "asOf"), asOfDay = asOf === null ? null : dayNumber(asOf);
+  const budget = checkedBytes(options.budgetBytes, OH_AUTHOR_LOG_LIMITS_V1.defaultZoomBudgetBytes, "zoom budget");
+  const messageChars = options.messageChars ?? OH_AUTHOR_LOG_LIMITS_V1.defaultZoomMessageChars;
+  if (!Number.isSafeInteger(messageChars) || messageChars < 1)
+    throw new RangeError("Session zoom message cap must be a positive integer.");
+  if (options.view !== undefined && typeof options.view !== "function")
+    throw new TypeError("Session zoom view must be a function.");
+  const view = options.view ?? defaultOhAuthorLogViewV1;
+  const viewed = new Map;
+  for (const record of records)
+    if (!viewed.has(record.key))
+      viewed.set(record.key, checkedView2(view, record));
+  const sessions = sessionsOf([...viewed.values()]);
+  const byId = new Map(sessions.map((session) => [session.id, session]));
+  const distinctDays = new Set(sessions.map((session) => session.day));
+  const window = asOf === null || distinctDays.size <= 1 ? null : resolveRelativeDateWindowV1(input.question, asOf);
+  const order = [];
+  const push = (id) => {
+    if (!order.includes(id))
+      order.push(id);
+  };
+  if (window !== null) {
+    const pad = OH_AUTHOR_LOG_LIMITS_V1.zoomPadDays, first = dayNumber(window.since), last = dayNumber(window.until), centre = (first + last) / 2;
+    sessions.filter((session) => session.day !== null && session.day >= first - pad && session.day <= last + pad).sort((left, right) => Math.abs(left.day - centre) - Math.abs(right.day - centre) || compareKeys2(left.id, right.id)).slice(0, OH_AUTHOR_LOG_LIMITS_V1.zoomDateSessions).forEach((session) => push(session.id));
+  }
+  const words = contentWords(input.question);
+  if (words.length > 0) {
+    sessions.map((session) => {
+      let hits = 0;
+      for (const item of session.members) {
+        const lower = item.view.text.toLowerCase();
+        for (const word of words)
+          if (lower.includes(word))
+            hits += 1;
+      }
+      return { id: session.id, score: hits / Math.sqrt(session.members.length + 1) };
+    }).filter((entry) => entry.score > 0).sort((left, right) => right.score - left.score || compareKeys2(left.id, right.id)).slice(0, OH_AUTHOR_LOG_LIMITS_V1.zoomLexicalSessions).forEach((entry) => push(entry.id));
+  }
+  for (const record of ranked) {
+    const item = viewed.get(record?.key);
+    if (item !== undefined)
+      push(item.view.session);
+  }
+  const render = (session) => {
+    const lines = session.members.map((item) => {
+      const text3 = item.view.text.length > messageChars ? `${item.view.text.slice(0, messageChars)} \u2026[message continues]` : item.view.text;
+      return `[${item.key}] ${item.view.speaker ?? "record"}: ${text3}`;
+    });
+    return `${sessionHeader(session, asOfDay)}
+${lines.join(`
+`)}`;
+  };
+  const heading = (count) => `${asOfDay === null ? "" : `Question date: ${formatDay(asOfDay)}.`}${window === null ? "" : ` The question refers to "${window.expression}" (${formatDay(dayNumber(window.since))}${window.since.slice(0, 10) === window.until.slice(0, 10) ? "" : ` to ${formatDay(dayNumber(window.until))}`}).`}`.trim() + `${asOfDay === null && window === null ? "" : `
+
+`}# Full text of the ${count} sessions most relevant to the question, every message verbatim, in chronological order`;
+  const chosen = [];
+  let bytes = utf8ByteLength(heading(sessions.length));
+  for (const id of order) {
+    const session = byId.get(id), growth = utf8ByteLength(render(session)) + 2;
+    if (bytes + growth > budget)
+      continue;
+    chosen.push(session);
+    bytes += growth;
+  }
+  chosen.sort((left, right) => (left.day ?? Infinity) - (right.day ?? Infinity) || compareKeys2(left.id, right.id));
+  const text2 = chosen.length === 0 ? "" : `${heading(chosen.length)}
+
+${chosen.map(render).join(`
+
+`)}`;
+  return {
+    bytes: utf8ByteLength(text2),
+    keys: chosen.flatMap((session) => session.members.map((item) => item.key)),
+    renderer: OH_SESSION_ZOOM_RENDERER_V1,
+    sessions: chosen.map((session) => session.id),
+    text: text2,
+    window,
+    v: 1
+  };
+}
+var OH_AUTHOR_LOG_RENDERER_V1 = "oh.recall-render.author-log.v1", OH_SESSION_ZOOM_RENDERER_V1 = "oh.recall-render.session-zoom.v1", OH_AUTHOR_LOG_LIMITS_V1, OH_AUTHOR_LOG_READER_NOTE_V1, OH_SESSION_ZOOM_READER_NOTE_V1, RULE_KINDS, DECLINE_PATTERN_V1, STOP_WORDS;
+var init_author_log = __esm(() => {
+  init_canonical();
+  init_graph();
+  init_recall();
+  OH_AUTHOR_LOG_LIMITS_V1 = Object.freeze({
+    defaultAuthor: "user",
+    defaultBudgetBytes: 180000,
+    defaultRetrievedBytes: 96000,
+    defaultLogReserveBytes: 24000,
+    defaultZoomBudgetBytes: 1e5,
+    defaultZoomMessageChars: 12000,
+    maximumAuthorBytes: 64,
+    maximumRecords: OH_GRAPH_LIMITS_V1.recordsPerSnapshot,
+    zoomDateSessions: 4,
+    zoomLexicalSessions: 3,
+    zoomPadDays: 3,
+    v: 1
+  });
+  OH_AUTHOR_LOG_READER_NOTE_V1 = "The memory has two parts. First, the log of the user's own messages from the " + "conversation history, verbatim, in chronological order and grouped by session; each session header gives the session " + "date and its distance from the question date. The log is complete unless its heading says it is partial. Lines " + `beginning with "Resolved dates" give absolute dates that the system computed from that message's own date for the ` + "relative time expressions in it; \u2248 marks an approximate date. Second, other messages retrieved for the question, " + "verbatim, which are only a subset of the history; each names the user message it follows. Use the log to find, list " + "and count what the user said and did across sessions and to find the latest state of anything that changed; use the " + "retrieved messages for what others said. If the memory notes that every session has the same timestamp, date and " + "order events by the dates and tense stated inside the messages. Treat a question as unanswerable only when neither " + "part contains the asked-about fact or event.";
+  OH_SESSION_ZOOM_READER_NOTE_V1 = "The memory contains the complete text of the sessions of the conversation " + "history most relevant to the question, every message verbatim and in chronological order, including sessions dated " + "near any time the question refers to; other sessions are not shown. Read every message, including details mentioned " + "in passing and earlier replies. If these sessions contain the asked-about fact or event, answer from them. If the " + "question assumes something that the sessions contradict, say what the sessions record instead of answering as if " + "the assumption were true.";
+  RULE_KINDS = new Map(OH_RECALL_DATE_GRAMMAR_V1.rules.map((rule) => [rule.id, rule.kind]));
+  DECLINE_PATTERN_V1 = /does not contain enough information|not enough information|insufficient information|cannot determine|can.t determine|not specified in|not mentioned|no information about|does not (?:include|mention|contain|record)/iu;
+  STOP_WORDS = new Set(("that this with from have been were will would could should what when where which whom whose your yours " + "their them they about into after before over under again once here there both each more most other some such only same than " + "then very also even much many still like does didn doesn isn aren can't couldn wasn weren want need make made take took " + "know knew think said tell told ask asked something anything nothing everything someone anyone thing things first last").split(" "));
 });
 
 // src/store.ts
@@ -26174,14 +26567,24 @@ var init_sync = __esm(() => {
 // src/sdk.ts
 var exports_sdk = {};
 __export(exports_sdk, {
+  resolveRelativeDatesV1: () => resolveRelativeDatesV1,
   resolveRelativeDateWindowV1: () => resolveRelativeDateWindowV1,
+  renderOhSessionZoomV1: () => renderOhSessionZoomV1,
   renderOhRecallV1: () => renderOhRecallV1,
+  renderOhAuthorLogV1: () => renderOhAuthorLogV1,
   recallOhV1: () => recallOhV1,
+  isOhDeclineAnswerV1: () => isOhDeclineAnswerV1,
   defaultOhRecallViewV1: () => defaultOhRecallViewV1,
+  defaultOhAuthorLogViewV1: () => defaultOhAuthorLogViewV1,
   Oh: () => Oh,
+  OH_SESSION_ZOOM_RENDERER_V1: () => OH_SESSION_ZOOM_RENDERER_V1,
+  OH_SESSION_ZOOM_READER_NOTE_V1: () => OH_SESSION_ZOOM_READER_NOTE_V1,
   OH_RECALL_RENDERER_V1: () => OH_RECALL_RENDERER_V1,
   OH_RECALL_LIMITS_V1: () => OH_RECALL_LIMITS_V1,
-  OH_RECALL_DATE_GRAMMAR_V1: () => OH_RECALL_DATE_GRAMMAR_V1
+  OH_RECALL_DATE_GRAMMAR_V1: () => OH_RECALL_DATE_GRAMMAR_V1,
+  OH_AUTHOR_LOG_RENDERER_V1: () => OH_AUTHOR_LOG_RENDERER_V1,
+  OH_AUTHOR_LOG_READER_NOTE_V1: () => OH_AUTHOR_LOG_READER_NOTE_V1,
+  OH_AUTHOR_LOG_LIMITS_V1: () => OH_AUTHOR_LOG_LIMITS_V1
 });
 
 class Oh {
@@ -26293,6 +26696,21 @@ class Oh {
       store: this.store
     }));
   }
+  async authorLog(question, options = {}) {
+    const recall = await this.recall(question, {
+      asOf: options.asOf ?? null,
+      limit: options.limit ?? 100,
+      mode: options.mode ?? (this.semanticBackend === undefined ? "keyword" : "hybrid")
+    });
+    return await this.#admit(async () => renderOhAuthorLogV1({ ranked: recall.results, records: this.store.snapshotRecords() }, {
+      asOf: options.asOf ?? null,
+      ...options.author === undefined ? {} : { author: options.author },
+      ...options.budgetBytes === undefined ? {} : { budgetBytes: options.budgetBytes },
+      ...options.logReserveBytes === undefined ? {} : { logReserveBytes: options.logReserveBytes },
+      ...options.retrievedBytes === undefined ? {} : { retrievedBytes: options.retrievedBytes },
+      ...options.view === undefined ? {} : { view: options.view }
+    }));
+  }
   async sync(transport, options) {
     return await this.#admit(() => synchronizeOhStoreV1(this.store, transport, options));
   }
@@ -26333,11 +26751,13 @@ class Oh {
 var init_sdk = __esm(() => {
   init_canonical();
   init_graph();
+  init_author_log();
   init_recall();
   init_search();
   init_store2();
   init_sync();
   init_recall();
+  init_author_log();
 });
 
 // src/support-profile.ts
@@ -27139,10 +27559,14 @@ Options
   --as-of <instant> The question's date, a UTC instant with milliseconds,
                     such as 2026-01-08T12:00:00.000Z
   --limit <n>       How many results, 1 to 100 (default 10)
+  --author-log <name>
+                    Print every message whose speaker is <name>, in date
+                    order, followed by the other speakers' matching records
 ${STORE_OPTIONS}
 
-Example
+Examples
   oh recall "what did Ada build last week" --as-of 2026-01-08T12:00:00.000Z
+  oh recall "where do I live" --as-of 2026-01-08T12:00:00.000Z --author-log user
 `,
   tombstone: `Usage: oh tombstone <key> [options]
 
@@ -27401,6 +27825,7 @@ var KNOWN_OPTIONS = new Set([
   "actor",
   "after",
   "as-of",
+  "author-log",
   "db",
   "depends-on",
   "expected-generation",
@@ -27542,8 +27967,12 @@ async function validateInvocation(command, parsed) {
     }
     integer(one(parsed, "limit"), "limit", 1, 100);
   } else if (command === "recall") {
-    assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, "as-of", "limit", "mode"]);
+    assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, "as-of", "author-log", "limit", "mode"]);
     assertPositionals(parsed, 1, 1024);
+    const author = one(parsed, "author-log");
+    if (author !== undefined && (author.length > 64 || /[\r\n]/u.test(author))) {
+      throw new OhUsageError("--author-log needs one author name of at most 64 characters.");
+    }
     const query = parsed.positionals.join(" ");
     const mode = one(parsed, "mode", "keyword");
     if (query.trim().length === 0 || query.length > 4096 || mode !== "keyword" && mode !== "semantic" && mode !== "hybrid") {
@@ -27875,6 +28304,17 @@ async function runOhCli(arguments_) {
         throw new OhUsageError("recall needs a query and a valid mode.");
       const limit = integer(one(parsed, "limit"), "limit");
       const asOf = parseCanonicalInstantV1(one(parsed, "as-of"));
+      const author = one(parsed, "author-log");
+      if (author !== undefined) {
+        const rendering2 = await oh.authorLog(query, { asOf, author, ...limit === undefined ? {} : { limit }, mode });
+        warnAboutMode(output, mode);
+        if (output.json)
+          print({ rendering: rendering2, v: 1 });
+        else
+          process.stdout.write(`${rendering2.text.replace(/\n*$/u, "")}
+`);
+        return 0;
+      }
       const resolved = asOf === null ? null : resolveRelativeDateWindowV1(query, asOf);
       const window = resolved === null ? null : { since: resolved.since, until: resolved.until, v: 1 };
       const recall = await oh.recall(query, { asOf, ...limit === undefined ? {} : { limit }, mode, window });

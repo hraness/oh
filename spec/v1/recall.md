@@ -139,10 +139,54 @@ The rendering reports `keys` (the included keys in rendered order), `omitted`
 validator with the same results, question instant, view, and budget
 reproduces the bytes exactly.
 
+## Author log
+
+The author log is an opt-in rendering, `oh.recall-render.author-log.v1`, for
+histories where one speaker (the author, `user` by default) states most facts.
+It takes every record in the space, a recall ranking, a question instant or
+`null`, and three budgets: a total of 180,000 bytes, 96,000 bytes for other
+speakers' records, and 24,000 bytes kept for them when the author's messages do
+not fit. Each budget is at most 4,000,000 bytes.
+
+A view maps each record to an instant, an order within its session, a session,
+a speaker, and text. The default view reads `observedAt` (or `date`, as a
+canonical instant or `YYYY-MM-DD`), `sessionId` (else the record key),
+`sessionIndex` or `turnIndex`, `speaker` or `role`, and `text` (else the
+canonical JSON of the value).
+
+The first part holds the author's records verbatim, grouped by session in the
+session order used above and in record order within a session, each line
+`[key] author: text`. Each session header gives the session date and its
+distance from the question. A message with relative dates that the date grammar
+admits is followed by a `Resolved dates` line that resolves every match,
+anchored on the message's own instant: a single day as `= day`, an `around`
+window as `≈` its middle day, and a range as `= first to last`. When every
+session shares one day, a note says so. When the complete log is larger than
+the total budget minus the reserve, the log admits the author's records in
+ranking order, then newest first, while they fit, still renders them in
+chronological order, and its heading says it is partial and gives the counts.
+
+The second part lists other speakers' records in ranking order while they fit
+both the other-speaker budget and the total budget. Each line gives the key,
+the day, the speaker, and the author record it follows in the same session.
+Record text is never changed. The rendering reports `keys`, `log`
+(`mode` of `complete` or `ranked`, `included`, `total`, `bytes`), `retrieved`
+(`included`, `omitted`, `bytes`), `sharedTimestamp`, and `bytes`.
+
+`OH_AUTHOR_LOG_READER_NOTE_V1` describes this layout for a reader
+instruction. `isOhDeclineAnswerV1` recognises an English answer that says the
+memory lacks the information, and `renderOhSessionZoomV1` renders whole
+sessions for a second reading under 100,000 bytes. It chooses up to four
+sessions within three days of the question's date window, then the three
+sessions that best match the question's words, then sessions in ranking
+order. Oh makes no model call for either.
+
 ## Contract and command line
 
 Recall adds no record kind, limit, contract entry, or migration to the V1
 contract, and the V1 contract manifest does not mention recall. The
 `oh recall` command resolves a window from its query with this grammar when
 `--as-of` is given, and it renders under a fixed budget of 96,000 bytes. The
-SDK exposes the same functions with a budget the caller chooses.
+SDK exposes the same functions with a budget the caller chooses. With
+`--author-log NAME`, `oh recall` prints the author log for speaker `NAME`
+with the default budgets, recalling up to 100 results for the query.

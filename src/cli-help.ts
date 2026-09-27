@@ -179,10 +179,14 @@ Options
   --as-of <instant> The question's date, a UTC instant with milliseconds,
                     such as 2026-01-08T12:00:00.000Z
   --limit <n>       How many results, 1 to 100 (default 10)
+  --author-log <name>
+                    Print every message whose speaker is <name>, in date
+                    order, followed by the other speakers' matching records
 ${STORE_OPTIONS}
 
-Example
+Examples
   oh recall "what did Ada build last week" --as-of 2026-01-08T12:00:00.000Z
+  oh recall "where do I live" --as-of 2026-01-08T12:00:00.000Z --author-log user
 `,
   tombstone: `Usage: oh tombstone <key> [options]
 

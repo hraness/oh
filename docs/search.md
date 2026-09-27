@@ -139,6 +139,25 @@ budget, and prints `{ recall, rendering, v: 1 }`. The
 [recall specification](../spec/v1/recall.md) defines the date rules and the
 rendering.
 
+## Give a model the user's own messages
+
+`oh.authorLog(question, { asOf })` returns every message the user wrote, in
+date order and grouped by session, followed by the other speakers' records
+that recall ranks for the question, within 180,000 bytes. Relative dates in
+each message, such as “yesterday”, are resolved from that message's own date.
+Records need `speaker` (or `role`), `sessionId`, `observedAt`, and `text`
+fields. Pass `author` for another speaker name.
+When the user's messages do not fit, the most relevant and most recent ones
+are kept and the heading says the log is partial. Add
+`OH_AUTHOR_LOG_READER_NOTE_V1` to the model's instructions so it knows the
+layout. From the CLI, run `oh recall QUESTION --as-of INSTANT --author-log user`.
+
+If the model answers that the memory lacks the information
+(`isOhDeclineAnswerV1`), `renderOhSessionZoomV1` gives it whole sessions
+chosen by the question's dates and words for a second reading, with
+`OH_SESSION_ZOOM_READER_NOTE_V1` as its note. Both cost more tokens than
+`oh.recall`; measure them on your own records first.
+
 ## Use the hosted semantic cache
 
 The hosted V2 adapter keeps the same rule, that records are the source of

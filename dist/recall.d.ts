@@ -266,12 +266,17 @@ export declare const OH_RECALL_DATE_GRAMMAR_V1: Readonly<{
     v: 1;
 }>;
 export type OhRecallDateRuleV1 = typeof OH_RECALL_DATE_GRAMMAR_V1.rules[number];
+export declare function instantOrNull(value: unknown, label: string): string | null;
 /**
  * The default view reads a record value's `observedAt` as the canonical
  * instant, `sessionId` as the session, and `text` as the raw text. Any other
  * value renders as its canonical JSON under the record key.
  */
 export declare function defaultOhRecallViewV1(record: KnowledgeGraphRecordV1): OhRecallRecordViewV1;
+/** Code-unit order, independent of the host locale and ICU tables. */
+export declare function compareKeys(left: string, right: string): number;
+export declare function compareInstants(left: string | null, right: string | null): number;
+export declare function compareOrders(left: number | null, right: number | null): number;
 /**
  * Fused, bounded recall over `searchOhV1`. Each query runs as one ordinary V1
  * search whose results are already rejoined to the current record digest.
@@ -292,12 +297,21 @@ export declare function recallOhV1(input: Readonly<{
     view?: OhRecallViewV1;
     window?: OhRecallWindowV1 | null;
 }>): Promise<OhRecallResponseV1>;
+export declare function dayNumber(instant: string): number;
+export declare function formatDay(day: number): string;
 /**
  * Pure, rule-based resolution of one relative date expression against the
  * question instant. Returns `null` for no match and for more than one distinct
  * match; the grammar table above is the complete vocabulary.
  */
 export declare function resolveRelativeDateWindowV1(query: string, asOf: string): OhRecallDateWindowV1 | null;
+/**
+ * Every relative date expression in `text` under the same frozen grammar,
+ * anchored on the statement's own instant, in text order. Repeated identical
+ * readings appear once. Nothing is guessed: unmatched text yields no window.
+ */
+export declare function resolveRelativeDatesV1(text: string, anchor: string): readonly OhRecallDateWindowV1[];
+export declare function offsetLabel(days: number): string;
 /**
  * Chronological rendering with question-relative session headers, gap
  * markers, and a UTF-8 byte budget. Results are admitted in their given

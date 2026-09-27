@@ -1,5 +1,6 @@
 import { type JsonValue } from "./canonical";
 import { type KnowledgeGraphRecordKindV1, type KnowledgeGraphRecordV1 } from "./graph";
+import { type OhAuthorLogRenderingV1, type OhAuthorLogViewV1 } from "./author-log";
 import { type OhRecallResponseV1, type OhRecallWindowV1 } from "./recall";
 import type { OhRerankBackendV1 } from "./rerank-model";
 import { type OhSearchModeV1, type OhSearchResponseV1 } from "./search";
@@ -7,7 +8,9 @@ import type { OhSemanticSearchBackend } from "./semantic";
 import { OhSqliteStore, type OhHeadV1, type OhReplayVerificationV1 } from "./sqlite/store";
 import { synchronizeOhStoreV1, type OhOperationSyncTransportV1, type OhSyncResultV1 } from "./sync";
 import type { OhOperationV1 } from "./operation";
-export { defaultOhRecallViewV1, OH_RECALL_DATE_GRAMMAR_V1, OH_RECALL_LIMITS_V1, OH_RECALL_RENDERER_V1, recallOhV1, renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
+export { defaultOhRecallViewV1, OH_RECALL_DATE_GRAMMAR_V1, OH_RECALL_LIMITS_V1, OH_RECALL_RENDERER_V1, recallOhV1, renderOhRecallV1, resolveRelativeDatesV1, resolveRelativeDateWindowV1 } from "./recall";
+export { defaultOhAuthorLogViewV1, isOhDeclineAnswerV1, OH_AUTHOR_LOG_LIMITS_V1, OH_AUTHOR_LOG_READER_NOTE_V1, OH_AUTHOR_LOG_RENDERER_V1, OH_SESSION_ZOOM_READER_NOTE_V1, OH_SESSION_ZOOM_RENDERER_V1, renderOhAuthorLogV1, renderOhSessionZoomV1 } from "./author-log";
+export type { OhAuthorLogRecordViewV1, OhAuthorLogRenderingV1, OhAuthorLogViewV1, OhSessionZoomRenderingV1 } from "./author-log";
 export type { OhRecallDateRuleV1, OhRecallDateWindowV1, OhRecallDiagnosticV1, OhRecallEvidenceV1, OhRecallRecordViewV1, OhRecallRenderingV1, OhRecallResponseV1, OhRecallResultV1, OhRecallViewV1, OhRecallWindowV1 } from "./recall";
 export type OhOpenOptionsV1 = Readonly<{
     databasePath?: string;
@@ -59,6 +62,22 @@ export declare class Oh {
         rerankPoolSize?: number;
         window?: OhRecallWindowV1 | null;
     }>): Promise<OhRecallResponseV1>;
+    /**
+     * Opt-in author-log memory: the complete log of one author's messages
+     * (default `"user"`) beside fused recall of every other record for the
+     * question, under a byte budget. Recall uses the question as its one query,
+     * 100 results, and hybrid mode when a semantic backend is configured.
+     */
+    authorLog(question: string, options?: Readonly<{
+        asOf?: string | null;
+        author?: string;
+        budgetBytes?: number;
+        limit?: number;
+        logReserveBytes?: number;
+        mode?: OhSearchModeV1;
+        retrievedBytes?: number;
+        view?: OhAuthorLogViewV1;
+    }>): Promise<OhAuthorLogRenderingV1>;
     sync(transport: OhOperationSyncTransportV1, options?: Parameters<typeof synchronizeOhStoreV1>[2]): Promise<OhSyncResultV1>;
     verify(): OhReplayVerificationV1;
     close(): Promise<void>;
