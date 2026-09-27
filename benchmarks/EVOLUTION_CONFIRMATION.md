@@ -82,16 +82,21 @@ the pinned files found no identical turn in any of the 90 histories but
 template phrases shared with every LongMemEval S haystack. `review` refuses to
 run without `--declare PATH`, a JSON array of prior-exposure declarations
 (`corpusId`, `exposure`, `evidence`); an explicit empty array is the operator's
-assertion that none exists. One exposure is already known and not yet
-reconciled: a search preview showed part of one history's profile scaffold.
-Its history has not been identified against the review's profile digests, so
-no declaration file is committed yet; a review with an empty declaration
-array is therefore not acceptable as the seal's eligibility audit until that
-history is named and declared, which closes its whole family. The stored
-review re-checks that the declaration list and the per-history declared
-exposures agree exactly, that each history's relations match its family, and
-that no reference dataset repeats. The review's SHA-256 is
-the `eligibilityAuditSha256` a sealed-confirmation scope references.
+assertion that none exists. One exposure is already known and reconciled: a
+search preview showed part of the first history's profile scaffold, which is
+`beam-100K-0`, declared as `exposure: "unknown"` in
+[the committed declarations](results/beam-exposure-declarations-v1.json). Its
+family is closed, which removes one of the 20 histories in the 100K partition.
+The stored [review](results/beam-exposure-review-v1.json) re-checks that the
+declaration list and the per-history declared exposures agree exactly, that
+each history's relations match its family, and that no reference dataset
+repeats. The review's SHA-256 is the `eligibilityAuditSha256` a
+sealed-confirmation scope references.
+
+The committed [100K selection](results/beam-100k-selection-v1.json) draws all
+19 eligible 100K families (`draw --split 100K --families 19`), 380 questions.
+An optional `--split` flag restricts the family pool to one source partition
+for partition-scoped draws like this one and a future 500K stress sample.
 
 The family draw (`beam-seal-cli.ts draw`) reuses the existing cryptographic
 partial Fisher–Yates method over the sealed families and records the pool,

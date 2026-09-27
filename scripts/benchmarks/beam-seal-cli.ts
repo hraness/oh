@@ -4,7 +4,8 @@
  *   bun scripts/benchmarks/beam-seal-cli.ts review --output PATH --declare PATH [--reference longmemeval-s,locomo]
  *       [--max-exact-turn-matches N] [--max-sampled-shingle-matches-per-corpus N]   (sampled shingles are report-only unless bounded)
  *   --declare is mandatory: a JSON array of prior-exposure declarations, or an explicit empty array when the operator asserts none.
- *   bun scripts/benchmarks/beam-seal-cli.ts draw --review PATH --families N --output PATH
+ *   bun scripts/benchmarks/beam-seal-cli.ts draw --review PATH --families N --output PATH [--split 100K|500K|1M]
+ *   --split restricts the family pool to one source partition (the primary 100K set draws all of its eligible families).
  */
 import { parseArgs } from "node:util";
 
@@ -13,7 +14,7 @@ import { parseBeamProvenance, DATASETS, type DatasetName } from "./datasets";
 import { displayPath, loadDataset, loadDatasetValue, parseDataset, writeJson } from "./io";
 import { BEAM_DEFAULT_THRESHOLDS, parseBeamExposureDeclarations, parseBeamExposureReview, reviewBeamExposure,
   type BeamExposureReview, type BeamReferenceDataset } from "./beam-review";
-import { createBeamSelection } from "./beam-selection";
+import { createBeamSelection, parseBeamSplit } from "./beam-selection";
 
 const REFERENCE_NAMES = new Set<DatasetName>(["longmemeval-s", "locomo", "longmemeval-oracle"]);
 
@@ -39,7 +40,8 @@ export async function loadBeamReview(path: string): Promise<{ review: BeamExposu
 export async function main(argv: readonly string[]): Promise<void> {
   const { values, positionals } = parseArgs({ args: [...argv], allowPositionals: true, options: {
     output: { type: "string" }, declare: { type: "string" }, reference: { type: "string" }, review: { type: "string" },
-    families: { type: "string" }, "max-exact-turn-matches": { type: "string" }, "max-sampled-shingle-matches-per-corpus": { type: "string" },
+    families: { type: "string" }, split: { type: "string" },
+    "max-exact-turn-matches": { type: "string" }, "max-sampled-shingle-matches-per-corpus": { type: "string" },
   } });
   const command = positionals[0];
   if (command === "review") {
@@ -64,7 +66,9 @@ export async function main(argv: readonly string[]): Promise<void> {
     if (!values.review || !values.output || !values.families) throw new TypeError("draw requires --review, --families and --output.");
     const { review, sha256 } = await loadBeamReview(values.review);
     const dataset = await loadDataset("beam");
-    const document = createBeamSelection({ dataset, review, reviewSha256: sha256, sampleFamilies: integer(values.families, 0, "--families") });
+    const split = values.split === undefined ? undefined : parseBeamSplit(values.split);
+    const document = createBeamSelection({ dataset, review, reviewSha256: sha256, sampleFamilies: integer(values.families, 0, "--families"),
+      ...(split === undefined ? {} : { split }) });
     await writeJson(values.output, document);
     console.log(JSON.stringify({ output: displayPath(values.output), protocol: document.protocol, reviewSha256: sha256, poolSha256: document.poolSha256,
       poolSize: document.poolSize, sampleFamilies: document.sampleFamilies, sampleQuestions: document.sampleQuestions,

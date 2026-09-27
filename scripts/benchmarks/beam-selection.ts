@@ -4,7 +4,7 @@
  * in questions. The saved document is the replay authority: a changed review,
  * pool or dataset fails verification instead of drawing replacements. */
 import { canonicalNow, canonicalSha256, hasExactKeys, isPlainRecord, orderedUnique, parseCanonicalInstantV1, parseSha256Hex } from "../../src/canonical";
-import { DATASETS, type Dataset } from "./datasets";
+import { BEAM_SPLITS, DATASETS, type BeamSplit, type Dataset } from "./datasets";
 import { evolutionRunnerQuestionId } from "./evolution-dataset";
 import { cryptoRandomIndex, sampleWithoutReplacement, SELECTION_METHOD, type RandomIndex } from "./selection";
 import type { BeamExposureReview } from "./beam-review";
@@ -16,13 +16,21 @@ export type BeamFamily = Readonly<{ groupId: string; corpusIds: readonly string[
 export type BeamSelectionDocument = Readonly<{
   protocol: typeof BEAM_SELECTION_PROTOCOL; createdAt: string; dataset: "beam";
   source: Readonly<{ revision: string; sha256: string }>; reviewSha256: string;
+  split?: BeamSplit;
   poolSha256: string; poolSize: number; eligibleFamilies: readonly BeamFamily[];
   sampleFamilies: number; sampleQuestions: number; method: typeof SELECTION_METHOD;
   selected: readonly BeamFamily[]; selectedQuestionIds: readonly string[];
 }>;
 
-/** Eligible families in groupId order: sealed/unseen review groups with their histories and question counts. */
-export function buildBeamFamilyPool(dataset: Dataset, review: BeamExposureReview): readonly BeamFamily[] {
+export function parseBeamSplit(value: unknown): BeamSplit | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !(BEAM_SPLITS as readonly string[]).includes(value)) throw new TypeError("Invalid BEAM split.");
+  return value as BeamSplit;
+}
+
+/** Eligible families in groupId order: sealed/unseen review groups with their histories and question counts.
+ *  `split` restricts the pool to one source partition (corpusIds carry it as `beam-<split>-<row>`). */
+export function buildBeamFamilyPool(dataset: Dataset, review: BeamExposureReview, split?: BeamSplit): readonly BeamFamily[] {
   const corpora = new Map(dataset.corpora.map((corpus) => [corpus.id, corpus]));
   const questionsByCorpus = new Map<string, number>();
   for (const question of dataset.questions) questionsByCorpus.set(question.corpusId, (questionsByCorpus.get(question.corpusId) ?? 0) + 1);
@@ -30,16 +38,17 @@ export function buildBeamFamilyPool(dataset: Dataset, review: BeamExposureReview
   const members = new Map<string, string[]>();
   for (const history of review.histories) {
     if (!corpora.has(history.corpusId)) throw new TypeError("BEAM review names a history missing from the dataset.");
+    if (split !== undefined && !history.corpusId.startsWith(`beam-${split}-`)) continue;
     if (!sealed.has(history.suggestedGroupId)) continue;
     const list = members.get(history.suggestedGroupId) ?? [];
     list.push(history.corpusId);
     members.set(history.suggestedGroupId, list);
   }
   if (members.size > BEAM_SELECTION_FAMILY_CAP) throw new RangeError("BEAM family pool exceeds its cap.");
-  return [...members.entries()].sort(([left], [right]) => left < right ? -1 : 1).map(([groupId, corpusIds]) => {
+  return [...members.values()].map((corpusIds) => {
     const sorted = [...corpusIds].sort();
-    return { groupId, corpusIds: sorted, questions: sorted.reduce((sum, corpusId) => sum + (questionsByCorpus.get(corpusId) ?? 0), 0) };
-  });
+    return { groupId: sorted[0]!, corpusIds: sorted, questions: sorted.reduce((sum, corpusId) => sum + (questionsByCorpus.get(corpusId) ?? 0), 0) };
+  }).sort((left, right) => left.groupId < right.groupId ? -1 : 1);
 }
 
 function selectedQuestions(dataset: Dataset, selected: readonly BeamFamily[]): readonly string[] {
@@ -48,11 +57,12 @@ function selectedQuestions(dataset: Dataset, selected: readonly BeamFamily[]): r
 }
 
 export function createBeamSelection(input: Readonly<{
-  dataset: Dataset; review: BeamExposureReview; reviewSha256: string; sampleFamilies: number; randomIndex?: RandomIndex; createdAt?: string;
+  dataset: Dataset; review: BeamExposureReview; reviewSha256: string; sampleFamilies: number; split?: BeamSplit; randomIndex?: RandomIndex; createdAt?: string;
 }>): BeamSelectionDocument {
   const reviewSha256 = parseSha256Hex(input.reviewSha256);
   if (reviewSha256 === null) throw new TypeError("BEAM selection needs the review document digest.");
-  const pool = buildBeamFamilyPool(input.dataset, input.review);
+  const split = parseBeamSplit(input.split);
+  const pool = buildBeamFamilyPool(input.dataset, input.review, split);
   if (pool.length === 0) throw new RangeError("BEAM review leaves no sealed family to draw from.");
   if (!Number.isSafeInteger(input.sampleFamilies) || input.sampleFamilies < 1 || input.sampleFamilies > pool.length) {
     throw new RangeError("BEAM sample size must be 1..eligible families.");
@@ -62,8 +72,8 @@ export function createBeamSelection(input: Readonly<{
   const selected = sampleWithoutReplacement(pool, input.sampleFamilies, input.randomIndex ?? cryptoRandomIndex);
   const selectedQuestionIds = selectedQuestions(input.dataset, selected);
   return { protocol: BEAM_SELECTION_PROTOCOL, createdAt, dataset: "beam", source: { revision: DATASETS.beam.revision, sha256: DATASETS.beam.sha256 },
-    reviewSha256, poolSha256: canonicalSha256(pool), poolSize: pool.length, eligibleFamilies: pool, sampleFamilies: input.sampleFamilies,
-    sampleQuestions: selectedQuestionIds.length, method: SELECTION_METHOD, selected, selectedQuestionIds };
+    reviewSha256, ...(split === undefined ? {} : { split }), poolSha256: canonicalSha256(pool), poolSize: pool.length, eligibleFamilies: pool,
+    sampleFamilies: input.sampleFamilies, sampleQuestions: selectedQuestionIds.length, method: SELECTION_METHOD, selected, selectedQuestionIds };
 }
 
 function parseFamily(value: unknown): BeamFamily {
@@ -78,13 +88,14 @@ function parseFamily(value: unknown): BeamFamily {
 }
 
 export function parseBeamSelectionDocument(value: unknown): BeamSelectionDocument {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ["protocol", "createdAt", "dataset", "source", "reviewSha256", "poolSha256", "poolSize",
-    "eligibleFamilies", "sampleFamilies", "sampleQuestions", "method", "selected", "selectedQuestionIds"])) {
-    throw new TypeError("BEAM selection document has an unexpected shape.");
-  }
+  if (!isPlainRecord(value)) throw new TypeError("BEAM selection document has an unexpected shape.");
+  const keys = ["protocol", "createdAt", "dataset", "source", "reviewSha256", "poolSha256", "poolSize",
+    "eligibleFamilies", "sampleFamilies", "sampleQuestions", "method", "selected", "selectedQuestionIds"];
+  if (!hasExactKeys(value, "split" in value ? [...keys, "split"] : keys)) throw new TypeError("BEAM selection document has an unexpected shape.");
   if (value.protocol !== BEAM_SELECTION_PROTOCOL || value.dataset !== "beam" || value.method !== SELECTION_METHOD) throw new TypeError("Unexpected BEAM selection protocol.");
   const createdAt = parseCanonicalInstantV1(value.createdAt);
   if (createdAt === null) throw new TypeError("Invalid BEAM selection createdAt.");
+  const split = parseBeamSplit(value.split);
   const source = value.source;
   if (!isPlainRecord(source) || !hasExactKeys(source, ["revision", "sha256"]) || source.revision !== DATASETS.beam.revision || source.sha256 !== DATASETS.beam.sha256) {
     throw new TypeError("BEAM selection source does not match the pinned dataset.");
@@ -118,15 +129,15 @@ export function parseBeamSelectionDocument(value: unknown): BeamSelectionDocumen
     throw new TypeError("BEAM selected question IDs do not belong to the selected families.");
   }
   return { protocol: BEAM_SELECTION_PROTOCOL, createdAt, dataset: "beam", source: { revision: DATASETS.beam.revision, sha256: DATASETS.beam.sha256 },
-    reviewSha256, poolSha256, poolSize, eligibleFamilies, sampleFamilies, sampleQuestions: selectedQuestionIds.length, method: SELECTION_METHOD,
-    selected, selectedQuestionIds };
+    reviewSha256, ...(split === undefined ? {} : { split }), poolSha256, poolSize, eligibleFamilies, sampleFamilies,
+    sampleQuestions: selectedQuestionIds.length, method: SELECTION_METHOD, selected, selectedQuestionIds };
 }
 
 /** Recompute the pool from the current dataset and review; return the drawn sample in draw order. */
 export function verifyBeamSelection(input: Readonly<{ document: unknown; dataset: Dataset; review: BeamExposureReview; reviewSha256: string }>): Dataset {
   const document = parseBeamSelectionDocument(input.document);
   if (document.reviewSha256 !== input.reviewSha256) throw new Error("BEAM selection was drawn under a different exposure review.");
-  const pool = buildBeamFamilyPool(input.dataset, input.review);
+  const pool = buildBeamFamilyPool(input.dataset, input.review, document.split);
   if (canonicalSha256(pool) !== document.poolSha256 || JSON.stringify(pool) !== JSON.stringify(document.eligibleFamilies)) {
     throw new Error("BEAM family pool no longer matches the current dataset and review.");
   }

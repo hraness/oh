@@ -332,7 +332,29 @@ describe("BEAM family draw", () => {
     expect(replay.questions).toHaveLength(33);
     expect(beamScopeQuestionIds(selection)).toHaveLength(33);
     expect(() => createBeamSelection({ dataset: beam, review: result, reviewSha256, sampleFamilies: 4 })).toThrow("1..eligible");
-    expect(() => createBeamSelection({ dataset: beam, review: result, reviewSha256: "nope", sampleFamilies: 1 })).toThrow("digest");
+    expect(() => createBeamSelection({ dataset: beam, review: result, reviewSha256, sampleFamilies: 1, split: "bogus" as never })).toThrow("split");
+  });
+
+  test("a split-scoped draw restricts the pool to one partition and replays exactly", () => {
+    const { beam, review: result, reviewSha256 } = sealed();
+    expect(buildBeamFamilyPool(beam, result, "100K")).toEqual([{ groupId: "beam-100K-0", corpusIds: ["beam-100K-0"], questions: 11 },
+      { groupId: "beam-100K-1", corpusIds: ["beam-100K-1"], questions: 11 }]);
+    expect(buildBeamFamilyPool(beam, result, "500K")).toEqual([{ groupId: "beam-500K-0", corpusIds: ["beam-500K-0"], questions: 11 }]);
+    const selection = createBeamSelection({ dataset: beam, review: result, reviewSha256, sampleFamilies: 2, split: "100K", randomIndex: fixedSequence([1, 0]), createdAt: "2026-09-10T00:00:00.000Z" });
+    expect(selection).toMatchObject({ split: "100K", poolSize: 2, sampleFamilies: 2, sampleQuestions: 22 });
+    expect(selection.selected.map((family) => family.groupId)).toEqual(["beam-100K-1", "beam-100K-0"]);
+    expect(selection.selectedQuestionIds.every((id) => id.startsWith("beam-100K-"))).toBe(true);
+    noSentinel(selection);
+    expect(parseBeamSelectionDocument(JSON.parse(JSON.stringify(selection)))).toEqual(selection);
+    const replay = verifyBeamSelection({ document: JSON.parse(JSON.stringify(selection)), dataset: beam, review: result, reviewSha256 });
+    expect(replay.corpora.map((corpus) => corpus.id)).toEqual(["beam-100K-1", "beam-100K-0"]);
+    expect(replay.questions).toHaveLength(22);
+    const wrongSplit = JSON.parse(JSON.stringify({ ...selection, split: "500K" }));
+    expect(() => verifyBeamSelection({ document: wrongSplit, dataset: beam, review: result, reviewSha256 })).toThrow("no longer matches");
+    const stripped = JSON.parse(JSON.stringify(selection));
+    delete stripped.split;
+    expect(() => verifyBeamSelection({ document: stripped, dataset: beam, review: result, reviewSha256 })).toThrow("no longer matches");
+    expect(() => createBeamSelection({ dataset: beam, review: result, reviewSha256, sampleFamilies: 3, split: "100K" })).toThrow("1..eligible");
   });
 
   test("a changed review, pool or selected family fails replay instead of drawing replacements", () => {
