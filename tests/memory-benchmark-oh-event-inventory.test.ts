@@ -3,7 +3,9 @@ import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordV1 } from "../src/graph";
 import { extractOhEventInventoryV1, prepareOhEventInventoryV1, resolveOhEventInventoryV1,
   extractOhEventInventoryV2, prepareOhEventInventoryV2, resolveOhEventInventoryV2,
-  OH_EVENT_INVENTORY_PROTOCOL_V1, OH_EVENT_INVENTORY_PROTOCOL_V2 } from "../scripts/benchmarks/oh-event-inventory";
+  extractOhEventInventoryV3, prepareOhEventInventoryV3, resolveOhEventInventoryV3,
+  OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT, OH_EVENT_INVENTORY_V3_SCHEMA_SHA256,
+  OH_EVENT_INVENTORY_PROTOCOL_V1, OH_EVENT_INVENTORY_PROTOCOL_V2, OH_EVENT_INVENTORY_PROTOCOL_V3 } from "../scripts/benchmarks/oh-event-inventory";
 
 const record = (id: string, text: string, day = 10) => createKnowledgeGraphRecordV1({ key: `edition:${id}`, kind: "edition", v: 1,
   dependencies: [], value: { text, speaker: "Nia", observedAt: `2035-04-${String(day).padStart(2, "0")}T12:00:00.000Z` } });
@@ -210,5 +212,129 @@ test("V2 historical cutoff filters before transport and transport failures have 
   let calls = 0;
   await expect(extractOhEventInventoryV2(input([a]), async () => { calls++; throw new Error("uncertain dispatch"); }))
     .rejects.toThrow("uncertain dispatch");
+  expect(calls).toBe(1);
+});
+
+test("V2 invented plan, prompt and result bytes remain replay-compatible after V3 addition", () => {
+  const records = [record("archive-sketch", "I sketched it on 2035-03-10."), record("archive-carve", "I carved it on 2035-03-20.", 11)];
+  // Captured before V3 changes; no benchmark data or provider calls.
+  const fixtures = [
+    { asOf: null, requestSha256: "c35f13067542c75a01f7bc033572a293507f70d346fb05e42a92547df9f218cd",
+      planBytes: "611618841ccb9817efe15b4cc9597ec1a8954a84542ee4f39e8601e41b6d2df8",
+      promptBytes: "758ea7aee8500ae0140d8d47c4dd5d9740cafdc98586f679f4f12673bacfcfc7",
+      resultBytes: "f6c7122c978779732b21141064833c5f7cae318fe70da6cd54f9956132904cb8" },
+    { asOf: "2035-04-10T23:59:59.999Z", requestSha256: "82aa8085332244246bece3063edacc0562e51d04759e47cde6830da4eb5de471",
+      planBytes: "6d92a40d64a9d873ab2c835b5465c40461db57774ec4f1fea5ba1263c985956c",
+      promptBytes: "1aaae2ad5a2f02b2427cd08b2cb512a1ddb5b7105ede4c087fe8d2d56299baf6",
+      resultBytes: "1f221ec7ac6c13f91ff49ec8b88bcabe5ac098d6cc1d8f4746efd9a0ae3de297" },
+  ];
+  for (const fixture of fixtures) {
+    const plan = prepareOhEventInventoryV2(input(records, "event-time", fixture.asOf));
+    expect(plan.requestSha256).toBe(fixture.requestSha256); expect(sha256Hex(JSON.stringify(plan))).toBe(fixture.planBytes);
+    expect(sha256Hex(plan.prompt)).toBe(fixture.promptBytes);
+    const replay = JSON.parse(JSON.stringify(plan)) as typeof plan;
+    const mentions = replay.sources.map(({ record: source }) => mention(source.key, source,
+      cite(source).quote.includes("sketched") ? "2035-03-10" : "2035-03-20"));
+    expect(sha256Hex(JSON.stringify(resolveOhEventInventoryV2(replay, proposal(replay, mentions))))).toBe(fixture.resultBytes);
+  }
+});
+
+const mentionV3 = (id: string, handle: string, source: KnowledgeGraphRecordV1, date: string | null = null, kind = "event") =>
+  ({ id, kind, source: { handle, quote: cite(source).quote }, timeExpression: date, facet: id });
+
+test("V3 sends handles and a frozen strict schema; only code reconstructs source identities", async () => {
+  const later = record("private-later", "I varnished the model on 2035-03-21."), earlier = record("private-earlier", "I assembled it on 2035-03-18.", 11);
+  let calls = 0;
+  const result = await extractOhEventInventoryV3(input([later, earlier]), async request => {
+    calls++; const wire = JSON.stringify(request);
+    for (const source of [later, earlier]) { expect(wire).not.toContain(source.key); expect(wire).not.toContain(source.recordSha256); }
+    expect(wire).not.toContain("recordSha256");
+    expect(request.prompt).toContain('"handle":"s0"'); expect(request.prompt).toContain('"handle":"s1"');
+    expect(request.prompt).toContain("when no relevant evidence supports an inventory");
+    expect(request.responseFormat).toBe(OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT);
+    expect(request.responseFormat.json_schema.strict).toBeTrue();
+    expect(canonicalSha256(request.responseFormat)).toBe(OH_EVENT_INVENTORY_V3_SCHEMA_SHA256);
+    expect(Object.isFrozen(request.responseFormat.json_schema.schema.properties.mentions.items.properties.kind.enum)).toBeTrue();
+    return proposal(request, [mentionV3("m0", "s0", later, "2035-03-21"), mentionV3("m1", "s1", earlier, "2035-03-18")]);
+  });
+  expect(calls).toBe(1); expect(result.protocol).toBe(OH_EVENT_INVENTORY_PROTOCOL_V3);
+  expect(result.pairs).toEqual([{ left: ["m0"], right: ["m1"], relation: "after" }]);
+  expect(result.mentions[0]?.source).toEqual(cite(later)); expect(result.mentions[1]?.source).toEqual(cite(earlier));
+  expect(result.semanticValidation).toBe("unverified-model-assertions"); expect(result.coverage).toBe("partial");
+  const { resultSha256, ...payload } = result; expect(resultSha256).toBe(canonicalSha256(payload));
+});
+
+test("V3 fixed schema admits empty arrays, bounded handles, enumerated kinds and exact reference objects", () => {
+  const schema = OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT.json_schema.schema;
+  expect(schema.additionalProperties).toBeFalse();
+  expect(schema.properties.mentions).toMatchObject({ type: "array", maxItems: 48 });
+  expect(schema.properties.links).toMatchObject({ type: "array", maxItems: 96 });
+  expect("minItems" in schema.properties.mentions).toBeFalse(); expect("minItems" in schema.properties.links).toBeFalse();
+  expect(schema.properties.mentions.items.properties.kind.enum).toEqual(["event", "state", "plan", "suggestion", "unclear"]);
+  expect(schema.properties.mentions.items.properties.source).toMatchObject({ additionalProperties: false, required: ["handle", "quote"] });
+  const handle = new RegExp(schema.properties.mentions.items.properties.source.properties.handle.pattern);
+  for (const value of ["s0", "s9", "s99", "s100", "s199", "s249", "s255"]) expect(handle.test(value)).toBeTrue();
+  for (const value of ["s256", "s00", "s-1", "edition:any", "s1+s2"]) expect(handle.test(value)).toBeFalse();
+  const plan = prepareOhEventInventoryV3(input([record("no-support", "A lamp is green.")]));
+  const result = resolveOhEventInventoryV3(plan, proposal(plan, []));
+  expect(result.mentions).toEqual([]); expect(result.links).toEqual([]); expect(result.pairs).toEqual([]);
+});
+
+test("V3 rejects ungrounded references, composite or absent handles, old citation shapes and invented dates", () => {
+  const a = record("a", "Sketch on 2035-03-10."), b = record("b", "Carving on 2035-03-20.");
+  const plan = prepareOhEventInventoryV3(input([a, b])), good = mentionV3("m0", "s0", a, "2035-03-10");
+  for (const source of [
+    { ...good.source, handle: "s2" }, { ...good.source, handle: "s256" }, { ...good.source, handle: "s0+s1" },
+    { ...good.source, handle: "s00" }, { ...good.source, handle: "s0\n" },
+    { ...good.source, quote: "Made up event." }, { ...good.source, quote: `${cite(a).quote} ${cite(b).quote}` },
+    { ...good.source, key: a.key }, cite(a),
+  ]) expect(() => resolveOhEventInventoryV3(plan, proposal(plan, [{ ...good, source }]))).toThrow();
+  for (const patch of [{ id: "m48" }, { id: "m0\n" }, { id: "m00" }, { kind: "happening" }, { timeExpression: "2035-03-11" }, { unexpected: true }])
+    expect(() => resolveOhEventInventoryV3(plan, proposal(plan, [{ ...good, ...patch }]))).toThrow();
+  const repeated = record("repeat", "Repeat. Repeat."), repeatPlan = prepareOhEventInventoryV3(input([repeated]));
+  expect(() => resolveOhEventInventoryV3(repeatPlan, proposal(repeatPlan, [{ ...mentionV3("m0", "s0", repeated), source: { handle: "s0", quote: "Repeat." } }]))).toThrow("unique source span");
+  const repeatedDate = record("repeat-date", "2035-03-10 and 2035-03-10."), datePlan = prepareOhEventInventoryV3(input([repeatedDate]));
+  expect(() => resolveOhEventInventoryV3(datePlan, proposal(datePlan, [mentionV3("m0", "s0", repeatedDate, "2035-03-10")]))).toThrow("unique quote span");
+});
+
+test("V3 validates link endpoints and identity, preserves duplicate-event conflicts and temporal cycles", () => {
+  const a = record("a", "A on 2035-03-10; before B."), b = record("b", "B on 2035-03-20; before A.");
+  const plan = prepareOhEventInventoryV3(input([a, b])), mentions = [mentionV3("m0", "s0", a, "2035-03-10"), mentionV3("m1", "s1", b, "2035-03-20")];
+  const link = { id: "l0", kind: "before", from: "m0", to: "m1", source: { handle: "s0", quote: cite(a).quote } };
+  for (const patch of [{ id: "l96" }, { id: "l0\n" }, { kind: "after" }, { from: "m2" }, { to: "m48" }, { to: "m1+m0" }, { extra: true }])
+    expect(() => resolveOhEventInventoryV3(plan, proposal(plan, mentions, [{ ...link, ...patch }]))).toThrow();
+  expect(() => resolveOhEventInventoryV3(plan, proposal(plan, [...mentions, mentions[0]]))).toThrow("duplicate mention");
+  expect(() => resolveOhEventInventoryV3(plan, proposal(plan, mentions, [link, link]))).toThrow("duplicate link");
+  const cycle = resolveOhEventInventoryV3(plan, proposal(plan, mentions, [link, { ...link, id: "l1", from: "m1", to: "m0", source: { handle: "s1", quote: cite(b).quote } }]));
+  expect(cycle.cyclic).toBeTrue(); expect(cycle.pairs[0]?.relation).toBe("conflict");
+  const identity = resolveOhEventInventoryV3(plan, proposal(plan, mentions, [{ ...link, kind: "same-event" }]));
+  expect(identity.identity.conflicts).toContain("m0:m1");
+});
+
+test("V3 cutoff assigns handles after filtering and mutable maps, prompts or schemas fail replay", async () => {
+  const old = record("old", "I will exhibit on 2035-06-01.", 1), future = record("future", "I cancelled the exhibition.", 3);
+  const data = input([old, future], "event-time", "2035-04-02T00:00:00.000Z"), plan = prepareOhEventInventoryV3(data);
+  expect(plan.sources.map(source => source.handle)).toEqual(["s0"]); expect(plan.omittedSources).toBe(1);
+  expect(plan.prompt).not.toContain("cancelled"); expect(plan.prompt).not.toContain("s1");
+  const good = proposal(plan, [mentionV3("m0", "s0", old, "2035-06-01", "plan")]);
+  expect(resolveOhEventInventoryV3(JSON.parse(JSON.stringify(plan)), good).omittedSources).toBe(1);
+  const mutations = [
+    (copy: Record<string, any>) => { copy.sources[0].handle = "s1"; },
+    (copy: Record<string, any>) => { copy.sources[0].record.recordSha256 = "0".repeat(64); },
+    (copy: Record<string, any>) => { copy.prompt += "Changed"; },
+    (copy: Record<string, any>) => { copy.responseFormat.json_schema.strict = false; },
+    (copy: Record<string, any>) => { copy.responseFormatSha256 = "0".repeat(64); },
+  ];
+  for (const mutate of mutations) { const copy = structuredClone(plan); mutate(copy); expect(() => resolveOhEventInventoryV3(copy, good)).toThrow(); }
+  for (const legacy of [prepareOhEventInventoryV1(data), prepareOhEventInventoryV2(data)]) {
+    expect(plan.requestSha256).not.toBe(legacy.requestSha256);
+    expect(() => resolveOhEventInventoryV3(plan, { ...good, requestSha256: legacy.requestSha256 })).toThrow("request mismatch");
+    expect(() => resolveOhEventInventoryV3(legacy as unknown as typeof plan, good)).toThrow();
+  }
+  expect(() => resolveOhEventInventoryV1(plan as never, good)).toThrow(); expect(() => resolveOhEventInventoryV2(plan as never, good)).toThrow();
+  expect(() => prepareOhEventInventoryV3({ ...data, referenceAnswer: "Forbidden" })).toThrow("exact fields");
+  expect(() => resolveOhEventInventoryV3(plan, `{"requestSha256":"${plan.requestSha256}","mentions":[],"mentions":[],"links":[]}`)).toThrow();
+  let calls = 0;
+  await expect(extractOhEventInventoryV3(data, async () => { calls++; throw new Error("uncertain dispatch"); })).rejects.toThrow("uncertain dispatch");
   expect(calls).toBe(1);
 });
