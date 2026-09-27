@@ -834,3 +834,18 @@ body > :not(.network-footer) { min-inline-size: 0; }
 .hraness-marketing-header__brand, .hraness-marketing-header__nav a, .hraness-marketing-header__actions a {
   display: inline-flex; align-items: center; min-block-size: 2.75rem;
 }
+
+/* Keep the install action solid instead of the shared foil border. */
+.hraness-marketing-action[data-emphasis="primary"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: none;
+  color: var(--primary-foreground);
+}
+@media (forced-colors: active) {
+  .hraness-marketing-action[data-emphasis="primary"] {
+    background: ButtonFace;
+    border-color: ButtonText;
+    color: ButtonText;
+  }
+}
