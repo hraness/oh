@@ -154,6 +154,15 @@ canonical instant or `YYYY-MM-DD`), `sessionId` (else the record key),
 `sessionIndex` or `turnIndex`, `speaker` or `role`, and `text` (else the
 canonical JSON of the value).
 
+`renderOhAuthorLogV1` and `renderOhSessionZoomV1` also accept an optional
+`sessionOrder(sessionId)` callback that returns a safe integer or `null`.
+It breaks ties between session dates before the session-key comparison;
+known numeric positions precede `null`. Supply the source session ordinal
+here and the source turn ordinal in the view's `order`. A dataset's outer
+session number must not be passed as the within-session order. Without this
+callback, the default V1 ordering is unchanged. This option adds no field to
+the record view or rendered result.
+
 The first part holds the author's records verbatim, grouped by session in the
 session order used above and in record order within a session, each line
 `[key] author: text`. Each session header gives the session date and its
@@ -165,6 +174,8 @@ session shares one day, a note says so. When the complete log is larger than
 the total budget minus the reserve, the log admits the author's records in
 ranking order, then newest first, while they fit, still renders them in
 chronological order, and its heading says it is partial and gives the counts.
+With `sessionOrder`, the recency fallback visits the last ordered session
+first and its records in reverse order; relevance-ranked records still lead.
 
 The second part lists other speakers' records in ranking order while they fit
 both the other-speaker budget and the total budget. Each line gives the key,

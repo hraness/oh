@@ -13,6 +13,7 @@ import { beamScopeQuestionIds, buildBeamFamilyPool, createBeamSelection, parseBe
 import { createEvolutionDatasetManifest, projectEvolutionRunnerInput } from "../scripts/benchmarks/evolution-dataset";
 import { convertBeamSource, parseDataset } from "../scripts/benchmarks/io";
 import { main as sealMain } from "../scripts/benchmarks/beam-seal-cli";
+import { amendBeamExposureReview, assertBeamKnownExposures, mergeBeamExposureDeclarations } from "../scripts/benchmarks/beam-exposure-amendment";
 import { main as benchMain } from "../scripts/benchmark-memory";
 import { makeEvolutionEvaluationScope } from "../scripts/benchmarks/evolution-evaluation-scope";
 import type { RandomIndex } from "../scripts/benchmarks/selection";
@@ -69,6 +70,38 @@ function longmem(id: string, content: string) {
 }
 const reference = (data: Dataset, dataset = "longmemeval-s") => ({ dataset, sha256: DATASETS["longmemeval-s"].sha256, data });
 const noSentinel = (value: unknown) => { const text = JSON.stringify(value); for (const sentinel of SENTINELS) expect(text).not.toContain(sentinel); };
+
+describe("BEAM exposure amendments", () => {
+  test("closes related histories without reading their content or changing the historical review", () => {
+    const raw = document([row("100K", 0, { profile: "related" }), row("100K", 1), row("500K", 0, { profile: "related" }), row("1M", 0)]);
+    const beam = parseBeam(raw);
+    const review = reviewBeamExposure({ beam, provenance: parseBeamProvenance(raw), references: [], createdAt: "2026-09-10T00:00:00.000Z" });
+    const before = canonicalJson(review);
+    const additions = [{ corpusId: "beam-100K-0", exposure: "evaluated" as const, evidence: "Invented development run." }];
+    expect(() => assertBeamKnownExposures(review, additions)).toThrow("predates known exposure");
+    const amended = amendBeamExposureReview(review, additions, "2026-09-27T00:00:00.000Z");
+    expect(canonicalJson(review)).toBe(before);
+    expect(amended.summary).toMatchObject({ eligibleHistories: 2, eligibleQuestions: 22, eligibleGroups: 2, declaredExposures: 1 });
+    expect(buildBeamFamilyPool(beam, amended).flatMap(group => group.corpusIds)).toEqual(["beam-100K-1", "beam-1M-0"]);
+    expect(() => assertBeamKnownExposures(amended, additions)).not.toThrow();
+    expect(() => amendBeamExposureReview(review, additions, "2026-01-01T00:00:00.000Z")).toThrow("no earlier");
+    expect(() => amendBeamExposureReview(review, [{ ...additions[0]!, corpusId: "beam-100K-99" }], "2026-09-27T00:00:00.000Z")).toThrow("absent");
+    noSentinel(amended);
+  });
+  test("later declarations cannot downgrade an evaluated history", () => {
+    const prior = { corpusId: "beam-100K-1", exposure: "evaluated" as const, evidence: "Already evaluated." };
+    expect(mergeBeamExposureDeclarations([prior], [{ ...prior, exposure: "unknown", evidence: "Later weaker statement." }])).toEqual([prior]);
+  });
+  test("the draw CLI rejects the historical review before loading a dataset or writing a selection", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "beam-stale-draw-"));
+    try {
+      const output = join(directory, "must-not-exist.json");
+      await expect(sealMain(["draw", "--review", join(import.meta.dir, "../benchmarks/results/beam-exposure-review-v1.json"),
+        "--families", "1", "--output", output])).rejects.toThrow("predates known exposure");
+      expect(await Bun.file(output).exists()).toBe(false);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+});
 
 describe("parseBeam", () => {
   test("keeps only chat turns with session anchors in the corpus and the scorer object in the answer field", () => {

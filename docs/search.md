@@ -152,6 +152,12 @@ are kept and the heading says the log is partial. Add
 `OH_AUTHOR_LOG_READER_NOTE_V1` to the model's instructions so it knows the
 layout. From the CLI, run `oh recall QUESTION --as-of INSTANT --author-log user`.
 
+When session dates tie, the SDK's `oh.authorLog` and the pure renderers accept
+`sessionOrder(sessionId)`, which returns the source session's numeric position
+or `null` if unknown. Supply the turn's numeric position separately through the
+record view's `order`. `oh.close()` waits for an admitted author-log call to
+finish both recall and rendering before it releases the backends and store.
+
 If the model answers that the memory lacks the information
 (`isOhDeclineAnswerV1`), `renderOhSessionZoomV1` gives it whole sessions
 chosen by the question's dates and words for a second reading, with

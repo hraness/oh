@@ -73,6 +73,7 @@ type RankedInput = readonly Readonly<{
  * as canonical JSON under its own key with no speaker.
  */
 export declare function defaultOhAuthorLogViewV1(record: KnowledgeGraphRecordV1): OhAuthorLogRecordViewV1;
+type SessionOrder = (session: string) => number | null;
 /**
  * Renders the complete log of one author's messages beside fused retrieval
  * of every other record, under a total byte budget.
@@ -85,6 +86,8 @@ export declare function defaultOhAuthorLogViewV1(record: KnowledgeGraphRecordV1)
  * rendered chronologically, and its heading says it is partial. The retrieved
  * part then admits the other speakers' records in `ranked` order under
  * `retrievedBytes` and the remaining total budget. Record text is never altered.
+ * An optional `sessionOrder` supplies numeric source order when session dates
+ * tie; without it the V1 session-key tie breaker is unchanged.
  */
 export declare function renderOhAuthorLogV1(input: Readonly<{
     ranked: RankedInput;
@@ -96,6 +99,7 @@ export declare function renderOhAuthorLogV1(input: Readonly<{
     logReserveBytes?: number;
     retrievedBytes?: number;
     view?: OhAuthorLogViewV1;
+    sessionOrder?: SessionOrder;
 }>): OhAuthorLogRenderingV1;
 /** True when an English answer says the memory lacks the information: the trigger for a second, wider reading. */
 export declare function isOhDeclineAnswerV1(answer: string): boolean;
@@ -117,6 +121,7 @@ export declare function renderOhSessionZoomV1(input: Readonly<{
     budgetBytes?: number;
     messageChars?: number;
     view?: OhAuthorLogViewV1;
+    sessionOrder?: SessionOrder;
 }>): OhSessionZoomRenderingV1;
 export {};
 //# sourceMappingURL=author-log.d.ts.map

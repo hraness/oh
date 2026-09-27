@@ -138,15 +138,20 @@ export class Oh {
    */
   async authorLog(question: string, options: Readonly<{ asOf?: string | null; author?: string; budgetBytes?: number;
     limit?: number; logReserveBytes?: number; mode?: OhSearchModeV1; retrievedBytes?: number;
-    view?: OhAuthorLogViewV1 }> = {}): Promise<OhAuthorLogRenderingV1> {
-    const recall = await this.recall(question, { asOf: options.asOf ?? null, limit: options.limit ?? 100,
-      mode: options.mode ?? (this.semanticBackend === undefined ? "keyword" : "hybrid") });
-    return await this.#admit(async () => renderOhAuthorLogV1({ ranked: recall.results, records: this.store.snapshotRecords() }, {
-      asOf: options.asOf ?? null, ...(options.author === undefined ? {} : { author: options.author }),
-      ...(options.budgetBytes === undefined ? {} : { budgetBytes: options.budgetBytes }),
-      ...(options.logReserveBytes === undefined ? {} : { logReserveBytes: options.logReserveBytes }),
-      ...(options.retrievedBytes === undefined ? {} : { retrievedBytes: options.retrievedBytes }),
-      ...(options.view === undefined ? {} : { view: options.view }) }));
+    view?: OhAuthorLogViewV1; sessionOrder?: (session: string) => number | null }> = {}): Promise<OhAuthorLogRenderingV1> {
+    return await this.#admit(async () => {
+      const recall = await recallOhV1({ ...(this.semanticBackend === undefined ? {} : { backend: this.semanticBackend }),
+        ...(this.rerankBackend === undefined ? {} : { reranker: this.rerankBackend }),
+        asOf: options.asOf ?? null, limit: options.limit ?? 100,
+        mode: options.mode ?? (this.semanticBackend === undefined ? "keyword" : "hybrid"), queries: [question], store: this.store });
+      return renderOhAuthorLogV1({ ranked: recall.results, records: this.store.snapshotRecords() }, {
+        asOf: options.asOf ?? null, ...(options.author === undefined ? {} : { author: options.author }),
+        ...(options.budgetBytes === undefined ? {} : { budgetBytes: options.budgetBytes }),
+        ...(options.logReserveBytes === undefined ? {} : { logReserveBytes: options.logReserveBytes }),
+        ...(options.retrievedBytes === undefined ? {} : { retrievedBytes: options.retrievedBytes }),
+        ...(options.view === undefined ? {} : { view: options.view }),
+        ...(options.sessionOrder === undefined ? {} : { sessionOrder: options.sessionOrder }) });
+    });
   }
 
   async sync(transport: OhOperationSyncTransportV1, options?: Parameters<typeof synchronizeOhStoreV1>[2]): Promise<OhSyncResultV1> {

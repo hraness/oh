@@ -159,9 +159,14 @@ function compareViewed(left: Viewed, right: Viewed): number {
     || compareKeys(left.key, right.key);
 }
 
-type Session = Readonly<{ day: number | null; id: string; members: readonly Viewed[] }>;
-/** Sessions in chronological order of their first dated member; undated sessions follow in key order. */
-function sessionsOf(viewed: readonly Viewed[]): readonly Session[] {
+type Session = Readonly<{ day: number | null; id: string; members: readonly Viewed[]; order: number | null }>;
+type SessionOrder = (session: string) => number | null;
+function compareSessions(left: Session, right: Session): number {
+  return (left.day ?? Infinity) - (right.day ?? Infinity) || compareOrders(left.order, right.order) || compareKeys(left.id, right.id);
+}
+/** Sessions by first dated member, optional numeric source order, then key; undated sessions follow. */
+function sessionsOf(viewed: readonly Viewed[], sessionOrder?: SessionOrder): readonly Session[] {
+  if (sessionOrder !== undefined && typeof sessionOrder !== "function") throw new TypeError("Session order must be a function.");
   const groups = new Map<string, Viewed[]>();
   for (const item of viewed) {
     const members = groups.get(item.view.session);
@@ -170,8 +175,10 @@ function sessionsOf(viewed: readonly Viewed[]): readonly Session[] {
   return [...groups.entries()].map(([id, members]) => {
     const sorted = [...members].sort(compareViewed);
     const first = sorted.find((item) => item.view.instant !== null);
-    return { day: first === undefined ? null : dayNumber(first.view.instant as string), id, members: sorted };
-  }).sort((left, right) => (left.day ?? Infinity) - (right.day ?? Infinity) || compareKeys(left.id, right.id));
+    const order = sessionOrder === undefined ? null : sessionOrder(id);
+    if (order !== null && !Number.isSafeInteger(order)) throw new TypeError("Session order must be null or an integer.");
+    return { day: first === undefined ? null : dayNumber(first.view.instant as string), id, members: sorted, order };
+  }).sort(compareSessions);
 }
 function sessionHeader(session: Session, asOfDay: number | null): string {
   if (session.day === null) return `## Session ${session.id}: date unknown`;
@@ -218,10 +225,12 @@ function logText(heading: string, sessions: readonly Session[], entries: Readonl
  * rendered chronologically, and its heading says it is partial. The retrieved
  * part then admits the other speakers' records in `ranked` order under
  * `retrievedBytes` and the remaining total budget. Record text is never altered.
+ * An optional `sessionOrder` supplies numeric source order when session dates
+ * tie; without it the V1 session-key tie breaker is unchanged.
  */
 export function renderOhAuthorLogV1(input: Readonly<{ ranked: RankedInput; records: readonly KnowledgeGraphRecordV1[] }>,
   options: Readonly<{ asOf: string | null; author?: string; budgetBytes?: number; logReserveBytes?: number;
-    retrievedBytes?: number; view?: OhAuthorLogViewV1 }>): OhAuthorLogRenderingV1 {
+    retrievedBytes?: number; view?: OhAuthorLogViewV1; sessionOrder?: SessionOrder }>): OhAuthorLogRenderingV1 {
   const records = checkedRecords(input.records, "records"), ranked = checkedRanked(input.ranked);
   const asOf = instantOrNull(options.asOf, "asOf"), asOfDay = asOf === null ? null : dayNumber(asOf);
   const author = options.author ?? OH_AUTHOR_LOG_LIMITS_V1.defaultAuthor;
@@ -239,8 +248,8 @@ export function renderOhAuthorLogV1(input: Readonly<{ ranked: RankedInput; recor
   const viewed = new Map<string, Viewed>();
   for (const record of records) if (!viewed.has(record.key)) viewed.set(record.key, checkedView(view, record));
   const authored = [...viewed.values()].filter((item) => item.view.speaker === author);
-  const sessions = sessionsOf(authored);
-  const allSessions = sessionsOf([...viewed.values()]);
+  const sessions = sessionsOf(authored, options.sessionOrder);
+  const allSessions = sessionsOf([...viewed.values()], options.sessionOrder);
   const sharedTimestamp = allSessions.length > 1 && allSessions.every((session) => session.day !== null && session.day === allSessions[0]?.day);
   const entries = new Map(authored.map((item) => [item.key, authorEntry(item, author, asOfDay)]));
 
@@ -260,7 +269,9 @@ export function renderOhAuthorLogV1(input: Readonly<{ ranked: RankedInput; recor
       const item = viewed.get(record?.key);
       if (item !== undefined && item.view.speaker === author && !seen.has(item.key)) { seen.add(item.key); priority.push(item); }
     }
-    for (const item of [...authored].sort((left, right) => compareViewed(right, left))) if (!seen.has(item.key)) priority.push(item);
+    const newest = options.sessionOrder === undefined ? [...authored].sort((left, right) => compareViewed(right, left))
+      : [...sessions].reverse().flatMap(session => [...session.members].reverse());
+    for (const item of newest) if (!seen.has(item.key)) priority.push(item);
     const partialHeading = (count: number) => `# Partial log of ${author} messages: ${count} of ${authored.length} messages from `
       + `${sessions.length} sessions, chosen by relevance to the question and then recency, verbatim, in chronological order`;
     const logBudget = budget - reserve, kept = new Map<string, string>(), openSessions = new Set<string>();
@@ -338,7 +349,8 @@ function contentWords(question: string): readonly string[] {
  * session shares one day.
  */
 export function renderOhSessionZoomV1(input: Readonly<{ question: string; ranked: RankedInput; records: readonly KnowledgeGraphRecordV1[] }>,
-  options: Readonly<{ asOf: string | null; budgetBytes?: number; messageChars?: number; view?: OhAuthorLogViewV1 }>): OhSessionZoomRenderingV1 {
+  options: Readonly<{ asOf: string | null; budgetBytes?: number; messageChars?: number; view?: OhAuthorLogViewV1;
+    sessionOrder?: SessionOrder }>): OhSessionZoomRenderingV1 {
   const records = checkedRecords(input.records, "records"), ranked = checkedRanked(input.ranked);
   if (typeof input.question !== "string" || input.question.length === 0 || utf8ByteLength(input.question) > OH_RECALL_LIMITS_V1.maximumQueryBytes) {
     throw new TypeError(`Session zoom question must be nonempty text of at most ${OH_RECALL_LIMITS_V1.maximumQueryBytes} bytes.`);
@@ -351,7 +363,7 @@ export function renderOhSessionZoomV1(input: Readonly<{ question: string; ranked
   const view = options.view ?? defaultOhAuthorLogViewV1;
   const viewed = new Map<string, Viewed>();
   for (const record of records) if (!viewed.has(record.key)) viewed.set(record.key, checkedView(view, record));
-  const sessions = sessionsOf([...viewed.values()]);
+  const sessions = sessionsOf([...viewed.values()], options.sessionOrder);
   const byId = new Map(sessions.map((session) => [session.id, session]));
   const distinctDays = new Set(sessions.map((session) => session.day));
   const window = asOf === null || distinctDays.size <= 1 ? null : resolveRelativeDateWindowV1(input.question, asOf);
@@ -390,7 +402,7 @@ export function renderOhSessionZoomV1(input: Readonly<{ question: string; ranked
     if (bytes + growth > budget) continue;
     chosen.push(session); bytes += growth;
   }
-  chosen.sort((left, right) => (left.day ?? Infinity) - (right.day ?? Infinity) || compareKeys(left.id, right.id));
+  chosen.sort(compareSessions);
   const text = chosen.length === 0 ? "" : `${heading(chosen.length)}\n\n${chosen.map(render).join("\n\n")}`;
   return { bytes: utf8ByteLength(text), keys: chosen.flatMap((session) => session.members.map((item) => item.key)),
     renderer: OH_SESSION_ZOOM_RENDERER_V1, sessions: chosen.map((session) => session.id), text, window, v: 1 };

@@ -42,6 +42,18 @@ describe("renderOhAuthorLogV1", () => {
     expect(a).toEqual(b);
   });
 
+  test("numeric session order is opt-in and preserves the V1 default tie breaker", () => {
+    const sameDay = [turn("t:two", "2023-05-04T10:00:00.000Z", "s2", 0, "user", "Second source session."),
+      turn("t:ten", "2023-05-04T10:00:00.000Z", "s10", 0, "user", "Tenth source session.")];
+    const input = { ranked: ranked(...sameDay), records: sameDay };
+    expect(renderOhAuthorLogV1(input, { asOf: null }).keys).toEqual(["t:ten", "t:two"]);
+    const options = { asOf: null, sessionOrder: (session: string) => Number(session.slice(1)) };
+    expect(renderOhAuthorLogV1(input, options).keys).toEqual(["t:two", "t:ten"]);
+    expect(renderOhSessionZoomV1({ ...input, question: "source session" }, options).sessions).toEqual(["s2", "s10"]);
+    expect(() => renderOhAuthorLogV1(input, { asOf: null, sessionOrder: () => NaN })).toThrow("Session order");
+    expect(() => renderOhSessionZoomV1({ ...input, question: "source session" }, { asOf: null, sessionOrder: 1 as never })).toThrow("Session order");
+  });
+
   test("falls back to a ranked partial log under a small budget and never exceeds the budget", () => {
     const many = Array.from({ length: 40 }, (_, index) => turn(`t:m${String(index).padStart(2, "0")}`,
       `2023-05-${String(1 + (index % 28)).padStart(2, "0")}T10:00:00.000Z`, `s${index}`, 0, "user", `Note ${index} ${"x".repeat(200)}`));

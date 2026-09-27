@@ -97,6 +97,31 @@ describe("Oh retrieval defaults and lifetime", () => {
     expect(() => oh.store.head()).toThrow("closed");
   });
 
+  test("close drains a complete admitted author log through rendering and preserves source session order", async () => {
+    const entered = deferred<void>(), release = deferred<void>(), events: string[] = [];
+    const oh = Oh.open({ databasePath: ":memory:", semanticBackend: {
+      profile: OH_EMBEDDING_PROFILE_V1, index: async () => ({ indexed: 0, v: 1 }),
+      search: async (_query, _limit, authority) => {
+        entered.resolve(); await release.promise; events.push("search");
+        return authority.list().map(record => ({ key: record.key, recordSha256: record.recordSha256, score: 1, v: 1 }));
+      }, close: async () => { events.push("close"); },
+    } });
+    for (const position of [2, 10]) oh.put({ key: `turn:s${position}`, kind: "edition", value: {
+      sessionId: `s${position}`, speaker: "user", text: `Kayak session ${position}.`, observedAt: "2025-01-01T00:00:00.000Z" } });
+    const pending = oh.authorLog("kayak", { sessionOrder: session => { events.push("render"); return Number(session.slice(1)); } });
+    await entered.promise;
+    const closing = oh.close();
+    await expect(oh.authorLog("late")).rejects.toThrow("closed");
+    expect(events).toEqual([]);
+    release.resolve();
+    expect((await pending).keys).toEqual(["turn:s2", "turn:s10"]);
+    await closing;
+    expect(events[0]).toBe("search");
+    expect(events.slice(1, -1).every(event => event === "render")).toBeTrue();
+    expect(events.at(-1)).toBe("close");
+    expect(() => oh.store.head()).toThrow("closed");
+  });
+
   test.each(["search", "indexSemantic"] as const)("close drains an admitted %s before either backend closes", async (method) => {
     const entered = deferred<void>(), release = deferred<void>();
     const events: string[] = [];

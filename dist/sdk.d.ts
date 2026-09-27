@@ -77,6 +77,7 @@ export declare class Oh {
         mode?: OhSearchModeV1;
         retrievedBytes?: number;
         view?: OhAuthorLogViewV1;
+        sessionOrder?: (session: string) => number | null;
     }>): Promise<OhAuthorLogRenderingV1>;
     sync(transport: OhOperationSyncTransportV1, options?: Parameters<typeof synchronizeOhStoreV1>[2]): Promise<OhSyncResultV1>;
     verify(): OhReplayVerificationV1;

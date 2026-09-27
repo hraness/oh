@@ -9851,7 +9851,12 @@ function checkedRanked(value) {
 function compareViewed(left, right) {
   return compareInstants(left.view.instant, right.view.instant) || compareOrders(left.view.order, right.view.order) || compareKeys2(left.key, right.key);
 }
-function sessionsOf(viewed) {
+function compareSessions(left, right) {
+  return (left.day ?? Infinity) - (right.day ?? Infinity) || compareOrders(left.order, right.order) || compareKeys2(left.id, right.id);
+}
+function sessionsOf(viewed, sessionOrder) {
+  if (sessionOrder !== undefined && typeof sessionOrder !== "function")
+    throw new TypeError("Session order must be a function.");
   const groups = new Map;
   for (const item of viewed) {
     const members = groups.get(item.view.session);
@@ -9863,8 +9868,11 @@ function sessionsOf(viewed) {
   return [...groups.entries()].map(([id, members]) => {
     const sorted = [...members].sort(compareViewed);
     const first = sorted.find((item) => item.view.instant !== null);
-    return { day: first === undefined ? null : dayNumber(first.view.instant), id, members: sorted };
-  }).sort((left, right) => (left.day ?? Infinity) - (right.day ?? Infinity) || compareKeys2(left.id, right.id));
+    const order = sessionOrder === undefined ? null : sessionOrder(id);
+    if (order !== null && !Number.isSafeInteger(order))
+      throw new TypeError("Session order must be null or an integer.");
+    return { day: first === undefined ? null : dayNumber(first.view.instant), id, members: sorted, order };
+  }).sort(compareSessions);
 }
 function sessionHeader(session, asOfDay) {
   if (session.day === null)
@@ -9928,8 +9936,8 @@ function renderOhAuthorLogV1(input, options) {
     if (!viewed.has(record.key))
       viewed.set(record.key, checkedView2(view, record));
   const authored = [...viewed.values()].filter((item) => item.view.speaker === author);
-  const sessions = sessionsOf(authored);
-  const allSessions = sessionsOf([...viewed.values()]);
+  const sessions = sessionsOf(authored, options.sessionOrder);
+  const allSessions = sessionsOf([...viewed.values()], options.sessionOrder);
   const sharedTimestamp = allSessions.length > 1 && allSessions.every((session) => session.day !== null && session.day === allSessions[0]?.day);
   const entries = new Map(authored.map((item) => [item.key, authorEntry(item, author, asOfDay)]));
   const question = asOfDay === null ? "" : `Question date: ${formatDay(asOfDay)}.`;
@@ -9951,7 +9959,8 @@ ${text3}`;
         priority.push(item);
       }
     }
-    for (const item of [...authored].sort((left, right) => compareViewed(right, left)))
+    const newest = options.sessionOrder === undefined ? [...authored].sort((left, right) => compareViewed(right, left)) : [...sessions].reverse().flatMap((session) => [...session.members].reverse());
+    for (const item of newest)
       if (!seen.has(item.key))
         priority.push(item);
     const partialHeading = (count) => `# Partial log of ${author} messages: ${count} of ${authored.length} messages from ` + `${sessions.length} sessions, chosen by relevance to the question and then recency, verbatim, in chronological order`;
@@ -10048,7 +10057,7 @@ function renderOhSessionZoomV1(input, options) {
   for (const record of records)
     if (!viewed.has(record.key))
       viewed.set(record.key, checkedView2(view, record));
-  const sessions = sessionsOf([...viewed.values()]);
+  const sessions = sessionsOf([...viewed.values()], options.sessionOrder);
   const byId = new Map(sessions.map((session) => [session.id, session]));
   const distinctDays = new Set(sessions.map((session) => session.day));
   const window = asOf === null || distinctDays.size <= 1 ? null : resolveRelativeDateWindowV1(input.question, asOf);
@@ -10100,7 +10109,7 @@ ${lines.join(`
     chosen.push(session);
     bytes += growth;
   }
-  chosen.sort((left, right) => (left.day ?? Infinity) - (right.day ?? Infinity) || compareKeys2(left.id, right.id));
+  chosen.sort(compareSessions);
   const text2 = chosen.length === 0 ? "" : `${heading(chosen.length)}
 
 ${chosen.map(render).join(`
@@ -26697,19 +26706,26 @@ class Oh {
     }));
   }
   async authorLog(question, options = {}) {
-    const recall = await this.recall(question, {
-      asOf: options.asOf ?? null,
-      limit: options.limit ?? 100,
-      mode: options.mode ?? (this.semanticBackend === undefined ? "keyword" : "hybrid")
+    return await this.#admit(async () => {
+      const recall = await recallOhV1({
+        ...this.semanticBackend === undefined ? {} : { backend: this.semanticBackend },
+        ...this.rerankBackend === undefined ? {} : { reranker: this.rerankBackend },
+        asOf: options.asOf ?? null,
+        limit: options.limit ?? 100,
+        mode: options.mode ?? (this.semanticBackend === undefined ? "keyword" : "hybrid"),
+        queries: [question],
+        store: this.store
+      });
+      return renderOhAuthorLogV1({ ranked: recall.results, records: this.store.snapshotRecords() }, {
+        asOf: options.asOf ?? null,
+        ...options.author === undefined ? {} : { author: options.author },
+        ...options.budgetBytes === undefined ? {} : { budgetBytes: options.budgetBytes },
+        ...options.logReserveBytes === undefined ? {} : { logReserveBytes: options.logReserveBytes },
+        ...options.retrievedBytes === undefined ? {} : { retrievedBytes: options.retrievedBytes },
+        ...options.view === undefined ? {} : { view: options.view },
+        ...options.sessionOrder === undefined ? {} : { sessionOrder: options.sessionOrder }
+      });
     });
-    return await this.#admit(async () => renderOhAuthorLogV1({ ranked: recall.results, records: this.store.snapshotRecords() }, {
-      asOf: options.asOf ?? null,
-      ...options.author === undefined ? {} : { author: options.author },
-      ...options.budgetBytes === undefined ? {} : { budgetBytes: options.budgetBytes },
-      ...options.logReserveBytes === undefined ? {} : { logReserveBytes: options.logReserveBytes },
-      ...options.retrievedBytes === undefined ? {} : { retrievedBytes: options.retrievedBytes },
-      ...options.view === undefined ? {} : { view: options.view }
-    }));
   }
   async sync(transport, options) {
     return await this.#admit(() => synchronizeOhStoreV1(this.store, transport, options));
