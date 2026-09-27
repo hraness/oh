@@ -29,7 +29,7 @@ export const blogPath = "/blog" as const;
 export const feedPath = "/blog/feed.xml" as const;
 export const blogTitle = "Oh blog";
 export const blogDescription =
-  "Articles from Hraness about how Oh works and how it is tested, from a run on all 500 LongMemEval-S questions to the property tests behind its Rust encoder.";
+  "Hraness on how Oh works and how it is tested, from a run on all 500 LongMemEval-S questions to the property tests behind its Rust encoder.";
 
 export const ohSearchSite: SearchSite = {
   description: homeDescription,
@@ -41,7 +41,12 @@ export const ohSearchSite: SearchSite = {
 };
 
 export const articleAuthor: ArticleAuthor = { kind: "organization", name: "Hraness", href: "https://hraness.com" };
-export const articleParty: ArticleParty = { kind: "Organization", name: "Hraness" };
+export const articleParty: ArticleParty = {
+  kind: "Organization",
+  name: "Hraness",
+  sameAs: ["https://github.com/hraness"],
+  url: "https://hraness.com",
+};
 
 type TocItem = Readonly<{ href: `#${string}`; label: string }>;
 
@@ -71,7 +76,7 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "longmemeval-s-user-log",
     title: "Reading every user message beat retrieval alone on LongMemEval-S",
-    dek: "A pipeline that gives GPT-5 mini every user message averaged 93.07% over three runs on the 500 LongMemEval-S questions it was tuned on, against 88.87% for Oh semantic retrieval and 86.13% for BM25.",
+    dek: "Giving GPT-5 mini every user message averaged 93.07% on the 500 LongMemEval-S questions it was tuned on, against 88.87% for Oh semantic retrieval.",
     eyebrow: "Benchmark",
     published: "2026-09-26",
     keywords: ["LongMemEval", "agent memory", "long-term memory", "retrieval", "BM25", "semantic search", "GPT-5 mini"],
@@ -82,7 +87,7 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "introducing-oh",
     title: "Introducing Oh",
-    dek: "An agent using Oh can write and nominate notes, but only your application’s own code can adopt them into reviewed knowledge, and the host sets each note’s author and timestamp.",
+    dek: "Oh is open-source memory for agents: an agent can write and nominate notes, but only your application’s code can adopt them into reviewed knowledge.",
     eyebrow: "Release",
     published: "2026-09-24",
     keywords: ["agent memory", "provenance", "knowledge graphs", "canonical JSON", "TypeScript", "Rust"],
@@ -92,8 +97,8 @@ export const articles: readonly OhArticle[] = [
   },
   {
     slug: "oh-rust-typescript-parity",
-    title: "Oh holds its Rust encoder to the TypeScript reference byte for byte",
-    dek: "Oh tests its opt-in Rust encoder against the TypeScript reference on thousands of generated inputs, and checks that an installed copy loads the Rust engine at all.",
+    title: "Oh tests its Rust encoder byte for byte against TypeScript",
+    dek: "Oh tests its opt-in Rust encoder against the TypeScript reference on thousands of generated inputs, and checks that installed copies load it.",
     eyebrow: "Technique",
     published: "2026-09-24",
     keywords: [
@@ -112,7 +117,7 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "built-on-oh",
     title: "Built on Oh",
-    dek: "Two Hraness products use Oh for different jobs: Sponge keeps its hosted agent’s working memory in it, and Wordcell answers graph questions about your Markdown with it.",
+    dek: "Sponge keeps its hosted agent’s working memory in Oh, and Wordcell uses Oh to answer graph questions about your Markdown notes.",
     eyebrow: "Integration",
     published: "2026-09-24",
     keywords: ["oh", "agent memory", "knowledge graphs", "sponge", "wordcell"],

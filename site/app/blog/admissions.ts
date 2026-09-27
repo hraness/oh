@@ -143,7 +143,7 @@ export const articleAdmissions = [
     ],
     observations: [
       "The memory specification never requires a person to review: nominate records no review and adoption follows whatever host code decides, so 'reviewed knowledge' names the store host code adopts into rather than a promise that a person read it.",
-      "Sponge pins Oh v0.10.8 and Wordcell v0.12.0, the live portfolio registry on 2026-09-26 registers neither product's relation to Oh, and Sponge's hosted agent finishes only work accepted before 2026-09-12, so the consumer paragraph rests on facts outside Oh's repository.",
+      "Sponge pins Oh v0.10.8 and Wordcell v0.12.0, the live portfolio registry on 2026-09-26 registers both products' relations to Oh, and Sponge's hosted agent finishes only work accepted before 2026-09-12, so the consumer paragraph rests on facts outside Oh's repository.",
     ],
     scores: {
       readerUtility: 2,
@@ -214,6 +214,7 @@ export const articleAdmissions = [
     observations: [
       "Installed from the v0.12.0 release tarball, loadCanonicalRustTextEngine() reported typescript because dist/canonical-rust.js looked in ../rust-artifacts/ while the files ship in dist/rust-artifacts/, and dist/projection-rust.js repeated the path; the repository suite passed its rust-wasm assertion only because the source tree has rust/oh-canonical-wasm/pkg. The fix loads from the packaged folder and adds a check on the packed package that fails on a fallback.",
       "Before the fix no test in Oh's parity suite, the Rust crate, or Wordcell's suite put two keys whose UTF-16 and code-point orders differ into one object; fast-check 4's default string unit keeps every generated string printable ASCII, and Wordcell's generated checks can fail only on a SHA-256 difference because its wrapper returns null on any text mismatch.",
+      "2026-09-27 fact review (AI, Claude Opus 5.5): the 2026-09-26 editorial pass had turned \"can expect the digest the reference would produce\" into \"gets\"; restored, because sampled parity tests support an expectation, not a guarantee, as the post's own limits section says.",
     ],
     scores: {
       readerUtility: 2,
@@ -242,13 +243,14 @@ export const articleAdmissions = [
   {
     href: "/blog/built-on-oh",
     // Both relations are registered in the portfolio facts with detail
-    // sentences, and each entry renders from its relation.
+    // sentences. The entries are written out in the post body, so keep them in
+    // step with those relations.
     lifecycle: "indexable",
     readerJob: "Find out which products use Oh, what each uses it for, and whether my own project needs Oh or Wordcell.",
     nonObviousAnswer:
       "The two uses sit at opposite ends: Sponge's Oh store is the record for its hosted agent's working notes and expires 24 hours after each session opens, while Wordcell keeps no record in Oh and rebuilds a disposable graph from Markdown to answer a query.",
     originalContribution: "Contrasts the two consumers' use of Oh from their own sources and pins, including what each keeps as its record.",
-    hostFit: "The provider index for Oh on Oh's own site, but neither entry has the registered relation a hub entry must come from.",
+    hostFit: "The index of products that use Oh, on Oh's own site; both entries follow relations registered in the portfolio facts.",
     nearestUrls: [
       {
         url: "https://oh.computer/blog/introducing-oh",
@@ -268,7 +270,7 @@ export const articleAdmissions = [
       { title: "Hraness portfolio registry", url: "https://hraness.com/portfolio.json", checkedOn: "2026-09-26" },
     ],
     observations: [
-      "The live portfolio registry lists 78 relations on 2026-09-26 and none connects Sponge or Wordcell to Oh, so neither entry can render from a registered relation yet.",
+      "The live portfolio registry on 2026-09-26 registers both relations to Oh. The Wordcell entry repeats its relation sentence; the Sponge entry adds the 24-hour expiry and the 2026-09-12 cutoff from Sponge's own sources, which its relation sentence does not state.",
       "Sponge retired new hosted chat, report jobs, and hosted research on 2026-09-12, so its Oh working memory serves only runs accepted before then, each expiring 24 hours after its session opens; Sponge pins Oh v0.10.8 and Wordcell pins v0.12.0.",
     ],
     scores: {
