@@ -40,4 +40,6 @@ Each link has an ID, kind, `from` and `to` mention IDs, and its own exact source
 
 Without explicit mentions, the view produces only source date annotations. It cannot extract event identity, infer which event a date modifies, discover corrections, or adopt suggestions. A benchmark adapter with no semantic extraction must report that restricted scope.
 
+The opt-in [event inventory development experiment](../benchmarks/event-inventory-development-v1.md) adds a source-only extraction prompt, a checked model-proposal parser, and calls into these operations. Its simulated-transport tests verify wiring and deterministic behavior; live semantic extraction remains unverified.
+
 Input limits are 2,048 records, 128 mentions, 256 links, and 4 MiB of combined serialized records and projected text. Quotes are at most 4 KiB. Raw date scans admit source text up to 4 KiB and consume at most 128 KiB total in source-key order. Larger sources retain their original text and report `scan-limit`; explicit short quoted mentions can still resolve dates. The index uses a caller-selected byte budget between 512 bytes and 256 KiB and omits whole annotations.
