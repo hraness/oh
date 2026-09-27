@@ -81,8 +81,17 @@ describe("oh CLI", () => {
     const undated = JSON.parse((await run(["recall", "Ada", "--db", database])).stdout);
     expect(undated.recall.window).toBeNull();
     expect(undated.rendering.text).toBe('{"name":"Ada Lovelace"}');
+    const turn = await run(["put", "--db", database, "--kind", "edition", "--key", "edition:t1",
+      "--json", '{"observedAt":"2026-01-05T09:00:00.000Z","sessionId":"s1","speaker":"user","text":"Ada built a loom yesterday."}',
+      "--operation", "op_cli_turn"]);
+    expect(turn.code).toBe(0);
+    const authorLog = JSON.parse((await run(["recall", "loom", "--db", database, "--as-of", "2026-01-08T12:00:00.000Z",
+      "--author-log", "user"])).stdout);
+    expect(authorLog.rendering.renderer).toBe("oh.recall-render.author-log.v1");
+    expect(authorLog.rendering.log).toMatchObject({ included: 1, mode: "complete", total: 1 });
+    expect(authorLog.rendering.text).toContain('"yesterday" = 2026/01/04 (Sun)');
     const verify = await run(["verify", "--db", database]);
-    expect(JSON.parse(verify.stdout)).toMatchObject({ operations: 1, records: 1, sqliteIntegrity: "ok" });
+    expect(JSON.parse(verify.stdout)).toMatchObject({ operations: 2, records: 2, sqliteIntegrity: "ok" });
   });
 
   test("returns a distinct missing-record status with a next step", async () => {
@@ -130,6 +139,7 @@ describe("oh CLI", () => {
       ["recall", "Ada", "--db", database, "--as-of", "2026-01-08"],
       ["recall", "Ada", "--db", database, "--as-of", ""],
       ["recall", "--db", database],
+      ["recall", "Ada", "--db", database, "--author-log", "x".repeat(65)],
       ["put", "--kind", "unknown", "--key", "entity:ada", "--json", "{}"],
       ["put", "--kind", "entity", "--key", "bad key", "--json", "{}"],
       ["put", "--kind", "entity", "--key", "entity:ada", "--json", "{}", "--file", malformedJson],

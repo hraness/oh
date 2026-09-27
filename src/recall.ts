@@ -139,7 +139,7 @@ function bounded(value: unknown, maximumBytes: number, label: string): string {
   }
   return value;
 }
-function instantOrNull(value: unknown, label: string): string | null {
+export function instantOrNull(value: unknown, label: string): string | null {
   if (value === null) return null;
   const instant = parseCanonicalInstantV1(value);
   if (instant === null) throw new TypeError(`Recall ${label} must be null or a canonical UTC instant.`);
@@ -196,14 +196,14 @@ export function defaultOhRecallViewV1(record: KnowledgeGraphRecordV1): OhRecallR
 type Fused = { evidence: OhRecallEvidenceV1[]; record: KnowledgeGraphRecordV1; score: number };
 
 /** Code-unit order, independent of the host locale and ICU tables. */
-function compareKeys(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
-function compareInstants(left: string | null, right: string | null): number {
+export function compareKeys(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }
+export function compareInstants(left: string | null, right: string | null): number {
   if (left === right) return 0;
   if (left === null) return 1;
   if (right === null) return -1;
   return left < right ? -1 : 1;
 }
-function compareOrders(left: number | null, right: number | null): number {
+export function compareOrders(left: number | null, right: number | null): number {
   if (left === right) return 0;
   if (left === null) return 1;
   if (right === null) return -1;
@@ -284,12 +284,12 @@ export async function recallOhV1(input: Readonly<{
   return { asOf, diagnostics, mode, queries, results, window, v: 1 };
 }
 
-function dayNumber(instant: string): number { return Math.floor(Date.parse(instant) / DAY_MS); }
+export function dayNumber(instant: string): number { return Math.floor(Date.parse(instant) / DAY_MS); }
 function dayStart(day: number): string { return new Date(day * DAY_MS).toISOString(); }
 function dayEnd(day: number): string { return new Date(day * DAY_MS + DAY_MS - 1).toISOString(); }
 function weekdayOf(day: number): number { return new Date(day * DAY_MS).getUTCDay(); }
 function mondayOf(day: number): number { return day - ((weekdayOf(day) + 6) % 7); }
-function formatDay(day: number): string {
+export function formatDay(day: number): string {
   const date = new Date(day * DAY_MS);
   const pad = (value: number) => value.toString().padStart(2, "0");
   return `${date.getUTCFullYear()}/${pad(date.getUTCMonth() + 1)}/${pad(date.getUTCDate())} (${WEEKDAY_LABELS[date.getUTCDay()]})`;
@@ -326,21 +326,16 @@ function windowFor(rule: OhRecallDateRuleV1, count: number, weekday: number | nu
   }
 }
 
-/**
- * Pure, rule-based resolution of one relative date expression against the
- * question instant. Returns `null` for no match and for more than one distinct
- * match; the grammar table above is the complete vocabulary.
- */
-export function resolveRelativeDateWindowV1(query: string, asOf: string): OhRecallDateWindowV1 | null {
-  const text = bounded(query, OH_RECALL_LIMITS_V1.maximumQueryBytes, "query").normalize("NFC").toLowerCase();
-  const asOfInstant = parseCanonicalInstantV1(asOf);
-  if (asOfInstant === null) throw new TypeError("Recall asOf must be a canonical UTC instant.");
+type DateMatch = { expression: string; rule: OhRecallDateRuleV1; count: number; weekday: number | null; unit: string | null;
+  start: number; end: number };
+
+/** Every admitted grammar match in `text`: containing expressions win and anchored bounds are excluded. */
+function admittedDateMatches(text: string): readonly DateMatch[] {
   const numbers = OH_RECALL_DATE_GRAMMAR_V1.numbers as Readonly<Record<string, number>>;
   const articles: readonly string[] = OH_RECALL_DATE_GRAMMAR_V1.articles;
   const numberPattern = `(\\d{1,3}|${Object.keys(numbers).join("|")})`;
   const weekdayPattern = `(${WEEKDAY_NAMES.join("|")})`, unitPattern = "(day|week|month|year)";
-  type Match = { expression: string; rule: OhRecallDateRuleV1; count: number; weekday: number | null; unit: string | null; start: number; end: number };
-  const found: Match[] = [];
+  const found: DateMatch[] = [];
   for (const rule of OH_RECALL_DATE_GRAMMAR_V1.rules) {
     const source = rule.pattern.replace("(NUMBER)", numberPattern).replace("(WEEKDAY)", weekdayPattern).replace("(UNIT)", unitPattern);
     for (const match of text.matchAll(new RegExp(source, "gu"))) {
@@ -362,15 +357,50 @@ export function resolveRelativeDateWindowV1(query: string, asOf: string): OhReca
     && other.end - other.start > item.end - item.start));
   // An anchored expression ("the day before yesterday", "since last week") names a bound, not the window itself.
   const exclusions = OH_RECALL_DATE_GRAMMAR_V1.exclusions.map((exclusion) => new RegExp(exclusion.pattern, "u"));
-  const admitted = outer.filter((item) => !exclusions.some((exclusion) => exclusion.test(text.slice(0, item.start))));
-  const distinct = new Map(admitted.map((item) => [`${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`, item]));
-  if (distinct.size !== 1) return null;
-  const [{ expression, rule, count, weekday, unit }] = [...distinct.values()] as [Match];
-  const [first, last] = windowFor(rule, count, weekday, unit, dayNumber(asOfInstant));
-  return { expression, rule: rule.id, since: dayStart(first), until: dayEnd(last), v: 1 };
+  return outer.filter((item) => !exclusions.some((exclusion) => exclusion.test(text.slice(0, item.start))));
+}
+function dateKey(item: DateMatch): string { return `${item.rule.id}:${item.count}:${item.weekday ?? ""}:${item.unit ?? ""}`; }
+function dateWindow(item: DateMatch, anchorDay: number): OhRecallDateWindowV1 {
+  const [first, last] = windowFor(item.rule, item.count, item.weekday, item.unit, anchorDay);
+  return { expression: item.expression, rule: item.rule.id, since: dayStart(first), until: dayEnd(last), v: 1 };
 }
 
-function offsetLabel(days: number): string {
+/**
+ * Pure, rule-based resolution of one relative date expression against the
+ * question instant. Returns `null` for no match and for more than one distinct
+ * match; the grammar table above is the complete vocabulary.
+ */
+export function resolveRelativeDateWindowV1(query: string, asOf: string): OhRecallDateWindowV1 | null {
+  const text = bounded(query, OH_RECALL_LIMITS_V1.maximumQueryBytes, "query").normalize("NFC").toLowerCase();
+  const asOfInstant = parseCanonicalInstantV1(asOf);
+  if (asOfInstant === null) throw new TypeError("Recall asOf must be a canonical UTC instant.");
+  const distinct = new Map(admittedDateMatches(text).map((item) => [dateKey(item), item]));
+  if (distinct.size !== 1) return null;
+  return dateWindow([...distinct.values()][0] as DateMatch, dayNumber(asOfInstant));
+}
+
+/**
+ * Every relative date expression in `text` under the same frozen grammar,
+ * anchored on the statement's own instant, in text order. Repeated identical
+ * readings appear once. Nothing is guessed: unmatched text yields no window.
+ */
+export function resolveRelativeDatesV1(text: string, anchor: string): readonly OhRecallDateWindowV1[] {
+  if (typeof text !== "string" || utf8ByteLength(text) > OH_RECALL_LIMITS_V1.maximumBudgetBytes) {
+    throw new TypeError(`Date resolution text must be at most ${OH_RECALL_LIMITS_V1.maximumBudgetBytes} bytes.`);
+  }
+  const anchorInstant = parseCanonicalInstantV1(anchor);
+  if (anchorInstant === null) throw new TypeError("Date resolution anchor must be a canonical UTC instant.");
+  const seen = new Set<string>(), windows: OhRecallDateWindowV1[] = [];
+  for (const item of [...admittedDateMatches(text.normalize("NFC").toLowerCase())].sort((left, right) => left.start - right.start)) {
+    const key = dateKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    windows.push(dateWindow(item, dayNumber(anchorInstant)));
+  }
+  return windows;
+}
+
+export function offsetLabel(days: number): string {
   if (days === 0) return "the day of the question";
   const count = Math.abs(days), unit = count === 1 ? "day" : "days";
   return `${count} ${unit} ${days < 0 ? "before" : "after"} the question`;

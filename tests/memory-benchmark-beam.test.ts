@@ -13,6 +13,7 @@ import { beamScopeQuestionIds, buildBeamFamilyPool, createBeamSelection, parseBe
 import { createEvolutionDatasetManifest, projectEvolutionRunnerInput } from "../scripts/benchmarks/evolution-dataset";
 import { convertBeamSource, parseDataset } from "../scripts/benchmarks/io";
 import { main as sealMain } from "../scripts/benchmarks/beam-seal-cli";
+import { amendBeamExposureReview, assertBeamKnownExposures, mergeBeamExposureDeclarations } from "../scripts/benchmarks/beam-exposure-amendment";
 import { main as benchMain } from "../scripts/benchmark-memory";
 import { makeEvolutionEvaluationScope } from "../scripts/benchmarks/evolution-evaluation-scope";
 import type { RandomIndex } from "../scripts/benchmarks/selection";
@@ -69,6 +70,38 @@ function longmem(id: string, content: string) {
 }
 const reference = (data: Dataset, dataset = "longmemeval-s") => ({ dataset, sha256: DATASETS["longmemeval-s"].sha256, data });
 const noSentinel = (value: unknown) => { const text = JSON.stringify(value); for (const sentinel of SENTINELS) expect(text).not.toContain(sentinel); };
+
+describe("BEAM exposure amendments", () => {
+  test("closes related histories without reading their content or changing the historical review", () => {
+    const raw = document([row("100K", 0, { profile: "related" }), row("100K", 1), row("500K", 0, { profile: "related" }), row("1M", 0)]);
+    const beam = parseBeam(raw);
+    const review = reviewBeamExposure({ beam, provenance: parseBeamProvenance(raw), references: [], createdAt: "2026-09-10T00:00:00.000Z" });
+    const before = canonicalJson(review);
+    const additions = [{ corpusId: "beam-100K-0", exposure: "evaluated" as const, evidence: "Invented development run." }];
+    expect(() => assertBeamKnownExposures(review, additions)).toThrow("predates known exposure");
+    const amended = amendBeamExposureReview(review, additions, "2026-09-27T00:00:00.000Z");
+    expect(canonicalJson(review)).toBe(before);
+    expect(amended.summary).toMatchObject({ eligibleHistories: 2, eligibleQuestions: 22, eligibleGroups: 2, declaredExposures: 1 });
+    expect(buildBeamFamilyPool(beam, amended).flatMap(group => group.corpusIds)).toEqual(["beam-100K-1", "beam-1M-0"]);
+    expect(() => assertBeamKnownExposures(amended, additions)).not.toThrow();
+    expect(() => amendBeamExposureReview(review, additions, "2026-01-01T00:00:00.000Z")).toThrow("no earlier");
+    expect(() => amendBeamExposureReview(review, [{ ...additions[0]!, corpusId: "beam-100K-99" }], "2026-09-27T00:00:00.000Z")).toThrow("absent");
+    noSentinel(amended);
+  });
+  test("later declarations cannot downgrade an evaluated history", () => {
+    const prior = { corpusId: "beam-100K-1", exposure: "evaluated" as const, evidence: "Already evaluated." };
+    expect(mergeBeamExposureDeclarations([prior], [{ ...prior, exposure: "unknown", evidence: "Later weaker statement." }])).toEqual([prior]);
+  });
+  test("the draw CLI rejects the historical review before loading a dataset or writing a selection", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "beam-stale-draw-"));
+    try {
+      const output = join(directory, "must-not-exist.json");
+      await expect(sealMain(["draw", "--review", join(import.meta.dir, "../benchmarks/results/beam-exposure-review-v1.json"),
+        "--families", "1", "--output", output])).rejects.toThrow("predates known exposure");
+      expect(await Bun.file(output).exists()).toBe(false);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+});
 
 describe("parseBeam", () => {
   test("keeps only chat turns with session anchors in the corpus and the scorer object in the answer field", () => {
@@ -332,7 +365,29 @@ describe("BEAM family draw", () => {
     expect(replay.questions).toHaveLength(33);
     expect(beamScopeQuestionIds(selection)).toHaveLength(33);
     expect(() => createBeamSelection({ dataset: beam, review: result, reviewSha256, sampleFamilies: 4 })).toThrow("1..eligible");
-    expect(() => createBeamSelection({ dataset: beam, review: result, reviewSha256: "nope", sampleFamilies: 1 })).toThrow("digest");
+    expect(() => createBeamSelection({ dataset: beam, review: result, reviewSha256, sampleFamilies: 1, split: "bogus" as never })).toThrow("split");
+  });
+
+  test("a split-scoped draw restricts the pool to one partition and replays exactly", () => {
+    const { beam, review: result, reviewSha256 } = sealed();
+    expect(buildBeamFamilyPool(beam, result, "100K")).toEqual([{ groupId: "beam-100K-0", corpusIds: ["beam-100K-0"], questions: 11 },
+      { groupId: "beam-100K-1", corpusIds: ["beam-100K-1"], questions: 11 }]);
+    expect(buildBeamFamilyPool(beam, result, "500K")).toEqual([{ groupId: "beam-500K-0", corpusIds: ["beam-500K-0"], questions: 11 }]);
+    const selection = createBeamSelection({ dataset: beam, review: result, reviewSha256, sampleFamilies: 2, split: "100K", randomIndex: fixedSequence([1, 0]), createdAt: "2026-09-10T00:00:00.000Z" });
+    expect(selection).toMatchObject({ split: "100K", poolSize: 2, sampleFamilies: 2, sampleQuestions: 22 });
+    expect(selection.selected.map((family) => family.groupId)).toEqual(["beam-100K-1", "beam-100K-0"]);
+    expect(selection.selectedQuestionIds.every((id) => id.startsWith("beam-100K-"))).toBe(true);
+    noSentinel(selection);
+    expect(parseBeamSelectionDocument(JSON.parse(JSON.stringify(selection)))).toEqual(selection);
+    const replay = verifyBeamSelection({ document: JSON.parse(JSON.stringify(selection)), dataset: beam, review: result, reviewSha256 });
+    expect(replay.corpora.map((corpus) => corpus.id)).toEqual(["beam-100K-1", "beam-100K-0"]);
+    expect(replay.questions).toHaveLength(22);
+    const wrongSplit = JSON.parse(JSON.stringify({ ...selection, split: "500K" }));
+    expect(() => verifyBeamSelection({ document: wrongSplit, dataset: beam, review: result, reviewSha256 })).toThrow("no longer matches");
+    const stripped = JSON.parse(JSON.stringify(selection));
+    delete stripped.split;
+    expect(() => verifyBeamSelection({ document: stripped, dataset: beam, review: result, reviewSha256 })).toThrow("no longer matches");
+    expect(() => createBeamSelection({ dataset: beam, review: result, reviewSha256, sampleFamilies: 3, split: "100K" })).toThrow("1..eligible");
   });
 
   test("a changed review, pool or selected family fails replay instead of drawing replacements", () => {

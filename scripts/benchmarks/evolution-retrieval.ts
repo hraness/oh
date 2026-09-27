@@ -14,6 +14,7 @@ import { OhSqliteStore } from "../../src/sqlite/store";
 import type { Corpus, Turn } from "./datasets";
 import { evolutionInstant, evolutionQuestionInstant } from "./evolution-dates";
 import { pack, queryTerms, renderTurn, type RetrievalBudget } from "./retrieval";
+import type { OhNativeRankListV1 } from "./oh-evidence-context";
 
 export const EVOLUTION_RETRIEVAL_SYSTEMS = ["bm25-window", "bm25-session", "oh-keyword",
   "oh-keyword-window", "oh-focused", "oh-focused-window", "oh-focused-window-opening",
@@ -90,8 +91,13 @@ export type EvolutionAnyRetrievalResult = EvolutionRetrievalResult | EvolutionRe
 export type EvolutionResultQuestion = Readonly<{ question: string; questionDate: string; system: EvolutionV2System }>;
 export type EvolutionPreparationStats = Readonly<{ rawIndexBuilds: number; sessionIndexBuilds: number;
   authorityBuilds: number; semanticIndexBuilds: number; queryCount: number }>;
+/** Opt-in unexpanded native candidates. No context packing or adjacency has run. */
+export type EvolutionNativeRankListV1 = OhNativeRankListV1 & Readonly<{ protocol: "oh.evolution-native-ranks.v1";
+  preparedSha256: string; querySha256: string; sources: readonly EvolutionSourceIdentity[]; resultSha256: string }>;
+export type EvolutionNativeRankOptionsV1 = Readonly<{ source: string; kind: "lexical" | "vector"; topK: number }>;
 export type EvolutionPreparedCorpus = Readonly<{ identity: EvolutionPreparedIdentity;
   stats: EvolutionPreparationStats;
+  nativeRanks(question: string, options: EvolutionNativeRankOptionsV1): Promise<EvolutionNativeRankListV1>;
   retrieve(question: string, variant: EvolutionV2Variant, questionDate: string): Promise<EvolutionRetrievalResultV2>;
   retrieve(question: string, variant: EvolutionLegacyVariant, questionDate?: string): Promise<EvolutionRetrievalResult>;
   retrieve(question: string, variant: EvolutionRetrievalVariant, questionDate?: string): Promise<EvolutionAnyRetrievalResult>;
@@ -427,7 +433,7 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
   const stats = { rawIndexBuilds: 1, sessionIndexBuilds: 1, authorityBuilds: 0, semanticIndexBuilds: 0, queryCount: 0 };
   let authority: OhSqliteStore | undefined, authorityHeadSha256: string | undefined;
   let semanticReady: Promise<void> | undefined, closing = false, closeResult: Promise<void> | undefined;
-  const active = new Set<Promise<EvolutionAnyRetrievalResult>>();
+  const active = new Set<Promise<EvolutionAnyRetrievalResult | EvolutionNativeRankListV1>>();
 
   function ensureAuthority(): OhSqliteStore {
     if (authority !== undefined) return authority;
@@ -676,8 +682,28 @@ export async function prepareEvolutionCorpus(input: Corpus, options: Readonly<{
       omittedForBudget: openingOmissions ?? packed.omittedForBudget, facets, coveredFacets, coverageKind: isFacets ? "lexical-clause" as const : null };
     return immutable({ ...payload, resultSha256: canonicalSha256(payload) });
   }
+  async function nativeRanks(questionInput: string, options: EvolutionNativeRankOptionsV1): Promise<EvolutionNativeRankListV1> {
+    const question = bounded(questionInput, 16_384, "question"), source = bounded(options.source, 128, "native rank source");
+    if ((options.kind !== "lexical" && options.kind !== "vector") || !Number.isSafeInteger(options.topK)
+      || options.topK < 1 || options.topK > (options.kind === "vector" ? 100 : 400)) throw new RangeError("Invalid native rank options.");
+    if (derived !== undefined) throw new TypeError("Native turn ranking requires a turn-only corpus.");
+    stats.queryCount += 1;
+    const indices = options.kind === "lexical" ? rawRank(question, options.topK) : await ohRank(question, options.topK, "semantic");
+    currentSources(indices);
+    const payload = { protocol: "oh.evolution-native-ranks.v1" as const, preparedSha256: identity.preparedSha256,
+      querySha256: sha256Hex(question), source, kind: options.kind, stage: "native" as const,
+      hits: indices.map((index, rank) => ({ turnId: turns[index]!.id, rank: rank + 1 })),
+      sources: indices.map(index => sources[index]!) };
+    return immutable({ ...payload, resultSha256: canonicalSha256(payload) });
+  }
   return Object.freeze({ identity,
     get stats() { return Object.freeze({ ...stats }); },
+    nativeRanks(question: string, options: EvolutionNativeRankOptionsV1) {
+      if (closing) return Promise.reject(new Error("Evolution prepared corpus is closed."));
+      const pending = nativeRanks(question, options); active.add(pending);
+      void pending.then(() => active.delete(pending), () => active.delete(pending));
+      return pending;
+    },
     retrieve: ((question: string, variant: EvolutionRetrievalVariant, questionDate?: string) => {
       if (closing) return Promise.reject(new Error("Evolution prepared corpus is closed."));
       const pending = retrieve(question, variant, questionDate); active.add(pending);

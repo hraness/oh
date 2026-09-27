@@ -40,7 +40,7 @@ type ValidatedInvocation = Readonly<{
 }>;
 
 const KNOWN_OPTIONS = new Set([
-  "actor", "after", "as-of", "db", "depends-on", "expected-generation", "file",
+  "actor", "after", "as-of", "author-log", "db", "depends-on", "expected-generation", "file",
   "json", "key", "kind", "limit", "mode", "operation", "space", "value",
 ]);
 /** The CLI renders recall under one fixed byte budget; the SDK renderer accepts any budget up to its limit. */
@@ -179,8 +179,12 @@ async function validateInvocation(command: string, parsed: ParsedArguments): Pro
     }
     integer(one(parsed, "limit"), "limit", 1, 100);
   } else if (command === "recall") {
-    assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, "as-of", "limit", "mode"]);
+    assertAllowedOptions(parsed, [...GLOBAL_OPTIONS, "as-of", "author-log", "limit", "mode"]);
     assertPositionals(parsed, 1, 1024);
+    const author = one(parsed, "author-log");
+    if (author !== undefined && (author.length > 64 || /[\r\n]/u.test(author))) {
+      throw new OhUsageError("--author-log needs one author name of at most 64 characters.");
+    }
     const query = parsed.positionals.join(" ");
     const mode = one(parsed, "mode", "keyword");
     if (query.trim().length === 0 || query.length > 4096
@@ -470,6 +474,14 @@ export async function runOhCli(arguments_: readonly string[]): Promise<number> {
       if (query.length === 0 || (mode !== "keyword" && mode !== "semantic" && mode !== "hybrid")) throw new OhUsageError("recall needs a query and a valid mode.");
       const limit = integer(one(parsed, "limit"), "limit");
       const asOf = parseCanonicalInstantV1(one(parsed, "as-of"));
+      const author = one(parsed, "author-log");
+      if (author !== undefined) {
+        const rendering = await oh.authorLog(query, { asOf, author, ...(limit === undefined ? {} : { limit }), mode });
+        warnAboutMode(output, mode);
+        if (output.json) print({ rendering, v: 1 });
+        else process.stdout.write(`${rendering.text.replace(/\n*$/u, "")}\n`);
+        return 0;
+      }
       const resolved = asOf === null ? null : resolveRelativeDateWindowV1(query, asOf);
       const window = resolved === null ? null : { since: resolved.since, until: resolved.until, v: 1 as const };
       const recall = await oh.recall(query, { asOf, ...(limit === undefined ? {} : { limit }), mode, window });

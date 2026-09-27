@@ -1,6 +1,7 @@
 import { opaqueId, type JsonValue } from "./canonical";
 import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordKindV1,
   type KnowledgeGraphRecordV1 } from "./graph";
+import { renderOhAuthorLogV1, type OhAuthorLogRenderingV1, type OhAuthorLogViewV1 } from "./author-log";
 import { recallOhV1, type OhRecallResponseV1, type OhRecallWindowV1 } from "./recall";
 import type { OhRerankBackendV1 } from "./rerank-model";
 import { searchOhV1, type OhSearchModeV1, type OhSearchResponseV1 } from "./search";
@@ -10,7 +11,12 @@ import { synchronizeOhStoreV1, type OhOperationSyncTransportV1, type OhSyncResul
 import type { OhOperationV1 } from "./operation";
 
 export { defaultOhRecallViewV1, OH_RECALL_DATE_GRAMMAR_V1, OH_RECALL_LIMITS_V1, OH_RECALL_RENDERER_V1, recallOhV1,
-  renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
+  renderOhRecallV1, resolveRelativeDatesV1, resolveRelativeDateWindowV1 } from "./recall";
+export { defaultOhAuthorLogViewV1, isOhDeclineAnswerV1, OH_AUTHOR_LOG_LIMITS_V1, OH_AUTHOR_LOG_READER_NOTE_V1,
+  OH_AUTHOR_LOG_RENDERER_V1, OH_SESSION_ZOOM_READER_NOTE_V1, OH_SESSION_ZOOM_RENDERER_V1, renderOhAuthorLogV1,
+  renderOhSessionZoomV1 } from "./author-log";
+export type { OhAuthorLogRecordViewV1, OhAuthorLogRenderingV1, OhAuthorLogViewV1,
+  OhSessionZoomRenderingV1 } from "./author-log";
 export type { OhRecallDateRuleV1, OhRecallDateWindowV1, OhRecallDiagnosticV1, OhRecallEvidenceV1, OhRecallRecordViewV1,
   OhRecallRenderingV1, OhRecallResponseV1, OhRecallResultV1, OhRecallViewV1, OhRecallWindowV1 } from "./recall";
 
@@ -122,6 +128,30 @@ export class Oh {
       ...(options.mode === undefined ? {} : { mode: options.mode }), ...(options.window === undefined ? {} : { window: options.window }),
       ...(options.rerankPoolSize === undefined ? {} : { rerankPoolSize: options.rerankPoolSize }),
       queries: typeof queries === "string" ? [queries] : queries, store: this.store }));
+  }
+
+  /**
+   * Opt-in author-log memory: the complete log of one author's messages
+   * (default `"user"`) beside fused recall of every other record for the
+   * question, under a byte budget. Recall uses the question as its one query,
+   * 100 results, and hybrid mode when a semantic backend is configured.
+   */
+  async authorLog(question: string, options: Readonly<{ asOf?: string | null; author?: string; budgetBytes?: number;
+    limit?: number; logReserveBytes?: number; mode?: OhSearchModeV1; retrievedBytes?: number;
+    view?: OhAuthorLogViewV1; sessionOrder?: (session: string) => number | null }> = {}): Promise<OhAuthorLogRenderingV1> {
+    return await this.#admit(async () => {
+      const recall = await recallOhV1({ ...(this.semanticBackend === undefined ? {} : { backend: this.semanticBackend }),
+        ...(this.rerankBackend === undefined ? {} : { reranker: this.rerankBackend }),
+        asOf: options.asOf ?? null, limit: options.limit ?? 100,
+        mode: options.mode ?? (this.semanticBackend === undefined ? "keyword" : "hybrid"), queries: [question], store: this.store });
+      return renderOhAuthorLogV1({ ranked: recall.results, records: this.store.snapshotRecords() }, {
+        asOf: options.asOf ?? null, ...(options.author === undefined ? {} : { author: options.author }),
+        ...(options.budgetBytes === undefined ? {} : { budgetBytes: options.budgetBytes }),
+        ...(options.logReserveBytes === undefined ? {} : { logReserveBytes: options.logReserveBytes }),
+        ...(options.retrievedBytes === undefined ? {} : { retrievedBytes: options.retrievedBytes }),
+        ...(options.view === undefined ? {} : { view: options.view }),
+        ...(options.sessionOrder === undefined ? {} : { sessionOrder: options.sessionOrder }) });
+    });
   }
 
   async sync(transport: OhOperationSyncTransportV1, options?: Parameters<typeof synchronizeOhStoreV1>[2]): Promise<OhSyncResultV1> {

@@ -4,16 +4,19 @@
  *   bun scripts/benchmarks/beam-seal-cli.ts review --output PATH --declare PATH [--reference longmemeval-s,locomo]
  *       [--max-exact-turn-matches N] [--max-sampled-shingle-matches-per-corpus N]   (sampled shingles are report-only unless bounded)
  *   --declare is mandatory: a JSON array of prior-exposure declarations, or an explicit empty array when the operator asserts none.
- *   bun scripts/benchmarks/beam-seal-cli.ts draw --review PATH --families N --output PATH
+ *   bun scripts/benchmarks/beam-seal-cli.ts draw --review PATH --families N --output PATH [--split 100K|500K|1M]
+ *   --split restricts the family pool to one source partition (the primary 100K set draws all of its eligible families).
  */
 import { parseArgs } from "node:util";
+import { writeFile } from "node:fs/promises";
 
 import { canonicalSha256, sha256Hex } from "../../src/canonical";
 import { parseBeamProvenance, DATASETS, type DatasetName } from "./datasets";
 import { displayPath, loadDataset, loadDatasetValue, parseDataset, writeJson } from "./io";
 import { BEAM_DEFAULT_THRESHOLDS, parseBeamExposureDeclarations, parseBeamExposureReview, reviewBeamExposure,
   type BeamExposureReview, type BeamReferenceDataset } from "./beam-review";
-import { createBeamSelection } from "./beam-selection";
+import { createBeamSelection, parseBeamSplit } from "./beam-selection";
+import { amendBeamExposureReview, assertBeamKnownExposures, BEAM_KNOWN_EXPOSURES, mergeBeamExposureDeclarations } from "./beam-exposure-amendment";
 
 const REFERENCE_NAMES = new Set<DatasetName>(["longmemeval-s", "locomo", "longmemeval-oracle"]);
 
@@ -39,14 +42,16 @@ export async function loadBeamReview(path: string): Promise<{ review: BeamExposu
 export async function main(argv: readonly string[]): Promise<void> {
   const { values, positionals } = parseArgs({ args: [...argv], allowPositionals: true, options: {
     output: { type: "string" }, declare: { type: "string" }, reference: { type: "string" }, review: { type: "string" },
-    families: { type: "string" }, "max-exact-turn-matches": { type: "string" }, "max-sampled-shingle-matches-per-corpus": { type: "string" },
+    families: { type: "string" }, split: { type: "string" },
+    "max-exact-turn-matches": { type: "string" }, "max-sampled-shingle-matches-per-corpus": { type: "string" },
   } });
   const command = positionals[0];
   if (command === "review") {
     if (!values.output || !values.declare) throw new TypeError("review requires --output and --declare (a JSON array of prior-exposure declarations; [] declares none explicitly).");
     const referenceNames = (values.reference ?? "longmemeval-s,locomo").split(",").filter((name) => name.length > 0);
     for (const name of referenceNames) if (!REFERENCE_NAMES.has(name as DatasetName)) throw new TypeError(`Unknown reference dataset ${name}.`);
-    const declarations = parseBeamExposureDeclarations((await readJson(values.declare, 1024 * 1024)).value);
+    const declarations = mergeBeamExposureDeclarations(BEAM_KNOWN_EXPOSURES,
+      parseBeamExposureDeclarations((await readJson(values.declare, 1024 * 1024)).value));
     const thresholds = { maximumExactTurnMatches: integer(values["max-exact-turn-matches"], BEAM_DEFAULT_THRESHOLDS.maximumExactTurnMatches, "--max-exact-turn-matches"),
       maximumSampledShingleMatchesPerCorpus: values["max-sampled-shingle-matches-per-corpus"] === undefined ? BEAM_DEFAULT_THRESHOLDS.maximumSampledShingleMatchesPerCorpus
         : integer(values["max-sampled-shingle-matches-per-corpus"], 0, "--max-sampled-shingle-matches-per-corpus") };
@@ -60,18 +65,33 @@ export async function main(argv: readonly string[]): Promise<void> {
       summary: review.summary, groups: review.groups.length, references: review.references.map((reference) => ({ dataset: reference.dataset, corpora: reference.corpora })) }, null, 2));
     return;
   }
+  if (command === "amend") {
+    if (!values.review || !values.output) throw new TypeError("amend requires --review and a new --output path.");
+    const { review, sha256: previousReviewSha256 } = await loadBeamReview(values.review);
+    const additions = values.declare === undefined ? BEAM_KNOWN_EXPOSURES
+      : mergeBeamExposureDeclarations(BEAM_KNOWN_EXPOSURES, parseBeamExposureDeclarations((await readJson(values.declare, 1024 * 1024)).value));
+    const amended = amendBeamExposureReview(review, additions, new Date().toISOString());
+    assertBeamKnownExposures(amended);
+    const bytes = JSON.stringify(amended, null, 2) + "\n";
+    await writeFile(values.output, bytes, { flag: "wx", mode: 0o600 });
+    console.log(JSON.stringify({ previousReviewSha256, reviewSha256: sha256Hex(bytes), summary: amended.summary }));
+    return;
+  }
   if (command === "draw") {
     if (!values.review || !values.output || !values.families) throw new TypeError("draw requires --review, --families and --output.");
     const { review, sha256 } = await loadBeamReview(values.review);
+    assertBeamKnownExposures(review);
     const dataset = await loadDataset("beam");
-    const document = createBeamSelection({ dataset, review, reviewSha256: sha256, sampleFamilies: integer(values.families, 0, "--families") });
+    const split = values.split === undefined ? undefined : parseBeamSplit(values.split);
+    const document = createBeamSelection({ dataset, review, reviewSha256: sha256, sampleFamilies: integer(values.families, 0, "--families"),
+      ...(split === undefined ? {} : { split }) });
     await writeJson(values.output, document);
     console.log(JSON.stringify({ output: displayPath(values.output), protocol: document.protocol, reviewSha256: sha256, poolSha256: document.poolSha256,
       poolSize: document.poolSize, sampleFamilies: document.sampleFamilies, sampleQuestions: document.sampleQuestions,
       selectedSha256: canonicalSha256(document.selected.map((family) => family.groupId)) }, null, 2));
     return;
   }
-  throw new TypeError("Usage: beam-seal-cli.ts <review|draw> [options]");
+  throw new TypeError("Usage: beam-seal-cli.ts <review|amend|draw> [options]");
 }
 
 if (import.meta.main) {
