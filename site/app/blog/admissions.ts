@@ -214,6 +214,7 @@ export const articleAdmissions = [
     observations: [
       "Installed from the v0.12.0 release tarball, loadCanonicalRustTextEngine() reported typescript because dist/canonical-rust.js looked in ../rust-artifacts/ while the files ship in dist/rust-artifacts/, and dist/projection-rust.js repeated the path; the repository suite passed its rust-wasm assertion only because the source tree has rust/oh-canonical-wasm/pkg. The fix loads from the packaged folder and adds a check on the packed package that fails on a fallback.",
       "Before the fix no test in Oh's parity suite, the Rust crate, or Wordcell's suite put two keys whose UTF-16 and code-point orders differ into one object; fast-check 4's default string unit keeps every generated string printable ASCII, and Wordcell's generated checks can fail only on a SHA-256 difference because its wrapper returns null on any text mismatch.",
+      "2026-09-27 fact review (AI, Claude Opus 5.5): the 2026-09-26 editorial pass had turned \"can expect the digest the reference would produce\" into \"gets\"; restored, because sampled parity tests support an expectation, not a guarantee, as the post's own limits section says.",
     ],
     scores: {
       readerUtility: 2,
