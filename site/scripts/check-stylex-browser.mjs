@@ -313,7 +313,7 @@ try {
             assert.equal(await page.locator(".oh-field, .oh-organism, [data-hraness-hero-backdrop]").count(), 0);
             for (const link of await page.locator(".hraness-marketing-header a").all()) {
               const box = await link.boundingBox();
-              assert.ok(box && box.height >= 44, "Header links remain visible and touch-sized");
+              assert.ok(box && box.height >= 44, `${label}: header link ${await link.getAttribute("href")} must remain visible and touch-sized (height: ${box?.height ?? "missing"})`);
             }
           } else {
             assert.match(metrics.heading.fontFamily, /Nebula Sans/u);

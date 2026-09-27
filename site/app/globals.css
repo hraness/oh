@@ -831,6 +831,6 @@ body > :not(.network-footer) { min-inline-size: 0; }
   .oh-hero, .oh-terminal, .hraness-marketing-header { background: Canvas; color: CanvasText; box-shadow: none; }
 }
 
-.hraness-marketing-header__brand, .hraness-marketing-header__nav a {
+.hraness-marketing-header__brand, .hraness-marketing-header__nav a, .hraness-marketing-header__actions a {
   display: inline-flex; align-items: center; min-block-size: 2.75rem;
 }
