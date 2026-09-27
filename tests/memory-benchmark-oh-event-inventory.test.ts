@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
-import { canonicalSha256 } from "../src/canonical";
+import { canonicalSha256, sha256Hex } from "../src/canonical";
 import { createKnowledgeGraphRecordV1, type KnowledgeGraphRecordV1 } from "../src/graph";
-import { extractOhEventInventoryV1, prepareOhEventInventoryV1, resolveOhEventInventoryV1 } from "../scripts/benchmarks/oh-event-inventory";
+import { extractOhEventInventoryV1, prepareOhEventInventoryV1, resolveOhEventInventoryV1,
+  extractOhEventInventoryV2, prepareOhEventInventoryV2, resolveOhEventInventoryV2,
+  OH_EVENT_INVENTORY_PROTOCOL_V1, OH_EVENT_INVENTORY_PROTOCOL_V2 } from "../scripts/benchmarks/oh-event-inventory";
 
 const record = (id: string, text: string, day = 10) => createKnowledgeGraphRecordV1({ key: `edition:${id}`, kind: "edition", v: 1,
   dependencies: [], value: { text, speaker: "Nia", observedAt: `2035-04-${String(day).padStart(2, "0")}T12:00:00.000Z` } });
@@ -11,7 +13,7 @@ const input = (records: KnowledgeGraphRecordV1[], mode = "event-time", asOf: str
   question: "Which stages of Nia's invented sculpture project are established, and in what order?", mode,
   granularity: "Separate sketch, carving, polishing and exhibition; preserve repeats as mentions.", asOf,
   sources: records.map((record, turnOrder) => ({ record, sessionOrder: 0, turnOrder })) });
-const proposal = (plan: ReturnType<typeof prepareOhEventInventoryV1>, mentions: unknown[], links: unknown[] = []) => ({ requestSha256: plan.requestSha256, mentions, links });
+const proposal = (plan: { requestSha256: string }, mentions: unknown[], links: unknown[] = []) => ({ requestSha256: plan.requestSha256, mentions, links });
 
 test("injected extraction connects source-only request to partial ordering and keeps semantic caveat", async () => {
   const carve = record("carve", "I carved it on 2035-03-20."), sketch = record("sketch", "I sketched it on 2035-03-10.", 11);
@@ -124,4 +126,89 @@ test("self-loop is a conflict even for one event or inside an identity group", (
   const loop = resolveOhEventInventoryV1(plan, proposal(plan, [mention("a", a), mention("b", b)],
     [{ ...self, to: "b" }, { ...self, id: "back", from: "b" }]));
   expect(loop.pairs[0]?.relation).toBe("conflict"); expect(loop.cyclic).toBeTrue();
+});
+
+test("V1 invented plan, prompt and result bytes remain replay-compatible including historical omission", () => {
+  // Captured from V1 before adding the successor; these are invented sources, not benchmark data.
+  const records = [record("archive-sketch", "I sketched it on 2035-03-10."), record("archive-carve", "I carved it on 2035-03-20.", 11)];
+  const fixtures = [
+    { asOf: null, requestSha256: "25d890a6838b95b44eebf1e17fd41bfcbdc29c9631e305c82d7259c4f8ede13d",
+      planBytes: "fccddfbc971d23eac3dca69a2b5ed93c0764e9843f63f788d476177e3c316425",
+      promptBytes: "1686507786530d3b13b8e73016595c6255e14d8a4dcb074d5a245193481038cf",
+      resultBytes: "6ffaf144c0a71e74b8f87fd3ef195c399f92924b2a11be093c0779d64b74b4ea" },
+    { asOf: "2035-04-10T23:59:59.999Z", requestSha256: "0438a8c0a87018ec3798f0e1c789753a14b3c13f36f44b5ef49752e8a64422df",
+      planBytes: "0ed0349946235591b9806b593d61569ac70efc172fb19409efb8e2f76d5b6bc4",
+      promptBytes: "df9545effd86dd406b3e508c29e7b6a40eff84992026c0d9794648194d242b56",
+      resultBytes: "c489c6763e324baae66f9b803e1a71ed34b0496c536da46b0bec51030345d1bd" },
+  ];
+  for (const fixture of fixtures) {
+    const plan = prepareOhEventInventoryV1(input(records, "event-time", fixture.asOf));
+    expect(plan.protocol).toBe(OH_EVENT_INVENTORY_PROTOCOL_V1);
+    expect(plan.requestSha256).toBe(fixture.requestSha256);
+    expect(sha256Hex(JSON.stringify(plan))).toBe(fixture.planBytes);
+    expect(sha256Hex(plan.prompt)).toBe(fixture.promptBytes);
+    const replay = JSON.parse(JSON.stringify(plan)) as typeof plan;
+    const mentions = replay.sources.map(({ record: source }) => mention(source.key, source,
+      cite(source).quote.includes("sketched") ? "2035-03-10" : "2035-03-20"));
+    const result = resolveOhEventInventoryV1(replay, proposal(replay, mentions));
+    expect(sha256Hex(JSON.stringify(result))).toBe(fixture.resultBytes);
+    expect(result.omittedSources).toBe(fixture.asOf === null ? 0 : 1);
+  }
+});
+
+test("V2 requests one-source citations and computes date order without model before links", async () => {
+  const later = record("later", "I varnished the model on 2035-03-21."), earlier = record("earlier", "I assembled the model on 2035-03-18.", 11);
+  let calls = 0;
+  const result = await extractOhEventInventoryV2(input([later, earlier]), async request => {
+    calls++;
+    expect(request.prompt).toContain("exactly ONE existing source key and recordSha256");
+    expect(request.prompt).toContain("Never concatenate source keys, digests, or quotes");
+    expect(request.prompt).toContain("only when explicit language in its cited source establishes the relation");
+    expect(request.prompt).toContain("Order implied by dates is computed locally");
+    expect(request.prompt).toContain("minimal exact date substring excluding surrounding punctuation");
+    expect(request.maximumResponseBytes).toBe(262_144);
+    return proposal(request, [mention("later", later, "2035-03-21"), mention("earlier", earlier, "2035-03-18")]);
+  });
+  expect(calls).toBe(1); expect(result.protocol).toBe(OH_EVENT_INVENTORY_PROTOCOL_V2);
+  expect(result.links).toEqual([]);
+  expect(result.pairs).toEqual([{ left: ["earlier"], right: ["later"], relation: "before" }]);
+  expect(result.mentions.map(row => row.timeStatus)).toEqual(["resolved", "resolved"]);
+  expect(result.semanticValidation).toBe("unverified-model-assertions"); expect(result.coverage).toBe("partial");
+  const { resultSha256, ...payload } = result; expect(resultSha256).toBe(canonicalSha256(payload));
+});
+
+test("V2 does not repair composite citations or punctuation-bearing date expressions", () => {
+  const a = record("a", "A happened on 2035-03-10."), b = record("b", "B happened on 2035-03-20.");
+  const plan = prepareOhEventInventoryV2(input([a, b]));
+  const mentions = [mention("a", a, "2035-03-10"), mention("b", b, "2035-03-20")];
+  const composite = { key: `${a.key}+${b.key}`, recordSha256: `${a.recordSha256}+${b.recordSha256}`,
+    quote: `${cite(a).quote}\n${cite(b).quote}` };
+  expect(() => resolveOhEventInventoryV2(plan, proposal(plan, mentions,
+    [{ id: "invalid", kind: "before", from: "a", to: "b", source: composite }]))).toThrow("citation digest");
+  const punctuated = resolveOhEventInventoryV2(plan, proposal(plan, [mention("a", a, "2035-03-10.")]));
+  expect(punctuated.mentions[0]?.timeExpression).toBe("2035-03-10.");
+  expect(punctuated.mentions[0]?.timeStatus).toBe("unknown"); expect(punctuated.mentions[0]?.interval).toBeNull();
+});
+
+test("V1 and V2 plans and responses cannot cross versions", () => {
+  const data = input([record("a", "A happened.")]), v1 = prepareOhEventInventoryV1(data), v2 = prepareOhEventInventoryV2(data);
+  expect(v2.requestSha256).not.toBe(v1.requestSha256); expect(v2.promptSha256).not.toBe(v1.promptSha256);
+  expect(() => resolveOhEventInventoryV1(v1, proposal(v2, []))).toThrow("request mismatch");
+  expect(() => resolveOhEventInventoryV2(v2, proposal(v1, []))).toThrow("request mismatch");
+  expect(() => resolveOhEventInventoryV1(v2 as unknown as typeof v1, proposal(v2, []))).toThrow("plan identity mismatch");
+  expect(() => resolveOhEventInventoryV2(v1 as unknown as typeof v2, proposal(v1, []))).toThrow("plan identity mismatch");
+  expect(() => resolveOhEventInventoryV2({ ...v2, prompt: v1.prompt }, proposal(v2, []))).toThrow("plan identity mismatch");
+});
+
+test("V2 historical cutoff filters before transport and transport failures have one attempt", async () => {
+  const a = record("a", "I plan to exhibit on 2035-06-01.", 1), b = record("b", "I cancelled the exhibition.", 3);
+  const result = await extractOhEventInventoryV2(input([a, b], "event-time", "2035-04-02T00:00:00.000Z"), async request => {
+    expect(request.prompt).not.toContain("cancelled the exhibition"); expect(request.prompt).not.toContain(b.recordSha256);
+    return proposal(request, [mention("a", a, "2035-06-01", "plan")]);
+  });
+  expect(result.omittedSources).toBe(1); expect(result.states[0]?.current[0]?.mention.id).toBe("a");
+  let calls = 0;
+  await expect(extractOhEventInventoryV2(input([a]), async () => { calls++; throw new Error("uncertain dispatch"); }))
+    .rejects.toThrow("uncertain dispatch");
+  expect(calls).toBe(1);
 });
