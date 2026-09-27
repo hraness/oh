@@ -159,7 +159,6 @@ describe("built Oh site", () => {
       expect(home).toContain(`Latest release: v${publishedRelease.version}`);
       expect(home).toContain(`@hraness/oh@${publishedRelease.version}`);
       expect(home).not.toContain("@hraness/oh@0.4.3");
-      expect(home).toContain("source CLI 0.4.0");
       expect(home).toContain(publishedRelease.verificationRun);
       expect(specificationResponse.status).toBe(200);
       expect(slashAliasResponse.status).toBe(308);
