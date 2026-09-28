@@ -1,0 +1,61 @@
+name: Production public site browser
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: production-public-browser
+  cancel-in-progress: false
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/production-chromium
+      OH_BROWSER_ARTIFACTS: ${{ github.workspace }}/site-production-artifacts
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.19.0
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+      - name: Cache locked dependencies and browser
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.bun/install/cache
+            ${{ runner.temp }}/production-chromium
+          key: production-bun-1.3.14-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('site/bun.lock') }}
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Install the locked browser and inspect the public site
+        run: |
+          node node_modules/playwright-core/cli.js install --no-shell chromium
+          CHROMIUM_EXECUTABLE_PATH="$(node -e 'console.log(require("playwright-core").chromium.executablePath())')"
+          export CHROMIUM_EXECUTABLE_PATH
+          node scripts/check-stylex-browser.mjs --production
+      - name: Retain production screenshots and receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-public-browser
+          path: site-production-artifacts/
+          retention-days: 7
+          if-no-files-found: error
+  required:
+    name: Required
+    if: always()
+    needs: browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULT: ${{ needs.browser.result }}
+        run: test "$RESULT" = success

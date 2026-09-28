@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 import { chromium } from "playwright-core";
 import { withReducedTransparency } from "./browser-transparency.mjs";
 import { inspectBenchmark, runBenchmarkAccessibilityCases } from "./check-benchmark-browser.mjs";
@@ -15,6 +16,8 @@ const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH;
 assert.ok(executablePath, "Set CHROMIUM_EXECUTABLE_PATH to an installed Chromium executable.");
 const site = fileURLToPath(new URL("../", import.meta.url));
 const artifacts = process.env.OH_BROWSER_ARTIFACTS;
+const { values } = parseArgs({ options: { production: { type: "boolean", default: false } } });
+const productionOrigin = values.production ? "https://oh.computer" : null;
 if (artifacts) await mkdir(artifacts, { recursive: true });
 
 function startServer() {
@@ -195,7 +198,7 @@ async function inspectAppearanceCases(browser, origin) {
   return rows;
 }
 
-const server = startServer();
+const server = productionOrigin ? null : startServer();
 let browser;
 let launchPromise;
 let cleanupPromise;
@@ -206,7 +209,7 @@ async function cleanup() {
     try {
       const active = browser ?? await launchPromise?.catch(() => undefined);
       if (active) await active.close();
-    } finally { await stopServer(server); }
+    } finally { if (server) await stopServer(server); }
   })();
   await cleanupPromise;
 }
@@ -219,7 +222,7 @@ for (const [signal, code] of signals) {
 }
 let browserVersion;
 try {
-  const origin = await server.ready;
+  const origin = productionOrigin ?? await server.ready;
   assert.equal(interrupted, false, "Browser run interrupted");
   launchPromise = chromium.launch({
     executablePath, headless: true, timeout: 15_000,
@@ -409,7 +412,7 @@ try {
 } finally {
   await cleanup();
 }
-const receipt = { completed: true, cleanup: "browser and server closed", browser: browserVersion, node: process.version, scenarios: evidence.length };
+const receipt = { completed: true, origin: productionOrigin ?? "owned local server", cleanup: server ? "browser and server closed" : "browser closed", browser: browserVersion, node: process.version, scenarios: evidence.length };
 const evidencePath = artifacts ? join(artifacts, "browser-evidence.json") : null;
 if (evidencePath) await writeFile(evidencePath, JSON.stringify({ ...receipt, evidence }, null, 2) + "\n");
 // Keep stdout bounded: large synchronous Bun console writes can end mid-JSON
