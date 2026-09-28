@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 
 const evidenceLinks = [
-  "https://github.com/hraness/oh/blob/main/benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md",
-  "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-sdk-retrieval-qualification-v1.json",
-  "https://github.com/hraness/oh/blob/main/benchmarks/audit/sdk-retrieval-qualification-v1/README.md",
+  "https://github.com/hraness/oh/blob/main/benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md",
+  "https://github.com/hraness/oh/blob/main/benchmarks/results/memory-longmemeval-s-500-v1.json",
+  "/blog/longmemeval-s-user-log",
 ];
 
 async function settled(page) {
@@ -48,8 +48,8 @@ export async function inspectBenchmark(page, label, artifacts) {
       for (const rect of range.getClientRects()) {
         if (!rect.width || !rect.height) continue;
         if (textRects.length >= 1024) throw new Error("Benchmark text-rectangle bound exceeded");
-        const cell = parent.closest("td, th");
-        const record = { element: describe(parent), cell: cell ? [...section.querySelectorAll("td,th")].indexOf(cell) : null, ...rectOf(rect) };
+        const cell = parent.closest(".hraness-design-chart-row__label, .hraness-design-chart-row__value, .hraness-design-chart-row__detail");
+        const record = { element: describe(parent), cell: cell ? [...section.querySelectorAll(".hraness-design-chart-row__label, .hraness-design-chart-row__value, .hraness-design-chart-row__detail")].indexOf(cell) : null, ...rectOf(rect) };
         textRects.push(record);
         if (rect.left < -epsilon || rect.right > viewport + epsilon) issues.push({ kind: "viewport-text-clip", ...record });
         for (let ancestor = parent; ancestor; ancestor = ancestor.parentElement) {
@@ -78,7 +78,7 @@ export async function inspectBenchmark(page, label, artifacts) {
         }
       }
     }
-    const cells = [...section.querySelectorAll("table, td, th")].filter((e) => !e.closest("thead") || e.closest("thead").getBoundingClientRect().width > 1).map((e) => {
+    const cells = [...section.querySelectorAll(".hraness-design-bar-list-chart, .hraness-design-chart-row__heading, .hraness-design-chart-row__detail")].filter((e) => !e.closest("thead") || e.closest("thead").getBoundingClientRect().width > 1).map((e) => {
       const result = { element: describe(e), scrollWidth: e.scrollWidth, clientWidth: e.clientWidth, ...rectOf(e.getBoundingClientRect()) };
       if (e.scrollWidth > e.clientWidth + epsilon) issues.push({ kind: "cell-scroll-overflow", ...result });
       return result;
@@ -97,9 +97,14 @@ export async function inspectBenchmark(page, label, artifacts) {
     await page.screenshot({ path: join(artifacts, `${label}-benchmark.png`), fullPage: true, clip, animations: "disabled" });
   }
   assert.deepEqual(metrics.issues, [], `${label}: benchmark text clipping or overlap`);
-  assert.equal(await page.locator("#benchmarks table").count(), 1);
+  assert.equal(await page.locator("#benchmarks .hraness-design-chart-row__label").count(), 6);
+  assert.equal(await page.locator("#benchmarks .hraness-design-chart-row__value").count(), 6);
+  for (const value of await page.locator("#benchmarks .hraness-design-chart-row__value").allTextContents()) {
+    assert.match(value, /^\d+(?:\.\d+)?%$/u, "Chart exposes a textual percentage");
+    assert.ok(Number.parseFloat(value) >= 0 && Number.parseFloat(value) <= 100);
+  }
   assert.equal(await page.locator("#benchmarks .hraness-design-bar-list-chart").count(), 2);
-  assert.deepEqual(await page.locator("#benchmarks .memory-benchmark > .benchmark-links a").evaluateAll((links) => links.map((link) => link.href)), evidenceLinks);
+  assert.deepEqual(await page.locator('#benchmarks .benchmark-links[aria-label="LongMemEval-S results"] a').evaluateAll((links) => links.map((link) => link.href)), evidenceLinks.map(href => new URL(href, page.url()).href));
   return metrics;
 }
 
@@ -125,7 +130,7 @@ async function textOverrides(page, scale, spacing) {
         if (element.tagName === "P") element.style.setProperty("margin-block-end", `${Math.max(margin, font * scale * 2)}px`, "important");
       }
     }
-    const probes = ["#benchmarks-title", "#benchmarks td", "#benchmarks .benchmark-note", "#benchmarks a"].map((selector) => {
+    const probes = ["#benchmarks-title", "#benchmarks .hraness-design-chart-row__label", "#benchmarks .benchmark-note", "#benchmarks a"].map((selector) => {
       const element = document.querySelector(selector);
       const snapshot = snapshots.find((row) => row.element === element);
       const style = getComputedStyle(element);
@@ -163,7 +168,7 @@ async function inspectKeyboard(page, origin) {
       const topElement = visibleRect ? document.elementFromPoint(visibleRect.x + visibleRect.width / 2, visibleRect.y + visibleRect.height / 2) : null;
       return { href: element.href, text: element.textContent.trim(), focusVisible: element.matches(":focus-visible"), outline: Number.parseFloat(getComputedStyle(element).outlineWidth), height: rect.height, visibleText: !!visibleRect, unobscured: !!topElement && (element === topElement || element.contains(topElement)) };
     });
-    assert.equal(record.href, href);
+    assert.equal(record.href, new URL(href, origin).href);
     assert.equal(record.focusVisible && record.outline >= 2 && record.visibleText && record.unobscured, true, `Visible unobscured keyboard focus: ${JSON.stringify(record)}`);
     if (index < 3) assert.ok(record.height >= 48, "Standalone evidence target must be at least48px");
     records.push(record);

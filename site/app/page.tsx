@@ -1,22 +1,18 @@
 import {
-  MarketingCallToAction,
   MarketingFlow,
   MarketingInstallPanel,
   MarketingInterfaceGrid,
   MarketingPage,
-  MarketingPrimitives,
   MarketingProofFrame,
   MarketingQuestionList,
   MarketingSection,
   MarketingSiteHeader,
-  MarketingStatStrip,
   MarketingTrustBoundary,
   ProductHero,
 } from "@hraness/design-kit/react/server";
 import { product, relatedFor } from "@hraness/design-kit/portfolio";
 import { AskAiAboutThis } from "@hraness/ui";
 
-import { OhField } from "./oh-field";
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 
 import publishedRelease from "../published-release.json";
@@ -27,23 +23,12 @@ import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
 import manifest from "../public/spec/manifest.json";
 
-function TopicIcon({ slug }: Readonly<{ slug: string }>) {
-  // Decorative local SVG; next/image cannot optimize vector sources.
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img className="oh-topic-icon" src={`/icons/${slug}.svg`} alt="" aria-hidden="true" width="88" height="88" loading="lazy" decoding="async" />
-  );
-}
-
 const currentVersion = manifest.versions.find((version) => version.id === manifest.current) ??
   (() => {
     throw new Error("The public specification manifest has no current version.");
   })();
 
 const releaseVersion = publishedRelease.version;
-// Preserve the source CLI identity of the September 5 capture (commit e2aac05).
-const capturedVersion = "0.4.0";
-const capturedOn = "September 5, 2026";
 const repository = "https://github.com/hraness/oh";
 const wordcell = product("kb");
 // The Wordcell section links a sibling product, so it needs a registered relation.
@@ -51,75 +36,79 @@ if (!relatedFor(wordcell.id, { kinds: ["runtime"] }).some((item) => item.name ==
   throw new Error("The portfolio registry has no runtime relation between Oh and Wordcell.");
 }
 
+const eyebrow = "Agent memory framework";
 const heading = "Agent memory that shows its work.";
 const lead =
   "Oh is an open-source memory framework for developers building agents. Your agent saves what it learns as linked records in a SQLite file, so later you can trace an answer back to the passage or table behind it.";
 const boundary =
-  `Free and MIT licensed · Needs Bun 1.3.14 or newer · Latest release: v${releaseVersion}`;
+  `Free and MIT licensed · Bun 1.3.14 or newer · No account needed · v${releaseVersion}`;
 
-/** Historical first-run output. The current installation command is shown separately. */
-const firstRunTranscript = `$ oh init --db research.db
-{"head":{"generation":0,"graphRevisionSha256":null,"operationSha256":null,"recordsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","sequence":0,"v":1},"spaceId":"default","v":1}
+/**
+ * Terminal output from the oh CLI after the citation's source, edition, claim,
+ * and stance were saved. tests/marketing-surface.test.ts replays these commands
+ * against the CLI source and requires every output line to appear here.
+ */
+const proofTranscript = `$ oh put --kind evidence --key evidence:table-2 \\
+    --depends-on edition:trial-report-v1 \\
+    --depends-on assertion:endpoint-12-weeks \\
+    --value '{"source":"entity:trial-report","locator":"table 2","relationship":"supports"}'
+✓ Saved evidence:table-2 (generation 5).
+Next: oh get evidence:table-2
 
-$ oh verify --db research.db
-{"head":{"generation":0,"graphRevisionSha256":null,"operationSha256":null,"recordsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","sequence":0,"v":1},"operations":0,"records":0,"sqliteIntegrity":"ok","v":1}`;
+$ oh get evidence:table-2
+evidence:table-2 (evidence)
+{
+  "locator": "table 2",
+  "relationship": "supports",
+  "source": "entity:trial-report"
+}
+Depends on: assertion:endpoint-12-weeks, edition:trial-report-v1
 
-const stats = [
-  {
-    label: "Local database",
-    value: "1",
-    detail: "One SQLite file holds the records, the operation log, and the keyword index.",
-  },
-  {
-    label: "Record kinds",
-    value: String(contract.recordKinds.length),
-    detail: "The v1 specification fixes the list, and Oh rejects a record of any other kind.",
-  },
-  {
-    label: "Digests",
-    value: "SHA-256",
-    detail: "Oh hashes records and operations over canonical JSON, so the same content always yields the same digest.",
-  },
-  {
-    label: "Accounts required",
-    value: "0",
-    detail: "Local use needs no sign-in, hosted model, or remote database.",
-  },
-] as const;
+$ oh verify
+✓ Store checked: 5 records and 5 changes replay to the same state (generation 5).`;
+
+/** Commands and their continuation lines take the accent; output stays plain. */
+function Transcript({ label, text }: Readonly<{ label: string; text: string }>) {
+  const lines = text.split("\n");
+  return (
+    <pre aria-label={label} className="oh-terminal" tabIndex={0}><code>{lines.map((line, index) => {
+      const command = line.startsWith("$ ") || (index > 0 && lines[index - 1].endsWith("\\"));
+      return (
+        <span className={command ? "oh-terminal__command" : undefined} key={index}>
+          {line}{"\n"}
+        </span>
+      );
+    })}</code></pre>
+  );
+}
 
 const researchObjects = [
   {
-    icon: "question",
     label: "Question",
     kind: "inquiry",
     summary: "Save what you are trying to find out, along with the investigation that follows.",
   },
   {
-    icon: "source",
     label: "Source",
     kind: "entity",
     summary: "Identify the paper, dataset, person, or system you are researching, even if its title or URL changes.",
   },
   {
-    icon: "capture",
     label: "Capture",
     kind: "edition",
     summary: "Record the edition or extract you read, separate from the source as it looks today.",
   },
   {
-    icon: "claim",
     label: "Claim",
     kind: "statement",
     summary: "Write down the claim itself, and keep who accepts it and the evidence for it in separate records.",
   },
   {
-    icon: "citation",
     label: "Citation",
     kind: "evidence",
     summary: "Point to a passage, table, or observation, and record how it bears on a stance toward a claim, such as support or contradiction.",
   },
   {
-    icon: "artifact",
     label: "Artifact",
     kind: "view",
     summary: "Build a brief or answer that keeps links to the records it draws on.",
@@ -202,13 +191,10 @@ function AnswerBody({ answer }: Readonly<{ answer: string }>) {
 }
 
 const navigation = [
-  { href: "#model", label: "Model" },
-  { href: "#trace", label: "Trace" },
-  { href: "#interfaces", label: "Interfaces" },
-  { href: "#benchmarks", label: "Benchmarks" },
-  { href: "#questions", label: "Questions" },
-  { href: "/blog", label: "Blog" },
+  { href: "#model", label: "How it works" },
+  { href: "/benchmarks", label: "Benchmarks" },
   { href: "/compare", label: "Compare" },
+  { href: "/blog", label: "Blog" },
   { href: "/spec", label: "Specification" },
   { href: repository, label: "GitHub" },
 ] as const;
@@ -238,7 +224,7 @@ export default function Home() {
   ];
 
   return (
-    <div data-hraness-marketing-preset="editorial" data-hraness-material="lantern" data-hraness-pattern="weave">
+    <div className="oh-home" data-hraness-material="lantern" data-hraness-marketing-preset="editorial" data-hraness-pattern="none">
       <script
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         type="application/ld+json"
@@ -249,99 +235,74 @@ export default function Home() {
         brand="Oh"
         brandMark="/marks/oh-computer.svg"
         brandLabel="Oh home"
-        className="hraness-material-chrome"
         links={navigation}
         trailing={<DesignPaletteMenuButton />}
       />
 
       <main id="main" tabIndex={-1}>
         <MarketingPage>
-          <div className="hraness-material-wall">
-          <OhField />
           <ProductHero
-            backdrop={false}
             actions={[
               { href: "#install", label: "Install Oh" },
-              { href: "#model", label: "See the memory model" },
+              { emphasis: "secondary", href: "#model", label: "See the memory model" },
             ]}
+            align="start"
+            backdrop={false}
             boundary={boundary}
-            className="oh-marketing-hero"
-            example="Memory for agents that stores each fact with its sources and history"
+            className="oh-hero"
+            eyebrow={eyebrow}
             frame={(
-              <div className="oh-board">
-                <div className="oh-record-card" aria-hidden="true">
-                  <p className="oh-record-label">{citationRecord.key} · JSON record</p>
-                  <pre>{JSON.stringify(citationRecord, null, 2).split("\n").slice(0, 17).join("\n")}</pre>
-                </div>
-                <MarketingProofFrame
-                  className="hraness-material-pane"
-                  caption="An illustrative review of a fictional trial report. Oh’s tests parse this citation record with the v1 record parser and recompute its digest."
-                  credit={`${currentVersion.contractId} · ${currentVersion.status}`}
-                  title="From a claim to its source"
-                >
-                  <div className="citation-preview">
-                    <h2>What backs the 12-week endpoint?</h2>
-                    <p>The citation links a stance on the claim to the edition of the report you read.</p>
-                    <dl>
-                      <div><dt>Source</dt><dd>Trial report <code>{citationRecord.value.source}</code></dd></div>
-                      <div><dt>Location</dt><dd>{citationRecord.value.locator}</dd></div>
-                      <div><dt>Relationship</dt><dd>{citationRecord.value.relationship}</dd></div>
-                      <div><dt>Linked records</dt><dd>{citationRecord.dependencies.map(key => <code key={key}>{key}</code>)}</dd></div>
-                    </dl>
-                    <a href="#trace">Follow the research trail</a>
-                  </div>
-                </MarketingProofFrame>
-                <p className="oh-chip">{citationRecord.kind}:{citationRecord.key.split(":")[1]} · sha256:{citationRecord.recordSha256.slice(0, 19)}…</p>
-              </div>
+              <figure className="oh-proof">
+                <Transcript label="Saving and reading a citation with the oh CLI" text={proofTranscript} />
+                <figcaption>
+                  The citation from an example review of a fictional trial report. The record names
+                  what it rests on, and <code>oh verify</code> replays every change to check the store.
+                  Add <code>--json</code> for canonical JSON.
+                </figcaption>
+              </figure>
             )}
             heading={heading}
             headingId="hero-title"
             name=""
             summary={lead}
           />
-          </div>
 
-          <MarketingStatStrip
-            ariaLabel="Oh in numbers"
-            source={`From the ${currentVersion.contractId} specification and Oh v${releaseVersion}.`}
-            stats={stats}
-          />
-
-          <MarketingPrimitives
+          <MarketingSection
             heading="Each part of your research gets its own record."
             headingId="model-title"
             id="model"
-            items={researchObjects.map((object) => ({
-              label: object.label,
-              summary: object.summary,
-              example: (
-                <>
-                  <TopicIcon slug={object.icon} />
-                  <p className="record-kind">
-                    Record kind <code>{object.kind}</code>
-                  </p>
-                </>
-              ),
-            }))}
-            label=""
+            label="How it works"
+            layout="split"
             summary="Oh keeps the question, the source, and the claim in separate linked records, so revising one leaves the others intact. An assertion records a stance on a claim; citations link that stance to its evidence."
-          />
+          >
+            <dl className="oh-rows">
+              {researchObjects.map((object) => (
+                <div key={object.kind}>
+                  <dt>{object.label} <code>{object.kind}</code></dt>
+                  <dd>{object.summary}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="record-link">
+              The v1 specification defines {contract.recordKinds.length} record kinds, and Oh rejects any
+              other. <a href="/spec#ontology">See every record kind</a>
+            </p>
+          </MarketingSection>
 
           <MarketingSection
             heading="Trace a brief back to the table it rests on."
             headingId="trace-title"
             id="trace"
-            label=""
+            label="Trace"
             layout="split"
-            summary="Follow one illustrative review from its question to the finished brief. Each key names a record you can open from the CLI, and the log keeps every change in the order it happened."
+            summary="Follow one example review from its question to the finished brief. Each key names a record you can open from the CLI, and the log keeps every change in the order it happened."
           >
             <MarketingFlow ariaLabel="Example research trace" steps={traceSteps} />
             <MarketingProofFrame
-              caption="The illustrative citation from the top of the page, indented for reading. The CLI prints the same record on one line."
-              credit={`${currentVersion.contractId} · example record`}
-              title="oh get evidence:table-2"
+              caption="The citation from the terminal above, indented for reading. With --json the CLI prints the same record on one line."
+              credit={`${currentVersion.contractId} · ${currentVersion.status}`}
             >
-              <pre className="transcript" tabIndex={0}><code>{`$ oh get evidence:table-2 --db research.db
+              <pre className="transcript" tabIndex={0}><code>{`$ oh get evidence:table-2 --json
 ${JSON.stringify(citationRecord, null, 2)}`}</code></pre>
             </MarketingProofFrame>
             <p className="record-link">
@@ -398,7 +359,7 @@ oh get evidence:table-2 \\
                 ),
               },
             ]}
-            label=""
+            label="Interfaces"
             summary="The CLI and the TypeScript SDK read and write the same SQLite file. The packaged Agent Skill has a coding agent run the commands you would run yourself, so its changes land in the log you verify."
           />
 
@@ -406,7 +367,7 @@ oh get evidence:table-2 \\
             heading={longMemEvalHeading}
             headingId="benchmarks-title"
             id="benchmarks"
-            label=""
+            label="Benchmarks"
             layout="split"
             summary="In each comparison, one model answers the same questions from each system’s memory, and every answer is scored the same way. Each result links to its protocol, costs, and limits."
           >
@@ -417,7 +378,7 @@ oh get evidence:table-2 \\
             heading={`${wordcell.name} uses Oh to query the graph of your Markdown notes.`}
             headingId="wordcell-title"
             id="wordcell"
-            label=""
+            label="Built on Oh"
             layout="split"
             summary={`Use Oh to build memory into an application. Use ${wordcell.name} to work with a knowledge base made of Markdown files.`}
           >
@@ -437,29 +398,20 @@ oh get evidence:table-2 \\
             </ul>
           </MarketingSection>
 
-          <MarketingTrustBoundary
-            heading="Oh keeps research local by default and never decides what is true."
-            headingId="kernel-title"
-            id="kernel"
-            items={trust}
-            label=""
-            summary="A search score, a valid digest, or an agent’s output never becomes an accepted claim on its own. Acceptance is a separate record that your application or a reviewer writes."
-          />
-
           <MarketingInstallPanel
-            eyebrow=""
+            eyebrow="Install"
             heading="Install and start with a local database."
             headingId="install-title"
             id="install"
+            note={<p className="install-note">{`Latest release: v${releaseVersion}`}</p>}
           >
-            <p className="install-note">{`Latest release: v${releaseVersion}`}</p>
             <pre className="install-command" tabIndex={0}><code>{`bun add --global @hraness/oh@${releaseVersion}
 oh --help`}</code></pre>
             <pre className="install-command" tabIndex={0}><code>{`oh init
 oh put --kind entity --key entity:ada-lovelace \\
-  --json '{"name":"Ada Lovelace","role":"mathematician"}'
+  --value '{"name":"Ada Lovelace","role":"mathematician"}'
 oh get entity:ada-lovelace
-oh search "mathematician" --mode keyword
+oh search "mathematician"
 oh verify`}</code></pre>
             <p className="install-note">
               The CLI needs Bun 1.3.14 or newer. The first task creates one entity, reads it back, finds it
@@ -472,37 +424,26 @@ oh verify`}</code></pre>
               package on Linux and macOS and ran the CLI before publishing the same bytes to npm and GitHub
               Releases.
             </p>
-            <details className="first-run-details hraness-material-disclosure">
-              <summary>See an example of the first-run output</summary>
-              <MarketingProofFrame
-                caption="A fresh database: init and verify stay local and print canonical JSON. This historical capture predates the current install version above."
-                credit={`${currentVersion.contractId} · ${currentVersion.status} · source CLI ${capturedVersion} · captured ${capturedOn}`}
-                title="oh · first run"
-              >
-                <pre className="transcript" tabIndex={0}><code>{firstRunTranscript}</code></pre>
-              </MarketingProofFrame>
-            </details>
           </MarketingInstallPanel>
+
+          <MarketingTrustBoundary
+            heading="Oh keeps research local by default and never decides what is true."
+            headingId="kernel-title"
+            id="kernel"
+            items={trust}
+            label="Control"
+            summary="A search score, a valid digest, or an agent’s output never becomes an accepted claim on its own. Acceptance is a separate record that your application or a reviewer writes."
+          />
 
           <MarketingQuestionList
             heading="What to know before you install."
             headingId="questions-title"
             id="questions"
-            label=""
+            label="Questions"
             questions={questions.map(({ answer, question }) => ({
               answer: <AnswerBody answer={answer} />,
               question,
             }))}
-          />
-
-          <MarketingCallToAction
-            actions={[
-              { href: "#install", label: "Install Oh" },
-              { href: "/spec", label: "Read the v1 specification" },
-            ]}
-            heading="Write and verify your first record in five commands."
-            headingId="cta-title"
-            summary="One Bun command installs the CLI. The first task then writes a record to a local database, finds it again, and verifies the log."
           />
         </MarketingPage>
       </main>

@@ -217,68 +217,36 @@ test("skip links transfer keyboard focus to each page's main landmark", () => {
   }
 });
 
-test("makes the illustrative citation readable while keeping historical output available", () => {
+test("renders the current CLI citation proof and its exact inspectable record", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
   const hero = /data-hraness-marketing="hero"[\s\S]*?<\/header>/u.exec(html)?.[0] ?? "";
   expect(html.match(/<h1\b/gu)).toHaveLength(1);
-  expect(hero).toContain("What backs the 12-week endpoint?");
-  const examples: string[] = [];
-  new HTMLRewriter()
-    .on('[data-hraness-marketing="hero"] p.hraness-marketing-hero__example', {
-      element() { examples.push(""); },
-      text(chunk) { examples[examples.length - 1] += chunk.text; },
-    })
-    .transform(html);
-  expect(examples).toEqual(["Memory for agents that stores each fact with its sources and history"]);
-  expect(hero).not.toContain("Ask your agent to file the trial report");
+  expect(hero).toContain('aria-label="Saving and reading a citation with the oh CLI"');
+  expect(hero).toContain('tabindex="0"');
   expect(hero).toContain(citationRecord.value.locator);
   expect(hero).toContain(citationRecord.value.relationship);
   for (const key of citationRecord.dependencies) expect(hero).toContain(key);
-  expect(hero).not.toContain("recordsSha256");
-  expect(html).toContain("An illustrative review of a fictional trial report");
-  expect(html).toContain('href="#trace"');
-  expect(html).toContain('<details class="first-run-details hraness-material-disclosure">');
-  expect(html).toContain("This historical capture predates the current install version above");
-  expect(html).toContain("source CLI 0.4.0");
-  expect(html).toContain("captured September 5, 2026");
-  expect(html).toContain("recordsSha256");
-  expect(html).not.toMatch(/<details class="first-run-details hraness-material-disclosure"[^>]*\bopen/u);
+  expect(hero).toContain("5 records and 5 changes replay to the same state");
+  expect(hero).toContain("fictional trial report");
+  expect(hero).toContain("--json");
+  expect(html).toContain('href="/examples/evidence-table-2.json"');
+  expect(html).toContain(citationRecord.recordSha256);
+  expect(html).not.toContain("historical capture");
 });
 
-test("scopes the editorial preset to the homepage and keeps the citation in its field", () => {
+test("keeps the homepage proof flat and the specification outside its preset", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
-  const elements: string[] = [];
-  new HTMLRewriter()
-    .on('[data-hraness-marketing-preset="editorial"] .hraness-marketing-header', {
-      element() { elements.push("header"); },
-    })
-    .on('[data-hraness-marketing-preset="editorial"] #main .hraness-material-wall .citation-preview', {
-      element() { elements.push("citation"); },
-    })
-    .transform(html);
-  expect(elements).toEqual(["header", "citation"]);
+  expect(html).toContain('data-hraness-marketing-preset="editorial"');
+  expect(html).toContain('data-hraness-pattern="none"');
+  expect(html).toContain('data-hraness-material="lantern"');
+  expect(html).not.toContain('hraness-material-wall');
+  expect(html).not.toContain('hraness-marketing-field');
   expect(html).toContain(`<p class="install-note">Latest release: v${publishedRelease.version}</p>`);
-
   const specification = renderToStaticMarkup(<RootLayout><Specification /></RootLayout>);
   expect(specification).not.toContain("data-hraness-marketing-preset");
   expect(specification).toContain("spec-header");
   expect(specification).toContain("spec-document");
   expect(specification).not.toContain("data-hraness-material");
-  expect(specification).not.toContain("hraness-material-");
-});
-
-test("confines Lantern to the homepage chrome, hero wall, citation plane and real disclosure", () => {
-  const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>), hooks: string[] = [];
-  new HTMLRewriter()
-    .on('[data-hraness-material="lantern"]', { element() { hooks.push("island"); } })
-    .on('header.hraness-material-chrome', { element() { hooks.push("chrome"); } })
-    .on('#main .hraness-material-wall:not(.hraness-marketing-field)', { element() { hooks.push("hero"); } })
-    .on('.hraness-material-pane .citation-preview', { element() { hooks.push("citation"); } })
-    .on('details.hraness-material-disclosure:not([open])', { element() { hooks.push("disclosure"); } })
-    .transform(html);
-  expect(hooks).toEqual(["island", "chrome", "hero", "citation", "disclosure"]);
-  expect(html).not.toContain('data-selected');
-  expect(html).not.toContain('hraness-marketing-field');
 });
 
 

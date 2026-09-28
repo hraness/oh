@@ -35,15 +35,15 @@ oh version
 
 For an existing installation, use its installed CLI and the specifications for
 its version. When the user wants a fresh installation, install
-`@hraness/oh@0.12.1`, which needs Bun 1.3.14 or newer:
+`@hraness/oh@0.13.1`, which needs Bun 1.3.14 or newer:
 
 ```sh
-bun add --global @hraness/oh@0.12.1
+bun add --global @hraness/oh@0.13.1
 ```
 
-[GitHub Actions run 36254650324](https://github.com/hraness/oh/actions/runs/36254650324)
+[GitHub Actions run 36273380689](https://github.com/hraness/oh/actions/runs/36273380689)
 built that package, installed it on Linux and macOS, and published the same
-tarball to npm and to the immutable GitHub Release `v0.12.1`, which also
+tarball to npm and to the immutable GitHub Release `v0.13.1`, which also
 carries `SHA256SUMS`. The versioned specifications are at
 <https://oh.computer/spec>.
 

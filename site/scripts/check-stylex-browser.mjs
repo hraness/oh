@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { log } from "node:console";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -99,78 +98,6 @@ async function selectNativeMedia(page, overrides) {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
 
-async function inspectOhFieldLifecycle(page, mobile) {
-  await page.bringToFront();
-  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
-  await page.waitForFunction(() => scrollY === 0);
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  const host = page.locator(".hraness-material-wall");
-  const light = () => host.evaluate((element) => element.style.getPropertyValue("--hraness-hero-light-x"));
-  const eligible = await page.evaluate(() => matchMedia("(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) and (forced-colors: none)").matches);
-  assert.equal(eligible, !mobile, "Native pointer media must match this desktop/mobile case");
-  assert.equal(await page.locator(".oh-organism").count(), 12, "All authored organisms exist before pointer interaction");
-  const move = async () => {
-    const box = await host.boundingBox();
-    assert.ok(box && box.height > 0);
-    await page.mouse.move(box.x + box.width * .22, Math.max(90, box.y + 80));
-  };
-  const headingGeometry = () => page.locator("h1").evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
-  });
-  const headingBefore = await headingGeometry();
-  await move();
-  if (eligible) {
-    await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") !== "");
-    await page.waitForFunction(() => [...document.querySelectorAll(".oh-organism")].some((node) => Number(node.style.getPropertyValue("--hraness-hero-proximity")) > 0));
-  } else {
-    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    assert.equal(await light(), "", "Coarse input keeps the authored field still");
-  }
-  assert.deepEqual(await headingGeometry(), headingBefore, "Pointer light never moves the headline in the document");
-  const activeLight = await light();
-  if (eligible) {
-    // Exercise the subscribed visibility handler while paint is active, as
-    // well as checking below that it cannot restart an offscreen field.
-    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
-    assert.equal(await light(), "", "Visibility notification clears active light");
-    assert.equal(await page.locator(".oh-organism").evaluateAll((nodes) => nodes.every((node) => !node.style.getPropertyValue("--hraness-hero-proximity"))), true);
-    await move();
-    await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") !== "");
-  }
-  await page.locator("#benchmarks").scrollIntoViewIfNeeded();
-  await page.waitForFunction(() => document.querySelector(".hraness-material-wall").getBoundingClientRect().bottom <= 0);
-  await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") === "");
-  const offscreen = await page.evaluate(async () => {
-    const host = document.querySelector(".hraness-material-wall");
-    const nodes = [...document.querySelectorAll(".oh-organism")];
-    document.dispatchEvent(new Event("visibilitychange"));
-    let changedFrames = 0;
-    for (let frame = 0; frame < 8; frame++) {
-      await new Promise(requestAnimationFrame);
-      if (host.style.getPropertyValue("--hraness-hero-light-x") || nodes.some((node) => node.style.getPropertyValue("--hraness-hero-proximity"))) changedFrames++;
-    }
-    return { documentVisible: !document.hidden, offscreen: host.getBoundingClientRect().bottom <= 0, organisms: nodes.length, frames: 8, changedFrames };
-  });
-  assert.deepEqual(offscreen, { documentVisible: true, offscreen: true, organisms: 12, frames: 8, changedFrames: 0 });
-  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
-  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-  await move();
-  if (eligible) await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") !== "");
-  const resumedLight = await light();
-  await selectNativeMedia(page, { "prefers-reduced-motion": "reduce" });
-  await page.waitForFunction(() => document.querySelector(".hraness-material-wall").style.getPropertyValue("--hraness-hero-light-x") === "");
-  await move();
-  const reducedMotion = await page.locator(".oh-organism").evaluateAll((nodes) => ({
-    requested: matchMedia("(prefers-reduced-motion: reduce)").matches,
-    organisms: nodes.length,
-    stationary: nodes.every((node) => getComputedStyle(node).transform === "none" && !node.style.getPropertyValue("--hraness-hero-proximity")),
-  }));
-  assert.deepEqual(reducedMotion, { requested: true, organisms: 12, stationary: true });
-  await selectNativeMedia(page, { "prefers-reduced-motion": "no-preference" });
-  return { eligible, activeLight, offscreen, resumedLight, reducedMotion };
-}
-
 async function inspectAppearanceCases(browser, origin) {
   const rows = [];
   const expected = { light: "rgb(251, 241, 199)", dark: "rgb(40, 40, 40)" };
@@ -179,6 +106,7 @@ async function inspectAppearanceCases(browser, origin) {
     const failedRequests = [];
     let auditedRequestCount = 0;
     let failures;
+    let scenarioError;
     try {
       const page = await context.newPage();
       failures = collectPageFailures(page, failedRequests);
@@ -190,14 +118,16 @@ async function inspectAppearanceCases(browser, origin) {
             palette: document.documentElement.dataset.palette,
             scrollWidth: document.documentElement.scrollWidth, viewportWidth: innerWidth,
             heading: document.querySelector("h1")?.textContent,
-            organisms: document.querySelectorAll(".oh-organism").length };
+            recordKinds: [...document.querySelectorAll(".oh-rows dt code")].map(element => element.textContent),
+            proof: document.querySelector(".oh-proof pre")?.textContent ?? null };
         });
         assert.equal(paint.background, expected[colorScheme]);
         assert.equal(paint.palette, "gruvbox");
         assert.ok(paint.scrollWidth <= width, `No-JavaScript content stays inside ${width}px viewport`);
         assert.equal(paint.viewportWidth, width, "Overflow must not expand the mobile viewport");
         assert.ok(paint.heading);
-        assert.equal(paint.organisms, route === "/" ? 12 : 0);
+        assert.deepEqual(paint.recordKinds, route === "/" ? ["inquiry", "entity", "edition", "statement", "evidence", "view"] : []);
+        if (route === "/") assert.match(paint.proof, /oh put --kind evidence/u);
         const declaredScripts = await page.locator('script[src], link[as="script"][href]').evaluateAll((nodes) => nodes.map((node) => node.src || node.href));
         // In a context with scripting explicitly disabled, Chromium cancels the
         // declared Next webpack preload with the exact "csp" reason. Retain the
@@ -216,11 +146,19 @@ async function inspectAppearanceCases(browser, origin) {
         rows.push({ label: `no-js-${width}-${colorScheme}-${route === "/" ? "home" : "spec"}`, paint, failures: [...failures], failedRequests: currentRequests, disabledScriptCancellations });
         auditedRequestCount = failedRequests.length;
       }
+    } catch (error) {
+      scenarioError = error;
     } finally {
       await context.close();
-      assert.equal(failedRequests.length, auditedRequestCount, "No unclassified late no-JavaScript request failures");
-      if (failures) assert.deepEqual(failures, [], "No late no-JavaScript runtime/resource failures");
+      try {
+        assert.equal(failedRequests.length, auditedRequestCount, `No unclassified late no-JavaScript request failures: ${JSON.stringify(failedRequests.slice(auditedRequestCount))}`);
+        if (failures) assert.deepEqual(failures, [], "No late no-JavaScript runtime/resource failures");
+      } catch (lateError) {
+        if (scenarioError) throw new AggregateError([scenarioError, lateError], "No-JavaScript scenario and late request audit failed");
+        throw lateError;
+      }
     }
+    if (scenarioError) throw scenarioError;
   }
   for (const width of [320, 390, 1440]) {
     const context = await browser.newContext({ colorScheme: "light", viewport: { width, height: 900 } });
@@ -257,28 +195,6 @@ async function inspectAppearanceCases(browser, origin) {
   return rows;
 }
 
-// The weave field retains the immutable grain asset; its pattern is authored CSS.
-async function assertWallAssets(context, background, origin) {
-  const expected = [
-    ['grain', 152319, 'b40c33a0e382c8e9d0518b4720321b5c262a929c28d40a190a902d07acd06553'],
-  ];
-  const urls = [...background.matchAll(/url\("([^"]+)"\)/gu)].map(match => new URL(match[1], origin));
-  assert.equal(urls.length, expected.length);
-  const result = [];
-  for (const [index, url] of urls.entries()) {
-    const [name, size, sha256] = expected[index];
-    assert.equal(url.origin, origin); assert.equal(url.search, ''); assert.equal(url.hash, '');
-    assert.match(url.pathname, new RegExp(`^/_next/static/media/${name}\\.[a-f0-9]+\\.svg$`, 'u'));
-    const response = await context.request.get(url.href, { timeout: 5000, maxRedirects: 0 });
-    assert.equal(response.status(), 200);
-    const bytes = await response.body();
-    assert.equal(bytes.length, size);
-    assert.equal(createHash('sha256').update(bytes).digest('hex'), sha256);
-    result.push({ name, path: url.pathname, bytes: size, sha256 });
-  }
-  return result;
-}
-
 const server = startServer();
 let browser;
 let launchPromise;
@@ -313,10 +229,11 @@ try {
   browser = await launchPromise;
   assert.equal(interrupted, false, "Browser run interrupted");
   browserVersion = browser.version();
-  for (const mobile of [false, true]) {
+  for (const width of [360, 390, 1440]) {
+    const mobile = width < 600;
     for (const colorScheme of ["light", "dark"]) {
       const context = await browser.newContext({
-        viewport: { width: mobile ? 390 : 1440, height: 900 },
+        viewport: { width, height: mobile ? (width === 360 ? 740 : 844) : 900 },
         isMobile: mobile, hasTouch: mobile, colorScheme, reducedMotion: "no-preference", forcedColors: "none",
       });
       try {
@@ -362,25 +279,26 @@ try {
               primaryAction: styles('.hraness-marketing-header .hraness-marketing-action[data-emphasis="primary"]'),
               sectionHeading: styles(".hraness-marketing-section__heading"),
               header: styles(".hraness-marketing-header__inner"),
-              hero: styles(".hraness-marketing-hero"), field: styles(".hraness-material-wall"),
-              chrome: styles(".hraness-material-chrome"), pane: styles(".hraness-material-pane"),
+              hero: styles(".hraness-marketing-hero"), field: styles(".oh-hero"),
+              chrome: styles(".hraness-marketing-header"), pane: styles(".oh-terminal"),
               material: document.querySelector('[data-hraness-material="lantern"]') !== null,
               label: styles('[data-slot="ask-ai-about-this-label"]'),
               link: styles('[data-slot="ask-ai-about-this-link"]'),
-              fonts: { body: document.fonts.check('16px "Nebula Sans"'), display: document.fonts.check('44px "Instrument Serif"') },
+              fonts: { body: document.fonts.check('16px "Nebula Sans"'), display: document.fonts.check('44px "Nebula Sans"') },
               loadedFonts: [...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family.replaceAll('"', "")),
               layers, headingRules,
             };
           });
-          const label = `${mobile ? "mobile" : "desktop"}-${colorScheme}-${route === "/" ? "home" : "spec"}`;
+          const label = `${width}-${colorScheme}-${route === "/" ? "home" : "spec"}`;
           evidence.push({ label, metrics });
           if (artifacts) await page.screenshot({ path: join(artifacts, `${label}.png`) });
-          assert.ok(metrics.scrollWidth <= (mobile ? 390 : 1440), `${label}: horizontal overflow`);
-          assert.equal(metrics.viewportWidth, mobile ? 390 : 1440, `${label}: requested viewport remains fixed`);
+          assert.ok(metrics.scrollWidth <= width, `${label}: horizontal overflow`);
+          assert.equal(metrics.viewportWidth, width, `${label}: requested viewport remains fixed`);
           assert.equal(metrics.background, colorScheme === "light" ? "rgb(251, 241, 199)" : "rgb(40, 40, 40)");
           assert.match(metrics.body.fontFamily, /Nebula Sans/u);
           assert.equal(metrics.primaryAction.color, colorScheme === "light" ? "rgb(251, 241, 199)" : "rgb(40, 40, 40)", "Primary action uses paired Gruvbox ink");
-          assert.ok(metrics.primaryAction.backgroundImage.includes(colorScheme === "light" ? "rgb(6, 89, 104)" : "rgb(169, 193, 184)"), "Primary action foil uses the selected palette surface");
+          assert.equal(metrics.primaryAction.backgroundImage, "none", "Primary action stays solid");
+          assert.equal(metrics.primaryAction.backgroundColor, colorScheme === "light" ? "rgb(6, 89, 104)" : "rgb(169, 193, 184)", "Primary action uses the selected palette surface");
           assert.equal(metrics.fonts.body, true);
           assert.ok(metrics.loadedFonts.includes("Nebula Sans"), "Nebula Sans must be a loaded font face");
           assert.match(metrics.label.fontFamily, /Nebula Sans/u);
@@ -392,35 +310,29 @@ try {
           if (mobile) closeTo(metrics.link.minBlockSize, 48, "Ask AI coarse target");
           if (route === "/") {
             assert.equal(metrics.fonts.display, true);
-            assert.ok(metrics.loadedFonts.includes("Instrument Serif"), "Instrument Serif must be a loaded font face");
-            assert.match(metrics.heading.fontFamily, /Instrument Serif/u);
-            closeTo(metrics.heading.fontSize, mobile ? 49.98 : 88, "editorial h1");
-            closeTo(metrics.heading.lineHeight, (mobile ? 49.98 : 88) * 1.02, "editorial h1 leading");
-            closeTo(metrics.header.minBlockSize, 52, "editorial header");
-            closeTo(metrics.hero.paddingBlockStart, mobile ? 56 : 112, "editorial hero start");
-            closeTo(metrics.hero.paddingBlockEnd, mobile ? 72 : 128, "editorial hero end");
-            closeTo(metrics.sectionHeading.fontSize, mobile ? 34 : 56, "editorial h2");
-            assert.ok(metrics.layers.some((layer) => layer.startsWith("oh-marketing")), "Editorial override layer missing");
+            assert.match(metrics.heading.fontFamily, /Nebula Sans/u);
+            assert.ok(parseFloat(metrics.heading.fontSize) >= 38 && parseFloat(metrics.heading.fontSize) <= 72, "Quiet heading scale");
+            assert.ok(parseFloat(metrics.heading.lineHeight) >= parseFloat(metrics.heading.fontSize), "Heading has adequate leading");
+            closeTo(metrics.header.minBlockSize, 52, "Quiet header");
+            assert.ok(metrics.layers.some((layer) => layer.startsWith("oh-marketing")), "Marketing layer missing");
             assert.equal(metrics.material, true);
-            assert.ok(metrics.layers.includes("oh-material"), "Lantern override layer missing");
-            assert.equal((metrics.field.backgroundImage.match(/gradient\(/gu) ?? []).length, 3);
-            assert.equal((metrics.field.backgroundImage.match(/radial-gradient\(/gu) ?? []).length, 1);
-            assert.equal((metrics.field.backgroundImage.match(/repeating-conic-gradient\(/gu) ?? []).length, 1);
-            assert.doesNotMatch(metrics.field.backgroundImage, /repeating-linear-gradient\(/u);
-            assert.equal(metrics.field.backgroundSize, "64px 64px, 24px 24px, 100% 100%, 100% 100%");
-            metrics.textures = await assertWallAssets(context, metrics.field.backgroundImage, origin);
-            assert.equal(metrics.pane.backgroundColor, colorScheme === "light" ? "rgb(249, 245, 215)" : "rgb(29, 32, 33)", "Opaque Gruvbox reading pane");
-            // Canonical accessible Gruvbox foreground from palette-system.css.
-            assert.equal(metrics.pane.color, colorScheme === "light" ? "rgb(57, 53, 51)" : "rgb(240, 229, 199)", "Paired reading ink");
-            assert.notEqual(metrics.pane.boxShadow, "none", "Shared soft reading depth");
+            assert.ok(metrics.layers.includes("oh-material"), "Material layer missing");
+            assert.equal(metrics.field.backgroundImage, "none");
+            assert.equal(metrics.pane.backgroundImage, "none");
+            assert.equal(metrics.pane.boxShadow, "none");
             assert.equal(metrics.pane.borderTopStyle, "solid");
-            closeTo(metrics.pane.borderTopWidth, 1, "reading seam");
-            assert.equal(metrics.chrome.backdropFilter, "blur(20px) saturate(1.1)");
+            closeTo(metrics.pane.borderTopWidth, 1, "Proof separator");
+            assert.equal(await page.locator(".oh-field, .oh-organism, [data-hraness-hero-backdrop]").count(), 0);
           } else {
             assert.match(metrics.heading.fontFamily, /Nebula Sans/u);
             assert.equal(metrics.material, false);
             assert.equal(metrics.pane, null);
-            assert.equal(metrics.chrome, null);
+
+          }
+
+          for (const target of await page.locator(".hraness-marketing-header a, .hraness-marketing-header button:visible, .hraness-marketing-header summary:visible").all()) {
+            const box = await target.boundingBox();
+            assert.ok(box && box.height >= 44 && box.width >= 44, `${label}: header target ${await target.getAttribute("href") ?? await target.getAttribute("aria-label") ?? "appearance control"} must remain visible and 44px in both dimensions (${box?.width ?? "missing"} × ${box?.height ?? "missing"})`);
           }
 
           await page.keyboard.press("Tab");
@@ -439,8 +351,7 @@ try {
           assert.equal(await askLink.evaluate((element) => element.matches(":focus-visible") && Number.parseFloat(getComputedStyle(element).outlineWidth) >= 2), true);
           if (mobile) assert.ok((await askLink.boundingBox()).height >= 48, "Coarse hit target must be at least 48px");
           if (route === "/") {
-            metrics.ohFieldLifecycle = await inspectOhFieldLifecycle(page, mobile);
-            const details = page.locator("details.first-run-details");
+            const details = page.locator("#questions details").first();
             assert.equal(await details.evaluate((element) => element.open), false);
             await details.locator("summary").focus();
             await page.keyboard.press("Enter");
@@ -457,14 +368,14 @@ try {
                 return { image: value.backgroundImage, background: value.backgroundColor,
                   color: value.color, backdrop: value.backdropFilter, shadow: value.boxShadow };
               };
-              return { wall: style(".hraness-material-wall"), chrome: style(".hraness-material-chrome"),
-                pane: style(".hraness-material-pane"), canvas: style("body") };
+              return { wall: style(".oh-hero"), chrome: style(".hraness-marketing-header"),
+                pane: style(".oh-terminal"), canvas: style("body") };
             });
             await withReducedTransparency(page, async () => {
               const fallback = await readMaterial();
               assert.equal(fallback.wall.image, "none");
               assert.equal(fallback.chrome.backdrop, "none");
-              assert.equal(fallback.chrome.background, metrics.pane.backgroundColor, "Reduced-transparency opaque chrome");
+              assert.notEqual(fallback.chrome.background, "rgba(0, 0, 0, 0)", "Reduced-transparency opaque chrome");
               assert.equal(fallback.pane.background, metrics.pane.backgroundColor);
             }, await nativeMediaSession(page));
             await selectNativeMedia(page, { "forced-colors": "active" });

@@ -88,9 +88,9 @@ describe("public site surface", () => {
     expect(page).toContain('const heading = "Agent memory that shows its work."');
     expect(page).toContain('headingId="hero-title"');
     expect(layout).toContain("Oh: Agent memory that shows its work.");
-    expect(page).toContain("$ oh init --db research.db");
-    expect(page).toContain("$ oh verify --db research.db");
-    expect(page).toContain("$ oh get evidence:table-2 --db research.db");
+    expect(page).toContain("$ oh put --kind evidence --key evidence:table-2");
+    expect(page).toContain("$ oh verify");
+    expect(page).toContain("$ oh get evidence:table-2");
     expect(page).not.toContain("oh inspect");
     expect(page).not.toContain("oh init research.db");
   });
