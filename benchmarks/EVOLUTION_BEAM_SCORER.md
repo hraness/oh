@@ -62,3 +62,11 @@ Transport still captures the first response and performs no automatic retry.
 An empty response at a deadline leaves provider outcome and billing uncertain,
 so its full reservation remains held. The new profile is an operational option,
 with no claim of live completion, better accuracy or production activation.
+
+## Paired superiority analysis
+
+`scripts/benchmarks/beam-paired-scores-v1.ts` decides whether one system beats another on released BEAM scores. Its plan is frozen before any score exists and names the released-results plan it binds, the candidate and comparator, declared category weights, the independent families that partition the histories, the resample count, seed, alpha and a superiority margin. The analysis rebuilds the category panel from the plan and observations rather than trusting a supplied panel.
+
+Each history's score is the weighted mean of its category means; histories average within their family, and families carry equal weight. The estimate is the mean candidate-minus-comparator difference over families. A seeded bootstrap resamples whole families, keeping every history, category and repeat of a family together, and the result is "superior" only when the one-sided lower bound at alpha exceeds the margin. A one-sided sign-flip test on the family differences, exact up to 20 families and seeded Monte Carlo above, is reported as a sensitivity check along with whether it agrees. Per-category differences are descriptive and belong to no test.
+
+An incomplete panel, a non-finite category mean, or a declared category missing from a history blocks the decision with its reasons. Nothing is dropped, renormalized or set to zero. The released equal-history panels are reported separately. This module computes no scores and makes no provider calls.
