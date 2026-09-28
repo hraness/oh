@@ -12,6 +12,14 @@ No BEAM dataset files, questions or answers were opened, and no provider calls w
 
 Evidence receipts: baseline `97b8d8a5b2b6e6f24200f20b995ec704a7779f1def0591112622513fcc94e3e9`; expanded `074fe8fd512038fbc5937a6543309786981149586d97a804b630a9ce36d7c425`; pinned environment `6ae5d2683bd0656aa3109f830010d90741d937210297c746abc6d6d6f0b3a3f0`. The accompanying compact JSON omits private paths and retains source and harness hashes.
 
+## Released result panel
+
+`scripts/benchmarks/beam-released-results-v1.ts` turns externally captured official evaluation values into the pinned reporter's per-category panel. A plan fixes every arm, history, question, repeat, request digest and score policy before any value exists. Event ordering reports `tau_norm`; the other nine categories report `llm_judge_score`. Questions average within each category and history, then histories carry equal weight. The result is ten columns per system, not one benchmark number. Repeats average within a question first, and event precision, recall, F1, `final_score` and judge score remain available as diagnostics.
+
+Missing, unresolved, failed and non-finite cells are listed with their capture digests; none becomes zero or leaves a denominator. A category with no planned questions is reported as empty. The complete ten-column panel is returned only when every history has all ten categories and every value is finite. Changed request or score-policy digests, foreign or duplicate cells, category mismatches and finite values outside [0, 1] are rejected; the caller records such a capture as a failed cell. The released reporter reads each file's category scores in key order and labels them by position, so the projection keys values by category name instead.
+
+The reporter averages histories with Python's builtin `sum`, which uses compensated summation from Python 3.12, and accumulates questions with sequential addition. The projection reproduces both. An invented parity check ran the unmodified pinned reporter (SHA-256 `1486a44fac721717c0a9373b32f4487c277d2bf28044cf28f649a6a74e692c96`) under Python 3.12.14, NumPy 1.26.4 and pandas 2.3.0 with Excel output intercepted. All 70 values across three scenarios matched bit for bit, including NaN propagation; sequential addition across histories would have changed 19 of the 50 finite values. This covers reporting only. Scorer model calls, prompts and parsing are not implemented here, and `BEAM_RELEASED_SCORER_PIN.endToEndScorerImplemented` remains false.
+
 ## Bounded transport profiles
 
 The native request catalogue now includes three opt-in GPT-4o Gateway profiles:
