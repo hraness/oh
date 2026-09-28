@@ -2,7 +2,7 @@
 
 [![skills.sh](https://skills.sh/b/hraness/oh)](https://skills.sh/hraness/oh)
 
-Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.
+Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay. It is for TypeScript developers whose agents need to trace an answer back to the passage it came from.
 
 You get a TypeScript SDK, a CLI, and an Agent Skill. All three read and write
 the same versioned records and the same append-only log of operations. The
@@ -415,6 +415,20 @@ The JSON Schemas describe the exchanged formats. The runtime parsers also
 enforce canonical ordering, byte limits, references between records, and the
 exact bytes each digest covers, which JSON Schema cannot express.
 
+## Compared with Mem0, Supermemory, and Zep
+
+- Mem0 and Supermemory give each user of a product a memory, built from facts
+  a model extracts or documents you sync, with hosted plans. Oh has no
+  per-end-user scoping API, connectors, or hosted service.
+- Zep and its open-source Graphiti build a temporal knowledge graph: a model
+  extracts facts, and each fact records when it was true. Oh stores what you
+  write without a model rewriting it, in one SQLite file.
+- Oh links each record to the records it rests on, and `oh verify` replays
+  every change.
+
+The [comparison page](https://oh.computer/compare) has the full table, dated
+sources, and the matched benchmark runs.
+
 ## Who builds on Oh
 
 Use Oh to build an application’s memory layer. Use Wordcell to maintain and query a Markdown knowledge base.
@@ -426,10 +440,11 @@ Each consumer pins an immutable release and upgrades on its own schedule:
   vault is the only source of truth. `wordcell graph rebuild` writes a
   disposable, gitignored `.wordcell/oh.sqlite` copy of the graph, and no query
   or rebuild writes back into notes.
-- [Sponge](https://sponge.computer) builds deep research tools for connected,
-  cited knowledge, exploring self-evolution. Its server-side agents use the Oh
-  store, the libSQL store, rules, and the memory host as working memory, and
-  that store is the source of truth.
+- [Sponge](https://sponge.computer) is a private library for what you read,
+  with notes your agent can cite. Its hosted research agents kept working
+  memory in a server-side Oh store, apart from the knowledge you reviewed.
+  Sponge stopped accepting new hosted research on September 12, 2026.
+  [How Sponge uses Oh](https://sponge.computer/docs/how-sponge-uses-oh).
 
 [Oh and Wordcell](docs/wordcell.md) explains where one ends and the other
 begins. Wordcell measures its own search pipeline; Oh’s memory benchmark
