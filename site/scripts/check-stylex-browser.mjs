@@ -297,7 +297,8 @@ try {
           assert.equal(metrics.background, colorScheme === "light" ? "rgb(251, 241, 199)" : "rgb(40, 40, 40)");
           assert.match(metrics.body.fontFamily, /Nebula Sans/u);
           assert.equal(metrics.primaryAction.color, colorScheme === "light" ? "rgb(251, 241, 199)" : "rgb(40, 40, 40)", "Primary action uses paired Gruvbox ink");
-          assert.ok(metrics.primaryAction.backgroundImage.includes(colorScheme === "light" ? "rgb(6, 89, 104)" : "rgb(169, 193, 184)"), "Primary action foil uses the selected palette surface");
+          assert.equal(metrics.primaryAction.backgroundImage, "none", "Primary action stays solid");
+          assert.equal(metrics.primaryAction.backgroundColor, colorScheme === "light" ? "rgb(6, 89, 104)" : "rgb(169, 193, 184)", "Primary action uses the selected palette surface");
           assert.equal(metrics.fonts.body, true);
           assert.ok(metrics.loadedFonts.includes("Nebula Sans"), "Nebula Sans must be a loaded font face");
           assert.match(metrics.label.fontFamily, /Nebula Sans/u);
