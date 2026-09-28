@@ -4,9 +4,11 @@ import { makeEvolutionAnswerAuditMessages } from "../scripts/benchmarks/evolutio
 import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_OPENAI_ENDPOINT, EVOLUTION_PROFILES, EVOLUTION_RESPONSE_MAX_BYTES,
+  EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
   makeEvolutionRequest, parseEvolutionResponse, validateEvolutionRequest, type EvolutionProfileId,
   type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT } from "../scripts/benchmarks/oh-event-inventory-v3-schema";
+import { OH_TURN_COVERAGE_RESPONSE_FORMAT_V1, OH_TURN_GROUPING_RESPONSE_FORMAT_V1 } from "../scripts/benchmarks/oh-turn-coverage-schema";
 
 const messages = [{ role: "system" as const, content: "Use supplied memory only." }, { role: "user" as const, content: "Which color?" }];
 const directJudgeMessages = [{ role: "user" as const, content: "Evaluate this LongMemEval answer exactly as instructed." }];
@@ -111,13 +113,15 @@ describe("memory evolution model contracts", () => {
   test("explicit framework alias treatments preserve all 108 pre-existing profile identities", () => {
     const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) =>
       id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
-      && id !== EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID));
+      && id !== EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID
+      && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID));
     expect(Object.keys(previous)).toHaveLength(108);
     expect(canonicalSha256(previous)).toBe("361cfed008518d23dfda4cd463127075daf79630addb0183b23cb3138dcaa1bb");
   });
 
   test("event inventory V3 fixes strict output, accounts for schema bytes and preserves all 110 older profiles", () => {
-    const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID));
+    const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID
+      && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID));
     expect(Object.keys(previous)).toHaveLength(110);
     expect(canonicalSha256(previous)).toBe("214a9417fc3d8a05a52525f3d272b01f0f7a467a7c51b06335a9b7c00f5e8126");
     const structured = makeEvolutionRequest(EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, messages);
@@ -141,6 +145,58 @@ describe("memory evolution model contracts", () => {
     expect(canonicalSha256(OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT)).toBe("56ed7992a938668b9119eb6316b3c351f0c90d4b3bc10940250c28eca73af852");
     expect(request.profileSha256).toBe("610deea2c2b95fd20bcbcf393b91cfcbc64ec858c981bd8ec0beca7606682ec1");
     expect(request.requestSha256).toBe("fd60fce91d0281d390343649b32d5356d5b20d023358155d136ffc780e9a97d5");
+  });
+
+  test("turn coverage and grouping preserve all 111 prior profiles and use fixed bounded extractor routes", () => {
+    const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) =>
+      id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID));
+    expect(Object.keys(previous)).toHaveLength(111);
+    expect(canonicalSha256(previous)).toBe("11806387471b525d9db04baeb9f00da9ab91e75f4d1770029b70067c9e5197bc");
+    const prompts = [{ role: "system" as const, content: "Account for each supplied user turn." },
+      { role: "user" as const, content: "Quoted Unicode evidence: \"café 🌱\"\nNext line." }];
+    const unstructured = makeEvolutionRequest("gpt5-mini-low-extractor-v1", prompts);
+    for (const [id, format] of [[EVOLUTION_TURN_COVERAGE_PROFILE_ID, OH_TURN_COVERAGE_RESPONSE_FORMAT_V1],
+      [EVOLUTION_TURN_GROUPING_PROFILE_ID, OH_TURN_GROUPING_RESPONSE_FORMAT_V1]] as const) {
+      const request = makeEvolutionRequest(id, prompts);
+      expect(EVOLUTION_PROFILES[id]).toMatchObject({ qualification: "gateway-alias", expectedSnapshot: null,
+        maxOutputTokens: 8192, timeoutMs: 600000, settings: { reasoning: { effort: "low" } }, responseFormat: format });
+      expect(request.body).toMatchObject({ model: "openai/gpt-5-mini", reasoning: { effort: "low" }, max_tokens: 8192,
+        stream: false, store: false, providerOptions: { gateway: { only: ["openai"], order: ["openai"] } }, response_format: format });
+      expect(request.body.response_format?.json_schema.strict).toBeTrue();
+      expect(request.body.temperature).toBeUndefined();
+      expect(request.timeoutMs).toBe(600000);
+      expect(request.inputUpperBound).toBe(Buffer.byteLength(JSON.stringify(prompts)) + 2048
+        + Buffer.byteLength(JSON.stringify({ response_format: format })));
+      expect(request.inputUpperBound - unstructured.inputUpperBound).toBe(Buffer.byteLength(JSON.stringify({ response_format: format })));
+      expect(request.reservationMicros).toBeGreaterThan(unstructured.reservationMicros);
+      expect(validateEvolutionRequest(structuredClone(request))).toEqual(request);
+      expect(Object.isFrozen(EVOLUTION_PROFILES[id])).toBeTrue();
+      expect(Object.isFrozen(request.body.response_format?.json_schema.schema)).toBeTrue();
+      expect(Object.isFrozen(request.body.response_format?.json_schema.schema.properties)).toBeTrue();
+      const changed = structuredClone(request) as Record<string, any>;
+      changed.body.response_format.json_schema.schema.additionalProperties = true;
+      expect(() => validateEvolutionRequest(changed as EvolutionRequest)).toThrow("request changed");
+      expect(() => validateEvolutionRequest({ ...request, timeoutMs: 120000 })).toThrow("request changed");
+    }
+  });
+
+  test("turn coverage and grouping schema, profile and request identities remain replayable within V1", () => {
+    for (const [id, format, schemaSha256, profileSha256, requestSha256] of [
+      [EVOLUTION_TURN_COVERAGE_PROFILE_ID, OH_TURN_COVERAGE_RESPONSE_FORMAT_V1,
+        "7b593dfcd3f4c6ebedd348b28d1bbd22357d72930efbede0ce18b26d20155c9e",
+        "21f4586605a56348530c48361005afea5daa6bd5ca6e854fab17c4e8932fcf73",
+        "5538901c5ce4c2df8038c5d6ed6c318b9278f0216590872bc4b3395a6b35a648"],
+      [EVOLUTION_TURN_GROUPING_PROFILE_ID, OH_TURN_GROUPING_RESPONSE_FORMAT_V1,
+        "441db0eba18498f694d6dadfd42f9f8d391f85092509b53b39dedbfb7cb85314",
+        "03bfcbda8ee41ebda0ce5a19b5f5b2c56af16812aeeda676bcb9a025d4824736",
+        "a878c61408e56078132e50f92bd34faf57001467a43677c7bd6eb5444fa6dc61"],
+    ] as const) {
+      const request = makeEvolutionRequest(id, messages);
+      expect(canonicalSha256(format)).toBe(schemaSha256);
+      expect(request.profileSha256).toBe(profileSha256);
+      expect(request.requestSha256).toBe(requestSha256);
+      expect(makeEvolutionRequest(id, structuredClone(messages))).toEqual(request);
+    }
   });
 
   test("only explicit framework alias treatments accept an undisclosed snapshot and remain unpinned", () => {

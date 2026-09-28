@@ -2,6 +2,8 @@
 
 This experiment prepares a question-specific inventory of events and states, checks its source citations, and computes partial ordering constraints. It is opt-in benchmark tooling. It changes no reader default, package export, stored record, or benchmark score.
 
+The separate [user-turn coverage experiment](turn-coverage-development-v1.md) collects topics without the question before grouping them for a scope. It preserves every user disposition and reports count mismatches without truncating the inventory.
+
 ## Extract and inspect an inventory
 
 `scripts/benchmarks/oh-event-inventory.ts` accepts a question, an explicit level of detail (`granularity`), an ordering mode, a statement-time cutoff (`asOf`, or `null`), and source records with numeric session and turn positions.
