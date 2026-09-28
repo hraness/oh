@@ -264,21 +264,6 @@ describe("Oh site source contract", () => {
     }
   });
 
-  test("submits only oh.computer paths to IndexNow with the served key", async () => {
-    const { maximumIndexNowPaths, ohIndexNowKey, ohIndexNowPayload } = await import("../scripts/indexnow");
-    expect((await read(`public/${ohIndexNowKey}.txt`)).trim()).toBe(ohIndexNowKey);
-    const payload = ohIndexNowPayload(["--", "/", "/compare", "/compare"]);
-    expect(payload).toEqual({
-      host: "oh.computer",
-      key: ohIndexNowKey,
-      keyLocation: `https://oh.computer/${ohIndexNowKey}.txt`,
-      urlList: ["https://oh.computer/", "https://oh.computer/compare"],
-    });
-    expect(() => ohIndexNowPayload([])).toThrow(RangeError);
-    expect(() => ohIndexNowPayload(["https://example.com/"])).toThrow();
-    expect(() => ohIndexNowPayload(Array.from({ length: maximumIndexNowPaths + 1 }, (_, index) => `/p${index}`))).toThrow(RangeError);
-  });
-
   test("keeps page-specific social metadata and the Oh icon explicit", async () => {
     const [layout, specification, favicon] = await Promise.all([
       read("app/layout.tsx"),
@@ -430,7 +415,7 @@ describe("Oh site source contract", () => {
       prebuild: "bun run build:theme && bun run test",
       "search:notify": "bun scripts/submit-indexnow.ts",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts",
       "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });
