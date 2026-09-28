@@ -135,11 +135,12 @@ async function inspectAppearanceCases(browser, origin) {
         // In a context with scripting explicitly disabled, Chromium cancels the
         // declared Next webpack preload with the exact "csp" reason. Retain the
         // raw event and reject every other failed request, including assets.
+        // Vercel production pins assets to their deployment with one `dpl` query.
         const currentRequests = failedRequests.slice(auditedRequestCount);
         const disabledScriptCancellations = currentRequests.filter((event) => {
           const url = new URL(event.url);
           return event.method === "GET" && event.resourceType === "script" && event.failure?.errorText === "csp"
-            && url.origin === origin && !url.search && !url.hash
+            && url.origin === origin && (!url.search || /^\?dpl=dpl_[A-Za-z0-9]+$/u.test(url.search)) && !url.hash
             && /^\/_next\/static\/chunks\/webpack-[a-f0-9]+\.js$/u.test(url.pathname)
             && declaredScripts.includes(event.url);
         });
