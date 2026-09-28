@@ -91,7 +91,7 @@ describe("composable isolated reader answer contracts", () => {
     const calibrationOnly = EVOLUTION_READER_CONTRACTS["calibration-only-v1"].instruction;
     const selected = EVOLUTION_READER_CONTRACTS["selected-answer-v1"].instruction;
     const selection = EVOLUTION_READER_CONTRACTS["evidence-selection-v1"].instruction;
-    expect(EVOLUTION_READER_CONTRACT_IDS).toHaveLength(10);
+    expect(EVOLUTION_READER_CONTRACT_IDS).toHaveLength(13);
     expect(calibrationOnly.startsWith(eac + " ")).toBeTrue();
     const calibration = calibrationOnly.slice(eac.length + 1);
     expect(calibrated.endsWith(" " + calibration)).toBeTrue();
@@ -107,7 +107,7 @@ describe("composable isolated reader answer contracts", () => {
   });
   test("every closed model/effort choice retains prices, routing, cap and full-history eligibility", () => {
     const ids = new Set<string>();
-    const factorialContracts = EVOLUTION_READER_CONTRACT_IDS.filter(id => id !== "task-complete-v1");
+    const factorialContracts = EVOLUTION_READER_CONTRACT_IDS.filter(id => !id.startsWith("task-complete-"));
     for (const base of EVOLUTION_BASE_READER_IDS) for (const contract of factorialContracts) {
       const id = evolutionReaderProfileId(base, contract), selected = EVOLUTION_PROFILES[id]; ids.add(id);
       expect(evolutionReaderContract(id)).toBe(contract);
@@ -151,7 +151,7 @@ describe("composable isolated reader answer contracts", () => {
       "gpt5-mini-answer-audit-v1",
       "gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1",
       "gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader",
-      "gpt5-mini-task-complete-long-deadline-v1-reader",
+      "gpt5-mini-task-complete-long-deadline-v1-reader", "gpt5-mini-task-complete-long-deadline-v2-reader", "gpt5-mini-task-complete-long-deadline-v3-reader", "gpt5-mini-task-complete-long-deadline-v4-reader",
     ].sort());
     for (const id of [EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
       EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID]) {
@@ -163,7 +163,7 @@ describe("composable isolated reader answer contracts", () => {
   });
   test("renders complete matched factorial arms and rejects a resealed prompt substitution", async () => {
     // The answer factorial holds the eight answer contracts; evidence-selection-v1 is the stage-1 selector contract of the two-stage lane.
-    const answerContracts = EVOLUTION_ANSWER_CONTRACT_IDS.filter(id => id !== "task-complete-v1"); expect(answerContracts).toHaveLength(8);
+    const answerContracts = EVOLUTION_ANSWER_CONTRACT_IDS.filter(id => !id.startsWith("task-complete-")); expect(answerContracts).toHaveLength(8);
     const ctx = await fixture(), profiles = answerContracts.map(c => evolutionReaderProfileId("gpt5-nano-reader", c));
     const plan = makeEvolutionReaderPlan(ctx, profiles);
     expect(plan.cases).toHaveLength(answerContracts.length * 2); expect(plan.requests).toHaveLength(answerContracts.length * 2);
@@ -193,7 +193,7 @@ describe("composable isolated reader answer contracts", () => {
     const campaign = { protocol: "oh.memory.evolution-campaign.v1" as const, campaignId: "contract-fixture", storeDirectory: root,
       approval: "Synthetic isolated test", additionalBudgetMicros: 1000000, maximumCalls: 10, historicalExposureMicros: 0,
       historicalLedgers: [{ path: "/fixture/ledger", sha256: "a".repeat(64), bytes: 0 }], authAuthority: { path: "/fixture/auth", sha256: "b".repeat(64) } };
-    const requests = EVOLUTION_ANSWER_CONTRACT_IDS.filter(id => id !== "task-complete-v1").map(c => makeEvolutionProfileWindowRequest(evolutionReaderProfileId("gpt5-nano-reader", c), evolutionAnswerMessages(question, context, c)));
+    const requests = EVOLUTION_ANSWER_CONTRACT_IDS.filter(id => !id.startsWith("task-complete-")).map(c => makeEvolutionProfileWindowRequest(evolutionReaderProfileId("gpt5-nano-reader", c), evolutionAnswerMessages(question, context, c)));
     try {
       const store = await openEvolutionStore({ directory: root, campaign });
       try {

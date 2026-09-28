@@ -3,7 +3,7 @@ import type { Question } from "./datasets";
 import { ANSWER_INSTRUCTION, answerMessages, type Message } from "./model";
 
 export const EVOLUTION_READER_CONTRACT_IDS = ["legacy-v1", "explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1",
-  "calibrated-composition-v1", "timeline-composition-v1", "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1", "task-complete-v1"] as const;
+  "calibrated-composition-v1", "timeline-composition-v1", "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1", "task-complete-v1", "task-complete-v2", "task-complete-v3", "task-complete-v4"] as const;
 export type EvolutionReaderContractId = typeof EVOLUTION_READER_CONTRACT_IDS[number];
 /** Contracts that answer a question over a memory field. evidence-selection-v1 is the two-stage lane's stage-one selection
  * contract: it shares the profile catalog so its requests carry a closed profile identity, but it is never an answer reader. */
@@ -19,6 +19,38 @@ export const TASK_COMPLETE_INSTRUCTION_V1 = "Answer the current question using o
   + "Resolve relative dates from the source statement date and interpret time windows using the question date. For current state, use the latest applicable update, retaining the earlier state when explaining a change. When incompatible statements cannot be resolved by their dates, scope or an explicit correction, state the conflicting alternatives and the remaining uncertainty; do not silently choose one. Keep uncertainty local to unsupported parts, answer supported parts, and explicitly say when the supplied memory does not contain enough information for a requested fact. Do not fill gaps using general knowledge.\n\n"
   + "Internally distinguish distinct events from repeated mentions, combine relevant facts across sources, and compute requested counts, totals, differences, ratios, durations and order with consistent units. Keep this analysis internal.\n\n"
   + "Return a concise answer that covers every requested facet and relevant remembered requirement. For summaries, include the relevant progression, decisions, changes, constraints, unresolved issues and outcomes rather than only the latest state. For a requested list or sequence, put one item on each newline with no blank lines or preamble; use the requested order, and for chronological sequences state dates or ordering relationships supported by the memory. Do not invent a unique order when the evidence is ambiguous.";
+const TASK_COMPLETE_V1_GATHER = "gather its supporting statements across the supplied memory.";
+const TASK_COMPLETE_V1_OUTPUT = "Return a concise answer that covers every requested facet and relevant remembered requirement.";
+function taskCompleteV2(): string {
+  if (TASK_COMPLETE_INSTRUCTION_V1.split(TASK_COMPLETE_V1_GATHER).length !== 2 || TASK_COMPLETE_INSTRUCTION_V1.split(TASK_COMPLETE_V1_OUTPUT).length !== 2)
+    throw new TypeError("Evolution reader contract: task-complete-v1 instruction changed.");
+  return TASK_COMPLETE_INSTRUCTION_V1.replace(TASK_COMPLETE_V1_GATHER, `${TASK_COMPLETE_V1_GATHER} Keep this gathering internal.`)
+    .replace(TASK_COMPLETE_V1_OUTPUT, "Begin the reply with the direct answer to the question in its first sentence. "
+      + "Do not open with a heading, a restatement of the question, a list of requested facts or a description of your method, and quote supporting statements only when the question asks for them. "
+      + "When the memory contains incompatible statements that cannot be resolved, say in the first sentence that the memory contains contradictory information, give each alternative, and ask the user which one is correct. "
+      + "Keep the answer concise and cover every requested facet and relevant remembered requirement.");
+}
+/** Opt-in successor to task-complete-v1: the same evidence rules with an answer-first output contract. */
+export const TASK_COMPLETE_INSTRUCTION_V2 = taskCompleteV2();
+const TASK_COMPLETE_V2_CONFLICT = "ask the user which one is correct. ";
+/** Opt-in successor to task-complete-v2: the same instruction plus a missing-detail rule for the first sentence. */
+export const TASK_COMPLETE_INSTRUCTION_V3 = (() => {
+  if (TASK_COMPLETE_INSTRUCTION_V2.split(TASK_COMPLETE_V2_CONFLICT).length !== 2) throw new TypeError("Evolution reader contract: task-complete-v2 instruction changed.");
+  return TASK_COMPLETE_INSTRUCTION_V2.replace(TASK_COMPLETE_V2_CONFLICT, TASK_COMPLETE_V2_CONFLICT
+    + "When the memory does not contain the specific detail the question asks for, such as a stated reason, a reaction, the content of a meeting or an exact value, say in the first sentence that the supplied memory does not contain that information, then mention briefly any closely related facts it does contain. "
+    + "Do not infer a missing reason, reaction, outcome or detail from related facts. ");
+})();
+const TASK_COMPLETE_V3_CONFLICT = "When the memory contains incompatible statements that cannot be resolved,";
+const TASK_COMPLETE_V3_CONCISE = "Keep the answer concise and cover every requested facet";
+/** Opt-in successor to task-complete-v3: conflicts are raised only when they bear on the question, and progressions and
+ * summaries cover the whole period of the relevant memory. */
+export const TASK_COMPLETE_INSTRUCTION_V4 = (() => {
+  if (TASK_COMPLETE_INSTRUCTION_V3.split(TASK_COMPLETE_V3_CONFLICT).length !== 2 || TASK_COMPLETE_INSTRUCTION_V3.split(TASK_COMPLETE_V3_CONCISE).length !== 2)
+    throw new TypeError("Evolution reader contract: task-complete-v3 instruction changed.");
+  return TASK_COMPLETE_INSTRUCTION_V3.replace(TASK_COMPLETE_V3_CONFLICT, "When the memory contains incompatible statements about what the question asks that cannot be resolved,")
+    .replace(TASK_COMPLETE_V3_CONCISE, "For a question about how something progressed, the order in which topics came up, or a summary over time, cover the whole period of the relevant memory from its earliest to its latest date: "
+      + "give the main development of each period, at the granularity the requested number of items implies, rather than many details from one period. " + TASK_COMPLETE_V3_CONCISE);
+})();
 const OLD_ABSTENTION = "If the evidence does not support an answer, reply exactly None.";
 const EXPLICIT_ABSTENTION = "If the evidence does not support an answer, state that the supplied conversation does not contain enough information to answer the question. Do not use an ambiguous bare placeholder.";
 const COMPOSITION = "Before answering, identify the distinct relevant events and facts across the supplied memory. "
@@ -51,6 +83,9 @@ const TIMELINE = "Work through time explicitly before answering: note the date o
 function instruction(id: EvolutionReaderContractId): string {
   if (id === "legacy-v1") return ANSWER_INSTRUCTION;
   if (id === "task-complete-v1") return TASK_COMPLETE_INSTRUCTION_V1;
+  if (id === "task-complete-v2") return TASK_COMPLETE_INSTRUCTION_V2;
+  if (id === "task-complete-v3") return TASK_COMPLETE_INSTRUCTION_V3;
+  if (id === "task-complete-v4") return TASK_COMPLETE_INSTRUCTION_V4;
   if (id === "evidence-selection-v1") return EVIDENCE_SELECTION_INSTRUCTION;
   if (id === "calibration-only-v1" || id === "selected-answer-v1") {
     if (ANSWER_INSTRUCTION.split(OLD_ABSTENTION).length !== 2) throw new TypeError("Evolution reader contract: legacy abstention instruction changed.");
@@ -82,6 +117,9 @@ export const EVOLUTION_READER_CONTRACTS = Object.freeze({
   "selected-answer-v1": contract("selected-answer-v1"),
   "evidence-selection-v1": contract("evidence-selection-v1"),
   "task-complete-v1": contract("task-complete-v1"),
+  "task-complete-v2": contract("task-complete-v2"),
+  "task-complete-v3": contract("task-complete-v3"),
+  "task-complete-v4": contract("task-complete-v4"),
 });
 export function parseEvolutionReaderContractId(value: unknown): EvolutionReaderContractId {
   if (typeof value !== "string" || !Object.hasOwn(EVOLUTION_READER_CONTRACTS, value)) throw new TypeError("Evolution reader contract: unknown contract.");
