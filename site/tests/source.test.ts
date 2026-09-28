@@ -116,12 +116,13 @@ describe("Oh site source contract", () => {
       'import { MarketingSiteFooter } from "@hraness/design-kit/react/server"',
     );
     expect(contentFooter).toContain("export function OhContentFooter()");
+    expect(layout).toContain("OhContentFooter");
     for (const page of [home, specification, benchmarks, blogIndex, blogPost, compareShell]) {
       expect(page).not.toContain("HranessSiteFooter");
       expect(page).not.toContain("MarketingMaker");
       expect(page).not.toContain("Ben Guo");
       expect(page).not.toContain("hranessAttribution");
-      expect(page).toContain("OhContentFooter");
+      expect(page).not.toContain("OhContentFooter");
     }
     expect(contentFooter).toContain('{ href: "/blog", label: "Blog" }');
     expect(home).toContain("Hraness, which builds tools for agents and humans");
@@ -187,7 +188,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.23.0"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.24.0"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([

@@ -7,10 +7,6 @@
 @import "@hraness/site-footer/styles.css";
 @import "@hraness/design-kit/palette-bridge.css";
 
-@media (width < 47.5rem) {
-  .network-footer { padding-block-start: 2.5rem; }
-}
-
 /* The bounded PostCSS bridge emits the immutable editorial preset in the
  * oh-marketing layer and Lantern paint in oh-material. Paper and product-specific
  * rules remain unlayered; specification pages never opt into Lantern. */
@@ -812,7 +808,7 @@ a:focus-visible {
 }
 
 body > :not(.network-footer) { min-inline-size: 0; }
-.network-footer { margin-block-start: auto; --hraness-site-footer-measure: 72rem; }
+.network-footer { margin-block-start: auto; }
 .oh-hero { grid-template-columns: minmax(0, 1fr); }
 .oh-hero .hraness-marketing-hero__heading { max-inline-size: 22ch; }
 .oh-hero .hraness-marketing-hero__frame { inline-size: 100%; max-inline-size: 54rem; }

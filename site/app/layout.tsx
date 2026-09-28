@@ -4,6 +4,7 @@ import { DesignPaletteProvider, ThemeColorSync } from "@hraness/design-kit/react
 import { ohDefaultAppearance, ohInitialTheme } from "../appearance";
 import { ohSupportProfile } from "../../src/support-profile";
 import { FoilController } from "./foil-controller";
+import { OhContentFooter } from "./site-footer";
 import { homeDescription as description, homeImageAlt } from "./metadata-copy";
 import "./globals.css";
 
@@ -60,6 +61,7 @@ export default function RootLayout({
         <ThemeColorSync />
         {children}
         <div className="network-footer">
+          <OhContentFooter />
           <HranessSiteFooter mailingList={{ kind: "none" }} support={ohSupportProfile} />
         </div>
         <FoilController />

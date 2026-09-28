@@ -5,7 +5,6 @@ import type { Metadata } from "next";
 import contract from "../../public/spec/v1/contract.json";
 import manifest from "../../public/spec/manifest.json";
 import { specificationDescription, specificationImageAlt, specificationTitle } from "../metadata-copy";
-import { OhContentFooter } from "../site-footer";
 
 const currentVersion = manifest.versions.find((version) => version.id === manifest.current) ??
   (() => {
@@ -383,7 +382,6 @@ export default function Specification() {
       </main>
 
       <AskAiAboutThis className="ask-ai" url="https://oh.computer/spec" />
-      <OhContentFooter />
     </>
   );
 }
