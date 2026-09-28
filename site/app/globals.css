@@ -738,6 +738,16 @@ a:focus-visible {
   text-align: start;
 }
 
+/* Six products side by side: keep words whole and let the wrapper scroll on narrow screens. */
+.compare-glance {
+  min-inline-size: 60rem;
+}
+
+.compare-glance th,
+.compare-glance td {
+  overflow-wrap: normal;
+}
+
 .compare-table caption {
   padding-block-end: 0.75rem;
   color: var(--muted);

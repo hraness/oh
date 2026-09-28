@@ -18,7 +18,7 @@ import type {
 } from "@hraness/web-discovery";
 import type { ComponentType } from "react";
 
-import { homeDescription } from "../metadata-copy";
+import { homeDescription, homeTitle } from "../metadata-copy";
 import { articleAdmissions } from "./admissions";
 import { BuiltOnOhBody, toc as builtOnOhToc } from "./content/built-on-oh";
 import { IntroducingOhBody, toc as introducingOhToc } from "./content/introducing-oh";
@@ -37,7 +37,7 @@ export const ohSearchSite: SearchSite = {
   locale: "en_US",
   name: "Oh",
   origin: "https://oh.computer",
-  title: "Oh: Agent memory that shows its work.",
+  title: homeTitle,
 };
 
 export const articleAuthor: ArticleAuthor = { kind: "organization", name: "Hraness", href: "https://hraness.com" };

@@ -5,10 +5,8 @@ import { ohDefaultAppearance, ohInitialTheme } from "../appearance";
 import { ohSupportProfile } from "../../src/support-profile";
 import { FoilController } from "./foil-controller";
 import { OhContentFooter } from "./site-footer";
-import { homeDescription as description, homeImageAlt } from "./metadata-copy";
+import { homeDescription as description, homeImageAlt, homeTitle as title } from "./metadata-copy";
 import "./globals.css";
-
-const title = "Oh: Agent memory that shows its work.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://oh.computer"),
@@ -16,7 +14,11 @@ export const metadata: Metadata = {
   description,
   alternates: { canonical: "/" },
   icons: {
-    icon: [{ type: "image/svg+xml", url: "/favicon.svg" }],
+    apple: "/apple-icon.png",
+    icon: [
+      { type: "image/svg+xml", url: "/favicon.svg" },
+      { sizes: "192x192", type: "image/png", url: "/icon.png" },
+    ],
   },
   openGraph: {
     title,

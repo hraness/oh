@@ -272,6 +272,11 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(layout).toContain('url: "/favicon.svg"');
+    expect(layout).toContain('{ sizes: "192x192", type: "image/png", url: "/icon.png" }');
+    expect(layout).toContain('apple: "/apple-icon.png"');
+    const icon = await readFile(join(site, "public/icon.png"));
+    // PNG IHDR stores width and height as big-endian integers at bytes 16 and 20.
+    expect([icon.readUInt32BE(16), icon.readUInt32BE(20)]).toEqual([192, 192]);
     expect(specification).toContain("twitter: {");
     expect(specification).toContain("title: specificationTitle");
     expect(specification).toContain("description: specificationDescription");
@@ -365,6 +370,7 @@ describe("Oh site source contract", () => {
       "app/compare/supermemory/page.tsx",
       "app/blog/admissions.ts",
       "app/blog/articles.ts",
+      "app/blog/opengraph-image.tsx",
       "app/blog/content/built-on-oh.tsx",
       "app/blog/content/introducing-oh.tsx",
       "app/blog/content/oh-rust-typescript-parity.tsx",
