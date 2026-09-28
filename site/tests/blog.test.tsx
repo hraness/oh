@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import RootLayout from "../app/layout";
 import BlogIndex, { metadata as blogMetadata } from "../app/blog/page";
 import * as blogImage from "../app/blog/opengraph-image";
-import { blogImageAlt } from "../app/metadata-copy";
+import { blogImageAlt } from "../app/blog/social";
 import ArticlePage, { generateMetadata, generateStaticParams } from "../app/blog/[slug]/page";
 import { GET as feed } from "../app/blog/feed.xml/route";
 import { articleAdmissions } from "../app/blog/admissions";

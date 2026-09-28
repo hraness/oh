@@ -14,7 +14,7 @@ import {
   indexableArticles,
   ohSearchSite,
 } from "./articles";
-import { blogImageAlt } from "../metadata-copy";
+import { blogImageAlt } from "./social";
 import { BlogHeader } from "./blog-header";
 
 export const metadata: Metadata = {

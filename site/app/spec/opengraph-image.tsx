@@ -1,21 +1,13 @@
 import {
-  createSocialImageResponse,
+  createSiteSocialImageResponse,
   socialImageContentType as contentType,
   socialImageSize as size,
 } from "@hraness/web-discovery/social-image";
-import { specificationDescription, specificationImageAlt } from "../metadata-copy";
-import { OhSocialMark, ohSocialTheme } from "../social-mark";
+import { specificationImageAlt, ohSocialSite, specificationSocialPage } from "../social";
 
 export const alt = specificationImageAlt;
 export { contentType, size };
 
 export default function SpecificationImage() {
-  return createSocialImageResponse({
-    description: specificationDescription,
-    domain: "oh.computer/spec",
-    eyebrow: "Oh",
-    mark: <OhSocialMark />,
-    theme: ohSocialTheme,
-    title: "Ontology specification v1",
-  });
+  return createSiteSocialImageResponse(ohSocialSite, specificationSocialPage);
 }

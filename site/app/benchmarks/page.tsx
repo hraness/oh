@@ -17,7 +17,8 @@ import releaseMini from "../../../benchmarks/results/memory-evolution-full-relea
 import releaseNano from "../../../benchmarks/results/memory-evolution-full-release-500-v1.json";
 import sdkQualification from "../../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
 import { ohSearchSite } from "../blog/articles";
-import { benchmarksDescription, benchmarksImageAlt, benchmarksTitle } from "../metadata-copy";
+import { benchmarksDescription, benchmarksTitle } from "../metadata-copy";
+import { benchmarksImageAlt } from "../social";
 
 export const metadata: Metadata = {
   title: benchmarksTitle,
