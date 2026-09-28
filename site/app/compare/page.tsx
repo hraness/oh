@@ -49,7 +49,7 @@ const glanceRows: readonly Readonly<{ label: string; cells: readonly [string, st
       "A model extracts facts from messages",
       "API calls, with a model extracting memories; Platform connectors sync Google Drive, Gmail, and Notion",
       "A model extracts entities and facts from each episode",
-      "The agent edits its memory blocks through tools",
+      "The agent rewrites its own memory blocks",
       "Claude writes files through tool calls",
     ],
   },
@@ -85,8 +85,7 @@ const sources: readonly CompareSource[] = [
   { title: "supermemoryai/supermemory on GitHub", href: "https://github.com/supermemoryai/supermemory", note: `Checked ${checkedOn}.` },
   { title: "getzep/graphiti on GitHub", href: "https://github.com/getzep/graphiti", note: `Checked ${checkedOn}.` },
   { title: "Zep", href: "https://www.getzep.com", note: `Checked ${checkedOn}.` },
-  { title: "letta-ai/letta on GitHub", href: "https://github.com/letta-ai/letta", note: `Checked ${checkedOn}.` },
-  { title: "Letta memory blocks", href: "https://docs.letta.com/guides/agents/memory-blocks", note: `Checked ${checkedOn}.` },
+  { title: "letta-ai/letta-code on GitHub", href: "https://github.com/letta-ai/letta-code", note: `Checked ${checkedOn}.` },
   { title: "Claude memory tool", href: "https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool", note: `Checked ${checkedOn}.` },
 ];
 
@@ -149,7 +148,8 @@ export default function CompareIndex() {
       title="Compare Oh"
     >
       <CompareSection id="at-a-glance" number="01" title="At a glance">
-        <div className="compare-table-wrap">
+        {/* The table is wider than a phone, so its scrolling wrapper takes keyboard focus. */}
+        <div aria-label="Memory tools at a glance" className="compare-table-wrap" role="region" tabIndex={0}>
           <table className="compare-table compare-glance">
             <caption>Six ways to give an agent memory, checked {checkedOn}.</caption>
             <thead>
@@ -205,20 +205,20 @@ export default function CompareIndex() {
           you write without a model rewriting it, in one SQLite file, and needs no graph database.
         </p>
         <p>
-          Letta, formerly MemGPT, is an agent harness and app server whose agents edit their own
-          memory blocks through built-in tools. Pick it to run stateful agents on Letta. Oh is a
+          Letta, formerly MemGPT, is an agent harness and app server whose agents rewrite their
+          own memory blocks as they work. Pick it to run stateful agents on Letta. Oh is a
           library you call from your own agent.
         </p>
         <p>
           Anthropic’s memory tool lets Claude create, read, edit, and delete files under{" "}
           <code>/memories</code>, while your application runs each operation against storage it
-          controls. It needs no extra package on the Claude API. The files carry no schema, source
-          links, or digests, and Oh ships no adapter for the tool.
+          controls. It needs no extra package on the Claude API. The tool defines no schema, source
+          links, or digests for those files, and Oh ships no adapter for it.
         </p>
         <p>
           Oh has run no matched benchmark against these three. Oh’s benchmark records quote
-          published LoCoMo and LongMemEval figures for Zep and Letta, from setups Oh’s runs do not
-          match.
+          published LoCoMo figures for Zep and Letta and a LongMemEval figure for Zep, from setups
+          Oh’s runs do not match.
         </p>
       </CompareSection>
 

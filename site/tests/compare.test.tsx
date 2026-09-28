@@ -80,11 +80,12 @@ describe("Oh comparison pages", () => {
     expect(html.match(/<tr>/gu)?.length).toBe(rows.length + 1);
     for (const href of [
       "https://github.com/getzep/graphiti",
-      "https://github.com/letta-ai/letta",
+      "https://github.com/letta-ai/letta-code",
       "https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool",
     ]) {
       expect(html).toContain(`href="${href}"`);
     }
+    expect(html).toContain('aria-label="Memory tools at a glance" class="compare-table-wrap" role="region" tabindex="0"');
     expect(html).toContain("Oh has run no matched benchmark against these three.");
     expect(html).toMatch(/Checked [A-Z][a-z]+ \d{1,2}, \d{4}\./u);
   });
