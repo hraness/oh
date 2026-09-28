@@ -50,8 +50,27 @@ per-unit framework helper remains a separate experimental profile. A live owner
 must retain the existing bounded request journal, fresh-scope checks and cleanup
 rules when connecting this session projection.
 
+`scripts/benchmarks/oh-author-log-context.ts` builds the author-log reader
+context from source control. The 100K development arm that produced the
+115/380 result built it in a private script from lists that were already cut to
+96,000 bytes, and it passed the outer session number as the turn order. This
+builder fuses the native lexical and optional vector ranks before any cut,
+follows each anchor with its same-session neighbors and explicit sources, and
+renders `renderOhAuthorLogV1` under one declared byte budget with numeric
+session and turn order. Its defaults match the historical renderer budgets of
+180,000, 96,000 and 24,000 bytes. A different budget scales the retrieved and
+reserve budgets in the same proportions unless they are set explicitly.
+
+At 500K and 1M tokens a user's complete log no longer fits that budget. The
+renderer then keeps the user messages the ranking puts first, fills the rest by
+recency and labels the log partial; an invented 1.2 MB history rendered in about
+0.3 seconds per question with 340 of 1,500 user messages kept. A smaller budget
+on the exposed 100K histories reproduces that partial regime for development
+without opening longer histories. The builder makes no provider calls, and this
+change measures no benchmark accuracy.
+
 Run the focused synthetic checks with:
 
 ```sh
-bun test ./tests/memory-benchmark-beam-evaluation.test.ts ./tests/memory-benchmark-beam-supermemory.test.ts
+bun test ./tests/memory-benchmark-beam-evaluation.test.ts ./tests/memory-benchmark-beam-supermemory.test.ts ./tests/memory-benchmark-oh-author-log-context.test.ts
 ```
