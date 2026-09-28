@@ -9,10 +9,10 @@ import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_
   EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BASE_READER_IDS, EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID as controlId,
-  EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID as candidateId, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID as v2Id, EVOLUTION_PROFILES, evolutionReaderContract,
+  EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID as candidateId, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID as v2Id, EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID as v3Id, EVOLUTION_PROFILES, evolutionReaderContract,
   evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest, parseEvolutionResponse,
   supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
-import { EVOLUTION_READER_CONTRACTS, TASK_COMPLETE_INSTRUCTION_V1, TASK_COMPLETE_INSTRUCTION_V2, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
+import { EVOLUTION_READER_CONTRACTS, TASK_COMPLETE_INSTRUCTION_V1, TASK_COMPLETE_INSTRUCTION_V2, TASK_COMPLETE_INSTRUCTION_V3, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan } from "../scripts/benchmarks/evolution-plan";
 import { answerMessages } from "../scripts/benchmarks/model";
 import { openEvolutionStore } from "../scripts/benchmarks/evolution-store";
@@ -33,14 +33,14 @@ test("task-complete preserves every prior profile, request, full-window request 
     && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
     && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
     && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
-    && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && id !== candidateId && id !== v2Id).sort(([a], [b]) => a < b ? -1 : 1);
+    && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && id !== candidateId && id !== v2Id && id !== v3Id).sort(([a], [b]) => a < b ? -1 : 1);
   const audit = makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "The synthetic tile is blue.", draftAnswer: "Blue." });
   const requests = old.map(([id, p]) => makeEvolutionRequest(id as EvolutionProfileId,
     id === "gpt5-mini-answer-audit-v1" ? audit : p.qualification === "official-snapshot-request"
       || ["gpt4o-gateway-native-rubric-judge-v1", "gpt4o-gateway-native-rubric-16-judge-v1", "gpt4o-beam-event-extraction-v1", "gpt4o-beam-nugget-v1"].includes(id) ? single : ordinary));
   const windows = old.filter(([id]) => supportsEvolutionProfileWindow(id as EvolutionProfileId))
     .map(([id]) => makeEvolutionProfileWindowRequest(id as EvolutionProfileId, ordinary));
-  const contracts = Object.fromEntries(Object.entries(EVOLUTION_READER_CONTRACTS).filter(([id]) => id !== "task-complete-v1" && id !== "task-complete-v2"));
+  const contracts = Object.fromEntries(Object.entries(EVOLUTION_READER_CONTRACTS).filter(([id]) => !id.startsWith("task-complete-")));
   // Captured before editing clean main e9b2ea030a292f5af97fa0a66514d691b58e78d7.
   // JSON-byte digests include field ordering, nested identities and accounting preimages.
   expect(old).toHaveLength(102);
@@ -162,4 +162,18 @@ test("native fake transport captures distinct paired first responses with the 60
     }
     expect(fetches).toBe(2); expect(store.summary()).toEqual(summary);
   } finally { timer.mockRestore(); await store.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test("task-complete-v3 adds only the missing-detail rule to v2 and binds its own opt-in profile", () => {
+  const [head, tail] = TASK_COMPLETE_INSTRUCTION_V2.split("ask the user which one is correct. ");
+  expect(TASK_COMPLETE_INSTRUCTION_V3.startsWith(head + "ask the user which one is correct. When the memory does not contain the specific detail")).toBeTrue();
+  expect(TASK_COMPLETE_INSTRUCTION_V3.endsWith("Do not infer a missing reason, reaction, outcome or detail from related facts. " + tail)).toBeTrue();
+  const contract = EVOLUTION_READER_CONTRACTS["task-complete-v3"];
+  expect(contract.instruction).toBe(TASK_COMPLETE_INSTRUCTION_V3);
+  expect(EVOLUTION_PROFILES[v3Id]).toEqual({ ...EVOLUTION_PROFILES[candidateId], id: v3Id,
+    readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v3", instructionSha256: contract.instructionSha256 } });
+  expect(evolutionReaderContract(v3Id)).toBe("task-complete-v3");
+  expect(evolutionReaderProfileId("gpt5-mini-reader", "task-complete-v3")).toBe(v3Id);
+  const v2 = evolutionAnswerMessages(question, context, "task-complete-v2"), v3 = evolutionAnswerMessages(question, context, "task-complete-v3");
+  expect(v3.slice(1)).toEqual(v2.slice(1));
 });
