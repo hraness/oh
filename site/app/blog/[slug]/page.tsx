@@ -14,7 +14,6 @@ import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { OhContentFooter } from "../../site-footer";
 import { isArticleIndexable } from "@hraness/design-kit";
 import {
   articleAuthor,
@@ -77,7 +76,6 @@ export default async function ArticlePage({ params }: Readonly<{ params: Params 
           <Body />
         </MarketingArticle>
       </main>
-      <OhContentFooter />
     </>
   );
 }

@@ -20,7 +20,7 @@
     "build:theme": "bun scripts/build-theme-bootstrap.ts"
   },
   "dependencies": {
-    "@hraness/design-kit": "github:hraness/design-kit#v0.23.0",
+    "@hraness/design-kit": "github:hraness/design-kit#v0.24.0",
     "@hraness/site-footer": "github:hraness/site-footer#v0.20.0",
     "@hraness/ui": "github:hraness/ui#v0.5.18",
     "@hraness/web-discovery": "github:hraness/web-discovery#v0.9.0",

@@ -3,7 +3,6 @@ import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
 import { AskAiAboutThis } from "@hraness/ui";
 import type { ReactNode } from "react";
 
-import { OhContentFooter } from "../site-footer";
 
 export const repository = "https://github.com/hraness/oh";
 /** Checked-in benchmark evidence: result documents and the JSON behind each number. */
@@ -69,7 +68,6 @@ export function ComparePage({ canonical, children, eyebrow, jsonLd, lead, nav, n
         </article>
       </main>
       <AskAiAboutThis className="ask-ai" url={canonical} />
-      <OhContentFooter />
     </>
   );
 }

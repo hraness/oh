@@ -18,7 +18,6 @@ import releaseNano from "../../../benchmarks/results/memory-evolution-full-relea
 import sdkQualification from "../../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
 import { ohSearchSite } from "../blog/articles";
 import { benchmarksDescription, benchmarksImageAlt, benchmarksTitle } from "../metadata-copy";
-import { OhContentFooter } from "../site-footer";
 
 export const metadata: Metadata = {
   title: benchmarksTitle,
@@ -515,7 +514,6 @@ export default function Benchmarks() {
       </main>
 
       <AskAiAboutThis className="ask-ai" url="https://oh.computer/benchmarks" />
-      <OhContentFooter />
     </>
   );
 }

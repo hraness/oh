@@ -3,7 +3,6 @@ import { blogJsonLd } from "@hraness/web-discovery";
 import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
 
-import { OhContentFooter } from "../site-footer";
 import {
   articleDiscovery,
   articleIndexItem,
@@ -56,7 +55,6 @@ export default function BlogIndex() {
         />
         <p className="blog-feed-link"><a href={feedPath}>Atom feed</a></p>
       </main>
-      <OhContentFooter />
     </>
   );
 }

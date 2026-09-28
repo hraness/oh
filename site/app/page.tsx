@@ -18,7 +18,6 @@ import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 import publishedRelease from "../published-release.json";
 import { MemoryBenchmarkComparison, longMemEvalHeading } from "./benchmark-comparison";
 import { homeDescription } from "./metadata-copy";
-import { OhContentFooter } from "./site-footer";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
 import manifest from "../public/spec/manifest.json";
@@ -449,8 +448,6 @@ oh verify`}</code></pre>
       </main>
 
       <AskAiAboutThis className="ask-ai" url="https://oh.computer" />
-
-      <OhContentFooter />
     </div>
   );
 }
