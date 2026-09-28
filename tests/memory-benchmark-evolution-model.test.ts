@@ -5,7 +5,7 @@ import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_OPENAI_ENDPOINT, EVOLUTION_PROFILES, EVOLUTION_RESPONSE_MAX_BYTES,
   EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
-  EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID,
+  EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID,
   makeEvolutionRequest, parseEvolutionResponse, validateEvolutionRequest, type EvolutionProfileId,
   type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT } from "../scripts/benchmarks/oh-event-inventory-v3-schema";
@@ -118,7 +118,8 @@ describe("memory evolution model contracts", () => {
       id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
       && id !== EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID
       && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
-      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID));
+      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
+      && id !== EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID));
     expect(Object.keys(previous)).toHaveLength(108);
     expect(canonicalSha256(previous)).toBe("361cfed008518d23dfda4cd463127075daf79630addb0183b23cb3138dcaa1bb");
   });
@@ -126,7 +127,8 @@ describe("memory evolution model contracts", () => {
   test("event inventory V3 fixes strict output, accounts for schema bytes and preserves all 110 older profiles", () => {
     const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID
       && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
-      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID));
+      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
+      && id !== EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID));
     expect(Object.keys(previous)).toHaveLength(110);
     expect(canonicalSha256(previous)).toBe("214a9417fc3d8a05a52525f3d272b01f0f7a467a7c51b06335a9b7c00f5e8126");
     const structured = makeEvolutionRequest(EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, messages);
@@ -155,7 +157,8 @@ describe("memory evolution model contracts", () => {
   test("turn coverage and grouping preserve all 111 prior profiles and use fixed bounded extractor routes", () => {
     const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) =>
       id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
-      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID));
+      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
+      && id !== EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID));
     expect(Object.keys(previous)).toHaveLength(111);
     expect(canonicalSha256(previous)).toBe("11806387471b525d9db04baeb9f00da9ab91e75f4d1770029b70067c9e5197bc");
     const prompts = [{ role: "system" as const, content: "Account for each supplied user turn." },
@@ -207,7 +210,8 @@ describe("memory evolution model contracts", () => {
 
   test("high-effort additions preserve all 113 prior profiles and native requests", () => {
     const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) =>
-      id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID));
+      id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
+      && id !== EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID));
     const requests = Object.fromEntries(Object.keys(previous).map(key => {
       const id = key as EvolutionProfileId;
       return [id, makeEvolutionRequest(id, profileMessages(id))];
