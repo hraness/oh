@@ -17,6 +17,7 @@
     "test": "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts",
     "test:browser": "bun scripts/check-stylex-browser.mjs",
     "typecheck": "tsc --noEmit",
+    "search:notify": "bun scripts/submit-indexnow.ts",
     "build:theme": "bun scripts/build-theme-bootstrap.ts"
   },
   "dependencies": {
