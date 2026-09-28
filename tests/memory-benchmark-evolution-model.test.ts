@@ -5,6 +5,7 @@ import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_GATEWAY_ENDPOINT, EVOLUTION_OPENAI_ENDPOINT, EVOLUTION_PROFILES, EVOLUTION_RESPONSE_MAX_BYTES,
   EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
+  EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID,
   makeEvolutionRequest, parseEvolutionResponse, validateEvolutionRequest, type EvolutionProfileId,
   type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT } from "../scripts/benchmarks/oh-event-inventory-v3-schema";
@@ -12,6 +13,14 @@ import { OH_TURN_COVERAGE_RESPONSE_FORMAT_V1, OH_TURN_GROUPING_RESPONSE_FORMAT_V
 
 const messages = [{ role: "system" as const, content: "Use supplied memory only." }, { role: "user" as const, content: "Which color?" }];
 const directJudgeMessages = [{ role: "user" as const, content: "Evaluate this LongMemEval answer exactly as instructed." }];
+function profileMessages(id: EvolutionProfileId) {
+  return id === "gpt5-mini-answer-audit-v1"
+    ? makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "Blue.", draftAnswer: "Blue." })
+    : EVOLUTION_PROFILES[id].requiredResolvedSnapshot !== undefined || id === EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID
+      || id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID || id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
+      || id === "gpt4o-mini-clonemem-choice-v1-reader" || id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1"
+      || id === "gpt4o-beam-event-extraction-v1" || id === "gpt4o-beam-nugget-v1" ? directJudgeMessages : messages;
+}
 const raw = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 function response(request: EvolutionRequest) {
   return { model: request.model,
@@ -35,13 +44,7 @@ describe("memory evolution model contracts", () => {
     const ids = Object.keys(EVOLUTION_PROFILES) as EvolutionProfileId[];
     const hashes = new Set<string>();
     for (const id of ids) {
-      const prompt = id === "gpt5-mini-answer-audit-v1"
-        ? makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "Blue.", draftAnswer: "Blue." })
-        : EVOLUTION_PROFILES[id].requiredResolvedSnapshot !== undefined || id === EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID
-          || id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID || id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
-          || id === "gpt4o-mini-clonemem-choice-v1-reader" || id === "gpt4o-official-snapshot-judge" || id === "gpt4o-gateway-native-rubric-judge-v1" || id === "gpt4o-gateway-native-rubric-16-judge-v1"
-          || id === "gpt4o-beam-event-extraction-v1" || id === "gpt4o-beam-nugget-v1" ? directJudgeMessages : messages;
-      const request = makeEvolutionRequest(id, prompt), bytes = raw(response(request));
+      const request = makeEvolutionRequest(id, profileMessages(id)), bytes = raw(response(request));
       const result = parseEvolutionResponse(bytes, request);
       expect(validateEvolutionRequest(structuredClone(request))).toEqual(request);
       expect(result).toMatchObject({ answer: "Blue.", partialAnswer: "Blue.", status: "completed", failureReason: null,
@@ -114,14 +117,16 @@ describe("memory evolution model contracts", () => {
     const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) =>
       id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
       && id !== EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID
-      && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID));
+      && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
+      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID));
     expect(Object.keys(previous)).toHaveLength(108);
     expect(canonicalSha256(previous)).toBe("361cfed008518d23dfda4cd463127075daf79630addb0183b23cb3138dcaa1bb");
   });
 
   test("event inventory V3 fixes strict output, accounts for schema bytes and preserves all 110 older profiles", () => {
     const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) => id !== EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID
-      && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID));
+      && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
+      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID));
     expect(Object.keys(previous)).toHaveLength(110);
     expect(canonicalSha256(previous)).toBe("214a9417fc3d8a05a52525f3d272b01f0f7a467a7c51b06335a9b7c00f5e8126");
     const structured = makeEvolutionRequest(EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, messages);
@@ -149,7 +154,8 @@ describe("memory evolution model contracts", () => {
 
   test("turn coverage and grouping preserve all 111 prior profiles and use fixed bounded extractor routes", () => {
     const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) =>
-      id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID));
+      id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
+      && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID));
     expect(Object.keys(previous)).toHaveLength(111);
     expect(canonicalSha256(previous)).toBe("11806387471b525d9db04baeb9f00da9ab91e75f4d1770029b70067c9e5197bc");
     const prompts = [{ role: "system" as const, content: "Account for each supplied user turn." },
@@ -196,6 +202,69 @@ describe("memory evolution model contracts", () => {
       expect(request.profileSha256).toBe(profileSha256);
       expect(request.requestSha256).toBe(requestSha256);
       expect(makeEvolutionRequest(id, structuredClone(messages))).toEqual(request);
+    }
+  });
+
+  test("high-effort additions preserve all 113 prior profiles and native requests", () => {
+    const previous = Object.fromEntries(Object.entries(EVOLUTION_PROFILES).filter(([id]) =>
+      id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID));
+    const requests = Object.fromEntries(Object.keys(previous).map(key => {
+      const id = key as EvolutionProfileId;
+      return [id, makeEvolutionRequest(id, profileMessages(id))];
+    }));
+    // Captured from clean f3f9f6e3094ca58e5a29f1b1aa2d47b7ce3876bf before adding high-effort profiles.
+    expect(Object.keys(previous)).toHaveLength(113);
+    expect(canonicalSha256(previous)).toBe("5fad375fc294006ac8e0cb514980f0444c3c82334c25ec9ddbbd4a062e95328a");
+    expect(canonicalSha256(requests)).toBe("f29b30c36000d43aa963f06237b10ee9c2d4d2fc857879a1da84d4306efd6340");
+  });
+
+  test("opt-in high coverage and grouping change only identity and reasoning effort", () => {
+    for (const [lowId, highId, profileSha256, requestSha256] of [
+      [EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID,
+        "c76f23287d67c422a0cb92751111cfb4a426475c10e102c69e27b885d0c0de11",
+        "e86a18a4de40a74a1cd571b10c7a1091f85ee76a8075597acd5380b4e78c45c9"],
+      [EVOLUTION_TURN_GROUPING_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID,
+        "9673aa673ea2bedc61ac5ba2485a3863021d0334ce2d1fbf77ab1380ea9a6825",
+        "e162ec9f59e00f33b081d3584728fa0bdd12a51d54cfbe745a4da9e68d93119a"],
+    ] as const) {
+      const low = makeEvolutionRequest(lowId, messages), high = makeEvolutionRequest(highId, messages);
+      expect(EVOLUTION_PROFILES[highId]).toEqual({ ...EVOLUTION_PROFILES[lowId], id: highId,
+        settings: { reasoning: { effort: "high" } } });
+      expect(high).toEqual({ ...low, profileId: highId, profileSha256, requestSha256,
+        body: { ...low.body, reasoning: { effort: "high" } } });
+      expect(high.profileSha256).not.toBe(low.profileSha256);
+      expect(high.requestSha256).not.toBe(low.requestSha256);
+      expect(validateEvolutionRequest(structuredClone(high))).toEqual(high);
+      expect(Object.isFrozen(EVOLUTION_PROFILES[highId].settings.reasoning)).toBeTrue();
+      expect(Object.isFrozen(high.body.response_format?.json_schema.schema)).toBeTrue();
+      for (const transplant of [
+        { ...high, profileId: lowId },
+        { ...high, profileSha256: low.profileSha256 },
+        { ...high, requestSha256: low.requestSha256 },
+        { ...high, body: low.body },
+        { ...high, timeoutMs: 120000 },
+        { ...high, maxOutputTokens: 32768, body: { ...high.body, max_tokens: 32768 } },
+      ]) expect(() => validateEvolutionRequest(transplant)).toThrow("request changed");
+    }
+  });
+
+  test("high-effort extractors keep the same context bound and charge capped reasoning truncation as a failed answer", () => {
+    for (const id of [EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID]) {
+      const request = makeEvolutionRequest(id, messages), bounded = structuredClone(messages);
+      bounded[1]!.content += "x".repeat(400000 - 8192 - request.inputUpperBound);
+      const admitted = makeEvolutionRequest(id, bounded);
+      expect(admitted.inputUpperBound + admitted.maxOutputTokens).toBe(400000);
+      bounded[1]!.content += "x";
+      expect(() => makeEvolutionRequest(id, bounded)).toThrow("conservative context bound exceeded");
+      const truncated = parseEvolutionResponse(mutate(response(request), value => {
+        value.choices[0].finish_reason = "length";
+        value.choices[0].message.content = null;
+        value.usage = { prompt_tokens: 100, completion_tokens: 8192, total_tokens: 8292,
+          completion_tokens_details: { reasoning_tokens: 8192 } };
+      }), request);
+      expect(truncated).toMatchObject({ status: "truncated", answer: null, partialAnswer: null,
+        usage: { inputTokens: 100, outputTokens: 8192, reasoningTokens: 8192, micros: 16409 } });
+      expect(truncated.usage.micros).toBeLessThanOrEqual(request.reservationMicros);
     }
   });
 
