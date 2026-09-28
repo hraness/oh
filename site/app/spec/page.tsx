@@ -26,6 +26,7 @@ export const metadata: Metadata = {
       url: "/spec/opengraph-image",
       width: 1200,
     }],
+    siteName: "Oh",
     url: "/spec",
   },
   twitter: {
@@ -82,7 +83,7 @@ export default function Specification() {
               <p className="eyebrow">
                 {sentenceCase(currentVersion.status)} specification · ontology {contract.ontologyVersion}
               </p>
-              <h1>Oh ontology<br />specification</h1>
+              <h1>Oh ontology{" "}<br />specification</h1>
             </div>
             <p>
               This specification defines the records, storage, and sync

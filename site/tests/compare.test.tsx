@@ -8,6 +8,7 @@ import CompareIndex, { metadata as indexMetadata } from "../app/compare/page";
 import CompareMem0, { metadata as mem0Metadata } from "../app/compare/mem0/page";
 import CompareSupermemory, { metadata as supermemoryMetadata } from "../app/compare/supermemory/page";
 import sitemap from "../app/sitemap";
+import { compareMem0Title, compareSupermemoryTitle, compareTitle } from "../app/metadata-copy";
 import pilotResult from "../../benchmarks/results/memory-framework-pilot-v1.json";
 import memEval from "../../benchmarks/results/memory-evolution-memeval-102-v1.json";
 
@@ -54,9 +55,39 @@ describe("Oh comparison pages", () => {
       expect(images[0]?.url, name).toBe(`${path}/opengraph-image`);
       expect(images[0]?.alt?.length ?? 0, name).toBeLessThanOrEqual(125);
     }
-    expect(indexMetadata.title).toBe("Oh: Comparisons");
-    expect(mem0Metadata.title).toBe("Oh vs Mem0");
-    expect(supermemoryMetadata.title).toBe("Oh vs Supermemory");
+    expect(indexMetadata.title).toBe(compareTitle);
+    expect(mem0Metadata.title).toBe(compareMem0Title);
+    expect(supermemoryMetadata.title).toBe(compareSupermemoryTitle);
+    for (const title of [compareTitle, compareMem0Title, compareSupermemoryTitle]) {
+      expect(title.length, title).toBeLessThanOrEqual(60);
+      expect(title).toMatch(/memory/);
+    }
+  });
+
+  test("the index table sets six memory tools side by side with dated sources", () => {
+    const html = renderToStaticMarkup(<RootLayout><CompareIndex /></RootLayout>);
+    const columns: string[] = [];
+    const rows: string[] = [];
+    let cell = "";
+    new HTMLRewriter()
+      .on('#at-a-glance th[scope="col"]', { text(chunk) { cell += chunk.text; if (chunk.lastInTextNode) { columns.push(cell); cell = ""; } } })
+      .transform(html);
+    new HTMLRewriter()
+      .on('#at-a-glance th[scope="row"]', { text(chunk) { cell += chunk.text; if (chunk.lastInTextNode) { rows.push(cell); cell = ""; } } })
+      .transform(html);
+    expect(columns).toEqual(["Oh", "Mem0", "Supermemory", "Zep and Graphiti", "Letta", "Claude memory tool"]);
+    expect(rows.length).toBeGreaterThanOrEqual(4);
+    expect(html.match(/<tr>/gu)?.length).toBe(rows.length + 1);
+    for (const href of [
+      "https://github.com/getzep/graphiti",
+      "https://github.com/letta-ai/letta-code",
+      "https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool",
+    ]) {
+      expect(html).toContain(`href="${href}"`);
+    }
+    expect(html).toContain('aria-label="Memory tools at a glance" class="compare-table-wrap" role="region" tabindex="0"');
+    expect(html).toContain("Oh has run no matched benchmark against these three.");
+    expect(html).toMatch(/Checked [A-Z][a-z]+ \d{1,2}, \d{4}\./u);
   });
 
   test("the index links both comparisons and the evidence directory", () => {

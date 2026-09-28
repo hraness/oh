@@ -21,6 +21,7 @@ export const metadata: Metadata = {
       url: "/compare/supermemory/opengraph-image",
       width: 1200,
     }],
+    siteName: "Oh",
     url: "/compare/supermemory",
   },
   twitter: {

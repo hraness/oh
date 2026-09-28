@@ -4,7 +4,90 @@ import type { Metadata } from "next";
 
 import { ohSearchSite } from "../blog/articles";
 import { compareDescription, compareImageAlt, compareTitle } from "../metadata-copy";
-import { benchmarkEvidence, ComparePage, comparePages, CompareSection, repository } from "./compare";
+import {
+  benchmarkEvidence,
+  ComparePage,
+  comparePages,
+  CompareSection,
+  CompareSources,
+  type CompareSource,
+  repository,
+} from "./compare";
+
+const checkedOn = "September 28, 2026";
+
+const glanceColumns = ["Oh", "Mem0", "Supermemory", "Zep and Graphiti", "Letta", "Claude memory tool"] as const;
+
+// Each cell was read from the product's own page or repository on checkedOn; the sources list below names them.
+const glanceRows: readonly Readonly<{ label: string; cells: readonly [string, string, string, string, string, string] }>[] = [
+  {
+    label: "What it is",
+    cells: [
+      "Memory library and CLI for an agent’s own records",
+      "Memory layer that remembers each user of a product",
+      "Memory API with document connectors",
+      "Temporal knowledge graph of facts",
+      "Agent harness whose agents manage their own memory",
+      "Claude API tool that reads and writes memory files",
+    ],
+  },
+  {
+    label: "License",
+    cells: [
+      "MIT",
+      "Apache-2.0 SDK; hosted Platform",
+      "MIT repository; hosted Platform",
+      "Graphiti Apache-2.0; Zep hosted",
+      "Apache-2.0",
+      "Part of the Claude API",
+    ],
+  },
+  {
+    label: "How memories get in",
+    cells: [
+      "Your code or agent writes each record",
+      "A model extracts facts from messages",
+      "API calls, with a model extracting memories; Platform connectors sync Google Drive, Gmail, and Notion",
+      "A model extracts entities and facts from each episode",
+      "The agent rewrites its own memory blocks",
+      "Claude writes files through tool calls",
+    ],
+  },
+  {
+    label: "Where data lives",
+    cells: [
+      "One SQLite file you choose; libSQL optional",
+      "Mem0’s cloud, or your own vector store, LLM, and embedder",
+      "Supermemory’s cloud, or its free self-hosted binary",
+      "Neo4j, FalkorDB, or Neptune for Graphiti; Zep’s cloud or your VPC",
+      "An App Server you run, or Letta Cloud",
+      "Storage your application provides",
+    ],
+  },
+  {
+    label: "Matched run in Oh’s repository",
+    cells: [
+      "Not applicable",
+      "30 questions in the MemEval harness",
+      "60-question LongMemEval-S pilot",
+      "None",
+      "None",
+      "None",
+    ],
+  },
+];
+
+const sources: readonly CompareSource[] = [
+  { title: "Mem0: Platform vs open source", href: "https://docs.mem0.ai/platform/platform-vs-oss", note: `Checked ${checkedOn}.` },
+  { title: "mem0ai/mem0 on GitHub", href: "https://github.com/mem0ai/mem0", note: `Checked ${checkedOn}.` },
+  { title: "Supermemory self-hosting", href: "https://supermemory.ai/docs/self-hosting/overview", note: `Checked ${checkedOn}.` },
+  { title: "Supermemory connectors", href: "https://supermemory.ai/docs/connectors/overview", note: `Checked ${checkedOn}.` },
+  { title: "supermemoryai/supermemory on GitHub", href: "https://github.com/supermemoryai/supermemory", note: `Checked ${checkedOn}.` },
+  { title: "getzep/graphiti on GitHub", href: "https://github.com/getzep/graphiti", note: `Checked ${checkedOn}.` },
+  { title: "Zep", href: "https://www.getzep.com", note: `Checked ${checkedOn}.` },
+  { title: "letta-ai/letta-code on GitHub", href: "https://github.com/letta-ai/letta-code", note: `Checked ${checkedOn}.` },
+  { title: "Claude memory tool", href: "https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool", note: `Checked ${checkedOn}.` },
+];
 
 export const metadata: Metadata = {
   title: compareTitle,
@@ -19,6 +102,7 @@ export const metadata: Metadata = {
       url: "/compare/opengraph-image",
       width: 1200,
     }],
+    siteName: "Oh",
     url: "/compare",
   },
   twitter: {
@@ -41,7 +125,7 @@ export default function CompareIndex() {
               { name: "Oh", path: "/" },
               { name: "Comparisons", path: "/compare" },
             ],
-            dateModified: "2026-09-26",
+            dateModified: "2026-09-28",
             description: compareDescription,
             name: compareTitle,
             path: "/compare",
@@ -53,13 +137,41 @@ export default function CompareIndex() {
           id="compare-json-ld"
         />
       }
-      lead="Oh is open-source memory for an agent’s own work: each fact is a record linked to its sources, kept in a local SQLite file with a history you can replay. Mem0 and Supermemory give a product memory for each of its end users instead. Each page says who should pick which, reports the matched run Oh’s repository has against that product, and dates and sources every claim about it."
-      nav={comparePages.map((page) => ({ href: page.href, label: page.label }))}
+      lead="Oh keeps an agent’s own records in one local SQLite file, each linked to the records it rests on, with a history you can replay. Pick Mem0 or Supermemory to give each user of a product a memory. Pick Zep or Graphiti to track when each fact was true. Pick Letta to run agents that manage their own memory. Claude’s memory tool needs no extra package if you already call the Claude API. Every claim about another product below is dated and sourced."
+      nav={[
+        { href: "#at-a-glance", label: "At a glance" },
+        ...comparePages.map((page) => ({ href: page.href, label: page.label })),
+        { href: "#other-tools", label: "Zep, Letta, and Claude" },
+        { href: "#sources", label: "Sources" },
+      ]}
       navLabel="Compare"
       title="Compare Oh"
     >
+      <CompareSection id="at-a-glance" number="01" title="At a glance">
+        {/* The table is wider than a phone, so its scrolling wrapper takes keyboard focus. */}
+        <div aria-label="Memory tools at a glance" className="compare-table-wrap" role="region" tabIndex={0}>
+          <table className="compare-table compare-glance">
+            <caption>Six ways to give an agent memory, checked {checkedOn}.</caption>
+            <thead>
+              <tr>
+                <td />
+                {glanceColumns.map((column) => <th key={column} scope="col">{column}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {glanceRows.map((row) => (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  {row.cells.map((cell, index) => <td key={glanceColumns[index]}>{cell}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CompareSection>
+
       {comparePages.map((page, index) => (
-        <CompareSection key={page.href} id={page.href.slice("/compare/".length)} number={`0${index + 1}`} title={page.label}>
+        <CompareSection key={page.href} id={page.href.slice("/compare/".length)} number={`0${index + 2}`} title={page.label}>
           {page.href === "/compare/mem0" ? (
             <p>
               Mem0 is a memory layer for applications: its <code>add</code> call distills messages
@@ -84,7 +196,33 @@ export default function CompareIndex() {
         </CompareSection>
       ))}
 
-      <CompareSection id="evidence" number="03" title="Where the numbers come from">
+      <CompareSection id="other-tools" number="04" title="Zep, Letta, and Claude’s memory tool">
+        <p>
+          Graphiti, Zep’s open-source framework, builds a temporal knowledge graph: a model extracts
+          entities and facts from each episode, each fact keeps the window when it was true, and
+          each traces back to the episode it came from. It runs on Python with a graph database;
+          Zep is the managed service. Pick it to ask what was true at a given time. Oh stores what
+          you write without a model rewriting it, in one SQLite file, and needs no graph database.
+        </p>
+        <p>
+          Letta, formerly MemGPT, is an agent harness and app server whose agents rewrite their
+          own memory blocks as they work. Pick it to run stateful agents on Letta. Oh is a
+          library you call from your own agent.
+        </p>
+        <p>
+          Anthropic’s memory tool lets Claude create, read, edit, and delete files under{" "}
+          <code>/memories</code>, while your application runs each operation against storage it
+          controls. It needs no extra package on the Claude API. The tool defines no schema, source
+          links, or digests for those files, and Oh ships no adapter for it.
+        </p>
+        <p>
+          Oh has run no matched benchmark against these three. Oh’s benchmark records quote
+          published LoCoMo figures for Zep and Letta and a LongMemEval figure for Zep, from setups
+          Oh’s runs do not match.
+        </p>
+      </CompareSection>
+
+      <CompareSection id="evidence" number="05" title="Where the numbers come from">
         <p>
           Every figure on these pages comes from a checked-in result document in the
           repository’s <code>benchmarks</code> directory or from the other product’s own
@@ -97,6 +235,10 @@ export default function CompareIndex() {
           <li><a href={benchmarkEvidence}>Benchmark evidence</a></li>
           <li><a href={repository}>hraness/oh on GitHub</a></li>
         </ul>
+      </CompareSection>
+
+      <CompareSection id="sources" number="06" title="Sources">
+        <CompareSources items={sources} />
       </CompareSection>
     </ComparePage>
   );

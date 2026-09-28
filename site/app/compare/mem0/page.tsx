@@ -20,6 +20,7 @@ export const metadata: Metadata = {
       url: "/compare/mem0/opengraph-image",
       width: 1200,
     }],
+    siteName: "Oh",
     url: "/compare/mem0",
   },
   twitter: {

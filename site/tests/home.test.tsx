@@ -284,3 +284,38 @@ test("the header keeps a named home link and exact-artwork foil fallback", () =>
     expect(masks).toEqual(['--hraness-foil-mask:url("/marks/oh-computer.svg")']);
   }
 });
+
+test("the home JSON-LD defines the website and the software the other pages reference", () => {
+  const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
+  const blocks: string[] = [];
+  let current = "";
+  new HTMLRewriter()
+    .on('script[type="application/ld+json"]', {
+      element(element) { element.onEndTag(() => { blocks.push(current); current = ""; }); },
+      text(chunk) { current += chunk.text; },
+    })
+    .transform(html);
+  const nodes = blocks.flatMap((block) => {
+    const parsed: unknown = JSON.parse(block);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  }) as Record<string, unknown>[];
+  const byType = (type: string) => nodes.filter((node) => node["@type"] === type);
+
+  const [website, ...extraWebsites] = byType("WebSite");
+  expect(extraWebsites).toHaveLength(0);
+  expect(website?.["@id"]).toBe("https://oh.computer/#website");
+  expect(website?.publisher).toEqual({ "@id": "https://hraness.com/#organization" });
+
+  const [software] = byType("SoftwareSourceCode");
+  expect(software?.["@id"]).toBe("https://oh.computer/#software");
+  expect(software?.version).toBe(publishedRelease.version);
+  expect((software?.publisher as Record<string, unknown>)["@id"]).toBe("https://hraness.com/#organization");
+  expect(nodes.some((node) => "aggregateRating" in node || "review" in node)).toBe(false);
+
+  // FAQ markup mirrors the visible questions, including the comparison answer.
+  const question = "How is Oh different from Mem0 or Supermemory?";
+  expect(html).toContain(question);
+  const [faq] = byType("FAQPage");
+  const names = (faq?.mainEntity as { name: string }[]).map((entry) => entry.name);
+  expect(names).toContain(question);
+});

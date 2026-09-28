@@ -12,11 +12,13 @@ import {
 } from "@hraness/design-kit/react/server";
 import { product, relatedFor } from "@hraness/design-kit/portfolio";
 import { AskAiAboutThis } from "@hraness/ui";
+import { websiteJsonLd } from "@hraness/web-discovery";
 
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 
 import publishedRelease from "../published-release.json";
 import { MemoryBenchmarkComparison, longMemEvalHeading } from "./benchmark-comparison";
+import { ohSearchSite } from "./blog/articles";
 import { homeDescription } from "./metadata-copy";
 import citationRecord from "../public/examples/evidence-table-2.json";
 import contract from "../public/spec/v1/contract.json";
@@ -29,6 +31,8 @@ const currentVersion = manifest.versions.find((version) => version.id === manife
 
 const releaseVersion = publishedRelease.version;
 const repository = "https://github.com/hraness/oh";
+// hraness.com publishes the Organization node this @id names.
+const hranessOrganizationId = "https://hraness.com/#organization";
 const wordcell = product("kb");
 // The Wordcell section links a sibling product, so it needs a registered relation.
 if (!relatedFor(wordcell.id, { kinds: ["runtime"] }).some((item) => item.name === "Oh")) {
@@ -150,6 +154,10 @@ const questions = [
     answer: "No. The CLI and the local SDK work on a SQLite file you choose, with no sign-in, hosted model, or remote database. A hosted service you connect, such as an embedding or sync provider, may need an account of its own.",
   },
   {
+    question: "How is Oh different from Mem0 or Supermemory?",
+    answer: "Mem0 and Supermemory give each user of a product a memory, built from facts a model extracts or documents you sync, and both offer hosted plans. Oh stores the records your code or agent writes, with no model rewriting them, each linked to its sources, in one local SQLite file with a history you can replay. Oh has no per-end-user scoping API, connectors, or hosted service. The comparison page at oh.computer/compare also covers Zep, Letta, and Claude’s memory tool.",
+  },
+  {
     question: "What is stored, and where?",
     answer: "One SQLite file holds your records and their digests, the append-only log of every change, a keyword index built from the records, and the specification version the file follows. Oh uses `.oh/oh.sqlite` and the `default` space unless you name another path or space. Semantic caches and remote copies exist only where you configure them.",
   },
@@ -200,16 +208,25 @@ const navigation = [
 
 export default function Home() {
   const structuredData = [
+    { ...websiteJsonLd(ohSearchSite), publisher: { "@id": hranessOrganizationId } },
     {
       "@context": "https://schema.org",
       "@type": "SoftwareSourceCode",
+      "@id": "https://oh.computer/#software",
       codeRepository: repository,
       description: homeDescription,
       license: "https://opensource.org/license/mit",
       name: "Oh",
       programmingLanguage: "TypeScript",
+      publisher: {
+        "@type": "Organization",
+        "@id": hranessOrganizationId,
+        name: "Hraness",
+        url: "https://hraness.com",
+      },
       runtimePlatform: "Bun",
       url: "https://oh.computer",
+      version: releaseVersion,
     },
     {
       "@context": "https://schema.org",

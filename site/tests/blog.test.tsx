@@ -10,7 +10,9 @@ import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import RootLayout from "../app/layout";
-import BlogIndex from "../app/blog/page";
+import BlogIndex, { metadata as blogMetadata } from "../app/blog/page";
+import * as blogImage from "../app/blog/opengraph-image";
+import { blogImageAlt } from "../app/metadata-copy";
 import ArticlePage, { generateMetadata, generateStaticParams } from "../app/blog/[slug]/page";
 import { GET as feed } from "../app/blog/feed.xml/route";
 import { articleAdmissions } from "../app/blog/admissions";
@@ -76,6 +78,14 @@ describe("Oh blog", () => {
       const source = await readFile(join(site, "app/blog/content", `${slug}.tsx`), "utf8");
       expect(source).not.toContain(publishedRelease.version);
     }
+  });
+
+  test("the index names its social image and site", () => {
+    const openGraph = blogMetadata.openGraph as { images?: { alt?: string; url?: string }[]; siteName?: string };
+    expect(openGraph.siteName).toBe("Oh");
+    expect(openGraph.images?.[0]).toMatchObject({ alt: blogImageAlt, url: "/blog/opengraph-image" });
+    expect(blogImage.alt).toBe(blogImageAlt);
+    expect(blogImageAlt.length).toBeLessThanOrEqual(125);
   });
 
   test("marks quarantined articles noindex and keeps indexable ones indexable", async () => {

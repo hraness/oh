@@ -14,6 +14,7 @@ import {
   indexableArticles,
   ohSearchSite,
 } from "./articles";
+import { blogImageAlt } from "../metadata-copy";
 import { BlogHeader } from "./blog-header";
 
 export const metadata: Metadata = {
@@ -26,6 +27,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: blogTitle,
     description: blogDescription,
+    images: [{
+      alt: blogImageAlt,
+      height: 630,
+      url: "/blog/opengraph-image",
+      width: 1200,
+    }],
+    siteName: "Oh",
     type: "website",
     url: blogPath,
   },
@@ -33,6 +41,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: blogTitle,
     description: blogDescription,
+    images: [{ alt: blogImageAlt, url: "/blog/opengraph-image" }],
   },
 };
 
