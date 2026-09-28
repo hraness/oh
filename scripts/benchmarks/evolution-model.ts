@@ -3,6 +3,8 @@ import type { Message } from "./model";
 import { EVOLUTION_READER_CONTRACTS, parseEvolutionReaderContractId, type EvolutionReaderContractId, type EvolutionReaderAblationContractId } from "./evolution-reader-contracts";
 import { OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT } from "./observe-extractor-v2";
 import { OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT } from "./observe-extractor-v3-schema";
+import { OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT } from "./oh-event-inventory-v3-schema";
+import { OH_TURN_COVERAGE_RESPONSE_FORMAT_V1, OH_TURN_GROUPING_RESPONSE_FORMAT_V1 } from "./oh-turn-coverage-schema";
 import { EVOLUTION_ANSWER_AUDIT_PROFILE_ID, EVOLUTION_ANSWER_AUDIT_INSTRUCTION_SHA256_V1,
   EVOLUTION_ANSWER_AUDIT_POLICY_SHA256_V1, validateEvolutionAnswerAuditMessages } from "./evolution-answer-audit";
 
@@ -22,7 +24,12 @@ export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${
 export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"
   | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1" | "gpt4o-mini-locomo-j-judge-v1";
 export const EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID = "gpt5-mini-evidence-32k-long-deadline-v3-extractor";
-export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2" | typeof EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID;
+export const EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID = "gpt5-mini-event-inventory-v3-extractor";
+export const EVOLUTION_TURN_COVERAGE_PROFILE_ID = "gpt5-mini-turn-coverage-v1-extractor";
+export const EVOLUTION_TURN_GROUPING_PROFILE_ID = "gpt5-mini-turn-grouping-v1-extractor";
+export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2"
+  | typeof EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID | typeof EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID
+  | typeof EVOLUTION_TURN_COVERAGE_PROFILE_ID | typeof EVOLUTION_TURN_GROUPING_PROFILE_ID;
 export type EvolutionAnswerAuditProfileId = typeof EVOLUTION_ANSWER_AUDIT_PROFILE_ID;
 export const EVOLUTION_BEAM_JUDGE_PROFILE_IDS = ["gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1"] as const;
 export type EvolutionBeamJudgeProfileId = typeof EVOLUTION_BEAM_JUDGE_PROFILE_IDS[number];
@@ -43,7 +50,8 @@ export type EvolutionFrameworkPilotProfileId = typeof EVOLUTION_FRAMEWORK_PILOT_
 export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId | EvolutionCloneMemChoiceReaderProfileId | EvolutionFrameworkPilotProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
-export type EvolutionExtractorResponseFormat = typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT | typeof OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT;
+export type EvolutionExtractorResponseFormat = typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT | typeof OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT
+  | typeof OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT | typeof OH_TURN_COVERAGE_RESPONSE_FORMAT_V1 | typeof OH_TURN_GROUPING_RESPONSE_FORMAT_V1;
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
   endpoint: string; contextWindow: number; maxOutputTokens: number; timeoutMs: number;
   qualification: "gateway-alias" | "official-snapshot-request"; expectedSnapshot: string | null;
@@ -158,6 +166,12 @@ const EXTRACTOR_PROFILES: Readonly<Record<EvolutionExtractorProfileId, Evolution
     settings: { reasoning: { effort: "low" } }, responseFormat: OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT },
   [EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID,
     maxOutputTokens: 32_768, timeoutMs: 600_000, settings: { reasoning: { effort: "low" } }, responseFormat: OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT },
+  [EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID,
+    settings: { reasoning: { effort: "low" } }, responseFormat: OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT },
+  [EVOLUTION_TURN_COVERAGE_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_TURN_COVERAGE_PROFILE_ID,
+    maxOutputTokens: 8_192, timeoutMs: 600_000, settings: { reasoning: { effort: "low" } }, responseFormat: OH_TURN_COVERAGE_RESPONSE_FORMAT_V1 },
+  [EVOLUTION_TURN_GROUPING_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_TURN_GROUPING_PROFILE_ID,
+    maxOutputTokens: 8_192, timeoutMs: 600_000, settings: { reasoning: { effort: "low" } }, responseFormat: OH_TURN_GROUPING_RESPONSE_FORMAT_V1 },
 });
 /** The audit lane has one fixed instruction and input grammar; it is not a general answer-reader profile. */
 const ANSWER_AUDIT_PROFILES: Readonly<Record<EvolutionAnswerAuditProfileId, EvolutionModelProfile>> = frozen({

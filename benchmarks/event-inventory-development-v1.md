@@ -2,6 +2,8 @@
 
 This experiment prepares a question-specific inventory of events and states, checks its source citations, and computes partial ordering constraints. It is opt-in benchmark tooling. It changes no reader default, package export, stored record, or benchmark score.
 
+The separate [user-turn coverage experiment](turn-coverage-development-v1.md) collects topics without the question before grouping them for a scope. It preserves every user disposition and reports count mismatches without truncating the inventory.
+
 ## Extract and inspect an inventory
 
 `scripts/benchmarks/oh-event-inventory.ts` accepts a question, an explicit level of detail (`granularity`), an ordering mode, a statement-time cutoff (`asOf`, or `null`), and source records with numeric session and turn positions.
@@ -12,6 +14,12 @@ This experiment prepares a question-specific inventory of events and states, che
 4. Inspect the mentions, identity groups, pairwise relations, conflicts and current-state results. Preserve the original raw context alongside these annotations. Group counts do not establish complete event counts. Conflicts and unknown pairs must not be flattened into a total order.
 
 `extractOhEventInventoryV1(input, transport)` combines those steps through one injected asynchronous call. It performs no retry, storage write, credential lookup or provider selection. The transport owner remains responsible for spending authority, timeouts, request journaling, response-byte limits and reconciliation of uncertain calls. The callback receives the exact prompt and hashes and a 262,144-byte response limit; the parser enforces the same limit after return.
+
+The opt-in V2 APIs (`prepareOhEventInventoryV2`, `resolveOhEventInventoryV2`, and `extractOhEventInventoryV2`) keep the same input and proposal fields with a separate protocol and hashes. Their prompt requires each citation to identify one existing source, leaves date-derived ordering to the local comparison, and asks for minimal exact date spans without surrounding punctuation. The parser still rejects malformed citations. V1 remains byte-compatible for replay; a V1 plan or proposal cannot be substituted for V2. These instructions need their own frozen model evaluation.
+
+The opt-in V3 APIs (`prepareOhEventInventoryV3`, `resolveOhEventInventoryV3`, and `extractOhEventInventoryV3`) accept the same source inputs and use a fixed JSON schema. Their prompt gives the model short source handles (`s0` through `s255`); code retains the corresponding record keys and digests. Each proposed citation contains one handle and an exact quote. The schema constrains object fields, kinds, identifiers and array sizes. The parser then checks that handles and link endpoints exist in this request and that each quote and date span identifies one occurrence. A date span must occur inside its cited quote. Failed validation rejects the proposal without a repair call.
+
+Use the V3 plan's `responseFormat` in the extraction request. The injected V3 transport receives it alongside the prompt and hashes. Evolution's dedicated `gpt5-mini-event-inventory-v3-extractor` profile supplies the same schema, includes its bytes in request identity and cost reservation, and retains the existing output and spending limits. The schema is fixed across questions; its handle ranges do not reveal or assert how many events are relevant. Runtime validation establishes citation identity, while semantic relevance and interpretation still need separate evaluation. V1, V2 and existing Evolution profiles retain their previous identities for replay.
 
 In `event-time` mode, only supported event mentions establish temporal relations. Explicit same-event links group repeated mentions. Disjoint event intervals and quoted before-links supply ordering constraints; inconsistent dates, identity links and cycles remain visible. In `mention-order` mode, source session and turn positions determine order. Two mentions in one message remain unordered because the input gives no within-message position. Neither mode treats statement time as event time.
 
@@ -38,4 +46,17 @@ bun run typecheck:scripts
 
 Freeze the extractor and judge calibration criteria before observing live responses. Test the intended operations on invented histories first, then compare fixed treatments using already exposed development data. Apply any reader treatment equally to comparators. Keep fresh confirmation data closed until the selected configuration and scorer are frozen.
 
-The Supermemory session helper also needs a source-authenticated bridge from session references to all constituent source units before using the common context packer. Preserve provider-generated memory text through that bridge. Its standalone renderer is not the common neutral, token-budgeted reader context. A future provider smoke must independently verify the exact account and namespace, complete processing and dreaming readiness, bounded transport and spending, and reconciled cleanup. The pure helper tests do not establish live provider readiness.
+`scripts/benchmarks/beam-supermemory-context.ts` connects the Supermemory session helper to the shared evidence packer. `prepareBeamSupermemoryContextInputV1` accepts the protocol `oh.beam-supermemory-context-input.v1`, the original source-only `sessionInput`, `splitPlan`, `sourceUnits`, accepted document identities (`accepted`), complete readiness `observations`, the search `response`, and `maxContextTokens`. It reconstructs the session plan and validates the source-unit bundle against the same source, including separate occurrences of repeated session aliases.
+
+The bridge preserves each provider-generated memory or chunk and its result rank. It expands every authenticated session reference to all constituent turn parts in source order, retaining the original document references in `provenance`. These are explicitly `session-document` references: they identify associated source documents, but do not establish which turns support the generated statement or measure turn-level evidence recall. `sourceTextAuthenticated` remains false. A referenced empty session, invalid mapping, more than 2,000 expanded references per result, or any invalid candidate causes an error before tokenization, including candidates a small context budget would omit.
+
+Use `packBeamSupermemoryEvidenceV1(input, tokenizer)` with explicit local tokenizer paths to obtain the bridge and shared packed context. The existing packer supplies neutral evidence IDs, exact token counts and whole-block omissions under the same 8,192-token maximum as other treatments. Provider IDs, similarities and provenance remain outside the reader context. The standalone session renderer performs no common packing. The offline tests use invented source material; the native packing check requires the already downloaded, pinned tokenizer artifacts:
+
+```sh
+bun test tests/memory-benchmark-beam-supermemory-context.test.ts
+OH_BENCH_TOKENIZER_PYTHON=/absolute/path/to/python3.14 \
+  OH_BENCH_TOKENIZER_ARTIFACTS=/absolute/path/to/tokenizer-artifacts \
+  bun test tests/memory-benchmark-beam-supermemory-context.test.ts
+```
+
+Without those environment variables, the focused tests explicitly skip the native packing check. A future provider smoke must independently verify the exact account and namespace, complete processing and dreaming readiness, bounded transport and spending, and reconciled cleanup. The pure bridge and offline packing tests do not establish live provider readiness.
