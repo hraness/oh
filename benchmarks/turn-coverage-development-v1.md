@@ -16,6 +16,14 @@ The dedicated Evolution profiles are `gpt5-mini-turn-coverage-v1-extractor` and 
 
 The caller owns provider selection, explicit spending limits, timeouts, first-response storage, uncertain-call reconciliation and any raw-context fallback. These functions perform no I/O or retry. When adding the rendering to a reader context, preserve the original context and additionally bound the complete serialized reader messages, including escaping. Reusing one identical request's response is shared evidence, not another replication.
 
+## Optional message refinement
+
+`scripts/benchmarks/oh-turn-coverage-refinement.ts` supplies a separate experimental instruction policy. `makeOhTurnCoverageRefinementMessagesV1({sources, asOf}, batchIndex)` reconstructs the original plan and returns system/user messages for the selected batch. `makeOhTurnGroupingRefinementMessagesV1(plan, coverage, scope)` revalidates the original dependencies and returns grouping messages. Use those complete messages with the same dedicated profiles and resolve responses through the original V1 functions.
+
+The added instructions clarify each target's local citation window, self-contained repeated topics, non-adoption, and grouping by the underlying task. They change neither the V1 user prompts nor schemas, profiles or reasoning effort. They do not establish semantic correctness. Complete serialized messages have a 139,264-byte limit; exceeding it throws without clipping.
+
+Freeze `OH_TURN_COVERAGE_REFINEMENT_POLICY_SHA256_V1` with the source plans, chosen batches, ordered messages and native provider request identities. The echoed V1 `requestSha256` associates a proposal with its structural parent plan; it does **not** identify the refined provider request. Preserve the actual native request hash and its first response separately. Do not transplant old responses into this revision or combine its results with historical V1 results.
+
 ## What validation establishes
 
 `structuralCoverage: all-admitted-user-turns-accounted` means every admitted user turn has a disposition. It does not mean every facet was found. Exact quotations authenticate source bytes; they do not prove that a reply adopts an assistant's suggestion, that a label has the right meaning, or that two mentions belong together. Missing antecedents, scope ambiguity, tentativeness and declines require semantic review. Results retain `semanticValidation: unverified-model-assertions`.
@@ -33,7 +41,7 @@ Judge calibration V2 in `beam-judge-calibration.ts` adds controls for an omitted
 Run focused checks with Bun 1.3.14:
 
 ```sh
-bun test tests/memory-benchmark-oh-turn-coverage.test.ts tests/memory-benchmark-beam-judge-calibration.test.ts tests/memory-benchmark-evolution-model.test.ts
+bun test tests/memory-benchmark-oh-turn-coverage.test.ts tests/memory-benchmark-oh-turn-coverage-refinement.test.ts tests/memory-benchmark-beam-judge-calibration.test.ts tests/memory-benchmark-evolution-model.test.ts
 bun run typecheck:scripts
 ```
 
