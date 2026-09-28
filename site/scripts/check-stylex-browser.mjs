@@ -323,15 +323,16 @@ try {
             assert.equal(metrics.pane.borderTopStyle, "solid");
             closeTo(metrics.pane.borderTopWidth, 1, "Proof separator");
             assert.equal(await page.locator(".oh-field, .oh-organism, [data-hraness-hero-backdrop]").count(), 0);
-            for (const link of await page.locator(".hraness-marketing-header a").all()) {
-              const box = await link.boundingBox();
-              assert.ok(box && box.height >= 44, `${label}: header link ${await link.getAttribute("href")} must remain visible and touch-sized (height: ${box?.height ?? "missing"})`);
-            }
           } else {
             assert.match(metrics.heading.fontFamily, /Nebula Sans/u);
             assert.equal(metrics.material, false);
             assert.equal(metrics.pane, null);
 
+          }
+
+          for (const target of await page.locator(".hraness-marketing-header a, .hraness-marketing-header button:visible, .hraness-marketing-header summary:visible").all()) {
+            const box = await target.boundingBox();
+            assert.ok(box && box.height >= 44 && box.width >= 44, `${label}: header target ${await target.getAttribute("href") ?? await target.getAttribute("aria-label") ?? "appearance control"} must remain visible and 44px in both dimensions (${box?.width ?? "missing"} × ${box?.height ?? "missing"})`);
           }
 
           await page.keyboard.press("Tab");
