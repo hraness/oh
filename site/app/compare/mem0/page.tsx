@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 
 import memEval from "../../../../benchmarks/results/memory-evolution-memeval-102-v1.json";
 import { ohSearchSite } from "../../blog/articles";
-import { compareMem0Description, compareMem0ImageAlt, compareMem0Title } from "../../metadata-copy";
+import { compareMem0Description, compareMem0Title } from "../../metadata-copy";
+import { compareMem0ImageAlt } from "../../social";
 import { benchmarkEvidence, ComparePage, CompareSection, CompareSources, repository } from "../compare";
 
 export const metadata: Metadata = {

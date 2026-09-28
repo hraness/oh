@@ -5,7 +5,8 @@ import { ohDefaultAppearance, ohInitialTheme } from "../appearance";
 import { ohSupportProfile } from "../../src/support-profile";
 import { FoilController } from "./foil-controller";
 import { OhContentFooter } from "./site-footer";
-import { homeDescription as description, homeImageAlt, homeTitle as title } from "./metadata-copy";
+import { homeDescription as description, homeTitle as title } from "./metadata-copy";
+import { homeImageAlt } from "./social";
 import "./globals.css";
 
 export const metadata: Metadata = {

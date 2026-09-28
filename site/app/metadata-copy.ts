@@ -1,5 +1,5 @@
 // Page metadata and the generated social images read these strings, so each
-// title, description, and image description is written once.
+// title and description is written once. Image alt text comes from ./social.
 
 export const homeTitle = "Oh: open-source agent memory that shows its work";
 export const homeDescription =
@@ -20,18 +20,3 @@ export const compareSupermemoryTitle = "Oh vs Supermemory: local vs hosted agent
 export const compareSupermemoryDescription =
   "Supermemory vs Oh: a hosted memory API with connectors, or local memory for agent work. Supermemory led a 60-question pilot within the margin of error.";
 
-// Image descriptions say what the card shows without repeating its headline.
-export const homeImageAlt =
-  "Off-white card with the Oh mark of three linked circles, a bold headline, a short summary, and the oh.computer address.";
-export const specificationImageAlt =
-  "Off-white card with the Oh mark of three linked circles, the specification’s title, a short summary, and oh.computer/spec.";
-export const benchmarksImageAlt =
-  "Off-white card with the Oh mark of three linked circles, the benchmarks page title, a short summary, and oh.computer/benchmarks.";
-export const compareImageAlt =
-  "Off-white card with the Oh mark, the comparisons title, a short summary, and oh.computer/compare.";
-export const compareMem0ImageAlt =
-  "Off-white card with the Oh mark, the Oh vs Mem0 title, a short summary, and oh.computer/compare/mem0.";
-export const compareSupermemoryImageAlt =
-  "Off-white card with the Oh mark, the Oh vs Supermemory title, a summary, and oh.computer/compare/supermemory.";
-export const blogImageAlt =
-  "Off-white card with the Oh mark, the blog title, a short summary, and oh.computer/blog.";

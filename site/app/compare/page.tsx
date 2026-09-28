@@ -3,7 +3,8 @@ import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
 
 import { ohSearchSite } from "../blog/articles";
-import { compareDescription, compareImageAlt, compareTitle } from "../metadata-copy";
+import { compareDescription, compareTitle } from "../metadata-copy";
+import { compareImageAlt } from "../social";
 import {
   benchmarkEvidence,
   ComparePage,

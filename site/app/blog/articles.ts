@@ -8,6 +8,7 @@ import {
   type ArticleIsoDate,
   type ArticleSourceItem,
 } from "@hraness/design-kit";
+import { socialImageAlt } from "@hraness/web-discovery/social-image";
 import type {
   ArticleDiscovery,
   ArticleParty,
@@ -19,6 +20,7 @@ import type {
 import type { ComponentType } from "react";
 
 import { homeDescription, homeTitle } from "../metadata-copy";
+import { ohSocialSite } from "../social";
 import { articleAdmissions } from "./admissions";
 import { BuiltOnOhBody, toc as builtOnOhToc } from "./content/built-on-oh";
 import { IntroducingOhBody, toc as introducingOhToc } from "./content/introducing-oh";
@@ -178,7 +180,7 @@ export function articleDiscovery(article: OhArticle): ArticleDiscovery {
       .filter((url): url is `https://${string}` => url.startsWith("https://")),
     description: article.dek,
     image: {
-      alt: article.title,
+      alt: socialImageAlt(ohSocialSite, { description: article.dek, eyebrow: article.eyebrow, headline: article.title }),
       contentType: "image/png",
       height: 630,
       path: `${path}/opengraph-image`,

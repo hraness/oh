@@ -5,7 +5,8 @@ import type { Metadata } from "next";
 import pilotResult from "../../../../benchmarks/results/memory-framework-pilot-v1.json";
 import { ohSearchSite } from "../../blog/articles";
 import { BenchmarkChart } from "../../benchmark-chart";
-import { compareSupermemoryDescription, compareSupermemoryImageAlt, compareSupermemoryTitle } from "../../metadata-copy";
+import { compareSupermemoryDescription, compareSupermemoryTitle } from "../../metadata-copy";
+import { compareSupermemoryImageAlt } from "../../social";
 import { benchmarkEvidence, ComparePage, CompareSection, CompareSources, repository } from "../compare";
 
 export const metadata: Metadata = {
