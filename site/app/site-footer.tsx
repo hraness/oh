@@ -3,16 +3,12 @@ import { homeDescription } from "./metadata-copy";
 
 const repository = "https://github.com/hraness/oh";
 
-export function BrandMark() {
-  // eslint-disable-next-line @next/next/no-img-element -- the canonical mark is a fixed-size authored SVG
-  return <img alt="" aria-hidden="true" className="brand-mark" height={20} src="/marks/oh-computer.svg" width={20} />;
-}
-
 export function OhContentFooter() {
   return (
     <MarketingSiteFooter
       ariaLabel="Oh"
-      brand={<BrandMark />}
+      brand={null}
+      brandMark="/marks/oh-computer.svg"
       brandHref="/"
       brandLabel="Oh home"
       links={[
