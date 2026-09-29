@@ -187,9 +187,9 @@ describe("public identity and documentation", () => {
     expect(readme.startsWith("# Oh\n")).toBe(true);
     expect(readme).toContain(tagline);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.13.1");
+    expect(packageJson.version).toBe("0.13.2");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.13.1"');
+    expect(cli).toContain('OH_PACKAGE_VERSION = "0.13.2"');
     expect(publishedRelease).toEqual({
       version: "0.13.1",
       verificationRun: "https://github.com/hraness/oh/actions/runs/36273380689",
@@ -590,7 +590,7 @@ describe("repository policy", () => {
     expect(workflow).toContain("contents: read");
     expect(workflow).toContain("id-token: write");
     expect(workflow).toContain("environment: npm-release");
-    expect(workflow).toContain("matrix:\n        os: [ubuntu-24.04, macos-14]");
+    expect(workflow).toContain("matrix:\n        os: [ubuntu-24.04, macos-14, ubuntu-22.04-arm, windows-2025]");
     expect(workflow).toContain("release-artifact-checksum.ts write");
     expect(workflow).toContain("release-artifact-checksum.ts check");
     expect(workflow).toContain("git cat-file -t \"$REQUESTED_TAG\"");

@@ -4,6 +4,19 @@ Each section below describes one release of Oh. The release workflow copies a
 version's section onto its GitHub Release page, so write the section in the
 pull request that bumps the version.
 
+## 0.13.2 - 2026-09-29
+
+The package now carries the SQLite snapshot helper for Linux arm64 and
+Windows x64 as well as Linux x64 and macOS. `@hraness/oh/sqlite-snapshot`
+works on those two platforms without building anything, and the release
+installs the package and runs the CLI and the helper on all five before it
+publishes.
+
+- `snapshotDatabase` and `snapshotDatabaseSync` find the bundled helper on
+  Linux arm64 and Windows x64 (`oh-sqlite-cli.exe`).
+- Each release now installs the exact tarball and runs `oh` on Ubuntu x64,
+  Ubuntu arm64, macOS and Windows.
+
 ## 0.13.1 - 2026-09-26
 
 The 0.13.0 release stopped before publishing because its version check read

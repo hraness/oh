@@ -129,7 +129,8 @@ The `Release` workflow runs once per pushed `v*` tag, and two releases never
 run at the same time. Its jobs run in this order:
 
 1. `Build native sidecar` builds the `oh-sqlite-cli` binary for Linux x64,
-   macOS arm64, and macOS x64.
+   Linux arm64, macOS arm64, macOS x64, and Windows x64
+   (`oh-sqlite-cli.exe`).
 2. `Verify and build exact release` checks the tag. It must arrive as a tag
    push, be annotated, be named `v` plus the version, be the newest stable tag,
    and point to a commit that is `HEAD` and an ancestor of `main`. `package.json`,
@@ -138,10 +139,12 @@ run at the same time. Its jobs run in this order:
    least one bullet; the job stops when the section is missing, empty, or still
    says Unreleased. The job then installs dependencies from the lockfile, runs `bun run check`, tests
    and builds the site, and fails if any of this changed the working tree. It
-   adds the three sidecar binaries, packs one npm tarball, and writes its
+   adds the five sidecar binaries, packs one npm tarball, and writes its
    SHA-256 to `SHA256SUMS`.
 3. `Exact tarball install` installs that tarball into an empty project on Ubuntu
-   and macOS, then runs the CLI and loads the package under Bun and Node.js.
+   x64, Ubuntu arm64, macOS, and Windows, then runs the CLI, snapshots a
+   database through that platform's sidecar, and loads the package under Bun
+   and Node.js.
 4. `Publish immutable GitHub Release` creates the Release `Oh v<version>`,
    marks it Latest, and serves it with exactly the same tarball and
    `SHA256SUMS` bytes that the install jobs tested. It downloads both files back

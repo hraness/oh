@@ -72,16 +72,22 @@ class SnapshotError extends Error {
     this.name = "SnapshotError";
   }
 }
+var SUPPORTED_SIDECAR_TARGETS = new Set([
+  "darwin-arm64",
+  "darwin-x64",
+  "linux-arm64",
+  "linux-x64",
+  "win32-x64"
+]);
 function currentPlatformArch() {
   const platform = process.platform;
   const arch = process.arch;
-  if (platform === "darwin" && arch === "arm64")
-    return { platform: "darwin", arch: "arm64" };
-  if (platform === "darwin" && arch === "x64")
-    return { platform: "darwin", arch: "x64" };
-  if (platform === "linux" && arch === "x64")
-    return { platform: "linux", arch: "x64" };
+  if (SUPPORTED_SIDECAR_TARGETS.has(`${platform}-${arch}`))
+    return { platform, arch };
   throw new Error(`Unsupported platform for oh-sqlite-cli sidecar: ${platform}-${arch}`);
+}
+function sidecarBinaryName(platform = process.platform) {
+  return platform === "win32" ? "oh-sqlite-cli.exe" : "oh-sqlite-cli";
 }
 function artifactBaseDirectory() {
   const modulePath = fileURLToPath(import.meta.url);
@@ -91,7 +97,7 @@ function artifactBaseDirectory() {
 }
 function sidecarBinaryPath(platform = currentPlatformArch().platform, arch = currentPlatformArch().arch) {
   const base = process.env.HRANESS_OH_SQLITE_CLI_PATH ? dirname(process.env.HRANESS_OH_SQLITE_CLI_PATH) : artifactBaseDirectory();
-  return process.env.HRANESS_OH_SQLITE_CLI_PATH ? resolve(process.env.HRANESS_OH_SQLITE_CLI_PATH) : resolve(base, `${platform}-${arch}`, "oh-sqlite-cli");
+  return process.env.HRANESS_OH_SQLITE_CLI_PATH ? resolve(process.env.HRANESS_OH_SQLITE_CLI_PATH) : resolve(base, `${platform}-${arch}`, sidecarBinaryName(platform));
 }
 function boundInteger(value, fallback, maximum) {
   const result = value ?? fallback;

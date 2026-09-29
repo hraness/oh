@@ -19,6 +19,9 @@ jobs:
       contents: read
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -27,14 +30,27 @@ jobs:
             platform: linux
             arch: x64
             triple: x86_64-unknown-linux-gnu
+            binary: oh-sqlite-cli
+          - os: ubuntu-22.04-arm
+            platform: linux
+            arch: arm64
+            triple: aarch64-unknown-linux-gnu
+            binary: oh-sqlite-cli
           - os: macos-14
             platform: darwin
             arch: arm64
             triple: aarch64-apple-darwin
+            binary: oh-sqlite-cli
           - os: macos-14
             platform: darwin
             arch: x64
             triple: x86_64-apple-darwin
+            binary: oh-sqlite-cli
+          - os: windows-2025
+            platform: win32
+            arch: x64
+            triple: x86_64-pc-windows-msvc
+            binary: oh-sqlite-cli.exe
     steps:
       - name: Check out exact tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: oh-sqlite-cli-${{ matrix.platform }}-${{ matrix.arch }}
-          path: rust/target/${{ matrix.triple }}/release/oh-sqlite-cli
+          path: rust/target/${{ matrix.triple }}/release/${{ matrix.binary }}
           if-no-files-found: error
           retention-days: 7
 
@@ -191,9 +207,11 @@ jobs:
       - name: Stage native sidecar artifacts in the npm tree
         run: |
           set -euo pipefail
-          for pair in linux-x64 darwin-arm64 darwin-x64; do
-            src="dist/rust-artifacts/sidecar-temp/oh-sqlite-cli-${pair}/oh-sqlite-cli"
-            dest="dist/rust-artifacts/oh-sqlite/${pair}/oh-sqlite-cli"
+          for pair in linux-x64 linux-arm64 darwin-arm64 darwin-x64 win32-x64; do
+            binary="oh-sqlite-cli"
+            if [[ "$pair" == win32-* ]]; then binary="oh-sqlite-cli.exe"; fi
+            src="dist/rust-artifacts/sidecar-temp/oh-sqlite-cli-${pair}/${binary}"
+            dest="dist/rust-artifacts/oh-sqlite/${pair}/${binary}"
             if [[ ! -f "$src" ]]; then
               echo "::error::Missing native sidecar artifact for ${pair}"
               exit 1
@@ -252,10 +270,13 @@ jobs:
       contents: read
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14]
+        os: [ubuntu-24.04, macos-14, ubuntu-22.04-arm, windows-2025]
     steps:
       - name: Check out verified source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -278,6 +299,8 @@ jobs:
           path: artifacts
           merge-multiple: true
       - name: Verify checksum and installed public boundary
+        env:
+          OH_SMOKE_REQUIRE_SIDECAR: "1"
         run: |
           bun run ./scripts/release-artifact-checksum.ts check artifacts/*.tgz artifacts/SHA256SUMS
           bun run ./scripts/package-smoke.ts artifacts/*.tgz

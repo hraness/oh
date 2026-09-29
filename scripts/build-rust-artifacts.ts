@@ -17,6 +17,12 @@ function hostPlatformArch(): { platform: string; arch: string; triple: string } 
   if (platform === "linux" && arch === "x64") {
     return { platform: "linux", arch: "x64", triple: "x86_64-unknown-linux-gnu" };
   }
+  if (platform === "linux" && arch === "arm64") {
+    return { platform: "linux", arch: "arm64", triple: "aarch64-unknown-linux-gnu" };
+  }
+  if (platform === "win32" && arch === "x64") {
+    return { platform: "win32", arch: "x64", triple: "x86_64-pc-windows-msvc" };
+  }
   throw new Error(`Unsupported host platform for sidecar build: ${platform}-${arch}`);
 }
 
@@ -103,10 +109,11 @@ export const ${constName}_BASE64: string;\n`,
 
 async function copyCargoNative(crate: string) {
   const { platform, arch, triple } = hostPlatformArch();
-  const source = resolve(root, "rust", "target", triple, "release", crate);
+  const executable = platform === "win32" ? `${crate}.exe` : crate;
+  const source = resolve(root, "rust", "target", triple, "release", executable);
   const target = resolve(outDir, "oh-sqlite", `${platform}-${arch}`);
   await mkdir(target, { recursive: true });
-  const dest = resolve(target, crate);
+  const dest = resolve(target, executable);
   await writeFile(dest, await readFile(source));
   await chmod(dest, 0o755);
   try {

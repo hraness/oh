@@ -114,7 +114,8 @@ export async function buildRustArtifactManifest(): Promise<number> {
   const sqliteRoot = resolve(outDir, "oh-sqlite");
   const targets = (await readdir(sqliteRoot).catch(() => [] as string[])).sort();
   for (const target of targets) {
-    const primary = `oh-sqlite/${target}/${SQLITE_CONTRACT.crate}`;
+    const executable = target.startsWith("win32-") ? `${SQLITE_CONTRACT.crate}.exe` : SQLITE_CONTRACT.crate;
+    const primary = `oh-sqlite/${target}/${executable}`;
     const primaryPath = resolve(outDir, primary);
     if (!(await stat(primaryPath).catch(() => null))?.isFile()) continue;
     const { sha256, bytes } = await hashFile(primaryPath);
