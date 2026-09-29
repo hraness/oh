@@ -75,6 +75,7 @@ const publicSourceEntries = [
   ".gitignore",
   "README.md",
   "LICENSE",
+  "THIRD_PARTY_NOTICES.md",
   "SECURITY.md",
   "CONTRIBUTING.md",
   "AGENTS.md",
@@ -358,7 +359,7 @@ describe("versioned public contract", () => {
 
   test("publishes the intended package inventory with live entrypoints", async () => {
     const packageJson = await json("package.json");
-    expect(packageJson.files).toEqual(["dist", "src", "spec", "skills", "README.md", "LICENSE"]);
+    expect(packageJson.files).toEqual(["dist", "src", "spec", "skills", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"]);
     expect(packageJson.dependencies).toBeUndefined();
     expect(packageJson.bin).toEqual({ oh: "./dist/cli.js" });
 

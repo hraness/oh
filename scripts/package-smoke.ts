@@ -25,7 +25,7 @@ const MAXIMUM_ARCHIVE_BYTES = 64 * 1_024 * 1_024;
 const MAXIMUM_FILES = 1_000;
 const MAXIMUM_UNPACKED_BYTES = 64 * 1_024 * 1_024;
 const MAXIMUM_FILE_BYTES = 4 * 1_024 * 1_024;
-const EXPECTED_TOP_LEVEL = new Set(["LICENSE", "README.md", "dist", "package.json", "skills", "spec", "src"]);
+const EXPECTED_TOP_LEVEL = new Set(["LICENSE", "README.md", "THIRD_PARTY_NOTICES.md", "dist", "package.json", "skills", "spec", "src"]);
 const EFFECT_RUNTIME_GRAPHS = new Set([
   "dist/cli.js", "dist/index.js", "dist/sdk.js", "dist/semantic.js", "dist/sync.js", "dist/memory.js", "dist/libsql.js", "dist/semantic-cloud.js",
 ]);

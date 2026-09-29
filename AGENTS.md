@@ -9,7 +9,7 @@
 - `scripts/benchmarks/` and `scripts/benchmark-memory.ts` – isolated memory-state, retrieval, projection-performance, and explicitly budgeted reader experiments.
 - `benchmarks/` – source/protocol audit and compact reproducibility evidence; datasets and full run artifacts stay in ignored `.cache/benchmarks/`.
 - `.github/` – public contribution templates, branch validation, dependency updates, and exact-artifact release automation.
-- `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE` – public usage, project policy, threat model, and terms.
+- `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, and `THIRD_PARTY_NOTICES.md` – public usage, project policy, threat model, terms, and bundled third-party notices.
 - `CHANGELOG.md` – one section per release; the release workflow copies the version's section onto its GitHub Release page.
 - `STYLE.md` and `WRITING.md` – public and internal writing guides synced from hraness/.github; rules for this repository sit under “Repository additions”.
 - `package.json`, `tsconfig.json`, and `bun.lock` – package identity, exported surfaces, and frozen Bun toolchain.
