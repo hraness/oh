@@ -91,7 +91,7 @@ describe("composable isolated reader answer contracts", () => {
     const calibrationOnly = EVOLUTION_READER_CONTRACTS["calibration-only-v1"].instruction;
     const selected = EVOLUTION_READER_CONTRACTS["selected-answer-v1"].instruction;
     const selection = EVOLUTION_READER_CONTRACTS["evidence-selection-v1"].instruction;
-    expect(EVOLUTION_READER_CONTRACT_IDS).toHaveLength(16);
+    expect(EVOLUTION_READER_CONTRACT_IDS).toHaveLength(17);
     expect(calibrationOnly.startsWith(eac + " ")).toBeTrue();
     const calibration = calibrationOnly.slice(eac.length + 1);
     expect(calibrated.endsWith(" " + calibration)).toBeTrue();
@@ -151,7 +151,7 @@ describe("composable isolated reader answer contracts", () => {
       "gpt5-mini-answer-audit-v1",
       "gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1",
       "gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader",
-      "gpt5-mini-task-complete-long-deadline-v1-reader", "gpt5-mini-task-complete-long-deadline-v2-reader", "gpt5-mini-task-complete-long-deadline-v3-reader", "gpt5-mini-task-complete-long-deadline-v4-reader", "gpt5-mini-task-complete-long-deadline-v5-reader", "gpt5-mini-task-complete-long-deadline-v6-reader", "gpt5-mini-task-complete-long-deadline-v7-reader",
+      "gpt5-mini-task-complete-long-deadline-v1-reader", "gpt5-mini-task-complete-long-deadline-v2-reader", "gpt5-mini-task-complete-long-deadline-v3-reader", "gpt5-mini-task-complete-long-deadline-v4-reader", "gpt5-mini-task-complete-long-deadline-v5-reader", "gpt5-mini-task-complete-long-deadline-v6-reader", "gpt5-mini-task-complete-long-deadline-v7-reader", "gpt5-mini-task-complete-long-deadline-v8-reader",
     ].sort());
     for (const id of [EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
       EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID]) {
