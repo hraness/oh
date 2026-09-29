@@ -7,8 +7,10 @@ the private process in [SECURITY.md](SECURITY.md).
 
 ## Set up a checkout
 
-CI runs `bun run check` on Linux and macOS. To get the same results on your
-machine, install the toolchain it uses:
+CI runs `bun run check` on Linux, and `bun run check:platform` on macOS. The
+macOS check leaves out the benchmark-harness tests, which do not depend on the
+platform. To get the same results on your machine, install the toolchain CI
+uses:
 
 - Use macOS on Apple silicon or Intel, or Linux on x64. The check compiles a
   native SQLite helper, `oh-sqlite-cli`, for your machine and fails on any
@@ -150,9 +152,11 @@ selects, so that subset needs no separate run.
 A fresh CI run can stand in for the final local `bun run check` when all of
 these hold:
 
-- The `Required` check passed. It passes only when every other job in the run
-  passes: `Check` and `Rust` on Linux and macOS, `Site`, and
-  `Build N-API crates` for each of its three native targets.
+- The `Required` check passed. It passes only when `Check` on Linux and macOS
+  and `Python tools` pass, and when `Rust` on Linux and macOS, `Site`, and
+  `Build N-API crates` for each of its three native targets either pass or were
+  skipped because the pull request changed none of their inputs. Pushes to
+  `main` run every job.
 - The run tested the final head of the pull request against the current base.
 - When you merge, neither the head nor the base has changed since the run.
 - The run was not superseded, cancelled, or stale.

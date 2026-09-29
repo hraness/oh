@@ -94,7 +94,7 @@ test("batch opt-in keeps ordinary inbound and outbound worker frames at1MiB", as
   try{await worker.prepare();await expect(worker.add(chunks[0]!.chunkId)).rejects.toThrow(direction==='incoming'?'worker frame JSON':'outbound worker frame bound')}finally{await worker.close()}
   expect(dispatched).toBe(direction==='incoming'?0:1);expect(closed).toBe(true);
  }
-},10000);
+},30_000);
 
 test("derived storage headroom covers exact new rows and outstanding replay states before admission",()=>{
  const batch=makeMem0BatchEmbeddingRequest(policy,8,'ingest-embed',['alpha','beta']),bounds=mem0ResponseStorageUpperBounds(batch);

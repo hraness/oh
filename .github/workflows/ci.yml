@@ -9,11 +9,47 @@ on:
 permissions:
   contents: read
 
+# Pull requests cancel their own superseded runs. Main runs group by commit, so
+# a later merge never cancels verification of an earlier one.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Changes
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      # Main pushes run every job; pull requests skip jobs whose inputs did not change.
+      rust: ${{ github.event_name != 'pull_request' || steps.filter.outputs.rust == 'true' }}
+      site: ${{ github.event_name != 'pull_request' || steps.filter.outputs.site == 'true' }}
+    steps:
+      - name: Classify changed paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            rust:
+              - 'rust/**'
+              - 'scripts/build-rust-*.ts'
+              - 'package.json'
+              - 'bun.lock'
+              - '.github/workflows/ci.yml'
+            site:
+              - 'site/**'
+              - 'spec/**'
+              - 'src/**'
+              - 'benchmarks/results/**'
+              - 'package.json'
+              - 'README.md'
+              - '.gitignore'
+              - '.github/workflows/ci.yml'
+
   check:
     name: Check (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -21,9 +57,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-24.04
-          - macos-14
+        include:
+          # Linux runs the complete check. macOS runs the same check without the
+          # platform-neutral benchmark-harness tests, which Linux already covers.
+          - os: ubuntu-24.04
+            script: check
+          - os: macos-14
+            script: check:platform
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,9 +79,10 @@ jobs:
           toolchain: stable
           components: clippy, rustfmt
           targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Install Bun
@@ -82,17 +123,10 @@ jobs:
           NODE
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
-      - name: Install Python for benchmark custody tests
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        with:
-          python-version: '3.14'
-      - name: Check benchmark audit and supervisor tools
-        run: |
-          python -B -m unittest discover -s tests -p 'test_*supervisor.py'
-          python -B -m unittest discover -s tests -p 'test_gateway_v5_audit_helpers.py'
-          python -B -m unittest discover -s tests -p 'test_gateway_v6_*.py'
       - name: Run complete check
-        run: bun run check
+        env:
+          CHECK_SCRIPT: ${{ matrix.script }}
+        run: bun run "$CHECK_SCRIPT"
       - name: Require a reproducible generated tree
         run: |
           git diff --exit-code
@@ -103,8 +137,29 @@ jobs:
       - name: Inspect package contents
         run: bun pm pack --dry-run --ignore-scripts
 
+  python-tools:
+    name: Python tools
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Python for benchmark custody tests
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - name: Check benchmark audit and supervisor tools
+        run: |
+          python -B -m unittest discover -s tests -p 'test_*supervisor.py'
+          python -B -m unittest discover -s tests -p 'test_gateway_v5_audit_helpers.py'
+          python -B -m unittest discover -s tests -p 'test_gateway_v6_*.py'
+
   rust:
     name: Rust (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -124,9 +179,10 @@ jobs:
           toolchain: stable
           components: clippy, rustfmt
           targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -147,6 +203,8 @@ jobs:
 
   site:
     name: Site
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -202,17 +260,51 @@ jobs:
       - name: Lint site
         working-directory: site
         run: bun run lint
+      # Pull requests restore caches only; main pushes save them.
+      - name: Restore Next.js build cache
+        id: next-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: site/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('site/bun.lock') }}-${{ hashFiles('site/app/**', 'site/styles/**', 'site/vendor/**', 'site/*.ts', 'site/*.mjs', 'site/*.json', 'benchmarks/results/**') }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('site/bun.lock') }}-
       - name: Build site
         working-directory: site
         run: bun run build
+      - name: Save Next.js build cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.next-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: site/.next/cache
+          key: ${{ steps.next-cache.outputs.cache-primary-key }}
+      - name: Read the locked Playwright version
+        id: playwright
+        working-directory: site
+        run: echo "version=$(node -p 'require("playwright-core/package.json").version')" >> "$GITHUB_OUTPUT"
+      - name: Restore Playwright browsers
+        id: playwright-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-no-shell
+      - name: Install Chromium and its system dependencies
+        working-directory: site
+        run: ./node_modules/.bin/playwright-core install --with-deps --no-shell chromium
+      - name: Save Playwright browsers
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.playwright-cache.outputs.cache-primary-key }}
       - name: Verify the built site in Chromium
         working-directory: site
         env:
           OH_BROWSER_ARTIFACTS: ${{ github.workspace }}/site/browser-artifacts
         run: |
           set -euo pipefail
-          ./node_modules/.bin/playwright-core install --with-deps chromium
-          export CHROMIUM_EXECUTABLE_PATH="$(node --input-type=module -e 'import { chromium } from "playwright-core"; console.log(chromium.executablePath())')"
+          CHROMIUM_EXECUTABLE_PATH="$(node --input-type=module -e 'import { chromium } from "playwright-core"; console.log(chromium.executablePath())')"
+          export CHROMIUM_EXECUTABLE_PATH
           bun run test:browser
       - name: Upload site browser evidence
         if: always()
@@ -225,6 +317,8 @@ jobs:
 
   napi:
     name: Build N-API crates (${{ matrix.os }} ${{ matrix.target }})
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -252,6 +346,7 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Clippy N-API crates
         run: |
           set -euo pipefail
@@ -318,21 +413,37 @@ jobs:
   required:
     name: Required
     if: always()
-    needs: [check, rust, site, napi]
-    runs-on: ubuntu-24.04
+    needs: [changes, check, python-tools, rust, site, napi]
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - name: Require every selected job
         env:
+          CHANGES: ${{ needs.changes.result }}
           CHECK: ${{ needs.check.result }}
+          PYTHON_TOOLS: ${{ needs.python-tools.result }}
           RUST: ${{ needs.rust.result }}
           SITE: ${{ needs.site.result }}
           NAPI: ${{ needs.napi.result }}
+          RUST_SELECTED: ${{ needs.changes.outputs.rust }}
+          SITE_SELECTED: ${{ needs.changes.outputs.site }}
         run: |
           set -euo pipefail
-          for result in "$CHECK" "$RUST" "$SITE" "$NAPI"; do
-            if [[ "$result" != success ]]; then
-              printf 'Unexpected required job result: %s\n' "$result"
-              exit 1
-            fi
+          fail() { printf 'Unexpected required job result: %s=%s\n' "$1" "$2"; exit 1; }
+          # Always-run jobs must succeed.
+          for pair in "changes:$CHANGES" "check:$CHECK" "python-tools:$PYTHON_TOOLS"; do
+            [[ "${pair#*:}" == success ]] || fail "${pair%%:*}" "${pair#*:}"
           done
+          # Filtered jobs must succeed when selected, and may be skipped only
+          # when the change filter reported their inputs unchanged.
+          selected() {
+            local name="$1" result="$2" wanted="$3"
+            if [[ "$wanted" == true ]]; then
+              [[ "$result" == success ]] || fail "$name" "$result"
+            else
+              [[ "$result" == skipped || "$result" == success ]] || fail "$name" "$result"
+            fi
+          }
+          selected rust "$RUST" "$RUST_SELECTED"
+          selected napi "$NAPI" "$RUST_SELECTED"
+          selected site "$SITE" "$SITE_SELECTED"

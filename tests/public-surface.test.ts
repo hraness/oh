@@ -563,7 +563,9 @@ describe("repository policy", () => {
     const siteScripts = sitePackageJson.scripts as Record<string, string>;
     expect(scripts.check).toContain("bun run test");
     expect(scripts.check).toContain("bun run test:node");
-    expect(scripts.test).toBe("bun test ./src ./tests ./site/tests/source.test.ts");
+    expect(scripts.test).toBe("bun run ./scripts/test-shards.ts --timeout=30000 ./src ./tests ./site/tests/source.test.ts");
+    expect(scripts["test:platform"]).toBe(scripts.test.replace("./src", "--path-ignore-patterns='tests/memory-benchmark-*' ./src"));
+    expect(scripts["check:platform"]).toBe(scripts.check.replace("bun run test &&", "bun run test:platform &&"));
     expect(scripts.test).not.toContain("runtime.test.ts");
     expect(siteScripts.postbuild).toBe("bun test ./tests/runtime.test.ts");
   });

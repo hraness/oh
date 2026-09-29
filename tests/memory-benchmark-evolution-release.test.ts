@@ -217,7 +217,7 @@ test("offline combine consumes five actual synthetic native16 shard reports and 
     await writeFile(reportPins[0]!.path, "{}"); await expect(combineEvolutionRelease(inputPin, join(root, "changed.json"))).rejects.toThrow("pinned content changed");
   } finally { await rm(root, { recursive: true, force: true }); }
 // Five authenticated 200-case reports exceed Bun's default 5s on CI runners.
-}, 20_000);
+}, 30_000);
 
 test("a rebound study reuses exact parent retrieval under a declared reader/campaign change and nothing else", () => {
   const f = fixture(), parent = contexts(f), mini = EVOLUTION_RELEASE_READERS[1], current = h("current retrieval source");

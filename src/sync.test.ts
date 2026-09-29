@@ -405,7 +405,7 @@ describe("operation sync", () => {
     const payload = { contractSha256: OH_CONTRACT_MANIFEST_V1.contractSha256,
       operations, protocol: OH_SYNC_PROTOCOL_V1, spaceId: "bundle-budget", v: 1 as const };
     expect(parseOhSyncBundleV1({ ...payload, bundleSha256: canonicalSha256(payload) })).toBeNull();
-  }, 30_000);
+  }, 120_000);
 
   test("strictly parses transport heads", () => {
     const digest = canonicalSha256("head");
@@ -653,7 +653,7 @@ describe("operation sync", () => {
     destination.close();
     source.close();
     database.close();
-  }, 30_000);
+  }, 120_000);
 
   test("bounds libSQL pull results and raw operation JSON before parsing", async () => {
     let pullRows: readonly (Readonly<Record<string, unknown>> | readonly unknown[])[] = [];

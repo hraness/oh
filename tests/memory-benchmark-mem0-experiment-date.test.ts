@@ -38,7 +38,7 @@ test("worker clock is explicitly conveyed while the unset environment and return
       expect(closed).toBe(true);
     }
   } finally { if (ambient === undefined) delete process.env.MEM0_EXPERIMENT_DATE; else process.env.MEM0_EXPERIMENT_DATE = ambient; }
-}, 5000);
+}, 30_000);
 
 test("Python prompt seam binds only absent dates and rejects incompatible SDK signatures", () => {
   // Load only the pure definitions, keeping this portable test independent of

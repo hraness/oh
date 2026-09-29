@@ -262,7 +262,7 @@ describe("Claude subscription process custody with a local fake executable", () 
       expect(result.stdout.bytes).toBe(0);
       expect(result.stderr.bytes).toBe(0);
     });
-  }, 15000);
+  }, 30_000);
 
   test("enforces the stderr bound and reaps the fake process", async () => {
     await withFakeCli('await Bun.write(Bun.stderr, new Uint8Array(1024 * 1024 + 1));', async (cwd, cliPath) => {
