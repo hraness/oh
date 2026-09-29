@@ -4,6 +4,18 @@ Each section below describes one release of Oh. The release workflow copies a
 version's section onto its GitHub Release page, so write the section in the
 pull request that bumps the version.
 
+## 0.13.3 - 2026-09-29
+
+The same package as 0.13.2, released through the full release check. npm
+published 0.13.2 with valid provenance, but reports the trusted-publisher ID
+in a new format that the release check refused, so 0.13.2 never reached the
+site or the published-release record. Install 0.13.3.
+
+- The SQLite snapshot helper is bundled for Linux x64, Linux arm64, macOS
+  arm64, macOS x64, and Windows x64, as in 0.13.2.
+- The release check accepts npm's trusted-publisher ID with or without the
+  `oidc:` prefix and still rejects any other form.
+
 ## 0.13.2 - 2026-09-29
 
 The package now carries the SQLite snapshot helper for Linux arm64 and
