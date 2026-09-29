@@ -252,16 +252,17 @@ describe("built Oh site", () => {
       expect(indexResponse.status).toBe(200);
       expect(index).toContain('<link rel="canonical" href="https://oh.computer/blog"');
       expect(index).toContain('type="application/atom+xml"');
-      expect(index).toContain('href="/blog/introducing-oh"');
+      // The launch-beat introduction is quarantined until an independent review.
+      expect(index).not.toContain('href="/blog/introducing-oh"');
       expect(index).toContain('href="/blog/built-on-oh"');
 
       expect(introducingResponse.status).toBe(200);
       expect(introducing).toContain('<link rel="canonical" href="https://oh.computer/blog/introducing-oh"');
-      expect(introducing).toContain('<meta name="robots" content="index, follow');
+      expect(introducing).toContain('<meta name="robots" content="noindex');
       expect(metadataContent(introducing, "property", "og:type")).toBe("article");
       expect(metadataContent(introducing, "property", "og:title")).toBe("Introducing Oh");
       expect(introducing).toContain('"@type":"BlogPosting"');
-      expect(introducing).toContain("reviewed by Claude Opus 5.5 (claude-opus-5-5) editorial review.");
+      expect(introducing).toContain("It has not been reviewed yet.");
 
       expect(quarantinedResponse.status).toBe(200);
       expect(quarantined).toContain('<meta name="robots" content="index, follow');
@@ -269,13 +270,13 @@ describe("built Oh site", () => {
 
       expect(feedResponse.status).toBe(200);
       expect(feedResponse.headers.get("content-type")).toContain("application/atom+xml");
-      expect(feed).toContain("<id>https://oh.computer/blog/introducing-oh</id>");
+      expect(feed).not.toContain("<id>https://oh.computer/blog/introducing-oh</id>");
       expect(feed).toContain("<id>https://oh.computer/blog/built-on-oh</id>");
 
       expect(sitemapResponse.status).toBe(200);
       expect(sitemap).toContain("<loc>https://oh.computer/</loc>");
       expect(sitemap).toContain("<loc>https://oh.computer/spec</loc>");
-      expect(sitemap).toContain("<loc>https://oh.computer/blog/introducing-oh</loc>");
+      expect(sitemap).not.toContain("<loc>https://oh.computer/blog/introducing-oh</loc>");
       expect(sitemap).toContain("<lastmod>2026-09-24T00:00:00.000Z</lastmod>");
       expect(sitemap).toContain("<loc>https://oh.computer/blog/built-on-oh</loc>");
 

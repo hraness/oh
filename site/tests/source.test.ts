@@ -198,6 +198,8 @@ describe("Oh site source contract", () => {
       '@import "../vendor/hraness-lantern/lantern-material.css";',
       '@import "@hraness/site-footer/styles.css";',
       '@import "@hraness/design-kit/palette-bridge.css";',
+      '@import "@hraness/design-kit/mockups.css";',
+      '@import "./mockups/mockups.css";',
       '@import "../vendor/hraness-forced-colors/marketing-forced-colors.css";',
     ]);
     expect(paper).toContain('--font-text: "Nebula Sans"');

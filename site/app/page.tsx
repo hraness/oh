@@ -20,6 +20,8 @@ import { MemoryBenchmarkComparison, longMemEvalHeading } from "./benchmark-compa
 import { ohSearchSite } from "./blog/articles";
 import { homeDescription } from "./metadata-copy";
 import { CodeBlock, Terminal, Transcript } from "./code-block";
+import { AgentHostSplit } from "./mockups/trail";
+import { TrailSteps } from "./mockups/trail-steps";
 
 const releaseVersion = publishedRelease.version;
 const installCommand = `bun add --global @hraness/oh@${releaseVersion}`;
@@ -255,8 +257,20 @@ export default function Home() {
             label="From answer to source"
             summary="In the example above, the citation points to table 2 in a saved edition of a trial report and records that it supports a claim. An application can follow those links to show what an answer rests on."
           >
+            <TrailSteps />
             <p>Oh checks that records and their history remain intact. It does not decide whether a claim is true.</p>
             <p className="record-link"><a href="/examples/evidence-table-2.json">Open the example citation</a></p>
+          </MarketingSection>
+
+          <MarketingSection
+            heading="Your agent proposes. Your app decides."
+            headingId="review-title"
+            id="review"
+            label="Working notes and reviewed knowledge"
+            summary="An agent can remember, look up, explain and propose. Only your application's own code can add a proposal to reviewed knowledge."
+          >
+            <AgentHostSplit stage="nominated" />
+            <p className="record-link"><a href="/blog/introducing-oh">Read the launch post</a></p>
           </MarketingSection>
 
           <MarketingInterfaceGrid

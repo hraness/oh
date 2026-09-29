@@ -9,6 +9,8 @@ const wordcell = (path: string) =>
   `https://github.com/hraness/wordcell/blob/7b6cb5e0d24a3f627e17f7d1bd699a52ab4c9d10/${path}`;
 // Sources were read at this commit unless their link names another.
 const ohChecked = "77617b5b04af02e13d27f06923529f3896de9c6d";
+// The launch beats were checked against this commit (origin/main on 2026-09-29).
+const launchChecked = "afac8b23f3d998c3416138b5c00308a20d903620";
 const loaderFix = "https://github.com/hraness/oh/pull/194";
 
 const review = {
@@ -107,12 +109,15 @@ export const articleAdmissions = [
   },
   {
     href: "/blog/introducing-oh",
-    lifecycle: "indexable",
-    readerJob: "Decide whether Oh fits as the memory layer for an agent or knowledge application, and see how to start.",
+    // Rewritten as launch beats on 2026-09-29. The earlier review covered the
+    // long-form version, so the beat version waits, noindex, for an independent
+    // review before it returns to "indexable".
+    lifecycle: "quarantined",
+    readerJob: "Decide whether to try Oh as the memory for an agent or research tool.",
     nonObviousAnswer:
-      "The agent gets an object that can only remember, query, explain and nominate; only the host application's own code can adopt a nomination into reviewed knowledge, and the host supplies the actor and timestamp on every agent write.",
+      "The agent gets an object that can only remember, query, explain and nominate; only the host application's own code can adopt a nomination into reviewed knowledge, and adoption never replaces a record unless that code names the exact version it replaces.",
     originalContribution:
-      "Checks the agent and host split against the memory specification and SDK, the parity generator's shape against the test file, and each consumer's pinned Oh release against its own package, which the README does not state together.",
+      "Shows the README's example review as the records and CLI output it produces, replayed against the real CLI in tests, and checks the agent and host split against the memory specification and the working-memory guide.",
     hostFit: "The product introduction for Oh on Oh's own site.",
     nearestUrls: [
       {
@@ -121,29 +126,24 @@ export const articleAdmissions = [
       },
       {
         url: "https://github.com/hraness/oh#readme",
-        distinction: "The README is the task reference; this post is a single reading for someone deciding whether to use Oh.",
+        distinction: "The README is the task reference; this post is a single reading for someone deciding whether to try Oh.",
       },
     ],
     sources: [
-      { title: "Oh README", url: oh(ohChecked, "README.md"), checkedOn: "2026-09-26" },
-      { title: "Oh memory specification", url: oh(ohChecked, "spec/v1/memory.md"), checkedOn: "2026-09-26" },
-      { title: "Oh release record", url: oh(ohChecked, "site/published-release.json"), checkedOn: "2026-09-26" },
-      { title: "Oh v0.12.0 GitHub Release", url: "https://github.com/hraness/oh/releases/tag/v0.12.0", checkedOn: "2026-09-26" },
-      { title: "Rust foundations plan", url: oh(ohChecked, "plans/rust-foundations.md"), checkedOn: "2026-09-26" },
-      { title: "Rust canonical JSON crate", url: oh(ohChecked, "rust/oh-canonical/src/lib.rs"), checkedOn: "2026-09-26" },
+      { title: "Oh README", url: oh(launchChecked, "README.md"), checkedOn: "2026-09-29" },
+      { title: "Oh memory specification", url: oh(launchChecked, "spec/v1/memory.md"), checkedOn: "2026-09-29" },
+      { title: "Oh working-memory guide", url: oh(launchChecked, "docs/working-memory.md"), checkedOn: "2026-09-29" },
+      { title: "Oh release record", url: oh(launchChecked, "site/published-release.json"), checkedOn: "2026-09-29" },
+      { title: "Rust foundations plan", url: oh(launchChecked, "plans/rust-foundations.md"), checkedOn: "2026-09-29" },
       {
         title: "TypeScript and Rust canonical JSON parity tests",
-        url: oh(ohChecked, "src/canonical-rust-parity.test.ts"),
-        checkedOn: "2026-09-26",
+        url: oh(launchChecked, "src/canonical-rust-parity.test.ts"),
+        checkedOn: "2026-09-29",
       },
-      { title: "Wordcell graph queries over Oh", url: wordcell("docs/graph-authority.md"), checkedOn: "2026-09-26" },
-      { title: "Wordcell dependency on a pinned Oh release", url: wordcell("package.json"), checkedOn: "2026-09-26" },
-      { title: "How Sponge uses Oh for agent working memory", url: "https://sponge.computer/docs/how-sponge-uses-oh", checkedOn: "2026-09-26" },
-      { title: "Hraness portfolio registry", url: "https://hraness.com/portfolio.json", checkedOn: "2026-09-26" },
     ],
     observations: [
       "The memory specification never requires a person to review: nominate records no review and adoption follows whatever host code decides, so 'reviewed knowledge' names the store host code adopts into rather than a promise that a person read it.",
-      "Sponge pins Oh v0.10.8 and Wordcell v0.12.0, the live portfolio registry on 2026-09-26 registers both products' relations to Oh, and Sponge's hosted agent finishes only work accepted before 2026-09-12, so the consumer paragraph rests on facts outside Oh's repository.",
+      "The oh CLI prints short text for people and canonical JSON only with --json or when it guesses a script is reading, so the terminal illustrations show the text form and the beat names --json for scripts.",
     ],
     scores: {
       readerUtility: 2,
@@ -155,18 +155,17 @@ export const articleAdmissions = [
     },
     owner: "hraness/oh maintainers",
     drafting: "ai-from-source",
-    review,
+    review: null,
     humanReview: null,
     reassessOn: "2026-11-07",
     harmIfWrong:
-      "A developer could assume a person reviewed everything in the reviewed store, or trust the Rust parity or a consumer's use of Oh further than the code supports, and build a memory layer on a wrong assumption.",
+      "A developer could assume a person reviewed everything in the reviewed store, or trust the Rust parity further than the tests support, and build a memory layer on a wrong assumption.",
     refreshTriggers: [
       "Version bump in site/published-release.json",
       "Change to the agent and host memory interface in spec/v1/memory.md or the SDK",
       "Change to the parity test sample counts or generator shape",
-      "A Sponge or Wordcell relation to Oh registered, changed, or removed, or a design-kit bump that changes the Oh, Sponge, or Wordcell one-liners",
-      "Change to either consumer's use of Oh, its pinned Oh version, or Sponge's hosted agent status",
-      "Change to README runtime requirements (Bun, Node, libSQL), first-run commands, or the framework comparison statement",
+      "Change to the README's example review, first-run commands, runtime requirements, or the framework comparison statement",
+      "Change to the replacement limit in docs/working-memory.md",
     ],
   },
   {

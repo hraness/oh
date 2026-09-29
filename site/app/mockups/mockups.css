@@ -1,0 +1,298 @@
+/*
+ * Oh's own mockup styles, on top of @hraness/design-kit/mockups.css. Colors
+ * come from the kit's --hkm- tokens, so a mockup follows the page's light or
+ * dark scheme and the launch film can inline this file unchanged.
+ */
+
+.oh-mockup {
+  --oh-mockup-lit: var(--hkm-accent);
+  min-width: 0;
+}
+
+/* Trail map ----------------------------------------------------------- */
+
+.oh-trail .hkm-app-content {
+  padding: 22px 22px 26px;
+  background: var(--hkm-surface);
+}
+
+/*
+ * The map is an <ol>. Article prose styles lists at (0,3,1), so the map's own
+ * list and card rules carry four classes to stay a grid inside the post.
+ */
+.hkm-root .hkm-app-content .oh-trail-grid.oh-trail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: repeat(4, auto);
+  gap: 26px 34px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hkm-root .hkm-app-content .oh-trail-card.oh-trail-card {
+  margin: 0;
+}
+
+.oh-trail-card {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px 11px;
+  border: 1px solid var(--hkm-line);
+  border-radius: 10px;
+  background: var(--hkm-card);
+  opacity: 0.55;
+}
+
+.oh-trail-card[data-lit] {
+  border-color: var(--oh-mockup-lit);
+  box-shadow: 0 0 0 1px var(--oh-mockup-lit);
+  opacity: 1;
+}
+
+[data-hkm-animated] .oh-trail-card,
+.oh-trail-card {
+  transition: opacity 240ms var(--hkm-ease, ease), border-color 240ms var(--hkm-ease, ease), box-shadow 240ms var(--hkm-ease, ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oh-trail-card {
+    transition: none;
+  }
+}
+
+/* Links: a card draws the line to the record below it or beside it that it depends on. */
+.oh-trail-card[data-link-down]::after,
+.oh-trail-card[data-link-across]::before {
+  position: absolute;
+  content: "";
+  background: var(--hkm-line);
+}
+
+.oh-trail-card[data-link-down]::after {
+  inset-block-start: 100%;
+  inset-inline-start: 50%;
+  width: 2px;
+  height: 26px;
+}
+
+.oh-trail-card[data-link-across]::before {
+  inset-block-start: 50%;
+  inset-inline-start: 100%;
+  width: 34px;
+  height: 2px;
+}
+
+.oh-trail-card[data-lit][data-link-down]::after,
+.oh-trail-card[data-lit][data-link-across]::before {
+  background: var(--oh-mockup-lit);
+}
+
+.oh-trail-role {
+  color: var(--hkm-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.oh-trail-key {
+  overflow: hidden;
+  font: 500 13px/1.35 var(--hkm-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oh-trail-value {
+  overflow: hidden;
+  color: var(--hkm-fg);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Narrow frames (phones, article columns): one column in reading order, no connectors. */
+.oh-trail .hkm-app-content {
+  container-type: inline-size;
+}
+
+@container (max-width: 480px) {
+  .hkm-root .hkm-app-content .oh-trail-grid.oh-trail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .hkm-root .hkm-app-content .oh-trail-card.oh-trail-card {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+
+  .oh-trail-card[data-link-down]::after,
+  .oh-trail-card[data-link-across]::before {
+    display: none;
+  }
+}
+
+/* Terminal -------------------------------------------------------------- */
+
+.oh-mock-terminal .hkm-terminal-lines {
+  white-space: pre;
+}
+
+/* Agent and host ----------------------------------------------------- */
+
+.oh-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .oh-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.oh-review {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px 18px;
+}
+
+.oh-review-label {
+  margin: 6px 0 0;
+  color: var(--hkm-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.oh-review-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.oh-review-methods code,
+.oh-review-code code {
+  font: 500 12.5px/1.3 var(--hkm-mono);
+}
+
+.oh-review-methods li {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--hkm-field);
+}
+
+.oh-review-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--hkm-line);
+  border-radius: 10px;
+  background: var(--hkm-card);
+}
+
+.oh-review-item[data-state="adopted"] {
+  border: 1px solid var(--hkm-ok);
+}
+
+.oh-review-route {
+  color: var(--hkm-muted);
+  font-size: 13px;
+}
+
+.oh-review-status {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--hkm-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.oh-review-item[data-state="adopted"] .oh-review-status {
+  color: var(--hkm-ok);
+}
+
+.oh-review-code {
+  margin: 4px 0 0;
+  color: var(--hkm-muted);
+}
+
+/* Homepage step-through ---------------------------------------------- */
+
+.oh-steps-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .oh-steps-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Proof panels -------------------------------------------------------- */
+
+.oh-proof-body {
+  display: grid;
+  gap: 16px;
+  padding: 22px 24px 26px;
+}
+
+.oh-proof-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  color: var(--hkm-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.oh-proof-rows {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.oh-proof-rows li {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 12px 14px;
+  border: 1px solid var(--hkm-line);
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.oh-proof-rows strong {
+  min-width: 5ch;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.oh-proof-rows li > svg {
+  margin-left: auto;
+  color: var(--hkm-ok);
+}
+
+.oh-proof-mark {
+  min-width: 10ch;
+  color: var(--hkm-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.oh-proof-rows li[data-checked] .oh-proof-mark {
+  color: var(--hkm-ok);
+}
