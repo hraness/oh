@@ -152,6 +152,7 @@ describe("composable isolated reader answer contracts", () => {
       "gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1",
       "gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader",
       "gpt5-mini-task-complete-long-deadline-v1-reader", "gpt5-mini-task-complete-long-deadline-v2-reader", "gpt5-mini-task-complete-long-deadline-v3-reader", "gpt5-mini-task-complete-long-deadline-v4-reader", "gpt5-mini-task-complete-long-deadline-v5-reader", "gpt5-mini-task-complete-long-deadline-v6-reader", "gpt5-mini-task-complete-long-deadline-v7-reader", "gpt5-mini-task-complete-long-deadline-v8-reader",
+      "gpt5-low-task-complete-long-deadline-v8-reader",
     ].sort());
     for (const id of [EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
       EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID]) {

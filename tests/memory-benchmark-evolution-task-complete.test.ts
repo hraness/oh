@@ -9,7 +9,7 @@ import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_
   EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID, EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BASE_READER_IDS, EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID as controlId,
-  EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID as candidateId, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID as v2Id, EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID as v3Id, EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID as v4Id, EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID as v5Id, EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID as v6Id, EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID as v7Id, EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID as v8Id, EVOLUTION_PROFILES, evolutionReaderContract,
+  EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID as candidateId, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID as v2Id, EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID as v3Id, EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID as v4Id, EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID as v5Id, EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID as v6Id, EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID as v7Id, EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID as v8Id, EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID as v8Gpt5Id, EVOLUTION_PROFILES, evolutionReaderContract,
   evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest, parseEvolutionResponse,
   supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { EVOLUTION_READER_CONTRACTS, TASK_COMPLETE_INSTRUCTION_V1, TASK_COMPLETE_INSTRUCTION_V2, TASK_COMPLETE_INSTRUCTION_V3, TASK_COMPLETE_INSTRUCTION_V4, TASK_COMPLETE_INSTRUCTION_V5, TASK_COMPLETE_INSTRUCTION_V6, TASK_COMPLETE_INSTRUCTION_V7, TASK_COMPLETE_INSTRUCTION_V8, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
@@ -33,7 +33,7 @@ test("task-complete preserves every prior profile, request, full-window request 
     && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
     && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
     && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
-    && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && id !== candidateId && id !== v2Id && id !== v3Id && id !== v4Id && id !== v5Id && id !== v6Id && id !== v7Id && id !== v8Id && id !== EVOLUTION_SESSION_DIGEST_PROFILE_ID && id !== EVOLUTION_SESSION_NOTES_PROFILE_ID && id !== EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
+    && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && id !== candidateId && id !== v2Id && id !== v3Id && id !== v4Id && id !== v5Id && id !== v6Id && id !== v7Id && id !== v8Id && id !== v8Gpt5Id && id !== EVOLUTION_SESSION_DIGEST_PROFILE_ID && id !== EVOLUTION_SESSION_NOTES_PROFILE_ID && id !== EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
   const audit = makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "The synthetic tile is blue.", draftAnswer: "Blue." });
   const requests = old.map(([id, p]) => makeEvolutionRequest(id as EvolutionProfileId,
     id === "gpt5-mini-answer-audit-v1" ? audit : p.qualification === "official-snapshot-request"
@@ -238,4 +238,13 @@ test("task-complete-v8 answers a changed value with the latest one, keeps the co
     readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v8", instructionSha256: contract.instructionSha256 } });
   expect(evolutionReaderProfileId("gpt5-mini-reader", "task-complete-v8")).toBe(v8Id);
   expect(evolutionAnswerMessages(question, context, "task-complete-v8").slice(1)).toEqual(evolutionAnswerMessages(question, context, "task-complete-v4").slice(1));
+});
+
+test("the GPT-5 task-complete-v8 screen profile keeps the v8 contract, takes the gpt5-low base unchanged and is opt-in only", () => {
+  const contract = EVOLUTION_READER_CONTRACTS["task-complete-v8"];
+  expect(EVOLUTION_PROFILES[v8Gpt5Id]).toEqual({ ...EVOLUTION_PROFILES["gpt5-low-reader"], id: v8Gpt5Id, timeoutMs: 600_000,
+    readerContract: { baseReader: "gpt5-low-reader", id: "task-complete-v8", instructionSha256: contract.instructionSha256 } });
+  expect(evolutionReaderContract(v8Gpt5Id)).toBe("task-complete-v8");
+  expect(supportsEvolutionProfileWindow(v8Gpt5Id)).toBe(supportsEvolutionProfileWindow(v8Id));
+  expect(() => evolutionReaderProfileId("gpt5-low-reader", "task-complete-v8")).toThrow("requires the gpt5-mini base reader");
 });
