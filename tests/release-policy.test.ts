@@ -83,6 +83,14 @@ describe("release distribution policy", () => {
       shasum: "b".repeat(40),
       tarball: `https://registry.npmjs.org/@hraness/oh/-/oh-${version}.tgz`,
     });
+    const bareConfig = npmRelease({ _npmUser: { email: "npm-oidc-no-reply@github.com", name: "GitHub Actions",
+      trustedPublisher: { id: "github", oidcConfigId: "12345678-1234-1234-1234-123456789abc" } } });
+    expect(parseNpmRelease(bareConfig, version).shasum).toBe("b".repeat(40));
+    for (const oidcConfigId of ["oidc:", "oidc:not-a-uuid", "token:12345678-1234-1234-1234-123456789abc"]) {
+      const invalid = npmRelease({ _npmUser: { email: "npm-oidc-no-reply@github.com", name: "GitHub Actions",
+        trustedPublisher: { id: "github", oidcConfigId } } });
+      expect(() => parseNpmRelease(invalid, version)).toThrow("trusted-publisher");
+    }
     expect(() => parseNpmRelease(npmRelease({ license: "UNLICENSED" }), version)).toThrow("identity");
     expect(() => parseNpmRelease(npmRelease({ _npmUser: { name: "token publisher" } }), version))
       .toThrow();
