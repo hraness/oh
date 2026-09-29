@@ -82,7 +82,19 @@ export function composeOhAuthorLogContextV1(input: Readonly<{ projection: OhEvid
 }
 
 export type OhAuthorLogContextRunOptionsV1 = Readonly<{ asOf: string | null; budgetBytes?: number; retrievedBytes?: number;
-  logReserveBytes?: number; topK?: number; previousTurns?: number; nextTurns?: number; rrfK?: number; vector?: boolean }>;
+  logReserveBytes?: number; topK?: number; previousTurns?: number; nextTurns?: number; rrfK?: number; vector?: boolean;
+  /** Opt-in: clip every non-author message to its first N bytes, so the retrieved part holds more of the other side of each
+   * exchange. Unset leaves record text verbatim and the run payload unchanged. */
+  otherTextBytes?: number }>;
+
+/** Clip one message to at most `max` bytes at a word boundary, marking the cut. */
+export function clipOhOtherTextV1(text: string, max: number): string {
+  if (Buffer.byteLength(text) <= max) return text;
+  let clipped = Buffer.from(text).subarray(0, max).toString("utf8").replace(/\uFFFD+$/u, "");
+  const space = clipped.lastIndexOf(" ");
+  if (space > max / 2) clipped = clipped.slice(0, space);
+  return `${clipped} …[clipped]`;
+}
 
 /** Opt-in development generator. Defaults reproduce the renderer budgets of the historical 100K author-log arm with
  * native top-100 lists; a different budget scales the retrieved and reserve defaults proportionally. The vector list
@@ -111,9 +123,15 @@ export async function createOhAuthorLogContextGeneratorV1(corpus: Corpus, option
       const requests = [prepared.nativeRanks(question, { source: "bm25-native", kind: "lexical", topK: config.topK })];
       if (config.vector) requests.push(prepared.nativeRanks(question, { source: "oh-vector-native", kind: "vector", topK: config.topK }));
       const rankings = Object.freeze(await Promise.all(requests));
-      const rendering = composeOhAuthorLogContextV1({ projection, rankings }, context);
+      const otherTextBytes = input.otherTextBytes;
+      if (otherTextBytes !== undefined) integer(otherTextBytes, 64, OH_RECALL_LIMITS_V1.maximumBudgetBytes, "other-speaker text bound");
+      const view = otherTextBytes === undefined ? projection.view : (record: Parameters<typeof projection.view>[0]) => {
+        const viewed = projection.view(record);
+        return viewed.speaker === OH_AUTHOR_LOG_LIMITS_V1.defaultAuthor ? viewed : { ...viewed, text: clipOhOtherTextV1(viewed.text, otherTextBytes) };
+      };
+      const rendering = composeOhAuthorLogContextV1({ projection: otherTextBytes === undefined ? projection : { ...projection, view }, rankings }, context);
       const payload = { protocol: "oh.author-log-context-run.v1" as const, preparedSha256: prepared.identity.preparedSha256,
-        sourceProjectionSha256, querySha256: sha256Hex(question), config, rankings, rendering };
+        sourceProjectionSha256, querySha256: sha256Hex(question), config: otherTextBytes === undefined ? config : { ...config, otherTextBytes }, rankings, rendering };
       return Object.freeze({ ...payload, runSha256: canonicalSha256(payload) });
     },
     close: () => prepared.close(),
