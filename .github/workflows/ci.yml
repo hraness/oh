@@ -575,8 +575,15 @@ jobs:
       - name: Install globally and run oh
         run: |
           set -euo pipefail
-          bun add -g "$(ls artifacts/*.tgz)"
-          export PATH="$(bun pm bin -g):$PATH"
+          tarball="$PWD/$(ls artifacts/*.tgz)"
+          global_bin="$(bun pm bin -g)"
+          if command -v cygpath >/dev/null 2>&1; then
+            tarball="$(cygpath -m "$tarball")"
+            global_bin="$(cygpath -u "$global_bin")"
+          fi
+          bun add -g "$tarball"
+          export PATH="$global_bin:$PATH"
+          command -v oh
           oh --version
           oh init --db "$RUNNER_TEMP/global-smoke.sqlite"
           oh verify --db "$RUNNER_TEMP/global-smoke.sqlite" --json
