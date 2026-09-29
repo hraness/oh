@@ -50,10 +50,12 @@ export const EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID = "gpt5-mini-task-comp
 export const EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v6-reader";
 export const EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v7-reader";
 export const EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v8-reader";
+/** Opt-in stronger-reader screen: the task-complete-v8 contract on full GPT-5 (low effort). Not reachable from evolutionReaderProfileId. */
+export const EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID = "gpt5-low-task-complete-long-deadline-v8-reader";
 export type EvolutionTaskCompleteReaderProfileId = typeof EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID
   | typeof EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID
   | typeof EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID
-  | typeof EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID;
+  | typeof EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID;
 export const EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID = "gpt4o-mini-clonemem-choice-v1-reader";
 export type EvolutionCloneMemChoiceReaderProfileId = typeof EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID;
 export const EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID = "gemini31-pro-hindsight-parity-v1-reader";
@@ -260,6 +262,9 @@ const TASK_COMPLETE_READER_PROFILES: Readonly<Record<EvolutionTaskCompleteReader
       instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v7"].instructionSha256 } },
   [EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID,
     timeoutMs: 600_000, readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v8",
+      instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v8"].instructionSha256 } },
+  [EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-low-reader"], id: EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID,
+    timeoutMs: 600_000, readerContract: { baseReader: "gpt5-low-reader", id: "task-complete-v8",
       instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v8"].instructionSha256 } },
 });
 /** CloneMem's released choice prompt uses one user message and temperature 0.1.
