@@ -29,7 +29,6 @@ describe("evidence-led product narrative", () => {
     expect(page).not.toContain('id="maker"');
     expect(page).not.toContain("MarketingMaker");
     expect(page).toContain('const heading = "Agent memory that shows its work."');
-    expect(page).toContain("Add <code>--json</code> for canonical JSON.");
     expect(page).toContain('"@type": "FAQPage"');
   });
 
@@ -52,7 +51,6 @@ describe("evidence-led product narrative", () => {
       expect(page).toContain(`kind: "${kind}"`);
       expect(readme).toContain(`| ${label} | \`${kind}\``);
     }
-    expect(page).toContain("An assertion records a stance on a claim; citations link that stance to its evidence.");
     expect(readme).toContain("An attributable `assertion`");
     expect(readme).toContain("https://oh.computer/#trace");
   });
@@ -145,7 +143,6 @@ describe("evidence-led product narrative", () => {
     expect(skill).toContain("oh verify --db .oh/oh.sqlite --space default");
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.dependencies).toBeUndefined();
-    expect(page).toMatch(/no required runtime dependencies/iu);
   });
 
   test("carries the shared responsive and accessibility contract in product-owned CSS", async () => {

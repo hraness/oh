@@ -1,3 +1,4 @@
+import { CodeBlock } from "../../code-block";
 // Converted from the reviewed draft. Keep the prose; edit facts only with a new review.
 import publishedRelease from "../../../published-release.json";
 
@@ -34,14 +35,14 @@ export function ParityBody() {
         <li><strong>Arrays keep their order.</strong> Only object keys are sorted.</li>
       </ol>
       <p>The Rust crate’s own unit tests pin these cases on JSON text. Here they are as the equivalent TypeScript calls:</p>
-      <pre data-language="ts"><code>{"canonicalJson({ b: 1, a: 2 });          // '{\"a\":2,\"b\":1}'\ncanonicalJson({ B: 1, A: 2, a: 3 });    // '{\"A\":2,\"B\":1,\"a\":3}'  uppercase sorts first\ncanonicalJson(JSON.parse(\"1.0\"));       // '1'\ncanonicalJson(1e20);                    // '100000000000000000000'\ncanonicalJson(1e21);                    // '1e+21'\ncanonicalJson(1e-7);                    // '1e-7'\ncanonicalJson(-0);                      // throws: negative zero is not canonical"}</code></pre>
+      <CodeBlock code={"canonicalJson({ b: 1, a: 2 });          // '{\"a\":2,\"b\":1}'\ncanonicalJson({ B: 1, A: 2, a: 3 });    // '{\"A\":2,\"B\":1,\"a\":3}'  uppercase sorts first\ncanonicalJson(JSON.parse(\"1.0\"));       // '1'\ncanonicalJson(1e20);                    // '100000000000000000000'\ncanonicalJson(1e21);                    // '1e+21'\ncanonicalJson(1e-7);                    // '1e-7'\ncanonicalJson(-0);                      // throws: negative zero is not canonical"} language="ts" />
       <p>Key sorting can trip up a careful port. Take the halfwidth ideographic full stop (U+FF61) and the grinning face emoji (U+1F600). By code point, the full stop comes first. In UTF-16 the emoji is stored as a surrogate pair starting at 0xD83D, which is smaller than 0xFF61, so JavaScript puts the emoji first. A Rust encoder that sorted Rust strings directly would follow code point order and produce different bytes for an object with both keys. Oh’s Rust encoder compares UTF-16 code units instead:</p>
-      <pre data-language="rust"><code>{"// Order keys the way JavaScript's `<` does: by UTF-16 code units.\nkeys.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));"}</code></pre>
+      <CodeBlock code={"// Order keys the way JavaScript's `<` does: by UTF-16 code units.\nkeys.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));"} language="rust" />
       <p>That line simplifies the crate’s comparison, which walks both UTF-16 sequences by hand. The ordering it enforces is what has to survive a refactor.</p>
       <h2 id="generated-inputs-instead-of-chosen-examples">Generated inputs instead of chosen examples</h2>
       <p>Examples like these only cover the cases someone already thought of. Oh’s parity suite uses property-based testing with fast-check: it states a property that must hold for every input, generates inputs, and reports the smallest failing input it can find if the property ever breaks.</p>
       <p>For every generated JSON text, the Rust encoder must return the same string as the reference, and the same digest. Simplified, the text check reads:</p>
-      <pre data-language="ts"><code>{"fc.assert(\n  fc.property(jsonText, (text) => {\n    const expected = canonicalJson(JSON.parse(text));   // TypeScript reference\n    const actual = rust.canonicalJson(text);            // Rust, through WebAssembly\n    expect(actual).toBe(expected);\n  }),\n  { numRuns: 1000 },\n);"}</code></pre>
+      <CodeBlock code={"fc.assert(\n  fc.property(jsonText, (text) => {\n    const expected = canonicalJson(JSON.parse(text));   // TypeScript reference\n    const actual = rust.canonicalJson(text);            // Rust, through WebAssembly\n    expect(actual).toBe(expected);\n  }),\n  { numRuns: 1000 },\n);"} language="ts" />
       <p>As of 2026-09-26 the suite in Oh’s repository runs:</p>
       <ul>
         <li>1,000 generated documents comparing canonical JSON text,</li>
@@ -63,7 +64,7 @@ export function ParityBody() {
         <li>It checks a list of edge cases, each of which must match exactly with no fallback allowed, such as the empty-string key, a key containing a null character, accented and emoji keys, and the numbers <code>{"1e21"}</code>, <code>{"1e-21"}</code>, and <code>{"5e-324"}</code>.</li>
       </ul>
       <p>At run time Wordcell adds a guard. Its wrapper computes the reference canonical text too, and returns nothing if the Rust text differs or the engine fails to load. If the two texts match, it then asks the Rust engine for the digest. When the wrapper returns nothing, the calling code uses Oh’s TypeScript digest and writes a one-line notice, once per kind of failure:</p>
-      <pre data-language="ts"><code>{"const rustDigest = canonicalSha256Rust(candidate);           // null if the text differs or the engine fails\nconst digest = rustDigest ?? canonicalSha256(candidate);     // TypeScript reference"}</code></pre>
+      <CodeBlock code={"const rustDigest = canonicalSha256Rust(candidate);           // null if the text differs or the engine fails\nconst digest = rustDigest ?? canonicalSha256(candidate);     // TypeScript reference"} language="ts" />
       <p>The plan for shared Rust code calls this an optional fast path, but the guard computes the reference text on every call, and Oh publishes no performance figures for it. For a Wordcell user, a disagreement between the two encoders about the canonical text can’t change an adoption candidate’s digest; at worst it produces a notice. The guard compares text, not digests, so the digest itself relies on the parity tests above.</p>
       <h2 id="what-the-parity-tests-do-not-prove">What the parity tests do not prove</h2>
       <p>A property test samples inputs; it does not check all of them. Passing 1,000 or 20,000 generated cases is evidence that the encoders agree; it does not prove they always will. Oh’s own generator also produces documents of one fixed shape (a short array of integers, a small map from short string keys to strings, booleans, or nulls, and one nested boolean), and every generated string in both suites is printable ASCII. Only Wordcell’s suite generates nesting of varying depth; control-character escapes and non-ASCII keys appear only as fixed edge cases.</p>

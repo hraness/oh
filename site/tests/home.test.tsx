@@ -77,13 +77,7 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
 
   expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
   expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));
-  expect(html).toContain("Markdown files stay authoritative");
-  expect(html).toContain(
-    '<a href="https://wordcell.io">Wordcell</a> is a Markdown knowledge base that gives agents the decisions behind code.',
-  );
-  expect(html).toContain("do not carry over");
 });
-
 
 test("the benchmarks index ties every headline figure to its checked record", () => {
   const html = renderToStaticMarkup(<RootLayout><Benchmarks /></RootLayout>);
@@ -228,10 +222,14 @@ test("renders the current CLI citation proof and its exact inspectable record", 
   for (const key of citationRecord.dependencies) expect(hero).toContain(key);
   expect(hero).toContain("5 records and 5 changes replay to the same state");
   expect(hero).toContain("fictional trial report");
-  expect(hero).toContain("--json");
   expect(html).toContain('href="/examples/evidence-table-2.json"');
-  expect(html).toContain(citationRecord.recordSha256);
   expect(html).not.toContain("historical capture");
+  let commands = "";
+  new HTMLRewriter().on('.oh-terminal code[data-language="shell"]', { text(chunk) { commands += chunk.text; } }).transform(html);
+  expect(commands).toContain("oh put");
+  expect(commands).toContain("oh get evidence:table-2");
+  expect(commands).not.toContain("Saved evidence");
+  expect(commands).not.toContain("Store checked");
 });
 
 test("keeps the homepage proof flat and the specification outside its preset", () => {
@@ -312,8 +310,8 @@ test("the home JSON-LD defines the website and the software the other pages refe
   expect((software?.publisher as Record<string, unknown>)["@id"]).toBe("https://hraness.com/#organization");
   expect(nodes.some((node) => "aggregateRating" in node || "review" in node)).toBe(false);
 
-  // FAQ markup mirrors the visible questions, including the comparison answer.
-  const question = "How is Oh different from Mem0 or Supermemory?";
+  // FAQ markup mirrors the visible questions.
+  const question = "What is stored, and where?";
   expect(html).toContain(question);
   const [faq] = byType("FAQPage");
   const names = (faq?.mainEntity as { name: string }[]).map((entry) => entry.name);

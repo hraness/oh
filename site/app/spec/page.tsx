@@ -1,4 +1,4 @@
-import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
+import { MarketingSiteHeader, SyntaxCode } from "@hraness/design-kit/react/server";
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 import { AskAiAboutThis } from "@hraness/ui";
 import type { Metadata } from "next";
@@ -159,14 +159,14 @@ export default function Specification() {
                 space it belongs to, a sequence number, and the digest of the
                 operation before it.
               </p>
-              <pre className="spec-code"><code>{`{
+              <pre className="spec-code"><SyntaxCode code={`{
   "dependencies": ["entity:flywire"],
   "key": "statement:connectome-scope",
   "kind": "statement",
   "recordSha256": "<64 lowercase hex>",
   "v": 1,
   "value": { "...": "canonical JSON" }
-}`}</code></pre>
+}`} language="json" styles="classes" /></pre>
               <p className="callout">
                 Canonical JSON sorts object keys by UTF-16 code units, preserves
                 array order, writes no insignificant whitespace, rejects

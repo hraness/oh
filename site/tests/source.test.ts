@@ -125,7 +125,7 @@ describe("Oh site source contract", () => {
       expect(page).not.toContain("OhContentFooter");
     }
     expect(contentFooter).toContain('{ href: "/blog", label: "Blog" }');
-    expect(home).toContain("Hraness, which builds tools for agents and humans");
+    expect(home).toContain("Agent memory that shows its work.");
     expect(globals).not.toContain("hraness-marketing-maker");
     expect(globals).not.toContain(".site-footer");
   });
@@ -149,7 +149,7 @@ describe("Oh site source contract", () => {
     expect(home).not.toContain("package.json");
     expect(home).toContain("const proofTranscript =");
     expect(home).not.toContain("const capturedVersion");
-    expect(home).toContain('href={publishedRelease.verificationRun}');
+    expect(home).toContain("Latest release: v${releaseVersion}");
     expect(home).not.toContain("@hraness/oh ${releaseVersion} · captured");
   });
 
@@ -188,7 +188,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.24.0"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.27.0"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([
@@ -305,9 +305,7 @@ describe("Oh site source contract", () => {
     expect(home).toContain("Sync sends operations, never search vectors");
     expect(specificationText).toContain("optional Cloudflare Workers AI profile");
     expect(specificationText).toContain("canonical <code>.oh.md</code> file is a self-contained copy");
-    expect(home).toContain("Every write appends an operation to the log");
-    expect(home).toContain("replays the log from an empty graph");
-    expect(home).toContain("the log keeps every change in the order it happened");
+    expect(home).toContain("Each write joins a history you can replay");
     expect(home).toContain("A passing verification means the records and their history are intact");
     expect(specificationText).toContain("a mismatch fails before any operation is exchanged");
     expect(specificationText).toContain("a chain that does not is a sync conflict");
@@ -346,9 +344,7 @@ describe("Oh site source contract", () => {
       read("app/spec/page.tsx"),
     ]);
 
-    expect(home).toContain('import manifest from "../public/spec/manifest.json"');
-    expect(home).toContain("currentVersion.contractId");
-    expect(home).toContain("currentVersion.status");
+    expect(home).toContain('oh contract');
     expect(specification).toContain(
       'import manifest from "../../public/spec/manifest.json"',
     );
