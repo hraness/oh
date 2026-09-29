@@ -186,7 +186,9 @@ export async function scanPackage(root: string): Promise<void> {
     }
     // Native SQLite sidecars are compiled binaries and may contain build-path
     // strings from the Rust toolchain that are not part of the package contract.
-    if (packagePath.startsWith("dist/rust-artifacts/oh-sqlite/") && packagePath.endsWith("/oh-sqlite-cli")) {
+    if (packagePath.startsWith("dist/rust-artifacts/oh-sqlite/")
+      && (packagePath.endsWith("/oh-sqlite-cli")
+        || (packagePath.startsWith("dist/rust-artifacts/oh-sqlite/win32-") && packagePath.endsWith("/oh-sqlite-cli.exe")))) {
       return;
     }
     if (packagePath === REVIEWED_WIKIDATA_ARCHIVE) {
@@ -236,6 +238,56 @@ async function run(command: readonly string[], cwd: string, capture = false): Pr
   });
   if (result.exitCode !== 0) throw new Error(`Package smoke subprocess failed (${String(result.exitCode)}); diagnostics redacted.`);
   return result.stdout.toString("utf8");
+}
+
+/** Resolve the package manager's bin shim; Windows shims carry an extension. */
+async function installedBin(binDirectory: string, name: string): Promise<string> {
+  const candidates = process.platform === "win32" ? [`${name}.exe`, `${name}.cmd`, name] : [name];
+  for (const candidate of candidates) {
+    const path = join(binDirectory, candidate);
+    try {
+      await access(path);
+      return path;
+    } catch {
+      // Try the next shim form.
+    }
+  }
+  throw new Error(`Installed package did not create the ${name} bin shim.`);
+}
+
+/**
+ * Snapshot a synthetic database through the installed native sidecar for this
+ * host. Release and native CI runs set OH_SMOKE_REQUIRE_SIDECAR=1 so a missing
+ * prebuilt fails; ordinary source checks skip when this host has none staged.
+ */
+async function sidecarSmoke(consumer: string, work: string, database: string): Promise<void> {
+  const required = process.env.OH_SMOKE_REQUIRE_SIDECAR === "1";
+  const output = join(work, "sidecar-snapshot");
+  await writeFile(join(consumer, "sidecar-snapshot.mjs"), `
+import { stat } from "node:fs/promises";
+import { sidecarBinaryPath, snapshotDatabase } from "@hraness/oh/sqlite-snapshot";
+const [database, output, required] = process.argv.slice(2);
+let binary;
+try {
+  binary = sidecarBinaryPath();
+  await stat(binary);
+} catch (error) {
+  if (required === "1") throw error;
+  console.log("skipped");
+  process.exit(0);
+}
+const snapshot = await snapshotDatabase({ sourcePath: database, outputDirectory: output });
+if (!(snapshot.totalBytes >= 16)) {
+  throw new Error("The packed native sidecar returned an unexpected snapshot.");
+}
+console.log("ok");
+`, { mode: 0o600 });
+  const result = (await run([
+    process.execPath, "run", "./sidecar-snapshot.mjs", database, output, required ? "1" : "0",
+  ], consumer, true)).trim();
+  if (result !== "ok" && !(result === "skipped" && !required)) {
+    throw new Error("The packed native sidecar smoke did not complete.");
+  }
 }
 
 async function requirePublishedPaths(packageRoot: string, manifest: JsonRecord): Promise<void> {
@@ -331,7 +383,7 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     const cli = join(packageRoot, "dist", "cli.js");
     const help = await run([process.execPath, cli, "--help"], consumer, true);
     const installedBinHelp = await run([
-      join(consumer, "node_modules", ".bin", "oh"), "--help",
+      await installedBin(join(consumer, "node_modules", ".bin"), "oh"), "--help",
     ], consumer, true);
     const version = await run([process.execPath, cli, "--version"], consumer, true);
     const protocol = JSON.parse(await run([process.execPath, cli, "support", "protocol", "--json"], consumer, true)) as {
@@ -359,6 +411,7 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     if (verification.sqliteIntegrity !== "ok" || verification.v !== 1) {
       throw new Error("Packed CLI failed its isolated synthetic database check.");
     }
+    await sidecarSmoke(consumer, work, database);
 
     await run([
       process.execPath,

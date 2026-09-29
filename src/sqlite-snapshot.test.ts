@@ -77,6 +77,8 @@ describe("sqlite-snapshot loader", () => {
     try {
       const path = sidecarBinaryPath("darwin", "arm64");
       expect(path).toContain("rust-artifacts/oh-sqlite/darwin-arm64/oh-sqlite-cli");
+      expect(sidecarBinaryPath("linux", "arm64")).toMatch(/rust-artifacts[\\/]oh-sqlite[\\/]linux-arm64[\\/]oh-sqlite-cli$/u);
+      expect(sidecarBinaryPath("win32", "x64")).toMatch(/rust-artifacts[\\/]oh-sqlite[\\/]win32-x64[\\/]oh-sqlite-cli\.exe$/u);
     } finally {
       if (realPath !== undefined) {
         process.env.HRANESS_OH_SQLITE_CLI_PATH = realPath;

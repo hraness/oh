@@ -71,6 +71,10 @@ The same package bytes and their checksum are attached to the
 and
 [`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.13.1/SHA256SUMS).
 
+The package runs wherever Bun runs. Its native SQLite snapshot helper
+(`@hraness/oh/sqlite-snapshot`) is prebuilt for macOS on Apple silicon and
+Intel, Linux x64 and arm64, and Windows x64.
+
 Oh writes to `.oh/oh.sqlite` and the `default` space unless you choose another
 path or space. `oh init`, `oh put`, and `oh sync import` create that directory,
 file, and space if they are missing; reading commands stop with

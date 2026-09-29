@@ -1,6 +1,8 @@
 const RUNTIME_NAMES = Object.freeze([
   "HOME", "LANG", "LC_ALL", "LC_CTYPE", "NODE_EXTRA_CA_CERTS", "PATH",
   "SSL_CERT_FILE", "TEMP", "TMP", "TMPDIR", "TZ",
+  // Windows processes need these to start, resolve shims, and find profiles.
+  "APPDATA", "COMSPEC", "LOCALAPPDATA", "PATHEXT", "SYSTEMROOT", "USERPROFILE", "WINDIR",
 ] as const);
 
 const TRUSTED_PUBLISHING_NAMES = Object.freeze([
