@@ -13,7 +13,7 @@ import { product, relatedFor } from "@hraness/design-kit/portfolio";
 import { AskAiAboutThis } from "@hraness/ui";
 import { websiteJsonLd } from "@hraness/web-discovery";
 
-import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
+import { DesignPaletteMenuButton, PlatformBadges, PlatformInstall } from "@hraness/design-kit/react";
 
 import publishedRelease from "../published-release.json";
 import { MemoryBenchmarkComparison, longMemEvalHeading } from "./benchmark-comparison";
@@ -22,6 +22,14 @@ import { homeDescription } from "./metadata-copy";
 import { CodeBlock, Terminal, Transcript } from "./code-block";
 
 const releaseVersion = publishedRelease.version;
+const installCommand = `bun add --global @hraness/oh@${releaseVersion}`;
+const bunNote = "Requires Bun 1.3.14+";
+// The release workflow installs this exact package and runs `oh` on each platform.
+const installPlatforms = [
+  { id: "macos", command: installCommand, shell: "Terminal", note: `Apple silicon and Intel · ${bunNote}` },
+  { id: "linux", command: installCommand, shell: "Terminal", note: `x86_64 and ARM64 · ${bunNote}` },
+  { id: "windows", command: installCommand, shell: "PowerShell", note: `x86_64 · ${bunNote}` },
+] as const;
 const repository = "https://github.com/hraness/oh";
 // hraness.com publishes the Organization node this @id names.
 const hranessOrganizationId = "https://hraness.com/#organization";
@@ -335,7 +343,8 @@ oh get evidence:table-2 \\
             id="install"
             note={<p className="install-note">{`Latest release: v${releaseVersion}`}</p>}
           >
-            <Terminal code={`bun add --global @hraness/oh@${releaseVersion}`} />
+            <PlatformBadges platforms={["macos", "linux", "windows"]} />
+            <PlatformInstall platforms={installPlatforms} />
             <Terminal code={`oh init
 oh put --kind entity --key entity:ada-lovelace \\
   --value '{"name":"Ada Lovelace","role":"mathematician"}'
