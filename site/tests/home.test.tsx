@@ -185,7 +185,7 @@ test("every public page renders the in-flow content footer above the shared foot
     expect(contentFooter).toBeGreaterThan(-1);
     expect(networkFooter).toBeGreaterThan(contentFooter);
     expect(html).toContain("hraness-marketing-footer__brand");
-    expect(html).toContain('class="brand-mark"');
+    expect(html).toContain('src="/marks/oh-computer.svg"');
     expect(html).toContain("Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.");
     expect(html).toContain('id="hraness-site-footer"');
     expect(html).toContain("https://account.hraness.com/support?product=oh-computer&amp;source=web#support");
