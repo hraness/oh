@@ -4,7 +4,7 @@ import { ANSWER_INSTRUCTION, answerMessages, type Message } from "./model";
 
 export const EVOLUTION_READER_CONTRACT_IDS = ["legacy-v1", "explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1",
   "calibrated-composition-v1", "timeline-composition-v1", "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1", "task-complete-v1", "task-complete-v2", "task-complete-v3", "task-complete-v4",
-  "task-complete-v5"] as const;
+  "task-complete-v5", "task-complete-v6"] as const;
 export type EvolutionReaderContractId = typeof EVOLUTION_READER_CONTRACT_IDS[number];
 /** Contracts that answer a question over a memory field. evidence-selection-v1 is the two-stage lane's stage-one selection
  * contract: it shares the profile catalog so its requests carry a closed profile identity, but it is never an answer reader. */
@@ -63,6 +63,17 @@ export const TASK_COMPLETE_INSTRUCTION_V5 = (() => {
     + "For a question about how something progressed or a summary over time, cover the whole period of the relevant memory from its earliest to its latest date: "
     + "give the main development of each period rather than many details from one period. ");
 })();
+/** v4 with topic-thread ordering: an order question lists the subjects the user returned to, spread across the whole memory and
+ * ordered by first mention; progress and summary questions keep v4's whole-period coverage. */
+export const TASK_COMPLETE_INSTRUCTION_V6 = (() => {
+  if (TASK_COMPLETE_INSTRUCTION_V4.split(TASK_COMPLETE_V4_COVERAGE).length !== 2) throw new TypeError("Evolution reader contract: task-complete-v4 instruction changed.");
+  return TASK_COMPLETE_INSTRUCTION_V4.replace(TASK_COMPLETE_V4_COVERAGE,
+    "For a question about the order in which the user brought things up, first scan the relevant memory from its earliest to its latest session, "
+    + "then list topic threads: each item is one subject the user raised, usually over several messages, named at the level of that subject rather than a single message. "
+    + "Spread the items across every session where the relevant subjects appear, order them by when each subject first came up, and give exactly the number of items requested, if any. "
+    + "For a question about how something progressed or a summary over time, cover the whole period of the relevant memory from its earliest to its latest date: "
+    + "give the main development of each period rather than many details from one period. ");
+})();
 const OLD_ABSTENTION = "If the evidence does not support an answer, reply exactly None.";
 const EXPLICIT_ABSTENTION = "If the evidence does not support an answer, state that the supplied conversation does not contain enough information to answer the question. Do not use an ambiguous bare placeholder.";
 const COMPOSITION = "Before answering, identify the distinct relevant events and facts across the supplied memory. "
@@ -99,6 +110,7 @@ function instruction(id: EvolutionReaderContractId): string {
   if (id === "task-complete-v3") return TASK_COMPLETE_INSTRUCTION_V3;
   if (id === "task-complete-v4") return TASK_COMPLETE_INSTRUCTION_V4;
   if (id === "task-complete-v5") return TASK_COMPLETE_INSTRUCTION_V5;
+  if (id === "task-complete-v6") return TASK_COMPLETE_INSTRUCTION_V6;
   if (id === "evidence-selection-v1") return EVIDENCE_SELECTION_INSTRUCTION;
   if (id === "calibration-only-v1" || id === "selected-answer-v1") {
     if (ANSWER_INSTRUCTION.split(OLD_ABSTENTION).length !== 2) throw new TypeError("Evolution reader contract: legacy abstention instruction changed.");
@@ -134,6 +146,7 @@ export const EVOLUTION_READER_CONTRACTS = Object.freeze({
   "task-complete-v3": contract("task-complete-v3"),
   "task-complete-v4": contract("task-complete-v4"),
   "task-complete-v5": contract("task-complete-v5"),
+  "task-complete-v6": contract("task-complete-v6"),
 });
 export function parseEvolutionReaderContractId(value: unknown): EvolutionReaderContractId {
   if (typeof value !== "string" || !Object.hasOwn(EVOLUTION_READER_CONTRACTS, value)) throw new TypeError("Evolution reader contract: unknown contract.");
