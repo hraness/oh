@@ -9,7 +9,7 @@ import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_
   EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
   EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
-  EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BASE_READER_IDS, EVOLUTION_PROFILES, evolutionReaderContract, evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest,
+  EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID, HINDSIGHT_RAG_OPEN_RESPONSE_FORMAT_V1, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BASE_READER_IDS, EVOLUTION_PROFILES, evolutionReaderContract, evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest,
   parseEvolutionResponse, supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
 import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan } from "../scripts/benchmarks/evolution-plan";
 import { DATASETS } from "../scripts/benchmarks/datasets";
@@ -140,7 +140,7 @@ describe("composable isolated reader answer contracts", () => {
     expect(Object.keys(EVOLUTION_PROFILES).filter(id => !ids.has(id)).sort()).toEqual([
       "gpt4o-gateway-judge", "gpt4o-official-snapshot-judge", "gpt4o-gateway-native-rubric-judge-v1",
       "gpt4o-gateway-native-rubric-16-judge-v1", "gpt4o-mini-locomo-j-judge-v1",
-      EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID,
+      EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID,
       EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
       EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID,
       EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID,
@@ -206,4 +206,19 @@ describe("composable isolated reader answer contracts", () => {
       finally { await reopened.close(); }
     } finally { await rm(root, { recursive: true }); }
   });
+});
+
+test("the Hindsight parity reader is a fixed Gemini 3.1 Pro Gateway route with tiered pricing and no profile window", () => {
+  const selected = EVOLUTION_PROFILES[EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID];
+  expect(selected).toMatchObject({ model: "google/gemini-3.1-pro-preview", provider: "google", maxOutputTokens: 32_768,
+    settings: { temperature: 0 }, timeoutMs: 600_000, qualification: "gateway-alias" });
+  expect(selected.prices.map(price => price.fromInputTokens)).toEqual([0, 200_000]);
+  const request = makeEvolutionRequest(EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID, [{ role: "user", content: "QUESTION: q\n\nRETRIEVED MEMORIES:\nm\n\nANSWER:" }]);
+  expect(request.body).toMatchObject({ model: "google/gemini-3.1-pro-preview", temperature: 0, max_tokens: 32_768,
+    providerOptions: { gateway: { only: ["google"], order: ["google"] } },
+    response_format: { type: "json_schema", json_schema: { name: "hindsight_rag_open_v1", strict: true } } });
+  expect(request.body.response_format).toEqual(HINDSIGHT_RAG_OPEN_RESPONSE_FORMAT_V1);
+  expect(parseEvolutionResponse(response(request), request).status).toBe("completed");
+  expect(supportsEvolutionProfileWindow(EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID)).toBe(false);
+  expect(() => evolutionReaderContract(EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID)).not.toThrow();
 });
