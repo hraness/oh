@@ -53,6 +53,8 @@ export type EvolutionTaskCompleteReaderProfileId = typeof EVOLUTION_TASK_COMPLET
   | typeof EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID;
 export const EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID = "gpt4o-mini-clonemem-choice-v1-reader";
 export type EvolutionCloneMemChoiceReaderProfileId = typeof EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID;
+export const EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID = "gemini31-pro-hindsight-parity-v1-reader";
+export type EvolutionHindsightParityReaderProfileId = typeof EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID;
 export const EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID = "gpt4o-20240806-framework-pilot-v1-reader";
 export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID = "gpt4o-gateway-framework-pilot-v1-reader";
 export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID = "gpt4o-gateway-framework-pilot-16-v1-judge";
@@ -61,7 +63,7 @@ export const EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID = "gpt4o-g
 export type EvolutionFrameworkPilotProfileId = typeof EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID
   | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
   | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID | typeof EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID;
-export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId | EvolutionCloneMemChoiceReaderProfileId | EvolutionFrameworkPilotProfileId;
+export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationReaderId | EvolutionExtractorProfileId | EvolutionAnswerAuditProfileId | EvolutionBeamJudgeProfileId | EvolutionLongDeadlineReaderProfileId | EvolutionTaskCompleteReaderProfileId | EvolutionCloneMemChoiceReaderProfileId | EvolutionHindsightParityReaderProfileId | EvolutionFrameworkPilotProfileId;
 /** Integer nanodollars per token: 30 means $0.03 per million tokens. */
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionExtractorResponseFormat = typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT | typeof OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT
@@ -249,6 +251,14 @@ const CLONEMEM_CHOICE_PROFILES: Readonly<Record<EvolutionCloneMemChoiceReaderPro
   [EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-mini-reader"],
     id: EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, maxOutputTokens: 512, settings: { temperature: 0.1 } },
 });
+/** Hindsight's published BEAM answerer (vectorize-io/agent-memory-benchmark answer_llm gemini:gemini-3.1-pro-preview,
+ * temperature 0, default thinking, one user message), for same-model comparisons. The output cap includes hidden thinking tokens. Gateway list
+ * price checked 2026-09-29: $2 / $0.20 cached / $12 per million, $4 / $0.40 / $18 from 200K input tokens. */
+const HINDSIGHT_PARITY_PROFILES: Readonly<Record<EvolutionHindsightParityReaderProfileId, EvolutionModelProfile>> = frozen({
+  [EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID]: { ...profile(EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID, "google/gemini-3.1-pro-preview", "google",
+    1_048_576, 32_768, { temperature: 0 }, [tier(2_000, 200, 12_000), tier(4_000, 400, 18_000, 4_000, 200_000)]),
+    timeoutMs: 600_000, pricingCheckedAt: "2026-09-29" },
+});
 /** Fixed framework-pilot reader/judge routes: one user message and distinct request identities.
  * The local context tokenizer qualifies the context string only. Existing conservative request
  * reservations and response-usage checks remain in force; this catalog entry proves no live access.
@@ -271,7 +281,7 @@ const FRAMEWORK_PILOT_PROFILES: Readonly<Record<EvolutionFrameworkPilotProfileId
   [EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID]: { ...LEGACY_PROFILES["gpt4o-gateway-native-rubric-16-judge-v1"],
     id: EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID, pricingCheckedAt: "2026-09-23" },
 });
-export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES, ...CLONEMEM_CHOICE_PROFILES, ...FRAMEWORK_PILOT_PROFILES });
+export const EVOLUTION_PROFILES: Readonly<Record<EvolutionProfileId, EvolutionModelProfile>> = frozen({ ...LEGACY_PROFILES, ...HINDSIGHT_PARITY_PROFILES, ...ablationProfiles, ...EXTRACTOR_PROFILES, ...ANSWER_AUDIT_PROFILES, ...BEAM_JUDGE_PROFILES, ...LONG_DEADLINE_READER_PROFILES, ...TASK_COMPLETE_READER_PROFILES, ...CLONEMEM_CHOICE_PROFILES, ...FRAMEWORK_PILOT_PROFILES });
 export function evolutionReaderContract(profileId: EvolutionProfileId): EvolutionReaderContractId {
   const selected = getProfile(profileId);
   if (!profileId.endsWith("-reader")) fail("reader contract requires a reader profile");
@@ -289,7 +299,7 @@ function getProfile(value: unknown): EvolutionModelProfile {
 }
 function validMessages(value: unknown, selected: EvolutionModelProfile): value is readonly Message[] {
   const nativeJudge = selected.id === EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID || selected.qualification === "official-snapshot-request" || selected.requiredResolvedSnapshot !== undefined
-    || selected.id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID || selected.id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
+    || selected.id === EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID || selected.id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID || selected.id === EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID
     || selected.id === "gpt4o-gateway-native-rubric-judge-v1" || selected.id === "gpt4o-gateway-native-rubric-16-judge-v1"
     || selected.id === "gpt4o-beam-event-extraction-v1" || selected.id === "gpt4o-beam-nugget-v1";
   return Array.isArray(value) && (nativeJudge
