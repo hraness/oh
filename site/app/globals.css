@@ -856,3 +856,9 @@ body > :not(.network-footer) { min-inline-size: 0; }
     color: ButtonText;
   }
 }
+
+@media (forced-colors: active) {
+  .hraness-platform-install__tab[aria-selected="true"] {
+    forced-color-adjust: none;
+  }
+}
