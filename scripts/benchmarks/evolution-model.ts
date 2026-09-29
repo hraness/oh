@@ -83,7 +83,7 @@ export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: st
   settings: Readonly<{ temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }> }>;
   responseFormat?: EvolutionExtractorResponseFormat;
   answerAuditContract?: Readonly<{ policySha256: string; instructionSha256: string }>;
-  pricingCheckedAt: "2026-09-09" | "2026-09-23"; prices: readonly PriceTier[];
+  pricingCheckedAt: "2026-09-09" | "2026-09-23" | "2026-09-29"; prices: readonly PriceTier[];
   readerContract?: Readonly<{ baseReader: EvolutionBaseReaderId; id: EvolutionReaderAblationContractId; instructionSha256: string }> }>;
 type Body = Readonly<{ model: string; messages: readonly Message[]; stream: false; store: false; max_tokens: number;
   temperature?: number; reasoning?: Readonly<{ effort?: string; enabled?: boolean }>;
