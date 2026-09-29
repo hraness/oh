@@ -9,10 +9,10 @@ import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_
   EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID, EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BASE_READER_IDS, EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID as controlId,
-  EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID as candidateId, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID as v2Id, EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID as v3Id, EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID as v4Id, EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID as v5Id, EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID as v6Id, EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID as v7Id, EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID as v8Id, EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID as v8Gpt5Id, EVOLUTION_PROFILES, evolutionReaderContract,
+  EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID as candidateId, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID as v2Id, EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID as v3Id, EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID as v4Id, EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID as v5Id, EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID as v6Id, EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID as v7Id, EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID as v8Id, EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID as v8Gpt5Id, EVOLUTION_TASK_COMPLETE_V9_READER_PROFILE_ID as v9Id, EVOLUTION_PROFILES, evolutionReaderContract,
   evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest, parseEvolutionResponse,
   supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
-import { EVOLUTION_READER_CONTRACTS, TASK_COMPLETE_INSTRUCTION_V1, TASK_COMPLETE_INSTRUCTION_V2, TASK_COMPLETE_INSTRUCTION_V3, TASK_COMPLETE_INSTRUCTION_V4, TASK_COMPLETE_INSTRUCTION_V5, TASK_COMPLETE_INSTRUCTION_V6, TASK_COMPLETE_INSTRUCTION_V7, TASK_COMPLETE_INSTRUCTION_V8, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
+import { EVOLUTION_READER_CONTRACTS, TASK_COMPLETE_INSTRUCTION_V1, TASK_COMPLETE_INSTRUCTION_V2, TASK_COMPLETE_INSTRUCTION_V3, TASK_COMPLETE_INSTRUCTION_V4, TASK_COMPLETE_INSTRUCTION_V5, TASK_COMPLETE_INSTRUCTION_V6, TASK_COMPLETE_INSTRUCTION_V7, TASK_COMPLETE_INSTRUCTION_V8, TASK_COMPLETE_INSTRUCTION_V9, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan } from "../scripts/benchmarks/evolution-plan";
 import { answerMessages } from "../scripts/benchmarks/model";
 import { openEvolutionStore } from "../scripts/benchmarks/evolution-store";
@@ -33,7 +33,7 @@ test("task-complete preserves every prior profile, request, full-window request 
     && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
     && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
     && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
-    && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && id !== candidateId && id !== v2Id && id !== v3Id && id !== v4Id && id !== v5Id && id !== v6Id && id !== v7Id && id !== v8Id && id !== v8Gpt5Id && id !== EVOLUTION_SESSION_DIGEST_PROFILE_ID && id !== EVOLUTION_SESSION_NOTES_PROFILE_ID && id !== EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
+    && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && id !== candidateId && id !== v2Id && id !== v3Id && id !== v4Id && id !== v5Id && id !== v6Id && id !== v7Id && id !== v8Id && id !== v8Gpt5Id && id !== v9Id && id !== EVOLUTION_SESSION_DIGEST_PROFILE_ID && id !== EVOLUTION_SESSION_NOTES_PROFILE_ID && id !== EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
   const audit = makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "The synthetic tile is blue.", draftAnswer: "Blue." });
   const requests = old.map(([id, p]) => makeEvolutionRequest(id as EvolutionProfileId,
     id === "gpt5-mini-answer-audit-v1" ? audit : p.qualification === "official-snapshot-request"
@@ -247,4 +247,18 @@ test("the GPT-5 task-complete-v8 screen profile keeps the v8 contract, takes the
   expect(evolutionReaderContract(v8Gpt5Id)).toBe("task-complete-v8");
   expect(supportsEvolutionProfileWindow(v8Gpt5Id)).toBe(supportsEvolutionProfileWindow(v8Id));
   expect(() => evolutionReaderProfileId("gpt5-low-reader", "task-complete-v8")).toThrow("requires the gpt5-mini base reader");
+});
+
+test("task-complete-v9 keeps never-versus-did conflicts out of the update rule, restates each claim and binds its own opt-in profile", () => {
+  const conflict = /When the memory has both a statement that the user never did.*?when no explicit correction resolves them\./u;
+  expect(conflict.test(TASK_COMPLETE_INSTRUCTION_V9)).toBe(true);
+  expect(TASK_COMPLETE_INSTRUCTION_V9.replace(conflict, "")).toBe(TASK_COMPLETE_INSTRUCTION_V8.replace(/Only when statements cannot both have been true.*?ask the user which one is correct\./u, ""));
+  expect(TASK_COMPLETE_INSTRUCTION_V9).toContain("give the latest value as the answer in the first sentence");
+  expect(TASK_COMPLETE_INSTRUCTION_V9).toContain("do not choose one because it is later");
+  const contract = EVOLUTION_READER_CONTRACTS["task-complete-v9"];
+  expect(contract.instruction).toBe(TASK_COMPLETE_INSTRUCTION_V9);
+  expect(EVOLUTION_PROFILES[v9Id]).toEqual({ ...EVOLUTION_PROFILES[candidateId], id: v9Id,
+    readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v9", instructionSha256: contract.instructionSha256 } });
+  expect(evolutionReaderProfileId("gpt5-mini-reader", "task-complete-v9")).toBe(v9Id);
+  expect(evolutionAnswerMessages(question, context, "task-complete-v9").slice(1)).toEqual(evolutionAnswerMessages(question, context, "task-complete-v4").slice(1));
 });
