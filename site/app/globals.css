@@ -6,6 +6,7 @@
 @import "../vendor/hraness-lantern/lantern-material.css";
 @import "@hraness/site-footer/styles.css";
 @import "@hraness/design-kit/palette-bridge.css";
+@import "../vendor/hraness-forced-colors/marketing-forced-colors.css";
 
 /* The bounded PostCSS bridge emits the immutable editorial preset in the
  * oh-marketing layer and Lantern paint in oh-material. Paper and product-specific
