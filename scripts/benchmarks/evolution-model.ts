@@ -68,7 +68,14 @@ export type EvolutionProfileId = EvolutionLegacyProfileId | EvolutionAblationRea
 type PriceTier = Readonly<{ fromInputTokens: number; input: number; cachedInput: number; cacheWrite: number; output: number }>;
 export type EvolutionExtractorResponseFormat = typeof OBSERVE_EXTRACTOR_V2_RESPONSE_FORMAT | typeof OBSERVE_EXTRACTOR_V3_RESPONSE_FORMAT
   | typeof OH_EVENT_INVENTORY_V3_RESPONSE_FORMAT | typeof OH_TURN_COVERAGE_RESPONSE_FORMAT_V1 | typeof OH_TURN_GROUPING_RESPONSE_FORMAT_V1
-  | typeof OH_SESSION_DIGEST_RESPONSE_FORMAT_V1;
+  | typeof OH_SESSION_DIGEST_RESPONSE_FORMAT_V1 | typeof HINDSIGHT_RAG_OPEN_RESPONSE_FORMAT_V1;
+// The open-answer schema of vectorize-io/agent-memory-benchmark (modes/rag.py _OPEN_SCHEMA at 03c1d0f), which its Gemini
+// answerer is forced to return; the harness scores only `answer`.
+export const HINDSIGHT_RAG_OPEN_RESPONSE_FORMAT_V1 = Object.freeze({ type: "json_schema" as const, json_schema: Object.freeze({
+  name: "hindsight_rag_open_v1", strict: true as const, schema: Object.freeze({ type: "object" as const, additionalProperties: false as const,
+    required: Object.freeze(["reasoning", "answer"] as const), properties: Object.freeze({
+      reasoning: Object.freeze({ type: "string" as const, description: "Step-by-step explanation of how you used the context to arrive at the answer." }),
+      answer: Object.freeze({ type: "string" as const, description: "The final concise answer to the question. If the context lacks the information, say so." }) }) }) }) });
 export type EvolutionModelProfile = Readonly<{ id: EvolutionProfileId; model: string; provider: string;
   endpoint: string; contextWindow: number; maxOutputTokens: number; timeoutMs: number;
   qualification: "gateway-alias" | "official-snapshot-request"; expectedSnapshot: string | null;
@@ -257,7 +264,7 @@ const CLONEMEM_CHOICE_PROFILES: Readonly<Record<EvolutionCloneMemChoiceReaderPro
 const HINDSIGHT_PARITY_PROFILES: Readonly<Record<EvolutionHindsightParityReaderProfileId, EvolutionModelProfile>> = frozen({
   [EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID]: { ...profile(EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID, "google/gemini-3.1-pro-preview", "google",
     1_048_576, 32_768, { temperature: 0 }, [tier(2_000, 200, 12_000), tier(4_000, 400, 18_000, 4_000, 200_000)]),
-    timeoutMs: 600_000, pricingCheckedAt: "2026-09-29" },
+    timeoutMs: 600_000, pricingCheckedAt: "2026-09-29", responseFormat: HINDSIGHT_RAG_OPEN_RESPONSE_FORMAT_V1 },
 });
 /** Fixed framework-pilot reader/judge routes: one user message and distinct request identities.
  * The local context tokenizer qualifies the context string only. Existing conservative request
