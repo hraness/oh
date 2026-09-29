@@ -9,10 +9,10 @@ import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_
   EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BASE_READER_IDS, EVOLUTION_LONG_DEADLINE_READER_PROFILE_ID as controlId,
-  EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID as candidateId, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID as v2Id, EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID as v3Id, EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID as v4Id, EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID as v5Id, EVOLUTION_PROFILES, evolutionReaderContract,
+  EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID as candidateId, EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID as v2Id, EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID as v3Id, EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID as v4Id, EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID as v5Id, EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID as v6Id, EVOLUTION_PROFILES, evolutionReaderContract,
   evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest, parseEvolutionResponse,
   supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
-import { EVOLUTION_READER_CONTRACTS, TASK_COMPLETE_INSTRUCTION_V1, TASK_COMPLETE_INSTRUCTION_V2, TASK_COMPLETE_INSTRUCTION_V3, TASK_COMPLETE_INSTRUCTION_V4, TASK_COMPLETE_INSTRUCTION_V5, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
+import { EVOLUTION_READER_CONTRACTS, TASK_COMPLETE_INSTRUCTION_V1, TASK_COMPLETE_INSTRUCTION_V2, TASK_COMPLETE_INSTRUCTION_V3, TASK_COMPLETE_INSTRUCTION_V4, TASK_COMPLETE_INSTRUCTION_V5, TASK_COMPLETE_INSTRUCTION_V6, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 import { makeEvolutionExperimentContextPlan, makeEvolutionReaderPlan, validateEvolutionReaderPlan } from "../scripts/benchmarks/evolution-plan";
 import { answerMessages } from "../scripts/benchmarks/model";
 import { openEvolutionStore } from "../scripts/benchmarks/evolution-store";
@@ -33,7 +33,7 @@ test("task-complete preserves every prior profile, request, full-window request 
     && id !== EVOLUTION_TURN_COVERAGE_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_PROFILE_ID
     && id !== EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID && id !== EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
     && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID && id !== EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID
-    && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && id !== candidateId && id !== v2Id && id !== v3Id && id !== v4Id && id !== v5Id && id !== EVOLUTION_SESSION_DIGEST_PROFILE_ID && id !== EVOLUTION_SESSION_NOTES_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
+    && id !== EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID && id !== EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID && id !== candidateId && id !== v2Id && id !== v3Id && id !== v4Id && id !== v5Id && id !== v6Id && id !== EVOLUTION_SESSION_DIGEST_PROFILE_ID && id !== EVOLUTION_SESSION_NOTES_PROFILE_ID).sort(([a], [b]) => a < b ? -1 : 1);
   const audit = makeEvolutionAnswerAuditMessages({ question: "Which color?", questionDate: "", originalMemory: "The synthetic tile is blue.", draftAnswer: "Blue." });
   const requests = old.map(([id, p]) => makeEvolutionRequest(id as EvolutionProfileId,
     id === "gpt5-mini-answer-audit-v1" ? audit : p.qualification === "official-snapshot-request"
@@ -200,4 +200,16 @@ test("task-complete-v5 orders individual user messages, keeps whole-period summa
     readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v5", instructionSha256: contract.instructionSha256 } });
   expect(evolutionReaderProfileId("gpt5-mini-reader", "task-complete-v5")).toBe(v5Id);
   expect(evolutionAnswerMessages(question, context, "task-complete-v5").slice(1)).toEqual(evolutionAnswerMessages(question, context, "task-complete-v4").slice(1));
+});
+
+test("task-complete-v6 lists topic threads spread across the memory, keeps whole-period summaries and binds its own opt-in profile", () => {
+  expect(TASK_COMPLETE_INSTRUCTION_V6.replace(/For a question about the order in which the user brought things up.*?give exactly the number of items requested, if any\. /u, ""))
+    .toBe(TASK_COMPLETE_INSTRUCTION_V5.replace(/For a question about the order in which the user brought things up.*?give exactly the number of items requested, if any\. /u, ""));
+  expect(TASK_COMPLETE_INSTRUCTION_V6).toContain("order them by when each subject first came up");
+  const contract = EVOLUTION_READER_CONTRACTS["task-complete-v6"];
+  expect(contract.instruction).toBe(TASK_COMPLETE_INSTRUCTION_V6);
+  expect(EVOLUTION_PROFILES[v6Id]).toEqual({ ...EVOLUTION_PROFILES[candidateId], id: v6Id,
+    readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v6", instructionSha256: contract.instructionSha256 } });
+  expect(evolutionReaderProfileId("gpt5-mini-reader", "task-complete-v6")).toBe(v6Id);
+  expect(evolutionAnswerMessages(question, context, "task-complete-v6").slice(1)).toEqual(evolutionAnswerMessages(question, context, "task-complete-v4").slice(1));
 });
