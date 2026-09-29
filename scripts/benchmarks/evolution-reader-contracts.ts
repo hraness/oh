@@ -4,7 +4,7 @@ import { ANSWER_INSTRUCTION, answerMessages, type Message } from "./model";
 
 export const EVOLUTION_READER_CONTRACT_IDS = ["legacy-v1", "explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1",
   "calibrated-composition-v1", "timeline-composition-v1", "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1", "task-complete-v1", "task-complete-v2", "task-complete-v3", "task-complete-v4",
-  "task-complete-v5", "task-complete-v6"] as const;
+  "task-complete-v5", "task-complete-v6", "task-complete-v7"] as const;
 export type EvolutionReaderContractId = typeof EVOLUTION_READER_CONTRACT_IDS[number];
 /** Contracts that answer a question over a memory field. evidence-selection-v1 is the two-stage lane's stage-one selection
  * contract: it shares the profile catalog so its requests carry a closed profile identity, but it is never an answer reader. */
@@ -74,6 +74,16 @@ export const TASK_COMPLETE_INSTRUCTION_V6 = (() => {
     + "For a question about how something progressed or a summary over time, cover the whole period of the relevant memory from its earliest to its latest date: "
     + "give the main development of each period rather than many details from one period. ");
 })();
+const TASK_COMPLETE_V1_SEQUENCE = "For a requested list or sequence, put one item on each newline with no blank lines or preamble; use the requested order, and for chronological sequences state dates or ordering relationships supported by the memory. Do not invent a unique order when the evidence is ambiguous.";
+/** v4 with a list-only output: a requested list or sequence is returned as bare short items, one per line, because each line is
+ * read as one item; the evidence, coverage and summary rules are unchanged. */
+export const TASK_COMPLETE_INSTRUCTION_V7 = (() => {
+  if (TASK_COMPLETE_INSTRUCTION_V4.split(TASK_COMPLETE_V1_SEQUENCE).length !== 2) throw new TypeError("Evolution reader contract: task-complete-v4 instruction changed.");
+  return TASK_COMPLETE_INSTRUCTION_V4.replace(TASK_COMPLETE_V1_SEQUENCE,
+    "For a requested list or sequence, the whole reply is the list itself: one item per line, exactly the requested number of items when a number is given, in the requested order. "
+    + "Write each item as a short phrase of about three to ten words naming the topic, event or thing, and add no preamble, heading, numbering, bullets, blank lines, dates unless the question asks for them, or closing remarks. "
+    + "When the evidence leaves the order uncertain, give the best-supported order.");
+})();
 const OLD_ABSTENTION = "If the evidence does not support an answer, reply exactly None.";
 const EXPLICIT_ABSTENTION = "If the evidence does not support an answer, state that the supplied conversation does not contain enough information to answer the question. Do not use an ambiguous bare placeholder.";
 const COMPOSITION = "Before answering, identify the distinct relevant events and facts across the supplied memory. "
@@ -111,6 +121,7 @@ function instruction(id: EvolutionReaderContractId): string {
   if (id === "task-complete-v4") return TASK_COMPLETE_INSTRUCTION_V4;
   if (id === "task-complete-v5") return TASK_COMPLETE_INSTRUCTION_V5;
   if (id === "task-complete-v6") return TASK_COMPLETE_INSTRUCTION_V6;
+  if (id === "task-complete-v7") return TASK_COMPLETE_INSTRUCTION_V7;
   if (id === "evidence-selection-v1") return EVIDENCE_SELECTION_INSTRUCTION;
   if (id === "calibration-only-v1" || id === "selected-answer-v1") {
     if (ANSWER_INSTRUCTION.split(OLD_ABSTENTION).length !== 2) throw new TypeError("Evolution reader contract: legacy abstention instruction changed.");
@@ -147,6 +158,7 @@ export const EVOLUTION_READER_CONTRACTS = Object.freeze({
   "task-complete-v4": contract("task-complete-v4"),
   "task-complete-v5": contract("task-complete-v5"),
   "task-complete-v6": contract("task-complete-v6"),
+  "task-complete-v7": contract("task-complete-v7"),
 });
 export function parseEvolutionReaderContractId(value: unknown): EvolutionReaderContractId {
   if (typeof value !== "string" || !Object.hasOwn(EVOLUTION_READER_CONTRACTS, value)) throw new TypeError("Evolution reader contract: unknown contract.");
