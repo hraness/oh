@@ -179,8 +179,8 @@ approve any change to the policy or the checker, and tests have to show that
 the work runs, which the checker can’t.
 
 Effect 3.22.1 is a pinned development dependency. The build bundles it into
-`dist/semantic.js`, and its MIT license notice is in `LICENSE`. No other built
-entry point includes the local semantic backend, and QMD is imported only when
+`dist/semantic.js`, and its MIT license notice is in `THIRD_PARTY_NOTICES.md`.
+No other built entry point includes the local semantic backend, and QMD is imported only when
 a store is needed. Rebuild `dist/` and commit it with your source change, then
 run `bun run check`, which includes the packed-package check
 (`bun run test:package`) and the portable Node checks (`bun run test:node` and

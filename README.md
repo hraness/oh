@@ -485,4 +485,5 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing a wire format or a
 migration. Report security issues through the private process in
 [SECURITY.md](SECURITY.md).
 
-Oh is available under the [MIT License](LICENSE).
+Oh is available under the [MIT License](LICENSE). Notices for the bundled
+third-party code are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

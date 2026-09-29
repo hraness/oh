@@ -15,7 +15,7 @@ async function withPackage(run: (root: string) => Promise<void>): Promise<void> 
   try {
     await Promise.all([
       ...["dist", "skills", "spec", "src"].map((name) => mkdir(join(root, name))),
-      ...["LICENSE", "README.md", "package.json"].map((name) => writeFile(join(root, name), "{}\n")),
+      ...["LICENSE", "README.md", "THIRD_PARTY_NOTICES.md", "package.json"].map((name) => writeFile(join(root, name), "{}\n")),
     ]);
     await mkdir(dirname(join(root, corpusPath)), { recursive: true });
     await run(root);

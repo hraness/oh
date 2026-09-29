@@ -1,7 +1,30 @@
-MIT License
+# Third-party notices
 
-Copyright (c) 2026 Hraness contributors
+Oh is licensed under the MIT License in [LICENSE](LICENSE). The built
+`dist/` files also bundle the components below. Each is licensed under the
+MIT License, and its copyright notice and license text are reproduced here.
 
+## Effect 3.22.1
+
+Bundled into the built entry points that use the semantic, sync, memory host,
+or libSQL runtimes.
+
+- Source: https://github.com/Effect-TS/effect
+- Copyright (c) 2023 Effectful Technologies Inc
+
+## @hraness/support-foundation 0.4.0
+
+Bundled into the standalone CLI.
+
+- Source: https://github.com/hraness/support-foundation/tree/b32c1c81bb2444f50509ed54388758ecfab1f1c0
+- Copyright (c) 2026 Hraness
+
+## MIT License text
+
+The following text applies to each component above, with that component's
+copyright notice:
+
+```text
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -19,3 +42,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
