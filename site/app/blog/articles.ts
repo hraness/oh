@@ -8,7 +8,7 @@ import {
   type ArticleIsoDate,
   type ArticleSourceItem,
 } from "@hraness/design-kit";
-import { socialImageAlt } from "@hraness/web-discovery/social-image";
+import { socialImageAlt, type SocialImagePage } from "@hraness/web-discovery/social-image";
 import type {
   ArticleDiscovery,
   ArticleParty,
@@ -57,6 +57,12 @@ export type OhArticle = Readonly<{
   title: string;
   dek: string;
   eyebrow: string;
+  /**
+   * The share card's copy. The card fits a two-line headline and about two
+   * lines of description, so a post whose title or dek runs longer gets a
+   * shorter version that keeps the same claim and its conditions.
+   */
+  card: Readonly<{ headline?: string; description: string }>;
   published: ArticleIsoDate;
   keywords: readonly string[];
   toc: readonly TocItem[];
@@ -80,6 +86,10 @@ export const articles: readonly OhArticle[] = [
     title: "Reading every user message beat retrieval alone on LongMemEval-S",
     dek: "Giving GPT-5 mini every user message averaged 93.07% on the 500 LongMemEval-S questions it was tuned on, against 88.87% for Oh semantic retrieval.",
     eyebrow: "Benchmark",
+    card: {
+      headline: "Every user message beat retrieval alone",
+      description: "93.07% against 88.87% for Oh semantic retrieval, with GPT-5 mini, on the 500 questions it was tuned on.",
+    },
     published: "2026-09-26",
     keywords: ["LongMemEval", "agent memory", "long-term memory", "retrieval", "BM25", "semantic search", "GPT-5 mini"],
     toc: longMemEvalUserLogToc,
@@ -91,6 +101,7 @@ export const articles: readonly OhArticle[] = [
     title: "Introducing Oh",
     dek: "Oh is open-source memory for agents: an agent can write and nominate notes, but only your application’s code can adopt them into reviewed knowledge.",
     eyebrow: "Release",
+    card: { description: "An agent can write and nominate notes, but only your application’s code can adopt them." },
     published: "2026-09-24",
     keywords: ["agent memory", "provenance", "knowledge graphs", "canonical JSON", "TypeScript", "Rust"],
     toc: introducingOhToc,
@@ -102,6 +113,10 @@ export const articles: readonly OhArticle[] = [
     title: "Oh tests its Rust encoder byte for byte against TypeScript",
     dek: "Oh tests its opt-in Rust encoder against the TypeScript reference on thousands of generated inputs, and checks that installed copies load it.",
     eyebrow: "Technique",
+    card: {
+      headline: "Rust and TypeScript, byte for byte",
+      description: "Generated documents, digests, and 20,000 numbers must match the TypeScript reference exactly.",
+    },
     published: "2026-09-24",
     keywords: [
       "canonical JSON",
@@ -121,6 +136,9 @@ export const articles: readonly OhArticle[] = [
     title: "Built on Oh",
     dek: "Sponge keeps its hosted agent’s working memory in Oh, and Wordcell uses Oh to answer graph questions about your Markdown notes.",
     eyebrow: "Integration",
+    card: {
+      description: "Sponge keeps its hosted agent’s working memory in Oh. Wordcell uses it to answer graph questions about notes.",
+    },
     published: "2026-09-24",
     keywords: ["oh", "agent memory", "knowledge graphs", "sponge", "wordcell"],
     toc: builtOnOhToc,
@@ -169,6 +187,15 @@ function isoTime(date: ArticleIsoDate): string {
   return `${date}T00:00:00.000Z`;
 }
 
+/** The share-card copy for one post, rendered by ./[slug]/opengraph-image.tsx. */
+export function articleSocialPage(article: Pick<OhArticle, "card" | "eyebrow" | "title">): SocialImagePage {
+  return {
+    description: article.card.description,
+    eyebrow: article.eyebrow,
+    headline: article.card.headline ?? article.title,
+  };
+}
+
 export function articleDiscovery(article: OhArticle): ArticleDiscovery {
   const path = articlePath(article);
   return {
@@ -180,7 +207,7 @@ export function articleDiscovery(article: OhArticle): ArticleDiscovery {
       .filter((url): url is `https://${string}` => url.startsWith("https://")),
     description: article.dek,
     image: {
-      alt: socialImageAlt(ohSocialSite, { description: article.dek, eyebrow: article.eyebrow, headline: article.title }),
+      alt: socialImageAlt(ohSocialSite, articleSocialPage(article)),
       contentType: "image/png",
       height: 630,
       path: `${path}/opengraph-image`,

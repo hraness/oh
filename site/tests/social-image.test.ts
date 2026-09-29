@@ -6,6 +6,11 @@ import {
   socialImageAlt,
   type SocialImagePage,
 } from "@hraness/web-discovery/social-image";
+import {
+  socialImageFit,
+  socialImageIconShape,
+  socialImageSiteDetails,
+} from "@hraness/web-discovery/social-image/card";
 
 import { articleDiscovery, articles } from "../app/blog/articles";
 import { articleSocialPage, blogSocialPage } from "../app/blog/social";
@@ -100,13 +105,32 @@ describe("Oh share images", () => {
     expect(article).toBeDefined();
     if (article === undefined) return;
     expect(articleSocialPage(article)).toEqual({
-      description: article.dek,
+      description: article.card.description,
       eyebrow: article.eyebrow,
-      headline: article.title,
+      headline: article.card.headline ?? article.title,
     });
     expect(articleDiscovery(article).image?.alt).toBe(socialImageAlt(ohSocialSite, articleSocialPage(article)));
     const response = await image.default({ params: Promise.resolve({ slug: article.slug }) });
     const expected = await bytes(createSiteSocialImageResponse(ohSocialSite, articleSocialPage(article)));
     expect((await bytes(response)).equals(expected)).toBe(true);
   }, 30_000);
+
+  test("every card shows its copy whole: no cut description, no reduced headline, nothing stripped", () => {
+    const cards: readonly (readonly [string, SocialImagePage | undefined])[] = [
+      ...routes,
+      ...articles.map((article) => [`blog/${article.slug}`, articleSocialPage(article)] as const),
+    ];
+    for (const [name, page] of cards) {
+      const fit = socialImageFit(socialImageSiteDetails(ohSocialSite, page));
+      expect(fit.issues, name).toEqual([]);
+      // A page card never falls back to the site tagline.
+      if (page !== undefined) expect(page.description, name).not.toBe(ohSocialSite.description);
+    }
+  });
+
+  test("the Oh disc is drawn full-bleed, with no tile rim behind it", () => {
+    expect(ohSocialSite.icon).toBeDefined();
+    if (ohSocialSite.icon === undefined) return;
+    expect(socialImageIconShape(ohSocialSite.icon)).toBe("solid");
+  });
 });
