@@ -1,14 +1,16 @@
 import { socialImageAlt, type SocialImagePage } from "@hraness/web-discovery/social-image";
 import { ohSocialSite } from "../social";
-import { blogDescription, type OhArticle } from "./articles";
+import { blogTitle } from "./articles";
+
+export { articleSocialPage } from "./articles";
+
+export const blogCardDescription =
+  "Hraness on how Oh works and how it is tested, from benchmark runs to encoder property tests.";
 
 export const blogSocialPage = {
-  description: blogDescription,
-  headline: "Blog",
+  description: blogCardDescription,
+  eyebrow: "Blog",
+  headline: blogTitle,
 } as const satisfies SocialImagePage;
 
 export const blogImageAlt = socialImageAlt(ohSocialSite, blogSocialPage);
-
-export function articleSocialPage(article: Pick<OhArticle, "dek" | "eyebrow" | "title">): SocialImagePage {
-  return { description: article.dek, eyebrow: article.eyebrow, headline: article.title };
-}

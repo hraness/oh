@@ -20,3 +20,19 @@ export const compareSupermemoryTitle = "Oh vs Supermemory: local vs hosted agent
 export const compareSupermemoryDescription =
   "Supermemory vs Oh: a hosted memory API with connectors, or local memory for agent work. Supermemory led a 60-question pilot within the margin of error.";
 
+
+// Share-card copy. A card has room for about two short lines under its
+// headline, so each page gets a shorter line carrying the same facts as its
+// meta description instead of a clipped one. tests/social-image.test.ts checks
+// that every card shows its copy whole.
+export const homeCardDescription = "Open-source memory for agents, with sources and a replayable history.";
+export const specificationCardDescription =
+  "How Oh encodes records, stores them in SQLite, and syncs them, down to the bytes each digest covers.";
+export const benchmarksCardDescription =
+  "Every memory benchmark Oh has published, with the score, setup, and main limit of each study.";
+export const compareCardDescription =
+  "Oh, Mem0, Supermemory, Zep, Letta, and Claude’s memory tool: which to pick for which job.";
+export const compareMem0CardDescription =
+  "Mem0 keeps memory for each end user of a product. Oh keeps an agent’s working memory in local SQLite.";
+export const compareSupermemoryCardDescription =
+  "Supermemory is a hosted memory API with connectors. Oh keeps memory for agent work in local SQLite.";
