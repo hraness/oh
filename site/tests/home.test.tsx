@@ -267,8 +267,8 @@ test("the home JSON-LD defines the website and the software the other pages refe
   expect((software?.publisher as Record<string, unknown>)["@id"]).toBe("https://hraness.com/#organization");
   expect(nodes.some((node) => "aggregateRating" in node || "review" in node)).toBe(false);
 
-  // FAQ markup mirrors the visible questions, including the comparison answer.
-  const question = "How is Oh different from Mem0 or Supermemory?";
+  // FAQ markup mirrors the visible questions.
+  const question = "What is stored, and where?";
   expect(html).toContain(question);
   const [faq] = byType("FAQPage");
   const names = (faq?.mainEntity as { name: string }[]).map((entry) => entry.name);
