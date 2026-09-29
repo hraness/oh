@@ -4,7 +4,7 @@ import { ANSWER_INSTRUCTION, answerMessages, type Message } from "./model";
 
 export const EVOLUTION_READER_CONTRACT_IDS = ["legacy-v1", "explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1",
   "calibrated-composition-v1", "timeline-composition-v1", "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1", "task-complete-v1", "task-complete-v2", "task-complete-v3", "task-complete-v4",
-  "task-complete-v5", "task-complete-v6", "task-complete-v7"] as const;
+  "task-complete-v5", "task-complete-v6", "task-complete-v7", "task-complete-v8"] as const;
 export type EvolutionReaderContractId = typeof EVOLUTION_READER_CONTRACT_IDS[number];
 /** Contracts that answer a question over a memory field. evidence-selection-v1 is the two-stage lane's stage-one selection
  * contract: it shares the profile catalog so its requests carry a closed profile identity, but it is never an answer reader. */
@@ -84,6 +84,17 @@ export const TASK_COMPLETE_INSTRUCTION_V7 = (() => {
     + "Write each item as a short phrase of about three to ten words naming the topic, event or thing, and add no preamble, heading, numbering, bullets, blank lines, dates unless the question asks for them, or closing remarks. "
     + "When the evidence leaves the order uncertain, give the best-supported order.");
 })();
+const TASK_COMPLETE_V4_CONFLICT = "When the memory contains incompatible statements about what the question asks that cannot be resolved, say in the first sentence that the memory contains contradictory information, give each alternative, and ask the user which one is correct.";
+/** v4 with changed values treated as updates: a later statement giving a new value for the same measurement, setting, count, score
+ * or status answers with the latest value first; only statements that cannot both have been true keep the contradiction reply. */
+export const TASK_COMPLETE_INSTRUCTION_V8 = (() => {
+  if (TASK_COMPLETE_INSTRUCTION_V4.split(TASK_COMPLETE_V4_CONFLICT).length !== 2) throw new TypeError("Evolution reader contract: task-complete-v4 instruction changed.");
+  return TASK_COMPLETE_INSTRUCTION_V4.replace(TASK_COMPLETE_V4_CONFLICT,
+    "When dated statements give different values for the same measurement, setting, count, score, plan or status, treat the later one as an update, not a contradiction: "
+    + "give the latest value as the answer in the first sentence, then briefly mention the earlier value. "
+    + "Only when statements cannot both have been true, such as the user saying they never did something and also describing doing it, and their dates or an explicit correction do not resolve them, "
+    + "say in the first sentence that the memory contains contradictory information, give each alternative, and ask the user which one is correct.");
+})();
 const OLD_ABSTENTION = "If the evidence does not support an answer, reply exactly None.";
 const EXPLICIT_ABSTENTION = "If the evidence does not support an answer, state that the supplied conversation does not contain enough information to answer the question. Do not use an ambiguous bare placeholder.";
 const COMPOSITION = "Before answering, identify the distinct relevant events and facts across the supplied memory. "
@@ -122,6 +133,7 @@ function instruction(id: EvolutionReaderContractId): string {
   if (id === "task-complete-v5") return TASK_COMPLETE_INSTRUCTION_V5;
   if (id === "task-complete-v6") return TASK_COMPLETE_INSTRUCTION_V6;
   if (id === "task-complete-v7") return TASK_COMPLETE_INSTRUCTION_V7;
+  if (id === "task-complete-v8") return TASK_COMPLETE_INSTRUCTION_V8;
   if (id === "evidence-selection-v1") return EVIDENCE_SELECTION_INSTRUCTION;
   if (id === "calibration-only-v1" || id === "selected-answer-v1") {
     if (ANSWER_INSTRUCTION.split(OLD_ABSTENTION).length !== 2) throw new TypeError("Evolution reader contract: legacy abstention instruction changed.");
@@ -159,6 +171,7 @@ export const EVOLUTION_READER_CONTRACTS = Object.freeze({
   "task-complete-v5": contract("task-complete-v5"),
   "task-complete-v6": contract("task-complete-v6"),
   "task-complete-v7": contract("task-complete-v7"),
+  "task-complete-v8": contract("task-complete-v8"),
 });
 export function parseEvolutionReaderContractId(value: unknown): EvolutionReaderContractId {
   if (typeof value !== "string" || !Object.hasOwn(EVOLUTION_READER_CONTRACTS, value)) throw new TypeError("Evolution reader contract: unknown contract.");
