@@ -576,12 +576,10 @@ jobs:
         run: |
           set -euo pipefail
           tarball="$PWD/$(ls artifacts/*.tgz)"
-          global_bin="$(bun pm bin -g)"
-          if command -v cygpath >/dev/null 2>&1; then
-            tarball="$(cygpath -m "$tarball")"
-            global_bin="$(cygpath -u "$global_bin")"
-          fi
+          if command -v cygpath >/dev/null 2>&1; then tarball="$(cygpath -m "$tarball")"; fi
           bun add -g "$tarball"
+          global_bin="$(bun pm bin -g)"
+          if command -v cygpath >/dev/null 2>&1; then global_bin="$(cygpath -u "$global_bin")"; fi
           export PATH="$global_bin:$PATH"
           command -v oh
           oh --version
