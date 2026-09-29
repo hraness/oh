@@ -7,7 +7,7 @@ import { answerMessages, ANSWER_INSTRUCTION } from "../scripts/benchmarks/model"
 import { EVOLUTION_ANSWER_CONTRACT_IDS, EVOLUTION_READER_CONTRACT_IDS, EVOLUTION_READER_CONTRACTS, evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 import { EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_ALIAS_JUDGE_PROFILE_ID,
   EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
-  EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID,
+  EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_READER_PROFILE_ID, EVOLUTION_FRAMEWORK_PILOT_GATEWAY_READER_PROFILE_ID,
   EVOLUTION_FRAMEWORK_PILOT_GATEWAY_JUDGE_PROFILE_ID, EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID, EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID, EVOLUTION_BASE_READER_IDS, EVOLUTION_PROFILES, evolutionReaderContract, evolutionReaderProfileId, makeEvolutionRequest, makeEvolutionProfileWindowRequest,
   parseEvolutionResponse, supportsEvolutionProfileWindow, validateEvolutionRequest, type EvolutionProfileId, type EvolutionRequest } from "../scripts/benchmarks/evolution-model";
@@ -147,14 +147,14 @@ describe("composable isolated reader answer contracts", () => {
       "gpt5-mini-low-extractor-v1", "gpt5-mini-structured-extractor-v2", EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID,
       EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID,
       EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
-      EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID,
+      EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID,
       "gpt5-mini-answer-audit-v1",
       "gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1",
       "gpt5-mini-explicit-abstention-composition-long-deadline-v1-reader",
       "gpt5-mini-task-complete-long-deadline-v1-reader", "gpt5-mini-task-complete-long-deadline-v2-reader", "gpt5-mini-task-complete-long-deadline-v3-reader", "gpt5-mini-task-complete-long-deadline-v4-reader",
     ].sort());
     for (const id of [EVOLUTION_TURN_COVERAGE_PROFILE_ID, EVOLUTION_TURN_GROUPING_PROFILE_ID,
-      EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID]) {
+      EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID, EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID, EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID]) {
       expect(ids.has(id)).toBe(false);
       expect(() => evolutionReaderContract(id)).toThrow("reader profile");
       expect(supportsEvolutionProfileWindow(id)).toBe(false);

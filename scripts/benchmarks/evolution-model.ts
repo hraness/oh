@@ -31,11 +31,12 @@ export const EVOLUTION_TURN_GROUPING_PROFILE_ID = "gpt5-mini-turn-grouping-v1-ex
 export const EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID = "gpt5-mini-turn-coverage-high-v1-extractor";
 export const EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID = "gpt5-mini-turn-grouping-high-v1-extractor";
 export const EVOLUTION_SESSION_DIGEST_PROFILE_ID = "gpt5-mini-session-digest-v1-extractor";
+export const EVOLUTION_SESSION_NOTES_PROFILE_ID = "gpt5-mini-session-notes-v1-extractor";
 export type EvolutionExtractorProfileId = "gpt5-mini-low-extractor-v1" | "gpt5-mini-structured-extractor-v2"
   | typeof EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID | typeof EVOLUTION_EVENT_INVENTORY_V3_EXTRACTOR_PROFILE_ID
   | typeof EVOLUTION_TURN_COVERAGE_PROFILE_ID | typeof EVOLUTION_TURN_GROUPING_PROFILE_ID
   | typeof EVOLUTION_TURN_COVERAGE_HIGH_PROFILE_ID | typeof EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID
-  | typeof EVOLUTION_SESSION_DIGEST_PROFILE_ID;
+  | typeof EVOLUTION_SESSION_DIGEST_PROFILE_ID | typeof EVOLUTION_SESSION_NOTES_PROFILE_ID;
 export type EvolutionAnswerAuditProfileId = typeof EVOLUTION_ANSWER_AUDIT_PROFILE_ID;
 export const EVOLUTION_BEAM_JUDGE_PROFILE_IDS = ["gpt4o-beam-event-extraction-v1", "gpt4o-beam-event-equivalence-v1", "gpt4o-beam-nugget-v1"] as const;
 export type EvolutionBeamJudgeProfileId = typeof EVOLUTION_BEAM_JUDGE_PROFILE_IDS[number];
@@ -189,8 +190,10 @@ const EXTRACTOR_PROFILES: Readonly<Record<EvolutionExtractorProfileId, Evolution
     maxOutputTokens: 8_192, timeoutMs: 600_000, settings: { reasoning: { effort: "high" } }, responseFormat: OH_TURN_COVERAGE_RESPONSE_FORMAT_V1 },
   [EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_TURN_GROUPING_HIGH_PROFILE_ID,
     maxOutputTokens: 8_192, timeoutMs: 600_000, settings: { reasoning: { effort: "high" } }, responseFormat: OH_TURN_GROUPING_RESPONSE_FORMAT_V1 },
-  [EVOLUTION_SESSION_DIGEST_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_SESSION_DIGEST_PROFILE_ID,
+  [EVOLUTION_SESSION_DIGEST_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_SESSION_DIGEST_PROFILE_ID, EVOLUTION_SESSION_NOTES_PROFILE_ID,
     maxOutputTokens: 8_192, timeoutMs: 600_000, settings: { reasoning: { effort: "low" } }, responseFormat: OH_SESSION_DIGEST_RESPONSE_FORMAT_V1 },
+  [EVOLUTION_SESSION_NOTES_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_SESSION_NOTES_PROFILE_ID,
+    maxOutputTokens: 4_096, timeoutMs: 600_000, settings: { reasoning: { effort: "low" } } },
 });
 /** The audit lane has one fixed instruction and input grammar; it is not a general answer-reader profile. */
 const ANSWER_AUDIT_PROFILES: Readonly<Record<EvolutionAnswerAuditProfileId, EvolutionModelProfile>> = frozen({
