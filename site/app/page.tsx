@@ -16,7 +16,7 @@ import { websiteJsonLd } from "@hraness/web-discovery";
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 
 import publishedRelease from "../published-release.json";
-import { MemoryBenchmarkSummary, longMemEvalHeading } from "./benchmark-comparison";
+import { MemoryBenchmarkComparison, longMemEvalHeading } from "./benchmark-comparison";
 import { ohSearchSite } from "./blog/articles";
 import { homeDescription } from "./metadata-copy";
 import { CodeBlock, Terminal, Transcript } from "./code-block";
@@ -61,6 +61,39 @@ Depends on: assertion:endpoint-12-weeks, edition:trial-report-v1
 
 $ oh verify
 ✓ Store checked: 5 records and 5 changes replay to the same state (generation 5).`;
+
+const researchObjects = [
+  {
+    label: "Question",
+    kind: "inquiry",
+    summary: "Save what you are trying to find out, along with the investigation that follows.",
+  },
+  {
+    label: "Source",
+    kind: "entity",
+    summary: "Identify the paper, dataset, person, or system you are researching, even if its title or URL changes.",
+  },
+  {
+    label: "Capture",
+    kind: "edition",
+    summary: "Record the edition or extract you read, separate from the source as it looks today.",
+  },
+  {
+    label: "Claim",
+    kind: "statement",
+    summary: "Write down the claim itself, and keep who accepts it and the evidence for it in separate records.",
+  },
+  {
+    label: "Citation",
+    kind: "evidence",
+    summary: "Point to a passage, table, or observation, and record how it bears on a stance toward a claim, such as support or contradiction.",
+  },
+  {
+    label: "Artifact",
+    kind: "view",
+    summary: "Build a brief or answer that keeps links to the records it draws on.",
+  },
+] as const;
 
 const trust = [
   {
@@ -176,6 +209,7 @@ export default function Home() {
             eyebrow={eyebrow}
             frame={(
               <MarketingProofFrame
+                className="oh-proof"
                 title="Save and read a citation"
                 caption="An example review of a fictional trial report. The citation keeps the table and records it depends on; verification checks the saved history."
               >
@@ -195,6 +229,14 @@ export default function Home() {
             label="How it works"
             summary="Save questions, sources, claims, and citations as separate linked records. Your agent can revise a claim while keeping the source it read and the history of how it got there."
           >
+            <dl className="oh-rows">
+              {researchObjects.map((object) => (
+                <div key={object.kind}>
+                  <dt>{object.label} <code>{object.kind}</code></dt>
+                  <dd>{object.summary}</dd>
+                </div>
+              ))}
+            </dl>
             <p>Each write joins a history you can replay. Keyword search finds saved records without a model; your application can add semantic search when it needs to find related ideas.</p>
             <p className="record-link"><a href="/spec#ontology">Explore the record types and format</a></p>
           </MarketingSection>
@@ -269,9 +311,9 @@ oh get evidence:table-2 \\
             id="benchmarks"
             label="Benchmarks"
             layout="split"
-            summary="Measured on all 500 questions on September 26, 2026. The same answering model and judge were used for both search methods."
+            summary="In each comparison, one model answers the same questions from each system’s memory, and every answer is scored the same way. Each result links to its protocol, costs, and limits."
           >
-            <MemoryBenchmarkSummary />
+            <MemoryBenchmarkComparison />
           </MarketingSection>
 
           <MarketingSection

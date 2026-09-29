@@ -32,6 +32,28 @@ describe("evidence-led product narrative", () => {
     expect(page).toContain('"@type": "FAQPage"');
   });
 
+  test("keeps the homepage and README on the same research object model", async () => {
+    const [page, readme] = await Promise.all([
+      read("site/app/page.tsx"),
+      read("README.md"),
+    ]);
+    const objectModel = [
+      ["Question", "inquiry"],
+      ["Source", "entity"],
+      ["Capture", "edition"],
+      ["Claim", "statement"],
+      ["Citation", "evidence"],
+      ["Artifact", "view"],
+    ] as const;
+
+    for (const [label, kind] of objectModel) {
+      expect(page).toContain(`label: "${label}"`);
+      expect(page).toContain(`kind: "${kind}"`);
+      expect(readme).toContain(`| ${label} | \`${kind}\``);
+    }
+    expect(readme).toContain("An attributable `assertion`");
+    expect(readme).toContain("https://oh.computer/#trace");
+  });
 
   test("ships an exact schema-valid citation record as the inspectable trace", async () => {
     const source = JSON.parse(await read("site/public/examples/evidence-table-2.json")) as unknown;

@@ -149,16 +149,18 @@ async function inspectKeyboard(page, origin) {
     assert.equal(await link.evaluate((element) => document.activeElement === element), true, "Evidence link tab order");
     // Native focus scroll inherits the page's smooth-scroll behavior. Wait for
     // it to settle before testing geometry; do not programmatically reposition.
+    // A wrapped link scrolling in from under the sticky header clears one line
+    // at a time, so wait on the same rectangle the record below measures: the
+    // first line inside the viewport must be the one nothing covers.
     await page.waitForFunction(() => {
       const element = document.activeElement;
       if (!element?.closest("#benchmarks")) return false;
       const range = document.createRange();
       range.selectNodeContents(element);
-      return [...range.getClientRects()].some((r) => {
-        if (!r.width || !r.height || r.top < 0 || r.bottom > innerHeight) return false;
-        const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-        return !!top && (top === element || element.contains(top));
-      });
+      const r = [...range.getClientRects()].find((rect) => rect.width && rect.height && rect.top >= 0 && rect.bottom <= innerHeight);
+      if (!r) return false;
+      const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return !!top && (top === element || element.contains(top));
     }, undefined, { timeout: 3000 });
     const record = await link.evaluate((element) => {
       const rect = element.getBoundingClientRect();
