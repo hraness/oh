@@ -4,7 +4,7 @@ import { ANSWER_INSTRUCTION, answerMessages, type Message } from "./model";
 
 export const EVOLUTION_READER_CONTRACT_IDS = ["legacy-v1", "explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1",
   "calibrated-composition-v1", "timeline-composition-v1", "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1", "task-complete-v1", "task-complete-v2", "task-complete-v3", "task-complete-v4",
-  "task-complete-v5", "task-complete-v6", "task-complete-v7", "task-complete-v8"] as const;
+  "task-complete-v5", "task-complete-v6", "task-complete-v7", "task-complete-v8", "task-complete-v9"] as const;
 export type EvolutionReaderContractId = typeof EVOLUTION_READER_CONTRACT_IDS[number];
 /** Contracts that answer a question over a memory field. evidence-selection-v1 is the two-stage lane's stage-one selection
  * contract: it shares the profile catalog so its requests carry a closed profile identity, but it is never an answer reader. */
@@ -95,6 +95,19 @@ export const TASK_COMPLETE_INSTRUCTION_V8 = (() => {
     + "Only when statements cannot both have been true, such as the user saying they never did something and also describing doing it, and their dates or an explicit correction do not resolve them, "
     + "say in the first sentence that the memory contains contradictory information, give each alternative, and ask the user which one is correct.");
 })();
+const TASK_COMPLETE_V8_CONFLICT = "Only when statements cannot both have been true, such as the user saying they never did something and also describing doing it, and their dates or an explicit correction do not resolve them, "
+  + "say in the first sentence that the memory contains contradictory information, give each alternative, and ask the user which one is correct.";
+/** v8 with the never-versus-did conflict kept out of the update rule: a statement that the user never did, had or used something
+ * and a statement that they did is a contradiction whatever their dates, and the reply restates each claim to the user in its
+ * own plain sentence before asking which is correct. Every other v8 sentence is unchanged. */
+export const TASK_COMPLETE_INSTRUCTION_V9 = (() => {
+  if (TASK_COMPLETE_INSTRUCTION_V8.split(TASK_COMPLETE_V8_CONFLICT).length !== 2) throw new TypeError("Evolution reader contract: task-complete-v8 instruction changed.");
+  return TASK_COMPLETE_INSTRUCTION_V8.replace(TASK_COMPLETE_V8_CONFLICT,
+    "When the memory has both a statement that the user never did, had or used something and a statement that they did, had or used it, treat them as a contradiction, not an update, whatever their dates, "
+    + "and do not choose one because it is later. Reply by saying in the first sentence that there is contradictory information, then restate each claim as its own plain sentence addressed to the user, "
+    + "in the form \"You said you have never ...\" and \"You also said you ...\", and end by asking which statement is correct. "
+    + "Give the same reply for other statements that cannot both have been true when no explicit correction resolves them.");
+})();
 const OLD_ABSTENTION = "If the evidence does not support an answer, reply exactly None.";
 const EXPLICIT_ABSTENTION = "If the evidence does not support an answer, state that the supplied conversation does not contain enough information to answer the question. Do not use an ambiguous bare placeholder.";
 const COMPOSITION = "Before answering, identify the distinct relevant events and facts across the supplied memory. "
@@ -134,6 +147,7 @@ function instruction(id: EvolutionReaderContractId): string {
   if (id === "task-complete-v6") return TASK_COMPLETE_INSTRUCTION_V6;
   if (id === "task-complete-v7") return TASK_COMPLETE_INSTRUCTION_V7;
   if (id === "task-complete-v8") return TASK_COMPLETE_INSTRUCTION_V8;
+  if (id === "task-complete-v9") return TASK_COMPLETE_INSTRUCTION_V9;
   if (id === "evidence-selection-v1") return EVIDENCE_SELECTION_INSTRUCTION;
   if (id === "calibration-only-v1" || id === "selected-answer-v1") {
     if (ANSWER_INSTRUCTION.split(OLD_ABSTENTION).length !== 2) throw new TypeError("Evolution reader contract: legacy abstention instruction changed.");
@@ -172,6 +186,7 @@ export const EVOLUTION_READER_CONTRACTS = Object.freeze({
   "task-complete-v6": contract("task-complete-v6"),
   "task-complete-v7": contract("task-complete-v7"),
   "task-complete-v8": contract("task-complete-v8"),
+  "task-complete-v9": contract("task-complete-v9"),
 });
 export function parseEvolutionReaderContractId(value: unknown): EvolutionReaderContractId {
   if (typeof value !== "string" || !Object.hasOwn(EVOLUTION_READER_CONTRACTS, value)) throw new TypeError("Evolution reader contract: unknown contract.");
