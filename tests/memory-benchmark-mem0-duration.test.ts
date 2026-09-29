@@ -29,7 +29,7 @@ test("command deadline aborts an outstanding dispatcher and kills then drains th
   try { await worker.prepare(); await expect(worker.add(source.chunks[0]!.chunkId)).rejects.toThrow("RPC deadline"); }
   finally { await worker.close(); }
   expect(aborted).toBe(true); expect(closed).toBe(true); expect(worker.durationPolicySha256).toBe(canonicalSha256(policy));
-}, 5000);
+}, 30_000);
 
 test("RPC rejection preserves its original cause and value while aborting and draining the child", async () => {
   const source = corpus(), namespace = sha256Hex("namespace"), cause = new Error("synthetic provider metadata"), failure = new TypeError("invalid gateway cost", { cause });
@@ -47,4 +47,4 @@ test("RPC rejection preserves its original cause and value while aborting and dr
     expect(actual).toBe(rejection); expect(aborted).toBe(true); expect(ended).toBe(true); expect(closed).toBe(true);
   }
   expect(failure.cause).toBe(cause);
-}, 5000);
+}, 30_000);

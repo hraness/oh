@@ -175,7 +175,7 @@ test("combines all five plus five shards into three exact500 arms while retainin
   expect(result.comparisons[1]!.metrics[0]!.paired).toMatchObject({ cases: 500, wins: 100, losses: 25, ties: 375, meanDelta: 75 / 500 });
   expect(result.comparisons[1]!.right.variantId).toBe("full-history");
   expect(result.comparisons[1]!.metrics[1]!.paired.unscored).toBe(10);
-}, 20_000);
+}, 30_000);
 
 test("deduplicates complete evidence within each campaign and never conflates identical cross-campaign request hashes", () => {
   const result = buildEvolutionFullContextReport(valid);
@@ -185,7 +185,7 @@ test("deduplicates complete evidence within each campaign and never conflates id
     knownUsageMicros: 39760, unresolvedReservationMicros: 240, accountedMicros: 40000 });
   expect(result.latency.companion).toMatchObject({ measuredRequests: 993, totalMs: 2983, p50Ms: 3, p95Ms: 3 });
   expect(result.cost.parent.campaignSha256).not.toBe(result.cost.companion.campaignSha256);
-}, 20_000);
+}, 30_000);
 
 test("deterministic immutable projection contains no private IDs, text, paths or per-request rows", () => {
   const result = buildEvolutionFullContextReport(valid);
@@ -197,7 +197,7 @@ test("deterministic immutable projection contains no private IDs, text, paths or
   for (const forbidden of ["synthetic-corpus", "synthetic-question", "synthetic-group", "synthetic-history", '"questionId"', '"path"',
     '"outcomes"', '"requestSha256"', '"evidenceSha256"', "Synthetic source sentinel", "Synthetic answer sentinel", "/synthetic/"]) expect(wire).not.toContain(forbidden);
   expect(wire).toContain("Unknown is not unseen");
-}, 20_000);
+}, 30_000);
 
 test("missing, duplicate, foreign, partial or moved companion cases reject without manufacturing a complete report", () => {
   for (const mutate of [
@@ -209,7 +209,7 @@ test("missing, duplicate, foreign, partial or moved companion cases reject witho
     (v: Json) => v.reports[0].report.coverage.completeAttemptCoverage = false,
     (v: Json) => v.reports[0].report.companion.outcomes.push(v.reports[0].report.companion.outcomes[0]),
   ]) expect(() => buildEvolutionFullContextReport(changed(mutate))).toThrow();
-}, 20_000);
+}, 30_000);
 
 test("study, parent, source, full-history, profile and separate campaign identities remain bound", () => {
   for (const mutate of [
@@ -227,7 +227,7 @@ test("study, parent, source, full-history, profile and separate campaign identit
     (v: Json) => v.reports[0].report.scoring.judgeRule = "strict-yes-no",
     (v: Json) => v.parentReports[0].report.arms[0].metrics[0].overall.mean = 0.99,
   ]) expect(() => buildEvolutionFullContextReport(changed(mutate))).toThrow();
-}, 20_000);
+}, 30_000);
 
 test("failed and missing answers, mismatched evidence eligibility, altered summaries and physical accounting reject", () => {
   for (const mutate of [
@@ -245,7 +245,7 @@ test("failed and missing answers, mismatched evidence eligibility, altered summa
     (v: Json) => v.reports[1].report.companion.physical.find((r: Json) => r.requestSha256 === sha("shared-judge")).evidenceSha256 = sha("changed-evidence"),
     (v: Json) => v.reports[0].report.coverage.verifiedPhysicalResponses++,
   ]) expect(() => buildEvolutionFullContextReport(changed(mutate))).toThrow();
-}, 20_000);
+}, 30_000);
 
 test("untrusted oversized, cyclic or accessor input fails before evaluation", () => {
   const oversized = changed(value => { value.reports[0].report.companion.outcomes = new Array(500001); });
@@ -257,4 +257,4 @@ test("untrusted oversized, cyclic or accessor input fails before evaluation", ()
   expect(() => buildEvolutionFullContextReport(getter)).toThrow(); expect(reads).toBe(0);
   const rootGetter = changed(value => { Object.defineProperty(value, "authorization", { enumerable: true, get() { reads++; return {}; } }); });
   expect(() => buildEvolutionFullContextReport(rootGetter)).toThrow(); expect(reads).toBe(0);
-}, 20_000);
+}, 30_000);

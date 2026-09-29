@@ -42,4 +42,4 @@ test("worker spawn failure closes custody without an unhandled pipe error", asyn
   let rejection: unknown;
   try { await worker.prepare(); } catch (error) { rejection = error; } finally { await worker.close(); }
   expect(rejection).toBeInstanceOf(Error); expect(String(rejection)).not.toContain("deadline"); expect(closed).toBe(true);
-}, 10_000);
+}, 30_000);

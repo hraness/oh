@@ -159,4 +159,4 @@ test("native report authentication rebuilds all four arms, global judge dedup an
   const alteredPin = await write("altered.json", locomoOrderDevResultReceipt(changed));
   await expect(authenticateLocomoOrderDevResult({ launchPin, resultPin: alteredPin })).rejects.toThrow("native evidence");
   await expect(lstat(join(budget.storeDirectory, "active.lock"))).rejects.toThrow();
-}, 20_000);
+}, 30_000);

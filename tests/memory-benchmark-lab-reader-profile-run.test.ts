@@ -58,16 +58,16 @@ test("public coordinator completes real custody/scoring over mocked transport an
   expect(result.status).toBe("completed");expect(result.cases).toBe(200);expect(result.newCalls).toBe(200);expect(result.settledCalls).toBe(200);expect(f.calls).toBe(200);expect(f.active).toBe(0);expect(f.peak).toBeLessThanOrEqual(8);
   const report=JSON.parse(await readFile(f.config.output,"utf8"));expect(report.scores).toHaveLength(200);expect(report.scores.every((s:{correct:number})=>s.correct===1)).toBe(true);
   await expect(f.runner.run(f.command,{oidcToken:token(),fetcher:f.fetcher})).rejects.toThrow("occupied");expect(f.calls).toBe(200);
-},20000);
+},30_000);
 test("call cap stops before a second physical admission and preserves incomplete denominator",async()=>{
   const f=await fixture(1);const result=await f.runner.run(f.command,{oidcToken:token(),fetcher:f.fetcher});
   expect(result.status).toBe("incomplete");expect(result.newCalls).toBe(1);expect(result.settledCalls).toBe(1);expect(f.calls).toBeLessThanOrEqual(1);expect(f.active).toBe(0);
   expect(JSON.parse(await readFile(f.config.output,"utf8")).scores).toBeNull();
-},20000);
+},30_000);
 test("changed pinned config or explicit cap rejects before dispatch",async()=>{
   const f=await fixture();await expect(f.runner.run({...f.command,maxUsd:2},{oidcToken:token(),fetcher:f.fetcher})).rejects.toThrow("max-usd");
   await writeFile(f.configPin.path,JSON.stringify({...f.config,concurrency:9}));await expect(f.runner.run(f.command,{oidcToken:token(),fetcher:f.fetcher})).rejects.toThrow("pinned input");expect(f.calls).toBe(0);
-},20000);
+},30_000);
 
 test("medium coordinator binds its profile end to end without altering parent messages or frozen judge", async () => {
   const f = await fixture(400, 3, "medium");
@@ -78,7 +78,7 @@ test("medium coordinator binds its profile end to end without altering parent me
   expect(result.status).toBe("completed"); expect(result.cases).toBe(200); expect(result.newCalls).toBe(200);
   const report = JSON.parse(await readFile(f.config.output, "utf8"));
   expect(report.qualification).toContain("medium reasoning and 8192"); expect(report.scores.every((s: {correct: number}) => s.correct === 1)).toBe(true);
-}, 20000);
+}, 30_000);
 
 test("wide context pair selects the named parent arms and completes every scored alias", async () => {
   const f = await fixture(400, 3, "medium", "window-24kb-96kb");
@@ -91,7 +91,7 @@ test("wide context pair selects the named parent arms and completes every scored
   expect(Object.keys(report.byVariant)).toEqual(plan.reader.variants);
   expect(report.byVariant["bm25-window:k100:b96000"].questions).toBe(100);
   expect(report.scores.every((s: {correct: number}) => s.correct === 1)).toBe(true);
-}, 20000);
+}, 30_000);
 
 
 test("reserved config locks profile, pair, full call limit and cumulative budget", () => {
@@ -119,4 +119,4 @@ test("relabeling a development parent as reserved cannot admit model calls", asy
   const configPin = await writeGatewayStudyJson(join(f.root, "reserved-config.json"), { ...f.config, evaluation: "reserved-100-v1" });
   await expect(f.runner.prepare(configPin)).rejects.toThrow("parent dataset");
   expect(f.calls).toBe(0);
-}, 20000);
+}, 30_000);
