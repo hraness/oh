@@ -36,6 +36,17 @@ function pilotArm(arm: string) {
   return row.conservativeSuccessRate.value * 100;
 }
 
+export function MemoryBenchmarkSummary() {
+  const margin = longMemEvalFrozenMargin("oh-semantic-96k", "bm25-96k");
+  return (
+    <>
+      <p>Oh semantic retrieval scored {percent(longMemEvalSystem("oh-semantic-96k"))}, compared with {percent(longMemEvalSystem("bm25-96k"))} for BM25 keyword search. GPT-5 mini answered each question three times from at most 96,000 bytes of retrieved conversation, and GPT-4o graded the answers.</p>
+      <p>On the measure chosen before the run, Oh’s lead was {margin.difference} points, with a 95% interval from {margin.lower} to {margin.upper}. That interval does not rule out a tie. The project had studied these questions before; AI agents ran the study, with no independent audit.</p>
+      <p><a href="/benchmarks">Read the results, setup, and limits</a></p>
+    </>
+  );
+}
+
 export function MemoryBenchmarkComparison() {
   const pipeline = longMemEvalSystem("oh-reading-pipeline");
   const semantic = longMemEvalSystem("oh-semantic-96k");

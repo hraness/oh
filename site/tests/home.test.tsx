@@ -17,73 +17,24 @@ import memEvalResult from "../../benchmarks/results/memory-evolution-memeval-102
 import releaseMini from "../../benchmarks/results/memory-evolution-full-release-500-mini-v1.json";
 import releaseNano from "../../benchmarks/results/memory-evolution-full-release-500-v1.json";
 import releaseFullContext from "../../benchmarks/results/memory-evolution-full-context-500-v1.json";
-import { indexableArticles } from "../app/blog/articles";
 
-test("leads the benchmarks with the LongMemEval-S result and ties every figure to its result file", () => {
+test("the homepage summarizes the recorded search result with its main limit and full evidence link", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
-  const values: string[] = [];
   let copy = "";
-  new HTMLRewriter()
-    .on("#benchmarks .hraness-design-chart-row__value", { text(chunk) { if (chunk.text) values.push(chunk.text); } })
-    .on("#benchmarks", { text(chunk) { copy += chunk.text; } })
-    .transform(html);
+  new HTMLRewriter().on("#benchmarks", { text(chunk) { copy += chunk.text; } }).transform(html);
   const text = copy.replace(/\s+/gu, " ");
-  const fixed = (value: number) => value.toFixed(2);
-  const system = (id: string) => `${fixed(longMemEval.systems.find((entry) => entry.id === id)?.percent ?? Number.NaN)}%`;
-  const pilotRate = (arm: string) => `${fixed((pilotResult.quality.arms.find((row) => row.arm === arm)?.conservativeSuccessRate.value ?? Number.NaN) * 100)}%`;
-  const share = (value: number) => `${fixed(value * 100)}%`;
-  const signed = (value: number) => `${value < 0 ? "\u2212" : "+"}${fixed(Math.abs(value))}`;
-  expect(values).toEqual([
-    system("oh-reading-pipeline"), system("oh-semantic-96k"), system("bm25-96k"),
-    pilotRate("supermemory"), pilotRate("oh"), pilotRate("bm25"),
-  ]);
-
-  let heading = "";
-  new HTMLRewriter().on("#benchmarks-title", { text(chunk) { heading += chunk.text; } }).transform(html);
-  expect(heading).toContain(system("oh-semantic-96k"));
-  const frozen = longMemEval.comparisons.find((entry) => entry.left === "oh-semantic-96k" && entry.right === "bm25-96k")?.correctInTwoOrThreeRuns;
-  const tenth = (value: number | undefined) => (value ?? Number.NaN).toFixed(1);
-
-  const pilot = pilotResult.quality.comparisons.primary;
-  const sdk = sdkResult.primary.reader.pairedQuestions;
-  const locomo = locomoAnswers.scores.reader.comparison;
-  for (const fact of [
-    `Oh semantic retrieval scored ${system("oh-semantic-96k")}`,
-    `BM25 ${system("bm25-96k")}`,
-    `scored ${system("oh-reading-pipeline")}`,
-    "GPT-5 mini answered every question three times",
-    `lead over BM25 is ${tenth(frozen?.differencePoints)} points with a 95% interval from ${tenth(frozen?.interval95[0])} to ${tenth(frozen?.interval95[1])}`,
-    "in-sample",
-    "not part of the Oh package",
-    "up to 97%",
-    `${signed(pilot.estimate)} points, with a 95% interval from ${signed(pilot.interval95.lower)} to ${signed(pilot.interval95.upper)}`,
-    `${share(sdk.candidate)} correctly against ${share(sdk.baseline)}`,
-    `${(sdkResult.primary.native.warmRerankerMs.p50 / 1000).toFixed(1)} seconds of reranking per search`,
-    `${share(rerankResult.pooledReader.candidate)} correctly against ${share(rerankResult.pooledReader.baseline)}`,
-    `from ${fixed(rerankResult.bootstrap.lowerBound95 * 100)} to ${fixed(rerankResult.bootstrap.upperBound95 * 100)}`,
-    `${share(locomoRecall.summaries["anchors-query-4"].turnRecall)} of the marked evidence against ${share(locomoRecall.summaries["vector-window"].turnRecall)}`,
-    `answers scored ${share(locomo.candidate)} against ${share(locomo.baseline)}`,
-    `${signed(locomo.paired.delta * 100)} points with a 95% interval from ${signed(locomo.paired.lower * 100)} to ${signed(locomo.paired.upper * 100)}`,
-    "AI agents ran these studies",
-  ]) expect(text).toContain(fact);
-
-  for (const file of [
-    "LONGMEMEVAL_S_500_RESULT_V1.md", "results/memory-longmemeval-s-500-v1.json",
-    "FRAMEWORK_PILOT_RESULT_V1.md", "results/memory-framework-pilot-v1.json",
-    "SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md", "CLONEMEM_RERANK_CONFIRM_RESULT_V1.md", "LOCOMO_WINDOW_QA_V1.md",
-  ]) expect(html).toContain(`href="https://github.com/hraness/oh/blob/main/benchmarks/${file}"`);
-  const postIndexable = indexableArticles.some((article) => article.slug === "longmemeval-s-user-log");
-  expect(html.includes('href="/blog/longmemeval-s-user-log"')).toBe(postIndexable);
-
+  const system = (id: string) => `${(longMemEval.systems.find((entry) => entry.id === id)?.percent ?? Number.NaN).toFixed(2)}%`;
+  expect(text).toContain(system("oh-semantic-96k"));
+  expect(text).toContain(system("bm25-96k"));
+  const comparison = longMemEval.comparisons.find((entry) => entry.left === "oh-semantic-96k" && entry.right === "bm25-96k")?.correctInTwoOrThreeRuns;
+  expect(comparison).toBeDefined();
+  expect(text).toContain(`${comparison!.differencePoints.toFixed(1)} points`);
+  expect(text).toContain(`from ${comparison!.interval95[0].toFixed(1)} to ${comparison!.interval95[1].toFixed(1)}`);
+  expect(text).toContain("does not rule out a tie");
+  expect(html).toContain('href="/benchmarks"');
   expect(html.indexOf('id="benchmarks"')).toBeGreaterThan(html.indexOf('id="interfaces"'));
   expect(html.indexOf('id="benchmarks"')).toBeLessThan(html.indexOf('id="kernel"'));
-  expect(html).toContain("Markdown files stay authoritative");
-  expect(html).toContain(
-    '<a href="https://wordcell.io">Wordcell</a> is a Markdown knowledge base that gives agents the decisions behind code.',
-  );
-  expect(html).toContain("do not carry over");
 });
-
 
 test("the benchmarks index ties every headline figure to its checked record", () => {
   const html = renderToStaticMarkup(<RootLayout><Benchmarks /></RootLayout>);
@@ -228,10 +179,14 @@ test("renders the current CLI citation proof and its exact inspectable record", 
   for (const key of citationRecord.dependencies) expect(hero).toContain(key);
   expect(hero).toContain("5 records and 5 changes replay to the same state");
   expect(hero).toContain("fictional trial report");
-  expect(hero).toContain("--json");
   expect(html).toContain('href="/examples/evidence-table-2.json"');
-  expect(html).toContain(citationRecord.recordSha256);
   expect(html).not.toContain("historical capture");
+  let commands = "";
+  new HTMLRewriter().on('.oh-terminal code[data-language="shell"]', { text(chunk) { commands += chunk.text; } }).transform(html);
+  expect(commands).toContain("oh put");
+  expect(commands).toContain("oh get evidence:table-2");
+  expect(commands).not.toContain("Saved evidence");
+  expect(commands).not.toContain("Store checked");
 });
 
 test("keeps the homepage proof flat and the specification outside its preset", () => {

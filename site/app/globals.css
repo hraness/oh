@@ -822,11 +822,8 @@ body > :not(.network-footer) { min-inline-size: 0; }
 .oh-hero { grid-template-columns: minmax(0, 1fr); }
 .oh-hero .hraness-marketing-hero__heading { max-inline-size: 22ch; }
 .oh-hero .hraness-marketing-hero__frame { inline-size: 100%; max-inline-size: 54rem; }
-.oh-proof { margin: 0; }
-.oh-proof figcaption { margin-block-start: 1rem; max-inline-size: 60ch; color: var(--muted); font-size: .875rem; }
-.oh-terminal { margin: 0; padding: clamp(1rem, 3vw, 1.75rem); background: var(--surface); color: var(--foreground); border: 1px solid var(--line); border-radius: .375rem; overflow-x: auto; font-size: .8125rem; line-height: 1.7; white-space: pre; }
+.oh-terminal { margin: 0; padding: clamp(1rem, 3vw, 1.75rem); background: transparent; color: var(--foreground); border: 0; border-radius: 0; overflow-x: auto; font-size: .8125rem; line-height: 1.7; white-space: pre; }
 .oh-terminal code { font: inherit; }
-.oh-terminal__command { color: var(--primary); }
 .oh-rows { margin: 0; }
 .oh-rows > div { display: grid; grid-template-columns: minmax(8rem, .5fr) minmax(0, 1fr); gap: 1rem 2rem; padding-block: 1.25rem; border-block-start: 1px solid var(--line); }
 .oh-rows dt { font-weight: 550; }
