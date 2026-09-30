@@ -6,6 +6,9 @@ pull request that bumps the version.
 
 ## Unreleased
 
+- Make the temporary signing certificate chain discoverable and pass literal
+  code requirements to macOS when signing and verifying native helpers.
+
 - Sign and notarize both Mac SQLite helpers with a stable Apple Developer ID.
   Verify their identity before execution and publish the same signed bytes
   through the existing exact-package release checks.

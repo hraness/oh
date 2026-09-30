@@ -35,6 +35,8 @@ class SigningTests(unittest.TestCase):
         self.x64_binary = struct.pack("<IIIIIIII", 0xFEEDFACF, 0x01000007, 0, 2, 0, 0, 0, 0) + b"not executable x64"
         self.native_archive()
         self.calls = []
+        self.original_search_list = [str(self.root / "Existing Login.keychain-db"), "/Library/Keychains/System.keychain"]
+        self.search_list = self.original_search_list.copy()
         self.status = "Accepted"
         self.wait_id = UUID
         self.metadata = ("Identifier=dev.hraness.oh.sqlite-cli\nTeamIdentifier=" + TEAM + "\n"
@@ -79,7 +81,19 @@ class SigningTests(unittest.TestCase):
             Path(args[-1]).touch(mode=0o600)
             for path in (self.work / "credentials").iterdir():
                 self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        if "list-keychains" in args:
+            if "-s" in args:
+                self.search_list = args[args.index("-s") + 1:]
+                return ""
+            return "\n".join(json.dumps(path) for path in self.search_list)
+        if "delete-keychain" in args:
+            self.search_list = [path for path in self.search_list if path != args[-1]]
+        if "--requirements" in args:
+            self.assertTrue(args[args.index("--requirements") + 1].startswith("=designated => "))
+        if "--test-requirement" in args:
+            self.assertTrue(args[args.index("--test-requirement") + 1].startswith("="))
         if "find-identity" in args:
+            self.assertIn(str(self.work / "credentials" / "signing.keychain-db"), self.search_list)
             return f'  1) {"A" * 40} "Developer ID Application: Example ({self.identity_team})"\n'
         if "--display" in args:
             return self.metadata
@@ -136,12 +150,35 @@ class SigningTests(unittest.TestCase):
         removed = next(i for i, args in enumerate(self.calls) if "delete-keychain" in args)
         self.assertLess(notarized, removed)
         self.assertFalse(self.work.exists())
+        self.assertEqual(self.search_list, self.original_search_list)
         self.assertTrue(all(args[0] in ("/usr/bin/security", "/usr/bin/codesign", "/usr/bin/xcrun") for args in self.calls))
         receipt = json.loads((self.root / "oh-sqlite-cli-apple-notarization.json").read_text())
         self.assertEqual(receipt["submissionId"], UUID)
         self.assertEqual(receipt["status"], "Accepted")
         self.assertEqual(receipt["state"], "verified")
         self.assertEqual(receipt["signedBinarySha256"], {"arm64": signing.digest(self.binary), "x64": signing.digest(self.x64_binary)})
+
+    def test_search_list_is_appended_before_identity_lookup_and_cleanup_preserves_other_entries(self):
+        def with_concurrent_entry(args, timeout=60):
+            if "delete-keychain" in args:
+                self.search_list.append("/Library/Keychains/Concurrent.keychain")
+            return self.tool(args, timeout)
+        with patch.object(signing, "run", with_concurrent_entry):
+            self.sign()
+        added = next(i for i, args in enumerate(self.calls) if "list-keychains" in args and "-s" in args)
+        found = next(i for i, args in enumerate(self.calls) if "find-identity" in args)
+        self.assertLess(added, found)
+        self.assertEqual(self.calls[added][5:-1], self.original_search_list)
+        self.assertEqual(self.search_list, self.original_search_list + ["/Library/Keychains/Concurrent.keychain"])
+
+    def test_search_list_failure_cleans_credentials_without_signing(self):
+        self.tool_failure = "list-keychains"
+        with self.assertRaises(signing.SigningError):
+            self.sign()
+        self.assertFalse(self.work.exists())
+        self.assertFalse(self.output.exists())
+        self.assertFalse(any("--sign" in args for args in self.calls))
+        self.assertEqual(self.search_list, self.original_search_list)
 
     def test_notary_rejection_removes_credentials_and_never_creates_release(self):
         self.status = "Invalid"

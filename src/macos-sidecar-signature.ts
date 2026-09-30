@@ -46,7 +46,7 @@ export function assertVerifiedMacSidecar(path: string, expected: VerifiedMacSide
 }
 
 function argumentsFor(path: string): string[] {
-  return ["--verify", "--strict", "--all-architectures", "--test-requirement", REQUIREMENT, path];
+  return ["--verify", "--strict", "--all-architectures", "--test-requirement", `=${REQUIREMENT}`, path];
 }
 
 // No verifier path or identity comes from the environment. No verifier output
