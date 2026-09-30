@@ -1,4 +1,6 @@
+import { ohDefaultAppearance } from "../appearance";
 import { marketing } from "../portfolio-copy";
+import { ohHeaderMark } from "./header-mark";
 // The one declaration every Oh share image is rendered from. Routes pass page
 // copy only; the shared @hraness/web-discovery template draws the card.
 import { defineSocialImageSite, socialImageAlt, type SocialImagePage } from "@hraness/web-discovery/social-image";
@@ -11,18 +13,25 @@ import {
   specificationCardDescription,
 } from "./metadata-copy";
 
-// public/favicon.svg, the Oh app icon, embedded so the card never fetches it.
-const ohAppIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9IiNiNDNhMWQiLz4KICA8Y2lyY2xlIGN4PSI3LjciIGN5PSIxMy4yIiByPSIzIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMi4xIi8+CiAgPHBhdGggZD0iTTEyLjggNi43djkuNW0wLTMuMmMuMS0yLjIgMS4zLTMuNSAzLTMuNSAxLjggMCAyLjggMS4yIDIuOCAzLjN2My40IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyLjEiLz4KPC9zdmc+Cg==";
-
 export const ohSocialSite = defineSocialImageSite({
+  // The header shows the product name beside this foil mark on a Gruvbox page.
+  brand: marketing.names.name,
+  brandMark: ohHeaderMark,
   description: homeCardDescription,
   domain: "oh.computer",
-  icon: { kind: "app", src: ohAppIcon },
   // Product names the card must not break across lines.
   keepTogether: ["GPT-5 mini", "Claude’s memory tool"],
   name: marketing.names.name,
-  theme: { accent: "#065968", background: "#FBF1C7", foreground: "#393533", muted: "#584F48" },
+  palette: ohDefaultAppearance.palette,
 });
+
+// The home card reads like the hero: its eyebrow and short headline, with the
+// tagline beneath, because the tagline alone would run to three lines.
+export const homeSocialPage = {
+  eyebrow: marketing.category,
+  headline: marketing.hero.heading,
+  layout: "product",
+} as const satisfies SocialImagePage;
 
 export const specificationSocialPage = {
   description: specificationCardDescription,
