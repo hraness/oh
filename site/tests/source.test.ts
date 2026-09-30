@@ -125,7 +125,7 @@ describe("Oh site source contract", () => {
       expect(page).not.toContain("OhContentFooter");
     }
     expect(contentFooter).toContain('{ href: "/blog", label: "Blog" }');
-    expect(home).toContain("Agent memory that shows its work.");
+    expect(home).toContain("const heading = marketing.hero.heading;");
     expect(globals).not.toContain("hraness-marketing-maker");
     expect(globals).not.toContain(".site-footer");
   });
@@ -319,7 +319,7 @@ describe("Oh site source contract", () => {
     expect(home).toContain(
       'href="https://github.com/hraness/oh#install-and-first-run"',
     );
-    expect(home).toContain("Install and start");
+    expect(home).toContain('heading={marketingHeading("install-title")}');
     expect(home).toContain('{ href: "/spec", label: "Specification" }');
   });
 

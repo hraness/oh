@@ -1,22 +1,23 @@
+import { marketing } from "../portfolio-copy";
 // Page metadata and the generated social images read these strings, so each
 // title and description is written once. Image alt text comes from ./social.
 
-export const homeTitle = "Oh: open-source agent memory that shows its work";
+export const homeTitle = `${marketing.names.name}: ${marketing.hero.heading}`;
 export const homeDescription =
-  "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.";
-export const specificationTitle = "Oh: Ontology specification v1";
+  marketing.meta;
+export const specificationTitle = `${marketing.names.name}: Ontology specification v1`;
 export const specificationDescription =
   "Oh’s v1 specification defines how records are encoded, stored in SQLite, and synced between databases, down to the bytes each SHA-256 digest covers.";
-export const benchmarksTitle = "Oh agent memory benchmarks: LongMemEval-S, LoCoMo, CloneMem";
+export const benchmarksTitle = `${marketing.names.name} agent memory benchmarks: LongMemEval-S, LoCoMo, CloneMem`;
 export const benchmarksDescription =
   "Every memory benchmark result Oh has published, with the score, setup, and main limit for each study and a link to its full record.";
-export const compareTitle = "Oh vs Mem0, Supermemory, and Zep: agent memory compared";
+export const compareTitle = `${marketing.names.name} vs Mem0, Supermemory, and Zep: agent memory compared`;
 export const compareDescription =
   "Oh, Mem0, Supermemory, Zep, Letta, and Claude’s memory tool in one table: which to pick for which job, with matched benchmark runs and dated sources.";
-export const compareMem0Title = "Oh vs Mem0: local agent memory vs per-user memory";
+export const compareMem0Title = `${marketing.names.name} vs Mem0: local agent memory vs per-user memory`;
 export const compareMem0Description =
   "Mem0 vs Oh: Mem0 gives products per-end-user memory, hosted or self-hosted; Oh keeps an agent’s working memory in local SQLite, each fact linked to sources.";
-export const compareSupermemoryTitle = "Oh vs Supermemory: local vs hosted agent memory";
+export const compareSupermemoryTitle = `${marketing.names.name} vs Supermemory: local vs hosted agent memory`;
 export const compareSupermemoryDescription =
   "Supermemory vs Oh: a hosted memory API with connectors, or local memory for agent work. Supermemory led a 60-question pilot within the margin of error.";
 
@@ -25,7 +26,7 @@ export const compareSupermemoryDescription =
 // headline, so each page gets a shorter line carrying the same facts as its
 // meta description instead of a clipped one. tests/social-image.test.ts checks
 // that every card shows its copy whole.
-export const homeCardDescription = "Open-source memory for agents, with sources and a replayable history.";
+export const homeCardDescription = marketing.short;
 export const specificationCardDescription =
   "How Oh encodes, stores, and syncs records, down to the bytes each digest covers.";
 export const benchmarksCardDescription =

@@ -1,3 +1,4 @@
+import { marketing } from "../portfolio-copy";
 import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
 import { DesignPaletteMenuButton, RouteNotFoundPage } from "@hraness/design-kit/react";
 
@@ -27,9 +28,9 @@ export default function NotFound() {
         trailing={<DesignPaletteMenuButton />}
         action={{ href: "/#install", label: "Install Oh" }}
         ariaLabel="Site navigation"
-        brand="Oh"
+        brand={marketing.names.name}
         brandMark="/marks/oh-computer.svg"
-        brandLabel="Oh home"
+        brandLabel={`${marketing.names.name} home`}
         className="spec-header"
         links={[
           { href: "/", label: "Overview" },

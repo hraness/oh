@@ -1,3 +1,4 @@
+import { marketing } from "../../portfolio-copy";
 import { collectionPageJsonLd } from "@hraness/web-discovery";
 import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
@@ -123,7 +124,7 @@ export default function CompareIndex() {
         <JsonLdScript
           data={collectionPageJsonLd(ohSearchSite, {
             breadcrumb: [
-              { name: "Oh", path: "/" },
+              { name: marketing.names.name, path: "/" },
               { name: "Comparisons", path: "/compare" },
             ],
             dateModified: "2026-09-28",

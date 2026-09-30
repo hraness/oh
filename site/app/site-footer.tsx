@@ -1,3 +1,4 @@
+import { marketing } from "../portfolio-copy";
 import { MarketingSiteFooter } from "@hraness/design-kit/react/server";
 import { homeDescription } from "./metadata-copy";
 
@@ -6,11 +7,11 @@ const repository = "https://github.com/hraness/oh";
 export function OhContentFooter() {
   return (
     <MarketingSiteFooter
-      ariaLabel="Oh"
+      ariaLabel={marketing.names.name}
       brand={null}
       brandMark="/marks/oh-computer.svg"
       brandHref="/"
-      brandLabel="Oh home"
+      brandLabel={`${marketing.names.name} home`}
       links={[
         { href: "/blog", label: "Blog" },
         { href: "/benchmarks", label: "Benchmarks" },
@@ -19,7 +20,7 @@ export function OhContentFooter() {
         { href: repository, label: "hraness/oh" },
         { href: "https://hraness.com/projects", label: "Hraness projects" },
       ]}
-      name="Oh"
+      name={marketing.names.name}
     >
       <p>{homeDescription}</p>
     </MarketingSiteFooter>
