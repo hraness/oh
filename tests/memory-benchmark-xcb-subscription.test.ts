@@ -78,6 +78,15 @@ describe("xcb subscription profiles", () => {
     expect(XCB_SUBSCRIPTION_PROFILES[READER].instructionSha256).toBe(EVOLUTION_PROFILES[EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID].readerContract!.instructionSha256);
   });
 
+  test("bind the v11 reader to its own contract and reject v10 messages", () => {
+    const v11 = XCB_SUBSCRIPTION_PROFILES["xcb-claude-haiku-task-complete-v11"];
+    expect(v11.mirrors).toEqual(["gpt5-mini-task-complete-long-deadline-v11-reader"]);
+    expect(v11.instructionSha256).toBe(EVOLUTION_PROFILES["gpt5-mini-task-complete-long-deadline-v11-reader"].readerContract!.instructionSha256);
+    const messages = evolutionAnswerMessages({ question: "q?", questionDate: "2026-01-01" }, "context", "task-complete-v11");
+    expect(makeXcbSubscriptionRequest("xcb-claude-haiku-task-complete-v11", messages).prompt).toContain("does not replace an explicitly set goal");
+    expect(() => makeXcbSubscriptionRequest("xcb-claude-haiku-task-complete-v11", readerMessages())).toThrow(/differs from the mirrored contract/u);
+  });
+
   test("render the Gateway reader messages into one delimited block", () => {
     const messages = readerMessages();
     const gateway = makeEvolutionRequest(EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID, messages);
