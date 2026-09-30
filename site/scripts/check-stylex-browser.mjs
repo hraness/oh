@@ -7,7 +7,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright-core";
-import { ownedChromiumLaunchOptions, pinnedBrowserExecutable, pinnedChromiumDefinition, verifyOwnedChromium } from "./owned-browser.mjs";
+import { localVerificationOrigin, ownedChromiumLaunchOptions, pinnedBrowserExecutable, pinnedChromiumDefinition, verifyOwnedChromium } from "./owned-browser.mjs";
 import { withReducedTransparency } from "./browser-transparency.mjs";
 import { inspectBenchmark, runBenchmarkAccessibilityCases } from "./check-benchmark-browser.mjs";
 
@@ -19,8 +19,9 @@ const launchOptions = ownedChromiumLaunchOptions(executablePath, definition.defa
   ["--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4"]);
 const site = fileURLToPath(new URL("../", import.meta.url));
 const artifacts = process.env.OH_BROWSER_ARTIFACTS;
-const { values } = parseArgs({ options: { production: { type: "boolean", default: false } } });
-const productionOrigin = values.production ? "https://oh.computer" : null;
+const { values } = parseArgs({ options: { production: { type: "boolean", default: false }, "local-origin": { type: "string" } } });
+assert.equal(process.argv.slice(2).filter(argument => argument === "--local-origin" || argument.startsWith("--local-origin=")).length, Number(values["local-origin"] !== undefined), "Provide at most one local origin.");
+const productionOrigin = localVerificationOrigin(values["local-origin"], values.production) ?? (values.production ? "https://oh.computer" : null);
 if (artifacts) await mkdir(artifacts, { recursive: true });
 
 function startServer() {
