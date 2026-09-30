@@ -87,8 +87,8 @@ export const articles: readonly OhArticle[] = [
     dek: "Giving GPT-5 mini every user message averaged 93.07% on the 500 LongMemEval-S questions it was tuned on, against 88.87% for Oh semantic retrieval.",
     eyebrow: "Benchmark",
     card: {
-      headline: "Every user message beat retrieval alone",
-      description: "93.07% against 88.87% for Oh semantic retrieval, with GPT-5 mini, on the 500 questions it was tuned on.",
+      headline: "User log beat retrieval",
+      description: "93.07% vs 88.87% for semantic retrieval with GPT-5 mini, on questions it was tuned on.",
     },
     published: "2026-09-26",
     keywords: ["LongMemEval", "agent memory", "long-term memory", "retrieval", "BM25", "semantic search", "GPT-5 mini"],
@@ -101,7 +101,7 @@ export const articles: readonly OhArticle[] = [
     title: "Introducing Oh",
     dek: "Oh is open-source memory for agents: an agent can write and nominate notes, but only your application’s code can adopt them into reviewed knowledge.",
     eyebrow: "Release",
-    card: { description: "An agent can write and nominate notes, but only your application’s code can adopt them." },
+    card: { description: "Agents write and nominate notes. Your application’s code decides what to adopt." },
     published: "2026-09-24",
     keywords: ["agent memory", "provenance", "knowledge graphs", "canonical JSON", "TypeScript", "Rust"],
     toc: introducingOhToc,
@@ -114,8 +114,8 @@ export const articles: readonly OhArticle[] = [
     dek: "Oh tests its opt-in Rust encoder against the TypeScript reference on thousands of generated inputs, and checks that installed copies load it.",
     eyebrow: "Technique",
     card: {
-      headline: "Rust and TypeScript, byte for byte",
-      description: "Generated documents, digests, and 20,000 numbers must match the TypeScript reference exactly.",
+      headline: "Rust matches TypeScript",
+      description: "Documents, digests, and 20,000 numbers must match the TypeScript reference byte for byte.",
     },
     published: "2026-09-24",
     keywords: [
@@ -137,7 +137,7 @@ export const articles: readonly OhArticle[] = [
     dek: "Sponge keeps its hosted agent’s working memory in Oh, and Wordcell uses Oh to answer graph questions about your Markdown notes.",
     eyebrow: "Integration",
     card: {
-      description: "Sponge keeps its hosted agent’s working memory in Oh. Wordcell uses it to answer graph questions about notes.",
+      description: "Sponge keeps agent memory in Oh. Wordcell uses it to answer graph questions about notes.",
     },
     published: "2026-09-24",
     keywords: ["oh", "agent memory", "knowledge graphs", "sponge", "wordcell"],
