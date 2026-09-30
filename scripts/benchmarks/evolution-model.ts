@@ -21,7 +21,7 @@ export const EVOLUTION_BASE_READER_IDS = ["qwen37-flash-reader", "gpt5-nano-read
   "gpt5-nano-medium-reader", "gpt5-nano-high-reader", "gpt5-mini-reader", "gpt5-mini-high-reader", "gpt5-low-reader", "gpt41-reader", "gpt4o-mini-reader"] as const;
 export type EvolutionBaseReaderId = typeof EVOLUTION_BASE_READER_IDS[number];
 type ReaderStem<T> = T extends `${infer Stem}-reader` ? Stem : never;
-export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${Exclude<EvolutionReaderAblationContractId, "task-complete-v1" | "task-complete-v2" | "task-complete-v3" | "task-complete-v4" | "task-complete-v5" | "task-complete-v6" | "task-complete-v7" | "task-complete-v8" | "task-complete-v9" | "task-complete-v10">}-reader`;
+export type EvolutionAblationReaderId = `${ReaderStem<EvolutionBaseReaderId>}-${Exclude<EvolutionReaderAblationContractId, "task-complete-v1" | "task-complete-v2" | "task-complete-v3" | "task-complete-v4" | "task-complete-v5" | "task-complete-v6" | "task-complete-v7" | "task-complete-v8" | "task-complete-v9" | "task-complete-v10" | "task-complete-v11">}-reader`;
 export type EvolutionLegacyProfileId = EvolutionBaseReaderId | "gpt4o-gateway-judge" | "gpt4o-official-snapshot-judge"
   | "gpt4o-gateway-native-rubric-judge-v1" | "gpt4o-gateway-native-rubric-16-judge-v1" | "gpt4o-mini-locomo-j-judge-v1";
 export const EVOLUTION_EVIDENCE_EXTRACTOR_PROFILE_ID = "gpt5-mini-evidence-32k-long-deadline-v3-extractor";
@@ -52,13 +52,14 @@ export const EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID = "gpt5-mini-task-comp
 export const EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v8-reader";
 export const EVOLUTION_TASK_COMPLETE_V9_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v9-reader";
 export const EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v10-reader";
+export const EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID = "gpt5-mini-task-complete-long-deadline-v11-reader";
 /** Opt-in stronger-reader screen: the task-complete-v8 contract on full GPT-5 (low effort). Not reachable from evolutionReaderProfileId. */
 export const EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID = "gpt5-low-task-complete-long-deadline-v8-reader";
 export type EvolutionTaskCompleteReaderProfileId = typeof EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID
   | typeof EVOLUTION_TASK_COMPLETE_V3_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID
   | typeof EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID
   | typeof EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID
-  | typeof EVOLUTION_TASK_COMPLETE_V9_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID;
+  | typeof EVOLUTION_TASK_COMPLETE_V9_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID | typeof EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID;
 export const EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID = "gpt4o-mini-clonemem-choice-v1-reader";
 export type EvolutionCloneMemChoiceReaderProfileId = typeof EVOLUTION_CLONEMEM_CHOICE_READER_PROFILE_ID;
 export const EVOLUTION_HINDSIGHT_PARITY_READER_PROFILE_ID = "gemini31-pro-hindsight-parity-v1-reader";
@@ -178,7 +179,7 @@ const LEGACY_PROFILES: Readonly<Record<EvolutionLegacyProfileId, EvolutionModelP
 export function evolutionReaderProfileId(baseReader: EvolutionBaseReaderId, contract: EvolutionReaderContractId = "legacy-v1"): EvolutionBaseReaderId | EvolutionAblationReaderId | EvolutionTaskCompleteReaderProfileId {
   if (!EVOLUTION_BASE_READER_IDS.includes(baseReader)) fail("unknown base reader");
   const id = parseEvolutionReaderContractId(contract);
-  if (id === "task-complete-v1" || id === "task-complete-v2" || id === "task-complete-v3" || id === "task-complete-v4" || id === "task-complete-v5" || id === "task-complete-v6" || id === "task-complete-v7" || id === "task-complete-v8" || id === "task-complete-v9" || id === "task-complete-v10") {
+  if (id === "task-complete-v1" || id === "task-complete-v2" || id === "task-complete-v3" || id === "task-complete-v4" || id === "task-complete-v5" || id === "task-complete-v6" || id === "task-complete-v7" || id === "task-complete-v8" || id === "task-complete-v9" || id === "task-complete-v10" || id === "task-complete-v11") {
     if (baseReader !== "gpt5-mini-reader") fail(`${id} requires the gpt5-mini base reader`);
     return id === "task-complete-v1" ? EVOLUTION_TASK_COMPLETE_READER_PROFILE_ID
       : id === "task-complete-v2" ? EVOLUTION_TASK_COMPLETE_V2_READER_PROFILE_ID
@@ -186,7 +187,7 @@ export function evolutionReaderProfileId(baseReader: EvolutionBaseReaderId, cont
       : id === "task-complete-v4" ? EVOLUTION_TASK_COMPLETE_V4_READER_PROFILE_ID : id === "task-complete-v5" ? EVOLUTION_TASK_COMPLETE_V5_READER_PROFILE_ID
       : id === "task-complete-v6" ? EVOLUTION_TASK_COMPLETE_V6_READER_PROFILE_ID
       : id === "task-complete-v7" ? EVOLUTION_TASK_COMPLETE_V7_READER_PROFILE_ID
-      : id === "task-complete-v8" ? EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID : id === "task-complete-v9" ? EVOLUTION_TASK_COMPLETE_V9_READER_PROFILE_ID : EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID;
+      : id === "task-complete-v8" ? EVOLUTION_TASK_COMPLETE_V8_READER_PROFILE_ID : id === "task-complete-v9" ? EVOLUTION_TASK_COMPLETE_V9_READER_PROFILE_ID : id === "task-complete-v10" ? EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID : EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID;
   }
   return id === "legacy-v1" ? baseReader : `${baseReader.slice(0, -7)}-${id}-reader` as EvolutionAblationReaderId;
 }
@@ -273,6 +274,9 @@ const TASK_COMPLETE_READER_PROFILES: Readonly<Record<EvolutionTaskCompleteReader
   [EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID,
     timeoutMs: 600_000, readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v10",
       instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v10"].instructionSha256 } },
+  [EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-mini-reader"], id: EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID,
+    timeoutMs: 600_000, readerContract: { baseReader: "gpt5-mini-reader", id: "task-complete-v11",
+      instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v11"].instructionSha256 } },
   [EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID]: { ...LEGACY_PROFILES["gpt5-low-reader"], id: EVOLUTION_TASK_COMPLETE_V8_GPT5_READER_PROFILE_ID,
     timeoutMs: 600_000, readerContract: { baseReader: "gpt5-low-reader", id: "task-complete-v8",
       instructionSha256: EVOLUTION_READER_CONTRACTS["task-complete-v8"].instructionSha256 } },
