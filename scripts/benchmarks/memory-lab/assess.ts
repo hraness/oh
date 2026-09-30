@@ -1,10 +1,12 @@
 // Paired challenger − champion on an experiment's planned questions, with a family (conversation) bootstrap and the
 // protocol's frozen decision rule. Writes assessment.json next to the plan. Missing cells are reported, never imputed.
 import { readFileSync, writeFileSync } from "node:fs";
-import { LAB, type Plan, armKey, cellScore, champion, planQuestions, readCells } from "./common";
+import { LAB, type Plan, armKey, cellScore, champion, frozenExperiment, planQuestions, profile, readCells } from "./common";
 
 const id = Bun.argv[2]!, dir = `${LAB}/experiments/${id}`;
 const plan = JSON.parse(readFileSync(`${dir}/plan.json`, "utf8")) as Plan;
+if (profile.transport === "direct-api" && readFileSync(`${dir}/frozen.sha256`, "utf8").trim()
+  !== frozenExperiment(plan, readFileSync(`${dir}/PREREG.md`, "utf8"))) throw new Error("frozen paid experiment changed before assessment");
 const champ = champion().arm, cKey = armKey(champ), xKey = armKey(plan.challenger), rep = plan.replicate ?? 0;
 const cells = readCells();
 const lookup = (key: string, r: number, q: string) => cells.filter(c => c.armKey === key && c.rep === r && c.questionId === q).at(-1);
@@ -28,7 +30,7 @@ function summarize(ps: typeof pairs) {
 }
 const targets = summarize(pairs.filter(p => plan.targets.categories.includes(p.category)));
 const guard = summarize(pairs.filter(p => plan.guard.categories.includes(p.category)));
-const complete = rows.every(r => r.ran);
+const complete = rows.every(r => r.ran) && (profile.transport !== "direct-api" || pairs.length === rows.length);
 // Frozen decision rules (PROTOCOL.md). Screens earn a confirmation; only a confirmation promotes.
 let decision: string;
 if (!complete) decision = "INCOMPLETE";
