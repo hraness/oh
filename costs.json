@@ -564,6 +564,36 @@
         "maximumBytesPerArchive": 536870912
       },
       "notes": "Private verified archives beside the global installation. Package managers may reference them; retain each archive while referenced, never remove it as a disposable cache."
+    },
+    "posthog:$pageview": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
+    },
+    "posthog:$exception": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
+    },
+    "posthog:page not found": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
+    },
+    "posthog:cta clicked": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
+    },
+    "posthog:outbound link opened": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
     }
   },
   "exempt": []

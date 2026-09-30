@@ -1,3 +1,4 @@
+import { SiteNotFoundAnalytics } from "./site-analytics";
 import { marketing } from "../portfolio-copy";
 import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
 import { DesignPaletteMenuButton, RouteNotFoundPage } from "@hraness/design-kit/react";
@@ -24,6 +25,7 @@ const knownPages = [
 export default function NotFound() {
   return (
     <>
+      <SiteNotFoundAnalytics />
       <MarketingSiteHeader
         trailing={<DesignPaletteMenuButton />}
         action={{ href: "/#install", label: "Install Oh" }}

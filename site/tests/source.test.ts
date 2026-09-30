@@ -416,7 +416,7 @@ describe("Oh site source contract", () => {
       prebuild: "bun run build:theme && bun run test",
       "search:notify": "bun scripts/submit-indexnow.ts",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/launch.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/launch.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts ./analytics.test.ts",
       "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });
