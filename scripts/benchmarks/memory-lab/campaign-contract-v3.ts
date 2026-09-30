@@ -29,7 +29,8 @@ export type Task = { id: string; cluster: string; category: BeamReleasedCategory
 export type CampaignConfig = { protocol: typeof CAMPAIGN_V3; id: string; owner: string; evidenceMode: "live" | "offline-synthetic"; api: ApiConfig; budget: FileRef;
   templates: FileRef; tasks: Task[]; maxPlans: number; maxProposals: number; maxConfirmationAttempts: number; maxCalls: number;
   expiresAt: string; minimumEffect: number; guardMargin: number; screenAlpha: number; aaMaximumMeanAbsoluteDelta: number;
-  sourcePins: FileRef[]; screenCriterion: "cluster-sign" | "development-effect"; contextPolicies: ContextPolicy[]; rankingProfileSha256: string; maximumAnswerJsonBytes: number };
+  sourcePins: FileRef[]; screenCriterion: "cluster-sign" | "development-effect"; contextPolicies: ContextPolicy[]; rankingProfileSha256: string; maximumAnswerJsonBytes: number;
+  maximumReaderInputUpperBound?: number };
 export type ContextPolicy = { id: string; logReserveBytes: number };
 export type Treatment = { id: string; instruction: string; contextPolicyId: string; semanticKey: string };
 export type Candidate = { treatment: Treatment; parentRevision: number; parentKey: string; author: string; mechanism: string;
@@ -51,7 +52,8 @@ export type CampaignState = { protocol: typeof CAMPAIGN_V3; revision: number; co
   confirmationAttempts: number; stagnation: number; promotions: { runId: string; from: string; to: string; revision: number }[] };
 
 export function parseConfig(value: unknown): CampaignConfig {
-  const r = exact(value, ["protocol", "id", "owner", "evidenceMode", "api", "budget", "templates", "tasks", "maxPlans", "maxProposals", "maxConfirmationAttempts", "maxCalls", "expiresAt", "minimumEffect", "guardMargin", "screenAlpha", "aaMaximumMeanAbsoluteDelta", "sourcePins", "contextPolicies", "rankingProfileSha256", "maximumAnswerJsonBytes", "screenCriterion"]);
+  const hasReaderBound = isPlainRecord(value) && Object.hasOwn(value, "maximumReaderInputUpperBound");
+  const r = exact(value, ["protocol", "id", "owner", "evidenceMode", "api", "budget", "templates", "tasks", "maxPlans", "maxProposals", "maxConfirmationAttempts", "maxCalls", "expiresAt", "minimumEffect", "guardMargin", "screenAlpha", "aaMaximumMeanAbsoluteDelta", "sourcePins", "contextPolicies", "rankingProfileSha256", "maximumAnswerJsonBytes", "screenCriterion", ...(hasReaderBound ? ["maximumReaderInputUpperBound"] : [])]);
   need(r.protocol === CAMPAIGN_V3, "v3 config required"); need(r.evidenceMode === "live" || r.evidenceMode === "offline-synthetic", "evidence mode required"); const api = parseApiConfig(r.api), budget = fileRef(r.budget);
   need(api.budgetPath === budget.path, "budget must pin the existing shared authority");
   const tasks = list(r.tasks, 4, 4096).map(value => {
@@ -79,7 +81,12 @@ export function parseConfig(value: unknown): CampaignConfig {
   return { protocol: CAMPAIGN_V3, id: identifier(r.id), owner: identifier(r.owner), evidenceMode: r.evidenceMode, api, budget, templates: fileRef(r.templates), tasks,
     maxPlans: integer(r.maxPlans, 2, 128), maxProposals: integer(r.maxProposals, 1, 128), maxConfirmationAttempts: integer(r.maxConfirmationAttempts, 1, 32),
     maxCalls: integer(r.maxCalls, 1, 1000), expiresAt, minimumEffect, guardMargin: fraction(r.guardMargin), screenAlpha,
-    aaMaximumMeanAbsoluteDelta: fraction(r.aaMaximumMeanAbsoluteDelta), sourcePins: list(r.sourcePins, 1, 256).map(fileRef), screenCriterion: r.screenCriterion, contextPolicies, rankingProfileSha256: digest(r.rankingProfileSha256), maximumAnswerJsonBytes: integer(r.maximumAnswerJsonBytes, 128, 262144) };
+    aaMaximumMeanAbsoluteDelta: fraction(r.aaMaximumMeanAbsoluteDelta), sourcePins: list(r.sourcePins, 1, 256).map(fileRef), screenCriterion: r.screenCriterion, contextPolicies, rankingProfileSha256: digest(r.rankingProfileSha256), maximumAnswerJsonBytes: integer(r.maximumAnswerJsonBytes, 128, 262144),
+    // Preserve omitted fields so historical config and execution identities remain unchanged.
+    ...(hasReaderBound ? { maximumReaderInputUpperBound: integer(r.maximumReaderInputUpperBound, 1, 262144) } : {}) };
+}
+export function readerInputUpperBound(config: CampaignConfig): number {
+  return Object.hasOwn(config, "maximumReaderInputUpperBound") ? integer(config.maximumReaderInputUpperBound, 1, 262144) : 200000;
 }
 export function treatment(config: CampaignConfig, value: unknown): Treatment {
   const r = exact(value, ["id", "instruction", "contextPolicyId"]), instruction = text(r.instruction, 32768), contextPolicyId = identifier(r.contextPolicyId);
