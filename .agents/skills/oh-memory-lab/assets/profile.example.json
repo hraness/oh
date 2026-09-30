@@ -1,0 +1,22 @@
+{
+  "protocol": "oh-memory-lab.v1",
+  "xcbBin": "/absolute/path/to/qualified/xcb",
+  "xcbBinSha256": "REPLACE with the qualified binary sha256",
+  "readerProfile": "xcb-claude-haiku-lab-reader",
+  "judgeProfile": "xcb-claude-haiku-beam-judge",
+  "judgeProtocol": "oh.beam-released-scorer.v1 released templates, Haiku judge",
+  "devData": "/absolute/path/to/exposed-dev/dataset-selected.json",
+  "devContexts": {
+    "phase2-oh-180k": "/absolute/path/to/exposed-dev/oh-contexts.jsonl"
+  },
+  "scorerTemplates": "/absolute/path/to/released-scorer-parity/python-outcomes.json",
+  "pools": {
+    "screen": "question index 0 of each (family, category)",
+    "confirm": "question index 1 of each (family, category)"
+  },
+  "neverTouch": [
+    "sealed holdout directories",
+    "BEAM 10M split and unused 500K families (reserved for paid claims)"
+  ],
+  "paidSpend": "zero inside the lab; paid Gateway confirmation is a separate preregistered run outside the lab"
+}
