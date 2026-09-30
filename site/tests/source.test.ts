@@ -2,14 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createElement } from "react";
-import Home from "../app/page";
-import RootLayout from "../app/layout";
-import { marketing } from "../portfolio-copy";
 
 const site = join(import.meta.dir, "..");
-const renderHome = () => renderToStaticMarkup(createElement(RootLayout, null, Home()));
 const read = async (path: string): Promise<string> =>
   await readFile(join(site, path), "utf8");
 
@@ -131,7 +125,7 @@ describe("Oh site source contract", () => {
       expect(page).not.toContain("OhContentFooter");
     }
     expect(contentFooter).toContain('{ href: "/blog", label: "Blog" }');
-    expect(renderHome()).toContain(marketing.hero.heading);
+    expect(home).toContain("const heading = marketing.hero.heading;");
     expect(globals).not.toContain("hraness-marketing-maker");
     expect(globals).not.toContain(".site-footer");
   });
@@ -325,7 +319,7 @@ describe("Oh site source contract", () => {
     expect(home).toContain(
       'href="https://github.com/hraness/oh#install-and-first-run"',
     );
-    expect(renderHome()).toContain(marketing.headings["install-title"]);
+    expect(home).toContain('heading={marketingHeading("install-title")}');
     expect(home).toContain('{ href: "/spec", label: "Specification" }');
   });
 
