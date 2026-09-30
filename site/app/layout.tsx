@@ -1,3 +1,4 @@
+import { SiteAnalytics } from "./site-analytics";
 import type { Metadata, Viewport } from "next";
 import { HranessSiteFooter } from "@hraness/site-footer/react";
 import { DesignPaletteProvider, ThemeColorSync } from "@hraness/design-kit/react";
@@ -60,6 +61,7 @@ export default function RootLayout({
         <script src="/theme-bootstrap.js" />
       </head>
       <body>
+        <SiteAnalytics />
         <DesignPaletteProvider defaultPreference={ohDefaultAppearance}>
         <ThemeColorSync />
         {children}
