@@ -1,3 +1,4 @@
+import { marketing } from "../../portfolio-copy";
 import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 import { AskAiAboutThis } from "@hraness/ui";
@@ -135,9 +136,9 @@ export default function Benchmarks() {
         trailing={<DesignPaletteMenuButton />}
         action={{ href: "/#install", label: "Install Oh" }}
         ariaLabel="Benchmark navigation"
-        brand="Oh"
+        brand={marketing.names.name}
         brandMark="/marks/oh-computer.svg"
-        brandLabel="Oh home"
+        brandLabel={`${marketing.names.name} home`}
         className="spec-header"
         links={[
           { href: "/", label: "Overview" },
@@ -153,7 +154,7 @@ export default function Benchmarks() {
         <JsonLdScript
           data={collectionPageJsonLd(ohSearchSite, {
             breadcrumb: [
-              { name: "Oh", path: "/" },
+              { name: marketing.names.name, path: "/" },
               { name: "Benchmarks", path: "/benchmarks" },
             ],
             dateModified: "2026-09-26",

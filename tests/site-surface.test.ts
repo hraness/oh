@@ -86,9 +86,9 @@ describe("public site surface", () => {
     const page = await readFile(join(root, "site/app/page.tsx"), "utf8");
     const layout = await readFile(join(root, "site/app/layout.tsx"), "utf8");
     const metadataCopy = await readFile(join(root, "site/app/metadata-copy.ts"), "utf8");
-    expect(page).toContain('const heading = "Agent memory that shows its work."');
+    expect(page).toContain("const heading = marketing.hero.heading;");
     expect(page).toContain('headingId="hero-title"');
-    expect(metadataCopy).toContain('export const homeTitle = "Oh: open-source agent memory that shows its work";');
+    expect(metadataCopy).toContain("export const homeTitle = `${marketing.names.name}: ${marketing.hero.heading}`;");
     expect(layout).toContain("homeTitle as title");
     expect(page).toContain("$ oh put --kind evidence --key evidence:table-2");
     expect(page).toContain("$ oh verify");

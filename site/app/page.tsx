@@ -1,3 +1,4 @@
+import { marketing, marketingHeading, portfolio, product } from "../portfolio-copy";
 import {
   MarketingInstallPanel,
   MarketingInterfaceGrid,
@@ -9,7 +10,6 @@ import {
   MarketingTrustBoundary,
   ProductHero,
 } from "@hraness/design-kit/react/server";
-import { product, relatedFor } from "@hraness/design-kit/portfolio";
 import { AskAiAboutThis } from "@hraness/ui";
 import { websiteJsonLd } from "@hraness/web-discovery";
 
@@ -35,14 +35,14 @@ const repository = "https://github.com/hraness/oh";
 const hranessOrganizationId = "https://hraness.com/#organization";
 const wordcell = product("kb");
 // The Wordcell section links a sibling product, so it needs a registered relation.
-if (!relatedFor(wordcell.id, { kinds: ["runtime"] }).some((item) => item.name === "Oh")) {
+if (!portfolio.relations.some(item => item.source === wordcell.id && item.target === portfolio.productId && item.kind === "runtime")) {
   throw new Error("The portfolio registry has no runtime relation between Oh and Wordcell.");
 }
 
-const eyebrow = "Agent memory framework";
-const heading = "Agent memory that shows its work.";
+const eyebrow = marketing.category;
+const heading = marketing.hero.heading;
 const lead =
-  "Oh is an open-source memory framework for developers building agents. Your agent saves what it learns as linked records in a SQLite file, so later you can trace an answer back to the passage or table behind it.";
+  marketing.hero.summary;
 const boundary =
   `Free and MIT licensed · Bun 1.3.14 or newer · No account needed · v${releaseVersion}`;
 
@@ -72,32 +72,32 @@ $ oh verify
 
 const researchObjects = [
   {
-    label: "Question",
+    label: marketingHeading("home-object-question"),
     kind: "inquiry",
     summary: "Save what you are trying to find out, along with the investigation that follows.",
   },
   {
-    label: "Source",
+    label: marketingHeading("home-object-source"),
     kind: "entity",
     summary: "Identify the paper, dataset, person, or system you are researching, even if its title or URL changes.",
   },
   {
-    label: "Capture",
+    label: marketingHeading("home-object-capture"),
     kind: "edition",
     summary: "Record the edition or extract you read, separate from the source as it looks today.",
   },
   {
-    label: "Claim",
+    label: marketingHeading("home-object-claim"),
     kind: "statement",
     summary: "Write down the claim itself, and keep who accepts it and the evidence for it in separate records.",
   },
   {
-    label: "Citation",
+    label: marketingHeading("home-object-citation"),
     kind: "evidence",
     summary: "Point to a passage, table, or observation, and record how it bears on a stance toward a claim, such as support or contradiction.",
   },
   {
-    label: "Artifact",
+    label: marketingHeading("home-object-artifact"),
     kind: "view",
     summary: "Build a brief or answer that keeps links to the records it draws on.",
   },
@@ -105,11 +105,11 @@ const researchObjects = [
 
 const trust = [
   {
-    label: "Local by default",
+    label: marketingHeading("home-trust-local"),
     detail: "Your records, the log of every change, and the keyword index live in a SQLite file you choose. Semantic search caches are derived from the records and can be rebuilt.",
   },
   {
-    label: "Remote services are opt-in",
+    label: marketingHeading("home-trust-remote"),
     detail: "Hosted embeddings, network sync, and a remote libSQL database are used only when you configure them. Sync sends operations, never search vectors.",
   },
 ] as const;
@@ -146,7 +146,7 @@ function AnswerBody({ answer }: Readonly<{ answer: string }>) {
 }
 
 const navigation = [
-  { href: "#model", label: "How it works" },
+  { href: "#model", label: marketing.hero.secondaryAction },
   { href: "/benchmarks", label: "Benchmarks" },
   { href: "/compare", label: "Compare" },
   { href: "/blog", label: "Blog" },
@@ -164,7 +164,7 @@ export default function Home() {
       codeRepository: repository,
       description: homeDescription,
       license: "https://opensource.org/license/mit",
-      name: "Oh",
+      name: marketing.names.name,
       programmingLanguage: "TypeScript",
       publisher: {
         "@type": "Organization",
@@ -195,10 +195,10 @@ export default function Home() {
       />
       <a className="skip-link" href="#main">Skip to content</a>
       <MarketingSiteHeader
-        action={{ href: "#install", label: "Install Oh" }}
-        brand="Oh"
+        action={{ href: "#install", label: marketing.hero.primaryAction }}
+        brand={marketing.names.name}
         brandMark="/marks/oh-computer.svg"
-        brandLabel="Oh home"
+        brandLabel={`${marketing.names.name} home`}
         links={navigation}
         trailing={<DesignPaletteMenuButton />}
       />
@@ -207,8 +207,8 @@ export default function Home() {
         <MarketingPage>
           <ProductHero
             actions={[
-              { href: "#install", label: "Install Oh" },
-              { emphasis: "secondary", href: "#model", label: "How it works" },
+              { href: "#install", label: marketing.hero.primaryAction },
+              { emphasis: "secondary", href: "#model", label: marketing.hero.secondaryAction },
             ]}
             align="start"
             backdrop={false}
@@ -230,7 +230,7 @@ export default function Home() {
           />
 
           <MarketingSection
-            heading="Keep the source with the claim."
+            heading={marketingHeading("model-title")}
             headingId="model-title"
             id="model"
             label="How it works"
@@ -249,7 +249,7 @@ export default function Home() {
           </MarketingSection>
 
           <MarketingSection
-            heading="Open the evidence behind an answer."
+            heading={marketingHeading("trace-title")}
             headingId="trace-title"
             id="trace"
             label="From answer to source"
@@ -260,12 +260,12 @@ export default function Home() {
           </MarketingSection>
 
           <MarketingInterfaceGrid
-            heading="Work with the same records from a terminal, TypeScript, or an agent."
+            heading={marketingHeading("interfaces-title")}
             headingId="interfaces-title"
             id="interfaces"
             interfaces={[
               {
-                label: "CLI",
+                label: marketingHeading("home-interface-cli"),
                 summary: "Read one record from the local database and space you select.",
                 example: (
                   <>
@@ -277,7 +277,7 @@ export default function Home() {
                 ),
               },
               {
-                label: "TypeScript SDK",
+                label: marketingHeading("home-interface-sdk"),
                 summary: "Open the database in your own code and read the same record.",
                 example: (
                   <>
@@ -295,7 +295,7 @@ try {
                 ),
               },
               {
-                label: "Agent Skill",
+                label: marketingHeading("home-interface-skill"),
                 summary: "Teach a coding agent to check the specification version and replay the log before it reads.",
                 example: (
                   <>
@@ -337,7 +337,7 @@ oh get evidence:table-2 \\
 
           <MarketingInstallPanel
             eyebrow="Install"
-            heading="Install and start with a local database."
+            heading={marketingHeading("install-title")}
             headingId="install-title"
             id="install"
             note={<p className="install-note">{`Latest release: v${releaseVersion}`}</p>}
@@ -360,7 +360,7 @@ oh verify`} />
           </MarketingInstallPanel>
 
           <MarketingTrustBoundary
-            heading="Keep your memory on your machine."
+            heading={marketingHeading("kernel-title")}
             headingId="kernel-title"
             id="kernel"
             items={trust}
@@ -369,7 +369,7 @@ oh verify`} />
           />
 
           <MarketingQuestionList
-            heading="What to know before you install."
+            heading={marketingHeading("questions-title")}
             headingId="questions-title"
             id="questions"
             label="Questions"

@@ -18,6 +18,19 @@ import releaseMini from "../../benchmarks/results/memory-evolution-full-release-
 import releaseNano from "../../benchmarks/results/memory-evolution-full-release-500-v1.json";
 import releaseFullContext from "../../benchmarks/results/memory-evolution-full-context-500-v1.json";
 import { indexableArticles } from "../app/blog/articles";
+import { marketing } from "../portfolio-copy";
+
+test("renders the canonical portfolio hero and install heading", () => {
+  const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
+  let hero = "";
+  let install = "";
+  new HTMLRewriter()
+    .on("h1", { text(chunk) { hero += chunk.text; } })
+    .on("#install-title", { text(chunk) { install += chunk.text; } })
+    .transform(html);
+  expect(hero).toBe(marketing.hero.heading);
+  expect(install).toBe(marketing.headings["install-title"]);
+});
 
 test("leads the benchmarks with the LongMemEval-S result and ties every figure to its result file", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { parseKnowledgeGraphRecordV1 } from "../src/graph.ts";
+import snapshot from "../site/portfolio-messaging.generated.json";
 
 const root = join(import.meta.dir, "..");
 const read = async (path: string): Promise<string> =>
@@ -28,7 +29,7 @@ describe("evidence-led product narrative", () => {
     // Attribution belongs to the shared network footer rendered by the layout.
     expect(page).not.toContain('id="maker"');
     expect(page).not.toContain("MarketingMaker");
-    expect(page).toContain('const heading = "Agent memory that shows its work."');
+    expect(page).toContain("const heading = marketing.hero.heading;");
     expect(page).toContain('"@type": "FAQPage"');
   });
 
@@ -38,16 +39,17 @@ describe("evidence-led product narrative", () => {
       read("README.md"),
     ]);
     const objectModel = [
-      ["Question", "inquiry"],
-      ["Source", "entity"],
-      ["Capture", "edition"],
-      ["Claim", "statement"],
-      ["Citation", "evidence"],
-      ["Artifact", "view"],
+      ["home-object-question", "inquiry"],
+      ["home-object-source", "entity"],
+      ["home-object-capture", "edition"],
+      ["home-object-claim", "statement"],
+      ["home-object-citation", "evidence"],
+      ["home-object-artifact", "view"],
     ] as const;
 
-    for (const [label, kind] of objectModel) {
-      expect(page).toContain(`label: "${label}"`);
+    for (const [key, kind] of objectModel) {
+      const label = snapshot.messaging.headings[key];
+      expect(page).toContain(`label: marketingHeading("${key}")`);
       expect(page).toContain(`kind: "${kind}"`);
       expect(readme).toContain(`| ${label} | \`${kind}\``);
     }
