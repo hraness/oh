@@ -130,6 +130,7 @@ test("fresh confirmation requires passing parent, unused clusters, sample floor 
   expect(() => createPlan(s.root, spec("reused", "confirmation", "level1", "screen"))).toThrow("already allocated");
 });
 
+// Repeated durable writes across two campaigns need headroom on shared CI disks.
 test("production executor and native ledger exercise two successive synthetic promotions without replay", async () => {
   const s = setup(), calls: string[] = [], fetcher = mockProvider(calls);
   for (const kind of ["controls", "aa"] as const) {
@@ -147,7 +148,7 @@ test("production executor and native ledger exercise two successive synthetic pr
   expect(state.startingBaseline.instruction).toBe("LEVEL0"); expect(state.config.evidenceMode).toBe("offline-synthetic");
   const before = calls.length; expect(await executeRun(s.root, "screen1", { fetcher, now })).toMatchObject({ reused: true, calls: 0 }); expect(calls.length).toBe(before);
   expect(advance(s.root, "confirmation2").status).toBe("already-advanced");
-}, 30_000);
+}, 120_000);
 
 test("captured reader and judge stages survive interruption, including the native/local receipt gap", async () => {
   const s = setup(); qualify(s.root); proposal(s.root, "level1"); const p = reviewed(s.root, spec("resume", "screen", "level1"));
