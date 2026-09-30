@@ -12,6 +12,12 @@ experiments; comparisons with published numbers require a separately qualified, 
 Read [the protocol](references/protocol.md) before the first cycle and [the research seeds](references/research-seeds.md)
 when choosing a mechanism.
 
+For new multi-cycle direct-API work, use [campaign v2](references/campaign-v2.md).
+It freezes the original baseline, tracks candidates and confirmation allocations,
+and changes the champion only after verified complete evidence. Keep the v1
+commands below for replaying historical pilots; do not mix their caches or decisions
+into a v2 campaign. The v2 source tests demonstrate transitions, not model gains.
+
 ## Workspace
 
 The lab workspace is private and lives outside this repository. Point `OH_MEMORY_LAB` at it:
