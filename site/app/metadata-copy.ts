@@ -27,12 +27,12 @@ export const compareSupermemoryDescription =
 // that every card shows its copy whole.
 export const homeCardDescription = "Open-source memory for agents, with sources and a replayable history.";
 export const specificationCardDescription =
-  "How Oh encodes records, stores them in SQLite, and syncs them, down to the bytes each digest covers.";
+  "How Oh encodes, stores, and syncs records, down to the bytes each digest covers.";
 export const benchmarksCardDescription =
-  "Every memory benchmark Oh has published, with the score, setup, and main limit of each study.";
+  "Every benchmark Oh has published, with each study’s score, setup, and main limit.";
 export const compareCardDescription =
-  "Oh, Mem0, Supermemory, Zep, Letta, and Claude’s memory tool: which to pick for which job.";
+  "Oh, Mem0, Supermemory, Zep, Letta, and Claude’s memory tool: which fits which job.";
 export const compareMem0CardDescription =
-  "Mem0 keeps memory for each end user of a product. Oh keeps an agent’s working memory in local SQLite.";
+  "Mem0 keeps memory for each end user. Oh keeps an agent’s memory in local SQLite.";
 export const compareSupermemoryCardDescription =
-  "Supermemory is a hosted memory API with connectors. Oh keeps memory for agent work in local SQLite.";
+  "Supermemory is a hosted API with connectors. Oh keeps agent memory in local SQLite.";

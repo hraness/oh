@@ -56,7 +56,7 @@ async function bytes(response: Response): Promise<Buffer> {
 }
 
 describe("Oh share images", () => {
-  test("declare Oh once with its app icon and gruvbox light colours", async () => {
+  test("declare Oh once with its app icon and gruvbox light colors", async () => {
     const favicon = await readFile(join(site, "public/favicon.svg"));
     const icon = ohSocialSite.icon;
     expect(icon?.kind).toBe("app");
@@ -115,7 +115,7 @@ describe("Oh share images", () => {
     expect((await bytes(response)).equals(expected)).toBe(true);
   }, 30_000);
 
-  test("every card shows its copy whole: no cut description, no reduced headline, nothing stripped", () => {
+  test("every card shows its copy whole at standard size, with an eyebrow, and nothing stripped", () => {
     const cards: readonly (readonly [string, SocialImagePage | undefined])[] = [
       ...routes,
       ...articles.map((article) => [`blog/${article.slug}`, articleSocialPage(article)] as const),
@@ -123,6 +123,8 @@ describe("Oh share images", () => {
     for (const [name, page] of cards) {
       const fit = socialImageFit(socialImageSiteDetails(ohSocialSite, page));
       expect(fit.issues, name).toEqual([]);
+      // v0.12 review findings too: reduced descriptions, missing eyebrows, repeated taglines.
+      expect(fit.findings, name).toEqual([]);
       // A page card never falls back to the site tagline.
       if (page !== undefined) expect(page.description, name).not.toBe(ohSocialSite.description);
     }

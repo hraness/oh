@@ -17,6 +17,8 @@ export const ohSocialSite = defineSocialImageSite({
   description: homeCardDescription,
   domain: "oh.computer",
   icon: { kind: "app", src: ohAppIcon },
+  // Product names the card must not break across lines.
+  keepTogether: ["GPT-5 mini", "Claude’s memory tool"],
   name: "Oh",
   theme: { accent: "#065968", background: "#FBF1C7", foreground: "#393533", muted: "#584F48" },
 });
