@@ -1,0 +1,16 @@
+{
+  "protocol": "oh-memory-lab-api.v1",
+  "transport": "direct-api",
+  "readerProfile": "gemini-3-8-flash-lab-reader",
+  "judgeProfile": "grok-4-7-beam-judge",
+  "judgeProtocol": "oh.beam-released-scorer.v1 released templates; Grok 4.7 low reasoning; development only",
+  "api": {
+    "budgetPath": "/absolute/private/lab/budget.json",
+    "reader": { "id": "gemini-3-8-flash-lab-reader", "model": "gemini-3.8-flash", "keyEnv": "VERTEX_API_KEY", "maximumOutput": 4096 },
+    "judge": { "id": "grok-4-7-beam-judge", "model": "grok-4.7", "keyEnv": "XAI_API_KEY", "maximumOutput": 2048 }
+  },
+  "devData": "/absolute/path/to/verified-exposed-dev/dataset-selected.json",
+  "devContexts": { "phase2-oh-180k": "/absolute/path/to/verified-exposed-dev/oh-contexts.jsonl" },
+  "scorerTemplates": "/absolute/path/to/released-scorer-parity/python-outcomes.json",
+  "paidSpend": "explicit combined campaign cap in budget.json; qualification, readers and judges share one ledger"
+}

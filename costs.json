@@ -477,6 +477,20 @@
         "taskExposureMicros": 25000000,
         "providerCalls": 0
       }
+    },
+    "benchmark:memory-lab-api": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/memory-lab/api-transport.ts",
+      "source": "scripts/benchmarks/memory-lab/qualify-api.ts",
+      "budget": {
+        "maximumPhysicalCallsPerCampaign": 1000,
+        "exposureMicrosPerCampaign": 100000000,
+        "responseBytesPerCall": 1048576,
+        "captureBytesPerCall": 3145728,
+        "ledgerBytes": 16777216,
+        "wallMinutesPerInvocation": 60
+      }
     }
   },
   "exempt": []

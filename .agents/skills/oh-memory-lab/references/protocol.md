@@ -25,6 +25,11 @@ confirmed on fresh questions, before any money is spent on a claim.
 6. **Assess:** `bun scripts/benchmarks/memory-lab/assess.ts NNN-slug`, then write RESULTS.md (numbers, what moved, failure reading).
 7. **Record:** update NEXT.md, champion.json on PROMOTE, alternatives.json on KEEP-AS-ALTERNATIVE, memory.
 
+For an explicitly authorized direct-API experiment, freeze the reader/judge models, settings, rates, input hashes and
+combined dollar/call/time budget using [API setup](api-setup.md). Subscription scores and API scores have separate
+cache identities. All qualification and experiment calls share the same campaign ledger; an uncertain call retains
+its full reservation and stops dispatch. Switching providers starts a new treatment, not a substitute completion.
+
 ## Decision rules (frozen; changing them needs a protocol version bump)
 Paired challenger minus champion per question, averaged per conversation, 10,000-draw conversation bootstrap.
 - **Screen** (pool screen): SCREEN-PASS if target delta >= +0.03, P(delta > 0) >= 0.90 and guard delta >= -0.03.
@@ -40,3 +45,17 @@ At least two consecutive PROMOTEs, each confirmed on fresh confirm-pool question
 starting champion (v10) on the confirm pool. Then, outside the lab: register the winner as a reader contract (PR),
 and run a paid gpt5-mini + GPT-4o check paired against the existing v10 Phase 2 outcomes. Any public claim after that
 needs a new preregistered run on never-used questions.
+
+## Public result updates
+
+A notable result may trigger a coordinated README, marketing-site and documentation update only after statistically
+supported, practically meaningful superiority or noninferiority to an explicitly named target. Preregister the target,
+effect threshold or margin, primary metric, sample-size rationale, stopping rule and multiplicity treatment before a
+fresh evaluation. Include repeats and independent review, retain failures in the planned denominator, and match model,
+context and judging conditions or label the result as a systems comparison. Merely failing to find a significant
+difference does not establish that Oh meets a target. A development PROMOTE does not establish this publication bar.
+
+When the bar is met, update `README.md`, `site/`, and the relevant `docs/` and `benchmarks/` pages together. Give the
+outcome, setup and main limit in plain language, link the evidence and protocol, and preserve the scope of the claim.
+Keep routine screens and small pilots in the notebook. Follow `STYLE.md`, run applicable copy/site checks, and deliver
+through the normal repository gates before publishing.
