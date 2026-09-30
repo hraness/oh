@@ -7,13 +7,16 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { chromium } from "playwright-core";
+import { ownedChromiumLaunchOptions, pinnedBrowserExecutable, pinnedChromiumDefinition, verifyOwnedChromium } from "./owned-browser.mjs";
 import { withReducedTransparency } from "./browser-transparency.mjs";
 import { inspectBenchmark, runBenchmarkAccessibilityCases } from "./check-benchmark-browser.mjs";
 
-// Use an explicitly selected installed browser, never a signed-in profile or an
-// implicit download. Run after `bun run build`, under the repository scheduler.
-const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH;
-assert.ok(executablePath, "Set CHROMIUM_EXECUTABLE_PATH to an installed Chromium executable.");
+// Use this package's provisioned pinned Chromium in an owned temporary profile.
+// An explicit override may alias that same executable. No browser is downloaded.
+const definition = pinnedChromiumDefinition();
+const executablePath = await pinnedBrowserExecutable(chromium.executablePath(), process.env.CHROMIUM_EXECUTABLE_PATH);
+const launchOptions = ownedChromiumLaunchOptions(executablePath, definition.defaultArgs,
+  ["--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4"]);
 const site = fileURLToPath(new URL("../", import.meta.url));
 const artifacts = process.env.OH_BROWSER_ARTIFACTS;
 const { values } = parseArgs({ options: { production: { type: "boolean", default: false } } });
@@ -221,18 +224,17 @@ for (const [signal, code] of signals) {
     void cleanup().then(() => process.exit(code), () => process.exit(1));
   });
 }
-let browserVersion;
+let browserIdentity;
 try {
   const origin = productionOrigin ?? await server.ready;
   assert.equal(interrupted, false, "Browser run interrupted");
   launchPromise = chromium.launch({
-    executablePath, headless: true, timeout: 15_000,
+    ...launchOptions, timeout: 15_000,
     handleSIGHUP: false, handleSIGINT: false, handleSIGTERM: false,
-    args: ["--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4"],
   });
   browser = await launchPromise;
   assert.equal(interrupted, false, "Browser run interrupted");
-  browserVersion = browser.version();
+  browserIdentity = await verifyOwnedChromium(browser, executablePath, definition.expectedVersion);
   for (const width of [360, 390, 1440]) {
     const mobile = width < 600;
     for (const colorScheme of ["light", "dark"]) {
@@ -413,7 +415,7 @@ try {
 } finally {
   await cleanup();
 }
-const receipt = { completed: true, origin: productionOrigin ?? "owned local server", cleanup: server ? "browser and server closed" : "browser closed", browser: browserVersion, node: process.version, scenarios: evidence.length };
+const receipt = { completed: true, origin: productionOrigin ?? "owned local server", cleanup: server ? "browser and server closed" : "browser closed", browser: browserIdentity.browserVersion, browserExecutable: browserIdentity.executable, browserIdentity, node: process.version, scenarios: evidence.length };
 const evidencePath = artifacts ? join(artifacts, "browser-evidence.json") : null;
 if (evidencePath) await writeFile(evidencePath, JSON.stringify({ ...receipt, evidence }, null, 2) + "\n");
 // Keep stdout bounded: large synchronous Bun console writes can end mid-JSON

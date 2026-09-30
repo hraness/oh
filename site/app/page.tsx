@@ -219,9 +219,8 @@ export default function Home() {
               <MarketingProofFrame
                 className="oh-proof"
                 title="Save and read a citation"
-                caption="An example review of a fictional trial report. The citation keeps the table and records it depends on; verification checks the saved history."
               >
-                <Transcript label="Saving and reading a citation with the oh CLI" text={proofTranscript} />
+                <Transcript label="Saving and reading a citation with the oh CLI, using a fictional trial report" text={proofTranscript} />
               </MarketingProofFrame>
             )}
             heading={heading}

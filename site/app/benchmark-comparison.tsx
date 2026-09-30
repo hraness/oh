@@ -1,5 +1,4 @@
 import longMemEval from "../../benchmarks/results/memory-longmemeval-s-500-v1.json";
-import pilotResult from "../../benchmarks/results/memory-framework-pilot-v1.json";
 import sdkResult from "../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
 import rerankResult from "../../benchmarks/results/memory-clonemem-rerank-confirm-v1.json";
 import locomoAnswers from "../../benchmarks/results/memory-locomo-window-qa-v1.json";
@@ -30,18 +29,11 @@ function longMemEvalFrozenMargin(left: string, right: string) {
 export const longMemEvalHeading =
   `Oh’s semantic search scored ${percent(longMemEvalSystem("oh-semantic-96k"))} on LongMemEval-S.`;
 
-function pilotArm(arm: string) {
-  const row = pilotResult.quality.arms.find((entry) => entry.arm === arm);
-  if (!row) throw new Error(`framework pilot arm missing: ${arm}`);
-  return row.conservativeSuccessRate.value * 100;
-}
-
 export function MemoryBenchmarkComparison() {
   const pipeline = longMemEvalSystem("oh-reading-pipeline");
   const semantic = longMemEvalSystem("oh-semantic-96k");
   const bm25 = longMemEvalSystem("bm25-96k");
   const margin = longMemEvalFrozenMargin("oh-semantic-96k", "bm25-96k");
-  const pilot = pilotResult.quality.comparisons.primary;
   const sdk = sdkResult.primary.reader.pairedQuestions;
   const clonemem = rerankResult.pooledReader;
   const locomo = locomoAnswers.scores.reader.comparison;
@@ -82,31 +74,6 @@ export function MemoryBenchmarkComparison() {
         {post ? <li><a href={articlePath(post)}>How the pipeline works</a></li> : null}
       </ul>
 
-      <h3>Oh and Supermemory on 60 LongMemEval-S questions</h3>
-      <p className="benchmark-note">Share of the 60 questions answered correctly, one run. Higher is better.</p>
-      <BenchmarkChart label="Oh, Supermemory, and BM25 on 60 LongMemEval-S questions, share answered correctly, zero to one hundred percent" rows={[
-        { id: "pilot-supermemory", label: "Supermemory", value: pilotArm("supermemory"),
-          detail: "One document per session, hybrid search with reranking" },
-        { id: "pilot-oh", label: "Oh default SDK search", value: pilotArm("oh"),
-          detail: "Single turns, reranked locally" },
-        { id: "pilot-bm25", label: "BM25 keyword retrieval", value: pilotArm("bm25"),
-          detail: "Single turns" },
-      ]} />
-      <p>
-        On 60 LongMemEval-S questions, Supermemory answered {percent(pilotArm("supermemory"))} correctly,
-        Oh’s default SDK search {percent(pilotArm("oh"))}, and BM25 {percent(pilotArm("bm25"))}.
-        GPT-4o answered from at most 20 results per system and graded the answers, and
-        Supermemory stored one document per session, as its published method does, while
-        Oh and BM25 stored single turns. Sixty questions, all used earlier in Oh’s development,
-        cannot separate Oh from Supermemory: the difference is {points(pilot.estimate)} points,
-        with a 95% interval from {points(pilot.interval95.lower)} to {points(pilot.interval95.upper)}.
-        Three questions each for Oh and BM25 scored zero because their search failed or never ran.
-      </p>
-      <ul className="benchmark-links" aria-label="Supermemory comparison">
-        <li><a href={`${evidence}/FRAMEWORK_PILOT_RESULT_V1.md`}>Full result and limits</a></li>
-        <li><a href={`${evidence}/results/memory-framework-pilot-v1.json`}>Numbers as JSON</a></li>
-        <li><a href="/compare/supermemory">Oh vs Supermemory page</a></li>
-      </ul>
 
       <details className="benchmark-literature">
         <summary>Results on CloneMem and LoCoMo</summary>
@@ -155,7 +122,7 @@ export function MemoryBenchmarkComparison() {
           <li><a href={`${evidence}/results/memory-locomo-window-confirmation-v1.json`}>Evidence recall as JSON</a></li>
         </ul>
       </details>
-      <p className="benchmark-note">AI agents ran these studies, and no person or outside group has audited them.</p>
+      <p><a href="/benchmarks">All memory studies and protocols</a></p>
     </div>
   );
 }
