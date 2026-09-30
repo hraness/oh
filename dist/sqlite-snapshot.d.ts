@@ -1,3 +1,4 @@
+export { MacOsSidecarSignatureError } from "./macos-sidecar-signature.js";
 export type SnapshotOptions = Readonly<{
     sourcePath: string;
     outputDirectory: string;

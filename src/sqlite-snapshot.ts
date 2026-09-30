@@ -3,6 +3,9 @@ import { mkdirSync, statSync } from "node:fs";
 import { mkdir, stat } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertVerifiedMacSidecar, verifyMacSidecar, verifyMacSidecarSync, type VerifiedMacSidecar } from "./macos-sidecar-signature.js";
+
+export { MacOsSidecarSignatureError } from "./macos-sidecar-signature.js";
 
 const MAX_REQUEST_BYTES = 4096;
 const MAX_RESPONSE_BYTES = 4096;
@@ -142,7 +145,8 @@ function boundedRequest(options: SnapshotOptions): SnapshotRequest {
   return request;
 }
 
-async function runSidecar(binaryPath: string, requestJson: string): Promise<string> {
+async function runSidecar(binaryPath: string, requestJson: string, identity?: VerifiedMacSidecar): Promise<string> {
+  if (identity !== undefined) assertVerifiedMacSidecar(binaryPath, identity);
   const child = spawn(binaryPath, [], { stdio: ["pipe", "pipe", "pipe"] });
   return new Promise((resolvePromise, rejectPromise) => {
     const stdout: Buffer[] = [];
@@ -222,6 +226,7 @@ export async function snapshotDatabase(options: SnapshotOptions): Promise<Snapsh
 
   const { platform, arch } = currentPlatformArch();
   const binaryPath = sidecarBinaryPath(platform, arch);
+  const packagedMac = platform === "darwin" && !process.env.HRANESS_OH_SQLITE_CLI_PATH;
   try {
     if (!(await stat(binaryPath)).isFile()) throw new Error("sidecar is not a file");
   } catch (error) {
@@ -231,8 +236,9 @@ export async function snapshotDatabase(options: SnapshotOptions): Promise<Snapsh
     throw new SnapshotSidecarNotFoundError(platform, arch, binaryPath);
   }
 
+  const identity = packagedMac ? await verifyMacSidecar(binaryPath) : undefined;
   await mkdir(request.outputDirectory, { recursive: true });
-  return parseSnapshotResponse(await runSidecar(binaryPath, requestJson), request);
+  return parseSnapshotResponse(await runSidecar(binaryPath, requestJson, identity), request);
 }
 
 function containedPath(path: string, outputDirectory: string): boolean {
@@ -293,6 +299,7 @@ export function snapshotDatabaseSync(options: SnapshotOptions): Snapshot {
 
   const { platform, arch } = currentPlatformArch();
   const binaryPath = sidecarBinaryPath(platform, arch);
+  const packagedMac = platform === "darwin" && !process.env.HRANESS_OH_SQLITE_CLI_PATH;
   try {
     if (!statSync(binaryPath).isFile()) throw new Error("sidecar is not a file");
   } catch (error) {
@@ -302,7 +309,9 @@ export function snapshotDatabaseSync(options: SnapshotOptions): Snapshot {
     throw new SnapshotSidecarNotFoundError(platform, arch, binaryPath);
   }
 
+  const identity = packagedMac ? verifyMacSidecarSync(binaryPath) : undefined;
   mkdirSync(request.outputDirectory, { recursive: true });
+  if (identity !== undefined) assertVerifiedMacSidecar(binaryPath, identity);
   const result = spawnSync(binaryPath, [], {
     input: `${requestJson}\n`,
     timeout: SPAWN_TIMEOUT_MS,

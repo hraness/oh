@@ -15,11 +15,97 @@ var __export = (target, all) => {
 };
 
 // src/sqlite-snapshot.ts
-import { spawn, spawnSync } from "child_process";
+import { spawn, spawnSync as spawnSync2 } from "child_process";
 import { mkdirSync, statSync } from "fs";
 import { mkdir, stat } from "fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "path";
 import { fileURLToPath } from "url";
+
+// src/macos-sidecar-signature.ts
+import { execFile, spawnSync } from "child_process";
+import { lstatSync } from "fs";
+var APPLE_TEAM_ID = "8AAP53VTW3";
+var APPLE_IDENTIFIER = "dev.hraness.oh.sqlite-cli";
+var REQUIREMENT = `anchor apple generic and identifier "${APPLE_IDENTIFIER}" and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = "${APPLE_TEAM_ID}"`;
+var CODESIGN = "/usr/bin/codesign";
+var TIMEOUT_MS = 1e4;
+var VERIFIER_ENV = Object.freeze({ PATH: "/usr/bin:/bin:/usr/sbin:/sbin", LANG: "C", LC_ALL: "C" });
+
+class MacOsSidecarSignatureError extends Error {
+  name = "MacOsSidecarSignatureError";
+  constructor() {
+    super("The packaged native helper does not have the required Apple Developer ID signature.");
+  }
+}
+function identity(path) {
+  try {
+    const file = lstatSync(path, { bigint: true });
+    if (!file.isFile() || file.size < 1n || file.size > 134217728n || (file.mode & 0o111n) === 0n) {
+      throw new MacOsSidecarSignatureError;
+    }
+    return Object.freeze({
+      dev: file.dev,
+      ino: file.ino,
+      size: file.size,
+      mode: file.mode,
+      mtimeNs: file.mtimeNs,
+      ctimeNs: file.ctimeNs
+    });
+  } catch {
+    throw new MacOsSidecarSignatureError;
+  }
+}
+function assertVerifiedMacSidecar(path, expected) {
+  const actual = identity(path);
+  if (actual.dev !== expected.dev || actual.ino !== expected.ino || actual.size !== expected.size || actual.mode !== expected.mode || actual.mtimeNs !== expected.mtimeNs || actual.ctimeNs !== expected.ctimeNs) {
+    throw new MacOsSidecarSignatureError;
+  }
+}
+function argumentsFor(path) {
+  return ["--verify", "--strict", "--all-architectures", "--test-requirement", REQUIREMENT, path];
+}
+async function verifyMacSidecar(path) {
+  const before = identity(path);
+  await new Promise((resolve, reject) => {
+    try {
+      execFile(CODESIGN, argumentsFor(path), {
+        env: VERIFIER_ENV,
+        timeout: TIMEOUT_MS,
+        killSignal: "SIGKILL",
+        maxBuffer: 16384
+      }, (error) => {
+        if (error !== null)
+          reject(new MacOsSidecarSignatureError);
+        else
+          resolve();
+      });
+    } catch {
+      reject(new MacOsSidecarSignatureError);
+    }
+  });
+  assertVerifiedMacSidecar(path, before);
+  return before;
+}
+function verifyMacSidecarSync(path) {
+  const before = identity(path);
+  try {
+    const result = spawnSync(CODESIGN, argumentsFor(path), {
+      env: VERIFIER_ENV,
+      timeout: TIMEOUT_MS,
+      killSignal: "SIGKILL",
+      stdio: "ignore"
+    });
+    if (result.error !== undefined || result.signal !== null || result.status !== 0) {
+      throw new MacOsSidecarSignatureError;
+    }
+  } catch {
+    throw new MacOsSidecarSignatureError;
+  }
+  assertVerifiedMacSidecar(path, before);
+  return before;
+}
+
+// src/sqlite-snapshot.ts
 var MAX_REQUEST_BYTES = 4096;
 var MAX_RESPONSE_BYTES = 4096;
 var SQLITE_HEADER_BYTES = 16;
@@ -123,7 +209,9 @@ function boundedRequest(options) {
   };
   return request;
 }
-async function runSidecar(binaryPath, requestJson) {
+async function runSidecar(binaryPath, requestJson, identity2) {
+  if (identity2 !== undefined)
+    assertVerifiedMacSidecar(binaryPath, identity2);
   const child = spawn(binaryPath, [], { stdio: ["pipe", "pipe", "pipe"] });
   return new Promise((resolvePromise, rejectPromise) => {
     const stdout = [];
@@ -194,6 +282,7 @@ async function snapshotDatabase(options) {
   }
   const { platform, arch } = currentPlatformArch();
   const binaryPath = sidecarBinaryPath(platform, arch);
+  const packagedMac = platform === "darwin" && !process.env.HRANESS_OH_SQLITE_CLI_PATH;
   try {
     if (!(await stat(binaryPath)).isFile())
       throw new Error("sidecar is not a file");
@@ -203,8 +292,9 @@ async function snapshotDatabase(options) {
     }
     throw new SnapshotSidecarNotFoundError(platform, arch, binaryPath);
   }
+  const identity2 = packagedMac ? await verifyMacSidecar(binaryPath) : undefined;
   await mkdir(request.outputDirectory, { recursive: true });
-  return parseSnapshotResponse(await runSidecar(binaryPath, requestJson), request);
+  return parseSnapshotResponse(await runSidecar(binaryPath, requestJson, identity2), request);
 }
 function containedPath(path, outputDirectory) {
   if (!isAbsolute(path))
@@ -242,6 +332,7 @@ function snapshotDatabaseSync(options) {
   }
   const { platform, arch } = currentPlatformArch();
   const binaryPath = sidecarBinaryPath(platform, arch);
+  const packagedMac = platform === "darwin" && !process.env.HRANESS_OH_SQLITE_CLI_PATH;
   try {
     if (!statSync(binaryPath).isFile())
       throw new Error("sidecar is not a file");
@@ -251,8 +342,11 @@ function snapshotDatabaseSync(options) {
     }
     throw new SnapshotSidecarNotFoundError(platform, arch, binaryPath);
   }
+  const identity2 = packagedMac ? verifyMacSidecarSync(binaryPath) : undefined;
   mkdirSync(request.outputDirectory, { recursive: true });
-  const result = spawnSync(binaryPath, [], {
+  if (identity2 !== undefined)
+    assertVerifiedMacSidecar(binaryPath, identity2);
+  const result = spawnSync2(binaryPath, [], {
     input: `${requestJson}
 `,
     timeout: SPAWN_TIMEOUT_MS,
@@ -283,5 +377,6 @@ export {
   SnapshotTimeoutError,
   SnapshotSidecarNotFoundError,
   SnapshotProtocolError,
-  SnapshotError
+  SnapshotError,
+  MacOsSidecarSignatureError
 };

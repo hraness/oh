@@ -4,6 +4,12 @@ Each section below describes one release of Oh. The release workflow copies a
 version's section onto its GitHub Release page, so write the section in the
 pull request that bumps the version.
 
+## Unreleased
+
+- Sign and notarize both Mac SQLite helpers with a stable Apple Developer ID.
+  Verify their identity before execution and publish the same signed bytes
+  through the existing exact-package release checks.
+
 ## 0.13.3 - 2026-09-29
 
 The same package as 0.13.2, released through the full release check. npm
