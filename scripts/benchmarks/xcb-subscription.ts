@@ -8,7 +8,7 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { canonicalSha256, hasExactKeys, isPlainRecord, sha256Hex } from "../../src/canonical";
 import type { Message } from "./model";
-import { EVOLUTION_BEAM_JUDGE_PROFILE_IDS, EVOLUTION_PROFILES, EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID,
+import { EVOLUTION_BEAM_JUDGE_PROFILE_IDS, EVOLUTION_PROFILES, EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID, EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID,
   type EvolutionProfileId } from "./evolution-model";
 
 export const XCB_SUBSCRIPTION_PROTOCOL = "oh.xcb-subscription-transport.v1" as const;
@@ -39,15 +39,16 @@ export type XcbSubscriptionProfile = Readonly<{
   comparability: typeof XCB_SUBSCRIPTION_COMPARABILITY;
 }>;
 
-const V10 = EVOLUTION_PROFILES[EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID];
-if (V10.readerContract?.id !== "task-complete-v10") throw new TypeError("xcb subscription: task-complete-v10 reader contract missing.");
+for (const [mirror, contract] of [[EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID, "task-complete-v10"], [EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID, "task-complete-v11"]] as const) {
+  if (EVOLUTION_PROFILES[mirror].readerContract?.id !== contract) throw new TypeError(`xcb subscription: ${contract} reader contract missing.`);
+}
 
 function frozen<T>(value: T): T {
   if (value !== null && typeof value === "object") { for (const child of Object.values(value)) frozen(child); Object.freeze(value); }
   return value;
 }
-const reader = (id: string, modelKey: string): XcbSubscriptionProfile => ({ id, role: "reader", transport: "xcb-subscription", modelKey,
-  mirrors: [EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID], shapes: ["system-user"], instructionSha256: V10.readerContract!.instructionSha256,
+const reader = (id: string, modelKey: string, mirror: EvolutionProfileId): XcbSubscriptionProfile => ({ id, role: "reader", transport: "xcb-subscription", modelKey,
+  mirrors: [mirror], shapes: ["system-user"], instructionSha256: EVOLUTION_PROFILES[mirror].readerContract!.instructionSha256,
   maxOutputBytes: 65_536, timeoutMs: 300_000, promptProtocol: XCB_SUBSCRIPTION_PROMPT_PROTOCOL, comparability: XCB_SUBSCRIPTION_COMPARABILITY });
 // One judge profile serves the three released BEAM scorer calls: extraction and nugget send one user
 // message; equivalence sends system and user. Template bytes stay caller-owned (beam-released-scorer-v1).
@@ -56,9 +57,11 @@ const judge = (id: string, modelKey: string): XcbSubscriptionProfile => ({ id, r
   maxOutputBytes: 16_384, timeoutMs: 120_000, promptProtocol: XCB_SUBSCRIPTION_PROMPT_PROTOCOL, comparability: XCB_SUBSCRIPTION_COMPARABILITY });
 
 export const XCB_CLAUDE_HAIKU_TASK_COMPLETE_V10_READER_PROFILE_ID = "xcb-claude-haiku-task-complete-v10" as const;
+export const XCB_CLAUDE_HAIKU_TASK_COMPLETE_V11_READER_PROFILE_ID = "xcb-claude-haiku-task-complete-v11" as const;
 export const XCB_CLAUDE_HAIKU_BEAM_JUDGE_PROFILE_ID = "xcb-claude-haiku-beam-judge" as const;
 export const XCB_SUBSCRIPTION_PROFILES = frozen({
-  [XCB_CLAUDE_HAIKU_TASK_COMPLETE_V10_READER_PROFILE_ID]: reader(XCB_CLAUDE_HAIKU_TASK_COMPLETE_V10_READER_PROFILE_ID, "claude/haiku"),
+  [XCB_CLAUDE_HAIKU_TASK_COMPLETE_V10_READER_PROFILE_ID]: reader(XCB_CLAUDE_HAIKU_TASK_COMPLETE_V10_READER_PROFILE_ID, "claude/haiku", EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID),
+  [XCB_CLAUDE_HAIKU_TASK_COMPLETE_V11_READER_PROFILE_ID]: reader(XCB_CLAUDE_HAIKU_TASK_COMPLETE_V11_READER_PROFILE_ID, "claude/haiku", EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID),
   [XCB_CLAUDE_HAIKU_BEAM_JUDGE_PROFILE_ID]: judge(XCB_CLAUDE_HAIKU_BEAM_JUDGE_PROFILE_ID, "claude/haiku"),
 } satisfies Record<string, XcbSubscriptionProfile>);
 export type XcbSubscriptionProfileId = keyof typeof XCB_SUBSCRIPTION_PROFILES;

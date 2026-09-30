@@ -5,7 +5,7 @@ import { blogTitle } from "./articles";
 export { articleSocialPage } from "./articles";
 
 export const blogCardDescription =
-  "Hraness on how Oh works and how it is tested, from benchmark runs to encoder property tests.";
+  "How Oh works and how it is tested: benchmark runs and encoder property tests.";
 
 export const blogSocialPage = {
   description: blogCardDescription,

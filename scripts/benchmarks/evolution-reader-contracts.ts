@@ -4,7 +4,7 @@ import { ANSWER_INSTRUCTION, answerMessages, type Message } from "./model";
 
 export const EVOLUTION_READER_CONTRACT_IDS = ["legacy-v1", "explicit-abstention-v1", "composition-v1", "explicit-abstention-composition-v1",
   "calibrated-composition-v1", "timeline-composition-v1", "calibration-only-v1", "selected-answer-v1", "evidence-selection-v1", "task-complete-v1", "task-complete-v2", "task-complete-v3", "task-complete-v4",
-  "task-complete-v5", "task-complete-v6", "task-complete-v7", "task-complete-v8", "task-complete-v9", "task-complete-v10"] as const;
+  "task-complete-v5", "task-complete-v6", "task-complete-v7", "task-complete-v8", "task-complete-v9", "task-complete-v10", "task-complete-v11"] as const;
 export type EvolutionReaderContractId = typeof EVOLUTION_READER_CONTRACT_IDS[number];
 /** Contracts that answer a question over a memory field. evidence-selection-v1 is the two-stage lane's stage-one selection
  * contract: it shares the profile catalog so its requests carry a closed profile identity, but it is never an answer reader. */
@@ -120,6 +120,19 @@ export const TASK_COMPLETE_INSTRUCTION_V10 = (() => {
     + "When the question asks for a value, amount, count, score, setting or plan, answer with the latest value as above even if the memory also says the user never did the related activity. "
     + "Give the contradiction reply for other statements that cannot both have been true when no explicit correction resolves them.");
 })();
+const TASK_COMPLETE_V8_UPDATE = "When dated statements give different values for the same measurement, setting, count, score, plan or status, treat the later one as an update, not a contradiction: "
+  + "give the latest value as the answer in the first sentence, then briefly mention the earlier value. ";
+/** v10 with a narrower update rule: a later statement replaces a value only when it changes that same thing, so a later
+ * measurement, progress report or passing mention does not replace an explicitly set goal or plan; the rule answers current-value
+ * questions, while durations and combined totals use the events and values the question names. Every other v10 sentence is unchanged. */
+export const TASK_COMPLETE_INSTRUCTION_V11 = (() => {
+  if (TASK_COMPLETE_INSTRUCTION_V10.split(TASK_COMPLETE_V8_UPDATE).length !== 2) throw new TypeError("Evolution reader contract: task-complete-v10 instruction changed.");
+  return TASK_COMPLETE_INSTRUCTION_V10.replace(TASK_COMPLETE_V8_UPDATE,
+    "When dated statements give different values for the same measurement, setting, count, score, plan or status, treat a later statement as an update only when it changes that same thing, "
+    + "for example by setting, raising, lowering, adjusting or replacing it; a later measurement, progress report, restatement or passing mention of a related number does not replace an explicitly set goal, target or plan. "
+    + "For a question about the current value, give the value from the latest such update as the answer in the first sentence, then briefly mention the earlier value. "
+    + "For a question about the time between events or a total across several items, use the dates and values of the events and items the question names, and do not replace one with a value for a different event, period or purpose. ");
+})();
 const OLD_ABSTENTION = "If the evidence does not support an answer, reply exactly None.";
 const EXPLICIT_ABSTENTION = "If the evidence does not support an answer, state that the supplied conversation does not contain enough information to answer the question. Do not use an ambiguous bare placeholder.";
 const COMPOSITION = "Before answering, identify the distinct relevant events and facts across the supplied memory. "
@@ -161,6 +174,7 @@ function instruction(id: EvolutionReaderContractId): string {
   if (id === "task-complete-v8") return TASK_COMPLETE_INSTRUCTION_V8;
   if (id === "task-complete-v9") return TASK_COMPLETE_INSTRUCTION_V9;
   if (id === "task-complete-v10") return TASK_COMPLETE_INSTRUCTION_V10;
+  if (id === "task-complete-v11") return TASK_COMPLETE_INSTRUCTION_V11;
   if (id === "evidence-selection-v1") return EVIDENCE_SELECTION_INSTRUCTION;
   if (id === "calibration-only-v1" || id === "selected-answer-v1") {
     if (ANSWER_INSTRUCTION.split(OLD_ABSTENTION).length !== 2) throw new TypeError("Evolution reader contract: legacy abstention instruction changed.");
@@ -201,6 +215,7 @@ export const EVOLUTION_READER_CONTRACTS = Object.freeze({
   "task-complete-v8": contract("task-complete-v8"),
   "task-complete-v9": contract("task-complete-v9"),
   "task-complete-v10": contract("task-complete-v10"),
+  "task-complete-v11": contract("task-complete-v11"),
 });
 export function parseEvolutionReaderContractId(value: unknown): EvolutionReaderContractId {
   if (typeof value !== "string" || !Object.hasOwn(EVOLUTION_READER_CONTRACTS, value)) throw new TypeError("Evolution reader contract: unknown contract.");
