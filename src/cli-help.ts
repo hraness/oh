@@ -9,7 +9,7 @@ and every change in a history you can replay.`;
 
 export const OH_COMMANDS = [
   "init", "put", "get", "list", "log", "search", "recall", "tombstone", "verify",
-  "sync", "contract", "version", "research", "support", "help",
+  "sync", "contract", "version", "research", "support", "update", "help",
 ] as const;
 
 function wrap(words: readonly string[], indent: string, width = 80): string {
@@ -71,6 +71,7 @@ Change
 More
   oh contract                  Print the data format versions this build uses
   oh version                   Print the version
+  oh update                    Update the CLI (oh update --help)
   oh research                  Offline research tools (oh research --help)
 
 Options
@@ -94,6 +95,17 @@ const WRITE_OPTIONS = `  --actor <id>      Name recorded with the change (defaul
                     Write only if the space is still at generation n`;
 
 const COMMAND_HELP: Readonly<Record<string, string>> = {
+  update: `Usage: oh update [check|status|enable|disable] [--json]
+
+Install a newer release, check availability, or manage automatic updates.
+Supported Bun and npm global installations on macOS and Linux check at most
+once a day before work starts. Automatic updates are enabled by default.
+
+Use oh update disable to keep this version, or HRANESS_NO_UPDATE=1 for
+one invocation. Exact Bun version pins require oh update enable.
+
+Offline research commands keep the installed version.
+`,
   init: `Usage: oh init [options]
 
 Create the store file and its space if they don't exist yet, then print the

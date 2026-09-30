@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-export declare const OH_PACKAGE_VERSION: "0.13.3";
+export { OH_PACKAGE_VERSION } from "./cli-version";
 /** A problem with how the command was typed: exit 2 and point at the command's help. */
 export declare class OhUsageError extends TypeError {
     readonly next?: string | undefined;
@@ -23,5 +23,5 @@ type DescribedError = Readonly<{
 export declare function describeOhCliError(error: unknown, arguments_: readonly string[]): DescribedError;
 /** The support command prefix: `oh` when the first `oh` on PATH runs this file, else the full path. */
 export declare function supportCommandPrefix(script?: string, path?: string): string[];
-export {};
+export declare function runOhMain(): Promise<void>;
 //# sourceMappingURL=cli.d.ts.map

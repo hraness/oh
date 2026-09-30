@@ -16,8 +16,1780 @@ var __export = (target, all) => {
 };
 var __esm = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
 
+// src/cli-version.ts
+var OH_PACKAGE_VERSION = "0.14.0";
+
+// node_modules/@hraness/cli-update/dist/src/semver.js
+function parseVersion(input) {
+  if (input.length > 128)
+    return;
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(input);
+  if (!match)
+    return;
+  const prerelease = match[4]?.split(".") ?? [];
+  if (prerelease.some((part) => /^\d+$/.test(part) && part.length > 1 && part.startsWith("0")))
+    return;
+  return { major: BigInt(match[1]), minor: BigInt(match[2]), patch: BigInt(match[3]), prerelease };
+}
+function compareVersions(left, right) {
+  const a = parseVersion(left), b = parseVersion(right);
+  if (!a || !b)
+    throw new Error("Invalid semantic version.");
+  for (const key of ["major", "minor", "patch"]) {
+    if (a[key] !== b[key])
+      return a[key] < b[key] ? -1 : 1;
+  }
+  if (!a.prerelease.length || !b.prerelease.length)
+    return a.prerelease.length ? -1 : b.prerelease.length ? 1 : 0;
+  for (let i = 0;i < Math.max(a.prerelease.length, b.prerelease.length); i++) {
+    const x = a.prerelease[i], y = b.prerelease[i];
+    if (x === undefined || y === undefined)
+      return x === undefined ? -1 : 1;
+    if (x === y)
+      continue;
+    const nx = /^\d+$/.test(x), ny = /^\d+$/.test(y);
+    if (nx && ny)
+      return BigInt(x) < BigInt(y) ? -1 : 1;
+    if (nx !== ny)
+      return nx ? -1 : 1;
+    return x < y ? -1 : 1;
+  }
+  return 0;
+}
+
+// node_modules/@hraness/cli-update/dist/src/install.js
+import { createHash } from "crypto";
+import { constants } from "fs";
+import * as fs from "fs/promises";
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "path";
+function identity(value) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 32);
+}
+async function readManifest(path) {
+  const stat2 = await fs.lstat(path);
+  if (!stat2.isFile() || stat2.isSymbolicLink() || stat2.size > 262144)
+    throw new Error("Invalid installed package manifest.");
+  const handle = await fs.open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const actual = await handle.stat();
+    if (!actual.isFile() || actual.size > 262144)
+      throw new Error("Invalid installed package manifest.");
+    const value = JSON.parse(await handle.readFile("utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw new Error("Invalid installed package manifest.");
+    return value;
+  } finally {
+    await handle.close();
+  }
+}
+function binEntry(manifest, binName) {
+  if (typeof manifest.bin === "string")
+    return binName === manifest.name.split("/").at(-1) ? manifest.bin : undefined;
+  return manifest.bin && typeof manifest.bin[binName] === "string" ? manifest.bin[binName] : undefined;
+}
+async function discoverExecutable(name, options, runtime) {
+  const configured = options.managers?.[name];
+  if (configured && !isAbsolute(configured))
+    throw new Error("Configured manager paths must be absolute.");
+  const candidates = configured ? [configured] : [
+    ...basename(runtime.execPath) === name ? [runtime.execPath] : [],
+    ...(runtime.env.PATH ?? "").split(delimiter).filter(isAbsolute).map((part) => join(part, name)),
+    ...name === "bun" ? [join(runtime.homeDirectory, ".bun/bin/bun")] : [],
+    `/opt/homebrew/bin/${name}`,
+    `/usr/local/bin/${name}`,
+    `/usr/bin/${name}`
+  ];
+  for (const candidate of new Set(candidates)) {
+    try {
+      await fs.access(candidate, constants.X_OK);
+      if ((await fs.stat(candidate)).isFile())
+        return candidate;
+    } catch {}
+  }
+  return;
+}
+async function managerQuery(executable, args, runtime) {
+  const result = await runtime.run(executable, args, {
+    env: runtime.env,
+    timeoutMs: 5000,
+    maxOutputBytes: 131072
+  });
+  if (result.code !== 0)
+    throw new Error("Could not verify the global package manager.");
+  return result.stdout.trim();
+}
+function canonicalGitHubSpec(spec, options, version) {
+  const provider = options.provider;
+  if (provider?.kind !== "github")
+    return false;
+  const tag = `${provider.tagPrefix ?? "v"}${version}`;
+  const asset = provider.assetName.replaceAll("{version}", version);
+  return spec === `https://github.com/${provider.repository}/releases/download/${tag}/${asset}`;
+}
+async function locateGlobalCandidate(options, runtime) {
+  if (process.platform === "win32")
+    return;
+  const lexical = resolve(options.entrypoint);
+  const actual = await fs.realpath(lexical).catch(() => lexical);
+  if (!lexical.includes(`${sep}node_modules${sep}`) && !actual.includes(`${sep}node_modules${sep}`) && !lexical.endsWith(`${sep}bin${sep}${options.binName}`))
+    return;
+  for (const manager of ["bun", "npm"]) {
+    const executable = await discoverExecutable(manager, options, runtime);
+    if (!executable)
+      continue;
+    try {
+      let globalRoot, modules, binDirectory;
+      if (manager === "bun") {
+        const firstLine = (await managerQuery(executable, ["pm", "-g", "ls"], runtime)).split(`
+`)[0] ?? "";
+        const match = /^(.*) node_modules \(\d+\)$/.exec(firstLine);
+        if (!match || !isAbsolute(match[1]))
+          continue;
+        globalRoot = await fs.realpath(match[1]);
+        modules = join(globalRoot, "node_modules");
+        binDirectory = "";
+        if (!lexical.includes(`${sep}node_modules${sep}`) && !actual.includes(`${sep}node_modules${sep}`))
+          binDirectory = await managerQuery(executable, ["pm", "bin", "-g"], runtime);
+      } else {
+        const rawRoot = await managerQuery(executable, ["root", "--global"], runtime);
+        if (!isAbsolute(rawRoot) || rawRoot.includes(`
+`))
+          continue;
+        modules = await fs.realpath(rawRoot);
+        const prefix = await managerQuery(executable, ["prefix", "--global"], runtime);
+        if (!isAbsolute(prefix) || prefix.includes(`
+`))
+          continue;
+        globalRoot = await fs.realpath(prefix);
+        binDirectory = join(globalRoot, "bin");
+      }
+      const packageRoot = join(modules, options.packageName);
+      if (lexical.startsWith(packageRoot + sep) || actual.startsWith(packageRoot + sep) || binDirectory && lexical === join(binDirectory, options.binName)) {
+        return {
+          id: identity([manager, globalRoot, packageRoot].join("\x00")),
+          manager,
+          managerPath: executable,
+          globalRoot,
+          packageRoot,
+          coordinationDirectory: join(dirname(modules), ".hraness-cli-update")
+        };
+      }
+    } catch {}
+  }
+  return;
+}
+async function detectInstallation(options, runtime, managed) {
+  const guidance = `Reinstall ${options.packageName} with its documented installer or the package manager that owns this installation.`;
+  const unsupported = (reason) => ({ reason, guidance });
+  if (process.platform === "win32")
+    return unsupported("Automatic updates do not yet support Windows package-manager shims.");
+  let entrypoint;
+  try {
+    entrypoint = await fs.realpath(options.entrypoint);
+  } catch {
+    return unsupported("The running executable could not be resolved.");
+  }
+  let packageRoot = dirname(entrypoint), manifest;
+  for (let i = 0;i < 16; i++) {
+    try {
+      const candidate = await readManifest(join(packageRoot, "package.json"));
+      if (candidate.name === options.packageName) {
+        manifest = candidate;
+        break;
+      }
+    } catch {}
+    const parent = dirname(packageRoot);
+    if (parent === packageRoot)
+      break;
+    packageRoot = parent;
+  }
+  if (!manifest || manifest.version !== options.version || !parseVersion(manifest.version))
+    return { ...unsupported("The running package identity or version does not match its installed manifest."), unsafe: !!manifest && packageRoot.includes(`${sep}node_modules${sep}`) };
+  const bin = binEntry(manifest, options.binName);
+  if (!bin || isAbsolute(bin) || relative(packageRoot, resolve(packageRoot, bin)).split(sep).includes(".."))
+    return unsupported("The running module is not a declared package executable.");
+  try {
+    if (await fs.realpath(resolve(packageRoot, bin)) !== entrypoint)
+      return unsupported("The running module is not the declared package executable.");
+  } catch {
+    return unsupported("The package executable could not be verified.");
+  }
+  if (!packageRoot.includes(`${sep}node_modules${sep}`))
+    return unsupported("Source checkouts and linked development installations are not self-updated.");
+  try {
+    await fs.lstat(join(packageRoot, ".git"));
+    return unsupported("Source checkouts are not self-updated.");
+  } catch {}
+  for (const manager of ["bun", "npm"]) {
+    const executable = await discoverExecutable(manager, options, runtime);
+    if (!executable)
+      continue;
+    try {
+      let globalRoot, modules, binDirectory, spec;
+      if (manager === "bun") {
+        const firstLine = (await managerQuery(executable, ["pm", "-g", "ls"], runtime)).split(`
+`)[0] ?? "";
+        const match = /^(.*) node_modules \(\d+\)$/.exec(firstLine);
+        if (!match || !isAbsolute(match[1]))
+          continue;
+        globalRoot = await fs.realpath(match[1]);
+        modules = join(globalRoot, "node_modules");
+        const expected = join(modules, options.packageName);
+        if (await fs.realpath(expected) !== expected || expected !== packageRoot)
+          continue;
+        const globalManifest = await readManifest(join(globalRoot, "package.json"));
+        spec = globalManifest.dependencies?.[options.packageName];
+        if (typeof spec !== "string")
+          continue;
+        binDirectory = await managerQuery(executable, ["pm", "bin", "-g"], runtime);
+      } else {
+        const rawRoot = await managerQuery(executable, ["root", "--global"], runtime);
+        if (!isAbsolute(rawRoot) || rawRoot.includes(`
+`))
+          continue;
+        modules = await fs.realpath(rawRoot);
+        const expected = join(modules, options.packageName);
+        if (await fs.realpath(expected) !== expected || expected !== packageRoot)
+          continue;
+        globalRoot = await managerQuery(executable, ["prefix", "--global"], runtime);
+        if (!isAbsolute(globalRoot) || globalRoot.includes(`
+`))
+          continue;
+        globalRoot = await fs.realpath(globalRoot);
+        binDirectory = join(globalRoot, "bin");
+        spec = manifest._requested?.rawSpec;
+      }
+      if (!isAbsolute(binDirectory) || binDirectory.includes(`
+`))
+        continue;
+      const binPath = join(binDirectory, options.binName);
+      if (await fs.realpath(binPath) !== entrypoint)
+        continue;
+      const rootStat = await fs.lstat(packageRoot);
+      if (!rootStat.isDirectory() || rootStat.isSymbolicLink() || runtime.uid !== undefined && rootStat.uid !== runtime.uid)
+        return unsupported("This installation is owned by another user; update it with its owner\u2019s package manager.");
+      await fs.access(packageRoot, constants.W_OK);
+      const installId = identity([manager, globalRoot, packageRoot].join("\x00"));
+      const installation = {
+        id: installId,
+        manager,
+        managerPath: executable,
+        globalRoot,
+        packageRoot,
+        entrypoint,
+        binPath,
+        version: manifest.version,
+        dependencySpec: spec,
+        pinned: options.pinned === true || spec !== undefined && parseVersion(spec) !== undefined
+      };
+      const managedSpec = managed?.version === manifest.version && (!managed.id || managed.id === installId) && managed.dependencySpec === spec;
+      if (spec && !managedSpec && !parseVersion(spec) && !/^(?:latest|next|beta|alpha|canary|[~^]\d[^\s]*|\*)$/.test(spec) && !canonicalGitHubSpec(spec, options, manifest.version)) {
+        const path = spec.startsWith("file:") ? spec.slice(5) : spec;
+        const localArchive = isAbsolute(path) && resolve(path) === path && path.endsWith(".tgz");
+        return {
+          ...unsupported("This installation uses a file, Git, noncanonical archive, or unsupported version binding."),
+          usable: true,
+          ...localArchive ? { archiveEnrollment: { installation, path } } : {}
+        };
+      }
+      return { installation };
+    } catch {}
+  }
+  return unsupported("This is not a verified Bun or npm global installation (project dependencies, runner caches, and foreign or linked installs are excluded).");
+}
+async function verifyInstalled(options, installation, version, runtime, allowedSpec) {
+  const detected = await detectInstallation({ ...options, version }, runtime, allowedSpec ? { id: installation.id, version, dependencySpec: allowedSpec } : undefined);
+  if (!detected.installation || detected.installation.id !== installation.id || detected.installation.managerPath !== installation.managerPath) {
+    throw new Error("Post-install package identity or executable ownership verification failed.");
+  }
+  return detected.installation;
+}
+var init_install = () => {};
+
+// node_modules/@hraness/cli-update/dist/src/state.js
+import { constants as constants2, unlinkSync } from "fs";
+import * as fs2 from "fs/promises";
+import { dirname as dirname2, isAbsolute as isAbsolute2, join as join2, parse, sep as sep2 } from "path";
+function missing(error) {
+  return error.code === "ENOENT";
+}
+async function syncDirectory(path) {
+  const handle = await fs2.open(path, constants2.O_RDONLY | constants2.O_DIRECTORY | constants2.O_NOFOLLOW);
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+async function canCoordinate(path, runtime) {
+  const root = parse(path).root;
+  let current = root;
+  for (const part of path.slice(root.length).split(sep2).filter(Boolean)) {
+    const parent = current;
+    current = join2(current, part);
+    let stat2;
+    try {
+      stat2 = await fs2.lstat(current);
+    } catch (error) {
+      if (!missing(error))
+        return false;
+      try {
+        await fs2.access(parent, constants2.W_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    if (!stat2.isDirectory() || stat2.isSymbolicLink())
+      return false;
+    const owned = runtime.uid === undefined || stat2.uid === runtime.uid;
+    const stickyRoot = stat2.uid === 0 && (stat2.mode & 512) !== 0;
+    if (!owned && stat2.uid !== 0 || (stat2.mode & 18) !== 0 && !stickyRoot)
+      return false;
+    if (current === path && !owned)
+      return false;
+  }
+  try {
+    await fs2.access(path, constants2.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+class SafeState {
+  options;
+  runtime;
+  root;
+  product;
+  coordinationRoot;
+  directories = new Map;
+  constructor(options, runtime, coordinationDirectory) {
+    this.options = options;
+    this.runtime = runtime;
+    this.root = options.stateDirectory ?? join2(runtime.homeDirectory, ".local", "state", "hraness-cli-update");
+    this.product = join2(this.root, "products", identity(options.packageName));
+    this.coordinationRoot = coordinationDirectory ?? this.root;
+    if (!isAbsolute2(this.root))
+      throw new Error("Updater state directory must be absolute.");
+  }
+  async initialize() {
+    await this.directory(this.product);
+    await this.directory(join2(this.coordinationRoot, "locks"));
+    await this.directory(join2(this.coordinationRoot, "leases"));
+  }
+  async directory(path) {
+    const filesystemRoot = parse(path).root;
+    let current = filesystemRoot;
+    for (const component of path.slice(filesystemRoot.length).split(sep2).filter(Boolean)) {
+      current = join2(current, component);
+      let stat2;
+      try {
+        stat2 = await fs2.lstat(current);
+      } catch (error) {
+        if (!missing(error))
+          throw error;
+        try {
+          await fs2.mkdir(current, { mode: 448 });
+          await syncDirectory(dirname2(current));
+        } catch (createError) {
+          if (createError.code !== "EEXIST")
+            throw createError;
+        }
+        stat2 = await fs2.lstat(current);
+      }
+      if (!stat2.isDirectory() || stat2.isSymbolicLink())
+        throw new Error("Updater state paths must be real directories.");
+      const owned = this.runtime.uid === undefined || stat2.uid === this.runtime.uid;
+      const trustedStickyTemporary = stat2.uid === 0 && (stat2.mode & 512) !== 0;
+      if (!owned && stat2.uid !== 0 || (stat2.mode & 18) !== 0 && !trustedStickyTemporary) {
+        throw new Error("Updater state requires trusted directory ancestors.");
+      }
+      if ((current === this.root || current.startsWith(this.root + sep2) || current === this.coordinationRoot || current.startsWith(this.coordinationRoot + sep2)) && (this.runtime.uid !== undefined && stat2.uid !== this.runtime.uid || (stat2.mode & 18) !== 0)) {
+        throw new Error("Updater state directory must be owned by this user and not writable by others.");
+      }
+      const identity2 = `${stat2.dev}:${stat2.ino}`;
+      const previous = this.directories.get(current);
+      if (previous !== undefined && previous !== identity2)
+        throw new Error("An updater state directory changed identity.");
+      this.directories.set(current, identity2);
+    }
+  }
+  async readJson(path) {
+    await this.directory(dirname2(path));
+    let handle;
+    try {
+      handle = await fs2.open(path, constants2.O_RDONLY | constants2.O_NOFOLLOW);
+    } catch (error) {
+      if (missing(error))
+        return;
+      throw error;
+    }
+    try {
+      const stat2 = await handle.stat();
+      if (!stat2.isFile() || stat2.size > MAX_STATE || (stat2.mode & 18) !== 0 || this.runtime.uid !== undefined && stat2.uid !== this.runtime.uid)
+        throw new Error("Unsafe updater state file.");
+      return JSON.parse(await handle.readFile("utf8"));
+    } finally {
+      await handle.close();
+    }
+  }
+  async writeJson(path, value) {
+    await this.directory(dirname2(path));
+    await this.readJson(path);
+    const contents = JSON.stringify(value) + `
+`;
+    if (Buffer.byteLength(contents) > MAX_STATE)
+      throw new Error("Updater state is too large.");
+    const temporary = `${path}.${this.runtime.pid}.${this.runtime.randomId()}.tmp`;
+    const handle = await fs2.open(temporary, constants2.O_CREAT | constants2.O_EXCL | constants2.O_WRONLY | constants2.O_NOFOLLOW, 384);
+    try {
+      await handle.writeFile(contents);
+      await handle.sync();
+      await handle.close();
+      await this.readJson(path);
+      await fs2.rename(temporary, path);
+      await syncDirectory(dirname2(path));
+    } finally {
+      await handle.close().catch(() => {});
+      await fs2.unlink(temporary).catch(() => {});
+    }
+  }
+  async read() {
+    const value = await this.readJson(join2(this.product, "state.json"));
+    if (value === undefined)
+      return { schema: 1 };
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw new Error("Invalid updater policy state.");
+    const state = value;
+    if (state.schema !== 1 || state.policy !== undefined && !["auto", "notify", "disabled"].includes(state.policy) || state.lastChecked !== undefined && (!Number.isSafeInteger(state.lastChecked) || state.lastChecked < 0) || state.trackInstallation !== undefined && !/^[a-f0-9]{32}$/.test(state.trackInstallation))
+      throw new Error("Invalid updater policy state.");
+    if (state.managedInstall && (typeof state.managedInstall.id !== "string" || !/^[a-f0-9]{32}$/.test(state.managedInstall.id) || typeof state.managedInstall.version !== "string" || state.managedInstall.dependencySpec !== undefined && typeof state.managedInstall.dependencySpec !== "string"))
+      throw new Error("Invalid managed-install receipt.");
+    return state;
+  }
+  async save(state) {
+    await this.writeJson(join2(this.product, "state.json"), state);
+  }
+  async patch(patch) {
+    const lock = await this.lock(`policy-${identity(this.options.packageName)}`, "policy");
+    if (!lock)
+      throw new Error("Another updater is changing policy state.");
+    try {
+      const state = { ...await this.read(), ...patch, schema: 1 };
+      await this.save(state);
+      return state;
+    } finally {
+      await lock.release();
+    }
+  }
+  async mutation(installationId, pending) {
+    const path = join2(this.coordinationRoot, "mutations", `${installationId}.json`);
+    const record = await this.readJson(path);
+    if (pending === undefined)
+      return record !== undefined;
+    if (pending)
+      await this.writeJson(path, { schema: 1, pending: true });
+    else if (record !== undefined) {
+      await fs2.unlink(path);
+      await syncDirectory(dirname2(path));
+    }
+    return pending;
+  }
+  async managerMutation(managerId, record) {
+    const path = join2(this.coordinationRoot, "manager-mutations", `${managerId}.json`);
+    const existing = await this.readJson(path);
+    if (record === null) {
+      if (existing !== undefined) {
+        await fs2.unlink(path);
+        await syncDirectory(dirname2(path));
+      }
+      return;
+    }
+    if (record !== undefined) {
+      await this.writeJson(path, record);
+      return record;
+    }
+    if (existing === undefined)
+      return;
+    const value = existing;
+    if (!value || value.schema !== 1 || !/^[a-f0-9]{32}$/.test(value.installationId) || typeof value.packageName !== "string" || !Number.isSafeInteger(value.ownerPid) || value.ownerPid <= 0 || typeof value.settled !== "boolean" || value.childPid !== undefined && (!Number.isSafeInteger(value.childPid) || value.childPid <= 0) || value.selectedVersion !== undefined && !parseVersion(value.selectedVersion) || value.dependencySpec !== undefined && (typeof value.dependencySpec !== "string" || value.dependencySpec.length > 4096))
+      throw new Error("Invalid global manager mutation record.");
+    return value;
+  }
+  async managedInstall(installationId, receipt) {
+    const path = join2(this.coordinationRoot, "installations", `${installationId}.json`);
+    if (receipt) {
+      await this.writeJson(path, receipt);
+      return receipt;
+    }
+    const value = await this.readJson(path);
+    if (value === undefined)
+      return;
+    const record = value;
+    if (!record || record.id !== installationId || !parseVersion(record.version) || record.dependencySpec !== undefined && (typeof record.dependencySpec !== "string" || record.dependencySpec.length > 4096))
+      throw new Error("Invalid installed update receipt.");
+    return record;
+  }
+  async owner(path) {
+    const value = await this.readJson(path);
+    if (value === undefined)
+      return;
+    const owner = value;
+    if (!owner || owner.schema !== 1 || !Number.isSafeInteger(owner.pid) || owner.pid <= 0 || typeof owner.token !== "string" || !/^[A-Za-z0-9-]{8,128}$/.test(owner.token) || !Number.isSafeInteger(owner.created) || owner.created < 0)
+      throw new Error("Invalid updater lock owner.");
+    return owner;
+  }
+  async lock(name, scope = "coordination") {
+    if (!/^[a-z-]+-[a-f0-9]{32}$/.test(name))
+      throw new Error("Invalid updater lock name.");
+    const directory = join2(scope === "policy" ? this.root : this.coordinationRoot, "locks", name);
+    await this.directory(directory);
+    const token = this.runtime.randomId();
+    const fileName = `${this.runtime.pid}.${token}.json`, path = join2(directory, fileName);
+    const own = { schema: 1, pid: this.runtime.pid, token, created: this.runtime.now(), choosing: true, ticket: 0 };
+    const handle = await fs2.open(path, constants2.O_CREAT | constants2.O_EXCL | constants2.O_WRONLY | constants2.O_NOFOLLOW, 384);
+    try {
+      await handle.writeFile(JSON.stringify(own));
+    } finally {
+      await handle.close();
+    }
+    const claims = async () => {
+      await this.directory(directory);
+      const entries = await fs2.readdir(directory);
+      if (entries.length > 4096)
+        throw new Error("Updater lock state exceeds its limit.");
+      const result = [];
+      for (const name2 of entries) {
+        if (name2.endsWith(".tmp"))
+          continue;
+        const match = /^(\d+)\.([A-Za-z0-9-]{8,128})\.json$/.exec(name2);
+        if (!match)
+          throw new Error("Unexpected updater lock claim.");
+        const pid = Number(match[1]), claimPath = join2(directory, name2);
+        if (!Number.isSafeInteger(pid) || pid <= 0)
+          throw new Error("Invalid lock claim PID.");
+        if (!this.runtime.isProcessAlive(pid)) {
+          const stat2 = await fs2.lstat(claimPath).catch((error) => {
+            if (missing(error))
+              return;
+            throw error;
+          });
+          if (!stat2)
+            continue;
+          if (!stat2.isFile() || stat2.isSymbolicLink() || (stat2.mode & 18) !== 0 || this.runtime.uid !== undefined && stat2.uid !== this.runtime.uid)
+            throw new Error("Unsafe dead updater claim.");
+          await fs2.unlink(claimPath).catch((error) => {
+            if (!missing(error))
+              throw error;
+          });
+          continue;
+        }
+        let value;
+        try {
+          value = await this.readJson(claimPath);
+        } catch (error) {
+          if (error instanceof SyntaxError) {
+            result.push({ name: name2 });
+            continue;
+          }
+          throw error;
+        }
+        if (value === undefined)
+          continue;
+        const claim = value;
+        if (!claim || claim.schema !== 1 || claim.pid !== pid || claim.token !== match[2] || typeof claim.choosing !== "boolean" || !Number.isSafeInteger(claim.ticket) || claim.ticket < 0)
+          throw new Error("Invalid updater lock claim.");
+        result.push({ name: name2, claim });
+      }
+      return result;
+    };
+    let acquired = false, released = false;
+    const release = async () => {
+      if (released)
+        return;
+      released = true;
+      await this.directory(directory);
+      await fs2.unlink(path).catch((error) => {
+        if (!missing(error))
+          throw error;
+      });
+    };
+    try {
+      const existing = await claims();
+      const maximum = Math.max(0, ...existing.map((record) => record.claim?.ticket ?? 0));
+      if (maximum >= Number.MAX_SAFE_INTEGER)
+        throw new Error("Updater lock ticket exceeds its limit.");
+      own.ticket = maximum + 1;
+      own.choosing = false;
+      await this.writeJson(path, own);
+      for (const other of await claims()) {
+        if (other.name === fileName)
+          continue;
+        if (!other.claim || other.claim.choosing || other.claim.ticket < own.ticket || other.claim.ticket === own.ticket && other.name < fileName)
+          return;
+      }
+      acquired = true;
+      return { release };
+    } finally {
+      if (!acquired)
+        await release();
+    }
+  }
+  async active(installationId) {
+    const path = join2(this.coordinationRoot, "leases", installationId);
+    await this.directory(path);
+    for (const entry of await fs2.readdir(path)) {
+      if (!/^[\d]+\.[A-Za-z0-9-]{8,128}\.json$/.test(entry))
+        throw new Error("Unexpected updater lease state.");
+      const file = join2(path, entry), owner = await this.owner(file);
+      if (!owner)
+        continue;
+      if (this.runtime.isProcessAlive(owner.pid))
+        return true;
+      await fs2.unlink(file);
+    }
+    return false;
+  }
+  async lease(installationId) {
+    const token = this.runtime.randomId();
+    const path = join2(this.coordinationRoot, "leases", installationId, `${this.runtime.pid}.${token}.json`);
+    await this.writeJson(path, { schema: 1, pid: this.runtime.pid, token, created: this.runtime.now() });
+    let released = false;
+    const removeExit = this.runtime.onExit(() => {
+      if (!released) {
+        try {
+          unlinkSync(path);
+        } catch {}
+      }
+    });
+    return { release: async () => {
+      if (released)
+        return;
+      released = true;
+      removeExit();
+      const owner = await this.owner(path);
+      if (owner?.token === token)
+        await fs2.unlink(path);
+    } };
+  }
+}
+var MAX_STATE = 16384;
+var init_state = __esm(() => {
+  init_install();
+});
+
+// node_modules/@hraness/cli-update/dist/src/provider.js
+import { createHash as createHash2 } from "crypto";
+import { constants as constants3 } from "fs";
+import * as fs3 from "fs/promises";
+import { dirname as dirname3, join as join3, parse as parse2, posix, sep as sep3 } from "path";
+import { createGunzip } from "zlib";
+function object(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Invalid release metadata.");
+  return value;
+}
+function validateOptions(options) {
+  if (!/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(options.packageName) || options.packageName.length > 214)
+    throw new Error("Invalid fixed package identity.");
+  if (!parseVersion(options.version))
+    throw new Error("The current version must be a semantic version.");
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(options.binName))
+    throw new Error("Invalid executable name.");
+  const provider = options.provider;
+  if (provider?.kind === "github") {
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(provider.repository) || provider.repository.split("/").some((p) => p === "." || p === ".."))
+      throw new Error("Invalid fixed GitHub release repository.");
+    if (!/^[A-Za-z0-9._{}-]+$/.test(provider.assetName) || provider.assetName.replaceAll("{version}", "").includes("{") || !provider.assetName.endsWith(".tgz"))
+      throw new Error("GitHub package asset must be one exact .tgz filename template.");
+    if (!/^[A-Za-z0-9._-]{0,64}$/.test(provider.tagPrefix ?? "v"))
+      throw new Error("Invalid release tag prefix.");
+  } else if (provider?.kind === "npm" && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(provider.tag ?? "latest"))
+    throw new Error("Invalid fixed npm release tag.");
+}
+async function fetchBytes(url, runtime) {
+  const controller = new AbortController;
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error("Release metadata request timed out."));
+    }, METADATA_TIMEOUT);
+  });
+  const request = (async () => {
+    const response = await runtime.fetch(url, { headers: { Accept: "application/json" }, redirect: "error", signal: controller.signal });
+    if (!response.ok || !response.body || response.url && response.url !== url)
+      throw new Error("Release metadata request failed.");
+    const length = response.headers.get("content-length");
+    if (length !== null && (!/^\d+$/.test(length) || Number(length) > METADATA_BYTES))
+      throw new Error("Release metadata exceeds its size limit.");
+    const chunks = [];
+    let total = 0;
+    const reader = response.body.getReader();
+    try {
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done)
+          break;
+        total += chunk.value.length;
+        if (total > METADATA_BYTES) {
+          await reader.cancel();
+          throw new Error("Release metadata exceeds its size limit.");
+        }
+        chunks.push(chunk.value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    return Buffer.concat(chunks);
+  })();
+  try {
+    return await Promise.race([request, timeout]);
+  } finally {
+    if (timer)
+      clearTimeout(timer);
+    controller.abort();
+  }
+}
+async function githubMetadata(provider, options, runtime, version) {
+  const endpoint = version === undefined ? `repos/${provider.repository}/releases?per_page=30` : `repos/${provider.repository}/releases/tags/${encodeURIComponent((provider.tagPrefix ?? "v") + version)}`;
+  if (!provider.authenticated)
+    return JSON.parse((await fetchBytes(`https://api.github.com/${endpoint}`, runtime)).toString("utf8"));
+  const gh = await discoverExecutable("gh", options, runtime);
+  if (!gh)
+    throw new Error("This release channel requires an authenticated GitHub CLI (gh).");
+  const result = await runtime.run(gh, ["api", "--hostname", "github.com", "-H", "Accept: application/vnd.github+json", endpoint], {
+    env: runtime.env,
+    timeoutMs: METADATA_TIMEOUT,
+    maxOutputBytes: METADATA_BYTES
+  });
+  if (result.code !== 0)
+    throw new Error("GitHub release metadata could not be read; check gh authentication and repository access.");
+  return JSON.parse(result.stdout);
+}
+async function latestRelease(options, runtime) {
+  const provider = options.provider ?? { kind: "npm" };
+  if (provider.kind === "npm") {
+    const url = `https://registry.npmjs.org/${encodeURIComponent(options.packageName)}/${encodeURIComponent(provider.tag ?? "latest")}`;
+    const metadata2 = object(JSON.parse((await fetchBytes(url, runtime)).toString("utf8")));
+    if (metadata2.name !== options.packageName || typeof metadata2.version !== "string" || !parseVersion(metadata2.version))
+      throw new Error("Registry package identity or version is invalid.");
+    const dist = object(metadata2.dist);
+    if (typeof dist.tarball !== "string" || typeof dist.integrity !== "string" || !/^(?:sha512-[A-Za-z0-9+/]{86}==|sha256-[A-Za-z0-9+/]{43}=)$/.test(dist.integrity))
+      throw new Error("Registry package integrity metadata is invalid.");
+    const archive = new URL(dist.tarball);
+    const unscoped = options.packageName.split("/").at(-1);
+    if (archive.origin !== "https://registry.npmjs.org" || archive.username || archive.password || archive.search || archive.hash || decodeURIComponent(archive.pathname) !== `/${options.packageName}/-/${unscoped}-${metadata2.version}.tgz`)
+      throw new Error("Registry package archive has an unexpected authority or identity.");
+    if (parseVersion(metadata2.version).prerelease.length && !parseVersion(options.version).prerelease.length && (provider.tag ?? "latest") === "latest")
+      throw new Error("A stable installation cannot silently switch to a prerelease.");
+    return { provider, packageName: options.packageName, version: metadata2.version, archiveUrl: archive.href, integrity: dist.integrity };
+  }
+  const metadata = await githubMetadata(provider, options, runtime);
+  if (!Array.isArray(metadata) || metadata.length > 30)
+    throw new Error("Invalid GitHub releases response.");
+  const candidates = metadata.map((item) => githubRelease(item, provider, options)).filter((release) => release !== undefined);
+  candidates.sort((a, b) => compareVersions(b.version, a.version));
+  if (!candidates[0])
+    throw new Error("No verified compatible GitHub package release was found.");
+  return candidates[0];
+}
+function githubRelease(item, provider, options) {
+  const release = object(item);
+  if (release.draft !== false || release.immutable !== true || typeof release.prerelease !== "boolean" || typeof release.tag_name !== "string")
+    return;
+  const prefix = provider.tagPrefix ?? "v";
+  if (!release.tag_name.startsWith(prefix))
+    return;
+  const version = release.tag_name.slice(prefix.length), parsed = parseVersion(version);
+  if (!parsed || release.prerelease !== parsed.prerelease.length > 0)
+    return;
+  if (provider.channel !== "prerelease" && release.prerelease)
+    return;
+  if (provider.channel === "prerelease" && !release.prerelease)
+    return;
+  if (provider.channel === "prerelease" && parsed.prerelease.length && parseVersion(options.version).prerelease.length && parsed.prerelease[0] !== parseVersion(options.version).prerelease[0])
+    return;
+  const expectedAsset = provider.assetName.replaceAll("{version}", version);
+  if (!Array.isArray(release.assets))
+    return;
+  const assets = release.assets.map(object).filter((asset2) => asset2.name === expectedAsset);
+  if (assets.length !== 1)
+    return;
+  const asset = assets[0];
+  const url = `https://github.com/${provider.repository}/releases/download/${release.tag_name}/${expectedAsset}`;
+  if (asset.browser_download_url !== url || typeof asset.digest !== "string" || !/^sha256:[a-f0-9]{64}$/.test(asset.digest) || !Number.isSafeInteger(asset.id) || asset.id <= 0 || !Number.isSafeInteger(asset.size) || asset.size <= 0 || asset.size > ARCHIVE_BYTES)
+    return;
+  return {
+    provider,
+    version,
+    packageName: options.packageName,
+    archiveUrl: url,
+    sha256: asset.digest.slice(7),
+    tag: release.tag_name,
+    assetName: expectedAsset,
+    assetId: asset.id
+  };
+}
+async function currentGitHubRelease(options, runtime) {
+  const provider = options.provider;
+  if (provider?.kind !== "github" || !provider.authenticated)
+    throw new Error("Archive enrollment requires the configured authenticated GitHub release channel.");
+  const selected = githubRelease(await githubMetadata(provider, options, runtime, options.version), provider, options);
+  if (!selected || selected.version !== options.version)
+    throw new Error("The installed version has no matching immutable GitHub package release.");
+  return selected;
+}
+async function verifyExistingGitHubArchive(path, release, options, runtime) {
+  const sourcePath = async () => {
+    if (!(await fs3.lstat(path)).isFile())
+      throw new Error("Archive enrollment requires a regular file, not a symbolic link or special file.");
+    const root = parse2(path).root;
+    let parent = root;
+    for (const part of dirname3(path).slice(root.length).split(sep3).filter(Boolean)) {
+      parent = join3(parent, part);
+      const stat2 = await fs3.lstat(parent);
+      if (stat2.isSymbolicLink()) {
+        if (stat2.uid !== 0)
+          throw new Error("Archive source aliases must be owned by the operating system.");
+      } else if (!stat2.isDirectory() || runtime.uid !== undefined && stat2.uid !== runtime.uid && stat2.uid !== 0 || (stat2.mode & 18) !== 0 && !(stat2.uid === 0 && (stat2.mode & 512) !== 0))
+        throw new Error("Archive source ancestors can be changed by another user.");
+    }
+    const canonical2 = await fs3.realpath(path);
+    if (!await canCoordinate(dirname3(canonical2), runtime))
+      throw new Error("Archive enrollment requires an owned source directory that others cannot change.");
+    return canonical2;
+  };
+  const canonical = await sourcePath();
+  const hash = async () => {
+    const handle = await fs3.open(canonical, constants3.O_RDONLY | constants3.O_NOFOLLOW | constants3.O_NONBLOCK);
+    try {
+      const stat2 = await handle.stat();
+      if (!stat2.isFile() || stat2.size <= 0 || stat2.size > ARCHIVE_BYTES || (stat2.mode & 18) !== 0 || runtime.uid !== undefined && stat2.uid !== runtime.uid)
+        throw new Error("Archive enrollment requires a user-owned, non-writable-by-others regular archive.");
+      const digest = createHash2("sha256");
+      let bytes = 0;
+      for await (const chunk of handle.createReadStream({ autoClose: false })) {
+        bytes += chunk.length;
+        if (bytes > ARCHIVE_BYTES)
+          throw new Error("The enrollment archive exceeds its size limit.");
+        digest.update(chunk);
+      }
+      if (digest.digest("hex") !== release.sha256)
+        throw new Error("The installed archive does not match its immutable GitHub release digest.");
+    } finally {
+      await handle.close();
+    }
+  };
+  await hash();
+  await verifyPackageArchive(canonical, options.packageName, release.version);
+  await options.verifyArtifact?.({ path: canonical, version: release.version, sha256: release.sha256 });
+  if (await sourcePath() !== canonical)
+    throw new Error("The enrollment archive changed path during verification.");
+  await hash();
+}
+function parsePax(buffer) {
+  const fields = Object.create(null);
+  let offset = 0;
+  while (offset < buffer.length) {
+    const space = buffer.indexOf(32, offset);
+    if (space < 0)
+      throw new Error("Invalid PAX archive header.");
+    const digits = buffer.subarray(offset, space).toString("ascii");
+    if (!/^[1-9]\d{0,6}$/.test(digits))
+      throw new Error("Invalid PAX archive record length.");
+    const length = Number(digits), end = offset + length;
+    if (end > buffer.length || end <= space + 2 || buffer[end - 1] !== 10)
+      throw new Error("Invalid PAX archive record.");
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(space + 1, end - 1));
+    const equal = text.indexOf("=");
+    if (equal < 1)
+      throw new Error("Invalid PAX archive field.");
+    const key = text.slice(0, equal), value = text.slice(equal + 1);
+    if (key.startsWith("GNU.sparse") || key === "linkpath")
+      throw new Error("Unsupported PAX archive extension.");
+    fields[key] = value;
+    offset = end;
+  }
+  return fields;
+}
+async function verifyPackageArchive(path, name, version) {
+  const handle = await fs3.open(path, constants3.O_RDONLY | constants3.O_NOFOLLOW | constants3.O_NONBLOCK);
+  try {
+    if (!(await handle.stat()).isFile())
+      throw new Error("Release archive must be a regular file.");
+  } catch (error) {
+    await handle.close();
+    throw error;
+  }
+  const input = handle.createReadStream();
+  const stream = input.pipe(createGunzip());
+  input.on("error", (error) => {
+    stream.destroy(error);
+  });
+  let buffer = Buffer.alloc(0), remaining = 0, padding = 0, expanded = 0;
+  let reading, found = false, chunks = [];
+  let pax = {}, globalPax = {};
+  try {
+    for await (const raw of stream) {
+      const chunk = raw;
+      expanded += chunk.length;
+      if (expanded > 2147483648)
+        throw new Error("Release archive expands beyond its limit.");
+      buffer = Buffer.concat([buffer, chunk]);
+      while (true) {
+        if (remaining) {
+          const take = Math.min(remaining, buffer.length);
+          if (reading)
+            chunks.push(Buffer.from(buffer.subarray(0, take)));
+          buffer = buffer.subarray(take);
+          remaining -= take;
+          if (remaining)
+            break;
+          if (reading) {
+            const contents = Buffer.concat(chunks);
+            if (reading === "manifest") {
+              const manifest = object(JSON.parse(contents.toString("utf8")));
+              if (manifest.name !== name || manifest.version !== version)
+                throw new Error("Release archive package identity does not match the selected release.");
+              found = true;
+            } else if (reading === "pax")
+              pax = { ...pax, ...parsePax(contents) };
+            else {
+              const fields = parsePax(contents);
+              if ("path" in fields || "size" in fields)
+                throw new Error("Global PAX identity overrides are unsupported.");
+              globalPax = { ...globalPax, ...fields };
+            }
+            reading = undefined;
+            chunks = [];
+          }
+        }
+        if (padding) {
+          const take = Math.min(padding, buffer.length);
+          buffer = buffer.subarray(take);
+          padding -= take;
+          if (padding)
+            break;
+        }
+        if (buffer.length < 512)
+          break;
+        const header = buffer.subarray(0, 512);
+        buffer = buffer.subarray(512);
+        if (header.every((byte) => byte === 0))
+          continue;
+        const field = (start, end) => header.subarray(start, end).toString("utf8").replace(/\0.*$/s, "");
+        const rawSize = field(124, 136).trim(), rawChecksum = field(148, 156).trim();
+        if (!/^[0-7]+$/.test(rawSize) || !/^[0-7]+$/.test(rawChecksum))
+          throw new Error("Invalid package archive header.");
+        const checksum = header.reduce((sum, byte, index) => sum + (index >= 148 && index < 156 ? 32 : byte), 0);
+        if (checksum !== Number.parseInt(rawChecksum, 8))
+          throw new Error("Invalid package archive header checksum.");
+        const type = header[156];
+        if ([75, 76, 83].includes(type))
+          throw new Error("GNU name, link, and sparse archive extensions are unsupported.");
+        let size = Number.parseInt(rawSize, 8);
+        const prefix = field(345, 500);
+        let pathName = `${prefix ? prefix + "/" : ""}${field(0, 100)}`;
+        if (type === 120 || type === 103) {
+          if (size <= 0 || size > 65536)
+            throw new Error("Invalid PAX archive header size.");
+          reading = type === 120 ? "pax" : "global";
+        } else {
+          const effective = { ...globalPax, ...pax };
+          pax = {};
+          if (effective.path !== undefined)
+            pathName = effective.path;
+          if (effective.size !== undefined) {
+            if (!/^\d+$/.test(effective.size))
+              throw new Error("Invalid PAX archive entry size.");
+            size = Number(effective.size);
+          }
+          if ([49, 50].includes(type))
+            throw new Error("Package archive links are unsupported.");
+          if (pathName.startsWith("/") || pathName.split("/").includes("..") || pathName.includes("\x00"))
+            throw new Error("Unsafe package archive path.");
+          pathName = posix.normalize(pathName);
+          reading = pathName === "package/package.json" ? "manifest" : undefined;
+          if (reading && (found || size === 0 || size > 262144 || ![0, 48].includes(type)))
+            throw new Error("Invalid or duplicate package archive manifest.");
+        }
+        if (!Number.isSafeInteger(size) || size > 2147483648 || size < 0)
+          throw new Error("Invalid package archive entry size.");
+        remaining = size;
+        padding = (512 - size % 512) % 512;
+      }
+    }
+    if (!found || remaining || padding || buffer.length || Object.keys(pax).length)
+      throw new Error("Release archive is incomplete or has no package manifest.");
+  } finally {
+    stream.destroy();
+    input.destroy();
+  }
+}
+async function prepareNpmArchive(release, options, runtime) {
+  if (release.provider.kind !== "npm" || !release.integrity || !/^(?:sha512-[A-Za-z0-9+/]{86}==|sha256-[A-Za-z0-9+/]{43}=)$/.test(release.integrity))
+    throw new Error("Invalid npm archive integrity selection.");
+  const url = new URL(release.archiveUrl), unscoped = options.packageName.split("/").at(-1);
+  if (release.packageName !== options.packageName || !parseVersion(release.version) || url.origin !== "https://registry.npmjs.org" || url.username || url.password || url.search || url.hash || decodeURIComponent(url.pathname) !== `/${options.packageName}/-/${unscoped}-${release.version}.tgz`)
+    throw new Error("Invalid npm archive authority or identity.");
+  const directory = await fs3.mkdtemp(join3(await fs3.realpath(runtime.temporaryDirectory), "hraness-cli-update-"));
+  await fs3.chmod(directory, 448);
+  const path = join3(directory, "package.tgz"), cleanup = async () => {
+    await fs3.rm(directory, { recursive: true, force: true });
+  };
+  const controller = new AbortController;
+  let timer, reader;
+  let output;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error("The npm release archive download timed out."));
+    }, ARCHIVE_TIMEOUT);
+  });
+  try {
+    const response = await Promise.race([runtime.fetch(url.href, { redirect: "error", signal: controller.signal }), deadline]);
+    if (!response.ok || !response.body || response.redirected || response.url && response.url !== url.href)
+      throw new Error("The canonical npm release archive could not be downloaded.");
+    const length = response.headers.get("content-length");
+    if (length !== null && (!/^\d+$/.test(length) || Number(length) <= 0 || Number(length) > ARCHIVE_BYTES))
+      throw new Error("The npm release archive exceeds its size limit.");
+    reader = response.body.getReader();
+    output = await fs3.open(path, constants3.O_WRONLY | constants3.O_CREAT | constants3.O_EXCL | constants3.O_NOFOLLOW, 384);
+    const algorithm = release.integrity.startsWith("sha512-") ? "sha512" : "sha256";
+    const integrity = createHash2(algorithm), sha256 = createHash2("sha256");
+    let bytes = 0;
+    while (true) {
+      const chunk = await Promise.race([reader.read(), deadline]);
+      if (chunk.done)
+        break;
+      bytes += chunk.value.length;
+      if (bytes > ARCHIVE_BYTES)
+        throw new Error("The npm release archive exceeds its size limit.");
+      integrity.update(chunk.value);
+      sha256.update(chunk.value);
+      await output.writeFile(chunk.value);
+      if (controller.signal.aborted)
+        throw new Error("The npm release archive download timed out.");
+    }
+    if (!bytes || `${algorithm}-${integrity.digest("base64")}` !== release.integrity)
+      throw new Error("The npm release archive does not match its selected integrity.");
+    await output.sync();
+    await output.close();
+    output = undefined;
+    if (timer)
+      clearTimeout(timer);
+    timer = undefined;
+    const digest = sha256.digest("hex");
+    await verifyPackageArchive(path, options.packageName, release.version);
+    await options.verifyArtifact?.({ path, version: release.version, sha256: digest });
+    return { path, sha256: digest, cleanup };
+  } catch (error) {
+    await output?.close();
+    output = undefined;
+    await cleanup();
+    throw error;
+  } finally {
+    if (timer)
+      clearTimeout(timer);
+    controller.abort();
+    if (reader) {
+      reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+  }
+}
+async function prepareGitHubArchive(release, options, runtime) {
+  if (release.provider.kind !== "github" || !release.sha256 || !release.assetName || !release.tag || !release.assetId)
+    throw new Error("Invalid GitHub release selection.");
+  const gh = await discoverExecutable("gh", options, runtime);
+  if (!gh)
+    throw new Error("GitHub package updates require the GitHub CLI (gh).");
+  const directory = await fs3.mkdtemp(join3(await fs3.realpath(runtime.temporaryDirectory), "hraness-cli-update-"));
+  await fs3.chmod(directory, 448);
+  const path = join3(directory, release.assetName);
+  const cleanup = async () => {
+    await fs3.rm(directory, { recursive: true, force: true });
+  };
+  try {
+    const result = await runtime.download(gh, ["api", "--hostname", "github.com", "-H", "Accept: application/octet-stream", `repos/${release.provider.repository}/releases/assets/${release.assetId}`], path, {
+      env: { ...runtime.env, GH_HOST: "github.com" },
+      timeoutMs: ARCHIVE_TIMEOUT,
+      maxOutputBytes: 131072
+    }, ARCHIVE_BYTES);
+    if (result.code !== 0)
+      throw new Error("The verified release archive could not be downloaded.");
+    const stat2 = await fs3.lstat(path);
+    if (!stat2.isFile() || stat2.isSymbolicLink() || stat2.size > ARCHIVE_BYTES || runtime.uid !== undefined && stat2.uid !== runtime.uid)
+      throw new Error("The release archive is not a safe regular file.");
+    const handle = await fs3.open(path, constants3.O_RDONLY | constants3.O_NOFOLLOW);
+    const hash = createHash2("sha256");
+    try {
+      for await (const chunk of handle.createReadStream({ autoClose: false }))
+        hash.update(chunk);
+    } finally {
+      await handle.close();
+    }
+    if (hash.digest("hex") !== release.sha256)
+      throw new Error("The release archive digest does not match GitHub release metadata.");
+    await verifyPackageArchive(path, options.packageName, release.version);
+    await options.verifyArtifact?.({ path, version: release.version, sha256: release.sha256 });
+    return { path, sha256: release.sha256, cleanup };
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
+}
+async function retainVerifiedArchive(source, directory, sha256, runtime) {
+  const destination = join3(directory, `${sha256}.tgz`);
+  const verify = async (path) => {
+    const handle = await fs3.open(path, constants3.O_RDONLY | constants3.O_NOFOLLOW);
+    try {
+      const stat2 = await handle.stat();
+      if (!stat2.isFile() || stat2.size > ARCHIVE_BYTES || (stat2.mode & 18) !== 0 || runtime.uid !== undefined && stat2.uid !== runtime.uid)
+        throw new Error("Unsafe retained package archive.");
+      const hash = createHash2("sha256");
+      for await (const chunk of handle.createReadStream({ autoClose: false }))
+        hash.update(chunk);
+      if (hash.digest("hex") !== sha256)
+        throw new Error("Retained archive digest does not match its release.");
+    } finally {
+      await handle.close();
+    }
+  };
+  try {
+    await verify(destination);
+    return destination;
+  } catch (error) {
+    if (error.code !== "ENOENT")
+      throw error;
+  }
+  const temporary = join3(directory, `.${runtime.randomId()}.tmp`);
+  const input = await fs3.open(source, constants3.O_RDONLY | constants3.O_NOFOLLOW);
+  const output = await fs3.open(temporary, constants3.O_CREAT | constants3.O_EXCL | constants3.O_WRONLY | constants3.O_NOFOLLOW, 384);
+  try {
+    let bytes = 0;
+    for await (const chunk of input.createReadStream({ autoClose: false })) {
+      const buffer = chunk;
+      bytes += buffer.length;
+      if (bytes > ARCHIVE_BYTES)
+        throw new Error("Release archive exceeds its size limit.");
+      await output.writeFile(buffer);
+    }
+    await output.sync();
+    await output.close();
+    await verify(temporary);
+    await fs3.link(temporary, destination);
+    await syncDirectory(directory);
+    return destination;
+  } finally {
+    await input.close();
+    await output.close().catch(() => {});
+    await fs3.unlink(temporary).catch(() => {});
+  }
+}
+var METADATA_BYTES = 2097152, ARCHIVE_BYTES = 536870912, ARCHIVE_TIMEOUT = 120000, METADATA_TIMEOUT = 5000;
+var init_provider = __esm(() => {
+  init_install();
+  init_state();
+});
+
+// node_modules/@hraness/cli-update/dist/src/runtime.js
+import { spawn } from "child_process";
+import { randomUUID } from "crypto";
+import { createWriteStream } from "fs";
+import { homedir, tmpdir } from "os";
+function runtimeFor(options) {
+  return {
+    env: { ...process.env },
+    homeDirectory: homedir(),
+    temporaryDirectory: tmpdir(),
+    execPath: process.execPath,
+    execArgv: [...process.execArgv],
+    pid: process.pid,
+    uid: process.getuid?.(),
+    now: Date.now,
+    randomId: randomUUID,
+    isProcessAlive(pid) {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch (error) {
+        return error.code !== "ESRCH";
+      }
+    },
+    fetch: globalThis.fetch.bind(globalThis),
+    run: runProcess,
+    download: downloadProcess,
+    reenter(executable, args, env) {
+      return new Promise((resolve2, reject) => {
+        const child = spawn(executable, [...args], { env, stdio: "inherit", shell: false });
+        const interrupt = () => {
+          child.kill("SIGINT");
+        }, terminate = () => {
+          child.kill("SIGTERM");
+        };
+        process.on("SIGINT", interrupt);
+        process.on("SIGTERM", terminate);
+        const cleanup = () => {
+          process.off("SIGINT", interrupt);
+          process.off("SIGTERM", terminate);
+        };
+        child.once("error", (error) => {
+          cleanup();
+          reject(error);
+        });
+        child.once("exit", (code, signal) => {
+          cleanup();
+          resolve2(code ?? (signal === "SIGINT" ? 130 : signal === "SIGTERM" ? 143 : 1));
+        });
+      });
+    },
+    writeStdout: (text) => {
+      process.stdout.write(text);
+    },
+    writeStderr: (text) => {
+      process.stderr.write(text);
+    },
+    onExit(cleanup) {
+      process.once("exit", cleanup);
+      return () => {
+        process.off("exit", cleanup);
+      };
+    },
+    ...options.runtime
+  };
+}
+function downloadProcess(executable, args, path, options, maxBytes) {
+  return new Promise((resolve2, reject) => {
+    const output = createWriteStream(path, { flags: "wx", mode: 384 });
+    const child = spawn(executable, [...args], { env: options.env, stdio: ["ignore", "pipe", "pipe"], shell: false });
+    let bytes = 0, stderr = "", failure, killTimer;
+    const fail = (error) => {
+      if (failure)
+        return;
+      failure = error;
+      child.kill("SIGTERM");
+      output.destroy();
+      killTimer = setTimeout(() => child.kill("SIGKILL"), 1000);
+      killTimer.unref();
+    };
+    const timer = setTimeout(() => fail(new Error("Release archive download timed out.")), options.timeoutMs);
+    timer.unref();
+    output.on("error", fail);
+    child.stdout.on("data", (chunk) => {
+      bytes += chunk.length;
+      if (bytes > maxBytes) {
+        fail(new Error("Release archive exceeds its size limit."));
+        return;
+      }
+      if (!failure && !output.write(chunk))
+        child.stdout.pause();
+    });
+    output.on("drain", () => child.stdout.resume());
+    child.stderr.on("data", (chunk) => {
+      if (Buffer.byteLength(stderr) + chunk.length > options.maxOutputBytes)
+        fail(new Error("Release downloader output exceeded its limit."));
+      else
+        stderr += chunk.toString("utf8");
+    });
+    child.on("error", fail);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (killTimer)
+        clearTimeout(killTimer);
+      if (failure) {
+        reject(failure);
+        return;
+      }
+      output.end(() => resolve2({ code: code ?? 1, stdout: "", stderr }));
+    });
+  });
+}
+function runProcess(executable, args, options) {
+  return new Promise((resolve2, reject) => {
+    const child = spawn(executable, [...args], { env: options.env, cwd: options.cwd, stdio: ["ignore", "pipe", "pipe"], shell: false, detached: process.platform !== "win32" });
+    let stdout = "", stderr = "", bytes = 0, failure;
+    let spawnRecord = Promise.resolve();
+    const signalGroup = (signal) => {
+      if (child.pid && process.platform !== "win32") {
+        try {
+          process.kill(-child.pid, signal);
+        } catch {}
+      } else
+        child.kill(signal);
+    };
+    let killTimer;
+    const stop = (error) => {
+      if (failure)
+        return;
+      failure = error;
+      signalGroup("SIGTERM");
+      killTimer = setTimeout(() => signalGroup("SIGKILL"), 1000);
+      killTimer.unref();
+    };
+    const timer = setTimeout(() => stop(new Error("Updater subprocess timed out.")), options.timeoutMs);
+    timer.unref();
+    const receive = (kind, chunk) => {
+      bytes += chunk.length;
+      if (bytes > options.maxOutputBytes) {
+        stop(new Error("Updater subprocess output exceeded its limit."));
+        return;
+      }
+      const text = chunk.toString("utf8");
+      if (kind === "stdout")
+        stdout += text;
+      else
+        stderr += text;
+      if (options.diagnostics)
+        process.stderr.write(text);
+    };
+    child.stdout.on("data", (chunk) => receive("stdout", chunk));
+    child.stderr.on("data", (chunk) => receive("stderr", chunk));
+    child.once("spawn", () => {
+      if (child.pid)
+        spawnRecord = Promise.resolve(options.onSpawn?.(child.pid)).catch((error) => {
+          stop(error);
+        });
+    });
+    child.once("error", (error) => {
+      failure = child.pid ? error : new ProcessLaunchError("The package-manager process could not be launched.", { cause: error });
+    });
+    child.once("close", async (code) => {
+      clearTimeout(timer);
+      if (killTimer)
+        clearTimeout(killTimer);
+      if (failure)
+        signalGroup("SIGKILL");
+      try {
+        await spawnRecord;
+      } catch (error) {
+        failure = error;
+      }
+      if (failure)
+        reject(failure);
+      else
+        resolve2({ code: code ?? 1, stdout, stderr });
+    });
+  });
+}
+var ProcessLaunchError;
+var init_runtime = __esm(() => {
+  ProcessLaunchError = class ProcessLaunchError extends Error {
+  };
+});
+
+// node_modules/@hraness/cli-update/dist/src/index.js
+var exports_src = {};
+__export(exports_src, {
+  runUpdateCommand: () => runUpdateCommand,
+  runCliUpdate: () => runCliUpdate,
+  parseVersion: () => parseVersion,
+  compareVersions: () => compareVersions
+});
+import { isAbsolute as isAbsolute3, join as join4 } from "path";
+function automaticSuppressed(options, argv, runtime) {
+  const ci = runtime.env.CI;
+  const separator = argv.indexOf("--"), productArgs = separator === -1 ? argv : argv.slice(0, separator);
+  return options.offline === true || options.nested === true || options.pinned === true || options.suppressAutomatic === true || runtime.env.HRANESS_NO_UPDATE === "1" || runtime.env.HRANESS_UPDATE_REENTRY === "1" || ci !== undefined && ci !== "" && ci !== "0" && ci.toLowerCase() !== "false" || productArgs.some((arg) => ["--help", "-h", "--version", "-v", "-V", "--offline", "--completion", "--completions"].includes(arg)) || ["help", "version", "completion", "completions"].includes(argv[0] ?? "");
+}
+function report(result, json, runtime) {
+  if (json) {
+    runtime.writeStdout(JSON.stringify(result) + `
+`);
+    return;
+  }
+  const version = result.latestVersion ? ` ${result.currentVersion} \u2192 ${result.latestVersion}` : ` ${result.currentVersion}`;
+  runtime.writeStdout(`${result.package}${version}: ${result.status}; automatic updates ${result.policy}.
+`);
+  if (result.reason)
+    runtime.writeStderr(`${result.reason}
+`);
+  if (result.guidance)
+    runtime.writeStderr(`${result.guidance}
+`);
+}
+function pinned(installation, state, options) {
+  if (options.pinned)
+    return true;
+  if (state.trackInstallation === installation.id)
+    return false;
+  if (state.managedInstall?.id === installation.id && state.managedInstall.version === installation.version && state.managedInstall.dependencySpec === installation.dependencySpec)
+    return false;
+  return installation.pinned;
+}
+async function installRelease(release, installation, options, runtime, store) {
+  let archive;
+  const managerId = identity(`${installation.manager}\x00${installation.globalRoot}`);
+  try {
+    archive = release.provider.kind === "github" ? await prepareGitHubArchive(release, options, runtime) : await prepareNpmArchive(release, options, runtime);
+    const archiveDirectory = join4(store.coordinationRoot, "artifacts", identity(options.packageName));
+    await store.directory(archiveDirectory);
+    const retainedArchive = await retainVerifiedArchive(archive.path, archiveDirectory, archive.sha256, runtime);
+    const target = `${options.packageName}@file:${retainedArchive}`;
+    const args = installation.manager === "bun" ? ["add", "--global", "--no-progress", ...options.ignoreScripts ? ["--ignore-scripts"] : [], "--", target] : ["install", "--global", "--no-audit", "--no-fund", ...options.ignoreScripts ? ["--ignore-scripts"] : [], "--", target];
+    const previousMutation = await store.managerMutation(managerId);
+    const custody = {
+      schema: 1,
+      installationId: installation.id,
+      packageName: options.packageName,
+      ownerPid: runtime.pid,
+      settled: false,
+      selectedVersion: release.version,
+      ...retainedArchive ? { dependencySpec: retainedArchive } : {}
+    };
+    await store.managerMutation(managerId, custody);
+    await store.mutation(installation.id, true);
+    let result;
+    try {
+      result = await runtime.run(installation.managerPath, args, {
+        env: { ...runtime.env, HRANESS_NO_UPDATE: "1", HRANESS_UPDATE_REENTRY: "1" },
+        timeoutMs: 180000,
+        maxOutputBytes: 524288,
+        diagnostics: true,
+        onSpawn: async (pid) => {
+          custody.childPid = pid;
+          await store.managerMutation(managerId, custody);
+        }
+      });
+    } catch (error) {
+      if (error instanceof ProcessLaunchError) {
+        await verifyInstalled(options, installation, options.version, runtime, installation.dependencySpec);
+        if (previousMutation)
+          await store.managerMutation(managerId, previousMutation);
+        else {
+          await store.mutation(installation.id, false);
+          await store.managerMutation(managerId, null);
+        }
+      }
+      throw error;
+    }
+    if (custody.childPid !== undefined && (runtime.isProcessAlive(custody.childPid) || runtime.isProcessAlive(-custody.childPid))) {
+      throw new Error("The package-manager process group is still active after its leader exited; this installation remains quarantined until it finishes.");
+    }
+    custody.settled = true;
+    await store.managerMutation(managerId, custody);
+    if (result.code !== 0)
+      throw new Error("The package manager did not finish successfully. Re-run the documented installer before using this installation.");
+    let installed;
+    try {
+      installed = await verifyInstalled(options, installation, release.version, runtime, retainedArchive);
+    } catch (error) {
+      if (!archive)
+        throw error;
+      installed = await verifyInstalled(options, installation, release.version, runtime, `file:${retainedArchive}`);
+    }
+    const receipt = { id: installed.id, version: installed.version, dependencySpec: installed.dependencySpec };
+    await store.managedInstall(installed.id, receipt);
+    await store.patch({ managedInstall: receipt });
+    await store.mutation(installation.id, false);
+    await store.managerMutation(managerId, null);
+    return installed;
+  } finally {
+    await archive?.cleanup();
+  }
+}
+async function runCliUpdate(options) {
+  const runtime = runtimeFor(options), argv = options.argv ?? process.argv.slice(2);
+  const explicit = argv[0] === "update", json = explicit && argv.includes("--json");
+  const effectFree = options.effectFree ?? (argv.length === 1 && ["--help", "-h", "--version", "-v", "-V", "--completion", "--completions", "version", "completion", "completions"].includes(argv[0] ?? "") || argv[0] === "help");
+  if (!explicit && effectFree) {
+    return { handled: false, exitCode: 0, release: noRelease };
+  }
+  const argumentsWithoutJson = argv.slice(1).filter((argument) => argument !== "--json");
+  let operation = argumentsWithoutJson[0] ?? "install";
+  if (operation === "--check")
+    operation = "check";
+  if (operation === "--help" || operation === "-h") {
+    if (explicit) {
+      runtime.writeStdout(`update [check|--check|status|enable|disable] [--json]
+Automatic updates are enabled for verified global installs. Use update disable to opt out.
+`);
+      return { handled: true, exitCode: 0, release: noRelease };
+    }
+  }
+  let state = { schema: 1 }, installation;
+  const base = () => ({
+    schema: "hraness.cli-update.v1",
+    package: options.packageName,
+    currentVersion: options.version,
+    status: "skipped",
+    policy: state.policy ?? "auto",
+    supported: !!installation,
+    ...installation ? { manager: installation.manager } : {}
+  });
+  const finish = (result, exitCode = 0) => {
+    if (explicit)
+      report(result, json, runtime);
+    return completed(result, exitCode);
+  };
+  let installLock, managerLock, lease;
+  let store, mayHaveChanged = false, managerIdentity;
+  const admit = async (installationId) => {
+    if (!store || !managerIdentity)
+      throw new Error("Missing installation admission identity.");
+    managerLock ??= await store.lock(`manager-${managerIdentity}`);
+    if (!managerLock)
+      throw new Error("Another CLI update is using this global manager. Retry when it finishes.");
+    if (await store.managerMutation(managerIdentity))
+      throw new Error("A global package-manager update has not finished verification. Repair the owning CLI before running product commands.");
+    const own = await store.lease(installationId);
+    try {
+      const shared = await store.lease(`manager-${managerIdentity}`);
+      return { release: async () => {
+        await own.release();
+        await shared.release();
+      } };
+    } catch (error) {
+      await own.release();
+      throw error;
+    }
+  };
+  try {
+    validateOptions(options);
+    if (!isAbsolute3(options.entrypoint))
+      throw new Error("The actual executable entrypoint must be an absolute path.");
+    if (explicit && (argumentsWithoutJson.length > 1 || !["install", "check", "status", "enable", "disable"].includes(operation))) {
+      return finish({ ...base(), status: "error", reason: "Usage: update [check|--check|status|enable|disable] [--json]" }, 2);
+    }
+    const candidate = await locateGlobalCandidate(options, runtime);
+    if (!candidate) {
+      const result = {
+        ...base(),
+        status: "unsupported",
+        reason: "This is not a verified Bun or npm global installation (source, project, runner, linked, and foreign installs are excluded).",
+        guidance: `Use the documented installer or the package manager that owns ${options.packageName}.`
+      };
+      if (explicit)
+        return finish(result, operation === "status" ? 0 : 1);
+      return { handled: false, exitCode: 0, result, release: noRelease };
+    }
+    if (!await canCoordinate(candidate.coordinationDirectory, runtime)) {
+      const result = {
+        ...base(),
+        status: "unsupported",
+        reason: "This shared or protected global prefix cannot safely hold user-owned update coordination.",
+        guidance: "Update this installation with its owning package manager, or use a private user-owned global prefix."
+      };
+      if (explicit)
+        return finish(result, operation === "status" ? 0 : 1);
+      return { handled: false, exitCode: 0, result, release: noRelease };
+    }
+    managerIdentity = identity(`${candidate.manager}\x00${candidate.globalRoot}`);
+    store = new SafeState(options, runtime, candidate.coordinationDirectory);
+    await store.initialize();
+    state = await store.read();
+    installLock = await store.lock(`install-${candidate.id}`);
+    if (!installLock)
+      return finish({ ...base(), status: "busy", reason: "This installation is being updated. Retry when the update finishes." }, 75);
+    state.managedInstall = await store.managedInstall(candidate.id) ?? state.managedInstall;
+    const pending = await store.managerMutation(managerIdentity);
+    let allowedReceipt = state.managedInstall;
+    if (pending?.installationId === candidate.id && pending.selectedVersion === options.version && pending.dependencySpec?.startsWith(join4(store.coordinationRoot, "artifacts", identity(options.packageName)) + "/")) {
+      allowedReceipt = { id: candidate.id, version: pending.selectedVersion, dependencySpec: pending.dependencySpec };
+    }
+    let detection = await detectInstallation(options, runtime, allowedReceipt);
+    if (!detection.installation && allowedReceipt?.dependencySpec && pending?.installationId === candidate.id) {
+      detection = await detectInstallation(options, runtime, { ...allowedReceipt, dependencySpec: `file:${allowedReceipt.dependencySpec}` });
+    }
+    if (!detection.installation && detection.archiveEnrollment && explicit && operation === "enable" && options.provider?.kind === "github" && options.provider.authenticated) {
+      if (options.pinned)
+        return finish({ ...base(), status: "pinned", reason: "This product invocation is explicitly version-bound. Change that binding before enabling tracking." }, 1);
+      if (options.offline)
+        return finish({ ...base(), status: "error", reason: "Archive enrollment requires an online check of the installed release." }, 1);
+      const enrollment = detection.archiveEnrollment;
+      if (enrollment.installation.id !== candidate.id)
+        throw new Error("The global installation changed during enrollment.");
+      managerLock = await store.lock(`manager-${managerIdentity}`);
+      if (!managerLock)
+        return finish({ ...base(), status: "busy", reason: "Another update is using this global package manager." }, 75);
+      if (await store.managerMutation(managerIdentity) || await store.mutation(candidate.id))
+        throw new Error("An interrupted package-manager update must be repaired before enrollment.");
+      const release2 = await currentGitHubRelease(options, runtime);
+      await verifyExistingGitHubArchive(enrollment.path, release2, options, runtime);
+      const receipt = { id: candidate.id, version: options.version, dependencySpec: enrollment.installation.dependencySpec };
+      const verified = await verifyInstalled(options, enrollment.installation, options.version, runtime, receipt.dependencySpec);
+      await store.managedInstall(candidate.id, receipt);
+      state.managedInstall = receipt;
+      detection = { installation: verified };
+    }
+    installation = detection.installation;
+    if (!installation) {
+      const result = { ...base(), status: detection.usable ? "unsupported" : "error", reason: detection.reason, guidance: detection.guidance };
+      if (detection.usable && !explicit) {
+        lease = await admit(candidate.id);
+        return { handled: false, exitCode: 0, result, release: lease.release };
+      }
+      return finish(result, detection.usable && operation === "status" ? 0 : 1);
+    }
+    if (installation.id !== candidate.id)
+      throw new Error("The global installation changed during admission.");
+    if (explicit && (operation === "enable" || operation === "disable")) {
+      if (operation === "enable" && options.pinned)
+        return finish({ ...base(), status: "pinned", reason: "This product invocation is explicitly version-bound. Change that binding before enabling tracking." }, 1);
+      state = await store.patch({ policy: operation === "enable" ? "auto" : "disabled", ...operation === "enable" ? { trackInstallation: installation.id } : {} });
+      return finish({ ...base(), status: operation === "enable" ? "enabled" : "disabled" });
+    }
+    const isPinned = pinned(installation, state, options);
+    if (explicit && operation === "status")
+      return finish({ ...base(), status: isPinned ? "pinned" : "status", ...isPinned ? { reason: "This installation has an explicit version binding.", guidance: options.pinned ? "Change the product version binding to allow updates." : "Run update enable to explicitly track this global installation." } : {} });
+    let uncertain = await store.mutation(installation.id);
+    const managerMutation = await store.managerMutation(managerIdentity);
+    if (managerMutation) {
+      uncertain = true;
+      const childActive = managerMutation.childPid !== undefined && (runtime.isProcessAlive(managerMutation.childPid) || runtime.isProcessAlive(-managerMutation.childPid));
+      const custodyUnknown = !managerMutation.settled && managerMutation.childPid === undefined;
+      const canRepair = explicit && operation === "install" && managerMutation.installationId === installation.id && !childActive && !custodyUnknown;
+      if (!canRepair)
+        return finish({
+          ...base(),
+          status: childActive ? "busy" : "error",
+          codeMayHaveChanged: true,
+          reason: `An update of ${managerMutation.packageName} has not finished verification. ${childActive ? "Its package-manager process is still active." : custodyUnknown ? "Process custody is unknown; use the documented installer after checking the interrupted update." : "Run that CLI\u2019s update command to repair it."}`
+        }, childActive ? 75 : 1);
+    }
+    if (uncertain && (!explicit || operation !== "install"))
+      return finish({
+        ...base(),
+        status: "error",
+        codeMayHaveChanged: true,
+        reason: "A previous update did not finish verification. Run update or reinstall this CLI before running product commands."
+      }, 1);
+    if (isPinned && explicit && operation !== "check")
+      return finish({ ...base(), status: "pinned", reason: "An explicit version binding prevents this update.", guidance: options.pinned ? "Change the product version binding first." : "Run update enable to explicitly track this global installation." }, 1);
+    const suppressed = automaticSuppressed(options, argv, runtime) || state.policy === "disabled" || isPinned;
+    const elapsed = state.lastChecked === undefined ? Infinity : runtime.now() - state.lastChecked;
+    const due = elapsed >= DAY || elapsed < 0;
+    if (!explicit && (suppressed || !due)) {
+      lease = await admit(installation.id);
+      return { handled: false, exitCode: 0, result: { ...base(), status: isPinned ? "pinned" : "skipped" }, release: lease.release };
+    }
+    if (options.offline)
+      return finish({ ...base(), status: "error", reason: "This invocation is offline; release checking is disabled." }, 1);
+    state = await store.patch({ lastChecked: runtime.now() });
+    let release;
+    try {
+      release = await latestRelease(options, runtime);
+    } catch (error) {
+      if (explicit)
+        throw error;
+      lease = await admit(installation.id);
+      return { handled: false, exitCode: 0, result: { ...base(), status: "skipped", reason: "Release metadata is unavailable; continuing with the installed version." }, release: lease.release };
+    }
+    const newer = compareVersions(release.version, options.version) > 0;
+    const selected = { ...base(), latestVersion: release.version };
+    if (!newer && !uncertain) {
+      if (explicit)
+        return finish({ ...selected, status: "current" });
+      lease = await admit(installation.id);
+      return { handled: false, exitCode: 0, result: { ...selected, status: "current" }, release: lease.release };
+    }
+    if (compareVersions(release.version, options.version) < 0)
+      return finish({ ...selected, status: "error", reason: "Repair would require a downgrade; use the documented installer." }, 1);
+    if (explicit && operation === "check" || !explicit && state.policy === "notify") {
+      if (explicit)
+        return finish({ ...selected, status: "available" });
+      runtime.writeStderr(`${options.binName} ${release.version} is available; run ${options.binName} update.
+`);
+      lease = await admit(installation.id);
+      return { handled: false, exitCode: 0, result: { ...selected, status: "available" }, release: lease.release };
+    }
+    if (await store.active(installation.id) || await store.active(`manager-${managerIdentity}`)) {
+      if (explicit)
+        return finish({ ...selected, status: "busy", reason: "Another command is using this installation. Update after it exits." }, 75);
+      lease = await admit(installation.id);
+      return { handled: false, exitCode: 0, result: { ...selected, status: "busy" }, release: lease.release };
+    }
+    managerLock = await store.lock(`manager-${managerIdentity}`);
+    if (!managerLock) {
+      if (explicit)
+        return finish({ ...selected, status: "busy", reason: "Another CLI update is using this global package manager." }, 75);
+      lease = await admit(installation.id);
+      return { handled: false, exitCode: 0, result: { ...selected, status: "busy" }, release: lease.release };
+    }
+    if (await store.active(installation.id) || await store.active(`manager-${managerIdentity}`)) {
+      if (explicit)
+        return finish({ ...selected, status: "busy", reason: "Another command is using this global installation. Update after it exits." }, 75);
+      lease = await admit(installation.id);
+      return { handled: false, exitCode: 0, result: { ...selected, status: "busy" }, release: lease.release };
+    }
+    state = await store.read();
+    if (!explicit && (state.policy === "disabled" || state.policy === "notify")) {
+      lease = await admit(installation.id);
+      return { handled: false, exitCode: 0, result: { ...base(), status: "skipped" }, release: lease.release };
+    }
+    await verifyInstalled(options, installation, options.version, runtime, installation.dependencySpec);
+    try {
+      installation = await installRelease(release, installation, options, runtime, store);
+    } catch (error) {
+      mayHaveChanged = await store.mutation(installation.id);
+      if (!explicit && !mayHaveChanged) {
+        await verifyInstalled(options, installation, options.version, runtime, installation.dependencySpec);
+        lease = await admit(installation.id);
+        return { handled: false, exitCode: 0, result: { ...base(), status: "skipped", reason: "The release archive could not be verified; continuing with the unchanged installed version." }, release: lease.release };
+      }
+      throw error;
+    }
+    if (explicit)
+      return finish({ ...selected, status: "updated" });
+    lease = await admit(installation.id);
+    await managerLock.release();
+    managerLock = undefined;
+    await installLock.release();
+    installLock = undefined;
+    let exitCode;
+    try {
+      exitCode = await runtime.reenter(runtime.execPath, [...runtime.execArgv, installation.entrypoint, ...argv], {
+        ...runtime.env,
+        HRANESS_NO_UPDATE: "1",
+        HRANESS_UPDATE_REENTRY: "1"
+      });
+    } catch {
+      throw new Error("The update succeeded but the updated executable could not start. Run the command again.");
+    }
+    await lease.release();
+    lease = undefined;
+    return completed({ ...selected, status: "updated" }, exitCode);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "The updater failed.";
+    const result = { ...base(), status: "error", reason, ...mayHaveChanged ? { codeMayHaveChanged: true } : {} };
+    if (!explicit)
+      runtime.writeStderr(`${options.binName} update: ${reason}
+`);
+    return finish(result, 1);
+  } finally {
+    await managerLock?.release();
+    await installLock?.release();
+  }
+}
+function runUpdateCommand(options) {
+  return runCliUpdate({ ...options, argv: ["update", ...options.argv ?? process.argv.slice(2)] });
+}
+var DAY = 86400000, noRelease = async () => {}, completed = (result, exitCode = 0) => ({ handled: true, exitCode, result, release: noRelease });
+var init_src = __esm(() => {
+  init_install();
+  init_provider();
+  init_runtime();
+  init_state();
+});
+
+// src/cli-intro.ts
+function terminalIntro(terminal) {
+  if (terminal.isTTY !== true || terminal.term === "dumb" || (terminal.columns ?? 80) < 48)
+    return "";
+  return `  .----.
+ / .--. \\    oh
+| |    | |   ${OH_CLI_TAGLINE}
+ \\ '--' /
+  '----'
+
+`;
+}
+var OH_CLI_TAGLINE = "Open-source memory for agents";
+
 // src/canonical.ts
-import { createHash, randomBytes } from "crypto";
+import { createHash as createHash3, randomBytes } from "crypto";
 function isPlainRecord(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value))
     return false;
@@ -123,7 +1895,7 @@ function utf8ByteLength(value) {
   return Buffer.byteLength(value, "utf8");
 }
 function sha256Hex(value) {
-  return createHash("sha256").update(value).digest("hex");
+  return createHash3("sha256").update(value).digest("hex");
 }
 function canonicalSha256(value) {
   return sha256Hex(canonicalJson(value));
@@ -360,6 +2132,441 @@ var init_graph = __esm(() => {
     "v",
     "value"
   ];
+});
+
+// src/cli-help.ts
+function wrap(words, indent, width = 80) {
+  const lines = [];
+  let line = indent;
+  for (const word of words) {
+    const next = line.trim() === "" ? `${indent}${word}` : `${line} ${word}`;
+    if (next.length > width && line.trim() !== "") {
+      lines.push(line);
+      line = `${indent}${word}`;
+    } else
+      line = next;
+  }
+  if (line.trim() !== "")
+    lines.push(line);
+  return lines.join(`
+`);
+}
+function bareScreen(version) {
+  return `${OH_DESCRIPTION}
+
+Start here
+  oh init                      Create a store in .oh/oh.sqlite
+  oh put --kind entity --key entity:ada --value '{"name":"Ada"}'
+                               Save a record
+  oh get entity:ada            Print one record
+  oh search Ada                Find records by keyword
+  oh verify                    Replay the history and check the store
+
+All commands: oh --help \xB7 Command help: oh help <command>
+oh ${version}
+`;
+}
+function rootHelp() {
+  return `Usage: oh <command> [options]
+
+${OH_DESCRIPTION}
+
+Start here
+  oh init                      Create the store and its space
+  oh put [options]             Save a record (oh put --help)
+  oh get <key>                 Print one record
+  oh search <query>            Find records by keyword
+  oh verify                    Replay the history and check the store
+
+Read
+  oh list                      List current records
+  oh log                       List recent changes
+  oh recall <question>         Find records for a question, with dates like
+                               "last week" read against --as-of
+
+Change
+  oh tombstone <key>           Remove a record; its history stays in the log
+  oh sync export               Print the changes as a bundle for another store
+  oh sync import --file <path> Apply a bundle made by oh sync export
+
+More
+  oh contract                  Print the data format versions this build uses
+  oh version                   Print the version
+  oh update                    Update the CLI (oh update --help)
+  oh research                  Offline research tools (oh research --help)
+
+Options
+  --db <path>       Store file (default .oh/oh.sqlite)
+  --space <id>      Space in the store (default "default")
+  --json            Print JSON (the default when an agent runs oh)
+  -h, --help        Show help (also: oh <command> --help)
+  -V, --version     Show the version
+
+Optional support: oh support \xB7 Turn off: HRANESS_SUPPORT=off
+`;
+}
+function commandHelp(command) {
+  return Object.hasOwn(COMMAND_HELP, command) ? COMMAND_HELP[command] : undefined;
+}
+var OH_DESCRIPTION = `Oh is open-source memory for agents that stores each fact with its sources
+and every change in a history you can replay.`, OH_COMMANDS, KINDS, STORE_OPTIONS = `  --db <path>       Store file (default .oh/oh.sqlite)
+  --space <id>      Space in the store (default "default")
+  --json            Print JSON`, WRITE_OPTIONS = `  --actor <id>      Name recorded with the change (default agent.local)
+  --operation <id>  Reuse the same ID to retry a write safely
+  --expected-generation <n>
+                    Write only if the space is still at generation n`, COMMAND_HELP, OH_HELP_TOPICS;
+var init_cli_help = __esm(() => {
+  init_graph();
+  OH_COMMANDS = [
+    "init",
+    "put",
+    "get",
+    "list",
+    "log",
+    "search",
+    "recall",
+    "tombstone",
+    "verify",
+    "sync",
+    "contract",
+    "version",
+    "research",
+    "support",
+    "update",
+    "help"
+  ];
+  KINDS = wrap(OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.map((kind, index, all) => index === all.length - 1 ? kind : `${kind},`), "  ");
+  COMMAND_HELP = {
+    update: `Usage: oh update [check|status|enable|disable] [--json]
+
+Install a newer release, check availability, or manage automatic updates.
+Supported Bun and npm global installations on macOS and Linux check at most
+once a day before work starts. Automatic updates are enabled by default.
+
+Use oh update disable to keep this version, or HRANESS_NO_UPDATE=1 for
+one invocation. Exact Bun version pins require oh update enable.
+
+Offline research commands keep the installed version.
+`,
+    init: `Usage: oh init [options]
+
+Create the store file and its space if they don't exist yet, then print the
+space's current generation. Running it again changes nothing.
+
+Options
+${STORE_OPTIONS}
+
+Example
+  oh init --db research.db
+`,
+    put: `Usage: oh put --kind <kind> --key <key> (--value <json> | --file <path>)
+
+Save a record. A record with the same key is replaced, and the change is
+added to the history.
+
+Options
+  --kind <kind>     Record kind (see below)
+  --key <key>       Record key, such as entity:ada
+  --value <json>    The record's value as JSON
+  --file <path>     Read the value from a JSON file instead
+  --depends-on <key>
+                    A record this one depends on (repeatable)
+${WRITE_OPTIONS}
+${STORE_OPTIONS}
+
+Record kinds
+${KINDS}
+
+Example
+  oh put --kind entity --key entity:ada --value '{"name":"Ada Lovelace"}'
+`,
+    get: `Usage: oh get <key> [options]
+
+Print one record. Exits 3 when no current record has that key.
+
+Options
+${STORE_OPTIONS}
+
+Example
+  oh get entity:ada
+`,
+    list: `Usage: oh list [options]
+
+List current records, 50 at a time unless you pass --limit.
+
+Options
+  --kind <kind>     Only records of this kind
+  --limit <n>       How many to list, 1 to 1000 (default 50)
+${STORE_OPTIONS}
+
+Example
+  oh list --kind entity
+`,
+    log: `Usage: oh log [options]
+
+List the most recent changes in the history, newest first.
+
+Options
+  --limit <n>       How many to list, 1 to 1000 (default 50)
+${STORE_OPTIONS}
+
+Example
+  oh log --limit 10
+`,
+    search: `Usage: oh search <query> [options]
+
+Find records by keyword.
+
+Options
+  --limit <n>       How many results, 1 to 100 (default 10)
+${STORE_OPTIONS}
+
+Example
+  oh search "mathematician"
+`,
+    recall: `Usage: oh recall <question> [options]
+
+Find records for a question and print them as text for a model to read.
+With --as-of, dates such as "last week" in the question narrow the results.
+
+Options
+  --as-of <instant> The question's date, a UTC instant with milliseconds,
+                    such as 2026-01-08T12:00:00.000Z
+  --limit <n>       How many results, 1 to 100 (default 10)
+  --author-log <name>
+                    Print every message whose speaker is <name>, in date
+                    order, followed by the other speakers' matching records
+${STORE_OPTIONS}
+
+Examples
+  oh recall "what did Ada build last week" --as-of 2026-01-08T12:00:00.000Z
+  oh recall "where do I live" --as-of 2026-01-08T12:00:00.000Z --author-log user
+`,
+    tombstone: `Usage: oh tombstone <key> [options]
+
+Remove a record. Its earlier versions stay in the history. Exits 3 when no
+current record has that key.
+
+Options
+${WRITE_OPTIONS}
+${STORE_OPTIONS}
+
+Example
+  oh tombstone entity:ada
+`,
+    verify: `Usage: oh verify [options]
+
+Check the store: run SQLite's integrity checks and replay every change in the
+history to confirm it produces the same records.
+
+Options
+${STORE_OPTIONS}
+
+Example
+  oh verify --db research.db
+`,
+    sync: `Usage: oh sync export [options]
+       oh sync import --file <path> [options]
+
+Copy changes between stores. export prints a bundle of changes as JSON;
+import checks a bundle and applies all of it or none of it.
+
+Options
+  --after <n>       export: start after change number n (default 0)
+  --limit <n>       export: at most n changes, 1 to 1000 (default 1000)
+  --file <path>     import: the bundle file
+  --db <path>       Store file (default .oh/oh.sqlite)
+  --space <id>      Space in the store (default "default")
+  --json            Print JSON (import)
+
+Example
+  oh sync export --db a.db > changes.json
+  oh sync import --db b.db --file changes.json
+`,
+    contract: `Usage: oh contract
+
+Print, as JSON, the data format versions this build of Oh reads and writes.
+A store made by a different format version won't open.
+`,
+    version: `Usage: oh version [--json]
+
+Print the version. Same as oh --version.
+`,
+    research: `Usage: oh research <command> [--file <path>]
+
+Offline research tools. They read no store and use no network, and print
+JSON.
+
+Catalogs
+  oh research catalog-v9                  The knowledge domain catalog
+  oh research wikidata-mappings-v3        The Wikidata mapping catalog
+
+Check and prepare
+  oh research validate-draft --file <path>
+                                          Check a knowledge proposal draft
+  oh research prepare-packet --file <path>
+                                          Build a research packet
+  oh research verify-packet --file <path> Check a research packet
+  oh research wikidata-preview --file <path>
+                                          Preview a Wikidata import
+  oh research wikidata-mapping-preview-v2 --file <path>
+                                          Preview a Wikidata mapping
+
+Earlier catalog and preview versions (catalog through catalog-v8,
+wikidata-mappings, wikidata-mappings-v2, wikidata-mapping-preview) still
+work for existing scripts.
+`
+  };
+  OH_HELP_TOPICS = Object.freeze(Object.keys(COMMAND_HELP));
+});
+
+// src/cli-style.ts
+function detectAudience(env = process.env, stderr = process.stderr) {
+  const forced = (env.HRANESS_AUDIENCE ?? "").trim().toLowerCase();
+  if (forced === "human" || forced === "agent" || forced === "quiet")
+    return forced;
+  if (forced === "off")
+    return "quiet";
+  if (AGENT_MARKERS.some((marker) => (env[marker] ?? "") !== ""))
+    return "agent";
+  return stderr.isTTY === true ? "human" : "quiet";
+}
+function useAscii(env = process.env) {
+  if (env.HRANESS_ASCII === "1" || env.TERM === "dumb")
+    return true;
+  const locale = env.LC_ALL || env.LC_CTYPE || env.LANG || "";
+  return !/utf-?8/i.test(locale);
+}
+function useColor(stream, env = process.env) {
+  if (env.FORCE_COLOR === "1")
+    return true;
+  return stream.isTTY === true && env.TERM !== "dumb" && (env.NO_COLOR ?? "") === "";
+}
+function sym(name, stream, env = process.env) {
+  const [unicode, ascii, color] = GLYPHS[name];
+  const glyph = useAscii(env) ? ascii : unicode;
+  return color !== null && useColor(stream, env) ? `\x1B[${color}m${glyph}\x1B[0m` : glyph;
+}
+function distance(a, b) {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1;i <= a.length; i++) {
+    let previous = row[0];
+    row[0] = i;
+    for (let j = 1;j <= b.length; j++) {
+      const current = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
+      previous = current;
+    }
+  }
+  return row[b.length];
+}
+function closestMatch(input, known) {
+  let best;
+  for (const name of known) {
+    const d = distance(input.toLowerCase(), name.toLowerCase());
+    if (best === undefined || d < best.d)
+      best = { name, d };
+  }
+  if (best === undefined)
+    return;
+  if (best.name.startsWith(input) && input.length >= 3)
+    return best.name;
+  if (best.d >= input.length)
+    return;
+  return best.d <= Math.max(2, Math.floor(best.name.length / 3)) ? best.name : undefined;
+}
+var AGENT_MARKERS, GLYPHS;
+var init_cli_style = __esm(() => {
+  AGENT_MARKERS = [
+    "AI_AGENT",
+    "CLAUDECODE",
+    "CODEX_SANDBOX",
+    "CODEX_SANDBOX_NETWORK_DISABLED",
+    "CURSOR_AGENT",
+    "GEMINI_CLI"
+  ];
+  GLYPHS = {
+    ok: ["\u2713", "OK", "32"],
+    fail: ["\u2717", "FAIL", "31"],
+    warn: ["\u26A0", "WARN", "33"],
+    next: ["\u2192", "->", "2"],
+    on: ["\u25CF", "*", "32"],
+    off: ["\u25CB", "o", null],
+    skip: ["\u2013", "-", "2"],
+    progress: ["\u21BB", "...", null],
+    notice: ["\uD83D\uDD10", "NOTE", null]
+  };
+});
+
+// src/cli-render.ts
+function renderInit(databasePath, spaceId, head, output) {
+  return `${sym("ok", output.stream, output.env)} Store ready at ${databasePath}, space ${spaceId}, generation ${head.generation}.
+`;
+}
+function renderPut(key, head, output) {
+  return `${sym("ok", output.stream, output.env)} Saved ${key} (generation ${head.generation}).
+`;
+}
+function renderTombstone(key, head, output) {
+  return `${sym("ok", output.stream, output.env)} Removed ${key} (generation ${head.generation}). Its history stays in the log.
+`;
+}
+function renderRecord(record) {
+  const lines = [`${record.key} (${record.kind})`, JSON.stringify(record.value, null, 2)];
+  if (record.dependencies.length !== 0)
+    lines.push(`Depends on: ${record.dependencies.join(", ")}`);
+  return `${lines.join(`
+`)}
+`;
+}
+function columns(rows) {
+  const widths = [];
+  for (const row of rows)
+    row.forEach((cell, index) => {
+      widths[index] = Math.max(widths[index] ?? 0, cell.length);
+    });
+  return rows.map((row) => row.map((cell, index) => index === row.length - 1 ? cell : cell.padEnd(widths[index] ?? 0)).join("  ")).join(`
+`) + `
+`;
+}
+function renderList(records, spaceId) {
+  if (records.length === 0)
+    return `No records in space ${spaceId}.
+`;
+  return columns(records.map((record) => [record.key, record.kind]));
+}
+function describeChanges(operation) {
+  return operation.changes.map((change) => change.kind === "put" ? `put ${change.record.key}` : `tombstone ${change.key}`).join(", ");
+}
+function renderLog(operations, spaceId) {
+  if (operations.length === 0)
+    return `No changes in space ${spaceId} yet.
+`;
+  return columns(operations.map((operation) => [
+    `#${operation.sequence}`,
+    operation.instant,
+    operation.actorId,
+    describeChanges(operation)
+  ]));
+}
+function renderSearch(query, response) {
+  if (response.results.length === 0)
+    return `No records match "${query}".
+`;
+  return columns(response.results.map((result, index) => [`${index + 1}.`, result.record.key, result.record.kind]));
+}
+function renderVerify(result, output) {
+  return `${sym("ok", output.stream, output.env)} Store checked: ${plural(result.records, "record")} and ${plural(result.operations, "change")} replay to the same state (generation ${result.head.generation}).
+`;
+}
+function renderImport(imported, head, output) {
+  return imported === 0 ? `${sym("ok", output.stream, output.env)} Nothing to import; the store already has these changes.
+` : `${sym("ok", output.stream, output.env)} Imported ${plural(imported, "change")} (generation ${head.generation}).
+`;
+}
+var plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+var init_cli_render = __esm(() => {
+  init_cli_style();
 });
 
 // src/ontology.ts
@@ -729,10 +2936,10 @@ function checkedRecordView(view, record) {
 }
 function defaultOhRecallViewV1(record) {
   const value = record.value;
-  const object = typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
-  const observedAt = object === null ? null : parseCanonicalInstantV1(object.observedAt);
-  const session = object !== null && typeof object.sessionId === "string" && object.sessionId.length > 0 && utf8ByteLength(object.sessionId) <= 512 ? object.sessionId : record.key;
-  const text = object !== null && typeof object.text === "string" ? object.text : canonicalJson(value);
+  const object2 = typeof value === "object" && value !== null && !Array.isArray(value) ? value : null;
+  const observedAt = object2 === null ? null : parseCanonicalInstantV1(object2.observedAt);
+  const session = object2 !== null && typeof object2.sessionId === "string" && object2.sessionId.length > 0 && utf8ByteLength(object2.sessionId) <= 512 ? object2.sessionId : record.key;
+  const text = object2 !== null && typeof object2.text === "string" ? object2.text : canonicalJson(value);
   return { instant: observedAt, order: null, session, text };
 }
 function compareKeys2(left, right) {
@@ -2603,7 +4810,7 @@ function parseStatementInput(value) {
   if (value["qualifiers"].length > SPONGE_KNOWLEDGE_LIMITS_V1.qualifiers) {
     return failure("qualifiers", "limit-exceeded");
   }
-  const object = parseKnowledgeValueV1(value["object"]);
+  const object2 = parseKnowledgeValueV1(value["object"]);
   const predicate = parseKnowledgeSchemaRefV1(value["predicate"]);
   const subject = parseKnowledgeEntityId(value["subject"]);
   const qualifiers = [];
@@ -2613,7 +4820,7 @@ function parseStatementInput(value) {
       return failure("qualifiers");
     qualifiers.push(parsed);
   }
-  return object.ok && predicate.ok && subject !== null ? success({ object: object.value, predicate: predicate.value, qualifiers, subject, v: 1 }) : failure("statement");
+  return object2.ok && predicate.ok && subject !== null ? success({ object: object2.value, predicate: predicate.value, qualifiers, subject, v: 1 }) : failure("statement");
 }
 async function parseKnowledgeStatementV1(value) {
   if (!isPlainRecord2(value) || !hasExactKeys2(value, [
@@ -3199,11 +5406,11 @@ function parseSchemaIdentity(value) {
   const revision = positiveInteger2(value["revision"]);
   return code === null || namespace === null || revision === null ? null : { code, namespace, revision, v: 1 };
 }
-function refForIdentity(identity, digest) {
+function refForIdentity(identity2, digest) {
   return {
-    code: identity.code,
-    namespace: identity.namespace,
-    revision: identity.revision,
+    code: identity2.code,
+    namespace: identity2.namespace,
+    revision: identity2.revision,
     schemaSha256: digest,
     v: 1
   };
@@ -3325,14 +5532,14 @@ async function parseKnowledgeVocabularyRevisionV1(value) {
 }
 function parseSchemaRevisionBase(value) {
   const definitions = parseLocalizedTexts(value["definitions"]);
-  const identity = parseSchemaIdentity(value["identity"]);
+  const identity2 = parseSchemaIdentity(value["identity"]);
   const labels = parseLocalizedTexts(value["labels"]);
   const previousRevisionSha256 = value["previousRevisionSha256"] === null ? null : parseSha256Hex2(value["previousRevisionSha256"]);
   const reviewDecisionSha256 = value["reviewDecisionSha256"] === null ? null : parseSha256Hex2(value["reviewDecisionSha256"]);
   const vocabularySha256 = parseSha256Hex2(value["vocabularySha256"]);
-  return definitions !== null && identity !== null && labels !== null && (value["previousRevisionSha256"] === null || previousRevisionSha256 !== null) && (value["reviewDecisionSha256"] === null || reviewDecisionSha256 !== null) && vocabularySha256 !== null && identity.revision === 1 === (previousRevisionSha256 === null) ? {
+  return definitions !== null && identity2 !== null && labels !== null && (value["previousRevisionSha256"] === null || previousRevisionSha256 !== null) && (value["reviewDecisionSha256"] === null || reviewDecisionSha256 !== null) && vocabularySha256 !== null && identity2.revision === 1 === (previousRevisionSha256 === null) ? {
     definitions,
-    identity,
+    identity: identity2,
     labels,
     previousRevisionSha256,
     reviewDecisionSha256,
@@ -4165,8 +6372,8 @@ function knowledgeGraphRecordKeyV1(kind, value, requiredCallerRecordKey) {
       return success2(`inquiry-event:${event.inquiryId}:${String(event.sequence)}`);
     }
     case "schema": {
-      const identity = value.identity;
-      return success2(`schema:${identity.namespace}:${identity.code}:${String(identity.revision)}`);
+      const identity2 = value.identity;
+      return success2(`schema:${identity2.namespace}:${identity2.code}:${String(identity2.revision)}`);
     }
     case "shape": {
       const ref = value.shape;
@@ -4498,8 +6705,8 @@ function text(value, maximum = 16384) {
 function revision(value) {
   return Number.isSafeInteger(value) && Number(value) > 0;
 }
-function ordered(items, identity) {
-  return items.every((item, index) => index === 0 || identity(items[index - 1]) < identity(item));
+function ordered(items, identity2) {
+  return items.every((item, index) => index === 0 || identity2(items[index - 1]) < identity2(item));
 }
 function pins(value) {
   if (!Array.isArray(value) || value.length > 64)
@@ -4593,10 +6800,10 @@ async function parseManifestInput2(value) {
       return failure3("pack.examples");
     const predicate = parseKnowledgeSchemaRefV1(example["predicate"]);
     const subjectConcept = parseKnowledgeSchemaRefV1(example["subjectConcept"]);
-    const object = parseKnowledgeValueV1(example["object"]);
-    if (!predicate.ok || !subjectConcept.ok || !object.ok || !(await verifyKnowledgeValueV1(object.value)).ok)
+    const object2 = parseKnowledgeValueV1(example["object"]);
+    if (!predicate.ok || !subjectConcept.ok || !object2.ok || !(await verifyKnowledgeValueV1(object2.value)).ok)
       return failure3("pack.examples");
-    examples.push({ description: example["description"], id: example["id"], object: object.value, predicate: predicate.value, subjectConcept: subjectConcept.value, v: 1 });
+    examples.push({ description: example["description"], id: example["id"], object: object2.value, predicate: predicate.value, subjectConcept: subjectConcept.value, v: 1 });
   }
   if (!ordered(examples, (item) => item.id))
     return failure3("pack.examples", "noncanonical-input");
@@ -4723,14 +6930,14 @@ async function resolveKnowledgeVocabularyPacksV1(input) {
     }
     for (const shape of pack.shapes) {
       let validateInheritance = function(current, depth) {
-        const identity = key(current.shape);
-        if (ancestry.has(identity))
+        const identity2 = key(current.shape);
+        if (ancestry.has(identity2))
           return failure3("packs.shape-inheritance", "cycle-detected");
-        if (depth > shape.maximumInheritanceDepth || completed.size >= 256)
+        if (depth > shape.maximumInheritanceDepth || completed2.size >= 256)
           return failure3("packs.shape-inheritance", "limit-exceeded");
-        if (completed.has(identity))
+        if (completed2.has(identity2))
           return { ok: true, value: true };
-        ancestry.add(identity);
+        ancestry.add(identity2);
         for (const ref of current.extends) {
           const parent = allowedShapes.get(key(ref));
           if (parent === undefined)
@@ -4739,14 +6946,14 @@ async function resolveKnowledgeVocabularyPacksV1(input) {
           if (!result.ok)
             return result;
         }
-        ancestry.delete(identity);
-        completed.add(identity);
+        ancestry.delete(identity2);
+        completed2.add(identity2);
         return { ok: true, value: true };
       };
       if (!shape.appliesToConcepts.every((ref) => hasKind(ref, "concept")) || !shape.rules.every((rule) => hasKind(rule.predicate, "predicate")))
         return failure3("packs.shape");
       const ancestry = new Set;
-      const completed = new Set;
+      const completed2 = new Set;
       const inheritance = validateInheritance(shape, 0);
       if (!inheritance.ok)
         return inheritance;
@@ -4922,9 +7129,9 @@ async function buildCatalog() {
     const entityId = parseKnowledgeEntityId(`kent_${"e".repeat(24)}`);
     if (entityId === null)
       throw new Error("Invalid example identity.");
-    const object = { entityId, kind: "entity", v: 1 };
+    const object2 = { entityId, kind: "entity", v: 1 };
     const sourceSha256 = await sha256Text(canonicalJson2(definition));
-    packs.push(unwrap3(await createKnowledgeVocabularyPackManifestV1({ ...base, dependencies: [knowledgeVocabularyPackPinV1(corePack), knowledgeVocabularyPackPinV1(referencePack)], examples: [{ description: `Synthetic structural example: ${definition.question} The example identity makes no real-world factual assertion.`, id: "first-relation", object, predicate: primary.ref, subjectConcept: primary.domainConcepts[0], v: 1 }], packId: namespace, queries: [{ description: definition.question, id: "first-question", predicates: predicates.map((predicate) => predicate.ref).sort((left, right) => canonicalJson2(left) < canonicalJson2(right) ? -1 : 1), v: 1 }], schemas: sortSchemas2([...concepts, ...predicates]), shapes: [shape], sources: [{ contentSha256: sourceSha256, license: "MIT", revision: "1", uri: `urn:sponge:application-profile:${definition.id}`, v: 1 }], vocabulary })));
+    packs.push(unwrap3(await createKnowledgeVocabularyPackManifestV1({ ...base, dependencies: [knowledgeVocabularyPackPinV1(corePack), knowledgeVocabularyPackPinV1(referencePack)], examples: [{ description: `Synthetic structural example: ${definition.question} The example identity makes no real-world factual assertion.`, id: "first-relation", object: object2, predicate: primary.ref, subjectConcept: primary.domainConcepts[0], v: 1 }], packId: namespace, queries: [{ description: definition.question, id: "first-question", predicates: predicates.map((predicate) => predicate.ref).sort((left, right) => canonicalJson2(left) < canonicalJson2(right) ? -1 : 1), v: 1 }], schemas: sortSchemas2([...concepts, ...predicates]), shapes: [shape], sources: [{ contentSha256: sourceSha256, license: "MIT", revision: "1", uri: `urn:sponge:application-profile:${definition.id}`, v: 1 }], vocabulary })));
   }
   packs.sort((left, right) => left.packId < right.packId ? -1 : 1);
   const resolved = unwrap3(await resolveKnowledgeVocabularyPacksV1({ manifests: packs, roots: packs.filter((pack) => SPONGE_KNOWLEDGE_DOMAIN_PACK_IDS.includes(pack.packId)).map(knowledgeVocabularyPackPinV1) }));
@@ -5382,11 +7589,11 @@ async function buildCatalog2() {
     if (exampleEntityId === null)
       throw new Error("Invalid structural example identity.");
     const examples = predicates.map((predicate) => {
-      const object = predicate.range.kind === "entity-concepts" ? { entityId: exampleEntityId, kind: "entity", v: 1 } : { kind: predicate.identity.code === "observed-at-tick" ? "integer" : "decimal", value: "1", v: 1 };
+      const object2 = predicate.range.kind === "entity-concepts" ? { entityId: exampleEntityId, kind: "entity", v: 1 } : { kind: predicate.identity.code === "observed-at-tick" ? "integer" : "decimal", value: "1", v: 1 };
       return {
         description: `Synthetic structural example for ${predicate.identity.code}; the referenced entity must independently have an allowed range concept. No real-world claim or completeness is asserted.`,
         id: predicate.identity.code,
-        object,
+        object: object2,
         predicate: predicate.ref,
         subjectConcept: predicate.domainConcepts[0],
         v: 1
@@ -7029,12 +9236,12 @@ function required6(result) {
 async function createSpongeMeasurementResultsPackV1(previous) {
   const core = previous.corePack;
   const schemas = [];
-  function ref2(identity) {
-    const [packCode, code2] = identity.split("/");
+  function ref2(identity2) {
+    const [packCode, code2] = identity2.split("/");
     const packId = `sponge.${packCode}`;
     const found = (packId === namespace ? schemas : previous.packs.find((pack) => pack.packId === packId)?.schemas)?.find((item) => item.identity.code === code2);
     if (found === undefined)
-      throw new Error(`Missing measurement-results schema ${identity}.`);
+      throw new Error(`Missing measurement-results schema ${identity2}.`);
     return found.ref;
   }
   const vocabulary = required6(await createKnowledgeVocabularyRevisionV1({
@@ -8876,12 +11083,12 @@ function parseSpongeKnowledgeProposalDraftV3(foreign) {
       return null;
     const subject = entityReference(item["subject"]);
     const predicate = ref2(item["predicate"]);
-    const object = draftValue(item["object"]);
+    const object2 = draftValue(item["object"]);
     const qualifiers = dimensions(item["qualifiers"]);
     const stance = SPONGE_KNOWLEDGE_ASSERTION_STANCES_V1.find((candidate) => candidate === item["stance"]);
-    if (subject === null || predicate === null || object === null || qualifiers === null || stance === undefined || !(item["contextKey"] === null || key2(item["contextKey"])))
+    if (subject === null || predicate === null || object2 === null || qualifiers === null || stance === undefined || !(item["contextKey"] === null || key2(item["contextKey"])))
       return null;
-    facts.push({ key: item["key"], subject, predicate, object, qualifiers, contextKey: item["contextKey"], stance });
+    facts.push({ key: item["key"], subject, predicate, object: object2, qualifiers, contextKey: item["contextKey"], stance });
   }
   const contexts = [];
   for (const item of value["contexts"]) {
@@ -9685,13 +11892,13 @@ var exports_research_cli = {};
 __export(exports_research_cli, {
   runOhResearchCli: () => runOhResearchCli
 });
-import { constants } from "fs";
-import { open } from "fs/promises";
+import { constants as constants4 } from "fs";
+import { open as open4 } from "fs/promises";
 async function readInput(path) {
   if (path.length === 0 || path.length > 4096 || path.includes("\x00")) {
     throw new TypeError("Research input path is invalid.");
   }
-  const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  const handle = await open4(path, constants4.O_RDONLY | constants4.O_NOFOLLOW | constants4.O_NONBLOCK);
   try {
     const limit = OH_RESEARCH_PACKET_LIMITS_V1.packetBytes;
     const info = await handle.stat();
@@ -9787,16 +11994,16 @@ function dateInstant(value) {
   return parseCanonicalInstantV1(`${value}T00:00:00.000Z`);
 }
 function defaultOhAuthorLogViewV1(record) {
-  const object = objectValue(record);
-  if (object === null)
+  const object2 = objectValue(record);
+  if (object2 === null)
     return { instant: null, order: null, session: record.key, speaker: null, text: canonicalJson(record.value) };
-  const instant = parseCanonicalInstantV1(object.observedAt) ?? dateInstant(object.date);
-  const session = typeof object.sessionId === "string" && object.sessionId.length > 0 && utf8ByteLength(object.sessionId) <= 512 ? object.sessionId : record.key;
-  const orderValue = object.sessionIndex ?? object.turnIndex;
+  const instant = parseCanonicalInstantV1(object2.observedAt) ?? dateInstant(object2.date);
+  const session = typeof object2.sessionId === "string" && object2.sessionId.length > 0 && utf8ByteLength(object2.sessionId) <= 512 ? object2.sessionId : record.key;
+  const orderValue = object2.sessionIndex ?? object2.turnIndex;
   const order = Number.isSafeInteger(orderValue) ? orderValue : null;
-  const speakerValue = object.speaker ?? object.role;
+  const speakerValue = object2.speaker ?? object2.role;
   const speaker = typeof speakerValue === "string" && speakerValue.length > 0 && utf8ByteLength(speakerValue) <= OH_AUTHOR_LOG_LIMITS_V1.maximumAuthorBytes ? speakerValue : null;
-  const text2 = typeof object.text === "string" ? object.text : canonicalJson(record.value);
+  const text2 = typeof object2.text === "string" ? object2.text : canonicalJson(record.value);
   return { instant, order, session, speaker, text: text2 };
 }
 function checkedView2(view, record) {
@@ -10672,7 +12879,7 @@ function createOhSqliteRuntime(dependencies) {
   });
 }
 var MACOS_SQLITE_LIBRARY_CANDIDATES;
-var init_runtime = __esm(() => {
+var init_runtime2 = __esm(() => {
   MACOS_SQLITE_LIBRARY_CANDIDATES = Object.freeze([
     "/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib",
     "/usr/local/opt/sqlite/lib/libsqlite3.dylib"
@@ -10719,7 +12926,7 @@ function withReadTransaction(database, work) {
 }
 var SQLITE_RUNTIME;
 var init_driver = __esm(() => {
-  init_runtime();
+  init_runtime2();
   SQLITE_RUNTIME = createOhSqliteRuntime({
     exists: existsSync,
     open: (path, options) => new Database(path, options),
@@ -10730,7 +12937,7 @@ var init_driver = __esm(() => {
 
 // src/sqlite/store.ts
 import { mkdirSync } from "fs";
-import { dirname } from "path";
+import { dirname as dirname4 } from "path";
 function parseStoredOperationRow(row, expected = {}) {
   let value;
   try {
@@ -10808,9 +13015,9 @@ function extractSearchText(value, maximumBytes = 1024 * 1024) {
         visit(item, depth + 1);
     } else if (candidate !== null) {
       const keys = Object.keys(candidate).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
-      const object = candidate;
+      const object2 = candidate;
       for (const key3 of keys) {
-        const item = object[key3];
+        const item = object2[key3];
         if (item === undefined)
           throw new TypeError("Search value contains an undefined property.");
         parts.push(key3);
@@ -10854,7 +13061,7 @@ class OhSqliteStore {
     }
     const path = options.path ?? "oh.sqlite";
     if (options.database === undefined && path !== ":memory:")
-      mkdirSync(dirname(path), { recursive: true });
+      mkdirSync(dirname4(path), { recursive: true });
     this.database = options.database ?? openOhSqliteDatabase(path);
     this.spaceId = spaceId;
     applyOhSqliteMigrations(this.database);
@@ -11751,7 +13958,7 @@ var isFunction = (input) => typeof input === "function", dual = function(arity, 
         };
       };
   }
-}, identity = (a) => a, constant = (value) => () => value, constTrue, constFalse, constNull, constUndefined, constVoid;
+}, identity2 = (a) => a, constant = (value) => () => value, constTrue, constFalse, constNull, constUndefined, constVoid;
 var init_Function = __esm(() => {
   constTrue = /* @__PURE__ */ constant(true);
   constFalse = /* @__PURE__ */ constant(false);
@@ -11924,7 +14131,7 @@ var init_Utils = __esm(() => {
       this.value = value;
     }
     get _F() {
-      return identity;
+      return identity2;
     }
     get _R() {
       return (_) => _;
@@ -12494,8 +14701,8 @@ var init_Either = __esm(() => {
     onRight
   }) => isLeft2(self) ? onLeft(self.left) : onRight(self.right));
   merge = /* @__PURE__ */ match({
-    onLeft: identity,
-    onRight: identity
+    onLeft: identity2,
+    onRight: identity2
   });
 });
 
@@ -12686,7 +14893,7 @@ var init_Option = __esm(() => {
     return isOption2(b) ? b : some2(b);
   }));
   flatMapNullable = /* @__PURE__ */ dual(2, (self, f) => isNone2(self) ? none2() : fromNullable(f(self.value)));
-  flatten = /* @__PURE__ */ flatMap(identity);
+  flatten = /* @__PURE__ */ flatMap(identity2);
   zipRight = /* @__PURE__ */ dual(2, (self, that) => flatMap(self, () => that));
   zipLeft = /* @__PURE__ */ dual(2, (self, that) => tap(self, () => that));
   composeK = /* @__PURE__ */ dual(2, (afb, bfc) => (a) => flatMap(afb(a), bfc));
@@ -12746,7 +14953,7 @@ var allocate = (n) => new Array(n), makeBy, fromIterable2 = (collection) => Arra
     next = b2;
   }
   return out;
-}, getEquivalence2, dedupeWith, dedupe = (self) => dedupeWith(self, equivalence()), join;
+}, getEquivalence2, dedupeWith, dedupe = (self) => dedupeWith(self, equivalence()), join5;
 var init_Array = __esm(() => {
   init_Either();
   init_Equal();
@@ -12848,7 +15055,7 @@ var init_Array = __esm(() => {
     }
     return out;
   });
-  flatten2 = /* @__PURE__ */ flatMap2(identity);
+  flatten2 = /* @__PURE__ */ flatMap2(identity2);
   filterMap2 = /* @__PURE__ */ dual(2, (self, f) => {
     const as2 = fromIterable2(self);
     const out = [];
@@ -12874,7 +15081,7 @@ var init_Array = __esm(() => {
     }
     return [left3, right3];
   });
-  getSomes = /* @__PURE__ */ filterMap2(identity);
+  getSomes = /* @__PURE__ */ filterMap2(identity2);
   reduce = /* @__PURE__ */ dual(3, (self, b, f) => fromIterable2(self).reduce((b2, a, i) => f(b2, a, i), b));
   reduceRight = /* @__PURE__ */ dual(3, (self, b, f) => fromIterable2(self).reduceRight((b2, a, i) => f(b2, a, i), b));
   getEquivalence2 = array;
@@ -12892,7 +15099,7 @@ var init_Array = __esm(() => {
     }
     return [];
   });
-  join = /* @__PURE__ */ dual(2, (self, sep) => fromIterable2(self).join(sep));
+  join5 = /* @__PURE__ */ dual(2, (self, sep4) => fromIterable2(self).join(sep4));
 });
 
 // node_modules/effect/dist/esm/Chunk.js
@@ -14028,7 +16235,7 @@ var CauseSymbolKey = "effect/Cause", CauseTypeId, variance, proto, empty6, fail2
   onInterrupt: interrupt,
   onSequential: sequential,
   onParallel: parallel
-}), stripSomeDefects, as2, map6, flatMap5, flatten3 = (self) => flatMap5(self, identity), andThen2, contains3, causeEquals = (left3, right3) => {
+}), stripSomeDefects, as2, map6, flatMap5, flatten3 = (self) => flatMap5(self, identity2), andThen2, contains3, causeEquals = (left3, right3) => {
   let leftStack = of2(left3);
   let rightStack = of2(right3);
   while (isNonEmpty(leftStack) && isNonEmpty(rightStack)) {
@@ -15827,19 +18034,19 @@ var DifferTypeId, DifferProto, make14 = (params) => {
   }),
   patch: (patch4, oldValue) => patch3(patch4, oldValue, differ)
 }), update = () => updateWith((_, a) => a), updateWith = (f) => make14({
-  empty: identity,
+  empty: identity2,
   combine: (first, second) => {
-    if (first === identity) {
+    if (first === identity2) {
       return second;
     }
-    if (second === identity) {
+    if (second === identity2) {
       return first;
     }
     return (a) => second(first(a));
   },
   diff: (oldValue, newValue) => {
     if (equals(oldValue, newValue)) {
-      return identity;
+      return identity2;
     }
     return constant(newValue);
   },
@@ -15855,8 +18062,8 @@ var init_differ = __esm(() => {
   DifferTypeId = /* @__PURE__ */ Symbol.for("effect/Differ");
   DifferProto = {
     [DifferTypeId]: {
-      _P: identity,
-      _V: identity
+      _P: identity2,
+      _V: identity2
     },
     pipe() {
       return pipeArguments(this, arguments);
@@ -16252,7 +18459,7 @@ var blocked = (blockedRequests, _continue) => {
   const effect = new EffectPrimitive("OnStep");
   effect.effect_instruction_i0 = self;
   return effect;
-}, flatten5 = (self) => flatMap7(self, identity), flip = (self) => matchEffect(self, {
+}, flatten5 = (self) => flatMap7(self, identity2), flip = (self) => matchEffect(self, {
   onFailure: succeed,
   onSuccess: fail3
 }), matchCause, matchCauseEffect, matchEffect, forEachSequential, forEachSequentialDiscard, if_, interrupt2, interruptWith = (fiberId2) => failCause(interrupt(fiberId2)), interruptible2 = (self) => {
@@ -16265,7 +18472,7 @@ var blocked = (blockedRequests, _continue) => {
   effect.effect_instruction_i0 = enable3(Interruption);
   effect.effect_instruction_i1 = (oldFlags) => interruption(oldFlags) ? internalCall(() => this.effect_instruction_i0(interruptible2)) : internalCall(() => this.effect_instruction_i0(uninterruptible));
   return effect;
-}), intoDeferred, map8, mapBoth, mapError, onError, onExit, onInterrupt, orElse2, orDie = (self) => orDieWith(self, identity), orDieWith, partitionMap3, runtimeFlags, succeed = (value) => {
+}), intoDeferred, map8, mapBoth, mapError, onError, onExit, onInterrupt, orElse2, orDie = (self) => orDieWith(self, identity2), orDieWith, partitionMap3, runtimeFlags, succeed = (value) => {
   const effect = new EffectPrimitiveSuccess(OP_SUCCESS);
   effect.effect_instruction_i0 = value;
   return effect;
@@ -16325,7 +18532,7 @@ var blocked = (blockedRequests, _continue) => {
   return typeof options?.priority !== "undefined" ? withSchedulingPriority(effect, options.priority) : effect;
 }, zip2, zipLeft2, zipRight2, zipWith3, never, interruptFiber = (self) => flatMap7(fiberId, (fiberId2) => pipe(self, interruptAsFiber(fiberId2))), interruptAsFiber, logLevelAll, logLevelFatal, logLevelError, logLevelWarning, logLevelInfo, logLevelDebug, logLevelTrace, logLevelNone, FiberRefSymbolKey = "effect/FiberRef", FiberRefTypeId, fiberRefVariance, fiberRefGet = (self) => withFiberRuntime((fiber) => exitSucceed(fiber.getFiberRef(self))), fiberRefGetWith, fiberRefSet, fiberRefModify, fiberRefLocally, fiberRefLocallyWith, fiberRefUnsafeMake = (initial, options) => fiberRefUnsafeMakePatch(initial, {
   differ: update(),
-  fork: options?.fork ?? identity,
+  fork: options?.fork ?? identity2,
   join: options?.join
 }), fiberRefUnsafeMakeHashSet = (initial) => {
   const differ2 = hashSet();
@@ -16364,7 +18571,7 @@ var blocked = (blockedRequests, _continue) => {
   differ,
   fork: differ.empty
 }), currentContext, currentSchedulingPriority, currentMaxOpsBeforeYield, currentLogAnnotations, currentLogLevel, currentLogSpan, withSchedulingPriority, withMaxOpsBeforeYield, currentConcurrency, currentRequestBatching, currentUnhandledErrorLogLevel, currentVersionMismatchErrorLogLevel, withUnhandledErrorLogLevel, currentMetricLabels, metricLabels, currentForkScopeOverride, currentInterruptedCause, currentTracerEnabled, currentTracerTimingEnabled, currentTracerSpanAnnotations, currentTracerSpanLinks, ScopeTypeId, CloseableScopeTypeId, scopeAddFinalizer = (self, finalizer) => self.addFinalizer(() => asVoid2(finalizer)), scopeAddFinalizerExit = (self, finalizer) => self.addFinalizer(finalizer), scopeClose = (self, exit2) => self.close(exit2), scopeFork = (self, strategy) => self.fork(strategy), causeSquash = (self) => {
-  return causeSquashWith(identity)(self);
+  return causeSquashWith(identity2)(self);
 }, causeSquashWith, YieldableError, makeException = (proto2, tag) => {
 
   class Base2 extends YieldableError {
@@ -16391,7 +18598,7 @@ var blocked = (blockedRequests, _continue) => {
   const effect = new EffectPrimitiveFailure(OP_FAILURE);
   effect.effect_instruction_i0 = cause;
   return effect;
-}, exitFlatMap, exitFlatMapEffect, exitFlatten = (self) => pipe(self, exitFlatMap(identity)), exitForEachEffect, exitFromEither = (either3) => {
+}, exitFlatMap, exitFlatMapEffect, exitFlatten = (self) => pipe(self, exitFlatMap(identity2)), exitForEachEffect, exitFromEither = (either3) => {
   switch (either3._tag) {
     case "Left":
       return exitFail(either3.left);
@@ -16930,7 +19137,7 @@ var init_core = __esm(() => {
             const interrupts = fromIterable2(interruptors(self)).flatMap((fiberId2) => fromIterable2(ids2(fiberId2)).map((id) => `#${id}`));
             return new InterruptedException(interrupts ? `Interrupted by fibers: ${interrupts.join(", ")}` : undefined);
           },
-          onSome: identity
+          onSome: identity2
         }));
       }
       case "Some": {
@@ -17407,14 +19614,14 @@ var init_clock = __esm(() => {
       if (millis2 > MAX_TIMER_MILLIS) {
         return constFalse;
       }
-      let completed = false;
+      let completed2 = false;
       const handle = setTimeout(() => {
-        completed = true;
+        completed2 = true;
         task();
       }, millis2);
       return () => {
         clearTimeout(handle);
-        return !completed;
+        return !completed2;
       };
     }
   };
@@ -17522,7 +19729,7 @@ var ConfigErrorSymbolKey = "effect/ConfigError", ConfigErrorTypeId, proto2, And 
   Object.defineProperty(error, "toString", {
     enumerable: false,
     value() {
-      const path2 = pipe(this.path, join(options.pathDelim));
+      const path2 = pipe(this.path, join5(options.pathDelim));
       return `(Invalid data at ${path2}: "${this.message}")`;
     }
   });
@@ -17537,7 +19744,7 @@ var ConfigErrorSymbolKey = "effect/ConfigError", ConfigErrorTypeId, proto2, And 
   Object.defineProperty(error, "toString", {
     enumerable: false,
     value() {
-      const path2 = pipe(this.path, join(options.pathDelim));
+      const path2 = pipe(this.path, join5(options.pathDelim));
       return `(Missing data at ${path2}: "${this.message}")`;
     }
   });
@@ -17553,7 +19760,7 @@ var ConfigErrorSymbolKey = "effect/ConfigError", ConfigErrorTypeId, proto2, And 
   Object.defineProperty(error, "toString", {
     enumerable: false,
     value() {
-      const path2 = pipe(this.path, join(options.pathDelim));
+      const path2 = pipe(this.path, join5(options.pathDelim));
       return `(Source unavailable at ${path2}: "${this.message}")`;
     }
   });
@@ -17568,7 +19775,7 @@ var ConfigErrorSymbolKey = "effect/ConfigError", ConfigErrorTypeId, proto2, And 
   Object.defineProperty(error, "toString", {
     enumerable: false,
     value() {
-      const path2 = pipe(this.path, join(options.pathDelim));
+      const path2 = pipe(this.path, join5(options.pathDelim));
       return `(Unsupported operation at ${path2}: "${this.message}")`;
     }
   });
@@ -17762,7 +19969,7 @@ var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigPro
     pathDelim: "_",
     seqDelim: ","
   }, options);
-  const makePathString = (path) => pipe(path, join(pathDelim));
+  const makePathString = (path) => pipe(path, join5(pathDelim));
   const unmakePathString = (pathString) => pathString.split(pathDelim);
   const getEnv = () => typeof process !== "undefined" && ("env" in process) && typeof process.env === "object" ? process.env : {};
   const load = (path, primitive, split = true) => {
@@ -17886,7 +20093,7 @@ var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigPro
           return fail3(right3.left);
         }
         if (isRight2(left3) && isRight2(right3)) {
-          const path = pipe(prefix, join("."));
+          const path = pipe(prefix, join5("."));
           const fail5 = fromFlatLoopFail(prefix, path);
           const [lefts, rights] = extend(fail5, fail5, pipe(left3.right, map2(right2)), pipe(right3.right, map2(right2)));
           return pipe(lefts, zip(rights), forEachSequential(([left4, right4]) => pipe(zip2(left4, right4), map8(([left5, right5]) => op.zip(left5, right5)))));
@@ -17898,14 +20105,14 @@ var concat = (l, r) => [...l, ...r], ConfigProviderSymbolKey = "effect/ConfigPro
 }, fromFlatLoopFail = (prefix, path) => (index) => left2(MissingData(prefix, `The element at index ${index} in a sequence at path "${path}" was missing`)), splitPathString = (text2, delim) => {
   const split = text2.split(new RegExp(`\\s*${escape(delim)}\\s*`));
   return split;
-}, parsePrimitive = (text2, path, primitive, delimiter, split) => {
+}, parsePrimitive = (text2, path, primitive, delimiter2, split) => {
   if (!split) {
     return pipe(primitive.parse(text2), mapBoth({
       onFailure: prefixed(path),
       onSuccess: of
     }));
   }
-  return pipe(splitPathString(text2, delimiter), forEachSequential((char) => primitive.parse(char.trim())), mapError(prefixed(path)));
+  return pipe(splitPathString(text2, delimiter2), forEachSequential((char) => primitive.parse(char.trim())), mapError(prefixed(path)));
 }, transpose = (array3) => {
   return Object.keys(array3[0]).map((column) => array3.map((row) => row[column]));
 }, indicesFrom = (quotedIndices) => pipe(forEachSequential(quotedIndices, parseQuotedIndex), mapBoth({
@@ -18797,7 +21004,7 @@ var TypeId10, MicroExitTypeId, MicroCauseTypeId, microCauseVariance, MicroCauseI
   return self;
 }), uninterruptibleMask2 = (f) => withMicroFiber((fiber) => {
   if (!fiber.interruptible)
-    return f(identity);
+    return f(identity2);
   fiber.interruptible = false;
   fiber._stack.push(setInterruptible(true));
   return f(interruptible3);
@@ -18832,7 +21039,7 @@ var init_Micro = __esm(() => {
   MicroExitTypeId = /* @__PURE__ */ Symbol.for("effect/Micro/MicroExit");
   MicroCauseTypeId = /* @__PURE__ */ Symbol.for("effect/Micro/MicroCause");
   microCauseVariance = {
-    _E: identity
+    _E: identity2
   };
   MicroCauseImpl = class MicroCauseImpl extends globalThis.Error {
     _tag;
@@ -18892,8 +21099,8 @@ var init_Micro = __esm(() => {
   };
   MicroFiberTypeId = /* @__PURE__ */ Symbol.for("effect/Micro/MicroFiber");
   fiberVariance = {
-    _A: identity,
-    _E: identity
+    _A: identity2,
+    _E: identity2
   };
   MicroFiberImpl = class MicroFiberImpl {
     context;
@@ -19023,9 +21230,9 @@ var init_Micro = __esm(() => {
   ensureCont = /* @__PURE__ */ Symbol.for("effect/Micro/ensureCont");
   Yield = /* @__PURE__ */ Symbol.for("effect/Micro/Yield");
   microVariance = {
-    _A: identity,
-    _E: identity,
-    _R: identity
+    _A: identity2,
+    _E: identity2,
+    _R: identity2
   };
   MicroProto = {
     ...EffectPrototype2,
@@ -19469,7 +21676,7 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     }
   });
 }, _catch, catchAllDefect, catchSomeCause, catchSomeDefect, catchTag, catchTags, cause = (self) => matchCause(self, {
-  onFailure: identity,
+  onFailure: identity2,
   onSuccess: () => empty6
 }), clockWith3, clock, delay, descriptorWith = (f) => withFiberRuntime((state, status) => f({
   id: state.id(),
@@ -19561,17 +21768,17 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
     return errors.length === 0 ? failCause(cause2) : fail3(errors);
   },
   onSuccess: succeed
-}), patchFiberRefs = (patch8) => updateFiberRefs((fiberId2, fiberRefs3) => pipe(patch8, patch6(fiberId2, fiberRefs3))), promise = (evaluate2) => evaluate2.length >= 1 ? async_((resolve, signal) => {
+}), patchFiberRefs = (patch8) => updateFiberRefs((fiberId2, fiberRefs3) => pipe(patch8, patch6(fiberId2, fiberRefs3))), promise = (evaluate2) => evaluate2.length >= 1 ? async_((resolve2, signal) => {
   try {
-    evaluate2(signal).then((a) => resolve(succeed(a)), (e) => resolve(die2(e)));
+    evaluate2(signal).then((a) => resolve2(succeed(a)), (e) => resolve2(die2(e)));
   } catch (e) {
-    resolve(die2(e));
+    resolve2(die2(e));
   }
-}) : async_((resolve) => {
+}) : async_((resolve2) => {
   try {
-    evaluate2().then((a) => resolve(succeed(a)), (e) => resolve(die2(e)));
+    evaluate2().then((a) => resolve2(succeed(a)), (e) => resolve2(die2(e)));
   } catch (e) {
-    resolve(die2(e));
+    resolve2(die2(e));
   }
 }), provideService, provideServiceEffect, random2, reduce9, reduceRight2, reduceWhile, reduceWhileLoop = (iterator, index, state, predicate, f) => {
   const next = iterator.next();
@@ -19593,19 +21800,19 @@ var annotateLogs, asSome = (self) => map8(self, some2), asSomeError = (self) => 
   }
   const fail5 = (e) => catcher ? failSync(() => catcher(e)) : fail3(new UnknownException(e, "An unknown error occurred in Effect.tryPromise"));
   if (evaluate2.length >= 1) {
-    return async_((resolve, signal) => {
+    return async_((resolve2, signal) => {
       try {
-        evaluate2(signal).then((a) => resolve(succeed(a)), (e) => resolve(fail5(e)));
+        evaluate2(signal).then((a) => resolve2(succeed(a)), (e) => resolve2(fail5(e)));
       } catch (e) {
-        resolve(fail5(e));
+        resolve2(fail5(e));
       }
     });
   }
-  return async_((resolve) => {
+  return async_((resolve2) => {
     try {
-      evaluate2().then((a) => resolve(succeed(a)), (e) => resolve(fail5(e)));
+      evaluate2().then((a) => resolve2(succeed(a)), (e) => resolve2(fail5(e)));
     } catch (e) {
-      resolve(fail5(e));
+      resolve2(fail5(e));
     }
   });
 }, tryMap, tryMapPromise, unless, unlessEffect, unsandbox = (self) => mapErrorCause(self, flatten3), updateFiberRefs = (f) => withFiberRuntime((state) => {
@@ -19877,7 +22084,7 @@ var init_core_effect = __esm(() => {
     }
     return map8(dropping, () => builder);
   }));
-  filterMap4 = /* @__PURE__ */ dual(2, (elements, pf) => map8(forEachSequential(elements, identity), filterMap2(pf)));
+  filterMap4 = /* @__PURE__ */ dual(2, (elements, pf) => map8(forEachSequential(elements, identity2), filterMap2(pf)));
   filterOrDie = /* @__PURE__ */ dual(3, (self, predicate, orDieWith2) => filterOrElse(self, predicate, (a) => dieSync(() => orDieWith2(a))));
   filterOrDieMessage = /* @__PURE__ */ dual(3, (self, predicate, message) => filterOrElse(self, predicate, () => dieMessage(message)));
   filterOrElse = /* @__PURE__ */ dual(3, (self, predicate, orElse3) => flatMap7(self, (a) => predicate(a) ? succeed(a) : orElse3(a)));
@@ -20198,7 +22405,7 @@ var init_fiberScope = __esm(() => {
 });
 
 // node_modules/effect/dist/esm/internal/fiber.js
-var FiberSymbolKey = "effect/Fiber", FiberTypeId, fiberVariance2, fiberProto, RuntimeFiberSymbolKey = "effect/Fiber", RuntimeFiberTypeId, isRuntimeFiber = (self) => (RuntimeFiberTypeId in self), _await2 = (self) => self.await, inheritAll = (self) => self.inheritAll, interruptAllAs, interruptAsFork, join2 = (self) => zipLeft2(flatten5(self.await), self.inheritAll), _never, currentFiberURI = "effect/FiberCurrent";
+var FiberSymbolKey = "effect/Fiber", FiberTypeId, fiberVariance2, fiberProto, RuntimeFiberSymbolKey = "effect/Fiber", RuntimeFiberTypeId, isRuntimeFiber = (self) => (RuntimeFiberTypeId in self), _await2 = (self) => self.await, inheritAll = (self) => self.inheritAll, interruptAllAs, interruptAsFork, join6 = (self) => zipLeft2(flatten5(self.await), self.inheritAll), _never, currentFiberURI = "effect/FiberCurrent";
 var init_fiber = __esm(() => {
   init_FiberId();
   init_Function();
@@ -20237,7 +22444,7 @@ var init_fiber = __esm(() => {
   _never = {
     ...CommitPrototype,
     commit() {
-      return join2(this);
+      return join6(this);
     },
     ...fiberProto,
     id: () => none4,
@@ -20630,7 +22837,7 @@ var init_MutableHashMap = __esm(() => {
 var MetricStateSymbolKey = "effect/MetricState", MetricStateTypeId, CounterStateSymbolKey = "effect/MetricState/Counter", CounterStateTypeId, FrequencyStateSymbolKey = "effect/MetricState/Frequency", FrequencyStateTypeId, GaugeStateSymbolKey = "effect/MetricState/Gauge", GaugeStateTypeId, HistogramStateSymbolKey = "effect/MetricState/Histogram", HistogramStateTypeId, SummaryStateSymbolKey = "effect/MetricState/Summary", SummaryStateTypeId, metricStateVariance, CounterState, arrayEquals, FrequencyState, GaugeState, HistogramState, SummaryState, counter3 = (count) => new CounterState(count), frequency2 = (occurrences) => {
   return new FrequencyState(occurrences);
 }, gauge2 = (count) => new GaugeState(count), histogram3 = (options) => new HistogramState(options.buckets, options.count, options.min, options.max, options.sum), summary2 = (options) => new SummaryState(options.error, options.quantiles, options.count, options.min, options.max, options.sum), isCounterState = (u) => hasProperty(u, CounterStateTypeId), isFrequencyState = (u) => hasProperty(u, FrequencyStateTypeId), isGaugeState = (u) => hasProperty(u, GaugeStateTypeId), isHistogramState = (u) => hasProperty(u, HistogramStateTypeId), isSummaryState = (u) => hasProperty(u, SummaryStateTypeId);
-var init_state = __esm(() => {
+var init_state2 = __esm(() => {
   init_Array();
   init_Equal();
   init_Function();
@@ -21038,7 +23245,7 @@ var init_hook = __esm(() => {
   init_Number();
   init_Option();
   init_Pipeable();
-  init_state();
+  init_state2();
   MetricHookTypeId = /* @__PURE__ */ Symbol.for(MetricHookSymbolKey);
   metricHookVariance = {
     _In: (_) => _,
@@ -21584,7 +23791,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
   for (const effect of effects) {
     eitherEffects.push(either2(effect));
   }
-  return flatMap7(forEach4(eitherEffects, identity, {
+  return flatMap7(forEach4(eitherEffects, identity2, {
     concurrency: options?.concurrency,
     batching: options?.batching,
     concurrentFinalizers: options?.concurrentFinalizers
@@ -21617,14 +23824,14 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
     eitherEffects.push(either2(effect));
   }
   if (options?.discard) {
-    return forEach4(eitherEffects, identity, {
+    return forEach4(eitherEffects, identity2, {
       concurrency: options?.concurrency,
       batching: options?.batching,
       discard: true,
       concurrentFinalizers: options?.concurrentFinalizers
     });
   }
-  return map8(forEach4(eitherEffects, identity, {
+  return map8(forEach4(eitherEffects, identity2, {
     concurrency: options?.concurrency,
     batching: options?.batching,
     concurrentFinalizers: options?.concurrentFinalizers
@@ -21636,7 +23843,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
   } else if (options?.mode === "either") {
     return allEither(effects, reconcile, options);
   }
-  return options?.discard !== true && reconcile._tag === "Some" ? map8(forEach4(effects, identity, options), reconcile.value) : forEach4(effects, identity, options);
+  return options?.discard !== true && reconcile._tag === "Some" ? map8(forEach4(effects, identity2, options), reconcile.value) : forEach4(effects, identity2, options);
 }, allWith = (options) => (arg) => all3(arg, options), allSuccesses = (elements, options) => map8(all3(fromIterable2(elements).map(exit), options), filterMap2((exit2) => exitIsSuccess(exit2) ? some2(exit2.effect_instruction_i0) : none2())), replicate, replicateEffect, forEach4, forEachParUnbounded = (self, f, batching) => suspend(() => {
   const as6 = fromIterable2(self);
   const array3 = new Array(as6.length);
@@ -21763,7 +23970,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
       next();
     }
   }));
-  return asVoid2(onExit(flatten5(restore(join2(processingFiber))), exitMatch({
+  return asVoid2(onExit(flatten5(restore(join6(processingFiber))), exitMatch({
     onFailure: (cause2) => {
       onInterruptSignal();
       const target2 = residual.length + 1;
@@ -21879,7 +24086,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
     return flatMap7(scopeFork(scope, parallelN2(parallelism)), (inner) => scopeExtend(self, inner));
   }
 })), finalizersMask = (strategy) => (self) => finalizersMaskInternal(strategy, true)(self), finalizersMaskInternal = (strategy, concurrentFinalizers) => (self) => contextWithEffect((context2) => match2(getOption2(context2, scopeTag), {
-  onNone: () => self(identity),
+  onNone: () => self(identity2),
   onSome: (scope) => {
     if (concurrentFinalizers === true) {
       const patch9 = strategy._tag === "Parallel" ? parallelFinalizers : strategy._tag === "Sequential" ? sequentialFinalizers : parallelNFinalizers(strategy.parallelism);
@@ -21892,7 +24099,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
           return patch9(self(parallelNFinalizers(scope.strategy.parallelism)));
       }
     } else {
-      return self(identity);
+      return self(identity2);
     }
   }
 })), scopeWith = (f) => flatMap7(scopeTag, f), scopedWith = (f) => flatMap7(scopeMake(), (scope) => onExit(f(scope), (exit2) => scope.close(exit2))), scopedEffect = (effect) => flatMap7(scopeMake(), (scope) => scopeUse(effect, scope)), sequentialFinalizers = (self) => contextWithEffect((context2) => match2(getOption2(context2, scopeTag), {
@@ -21934,7 +24141,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
   const _fiberAll = {
     ...CommitPrototype2,
     commit() {
-      return join2(this);
+      return join6(this);
     },
     [FiberTypeId]: fiberVariance2,
     id: () => fromIterable2(fibers).reduce((id, fiber) => combine3(id, fiber.id()), none4),
@@ -21964,7 +24171,7 @@ var fiberStarted, fiberActive, fiberSuccesses, fiberFailures, fiberLifetimes, Ev
     interruptAsFork: (fiberId2) => forEachSequentialDiscard(fibers, (fiber) => fiber.interruptAsFork(fiberId2))
   };
   return _fiberAll;
-}, raceWith, disconnect = (self) => uninterruptibleMask((restore) => fiberIdWith((fiberId2) => flatMap7(forkDaemon(restore(self)), (fiber) => pipe(restore(join2(fiber)), onInterrupt(() => pipe(fiber, interruptAsFork(fiberId2))))))), race, raceFibersWith, completeRace = (winner, loser, cont, ab, cb) => {
+}, raceWith, disconnect = (self) => uninterruptibleMask((restore) => fiberIdWith((fiberId2) => flatMap7(forkDaemon(restore(self)), (fiber) => pipe(restore(join6(fiber)), onInterrupt(() => pipe(fiber, interruptAsFork(fiberId2))))))), race, raceFibersWith, completeRace = (winner, loser, cont, ab, cb) => {
   if (compareAndSet(true, false)(ab)) {
     cb(cont(winner, loser));
   }
@@ -22200,7 +24407,7 @@ var init_fiberRuntime = __esm(() => {
       this.refreshRefCache();
     }
     commit() {
-      return join2(this);
+      return join6(this);
     }
     id() {
       return this._fiberId;
@@ -22982,7 +25189,7 @@ var init_fiberRuntime = __esm(() => {
     }
   })));
   mergeAll3 = /* @__PURE__ */ dual((args2) => isFunction2(args2[2]), (elements, zero2, f, options) => matchSimple(options?.concurrency, () => fromIterable2(elements).reduce((acc, a, i) => zipWith3(acc, a, (acc2, a2) => f(acc2, a2, i)), succeed(zero2)), () => flatMap7(make24(zero2), (acc) => flatMap7(forEach4(elements, (effect, i) => flatMap7(effect, (a) => update3(acc, (b) => f(b, a, i))), options), () => get11(acc)))));
-  partition3 = /* @__PURE__ */ dual((args2) => isIterable(args2[0]), (elements, f, options) => pipe(forEach4(elements, (a, i) => either2(f(a, i)), options), map8((chunk2) => partitionMap3(chunk2, identity))));
+  partition3 = /* @__PURE__ */ dual((args2) => isIterable(args2[0]), (elements, f, options) => pipe(forEach4(elements, (a, i) => either2(f(a, i)), options), map8((chunk2) => partitionMap3(chunk2, identity2))));
   validateAll = /* @__PURE__ */ dual((args2) => isIterable(args2[0]), (elements, f, options) => flatMap7(partition3(elements, f, {
     concurrency: options?.concurrency,
     batching: options?.batching,
@@ -23118,11 +25325,11 @@ var init_fiberRuntime = __esm(() => {
   }));
   race = /* @__PURE__ */ dual(2, (self, that) => fiberIdWith((parentFiberId) => raceWith(self, that, {
     onSelfDone: (exit2, right3) => exitMatchEffect(exit2, {
-      onFailure: (cause2) => pipe(join2(right3), mapErrorCause((cause22) => parallel(cause2, cause22))),
+      onFailure: (cause2) => pipe(join6(right3), mapErrorCause((cause22) => parallel(cause2, cause22))),
       onSuccess: (value) => pipe(right3, interruptAsFiber(parentFiberId), as3(value))
     }),
     onOtherDone: (exit2, left3) => exitMatchEffect(exit2, {
-      onFailure: (cause2) => pipe(join2(left3), mapErrorCause((cause22) => parallel(cause22, cause2))),
+      onFailure: (cause2) => pipe(join6(left3), mapErrorCause((cause22) => parallel(cause22, cause2))),
       onSuccess: (value) => pipe(left3, interruptAsFiber(parentFiberId), as3(value))
     })
   })));
@@ -23368,7 +25575,7 @@ class Semaphore {
     return ensuring(restore(asSome(self)), this.release(n));
   }));
 }
-var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (permits) => sync(() => unsafeMakeSemaphore(permits)), Latch, unsafeMakeLatch = (open2) => new Latch(open2 ?? false), makeLatch = (open2) => sync(() => unsafeMakeLatch(open2)), awaitAllChildren = (self) => ensuringChildren(self, fiberAwaitAll), cached2, cachedInvalidateWithTTL, computeCachedValue = (self, timeToLive, start3) => {
+var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (permits) => sync(() => unsafeMakeSemaphore(permits)), Latch, unsafeMakeLatch = (open5) => new Latch(open5 ?? false), makeLatch = (open5) => sync(() => unsafeMakeLatch(open5)), awaitAllChildren = (self) => ensuringChildren(self, fiberAwaitAll), cached2, cachedInvalidateWithTTL, computeCachedValue = (self, timeToLive, start3) => {
   const timeToLiveMillis = toMillis(decode(timeToLive));
   return pipe(deferredMake(), tap2((deferred) => intoDeferred(self, deferred)), map8((deferred) => some2([start3 + timeToLiveMillis, deferred])));
 }, getCachedValue = (self, timeToLive, cache) => uninterruptibleMask((restore) => pipe(clockWith3((clock2) => clock2.currentTimeMillis), flatMap7((time) => updateSomeAndGetEffectSynchronized(cache, (option2) => {
@@ -23381,7 +25588,7 @@ var unsafeMakeSemaphore = (permits) => new Semaphore(permits), makeSemaphore = (
       return end3 - time <= 0 ? some2(computeCachedValue(self, timeToLive, time)) : none2();
     }
   }
-})), flatMap7((option2) => isNone2(option2) ? dieMessage("BUG: Effect.cachedInvalidate - please report an issue at https://github.com/Effect-TS/effect/issues") : restore(deferredAwait(option2.value[1]))))), invalidateCache = (cache) => set4(cache, none2()), ensuringChild, ensuringChildren, forkAll, forkIn, forkScoped = (self) => scopeWith((scope2) => forkIn(self, scope2)), fromFiber = (fiber) => join2(fiber), fromFiberEffect = (fiber) => suspend(() => flatMap7(fiber, join2)), memoKeySymbol, Key, cachedFunction = (f, eq) => {
+})), flatMap7((option2) => isNone2(option2) ? dieMessage("BUG: Effect.cachedInvalidate - please report an issue at https://github.com/Effect-TS/effect/issues") : restore(deferredAwait(option2.value[1]))))), invalidateCache = (cache) => set4(cache, none2()), ensuringChild, ensuringChildren, forkAll, forkIn, forkScoped = (self) => scopeWith((scope2) => forkIn(self, scope2)), fromFiber = (fiber) => join6(fiber), fromFiberEffect = (fiber) => suspend(() => flatMap7(fiber, join6)), memoKeySymbol, Key, cachedFunction = (f, eq) => {
   return pipe(sync(() => empty22()), flatMap7(makeSynchronized), map8((ref3) => (a) => pipe(ref3.modifyEffect((map11) => {
     const result = pipe(map11, get12(new Key(a, eq)));
     if (isNone2(result)) {
@@ -23699,7 +25906,7 @@ var makeDual = (f) => function() {
     }
   }))), restore(onInterrupt(deferredAwait(deferred), () => cleanup ?? void_2))))));
 });
-var init_runtime2 = __esm(() => {
+var init_runtime3 = __esm(() => {
   init_Context();
   init_Equal();
   init_Exit();
@@ -23835,14 +26042,14 @@ var init_runtime2 = __esm(() => {
       }
     }
   }));
-  unsafeRunPromiseExit = /* @__PURE__ */ makeDual((runtime2, effect, options) => new Promise((resolve) => {
+  unsafeRunPromiseExit = /* @__PURE__ */ makeDual((runtime2, effect, options) => new Promise((resolve2) => {
     const op = fastPath(effect);
     if (op) {
-      resolve(op);
+      resolve2(op);
     }
     const fiber = unsafeFork2(runtime2)(effect);
     fiber.addObserver((exit2) => {
-      resolve(exit2);
+      resolve2(exit2);
     });
     if (options?.signal !== undefined) {
       if (options.signal.aborted) {
@@ -24040,7 +26247,7 @@ var init_layer = __esm(() => {
   init_fiberRuntime();
   init_circular2();
   init_ref();
-  init_runtime2();
+  init_runtime3();
   init_runtimeFlags();
   init_synchronizedRef();
   init_tracer();
@@ -25864,7 +28071,7 @@ var init_Effect = __esm(() => {
   init_layer();
   init_option();
   init_query();
-  init_runtime2();
+  init_runtime3();
   init_schedule();
   init_tracer();
   init_Random();
@@ -26793,12 +29000,12 @@ __export(exports_node2, {
   runSupportCommand: () => runSupportCommand,
   maybeShowSupportInvitation: () => maybeShowSupportInvitation
 });
-import { randomUUID } from "crypto";
+import { randomUUID as randomUUID2 } from "crypto";
 import { execFile } from "child_process";
-import { constants as constants2 } from "fs";
-import { mkdir, open as open2, rename, unlink } from "fs/promises";
-import { homedir } from "os";
-import { isAbsolute, join as join3 } from "path";
+import { constants as constants5 } from "fs";
+import { mkdir as mkdir2, open as open5, rename as rename2, unlink as unlink3 } from "fs/promises";
+import { homedir as homedir2 } from "os";
+import { isAbsolute as isAbsolute4, join as join7 } from "path";
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -26927,7 +29134,7 @@ function stateDirectory(options) {
     return options.stateDirectory;
   const env = options.env ?? process.env;
   const xdg = env.XDG_STATE_HOME;
-  return join3(xdg && isAbsolute(xdg) ? xdg : join3(homedir(), ".local", "state"), "hraness", "support");
+  return join7(xdg && isAbsolute4(xdg) ? xdg : join7(homedir2(), ".local", "state"), "hraness", "support");
 }
 function environmentSuppresses(options) {
   const env = options.env ?? process.env;
@@ -26950,7 +29157,7 @@ async function withGitEmailSuggestion(offer2, options) {
   const env = options.env ?? process.env;
   if (!offer2.actions.some((action) => action.kind === "updates") || options.gitEmail === false || ["off", "false", "0"].includes(env.HRANESS_SUPPORT_EMAIL?.trim().toLowerCase() ?? ""))
     return offer2;
-  const email = await new Promise((resolve) => {
+  const email = await new Promise((resolve2) => {
     execFile("git", ["config", "--get", "user.email"], {
       cwd: options.cwd,
       env,
@@ -26961,7 +29168,7 @@ async function withGitEmailSuggestion(offer2, options) {
       windowsHide: true
     }, (error, stdout) => {
       if (error) {
-        resolve(null);
+        resolve2(null);
         return;
       }
       const candidate = stdout.trim();
@@ -26969,7 +29176,7 @@ async function withGitEmailSuggestion(offer2, options) {
       const local = parts2[0] ?? "";
       const domain = parts2[1]?.toLowerCase() ?? "";
       const valid = parts2.length === 2 && candidate.length <= 254 && local.length <= 64 && /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+$/u.test(local) && !local.startsWith(".") && !local.endsWith(".") && !local.includes("..") && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/u.test(domain) && domain !== "noreply.github.com" && !domain.endsWith(".noreply.github.com") && !/^(?:no-?reply|do-?not-?reply)$/iu.test(local);
-      resolve(valid ? candidate : null);
+      resolve2(valid ? candidate : null);
     });
   }).catch(() => null);
   return email === null ? offer2 : Object.freeze({
@@ -26980,9 +29187,9 @@ async function withGitEmailSuggestion(offer2, options) {
 async function readLocalJson(path) {
   let handle;
   try {
-    handle = await open2(path, constants2.O_RDONLY | constants2.O_NOFOLLOW | constants2.O_NONBLOCK);
-    const stat = await handle.stat();
-    if (!stat.isFile() || stat.size > 4096)
+    handle = await open5(path, constants5.O_RDONLY | constants5.O_NOFOLLOW | constants5.O_NONBLOCK);
+    const stat2 = await handle.stat();
+    if (!stat2.isFile() || stat2.size > 4096)
       throw new Error("Invalid support state file.");
     const buffer = Buffer.alloc(4097);
     let length2 = 0;
@@ -27004,9 +29211,9 @@ async function readLocalJson(path) {
   }
 }
 async function writeLocalJson(directory, name, value) {
-  const temporary = join3(directory, `${name}.${randomUUID()}.tmp`);
+  const temporary = join7(directory, `${name}.${randomUUID2()}.tmp`);
   try {
-    const handle = await open2(temporary, "wx", 384);
+    const handle = await open5(temporary, "wx", 384);
     try {
       await handle.writeFile(`${JSON.stringify(value)}
 `, "utf8");
@@ -27014,9 +29221,9 @@ async function writeLocalJson(directory, name, value) {
     } finally {
       await handle.close();
     }
-    await rename(temporary, join3(directory, name));
+    await rename2(temporary, join7(directory, name));
   } finally {
-    await unlink(temporary).catch(() => {});
+    await unlink3(temporary).catch(() => {});
   }
 }
 async function withState(options, action) {
@@ -27024,14 +29231,14 @@ async function withState(options, action) {
   let lockPath;
   try {
     const directory = stateDirectory(options);
-    await mkdir(directory, { recursive: true, mode: 448 });
-    lockPath = join3(directory, "state.lock");
+    await mkdir2(directory, { recursive: true, mode: 448 });
+    lockPath = join7(directory, "state.lock");
     try {
-      lock = await open2(lockPath, "wx", 384);
+      lock = await open5(lockPath, "wx", 384);
     } catch (error) {
       return { ok: false, reason: errorCode(error) === "EEXIST" ? "busy" : "state-unavailable" };
     }
-    const raw = await readLocalJson(join3(directory, "state.json"));
+    const raw = await readLocalJson(join7(directory, "state.json"));
     const state = raw === undefined ? initialState() : parseState(raw);
     const result = await action(state, directory);
     if (result.changed)
@@ -27043,7 +29250,7 @@ async function withState(options, action) {
     if (lock !== undefined) {
       await lock.close().catch(() => {});
       if (lockPath !== undefined)
-        await unlink(lockPath).catch(() => {});
+        await unlink3(lockPath).catch(() => {});
     }
   }
 }
@@ -27072,7 +29279,7 @@ async function claimInvitation(options) {
     if (reason !== null)
       return { value: { kind: "quiet", reason } };
     await readPresentationReceipt(directory);
-    const id = randomUUID();
+    const id = randomUUID2();
     state.reservation = { id, createdAt: now, expiresAt: now + RESERVATION_MS };
     return { value: { kind: "offer", id }, changed: true };
   });
@@ -27083,7 +29290,7 @@ async function acknowledgeInvitation(id, options) {
   return withState(options, (state, directory) => acknowledgeState(state, directory, id, now));
 }
 async function readPresentationReceipt(directory) {
-  const receipt = await readLocalJson(join3(directory, "presentation.json"));
+  const receipt = await readLocalJson(join7(directory, "presentation.json"));
   if (receipt !== undefined && (!record(receipt) || Object.keys(receipt).sort().join(",") !== "id,schemaVersion,shownAt" || receipt.schemaVersion !== "hraness-support-presentation-v1" || typeof receipt.id !== "string" || !UUID.test(receipt.id) || !timestamp(receipt.shownAt)))
     throw new Error("Invalid presentation receipt.");
   return receipt;
@@ -27136,7 +29343,7 @@ async function claimDiscovery(options) {
     if (suppression(state, now) !== null)
       return { value: false };
     await readPresentationReceipt(directory);
-    const discovery = await readLocalJson(join3(directory, "discovery.json"));
+    const discovery = await readLocalJson(join7(directory, "discovery.json"));
     if (discovery !== undefined) {
       if (!record(discovery) || Object.keys(discovery).sort().join(",") !== "lastAttemptAt,schemaVersion" || discovery.schemaVersion !== "hraness-support-discovery-state-v1" || !timestamp(discovery.lastAttemptAt))
         throw new Error("Invalid discovery state.");
@@ -27236,7 +29443,7 @@ async function writeOutput(sink, message) {
     return false;
   const operation = Symbol();
   pendingOutputs.set(sink, operation);
-  return new Promise((resolve) => {
+  return new Promise((resolve2) => {
     let settled = false;
     let timer;
     const stream = typeof sink.on === "function" && typeof sink.removeListener === "function";
@@ -27255,7 +29462,7 @@ async function writeOutput(sink, message) {
         return;
       settled = true;
       clearTimeout(timer);
-      resolve(ok);
+      resolve2(ok);
     };
     const finished = (ok) => {
       settle(ok);
@@ -27372,492 +29579,20 @@ var init_support = __esm(() => {
   usefulCommands = new Set(["init", "put", "get", "list", "log", "search", "recall", "tombstone"]);
 });
 
-// src/cli-intro.ts
-var OH_CLI_TAGLINE = "Open-source memory for agents";
-function terminalIntro(terminal) {
-  if (terminal.isTTY !== true || terminal.term === "dumb" || (terminal.columns ?? 80) < 48)
-    return "";
-  return `  .----.
- / .--. \\    oh
-| |    | |   ${OH_CLI_TAGLINE}
- \\ '--' /
-  '----'
-
-`;
-}
-
 // src/cli.ts
+var exports_cli = {};
+__export(exports_cli, {
+  supportCommandPrefix: () => supportCommandPrefix,
+  runOhMain: () => runOhMain,
+  runOhCli: () => runOhCli,
+  describeOhCliError: () => describeOhCliError,
+  OhUsageError: () => OhUsageError,
+  OhCliError: () => OhCliError,
+  OH_PACKAGE_VERSION: () => OH_PACKAGE_VERSION
+});
 import { existsSync as existsSync2, realpathSync } from "fs";
-import { delimiter, join as join4 } from "path";
-import { lstat, readFile } from "fs/promises";
-
-// src/cli-help.ts
-init_graph();
-var OH_DESCRIPTION = `Oh is open-source memory for agents that stores each fact with its sources
-and every change in a history you can replay.`;
-var OH_COMMANDS = [
-  "init",
-  "put",
-  "get",
-  "list",
-  "log",
-  "search",
-  "recall",
-  "tombstone",
-  "verify",
-  "sync",
-  "contract",
-  "version",
-  "research",
-  "support",
-  "help"
-];
-function wrap(words, indent, width = 80) {
-  const lines = [];
-  let line = indent;
-  for (const word of words) {
-    const next = line.trim() === "" ? `${indent}${word}` : `${line} ${word}`;
-    if (next.length > width && line.trim() !== "") {
-      lines.push(line);
-      line = `${indent}${word}`;
-    } else
-      line = next;
-  }
-  if (line.trim() !== "")
-    lines.push(line);
-  return lines.join(`
-`);
-}
-var KINDS = wrap(OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1.map((kind, index, all) => index === all.length - 1 ? kind : `${kind},`), "  ");
-function bareScreen(version) {
-  return `${OH_DESCRIPTION}
-
-Start here
-  oh init                      Create a store in .oh/oh.sqlite
-  oh put --kind entity --key entity:ada --value '{"name":"Ada"}'
-                               Save a record
-  oh get entity:ada            Print one record
-  oh search Ada                Find records by keyword
-  oh verify                    Replay the history and check the store
-
-All commands: oh --help \xB7 Command help: oh help <command>
-oh ${version}
-`;
-}
-function rootHelp() {
-  return `Usage: oh <command> [options]
-
-${OH_DESCRIPTION}
-
-Start here
-  oh init                      Create the store and its space
-  oh put [options]             Save a record (oh put --help)
-  oh get <key>                 Print one record
-  oh search <query>            Find records by keyword
-  oh verify                    Replay the history and check the store
-
-Read
-  oh list                      List current records
-  oh log                       List recent changes
-  oh recall <question>         Find records for a question, with dates like
-                               "last week" read against --as-of
-
-Change
-  oh tombstone <key>           Remove a record; its history stays in the log
-  oh sync export               Print the changes as a bundle for another store
-  oh sync import --file <path> Apply a bundle made by oh sync export
-
-More
-  oh contract                  Print the data format versions this build uses
-  oh version                   Print the version
-  oh research                  Offline research tools (oh research --help)
-
-Options
-  --db <path>       Store file (default .oh/oh.sqlite)
-  --space <id>      Space in the store (default "default")
-  --json            Print JSON (the default when an agent runs oh)
-  -h, --help        Show help (also: oh <command> --help)
-  -V, --version     Show the version
-
-Optional support: oh support \xB7 Turn off: HRANESS_SUPPORT=off
-`;
-}
-var STORE_OPTIONS = `  --db <path>       Store file (default .oh/oh.sqlite)
-  --space <id>      Space in the store (default "default")
-  --json            Print JSON`;
-var WRITE_OPTIONS = `  --actor <id>      Name recorded with the change (default agent.local)
-  --operation <id>  Reuse the same ID to retry a write safely
-  --expected-generation <n>
-                    Write only if the space is still at generation n`;
-var COMMAND_HELP = {
-  init: `Usage: oh init [options]
-
-Create the store file and its space if they don't exist yet, then print the
-space's current generation. Running it again changes nothing.
-
-Options
-${STORE_OPTIONS}
-
-Example
-  oh init --db research.db
-`,
-  put: `Usage: oh put --kind <kind> --key <key> (--value <json> | --file <path>)
-
-Save a record. A record with the same key is replaced, and the change is
-added to the history.
-
-Options
-  --kind <kind>     Record kind (see below)
-  --key <key>       Record key, such as entity:ada
-  --value <json>    The record's value as JSON
-  --file <path>     Read the value from a JSON file instead
-  --depends-on <key>
-                    A record this one depends on (repeatable)
-${WRITE_OPTIONS}
-${STORE_OPTIONS}
-
-Record kinds
-${KINDS}
-
-Example
-  oh put --kind entity --key entity:ada --value '{"name":"Ada Lovelace"}'
-`,
-  get: `Usage: oh get <key> [options]
-
-Print one record. Exits 3 when no current record has that key.
-
-Options
-${STORE_OPTIONS}
-
-Example
-  oh get entity:ada
-`,
-  list: `Usage: oh list [options]
-
-List current records, 50 at a time unless you pass --limit.
-
-Options
-  --kind <kind>     Only records of this kind
-  --limit <n>       How many to list, 1 to 1000 (default 50)
-${STORE_OPTIONS}
-
-Example
-  oh list --kind entity
-`,
-  log: `Usage: oh log [options]
-
-List the most recent changes in the history, newest first.
-
-Options
-  --limit <n>       How many to list, 1 to 1000 (default 50)
-${STORE_OPTIONS}
-
-Example
-  oh log --limit 10
-`,
-  search: `Usage: oh search <query> [options]
-
-Find records by keyword.
-
-Options
-  --limit <n>       How many results, 1 to 100 (default 10)
-${STORE_OPTIONS}
-
-Example
-  oh search "mathematician"
-`,
-  recall: `Usage: oh recall <question> [options]
-
-Find records for a question and print them as text for a model to read.
-With --as-of, dates such as "last week" in the question narrow the results.
-
-Options
-  --as-of <instant> The question's date, a UTC instant with milliseconds,
-                    such as 2026-01-08T12:00:00.000Z
-  --limit <n>       How many results, 1 to 100 (default 10)
-  --author-log <name>
-                    Print every message whose speaker is <name>, in date
-                    order, followed by the other speakers' matching records
-${STORE_OPTIONS}
-
-Examples
-  oh recall "what did Ada build last week" --as-of 2026-01-08T12:00:00.000Z
-  oh recall "where do I live" --as-of 2026-01-08T12:00:00.000Z --author-log user
-`,
-  tombstone: `Usage: oh tombstone <key> [options]
-
-Remove a record. Its earlier versions stay in the history. Exits 3 when no
-current record has that key.
-
-Options
-${WRITE_OPTIONS}
-${STORE_OPTIONS}
-
-Example
-  oh tombstone entity:ada
-`,
-  verify: `Usage: oh verify [options]
-
-Check the store: run SQLite's integrity checks and replay every change in the
-history to confirm it produces the same records.
-
-Options
-${STORE_OPTIONS}
-
-Example
-  oh verify --db research.db
-`,
-  sync: `Usage: oh sync export [options]
-       oh sync import --file <path> [options]
-
-Copy changes between stores. export prints a bundle of changes as JSON;
-import checks a bundle and applies all of it or none of it.
-
-Options
-  --after <n>       export: start after change number n (default 0)
-  --limit <n>       export: at most n changes, 1 to 1000 (default 1000)
-  --file <path>     import: the bundle file
-  --db <path>       Store file (default .oh/oh.sqlite)
-  --space <id>      Space in the store (default "default")
-  --json            Print JSON (import)
-
-Example
-  oh sync export --db a.db > changes.json
-  oh sync import --db b.db --file changes.json
-`,
-  contract: `Usage: oh contract
-
-Print, as JSON, the data format versions this build of Oh reads and writes.
-A store made by a different format version won't open.
-`,
-  version: `Usage: oh version [--json]
-
-Print the version. Same as oh --version.
-`,
-  research: `Usage: oh research <command> [--file <path>]
-
-Offline research tools. They read no store and use no network, and print
-JSON.
-
-Catalogs
-  oh research catalog-v9                  The knowledge domain catalog
-  oh research wikidata-mappings-v3        The Wikidata mapping catalog
-
-Check and prepare
-  oh research validate-draft --file <path>
-                                          Check a knowledge proposal draft
-  oh research prepare-packet --file <path>
-                                          Build a research packet
-  oh research verify-packet --file <path> Check a research packet
-  oh research wikidata-preview --file <path>
-                                          Preview a Wikidata import
-  oh research wikidata-mapping-preview-v2 --file <path>
-                                          Preview a Wikidata mapping
-
-Earlier catalog and preview versions (catalog through catalog-v8,
-wikidata-mappings, wikidata-mappings-v2, wikidata-mapping-preview) still
-work for existing scripts.
-`
-};
-function commandHelp(command) {
-  return Object.hasOwn(COMMAND_HELP, command) ? COMMAND_HELP[command] : undefined;
-}
-var OH_HELP_TOPICS = Object.freeze(Object.keys(COMMAND_HELP));
-
-// src/cli-style.ts
-var AGENT_MARKERS = [
-  "AI_AGENT",
-  "CLAUDECODE",
-  "CODEX_SANDBOX",
-  "CODEX_SANDBOX_NETWORK_DISABLED",
-  "CURSOR_AGENT",
-  "GEMINI_CLI"
-];
-function detectAudience(env = process.env, stderr = process.stderr) {
-  const forced = (env.HRANESS_AUDIENCE ?? "").trim().toLowerCase();
-  if (forced === "human" || forced === "agent" || forced === "quiet")
-    return forced;
-  if (forced === "off")
-    return "quiet";
-  if (AGENT_MARKERS.some((marker) => (env[marker] ?? "") !== ""))
-    return "agent";
-  return stderr.isTTY === true ? "human" : "quiet";
-}
-function useAscii(env = process.env) {
-  if (env.HRANESS_ASCII === "1" || env.TERM === "dumb")
-    return true;
-  const locale = env.LC_ALL || env.LC_CTYPE || env.LANG || "";
-  return !/utf-?8/i.test(locale);
-}
-function useColor(stream, env = process.env) {
-  if (env.FORCE_COLOR === "1")
-    return true;
-  return stream.isTTY === true && env.TERM !== "dumb" && (env.NO_COLOR ?? "") === "";
-}
-var GLYPHS = {
-  ok: ["\u2713", "OK", "32"],
-  fail: ["\u2717", "FAIL", "31"],
-  warn: ["\u26A0", "WARN", "33"],
-  next: ["\u2192", "->", "2"],
-  on: ["\u25CF", "*", "32"],
-  off: ["\u25CB", "o", null],
-  skip: ["\u2013", "-", "2"],
-  progress: ["\u21BB", "...", null],
-  notice: ["\uD83D\uDD10", "NOTE", null]
-};
-function sym(name, stream, env = process.env) {
-  const [unicode, ascii, color] = GLYPHS[name];
-  const glyph = useAscii(env) ? ascii : unicode;
-  return color !== null && useColor(stream, env) ? `\x1B[${color}m${glyph}\x1B[0m` : glyph;
-}
-function distance(a, b) {
-  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1;i <= a.length; i++) {
-    let previous = row[0];
-    row[0] = i;
-    for (let j = 1;j <= b.length; j++) {
-      const current = row[j];
-      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
-      previous = current;
-    }
-  }
-  return row[b.length];
-}
-function closestMatch(input, known) {
-  let best;
-  for (const name of known) {
-    const d = distance(input.toLowerCase(), name.toLowerCase());
-    if (best === undefined || d < best.d)
-      best = { name, d };
-  }
-  if (best === undefined)
-    return;
-  if (best.name.startsWith(input) && input.length >= 3)
-    return best.name;
-  if (best.d >= input.length)
-    return;
-  return best.d <= Math.max(2, Math.floor(best.name.length / 3)) ? best.name : undefined;
-}
-
-// src/cli-render.ts
-var plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
-function renderInit(databasePath, spaceId, head, output) {
-  return `${sym("ok", output.stream, output.env)} Store ready at ${databasePath}, space ${spaceId}, generation ${head.generation}.
-`;
-}
-function renderPut(key, head, output) {
-  return `${sym("ok", output.stream, output.env)} Saved ${key} (generation ${head.generation}).
-`;
-}
-function renderTombstone(key, head, output) {
-  return `${sym("ok", output.stream, output.env)} Removed ${key} (generation ${head.generation}). Its history stays in the log.
-`;
-}
-function renderRecord(record) {
-  const lines = [`${record.key} (${record.kind})`, JSON.stringify(record.value, null, 2)];
-  if (record.dependencies.length !== 0)
-    lines.push(`Depends on: ${record.dependencies.join(", ")}`);
-  return `${lines.join(`
-`)}
-`;
-}
-function columns(rows) {
-  const widths = [];
-  for (const row of rows)
-    row.forEach((cell, index) => {
-      widths[index] = Math.max(widths[index] ?? 0, cell.length);
-    });
-  return rows.map((row) => row.map((cell, index) => index === row.length - 1 ? cell : cell.padEnd(widths[index] ?? 0)).join("  ")).join(`
-`) + `
-`;
-}
-function renderList(records, spaceId) {
-  if (records.length === 0)
-    return `No records in space ${spaceId}.
-`;
-  return columns(records.map((record) => [record.key, record.kind]));
-}
-function describeChanges(operation) {
-  return operation.changes.map((change) => change.kind === "put" ? `put ${change.record.key}` : `tombstone ${change.key}`).join(", ");
-}
-function renderLog(operations, spaceId) {
-  if (operations.length === 0)
-    return `No changes in space ${spaceId} yet.
-`;
-  return columns(operations.map((operation) => [
-    `#${operation.sequence}`,
-    operation.instant,
-    operation.actorId,
-    describeChanges(operation)
-  ]));
-}
-function renderSearch(query, response) {
-  if (response.results.length === 0)
-    return `No records match "${query}".
-`;
-  return columns(response.results.map((result, index) => [`${index + 1}.`, result.record.key, result.record.kind]));
-}
-function renderVerify(result, output) {
-  return `${sym("ok", output.stream, output.env)} Store checked: ${plural(result.records, "record")} and ${plural(result.operations, "change")} replay to the same state (generation ${result.head.generation}).
-`;
-}
-function renderImport(imported, head, output) {
-  return imported === 0 ? `${sym("ok", output.stream, output.env)} Nothing to import; the store already has these changes.
-` : `${sym("ok", output.stream, output.env)} Imported ${plural(imported, "change")} (generation ${head.generation}).
-`;
-}
-
-// src/cli.ts
-init_canonical();
-init_contract();
-init_graph();
-init_recall();
-init_migrations();
-init_sync_model();
-var OH_PACKAGE_VERSION = "0.13.3";
-
-class OhUsageError extends TypeError {
-  next;
-  constructor(message, next) {
-    super(message);
-    this.next = next;
-    this.name = "OhUsageError";
-  }
-}
-
-class OhCliError extends Error {
-  code;
-  next;
-  exitCode;
-  constructor(message, code2, next, exitCode) {
-    super(message);
-    this.code = code2;
-    this.next = next;
-    this.exitCode = exitCode;
-    this.name = "OhCliError";
-  }
-}
-var KNOWN_OPTIONS = new Set([
-  "actor",
-  "after",
-  "as-of",
-  "author-log",
-  "db",
-  "depends-on",
-  "expected-generation",
-  "file",
-  "json",
-  "key",
-  "kind",
-  "limit",
-  "mode",
-  "operation",
-  "space",
-  "value"
-]);
-var RECALL_RENDER_BUDGET_BYTES = 96000;
-var GLOBAL_OPTIONS = ["db", "space"];
-var MUTATION_OPTIONS = ["actor", "expected-generation", "operation"];
+import { delimiter as delimiter2, join as join8 } from "path";
+import { lstat as lstat4, readFile } from "fs/promises";
 function unknownOption(option3) {
   const guess = closestMatch(option3.replace(/^-+/u, ""), [...KNOWN_OPTIONS]);
   return new OhUsageError(`Unknown option "${option3}".${guess === undefined ? "" : ` Did you mean "--${guess}"?`}`);
@@ -28086,7 +29821,7 @@ async function readValueFile(path) {
 }
 async function readSyncBundleFile(path) {
   const maximumFileBytes = OH_SYNC_BUNDLE_MAX_BYTES_V1 + 1;
-  const metadata = await lstat(path).catch((error) => {
+  const metadata = await lstat4(path).catch((error) => {
     if (error.code === "ENOENT")
       throw new OhUsageError(`No file at ${path}.`);
     throw error;
@@ -28100,7 +29835,6 @@ async function readSyncBundleFile(path) {
   }
   return parseValue(contents.toString("utf8"), "The bundle file");
 }
-var DEFAULT_DATABASE = ".oh/oh.sqlite";
 function shellWord(word) {
   return /^[\w@%+=:,./-]+$/u.test(word) ? word : `'${word.replaceAll("'", "'\\''")}'`;
 }
@@ -28114,7 +29848,6 @@ function outputFor(json3) {
   const audience2 = detectAudience();
   return { human: audience2 === "human", json: json3 || audience2 === "agent", quiet: audience2 === "quiet" };
 }
-var style = () => ({ env: process.env, stream: process.stdout });
 function hint(output, next) {
   if (output.human && !output.json)
     process.stderr.write(`Next: ${next}
@@ -28208,7 +29941,7 @@ async function runOhCli(arguments_) {
   if (!creates && validated.databasePath !== ":memory:" && !existsSync2(validated.databasePath)) {
     throw new OhCliError(`No Oh store at ${validated.databasePath}.`, "no_store", validated.databasePath === DEFAULT_DATABASE ? "oh init" : `oh init --db ${shellWord(validated.databasePath)}`, 1);
   }
-  const missing = (key3) => new OhCliError(`No record named "${key3}" in space ${validated.spaceId}.`, "not_found", `oh list${scope5}`, 3);
+  const missing2 = (key3) => new OhCliError(`No record named "${key3}" in space ${validated.spaceId}.`, "not_found", `oh list${scope5}`, 3);
   const { Oh: Oh2 } = await Promise.resolve().then(() => (init_sdk(), exports_sdk));
   const oh = Oh2.open({ databasePath: validated.databasePath, spaceId: validated.spaceId });
   try {
@@ -28251,7 +29984,7 @@ async function runOhCli(arguments_) {
       const expectedGeneration = integer(one(parsed, "expected-generation"), "expected-generation");
       const record2 = oh.get(key3);
       if (record2 === null)
-        throw missing(key3);
+        throw missing2(key3);
       const operation = oh.store.commit({
         actorId: one(parsed, "actor", "agent.local"),
         changes: [{ key: key3, kind: "tombstone", priorSha256: record2.recordSha256, v: 1 }],
@@ -28270,7 +30003,7 @@ async function runOhCli(arguments_) {
         throw new OhUsageError("get needs one record key.");
       const record2 = oh.get(key3);
       if (record2 === null)
-        throw missing(key3);
+        throw missing2(key3);
       if (output.json)
         print(record2);
       else
@@ -28421,12 +30154,12 @@ function supportCommandPrefix(script = process.argv[1] ?? "", path = process.env
   } catch {
     return fallback;
   }
-  for (const directory of path.split(delimiter)) {
+  for (const directory of path.split(delimiter2)) {
     if (directory === "")
       continue;
     let found;
     try {
-      found = realpathSync(join4(directory, "oh"));
+      found = realpathSync(join8(directory, "oh"));
     } catch {
       continue;
     }
@@ -28434,7 +30167,7 @@ function supportCommandPrefix(script = process.argv[1] ?? "", path = process.env
   }
   return fallback;
 }
-if (import.meta.main) {
+async function runOhMain() {
   const args2 = process.argv.slice(2);
   process.stdout.on("error", (error) => {
     if (error.code === "EPIPE")
@@ -28450,7 +30183,7 @@ if (import.meta.main) {
     await showOhSupportInvitation2(args2, code2, options);
     return code2;
   };
-  run().then((code2) => {
+  await run().then((code2) => {
     process.exitCode = code2;
   }).catch((error) => {
     const described = describeOhCliError(error, args2);
@@ -28469,11 +30202,96 @@ ${error.stack}
     process.exitCode = described.exitCode;
   });
 }
+var OhUsageError, OhCliError, KNOWN_OPTIONS, RECALL_RENDER_BUDGET_BYTES = 96000, GLOBAL_OPTIONS, MUTATION_OPTIONS, DEFAULT_DATABASE = ".oh/oh.sqlite", style = () => ({ env: process.env, stream: process.stdout });
+var init_cli = __esm(async () => {
+  init_cli_help();
+  init_cli_render();
+  init_cli_style();
+  init_canonical();
+  init_contract();
+  init_graph();
+  init_recall();
+  init_migrations();
+  init_sync_model();
+  OhUsageError = class OhUsageError extends TypeError {
+    next;
+    constructor(message, next) {
+      super(message);
+      this.next = next;
+      this.name = "OhUsageError";
+    }
+  };
+  OhCliError = class OhCliError extends Error {
+    code;
+    next;
+    exitCode;
+    constructor(message, code2, next, exitCode) {
+      super(message);
+      this.code = code2;
+      this.next = next;
+      this.exitCode = exitCode;
+      this.name = "OhCliError";
+    }
+  };
+  KNOWN_OPTIONS = new Set([
+    "actor",
+    "after",
+    "as-of",
+    "author-log",
+    "db",
+    "depends-on",
+    "expected-generation",
+    "file",
+    "json",
+    "key",
+    "kind",
+    "limit",
+    "mode",
+    "operation",
+    "space",
+    "value"
+  ]);
+  GLOBAL_OPTIONS = ["db", "space"];
+  MUTATION_OPTIONS = ["actor", "expected-generation", "operation"];
+  if (false)
+    ;
+});
+
+// src/cli-entry.ts
+import { fileURLToPath } from "url";
+
+// src/cli-update-policy.ts
+function ohUpdatePolicy(argv) {
+  const [command, ...rest] = argv;
+  const help = (args) => args.includes("--help") || args.includes("-h");
+  const effectFree = command === undefined || ["help", "--help", "-h", "version", "--version", "-V"].includes(command) || (command === "research" ? rest.length === 0 || rest[0] === "help" || help(rest.slice(0, 1)) : help(rest));
+  return { effectFree, offline: command === "research" };
+}
+
+// src/cli-entry.ts
+async function runOhEntrypoint(argv = process.argv.slice(2), ports = {}) {
+  const gateArgv = argv[0] === "update" && argv.slice(1).some((arg) => arg === "--help" || arg === "-h") ? ["help", "update"] : argv;
+  const update5 = await (ports.update ?? (async (options) => (await Promise.resolve().then(() => (init_src(), exports_src))).runCliUpdate(options)))({
+    packageName: "@hraness/oh",
+    version: OH_PACKAGE_VERSION,
+    binName: "oh",
+    entrypoint: fileURLToPath(import.meta.url),
+    argv: gateArgv,
+    provider: { kind: "github", repository: "hraness/oh", assetName: "hraness-oh-{version}.tgz" },
+    ...ohUpdatePolicy(gateArgv)
+  });
+  if (update5.handled) {
+    process.exitCode = update5.exitCode;
+    return;
+  }
+  try {
+    await (ports.main ?? (async () => (await init_cli().then(() => exports_cli)).runOhMain()))();
+  } finally {
+    await update5.release();
+  }
+}
+if (import.meta.main)
+  await runOhEntrypoint();
 export {
-  supportCommandPrefix,
-  runOhCli,
-  describeOhCliError,
-  OhUsageError,
-  OhCliError,
-  OH_PACKAGE_VERSION
+  runOhEntrypoint
 };

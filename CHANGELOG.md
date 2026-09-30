@@ -4,11 +4,15 @@ Each section below describes one release of Oh. The release workflow copies a
 version's section onto its GitHub Release page, so write the section in the
 pull request that bumps the version.
 
-## Unreleased
+## 0.14.0 - 2026-09-30
 
+Oh can update supported global CLI installations before work starts.
+
+- Add `update`, `update check`, `update status`, `update enable`, and `update disable`, with automatic updates enabled by default on macOS and Linux.
+- Keep SDK imports, local/source installs, executable pins, and active commands on their current code.
+- Keep offline research commands offline and leave stores and SQLite migrations unchanged.
 - Make the temporary signing certificate chain discoverable and pass literal
   code requirements to macOS when signing and verifying native helpers.
-
 - Sign and notarize both Mac SQLite helpers with a stable Apple Developer ID.
   Verify their identity before execution and publish the same signed bytes
   through the existing exact-package release checks.

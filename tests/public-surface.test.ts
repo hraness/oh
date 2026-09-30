@@ -3,6 +3,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, extname, join, relative, resolve } from "node:path";
 
 import { canonicalSha256, sha256Hex } from "../src/canonical.ts";
+import { OH_PACKAGE_VERSION } from "../src/cli-version.ts";
 import { OH_CONTRACT_MANIFEST_V1 } from "../src/contract.ts";
 import { OH_KNOWLEDGE_GRAPH_RECORD_KINDS_V1 } from "../src/graph.ts";
 import {
@@ -176,27 +177,25 @@ async function collectPublicTextFiles(): Promise<readonly string[]> {
 
 describe("public identity and documentation", () => {
   test("keeps source identity and verified public availability explicit", async () => {
-    const [readme, packageJson, sitePackageJson, publishedRelease, skill, cli, research] = await Promise.all([
+    const [readme, packageJson, sitePackageJson, publishedRelease, skill, research] = await Promise.all([
       readFile(join(root, "README.md"), "utf8"),
       json("package.json"),
       json("site/package.json"),
       json("site/published-release.json"),
       readFile(join(root, "skills/oh/SKILL.md"), "utf8"),
-      readFile(join(root, "src/cli.ts"), "utf8"),
       readFile(join(root, "docs/research-profile.md"), "utf8"),
     ]);
     expect(readme.startsWith("# Oh\n")).toBe(true);
     expect(readme).toContain(tagline);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.13.3");
+    expect(packageJson.version).toBe("0.14.0");
     expect(sitePackageJson.version).toBe(packageJson.version);
-    expect(cli).toContain('OH_PACKAGE_VERSION = "0.13.3"');
+    expect(OH_PACKAGE_VERSION).toBe(packageJson.version);
     expect(publishedRelease).toEqual({
       version: "0.13.3",
       verificationRun: "https://github.com/hraness/oh/actions/runs/36593404095",
     });
-    expect(readme).toContain("installation instructions below use `0.13.3`");
-    expect(skill).toContain("bun add --global @hraness/oh@0.13.3");
+    expect(skill).toContain("bun add --global @hraness/oh@latest");
     expect(skill).toContain("For an existing installation, use its installed CLI");
     expect(research).toMatch(/^\| `oh research catalog-v2` \| 0\.6\.1 \|/mu);
     expect(skill).toContain("With version 0.6.1 or newer, `oh research catalog-v2`");
@@ -226,7 +225,7 @@ describe("public identity and documentation", () => {
     expect(packageJson.engines).toEqual({ bun: ">=1.3.14", node: ">=24" });
     expect(packageJson.repository).toEqual({ type: "git", url: "git+https://github.com/hraness/oh.git" });
     expect(packageJson.bugs).toEqual({ url: "https://github.com/hraness/oh/issues" });
-    expect(readme).toContain("bun add --global @hraness/oh@0.13.3");
+    expect(readme).toContain("bun add --global @hraness/oh@latest");
     expect(readme).toContain('"@hraness/oh": "0.13.3"');
     expect(readme).toContain("releases/download/v0.13.3/hraness-oh-0.13.3.tgz");
     expect(readme).not.toContain("@hraness/oh@0.4.3");

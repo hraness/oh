@@ -35,12 +35,17 @@ oh version
 
 For an existing installation, use its installed CLI and the specifications for
 its version. When the user wants a fresh installation, install
-`@hraness/oh@0.13.3`, which needs Bun 1.3.14 or newer:
+`@hraness/oh@latest`, which needs Bun 1.3.14 or newer:
 
 ```sh
-bun add --global @hraness/oh@0.13.3
+bun add --global @hraness/oh@latest
 ```
 
+Oh 0.14.0 and newer update supported global installations automatically. Use
+`oh update disable` to keep a version, or read the
+[update controls](https://github.com/hraness/oh/blob/main/docs/cli-updates.md).
+
+The verified `@hraness/oh@0.13.3` package has this recorded evidence:
 [GitHub Actions run 36593404095](https://github.com/hraness/oh/actions/runs/36593404095)
 built that package, installed it on Linux x64 and arm64, macOS, and Windows,
 and published the same tarball to npm and to the immutable GitHub Release `v0.13.3`, which also

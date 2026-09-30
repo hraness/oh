@@ -15,6 +15,12 @@ hosted model, and its search indexes can be deleted and rebuilt.
 Latest release: [v0.13.3](https://github.com/hraness/oh/releases/tag/v0.13.3)
 on [npm](https://www.npmjs.com/package/@hraness/oh), free and MIT licensed.
 
+## CLI updates
+
+Oh 0.14.0 and newer support automatic updates for Bun and npm globals
+on macOS and Linux. Use `oh update disable` to keep a version. See
+[update controls and supported installations](docs/cli-updates.md).
+
 ## Why Oh
 
 - **Every record says what it is.** A record declares a kind, a stable key, the
@@ -52,7 +58,7 @@ follows this design across the projects, and the
 
 ## Install and first run
 
-The installation instructions below use `0.13.3`, the
+The archive below is `0.13.3`, the
 [verified public release](https://github.com/hraness/oh/actions/runs/36593404095).
 
 [Bun 1.3.14 or newer](https://bun.sh/docs/installation) is required for the
@@ -61,7 +67,7 @@ direct libSQL store also run on Node 24 and in serverless functions. Install
 the release from npm:
 
 ```sh
-bun add --global @hraness/oh@0.13.3
+bun add --global @hraness/oh@latest
 oh --help
 ```
 
