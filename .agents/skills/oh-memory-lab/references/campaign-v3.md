@@ -8,7 +8,8 @@ does not reset spending, call counts, exposed families or the authorized deadlin
 ## Freeze the context comparison
 
 `CampaignConfig` in `campaign-contract-v3.ts` adds `contextPolicies`, a
-`rankingProfileSha256`, `maximumAnswerJsonBytes`, and `screenCriterion`. A policy has an `id` and
+`rankingProfileSha256`, `maximumAnswerJsonBytes`, `screenCriterion`, and optional
+`maximumReaderInputUpperBound`. A policy has an `id` and
 `logReserveBytes`. Each treatment names its `contextPolicyId` alongside its
 instruction. The renderer holds the total budget at 180,000 bytes, retrieved
 budget at 96,000 bytes, native lists at top 100, previous/next neighbors at one,
@@ -54,8 +55,16 @@ the same selected screen, as well as variation above its paired absolute-differe
 ceiling. Confirmation always requires the original statistical, effect and guard
 confidence gates, regardless of the screening choice. A screen never promotes.
 
-Every reader request must have `prepareApiRequest(...).inputUpperBound <= 200000`,
-including transport overhead, before the first call. `maximumAnswerJsonBytes`
+Every reader request must have `prepareApiRequest(...).inputUpperBound` within
+the frozen `maximumReaderInputUpperBound`, including transport overhead. Omission
+retains the 200,000-byte limit and historical configuration identity. An explicit
+value must be a positive safe integer no greater than 262,144; it becomes part of
+the execution identity. Validate the bound before the first call and immediately
+before each reader dispatch. Changing it requires a new frozen configuration,
+review and full-episode cost calculation. It does not change the 180,000-byte
+context limit, reader messages, model, scorer or statistical rules.
+
+`maximumAnswerJsonBytes`
 counts `Buffer.byteLength(JSON.stringify(answer))`, including the surrounding
 quotes. An oversized answer fails the cell without truncation or judge dispatch;
 it remains in the planned denominator. Include this failure condition when
