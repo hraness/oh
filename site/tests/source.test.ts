@@ -188,7 +188,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.30.2"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.32.0"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([
@@ -412,7 +412,7 @@ describe("Oh site source contract", () => {
       prebuild: "bun run build:theme && bun run test",
       "search:notify": "bun scripts/submit-indexnow.ts",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/social-image.test.ts",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts",
       "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });

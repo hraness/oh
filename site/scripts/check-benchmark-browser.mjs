@@ -97,13 +97,13 @@ export async function inspectBenchmark(page, label, artifacts) {
     await page.screenshot({ path: join(artifacts, `${label}-benchmark.png`), fullPage: true, clip, animations: "disabled" });
   }
   assert.deepEqual(metrics.issues, [], `${label}: benchmark text clipping or overlap`);
-  assert.equal(await page.locator("#benchmarks .hraness-design-chart-row__label").count(), 6);
-  assert.equal(await page.locator("#benchmarks .hraness-design-chart-row__value").count(), 6);
+  assert.equal(await page.locator("#benchmarks .hraness-design-chart-row__label").count(), 3);
+  assert.equal(await page.locator("#benchmarks .hraness-design-chart-row__value").count(), 3);
   for (const value of await page.locator("#benchmarks .hraness-design-chart-row__value").allTextContents()) {
     assert.match(value, /^\d+(?:\.\d+)?%$/u, "Chart exposes a textual percentage");
     assert.ok(Number.parseFloat(value) >= 0 && Number.parseFloat(value) <= 100);
   }
-  assert.equal(await page.locator("#benchmarks .hraness-design-bar-list-chart").count(), 2);
+  assert.equal(await page.locator("#benchmarks .hraness-design-bar-list-chart").count(), 1);
   assert.deepEqual(await page.locator('#benchmarks .benchmark-links[aria-label="LongMemEval-S results"] a').evaluateAll((links) => links.map((link) => link.href)), evidenceLinks.map(href => new URL(href, page.url()).href));
   return metrics;
 }

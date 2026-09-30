@@ -43,12 +43,10 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
   const text = copy.replace(/\s+/gu, " ");
   const fixed = (value: number) => value.toFixed(2);
   const system = (id: string) => `${fixed(longMemEval.systems.find((entry) => entry.id === id)?.percent ?? Number.NaN)}%`;
-  const pilotRate = (arm: string) => `${fixed((pilotResult.quality.arms.find((row) => row.arm === arm)?.conservativeSuccessRate.value ?? Number.NaN) * 100)}%`;
   const share = (value: number) => `${fixed(value * 100)}%`;
   const signed = (value: number) => `${value < 0 ? "\u2212" : "+"}${fixed(Math.abs(value))}`;
   expect(values).toEqual([
     system("oh-reading-pipeline"), system("oh-semantic-96k"), system("bm25-96k"),
-    pilotRate("supermemory"), pilotRate("oh"), pilotRate("bm25"),
   ]);
 
   let heading = "";
@@ -57,7 +55,6 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
   const frozen = longMemEval.comparisons.find((entry) => entry.left === "oh-semantic-96k" && entry.right === "bm25-96k")?.correctInTwoOrThreeRuns;
   const tenth = (value: number | undefined) => (value ?? Number.NaN).toFixed(1);
 
-  const pilot = pilotResult.quality.comparisons.primary;
   const sdk = sdkResult.primary.reader.pairedQuestions;
   const locomo = locomoAnswers.scores.reader.comparison;
   for (const fact of [
@@ -69,7 +66,6 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
     "in-sample",
     "not part of the Oh package",
     "up to 97%",
-    `${signed(pilot.estimate)} points, with a 95% interval from ${signed(pilot.interval95.lower)} to ${signed(pilot.interval95.upper)}`,
     `${share(sdk.candidate)} correctly against ${share(sdk.baseline)}`,
     `${(sdkResult.primary.native.warmRerankerMs.p50 / 1000).toFixed(1)} seconds of reranking per search`,
     `${share(rerankResult.pooledReader.candidate)} correctly against ${share(rerankResult.pooledReader.baseline)}`,
@@ -77,12 +73,10 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
     `${share(locomoRecall.summaries["anchors-query-4"].turnRecall)} of the marked evidence against ${share(locomoRecall.summaries["vector-window"].turnRecall)}`,
     `answers scored ${share(locomo.candidate)} against ${share(locomo.baseline)}`,
     `${signed(locomo.paired.delta * 100)} points with a 95% interval from ${signed(locomo.paired.lower * 100)} to ${signed(locomo.paired.upper * 100)}`,
-    "AI agents ran these studies",
   ]) expect(text).toContain(fact);
 
   for (const file of [
     "LONGMEMEVAL_S_500_RESULT_V1.md", "results/memory-longmemeval-s-500-v1.json",
-    "FRAMEWORK_PILOT_RESULT_V1.md", "results/memory-framework-pilot-v1.json",
     "SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md", "CLONEMEM_RERANK_CONFIRM_RESULT_V1.md", "LOCOMO_WINDOW_QA_V1.md",
   ]) expect(html).toContain(`href="https://github.com/hraness/oh/blob/main/benchmarks/${file}"`);
   const postIndexable = indexableArticles.some((article) => article.slug === "longmemeval-s-user-log");
@@ -228,7 +222,7 @@ test("renders the current CLI citation proof and its exact inspectable record", 
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
   const hero = /data-hraness-marketing="hero"[\s\S]*?<\/header>/u.exec(html)?.[0] ?? "";
   expect(html.match(/<h1\b/gu)).toHaveLength(1);
-  expect(hero).toContain('aria-label="Saving and reading a citation with the oh CLI"');
+  expect(hero).toContain('aria-label="Saving and reading a citation with the oh CLI, using a fictional trial report"');
   expect(hero).toContain('tabindex="0"');
   expect(hero).toContain(citationRecord.value.locator);
   expect(hero).toContain(citationRecord.value.relationship);
