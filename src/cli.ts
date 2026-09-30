@@ -607,7 +607,6 @@ export async function runOhMain(): Promise<void> {
   });
 }
 
-if (import.meta.main) {
-  const { runOhEntrypoint } = await import("./cli-entry");
-  await runOhEntrypoint(process.argv.slice(2), { main: runOhMain });
-}
+// Source execution stays manual and retains dependency-free discovery. The
+// packaged executable enters through cli-entry.ts before loading this module.
+if (import.meta.main) await runOhMain();
