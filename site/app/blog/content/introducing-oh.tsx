@@ -1,59 +1,52 @@
-import { CodeBlock, Terminal } from "../../code-block";
-// Converted from the reviewed draft. Keep the prose; edit facts only with a new review.
-// Sponge and Wordcell are named without links here; the built-on-oh hub links them along their registered relations.
-import publishedRelease from "../../../published-release.json";
+import { isArticleIndexable, type ArticleAdmission } from "@hraness/design-kit";
+import type { LaunchBeat } from "@hraness/design-kit/launch";
+import { SocialKitPanel } from "@hraness/design-kit/react";
+import { LaunchBeats } from "@hraness/design-kit/react/server";
 
-export const toc = [
-  { href: "#trace-a-claim-back-to-its-source", label: "Trace a claim back to its source" },
-  { href: "#who-oh-is-for", label: "Who Oh is for" },
-  { href: "#what-oh-does-today", label: "What Oh does today" },
-  { href: "#other-hraness-products-build-on-oh", label: "Other Hraness products build on Oh" },
-  { href: "#what-the-current-release-does-not-do", label: "What the current release does not do" },
-] as const;
+import { launchBeats, socialKit } from "../../launch/beats";
+import { OhSurface } from "../../mockups/trail";
+import { articleAdmissions } from "../admissions";
+
+// The launch post, written as beats: each one is a short section here and one
+// post in the launch threads. The words and numbers live in ../../launch.
+
+export const toc = [] as const;
+
+/** Where a reader goes next, named for the task. */
+const GO_DEEPER: readonly { href: string; label: string }[] = [
+  { href: "https://github.com/hraness/oh#install-and-first-run", label: "Install Oh and run the first example" },
+  { href: "https://github.com/hraness/oh/blob/main/docs/working-memory.md", label: "Give an agent working memory it cannot promote itself" },
+  { href: "/blog/oh-rust-typescript-parity", label: "See how the Rust encoder is tested against TypeScript" },
+  { href: "/blog/longmemeval-s-user-log", label: "Read what a run on all 500 LongMemEval-S questions found" },
+  { href: "/compare", label: "Compare Oh with other agent memory tools" },
+  { href: "/blog/built-on-oh", label: "See which Hraness products build on Oh" },
+];
+
+/** The beat's state object names one state of one registered surface. */
+function BeatVisual({ beat }: Readonly<{ beat: LaunchBeat }>) {
+  const visual = beat.visual;
+  if (visual.kind !== "mockup") throw new Error(`Beat ${beat.id} names a ${visual.kind}; this post shows mockups only.`);
+  const state = Object.values(visual.state)[0];
+  return <OhSurface id={visual.id} state={state} />;
+}
+
+const admission: ArticleAdmission | undefined = articleAdmissions.find((record) => record.href === "/blog/introducing-oh");
+const indexable = admission !== undefined && isArticleIndexable(admission);
 
 export function IntroducingOhBody() {
-  const releaseVersion = publishedRelease.version;
   return (
     <>
-      <p>Oh is an open-source memory store for agents. It keeps each fact as a record with its sources attached and writes every accepted change to a log you can replay. The notes an agent writes while it works stay apart from reviewed knowledge, which only your application’s own code can add to, so when an agent tells you something wrong, you can see what it stored, where that came from, and whether your application accepted it.</p>
-      <h2 id="trace-a-claim-back-to-its-source">Trace a claim back to its source</h2>
-      <p>Picture a research assistant that reads a trial report on Monday and tells a colleague on Thursday that the study’s primary endpoint was measured at 12 weeks. If the memory is a pile of text chunks in a vector index, you can only search for similar text and hope the right chunk comes back. You can’t see which report the claim came from, which table supported it, or whether the agent wrote it before or after someone corrected the source.</p>
-      <p>Oh stores the same work as linked records. The question, the source, the captured edition of the source, the claim, the evidence that bears on it, and the brief that came out of it are separate records, each with a stable key and a digest of its content. The README walks through this chain:</p>
-      <CodeBlock code={"inquiry:primary-endpoint\n  → entity:trial-report\n  → edition:trial-report-v1\n  → statement:endpoint-12-weeks\n  → assertion:endpoint-12-weeks\n  → evidence:table-2\n  → view:review-brief"} language="text" />
-      <p>Months later you can follow that path back from the brief to the table it rests on. A claim and the act of accepting it are separate records, so “the report says 12 weeks” and “our reviewer accepted that” can be checked one at a time.</p>
-      <h2 id="who-oh-is-for">Who Oh is for</h2>
-      <p>Oh is for developers building an agent or a knowledge application who need memory that the agent can write to and that people can audit afterwards. It fits research tools, assistants that run over long sessions, and any product where someone will later need to know why the system believes something.</p>
-      <p>If what you want is a Markdown notebook that you query, use Wordcell instead. Oh’s own README draws that line: use Oh to build an application’s memory layer, and Wordcell to maintain and query a Markdown knowledge base.</p>
-      <h2 id="what-oh-does-today">What Oh does today</h2>
-      <p>Oh ships as a TypeScript SDK, a command-line tool called <code>{"oh"}</code>, and an Agent Skill, all sharing one versioned record format. By default, records and their history live in a single local SQLite file, and a libSQL store is available for server runtimes. The first run needs no account, no hosted model, and no remote database. Search indexes are built from the records, and you can delete and rebuild them at any time.</p>
-      <p>The first run from the README creates one record, reads it back, finds it by keyword, and checks the log:</p>
-      <Terminal code={"oh init\noh put \\\n  --kind entity \\\n  --key entity:ada-lovelace \\\n  --json '{\"name\":\"Ada Lovelace\",\"role\":\"mathematician\"}'\noh get entity:ada-lovelace\noh search \"mathematician\" --mode keyword\noh verify"} />
-      <p>Every command except help and <code>{"oh version"}</code> prints JSON in Oh’s canonical form, described below. <code>{"oh verify"}</code> replays the operation log and confirms that each step’s digest still matches. When two writers race, the later write fails with a conflict error instead of overwriting the earlier one. Oh’s documentation advises reading the new state, reconciling, and submitting again.</p>
-      <p>Install instructions and the checksum for the current release are in the <a href="https://github.com/hraness/oh#install-and-first-run">README</a>.</p>
-      <h3 id="working-notes-and-reviewed-knowledge-stay-apart">Working notes and reviewed knowledge stay apart</h3>
-      <p>The memory part of the SDK takes two stores. A working store holds what the agent writes as it goes, and a hosting application can purge it. A second store holds reviewed knowledge, pinned at a known point in its history. The SDK hands your application two separate objects:</p>
+      <LaunchBeats beats={launchBeats} renderVisual={(beat) => <BeatVisual beat={beat} />} />
+      <h2 id="go-deeper">Go deeper</h2>
       <ul>
-        <li>The agent’s object has four methods: <code>{"remember"}</code>, <code>{"query"}</code>, <code>{"explain"}</code>, and <code>{"nominate"}</code>. It cannot write to the reviewed store, choose a database, or purge anything.</li>
-        <li>The host’s object, which your trusted code keeps, is the only part of this interface that can copy working records into reviewed knowledge. Oh’s memory specification requires that a model-facing adapter receive only the agent’s object.</li>
+        {GO_DEEPER.map((link) => (
+          <li key={link.href}>
+            <a href={link.href}>{link.label}</a>
+          </li>
+        ))}
       </ul>
-      <p>When the agent believes something should become reviewed knowledge, it nominates it. Your code, after whatever review you run, adopts the nomination:</p>
-      <CodeBlock code={"// The agent proposes; it cannot commit to reviewed memory itself.\nconst nomination = await memory.agent.nominate({\n  nominationId: \"knowledge-review\",\n  roots: [\"edition:reviewed-summary\"],\n  v: 1,\n});\n\n// Trusted host code adopts it after review.\nawait memory.host.adoptNomination({\n  expectedCanonicalHead: reviewedHead,\n  nomination,\n  v: 1,\n});"} language="ts" />
-      <p>Adoption inserts records that are new and fails if a key already holds different content, unless your code names the exact prior version it means to replace. The agent’s writes carry an actor and a timestamp that the host supplies. The agent’s object doesn’t accept an actor or timestamp from the caller, and the host clock never moves backwards, so a model can’t claim to be someone else or backdate a note.</p>
-      <h3 id="two-implementations-of-one-format">Two implementations of one format</h3>
-      <p>Oh’s records use one encoding, canonical JSON: object keys are sorted in a fixed order and each number prints one way. A record’s digest is the SHA-256 of its canonical bytes. If two programs encode the same record differently by a single byte, the digests differ and the history no longer verifies.</p>
-      <p>Oh has a TypeScript reference encoder and a Rust encoder compiled to WebAssembly. The Rust crate is written to produce output byte for byte identical to the TypeScript reference for every plain JSON value the reference accepts. The property the tests check is short:</p>
-      <CodeBlock code={"// Checked on each generated JSON text:\nrust.canonicalJson(text) === canonicalJson(JSON.parse(text));\nrust.canonicalSha256(text) === canonicalSha256(JSON.parse(text));\n\n// Keys sort; both engines agree on the bytes.\ncanonicalJson({ b: 1, a: 2 }); // '{\"a\":2,\"b\":1}'\n\n// Negative zero is refused by both.\nrust.canonicalJson(\"-0\"); // throws"} language="ts" />
-      <p>The parity suite checks this on generated inputs: 1,000 generated documents for the encoding, 1,000 for the digest, and 20,000 generated finite floating-point numbers to check that Rust formats numbers exactly as JavaScript does. The generated documents share one fixed shape (short integer arrays, small string-keyed maps, and a nested flag), and a list of hand-written edge cases covers empty values, escapes, surrogate pairs, and key order. Both encoders agree on every input these tests have tried. The TypeScript version stays the reference, the Rust engine is optional, and the base package has no required runtime dependencies. The companion post on <a href="/blog/oh-rust-typescript-parity">keeping the TypeScript and Rust encoders identical</a> goes through the method.</p>
-      <h2 id="other-hraness-products-build-on-oh">Other Hraness products build on Oh</h2>
-      <p>A Hraness plan for shared Rust code builds Rust versions of code that other Hraness products can reuse, including the canonical encoding, a reader for untrusted ZIP archives, and the rule engine for graph queries, with WebAssembly as the default and native bindings as an opt-in. The TypeScript implementations stay the reference, and each Rust replacement has to match them byte for byte in property tests. Two Hraness products build on Oh, each pinning its own release:</p>
-      <ul>
-        <li>Sponge keeps its hosted agent’s working notes in a separate server-side Oh store that expires 24 hours after each session opens; the hosted agent finishes only work Sponge accepted before 2026-09-12.</li>
-        <li>Wordcell rebuilds a disposable Oh graph from your Markdown to answer named graph queries with source proofs. Markdown and Git stay the record, and search does not use Oh’s memory retrieval.</li>
-      </ul>
-      <h2 id="what-the-current-release-does-not-do">What the current release does not do</h2>
-      <p>Oh does not claim to retrieve better than other memory frameworks. Its README states that superiority over Letta, Supermemory, and other frameworks has not been established.</p>
-      <p>Sync accepts only histories that extend each other. When two copies diverge, sync stops and reports the divergence without merging. Graph answers derived by rules come with proofs, and the store never adopts them as records on its own. The CLI and local SQLite store need Bun 1.3.14 or newer; the libSQL store also runs on Node 24 serverless runtimes. The optional research vocabularies map selected Wikidata properties, not all of Wikidata.</p>
-      <p>Oh is MIT-licensed and free, with no account required. Latest release: v{releaseVersion}.</p>
+      {/* A quarantined post has no social kit. */}
+      {indexable ? <SocialKitPanel kit={socialKit} /> : null}
     </>
   );
 }

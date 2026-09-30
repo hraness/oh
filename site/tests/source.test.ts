@@ -198,6 +198,8 @@ describe("Oh site source contract", () => {
       '@import "../vendor/hraness-lantern/lantern-material.css";',
       '@import "@hraness/site-footer/styles.css";',
       '@import "@hraness/design-kit/palette-bridge.css";',
+      '@import "@hraness/design-kit/mockups.css";',
+      '@import "./mockups/mockups.css";',
       '@import "../vendor/hraness-forced-colors/marketing-forced-colors.css";',
     ]);
     expect(paper).toContain('--font-text: "Nebula Sans"');
@@ -407,12 +409,13 @@ describe("Oh site source contract", () => {
       "check:theme": "bun scripts/check-paper-theme.mjs",
       dev: "bun run build:theme && next dev --webpack",
       "build:theme": "bun scripts/build-theme-bootstrap.ts",
+      "launch:kit": "bun scripts/write-social-kit.ts",
       lint: "eslint . --ignore-pattern .next",
       postbuild: "bun test ./tests/runtime.test.ts",
       prebuild: "bun run build:theme && bun run test",
       "search:notify": "bun scripts/submit-indexnow.ts",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/launch.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts",
       "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });
