@@ -10,6 +10,10 @@ Compilation and source checks run without Apple credentials. Only the tag-only
 signing job. That environment has no manual reviewers or wait timer. The signing
 program never executes the input binary or installs dependencies. Its temporary
 keychain, certificate and API key are removed before any package smoke runs.
+Include the Developer ID intermediate certificate in the P12 certificate chain.
+The signing program appends its temporary keychain to the existing user search
+list so macOS can evaluate that chain; deleting the owned keychain removes its
+entry while preserving other keychains.
 
 The release verifies the original upload artifact digest, the final signed
 archive and checksum hashes, and each architecture's signed bytes before
@@ -27,6 +31,8 @@ A notarization timeout is not an automatic retry. The non-secret receipt keeps
 the submission UUID, submitted archive hash and signed helper hashes so its
 status can be reconciled before another submission. Signing tests mock Apple
 commands; they do not demonstrate a live certificate or service acceptance.
+A separate macOS regression signs a synthetic executable ad hoc to check literal
+requirement parsing and rejection by the real publisher verifier.
 
 Developer ID establishes a stable app identity across versions. macOS still
 controls protected-data approvals, which depend on the responsible app and the

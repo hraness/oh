@@ -11,6 +11,8 @@ Oh can update supported global CLI installations before work starts.
 - Add `update`, `update check`, `update status`, `update enable`, and `update disable`, with automatic updates enabled by default on macOS and Linux.
 - Keep SDK imports, local/source installs, executable pins, and active commands on their current code.
 - Keep offline research commands offline and leave stores and SQLite migrations unchanged.
+- Make the temporary signing certificate chain discoverable and pass literal
+  code requirements to macOS when signing and verifying native helpers.
 - Sign and notarize both Mac SQLite helpers with a stable Apple Developer ID.
   Verify their identity before execution and publish the same signed bytes
   through the existing exact-package release checks.
