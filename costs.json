@@ -509,6 +509,31 @@
         "ledgerBytes": 16777216
       }
     },
+    "benchmark:memory-lab-campaign-v3": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/memory-lab/campaign-v3.ts",
+      "source": "scripts/benchmarks/memory-lab/campaign-store-v3.ts",
+      "budget": {
+        "maximumPhysicalCallsPerCampaign": 1000,
+        "maximumPlans": 128,
+        "maximumProposals": 128,
+        "artifactBytes": 16777216,
+        "maximumSourcePins": 256,
+        "maximumDevelopmentTasks": 4096,
+        "maximumConfirmationAttempts": 32,
+        "maximumRepeats": 8,
+        "maximumContextPolicies": 4,
+        "contextBytes": 180000,
+        "sourceBytes": 33554432,
+        "sourceTurns": 8192,
+        "rankingBytes": 131072,
+        "readerInputUpperBound": 200000,
+        "maximumAnswerJsonBytes": 262144,
+        "responseBytesPerCall": 1048576,
+        "ledgerBytes": 16777216
+      }
+    },
     "local:cli-update-preference": {
       "kind": "authoritative",
       "retention": "persistent",
