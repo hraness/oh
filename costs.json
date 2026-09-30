@@ -509,6 +509,31 @@
         "ledgerBytes": 16777216
       }
     },
+    "benchmark:memory-lab-campaign-v3": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/memory-lab/campaign-v3.ts",
+      "source": "scripts/benchmarks/memory-lab/campaign-store-v3.ts",
+      "budget": {
+        "maximumPhysicalCallsPerCampaign": 1000,
+        "maximumPlans": 128,
+        "maximumProposals": 128,
+        "artifactBytes": 16777216,
+        "maximumSourcePins": 256,
+        "maximumDevelopmentTasks": 4096,
+        "maximumConfirmationAttempts": 32,
+        "maximumRepeats": 8,
+        "maximumContextPolicies": 4,
+        "contextBytes": 180000,
+        "sourceBytes": 33554432,
+        "sourceTurns": 8192,
+        "rankingBytes": 131072,
+        "readerInputUpperBound": 200000,
+        "maximumAnswerJsonBytes": 262144,
+        "responseBytesPerCall": 1048576,
+        "ledgerBytes": 16777216
+      }
+    },
     "local:cli-update-preference": {
       "kind": "authoritative",
       "retention": "persistent",
@@ -539,6 +564,36 @@
         "maximumBytesPerArchive": 536870912
       },
       "notes": "Private verified archives beside the global installation. Package managers may reference them; retain each archive while referenced, never remove it as a disposable cache."
+    },
+    "posthog:$pageview": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
+    },
+    "posthog:$exception": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
+    },
+    "posthog:page not found": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
+    },
+    "posthog:cta clicked": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
+    },
+    "posthog:outbound link opened": {
+      "kind": "telemetry",
+      "retention": "ttl:P90D",
+      "owner": "site/analytics-site.ts",
+      "maxBytesPerEvent": 32768
     }
   },
   "exempt": []

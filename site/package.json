@@ -14,7 +14,7 @@
     "postbuild": "bun test ./tests/runtime.test.ts",
     "start": "next start",
     "lint": "eslint . --ignore-pattern .next",
-    "test": "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/launch.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts",
+    "test": "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/launch.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts ./analytics.test.ts",
     "test:browser": "bun scripts/check-stylex-browser.mjs",
     "typecheck": "tsc --noEmit",
     "search:notify": "bun scripts/submit-indexnow.ts",
@@ -23,10 +23,11 @@
   },
   "dependencies": {
     "@hraness/design-kit": "github:hraness/design-kit#v0.35.0",
+    "@hraness/posthog": "github:hraness/posthog#v0.3.4",
     "@hraness/site-footer": "github:hraness/site-footer#v0.20.4",
     "@hraness/ui": "github:hraness/ui#v0.5.18",
     "@hraness/web-discovery": "github:hraness/web-discovery#v0.13.0",
-    "next": "16.3.3",
+    "next": "16.3.8",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
@@ -36,7 +37,7 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.3.3",
+    "eslint-config-next": "16.3.8",
     "playwright-core": "1.62.0",
     "typescript": "6.0.3"
   },
