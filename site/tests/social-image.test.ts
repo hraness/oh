@@ -8,17 +8,20 @@ import {
 } from "@hraness/web-discovery/social-image";
 import {
   socialImageFit,
-  socialImageIconShape,
   socialImageSiteDetails,
 } from "@hraness/web-discovery/social-image/card";
 
+import { ohDefaultAppearance } from "../appearance";
 import { articleDiscovery, articles } from "../app/blog/articles";
+import { ohHeaderMark } from "../app/header-mark";
+import { marketing } from "../portfolio-copy";
 import { articleSocialPage, blogSocialPage } from "../app/blog/social";
 import {
   benchmarksSocialPage,
   compareMem0SocialPage,
   compareSocialPage,
   compareSupermemorySocialPage,
+  homeSocialPage,
   ohSocialSite,
   specificationSocialPage,
 } from "../app/social";
@@ -33,8 +36,8 @@ type ImageModule = {
   size: { height: number; width: number };
 };
 
-const routes: readonly (readonly [string, SocialImagePage | undefined])[] = [
-  ["opengraph-image.tsx", undefined],
+const routes: readonly (readonly [string, SocialImagePage])[] = [
+  ["opengraph-image.tsx", homeSocialPage],
   ["spec/opengraph-image.tsx", specificationSocialPage],
   ["benchmarks/opengraph-image.tsx", benchmarksSocialPage],
   ["compare/opengraph-image.tsx", compareSocialPage],
@@ -56,21 +59,40 @@ async function bytes(response: Response): Promise<Buffer> {
 }
 
 describe("Oh share images", () => {
-  test("declare Oh once with its app icon and gruvbox light colors", async () => {
-    const favicon = await readFile(join(site, "public/favicon.svg"));
-    const icon = ohSocialSite.icon;
-    expect(icon?.kind).toBe("app");
-    const prefix = "data:image/svg+xml;base64,";
-    expect(icon?.src.startsWith(prefix)).toBe(true);
-    expect(Buffer.from(icon?.src.slice(prefix.length) ?? "", "base64").equals(favicon)).toBe(true);
+  test("declare Oh once with the header's foil mark, name, and Gruvbox palette", async () => {
+    const mark = await readFile(join(site, "public/marks/oh-computer.svg"), "utf8");
+    expect(ohSocialSite.brandMark).toBe(mark);
+    expect(ohHeaderMark).toBe(mark);
+    expect(ohSocialSite.brand).toBe("Oh");
     expect(ohSocialSite.name).toBe("Oh");
     expect(ohSocialSite.domain).toBe("oh.computer");
-    expect(ohSocialSite.theme).toEqual({
-      accent: "#065968",
-      background: "#FBF1C7",
-      foreground: "#393533",
-      muted: "#584F48",
+    expect(ohSocialSite.palette).toBe("gruvbox");
+    expect(ohSocialSite.palette).toBe(ohDefaultAppearance.palette);
+    expect(ohSocialSite.icon).toBeUndefined();
+    expect(ohSocialSite.theme).toBeUndefined();
+    // Every page that renders the site header paints this same mark.
+    for (const file of ["page.tsx", "spec/page.tsx", "benchmarks/page.tsx", "blog/blog-header.tsx", "compare/compare.tsx"]) {
+      expect(await readFile(join(app, file), "utf8"), file).toContain('brandMark="/marks/oh-computer.svg"');
+    }
+  });
+
+  test("the home card reads like the hero: category eyebrow, hero headline, tagline beneath", () => {
+    expect(homeSocialPage).toEqual({
+      eyebrow: marketing.category,
+      headline: marketing.hero.heading,
+      layout: "product",
     });
+    const fit = socialImageFit(socialImageSiteDetails(ohSocialSite, homeSocialPage));
+    expect(fit.layout).toBe("product");
+    expect(fit.headline.lines).toEqual(["Agent memory", "that shows its work."]);
+    expect(fit.description?.lines.join(" ")).toBe(ohSocialSite.description);
+    expect(fit.issues.filter((issue) => !issue.includes("repeats the site tagline"))).toEqual([]);
+    // The product layout shows the tagline beneath the hero headline by design;
+    // v0.13.0 still reports that as a repeated tagline, and nothing else.
+    expect(fit.findings.map((finding) => finding.code)).toEqual(["description-repeats-tagline"]);
+    expect(socialImageFit(socialImageSiteDetails(ohSocialSite)).findings.map((finding) => finding.code)).toEqual([
+      "home-headline-three-lines",
+    ]);
   });
 
   test("every image route renders through the shared template and draws nothing itself", async () => {
@@ -116,8 +138,8 @@ describe("Oh share images", () => {
   }, 30_000);
 
   test("every card shows its copy whole at standard size, with an eyebrow, and nothing stripped", () => {
-    const cards: readonly (readonly [string, SocialImagePage | undefined])[] = [
-      ...routes,
+    const cards: readonly (readonly [string, SocialImagePage])[] = [
+      ...routes.filter(([, page]) => page !== homeSocialPage),
       ...articles.map((article) => [`blog/${article.slug}`, articleSocialPage(article)] as const),
     ];
     for (const [name, page] of cards) {
@@ -126,13 +148,7 @@ describe("Oh share images", () => {
       // v0.12 review findings too: reduced descriptions, missing eyebrows, repeated taglines.
       expect(fit.findings, name).toEqual([]);
       // A page card never falls back to the site tagline.
-      if (page !== undefined) expect(page.description, name).not.toBe(ohSocialSite.description);
+      expect(page.description, name).not.toBe(ohSocialSite.description);
     }
-  });
-
-  test("the Oh disc is drawn full-bleed, with no tile rim behind it", () => {
-    expect(ohSocialSite.icon).toBeDefined();
-    if (ohSocialSite.icon === undefined) return;
-    expect(socialImageIconShape(ohSocialSite.icon)).toBe("solid");
   });
 });
