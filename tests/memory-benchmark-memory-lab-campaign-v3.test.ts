@@ -101,7 +101,7 @@ test("pure evaluator retains planned failures, exact thresholds and cluster deno
 });
 
 test("actual identical-treatment A/A fails if it would pass a screen, and gates candidates", () => {
-  const s = setup(); proposal(s.root, "level1"); expect(() => createPlan(s.root, spec("early", "screen", "level1"))).toThrow("A/A");
+  const s = setup(); proposal(s.root, "level1"); expect(() => createPlan(s.root, spec("early", "screen", "level1"))).toThrow("latest grader controls must pass and advance");
   const control = reviewed(s.root, spec("controls", "controls")); saveAssessment(s.root, control.id, observations(control)); advance(s.root, control.id);
   const aa = reviewed(s.root, spec("aa", "aa")); const result = saveAssessment(s.root, aa.id, observations(aa, 0.05));
   expect(result).toMatchObject({ status: "REJECT", wouldPass: true }); advance(s.root, aa.id);
