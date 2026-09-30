@@ -52,12 +52,13 @@ opening a sealed set. Do not reuse subscription cells in an API experiment.
 
 ## Publish notable results
 
-When a new result establishes a meaningful, statistically supported improvement or meets a named comparison target,
-update `README.md`, the marketing site in `site/`, and the relevant `docs/` and `benchmarks/` pages in the same reviewed
+When fresh confirmation meets a preregistered notable-result threshold and establishes statistically supported
+superiority or noninferiority to an explicitly named, relevant external comparison target, update `README.md`,
+the marketing site in `site/`, and the relevant `docs/` and `benchmarks/` pages in the same reviewed
 change. Require a preregistered effect threshold or noninferiority margin, a sample-size rationale, fresh confirmation,
 matched comparison conditions, appropriate uncertainty/multiple-comparison analysis, retained failures and independent
 review. State the model, sample, date, protocol and main limit beside the result, and link the reproducible evidence.
-Follow `STYLE.md`'s benchmark-results rule. Routine screen gains, a small pilot or a champion promotion alone do not
+Follow `STYLE.md`'s benchmark-results rule. Local baseline improvements, routine screen gains, a small pilot or a champion promotion alone do not
 trigger marketing updates. Keep those results in the lab notebook until this evidence threshold is met.
 
 ## Guardrails
