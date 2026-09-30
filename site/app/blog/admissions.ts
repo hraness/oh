@@ -9,8 +9,8 @@ const wordcell = (path: string) =>
   `https://github.com/hraness/wordcell/blob/7b6cb5e0d24a3f627e17f7d1bd699a52ab4c9d10/${path}`;
 // Sources were read at this commit unless their link names another.
 const ohChecked = "77617b5b04af02e13d27f06923529f3896de9c6d";
-// The launch beats were checked against this commit (origin/main on 2026-09-29).
-const launchChecked = "afac8b23f3d998c3416138b5c00308a20d903620";
+// The launch beats were checked against this commit (origin/main on 2026-09-30).
+const launchChecked = "4ed1b1a7dc15e7755be88c5ee5c50f7dda1a0893";
 const loaderFix = "https://github.com/hraness/oh/pull/194";
 
 const review = {
@@ -18,6 +18,9 @@ const review = {
   reviewerType: "ai",
   reviewedOn: "2026-09-26",
 } as const;
+
+// The launch-beat version of "Introducing Oh" had its own independent review.
+const launchReview = { ...review, reviewedOn: "2026-09-30" } as const;
 
 export const articleAdmissions = [
   {
@@ -109,10 +112,9 @@ export const articleAdmissions = [
   },
   {
     href: "/blog/introducing-oh",
-    // Rewritten as launch beats on 2026-09-29. The earlier review covered the
-    // long-form version, so the beat version waits, noindex, for an independent
-    // review before it returns to "indexable".
-    lifecycle: "quarantined",
+    // Rewritten as launch beats on 2026-09-29 and reviewed again, independently
+    // of the drafting run, on 2026-09-30.
+    lifecycle: "indexable",
     readerJob: "Decide whether to try Oh as the memory for an agent or research tool.",
     nonObviousAnswer:
       "The agent gets an object that can only remember, query, explain and nominate; only the host application's own code can adopt a nomination into reviewed knowledge, and adoption never replaces a record unless that code names the exact version it replaces.",
@@ -130,15 +132,15 @@ export const articleAdmissions = [
       },
     ],
     sources: [
-      { title: "Oh README", url: oh(launchChecked, "README.md"), checkedOn: "2026-09-29" },
-      { title: "Oh memory specification", url: oh(launchChecked, "spec/v1/memory.md"), checkedOn: "2026-09-29" },
-      { title: "Oh working-memory guide", url: oh(launchChecked, "docs/working-memory.md"), checkedOn: "2026-09-29" },
-      { title: "Oh release record", url: oh(launchChecked, "site/published-release.json"), checkedOn: "2026-09-29" },
-      { title: "Rust foundations plan", url: oh(launchChecked, "plans/rust-foundations.md"), checkedOn: "2026-09-29" },
+      { title: "Oh README", url: oh(launchChecked, "README.md"), checkedOn: "2026-09-30" },
+      { title: "Oh memory specification", url: oh(launchChecked, "spec/v1/memory.md"), checkedOn: "2026-09-30" },
+      { title: "Oh working-memory guide", url: oh(launchChecked, "docs/working-memory.md"), checkedOn: "2026-09-30" },
+      { title: "Oh release record", url: oh(launchChecked, "site/published-release.json"), checkedOn: "2026-09-30" },
+      { title: "Rust foundations plan", url: oh(launchChecked, "plans/rust-foundations.md"), checkedOn: "2026-09-30" },
       {
         title: "TypeScript and Rust canonical JSON parity tests",
         url: oh(launchChecked, "src/canonical-rust-parity.test.ts"),
-        checkedOn: "2026-09-29",
+        checkedOn: "2026-09-30",
       },
     ],
     observations: [
@@ -155,7 +157,7 @@ export const articleAdmissions = [
     },
     owner: "hraness/oh maintainers",
     drafting: "ai-from-source",
-    review: null,
+    review: launchReview,
     humanReview: null,
     reassessOn: "2026-11-07",
     harmIfWrong:

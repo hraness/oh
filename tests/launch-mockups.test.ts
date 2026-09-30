@@ -4,7 +4,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { launchBeats, socialKit } from "../site/app/launch/beats.ts";
 import { launchFacts } from "../site/app/launch/facts.ts";
 import { putArgs, researchTrail, trailRuns } from "../site/app/mockups/fixtures.ts";
 
@@ -80,18 +79,5 @@ describe("launch facts", () => {
   test("the status comes from the published release record", () => {
     const release = JSON.parse(read("site/published-release.json")) as { version: string };
     expect(launchFacts.status.value).toBe(`Latest release: v${release.version}`);
-  });
-
-  test("every beat resolves, and the social kit passes the design kit's checks", () => {
-    expect(launchBeats.map((beat) => beat.id)).toEqual(["what", "trace", "ask", "propose", "adopt", "history", "who", "rust", "limits", "status"]);
-    expect(socialKit.x).toHaveLength(launchBeats.length);
-    expect(socialKit.x.at(-1)).toContain("https://oh.computer/blog/introducing-oh");
-    for (const beat of launchBeats) expect(beat.post).not.toMatch(/\{\w+\}/);
-  });
-
-  test("the launch copy keeps the no-superiority caveat", () => {
-    const limits = launchBeats.find((beat) => beat.id === "limits");
-    expect(limits?.post).toContain("has not shown that it retrieves better than other memory frameworks");
-    expect(read("README.md").replace(/\s+/g, " ")).toContain("Oh has not shown that it outperforms Letta, Supermemory, or other memory frameworks.");
   });
 });

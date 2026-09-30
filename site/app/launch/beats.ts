@@ -9,6 +9,7 @@ import {
   type SocialKit,
 } from "@hraness/design-kit/launch";
 
+import { marketing } from "../../portfolio-copy";
 import { homeDescription } from "../metadata-copy";
 import { LAUNCH_STATUS, launchFacts } from "./facts";
 
@@ -40,7 +41,7 @@ const authoredBeats: readonly LaunchBeat[] = [
   {
     id: "ask",
     part: "does",
-    headline: "Find it again from the terminal",
+    headline: "Look up a saved answer from the terminal",
     post: "The oh command finds a saved question by keyword and prints the answer with the records it rests on. It needs no account and no AI model. People get short text; add --json and your own scripts get the same answer as JSON.",
     visual: { kind: "mockup", id: "trail-terminal", state: { run: "search" } },
     alt: "In this illustration, the oh CLI finds a question by keyword and prints the saved answer and the records it depends on.",
@@ -76,6 +77,7 @@ const authoredBeats: readonly LaunchBeat[] = [
     part: "who",
     headline: "Built for developers whose agents get asked why",
     post: "Oh is for developers building agents and research tools where someone will later ask why the system believes something. If you only want to search your own Markdown notes, Oh is more than you need.",
+    socialPost: "Oh is for developers building agents and research tools where someone will later ask why the system believes something.",
     visual: { kind: "mockup", id: "trail-map", state: { focus: "claim" } },
     alt: "In this illustration, a claim, the record accepting it, and the evidence behind it, lit as three separate records.",
   },
@@ -113,10 +115,10 @@ export const launchBeats: readonly LaunchBeat[] = resolveLaunchBeats(authoredBea
 
 export const LAUNCH_POST_URL = "https://oh.computer/blog/introducing-oh";
 
-/** The product's messaging record: the homepage heading and meta description. */
+/** The product's messaging record, from the canonical portfolio copy. */
 export const launchMessaging: LaunchMessaging = {
-  names: { name: "Oh" },
-  tagline: "Agent memory that shows its work",
+  names: { name: marketing.names.name },
+  tagline: marketing.tagline,
   meta: homeDescription,
 };
 

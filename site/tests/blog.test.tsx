@@ -39,13 +39,11 @@ describe("Oh blog", () => {
     expect(articles.map((article) => `/blog/${article.slug}`).sort())
       .toEqual(articleAdmissions.map((record) => record.href).sort());
     for (const record of articleAdmissions) {
-      // The launch-beat rewrite of the introduction waits for an independent review.
-      if (record.lifecycle === "quarantined") expect(record.review).toBeNull();
-      else expect(record.review?.reviewerType).toBe("ai");
+      expect(record.review.reviewerType).toBe("ai");
       expect(record.humanReview).toBeNull();
     }
-    expect(indexableArticles.map((article) => article.slug)).toEqual(["longmemeval-s-user-log", "oh-rust-typescript-parity", "built-on-oh"]);
-    expect(quarantined.map((article) => article.slug)).toEqual(["introducing-oh"]);
+    expect(indexableArticles.map((article) => article.slug)).toEqual(["longmemeval-s-user-log", "introducing-oh", "oh-rust-typescript-parity", "built-on-oh"]);
+    expect(quarantined.map((article) => article.slug)).toEqual([]);
   });
 
   test("prerenders one page per article", () => {
@@ -56,12 +54,11 @@ describe("Oh blog", () => {
     for (const article of articles) {
       const html = await renderArticle(article.slug);
       const sentence = articleProvenanceSentence(articleProvenance(article));
-      const admission = articleAdmissions.find((record) => record.href === `/blog/${article.slug}`);
-      expect(sentence).toBe(admission?.lifecycle === "quarantined"
-        ? "Drafted with AI from the source code. It has not been reviewed yet."
-        : "Drafted with AI from the source code and reviewed by Claude Opus 5.5 (claude-opus-5-5) editorial review.");
+      expect(sentence).toBe(
+        "Drafted with AI from the source code and reviewed by Claude Opus 5.5 (claude-opus-5-5) editorial review.",
+      );
       expect(html).toContain(sentence);
-      if (admission?.lifecycle !== "quarantined") expect(html).toContain('data-reviewer-type="ai"');
+      expect(html).toContain('data-reviewer-type="ai"');
       expect(html).toMatch(/By <a href="https:\/\/hraness\.com" rel="author">Hraness<\/a>/u);
       expect(html).not.toMatch(/human/iu);
       expect(html).not.toContain("Ben Guo");

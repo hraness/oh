@@ -5,8 +5,8 @@ import { researchTrail } from "../mockups/fixtures";
 
 /**
  * Every number the launch post, its social kit and its film captions use,
- * each typed once with the record it comes from. tests/launch.test.ts reads
- * those records and fails when a value here drifts from them.
+ * each typed once with the record it comes from. tests/launch-mockups.test.ts
+ * reads those records and fails when a value here drifts from them.
  */
 export const LAUNCH_STATUS = `Latest release: v${publishedRelease.version}` as LaunchStatus;
 
