@@ -1,3 +1,4 @@
+import { marketing } from "../../portfolio-copy";
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
 import { AskAiAboutThis } from "@hraness/ui";
@@ -20,9 +21,9 @@ export function CompareHeader() {
       trailing={<DesignPaletteMenuButton />}
       action={{ href: "/#install", label: "Install Oh" }}
       ariaLabel="Comparison navigation"
-      brand="Oh"
+      brand={marketing.names.name}
       brandMark="/marks/oh-computer.svg"
-      brandLabel="Oh home"
+      brandLabel={`${marketing.names.name} home`}
       className="spec-header"
       links={[
         { href: "/", label: "Overview" },

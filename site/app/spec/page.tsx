@@ -1,3 +1,4 @@
+import { marketing } from "../../portfolio-copy";
 import { MarketingSiteHeader, SyntaxCode } from "@hraness/design-kit/react/server";
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 import { AskAiAboutThis } from "@hraness/ui";
@@ -58,9 +59,9 @@ export default function Specification() {
         trailing={<DesignPaletteMenuButton />}
         action={{ href: "/#install", label: "Install Oh" }}
         ariaLabel="Specification navigation"
-        brand="Oh"
+        brand={marketing.names.name}
         brandMark="/marks/oh-computer.svg"
-        brandLabel="Oh home"
+        brandLabel={`${marketing.names.name} home`}
         className="spec-header"
         links={[
           { href: "/", label: "Overview" },

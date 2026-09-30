@@ -1,3 +1,4 @@
+import { marketing } from "../../portfolio-copy";
 import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
 
@@ -7,9 +8,9 @@ export function BlogHeader({ current }: Readonly<{ current: "index" | "post" }>)
       trailing={<DesignPaletteMenuButton />}
       action={{ href: "/#install", label: "Install Oh" }}
       ariaLabel="Blog navigation"
-      brand="Oh"
+      brand={marketing.names.name}
       brandMark="/marks/oh-computer.svg"
-      brandLabel="Oh home"
+      brandLabel={`${marketing.names.name} home`}
       className="spec-header"
       links={[
         { href: "/", label: "Overview" },

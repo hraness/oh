@@ -1,3 +1,4 @@
+import { marketing } from "../../../portfolio-copy";
 import { breadcrumbJsonLd } from "@hraness/web-discovery";
 import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
@@ -129,7 +130,7 @@ export default function CompareMem0() {
       jsonLd={
         <JsonLdScript
           data={breadcrumbJsonLd(ohSearchSite.origin, [
-            { name: "Oh", path: "/" },
+            { name: marketing.names.name, path: "/" },
             { name: "Comparisons", path: "/compare" },
             { name: "Oh vs Mem0", path: "/compare/mem0" },
           ])}

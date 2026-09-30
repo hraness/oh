@@ -1,3 +1,4 @@
+import { marketing } from "../portfolio-copy";
 // The one declaration every Oh share image is rendered from. Routes pass page
 // copy only; the shared @hraness/web-discovery template draws the card.
 import { defineSocialImageSite, socialImageAlt, type SocialImagePage } from "@hraness/web-discovery/social-image";
@@ -19,7 +20,7 @@ export const ohSocialSite = defineSocialImageSite({
   icon: { kind: "app", src: ohAppIcon },
   // Product names the card must not break across lines.
   keepTogether: ["GPT-5 mini", "Claude’s memory tool"],
-  name: "Oh",
+  name: marketing.names.name,
   theme: { accent: "#065968", background: "#FBF1C7", foreground: "#393533", muted: "#584F48" },
 });
 
