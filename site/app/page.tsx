@@ -209,7 +209,7 @@ export default function Home() {
         <MarketingPage>
           <ProductHero
             actions={[
-              { href: "#install", label: marketing.hero.primaryAction },
+              { emphasis: "secondary", href: "#install", label: "First run" },
               { emphasis: "secondary", href: "#model", label: marketing.hero.secondaryAction },
             ]}
             align="start"
@@ -227,6 +227,7 @@ export default function Home() {
             )}
             heading={heading}
             headingId="hero-title"
+            install={<PlatformInstall id="hero-install" platforms={installPlatforms} />}
             name=""
             summary={lead}
           />
@@ -357,7 +358,6 @@ oh get evidence:table-2 \\
             note={<p className="install-note">{`Latest release: v${releaseVersion}`}</p>}
           >
             <PlatformBadges platforms={["macos", "linux", "windows"]} />
-            <PlatformInstall platforms={installPlatforms} />
             <Terminal code={`oh init
 oh put --kind entity --key entity:ada-lovelace \\
   --value '{"name":"Ada Lovelace","role":"mathematician"}'
