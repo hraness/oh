@@ -36,7 +36,17 @@ async function main(): Promise<void> {
   if (!information.isFile() || information.size > 256) {
     throw new Error("SHA256SUMS is not one bounded regular file.");
   }
-  if (await readFile(manifest, "utf8") !== line) {
+  const manifestBytes = await readFile(manifest);
+  if (process.env.RELEASE_REQUIRE_EXPECTED_HASHES === "1") {
+    const packageHash = process.env.EXPECTED_PACKAGE_SHA256 ?? "";
+    const checksumHash = process.env.EXPECTED_CHECKSUM_SHA256 ?? "";
+    if (!/^[0-9a-f]{64}$/u.test(packageHash) || !/^[0-9a-f]{64}$/u.test(checksumHash)
+      || line.slice(0, 64) !== packageHash
+      || createHash("sha256").update(manifestBytes).digest("hex") !== checksumHash) {
+      throw new Error("Release bytes differ from the exact producing job outputs.");
+    }
+  }
+  if (manifestBytes.toString("utf8") !== line) {
     throw new Error(`SHA-256 mismatch for ${basename(artifact)}.`);
   }
   console.log(`Verified SHA-256 for ${basename(artifact)}.`);
