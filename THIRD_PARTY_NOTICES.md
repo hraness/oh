@@ -19,6 +19,14 @@ Bundled into the standalone CLI.
 - Source: https://github.com/hraness/support-foundation/tree/b32c1c81bb2444f50509ed54388758ecfab1f1c0
 - Copyright (c) 2026 Hraness
 
+## @hraness/cli-update 0.1.0
+
+Bundled into the standalone CLI for installation updates.
+
+- Source: https://github.com/hraness/cli-update/releases/tag/v0.1.0
+- Copyright (c) 2026 Hraness
+- License: MIT
+
 ## MIT License text
 
 The following text applies to each component above, with that component's

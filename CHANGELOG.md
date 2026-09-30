@@ -4,6 +4,14 @@ Each section below describes one release of Oh. The release workflow copies a
 version's section onto its GitHub Release page, so write the section in the
 pull request that bumps the version.
 
+## 0.14.0 - 2026-09-30
+
+Oh can update supported global CLI installations before work starts.
+
+- Add `update`, `update check`, `update status`, `update enable`, and `update disable`, with automatic updates enabled by default on macOS and Linux.
+- Keep SDK imports, local/source installs, executable pins, and active commands on their current code.
+- Keep offline research commands offline and leave stores and SQLite migrations unchanged.
+
 ## 0.13.3 - 2026-09-29
 
 The same package as 0.13.2, released through the full release check. npm

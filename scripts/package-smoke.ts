@@ -210,6 +210,10 @@ export async function scanPackage(root: string): Promise<void> {
       if (includesSupportRuntime !== (packagePath === "dist/cli.js")) {
         problems.push(`${packagePath} violates the standalone support runtime boundary`);
       }
+      const includesUpdater = source.includes("hraness.cli-update.v1");
+      if (includesUpdater !== (packagePath === "dist/cli.js")) {
+        problems.push(`${packagePath} violates the standalone CLI update boundary`);
+      }
       // Check shipped bytes: sync is part of the root/SDK/CLI surface, while
       // pure store, SQLite codec, projection and page graphs stay independent.
       const includesEffectRuntime = source.includes("effect/Effect");

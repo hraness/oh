@@ -17,7 +17,8 @@ import { renderOhRecallV1, resolveRelativeDateWindowV1 } from "./recall";
 import { OH_SQLITE_SCHEMA_VERSION } from "./sqlite/migrations";
 import { createOhSyncBundleV1, OH_SYNC_BUNDLE_MAX_BYTES_V1, parseOhSyncBundleV1 } from "./sync-model";
 
-export const OH_PACKAGE_VERSION = "0.13.3" as const;
+import { OH_PACKAGE_VERSION } from "./cli-version";
+export { OH_PACKAGE_VERSION } from "./cli-version";
 
 /** A problem with how the command was typed: exit 2 and point at the command's help. */
 export class OhUsageError extends TypeError {
@@ -577,7 +578,7 @@ export function supportCommandPrefix(script = process.argv[1] ?? "", path = proc
   return fallback;
 }
 
-if (import.meta.main) {
+export async function runOhMain(): Promise<void> {
   const args = process.argv.slice(2);
   // A closed pipe (`oh list | head -1`) is a normal way to stop reading.
   process.stdout.on("error", (error: NodeJS.ErrnoException) => {
@@ -592,7 +593,7 @@ if (import.meta.main) {
     await showOhSupportInvitation(args, code, options);
     return code;
   };
-  run().then((code) => { process.exitCode = code; }).catch((error: unknown) => {
+  await run().then((code) => { process.exitCode = code; }).catch((error: unknown) => {
     const described = describeOhCliError(error, args);
     if (asksForJson(args) || detectAudience() === "agent") {
       print({ error: { code: described.code, message: described.message, next: described.next }, ok: false });
@@ -604,4 +605,9 @@ if (import.meta.main) {
     }
     process.exitCode = described.exitCode;
   });
+}
+
+if (import.meta.main) {
+  const { runOhEntrypoint } = await import("./cli-entry");
+  await runOhEntrypoint(process.argv.slice(2), { main: runOhMain });
 }
