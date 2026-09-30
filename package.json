@@ -151,6 +151,7 @@
     "bench:deductive": "bun run ./scripts/benchmarks/deductive-recall.ts",
     "bench:deductive:fusion": "bun run ./scripts/benchmarks/deductive-fusion-probe.ts",
     "bench:memory": "bun run ./scripts/benchmark-memory.ts",
+    "bench:memory-campaign": "bun ./scripts/benchmarks/memory-lab/campaign-v2.ts",
     "bench:lab": "bun run ./scripts/benchmarks/lab.ts",
     "bench:lab:paid": "bun run ./scripts/benchmarks/lab-paid.ts",
     "bench:claude": "bun run ./scripts/benchmarks/claude-study.ts",

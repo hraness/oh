@@ -491,6 +491,23 @@
         "ledgerBytes": 16777216,
         "wallMinutesPerInvocation": 60
       }
+    },
+    "benchmark:memory-lab-campaign-v2": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/memory-lab/campaign-v2.ts",
+      "source": "scripts/benchmarks/memory-lab/campaign-store-v2.ts",
+      "budget": {
+        "maximumPhysicalCallsPerCampaign": 1000,
+        "maximumPlans": 128,
+        "maximumProposals": 128,
+        "artifactBytes": 16777216,
+        "maximumSourcePins": 64,
+        "maximumDevelopmentTasks": 4096,
+        "maximumConfirmationAttempts": 32,
+        "responseBytesPerCall": 1048576,
+        "ledgerBytes": 16777216
+      }
     }
   },
   "exempt": []

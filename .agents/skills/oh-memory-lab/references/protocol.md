@@ -1,5 +1,10 @@
 # Oh memory lab protocol (v1, 2026-09-30)
 
+This is the historical v1 protocol. New multi-cycle direct-API experiments use
+[campaign v2](campaign-v2.md), including whole-family data separation, native
+capture verification and explicit confirmation alpha spending. Preserve v1 pilot
+files and scores when moving to a new campaign.
+
 Modelled on the Sponge research-improvement lab. The goal is a champion that is **measurably and repeatedly** better,
 confirmed on fresh questions, before any money is spent on a claim.
 
