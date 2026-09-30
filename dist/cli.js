@@ -30253,7 +30253,8 @@ var init_cli = __esm(async () => {
   ]);
   GLOBAL_OPTIONS = ["db", "space"];
   MUTATION_OPTIONS = ["actor", "expected-generation", "operation"];
-  if (false) {}
+  if (false)
+    ;
 });
 
 // src/cli-entry.ts
