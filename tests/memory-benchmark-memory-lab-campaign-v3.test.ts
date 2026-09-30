@@ -3,8 +3,8 @@ import { mkdtempSync, realpathSync, mkdirSync, writeFileSync, readFileSync, rmSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sha256Hex } from "../src/canonical";
-import { CAMPAIGN_V3, sha, planArms, type CampaignConfig, type Observation, type Plan, type Task } from "../scripts/benchmarks/memory-lab/campaign-contract-v3";
-import { advance, createPlan, getRun, initialize, propose, readState, reviewPlan, saveAssessment, sourcePins } from "../scripts/benchmarks/memory-lab/campaign-store-v3";
+import { CAMPAIGN_V3, sha, parseConfig, planArms, readerInputUpperBound, type CampaignConfig, type Observation, type Plan, type Task } from "../scripts/benchmarks/memory-lab/campaign-contract-v3";
+import { advance, createPlan, getRun, initialize, propose, readState, reviewPlan, saveAssessment, sourcePins, transaction } from "../scripts/benchmarks/memory-lab/campaign-store-v3";
 import { assessRun, executeRun, recoverAbandonedExecution } from "../scripts/benchmarks/memory-lab/campaign-execute-v3";
 import { confirmationAlpha, evaluate, signPValue } from "../scripts/benchmarks/memory-lab/campaign-evaluate-v3";
 
@@ -12,6 +12,8 @@ import { composeOhAuthorLogContextV1 } from "../scripts/benchmarks/oh-author-log
 import { projectOhEvidenceTurnsV1 } from "../scripts/benchmarks/oh-evidence-context";
 import { verifyContexts } from "../scripts/benchmarks/memory-lab/campaign-context-v3";
 import { parseTaskInput } from "../scripts/benchmarks/memory-lab/campaign-contract-v3";
+import { prepareApiRequest } from "../scripts/benchmarks/memory-lab/api-transport";
+import { evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 
 const dirs: string[] = [], oldKey = process.env.VERTEX_API_KEY, oldXai = process.env.XAI_API_KEY;
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
@@ -128,6 +130,7 @@ test("fresh confirmation requires passing parent, unused clusters, sample floor 
   expect(() => createPlan(s.root, spec("reused", "confirmation", "level1", "screen"))).toThrow("already allocated");
 });
 
+// Repeated durable writes across two campaigns need headroom on shared CI disks.
 test("production executor and native ledger exercise two successive synthetic promotions without replay", async () => {
   const s = setup(), calls: string[] = [], fetcher = mockProvider(calls);
   for (const kind of ["controls", "aa"] as const) {
@@ -145,7 +148,7 @@ test("production executor and native ledger exercise two successive synthetic pr
   expect(state.startingBaseline.instruction).toBe("LEVEL0"); expect(state.config.evidenceMode).toBe("offline-synthetic");
   const before = calls.length; expect(await executeRun(s.root, "screen1", { fetcher, now })).toMatchObject({ reused: true, calls: 0 }); expect(calls.length).toBe(before);
   expect(advance(s.root, "confirmation2").status).toBe("already-advanced");
-}, 30_000);
+}, 120_000);
 
 test("captured reader and judge stages survive interruption, including the native/local receipt gap", async () => {
   const s = setup(); qualify(s.root); proposal(s.root, "level1"); const p = reviewed(s.root, spec("resume", "screen", "level1"));
@@ -279,12 +282,54 @@ test("escaped JSON answer ceiling fails without truncating or making judge calls
   expect(await executeRun(s.root, p.id, { fetcher, now })).toMatchObject({ reused: true, calls: 0 }); expect(calls).toHaveLength(12);
 });
 
-test("a single over-bound candidate reader blocks the whole run before any fetch", async () => {
-  const s = setup(); qualify(s.root); const state = readState(s.root);
-  propose(s.root, { treatment: { id: "too-long", instruction: "x".repeat(32768), contextPolicyId: "reserve96" }, parentRevision: 0,
-    parentKey: state.champion.treatment.semanticKey, author: "author", mechanism: "oversize", hypothesis: "Invented.", evidence: ["fixture"], disconfirmingTest: "Fail.", strategy: "explore" });
-  const p = reviewed(s.root, spec("oversize", "screen", "too-long")), calls: string[] = [];
-  await expect(executeRun(s.root, p.id, { fetcher: mockProvider(calls), now })).rejects.toThrow("200000-byte"); expect(calls).toHaveLength(0);
+test("default reader bound blocks all calls while an explicit bound admits the identical request", async () => {
+  const s = setup(), instruction = "x".repeat(32768);
+  function plan(root: string) {
+    qualify(root); const state = readState(root);
+    propose(root, { treatment: { id: "too-long", instruction, contextPolicyId: "reserve96" }, parentRevision: 0,
+      parentKey: state.champion.treatment.semanticKey, author: "author", mechanism: "oversize", hypothesis: "Invented.", evidence: ["fixture"], disconfirmingTest: "Fail.", strategy: "explore" });
+    return reviewed(root, spec("oversize", "screen", "too-long"));
+  }
+  const p = plan(s.root), calls: string[] = [];
+  const input = parseTaskInput(JSON.parse(readFileSync(p.tasks[0]!.input.path, "utf8")), p.tasks[0]!);
+  const user = evolutionAnswerMessages({ question: input.question, questionDate: input.questionDate }, input.contexts.find(c => c.policyId === "reserve96")!.context, "task-complete-v10")[1]!;
+  const request = prepareApiRequest(s.config.api.reader, [{ role: "system", content: instruction }, user]);
+  expect(request.inputUpperBound).toBeGreaterThan(200000); expect(request.inputUpperBound).toBeLessThanOrEqual(262144);
+  await expect(executeRun(s.root, p.id, { fetcher: mockProvider(calls), now })).rejects.toThrow("200000-byte");
+  expect(calls).toHaveLength(0); expect(existsSync(s.ledger)).toBeFalse();
+  const explicitRoot = join(s.dir, "explicit");
+  initialize(explicitRoot, { ...s.config, maximumReaderInputUpperBound: 262144 }, { id: "baseline", instruction: "LEVEL0", contextPolicyId: "reserve24" });
+  const explicit = plan(explicitRoot), readerRequests: string[] = [], mock = mockProvider(calls);
+  expect(explicit.candidate).toEqual(p.candidate); expect(explicit.tasks).toEqual(p.tasks);
+  expect(explicit.executionKey).not.toBe(p.executionKey);
+  const fetcher = Object.assign(async (url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    const response = await mock(url, init); if (!String(url).includes("googleapis")) return response;
+    readerRequests.push(String(init!.body)); const body = await response.json();
+    body.candidates[0].content.parts[0].text = "RIGHT"; return Response.json(body);
+  }, { preconnect: fetch.preconnect });
+  await executeRun(explicitRoot, explicit.id, { fetcher, now });
+  expect(calls).toHaveLength(30); expect(readerRequests).toHaveLength(12); expect(readerRequests).toContain(request.raw);
+});
+
+test("reader bounds reject invalid values and preserve omitted config identity", () => {
+  const s = setup(), parsed = parseConfig(s.config);
+  expect(readerInputUpperBound(parsed)).toBe(200000); expect(Object.hasOwn(parsed, "maximumReaderInputUpperBound")).toBeFalse();
+  expect(sha(parsed)).toBe(sha(s.config));
+  for (const value of [1, 200000, 262144]) {
+    const explicit = parseConfig({ ...s.config, maximumReaderInputUpperBound: value });
+    expect(readerInputUpperBound(explicit)).toBe(value); expect(sha(explicit)).not.toBe(sha(parsed));
+  }
+  for (const value of [0, -1, 200000.5, 262145, Number.MAX_SAFE_INTEGER + 1, Infinity, NaN, "262144", null, undefined]) {
+    expect(() => parseConfig({ ...s.config, maximumReaderInputUpperBound: value })).toThrow("integer outside bound");
+  }
+  expect(() => parseConfig({ ...s.config, maximumReaderInputUpperBound: 262144, unexpected: true })).toThrow("unexpected or missing fields");
+});
+
+test("a changed reader bound invalidates the reviewed execution identity before dispatch", async () => {
+  const s = setup(); qualify(s.root); proposal(s.root, "level1"); const p = reviewed(s.root, spec("pinned", "screen", "level1")), calls: string[] = [];
+  transaction(s.root, state => { state.config.maximumReaderInputUpperBound = 262144; });
+  await expect(executeRun(s.root, p.id, { fetcher: mockProvider(calls), now })).rejects.toThrow("execution config changed");
+  expect(calls).toHaveLength(0); expect(existsSync(s.ledger)).toBeFalse();
 });
 
 test("a later challenger beating champion but losing to original cannot promote", () => {

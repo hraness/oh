@@ -6,7 +6,7 @@ import { bindBeamReleasedScorerTemplatesV1, stepBeamReleasedScoreV1 } from "../b
 import { evolutionAnswerMessages } from "../evolution-reader-contracts";
 import { type Message } from "../model";
 import { sha256Hex } from "../../../src/canonical";
-import { CAMPAIGN_V3, exact, integer, need, planArms, parseTaskInput, sha, type CampaignConfig, type Observation, type Plan, type Task } from "./campaign-contract-v3";
+import { CAMPAIGN_V3, exact, integer, need, planArms, parseTaskInput, readerInputUpperBound, sha, type CampaignConfig, type Observation, type Plan, type Task } from "./campaign-contract-v3";
 import { durableCreate, getRun, readBounded, readPinned, readState, requireQualifications, saveVerifiedAssessment, recoverStateLock, syncDirectory, verifyConfigPins } from "./campaign-store-v3";
 
 import { verifyContexts } from "./campaign-context-v3";
@@ -47,6 +47,8 @@ export function readObservations(root: string, id: string): Observation[] {
 export function assessRun(root: string, id: string) { return saveVerifiedAssessment(root, id); }
 export async function executeRun(root: string, id: string, options: ExecutionOptions = {}) {
   const state = readState(root), run = getRun(state, id), config = state.config, plan = run.plan;
+  const readerBound = readerInputUpperBound(config);
+  const checkReaderBound = (inputUpperBound: number) => need(inputUpperBound <= readerBound, `reader reservation exceeds frozen ${readerBound}-byte bound`);
   need(run.review?.approved && run.review.planSha256 === run.planSha256, "independent exact-plan launch review required");
   need(plan.executionKey === sha(config), "execution config changed"); verifyConfigPins(config);
   if (!options.replayOnly) need((options.now ?? Date.now)() < Date.parse(config.expiresAt), "campaign expired");
@@ -68,7 +70,7 @@ export async function executeRun(root: string, id: string, options: ExecutionOpt
       const input = inputs.get(task.id)!, context = input.contexts.find(c => c.policyId === plan[arm].contextPolicyId);
       need(context, "missing treatment context");
       const user = evolutionAnswerMessages({ question: input.question, questionDate: input.questionDate }, context.context, "task-complete-v10")[1]!;
-      need(prepareApiRequest(config.api.reader, [{ role: "system", content: plan[arm].instruction }, user]).inputUpperBound <= 200000, "reader reservation exceeds frozen 200000-byte bound");
+      checkReaderBound(prepareApiRequest(config.api.reader, [{ role: "system", content: plan[arm].instruction }, user]).inputUpperBound);
     }
     for (const task of plan.tasks) if (task.category !== "event_ordering") need(inputs.get(task.id)!.rubric.length === task.maxJudgeCalls, "judge-call allocation differs from rubric count");
     async function stage(key: string, profileId: string, messages: readonly Message[]): Promise<ApiReply> {
@@ -76,6 +78,7 @@ export async function executeRun(root: string, id: string, options: ExecutionOpt
       const request = prepareApiRequest(binding, messages), intentPath = path + ".intent.json", receiptPath = path + ".receipt.json";
       const checkDispatch = () => {
         need(!options.replayOnly, "missing captured stage; assessment remains incomplete");
+        if (profileId === config.api.reader.id) checkReaderBound(request.inputUpperBound);
         if (plan.kind === "screen" || plan.kind === "confirmation") requireQualifications(readState(root));
         need((options.now ?? Date.now)() < Date.parse(config.expiresAt), "campaign expired before dispatch");
       };
