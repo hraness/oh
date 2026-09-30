@@ -10,7 +10,8 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
     'tags:\n      - "v*"',
     "group: stable-release",
     "cancel-in-progress: false",
-    "fetch-depth: 0",
+    "fetch-depth: 1",
+    "git fetch --no-tags",
     "persist-credentials: false",
     'git cat-file -t "$REQUESTED_TAG"',
     'tag_commit="$(git rev-parse --verify "refs/tags/$REQUESTED_TAG^{commit}")"',
@@ -23,9 +24,9 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
     "npm pack --ignore-scripts --pack-destination artifacts .",
     "release-artifact-checksum.ts write",
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
-    "matrix:\n        os: [ubuntu-24.04, macos-14, ubuntu-22.04-arm, windows-2025]",
+    "matrix:\n        os: [ubuntu-24.04, macos-14, macos-15-intel, ubuntu-22.04-arm, windows-2025]",
     "OH_SMOKE_REQUIRE_SIDECAR: \"1\"",
-    "for pair in linux-x64 linux-arm64 darwin-arm64 darwin-x64 win32-x64; do",
+    "for pair in linux-x64 linux-arm64 win32-x64; do",
     "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     "artifact-ids: ${{ needs.verify.outputs.artifact_id }}",
     "artifact-ids: ${{ needs.verify.outputs.writer_artifact_id }}",
@@ -45,10 +46,15 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
 
   expect(workflow).not.toContain("release:\n    types: [published]");
   expect(workflow).not.toContain("workflow_dispatch:");
-  expect(workflow).not.toMatch(/\$\{\{\s*secrets\./u);
+  const signer = workflow.slice(workflow.indexOf("  macos_sign:"), workflow.indexOf("  verify:"));
+  expect(signer).toContain("environment: hraness-apple-release");
+  expect(signer.match(/\$\{\{\s*secrets\./gu)).toHaveLength(5);
+  expect(workflow.replace(signer, "")).not.toMatch(/\$\{\{\s*secrets\./u);
+  expect(signer).not.toContain("cargo build");
+  expect(signer).not.toContain("bun install");
   expect(workflow.match(/^\s+contents: write$/gmu)).toHaveLength(1);
   expect(workflow.match(/^\s+id-token: write$/gmu)).toHaveLength(1);
-  expect(workflow.match(/^\s+actions: read$/gmu)).toHaveLength(1);
+  expect(workflow.match(/^\s+actions: read$/gmu)).toHaveLength(3);
   const githubJob = workflow.slice(workflow.indexOf("  publish_github:"), workflow.indexOf("  publish_npm:"));
   const npmJob = workflow.slice(workflow.indexOf("  publish_npm:"), workflow.indexOf("  pre_npm:"));
   expect(npmJob).toContain("environment: npm-release");

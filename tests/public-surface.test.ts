@@ -591,7 +591,7 @@ describe("repository policy", () => {
     expect(workflow).toContain("contents: read");
     expect(workflow).toContain("id-token: write");
     expect(workflow).toContain("environment: npm-release");
-    expect(workflow).toContain("matrix:\n        os: [ubuntu-24.04, macos-14, ubuntu-22.04-arm, windows-2025]");
+    expect(workflow).toContain("matrix:\n        os: [ubuntu-24.04, macos-14, macos-15-intel, ubuntu-22.04-arm, windows-2025]");
     expect(workflow).toContain("release-artifact-checksum.ts write");
     expect(workflow).toContain("release-artifact-checksum.ts check");
     expect(workflow).toContain("git cat-file -t \"$REQUESTED_TAG\"");
@@ -601,7 +601,10 @@ describe("repository policy", () => {
     expect(npmPublish).toBeGreaterThan(exactInstall);
     expect(npmPublish).toBeGreaterThan(githubPublish);
     expect(admission).toBeGreaterThan(githubPublish);
-    expect(workflow).not.toMatch(/\$\{\{\s*secrets\./u);
+    const signingJob = workflow.slice(workflow.indexOf("  macos_sign:"), workflow.indexOf("  verify:"));
+    expect(signingJob).toContain("environment: hraness-apple-release");
+    expect(signingJob.match(/\$\{\{\s*secrets\./gu)).toHaveLength(5);
+    expect(workflow.replace(signingJob, "")).not.toMatch(/\$\{\{\s*secrets\./u);
     expect(workflow.match(/^\s+contents: write$/gmu)).toHaveLength(1);
     expect(workflow.match(/^\s+id-token: write$/gmu)).toHaveLength(1);
   });

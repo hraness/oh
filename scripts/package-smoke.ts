@@ -264,13 +264,16 @@ async function installedBin(binDirectory: string, name: string): Promise<string>
  * host. Release and native CI runs set OH_SMOKE_REQUIRE_SIDECAR=1 so a missing
  * prebuilt fails; ordinary source checks skip when this host has none staged.
  */
-async function sidecarSmoke(consumer: string, work: string, database: string): Promise<void> {
+async function sidecarSmoke(consumer: string, work: string, database: string, developmentBuild: boolean): Promise<void> {
   const required = process.env.OH_SMOKE_REQUIRE_SIDECAR === "1";
   const output = join(work, "sidecar-snapshot");
   await writeFile(join(consumer, "sidecar-snapshot.mjs"), `
 import { stat } from "node:fs/promises";
 import { sidecarBinaryPath, snapshotDatabase } from "@hraness/oh/sqlite-snapshot";
-const [database, output, required] = process.argv.slice(2);
+const [database, output, required, developmentBuild] = process.argv.slice(2);
+// Exact release archives always exercise the packaged signature check. Local
+// source smoke explicitly selects its own just-built unsigned helper instead.
+delete process.env.HRANESS_OH_SQLITE_CLI_PATH;
 let binary;
 try {
   binary = sidecarBinaryPath();
@@ -280,6 +283,7 @@ try {
   console.log("skipped");
   process.exit(0);
 }
+if (developmentBuild === "1") process.env.HRANESS_OH_SQLITE_CLI_PATH = binary;
 const snapshot = await snapshotDatabase({ sourcePath: database, outputDirectory: output });
 if (!(snapshot.totalBytes >= 16)) {
   throw new Error("The packed native sidecar returned an unexpected snapshot.");
@@ -287,7 +291,7 @@ if (!(snapshot.totalBytes >= 16)) {
 console.log("ok");
 `, { mode: 0o600 });
   const result = (await run([
-    process.execPath, "run", "./sidecar-snapshot.mjs", database, output, required ? "1" : "0",
+    process.execPath, "run", "./sidecar-snapshot.mjs", database, output, required ? "1" : "0", developmentBuild ? "1" : "0",
   ], consumer, true)).trim();
   if (result !== "ok" && !(result === "skipped" && !required)) {
     throw new Error("The packed native sidecar smoke did not complete.");
@@ -415,7 +419,7 @@ export async function packageSmoke(suppliedArchive?: string): Promise<void> {
     if (verification.sqliteIntegrity !== "ok" || verification.v !== 1) {
       throw new Error("Packed CLI failed its isolated synthetic database check.");
     }
-    await sidecarSmoke(consumer, work, database);
+    await sidecarSmoke(consumer, work, database, suppliedArchive === undefined);
 
     await run([
       process.execPath,
