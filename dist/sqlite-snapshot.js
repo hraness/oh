@@ -62,7 +62,7 @@ function assertVerifiedMacSidecar(path, expected) {
   }
 }
 function argumentsFor(path) {
-  return ["--verify", "--strict", "--all-architectures", "--test-requirement", REQUIREMENT, path];
+  return ["--verify", "--strict", "--all-architectures", "--test-requirement", `=${REQUIREMENT}`, path];
 }
 async function verifyMacSidecar(path) {
   const before = identity(path);
