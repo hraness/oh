@@ -785,6 +785,9 @@ to run a study and hold no result.
   selection](results/longmemeval-superiority-selection-v1.json) and
   [preflight](results/memory-superiority-preflight.json) belong to the same
   study.
+- [Subscription screening through xcb](XCB_SUBSCRIPTION.md). Development
+  screens only. Runs readers and judges on your own subscription accounts;
+  scores are not comparable with the released scorer.
 - [Claude subscription study](CLAUDE_SUBSCRIPTION.md). Stopped. A
   mixed-extractor continuation through Claude Code; the original API study
   stayed incomplete.
