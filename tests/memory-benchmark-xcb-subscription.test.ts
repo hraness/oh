@@ -87,6 +87,15 @@ describe("xcb subscription profiles", () => {
     expect(() => makeXcbSubscriptionRequest("xcb-claude-haiku-task-complete-v11", readerMessages())).toThrow(/differs from the mirrored contract/u);
   });
 
+  test("let the lab reader carry an unregistered instruction but keep the reader message shape", () => {
+    const lab = XCB_SUBSCRIPTION_PROFILES["xcb-claude-haiku-lab-reader"];
+    expect(lab.instructionSha256).toBeNull();
+    expect(lab.role).toBe("reader");
+    const messages = [{ role: "system" as const, content: "A lab instruction." }, readerMessages()[1]!];
+    expect(makeXcbSubscriptionRequest("xcb-claude-haiku-lab-reader", messages).prompt).toContain("A lab instruction.");
+    expect(() => makeXcbSubscriptionRequest("xcb-claude-haiku-lab-reader", [readerMessages()[1]!])).toThrow(/invalid prompt shape/u);
+  });
+
   test("render the Gateway reader messages into one delimited block", () => {
     const messages = readerMessages();
     const gateway = makeEvolutionRequest(EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID, messages);

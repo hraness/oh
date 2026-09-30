@@ -59,9 +59,13 @@ const judge = (id: string, modelKey: string): XcbSubscriptionProfile => ({ id, r
 export const XCB_CLAUDE_HAIKU_TASK_COMPLETE_V10_READER_PROFILE_ID = "xcb-claude-haiku-task-complete-v10" as const;
 export const XCB_CLAUDE_HAIKU_TASK_COMPLETE_V11_READER_PROFILE_ID = "xcb-claude-haiku-task-complete-v11" as const;
 export const XCB_CLAUDE_HAIKU_BEAM_JUDGE_PROFILE_ID = "xcb-claude-haiku-beam-judge" as const;
+/** Development lab reader: same message shape and limits as the v10 mirror but no instruction pin, so a lab can screen
+ * unregistered instructions. The lab freezes each instruction's hash itself; a winner is registered as a contract before any paid run. */
+export const XCB_CLAUDE_HAIKU_LAB_READER_PROFILE_ID = "xcb-claude-haiku-lab-reader" as const;
 export const XCB_SUBSCRIPTION_PROFILES = frozen({
   [XCB_CLAUDE_HAIKU_TASK_COMPLETE_V10_READER_PROFILE_ID]: reader(XCB_CLAUDE_HAIKU_TASK_COMPLETE_V10_READER_PROFILE_ID, "claude/haiku", EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID),
   [XCB_CLAUDE_HAIKU_TASK_COMPLETE_V11_READER_PROFILE_ID]: reader(XCB_CLAUDE_HAIKU_TASK_COMPLETE_V11_READER_PROFILE_ID, "claude/haiku", EVOLUTION_TASK_COMPLETE_V11_READER_PROFILE_ID),
+  [XCB_CLAUDE_HAIKU_LAB_READER_PROFILE_ID]: { ...reader(XCB_CLAUDE_HAIKU_LAB_READER_PROFILE_ID, "claude/haiku", EVOLUTION_TASK_COMPLETE_V10_READER_PROFILE_ID), instructionSha256: null },
   [XCB_CLAUDE_HAIKU_BEAM_JUDGE_PROFILE_ID]: judge(XCB_CLAUDE_HAIKU_BEAM_JUDGE_PROFILE_ID, "claude/haiku"),
 } satisfies Record<string, XcbSubscriptionProfile>);
 export type XcbSubscriptionProfileId = keyof typeof XCB_SUBSCRIPTION_PROFILES;
