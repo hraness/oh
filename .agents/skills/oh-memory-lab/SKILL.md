@@ -18,6 +18,10 @@ and changes the champion only after verified complete evidence. Keep the v1
 commands below for replaying historical pilots; do not mix their caches or decisions
 into a v2 campaign. The v2 source tests demonstrate transitions, not model gains.
 
+For experiments that change the author-log context reserve, use [campaign v3](references/campaign-v3.md).
+It binds separate arm contexts to the same source and native rankings, supports repeated measurements within
+conversation clusters, and compares later confirmations with both the champion and original baseline.
+
 ## Workspace
 
 The lab workspace is private and lives outside this repository. Point `OH_MEMORY_LAB` at it:
