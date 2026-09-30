@@ -140,7 +140,7 @@ export default function CompareIndex() {
           id="compare-json-ld"
         />
       }
-      lead="Oh keeps an agent’s own records in one local SQLite file, each linked to the records it rests on, with a history you can replay. Pick Mem0 or Supermemory to give each user of a product a memory. Pick Zep or Graphiti to track when each fact was true. Pick Letta to run agents that manage their own memory. Claude’s memory tool needs no extra package if you already call the Claude API. Every claim about another product below is dated and sourced."
+      lead="Compare where each memory system runs, what it stores, and how agents use it. Oh keeps linked records and their history in one local SQLite file."
       nav={[
         { href: "#at-a-glance", label: "At a glance" },
         ...comparePages.map((page) => ({ href: page.href, label: page.label })),

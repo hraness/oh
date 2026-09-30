@@ -85,7 +85,11 @@ describe("Oh site source contract", () => {
     const dependencies = record(record(JSON.parse(packageJson), "package").dependencies, "dependencies");
     for (const name of ["@hraness/ui", "@hraness/design-kit", "@hraness/site-footer"]) {
       const pin = dependencies[name];
-      expect(pin).toMatch(/^github:hraness\/(?:ui|design-kit|site-footer)#v\d+\.\d+\.\d+$/u);
+      if (name === "@hraness/site-footer") {
+        expect(pin).toMatch(/^https:\/\/github\.com\/hraness\/site-footer\/releases\/download\/v(\d+\.\d+\.\d+)\/hraness-site-footer-\1\.tgz$/u);
+      } else {
+        expect(pin).toMatch(/^github:hraness\/(?:ui|design-kit)#v\d+\.\d+\.\d+$/u);
+      }
       expect(lockfile).toContain(`${JSON.stringify(name)}: ${JSON.stringify(pin)}`);
     }
   });
@@ -105,7 +109,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/site-footer": "github:hraness/site-footer#v0.20.1"',
+      '"@hraness/site-footer": "https://github.com/hraness/site-footer/releases/download/v0.20.5/hraness-site-footer-0.20.5.tgz"',
     );
     expect(layout).toContain('import { HranessSiteFooter } from "@hraness/site-footer/react"');
     expect(layout).toContain(
@@ -188,7 +192,7 @@ describe("Oh site source contract", () => {
     ]);
 
     expect(packageJson).toContain(
-      '"@hraness/design-kit": "github:hraness/design-kit#v0.32.0"',
+      '"@hraness/design-kit": "github:hraness/design-kit#v0.35.0"',
     );
     expect(globals).toStartWith("@layer base, components, oh-marketing, oh-material;");
     expect(globals.match(/^@import .+;$/gmu)).toEqual([

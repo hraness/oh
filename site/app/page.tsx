@@ -197,7 +197,7 @@ export default function Home() {
       />
       <a className="skip-link" href="#main">Skip to content</a>
       <MarketingSiteHeader
-        action={{ href: "#install", label: marketing.hero.primaryAction }}
+        action={{ href: "#hero-install", label: marketing.hero.primaryAction }}
         brand={marketing.names.name}
         brandMark="/marks/oh-computer.svg"
         brandLabel={`${marketing.names.name} home`}

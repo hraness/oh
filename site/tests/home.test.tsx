@@ -247,11 +247,15 @@ test("keeps the homepage proof flat and the specification outside its preset", (
   expect(html).not.toContain('hraness-material-wall');
   expect(html).not.toContain('hraness-marketing-field');
   expect(html).toContain(`<p class="install-note">Latest release: v${publishedRelease.version}</p>`);
-  const install = /id="install"[\s\S]*$/u.exec(html)?.[0] ?? "";
+  const install = /id="hero-install"[\s\S]*?<\/header>/u.exec(html)?.[0] ?? "";
   const tabs = [...install.matchAll(/role="tab"[^>]*>[\s\S]*?<\/button>/gu)].map((match) => match[0]);
   expect(tabs.map((tab) => ["macOS", "Linux", "Windows"].find((name) => tab.includes(name)))).toEqual(["macOS", "Linux", "Windows"]);
+  expect(html.match(/id="hero-install"/gu)).toHaveLength(1);
+  expect(html).toContain('href="#hero-install"');
   const command = `bun add --global @hraness/oh@${publishedRelease.version}`;
-  expect(install.split(`>${command}</code>`)).toHaveLength(4);
+  const commands: string[] = [];
+  new HTMLRewriter().on('#hero-install .hraness-platform-install__command code', { text(chunk) { commands.push(chunk.text); } }).transform(html);
+  expect(commands.join("")).toBe(command.repeat(3));
   expect(install).toContain("PowerShell");
   expect(install).toContain("Requires Bun 1.3.14+");
   const specification = renderToStaticMarkup(<RootLayout><Specification /></RootLayout>);
