@@ -284,9 +284,10 @@ describe("Oh site source contract", () => {
     expect(specification).toContain("title: specificationTitle");
     expect(specification).toContain("description: specificationDescription");
     expect(specification).toContain('images: [{ alt: specificationImageAlt, url: "/spec/opengraph-image" }]');
-    expect(favicon).toContain('fill="#b43a1d"');
-    expect(favicon).toContain('stroke="#fff"');
-    expect(favicon).not.toMatch(/#(?:0c79d8|2e9eff|68c4ff)/iu);
+    const headerMark = await read("public/marks/oh-computer.svg");
+    const paths = (svg: string) => [...svg.matchAll(/<path\b[^>]*\bd="([^"]*)"/gu)].map(match => match[1]);
+    expect(paths(favicon)).toEqual(paths(headerMark));
+    expect(favicon).toContain('feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"');
   });
 
   test("states only runtime-backed integrity and storage guarantees", async () => {
