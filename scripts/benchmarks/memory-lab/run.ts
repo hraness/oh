@@ -2,14 +2,15 @@
 // challenger cell, back to back so a halt leaves complete pairs. Haiku reader + released-template Haiku judge via xcb.
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { XcbSubscriptionTransport } from "../xcb-subscription";
+import { ApiLabTransport } from "./api-transport";
 import { evolutionAnswerMessages } from "../evolution-reader-contracts";
 import { bindBeamReleasedScorerTemplatesV1, stepBeamReleasedScoreV1 } from "../beam-released-scorer-v1";
-import { CELLS, LAB, type Arm, type Cell, type Plan, type Question, armKey, champion, instruction, planQuestions, profile, readCells, sha } from "./common";
+import { CELLS, LAB, type Arm, type Cell, type Plan, type Question, armKey, champion, frozenExperiment, instruction, planQuestions, profile, readCells } from "./common";
 
 const dir = `${LAB}/experiments/${Bun.argv[2]}`;
 const plan = JSON.parse(readFileSync(`${dir}/plan.json`, "utf8")) as Plan;
 const frozen = readFileSync(`${dir}/frozen.sha256`, "utf8").trim();
-const current = sha(readFileSync(`${dir}/plan.json`, "utf8") + readFileSync(`${dir}/PREREG.md`, "utf8") + instruction(plan.challenger));
+const current = frozenExperiment(plan, readFileSync(`${dir}/PREREG.md`, "utf8"));
 if (frozen !== current) throw new Error("plan, PREREG.md or the challenger instruction changed after freezing");
 
 const templates = bindBeamReleasedScorerTemplatesV1(JSON.parse(readFileSync(profile.scorerTemplates, "utf8")).templates, "released");
@@ -38,8 +39,12 @@ for (const question of planQuestions(plan)) {
 }
 console.log(JSON.stringify({ experiment: plan.id, questions: planQuestions(plan).length, cellsToRun: todo.length, champion: armKey(champ), challenger: armKey(plan.challenger) }));
 
-const xcb = await XcbSubscriptionTransport.open({ bin: profile.xcbBin, ledgerPath: `${dir}/xcb-ledger.jsonl`, profiles: [profile.readerProfile, profile.judgeProfile], maxCalls: plan.maxCalls });
+const xcb = profile.transport === "direct-api"
+  ? await ApiLabTransport.open({ config: profile.api, maxCalls: plan.maxCalls })
+  : await XcbSubscriptionTransport.open({ bin: profile.xcbBin, ledgerPath: `${dir}/xcb-ledger.jsonl`, profiles: [profile.readerProfile, profile.judgeProfile], maxCalls: plan.maxCalls });
 async function runCell({ arm, rep, question }: typeof todo[number]): Promise<Cell> {
+  if (profile.transport === "direct-api" && frozenExperiment(plan, readFileSync(`${dir}/PREREG.md`, "utf8")) !== frozen)
+    throw new Error("frozen paid experiment changed during execution");
   const base = { armKey: armKey(arm), arm: arm.name, rep, questionId: question.id, category: question.category.replace(/^beam:/u, ""), experiment: plan.id };
   // Same user message as the registered contracts; only the system instruction varies. No question metadata enters the prompt.
   const user = evolutionAnswerMessages({ question: question.question, questionDate: question.questionDate }, contextFor(arm, question.id), "task-complete-v10")[1]!;
@@ -53,20 +58,32 @@ async function runCell({ arm, rep, question }: typeof todo[number]): Promise<Cel
     const step = stepBeamReleasedScoreV1(input, replies);
     if (step.status !== "request") {
       const result = step.status === "scored" ? step.result as any : null;
-      return { ...base, status: step.status, score: result === null ? null : (result.llm_judge_score ?? result.tau_norm ?? null),
+      const score = result === null ? null : (result.llm_judge_score ?? result.tau_norm ?? null);
+      if (profile.transport === "direct-api" && step.status === "scored" && (typeof score !== "number" || !Number.isFinite(score)))
+        return { ...base, status: "failed", score: null, reason: "non-finite-judge-score", answer: reader.result.answer,
+          judgeCalls: step.calls, at: new Date().toISOString() };
+      return { ...base, status: step.status, score,
         reason: step.status === "failed" ? step.reason : null, answer: reader.result.answer, judgeCalls: step.calls, at: new Date().toISOString() };
     }
     const judged = await xcb.invoke(profile.judgeProfile, step.request.messages);
+    if (profile.transport === "direct-api" && judged.result.status !== "completed")
+      return { ...base, status: "failed", score: null, reason: "judge-" + judged.result.failureReason,
+        answer: reader.result.answer, at: new Date().toISOString() };
     replies.push(judged.result.answer ?? judged.result.partialAnswer ?? "");
   }
 }
-let next = 0, finished = 0;
-await Promise.all(Array.from({ length: xcb.concurrency }, async () => {
+let next = 0, finished = 0, errors = 0;
+try { await Promise.all(Array.from({ length: xcb.concurrency }, async () => {
   while (!xcb.halted && next < todo.length) {
     const cell = todo[next++]!;
     try { appendFileSync(CELLS, JSON.stringify(await runCell(cell)) + "\n"); }
-    catch (error) { appendFileSync(`${dir}/errors.jsonl`, JSON.stringify({ arm: cell.arm.name, questionId: cell.question.id, error: String(error).slice(0, 300), at: new Date().toISOString() }) + "\n"); }
+    catch (error) {
+      errors++;
+      appendFileSync(`${dir}/errors.jsonl`, JSON.stringify({ arm: cell.arm.name, questionId: cell.question.id, error: String(error).slice(0, 300), at: new Date().toISOString() }) + "\n");
+      if (profile.transport === "direct-api") break;
+    }
     if (++finished % 10 === 0) console.log(JSON.stringify({ finished, of: todo.length, calls: xcb.calls, at: new Date().toISOString() }));
   }
-}));
-console.log(JSON.stringify({ finished, of: todo.length, calls: xcb.calls, halted: xcb.halted, done: !xcb.halted && finished === todo.length }));
+})); } finally { if (xcb instanceof ApiLabTransport) xcb.close(); }
+console.log(JSON.stringify({ finished, of: todo.length, calls: xcb.calls, halted: xcb.halted, errors, done: !xcb.halted && errors === 0 && finished === todo.length }));
+if (xcb.halted || finished !== todo.length || (profile.transport === "direct-api" && errors > 0)) process.exitCode = 1;
