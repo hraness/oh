@@ -63,7 +63,7 @@ export default function BlogIndex() {
           items={indexableArticles.map(articleIndexItem)}
           summary={blogDescription}
         />
-        <p className="blog-feed-link"><a href={feedPath}>Atom feed</a></p>
+        <p className="blog-feed-link"><a className="hraness-text-link" href={feedPath}>Atom feed</a></p>
       </main>
     </>
   );
