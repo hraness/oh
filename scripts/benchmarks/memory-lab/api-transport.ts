@@ -1,12 +1,17 @@
 /** Direct Gemini/xAI development transport. All roles share one locked native
  * reservation ledger; unknown outcomes stop dispatch and retain their bound. */
 import { randomUUID } from "node:crypto";
-import { closeSync, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, constants, existsSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, unlinkSync, writeSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { hasExactKeys, isPlainRecord, sha256Hex } from "../../../src/canonical";
 import { ledgerExposure, type Message } from "../model";
 
 export const API_PROTOCOL = "oh.memory-lab-api.v1";
+export const EXTENDED_API_REQUEST_TIMEOUT_MS = 600_000;
+export type ApiRequestTimeoutPolicy = Readonly<{
+  protocol: "oh.memory-lab-api-request-policy.v1"; attemptId: string; requestSha256: string;
+  requestCaptureSha256: string; timeoutMs: 600000; admittedAtMs: number; sessionDeadlineMs: number; budgetSha256: string;
+}>;
 export const API_BUDGET_LIMITS = Object.freeze({
   "oh.memory-lab-api-budget.v1": Object.freeze({ maxUsd: 100, maxCalls: 1000, ledgerBytes: 16 * 1024 * 1024 }),
   "oh.memory-lab-api-budget.v2": Object.freeze({ maxUsd: 5000, maxCalls: 25000, ledgerBytes: 16 * 1024 * 1024 }),
@@ -206,6 +211,9 @@ function privateLedgerParent(ledgerPath: string): void {
 }
 function readLedger(b: Budget): Event[] {
   const text = existsSync(b.ledgerPath) ? file(b.ledgerPath, API_BUDGET_LIMITS[b.protocol].ledgerBytes) : "";
+  return parseLedger(text, b);
+}
+function parseLedger(text: string, b: Budget): Event[] {
   if (text && !text.endsWith("\n")) fail("partial ledger; reconcile before continuing");
   const events: unknown[] = text.split("\n").filter(Boolean).map(line => JSON.parse(line) as unknown);
   let prefix = 0; const charges = new Map<string, number>(), settled = new Set<string>();
@@ -342,6 +350,175 @@ export function reconcileTerminalApiAttempt(value: unknown): TerminalApiRejectio
 /** Read-only evidence validation under the same ledger lock. Expired authority permits no new calls. */
 export function verifyTerminalApiAttempt(value: unknown): TerminalApiRejection { return terminalAttempt(value, false); }
 
+
+/** Accounting closure is not provider acknowledgment, usage, or permission to retry. */
+export const UNKNOWN_API_CLOSURE_LIMITS = Object.freeze({ authorityBytes: 32768, writerExitBytes: 65536,
+  evidenceBytes: 1048576, evidenceFiles: 8, receiptBytes: 65536, requestBytes: 3 * LIMIT });
+export type UnknownApiFilePin = Readonly<{ path: string; bytes: number; sha256: string }>;
+export type UnknownApiAccountingClosure = Readonly<{
+  protocol: "oh.memory-lab-api-unknown-accounting-closure.v1"; attemptId: string; requestSha256: string;
+  authority: UnknownApiFilePin; budgetSha256: string; requestCaptureSha256: string;
+  requestPolicySha256: string | null; writerExitSha256: string; stoppedEvidence: readonly UnknownApiFilePin[];
+  ledgerPrefixBefore: Readonly<{ bytes: number; sha256: string }>; retainedMicros: number;
+  providerOutcome: "unknown"; providerTerminalVerified: false; usage: null; invoiceVerified: false;
+  acceptedResult: false; retryAuthorized: false; chargeBasis: "full-reservation-retained-billing-unverified";
+  writerExitEvidenceBasis: "reviewed-supervisor-attestation";
+}>;
+const digestString = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{64}$/u.test(v);
+const attemptId = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(v);
+function boundedClosureText(v: unknown, maximum: number): v is string {
+  return typeof v === "string" && v.trim().length > 0 && Buffer.byteLength(v) <= maximum && !v.includes("\0") && !/\p{Surrogate}/u.test(v);
+}
+function closurePin(v: unknown, maximum: number): UnknownApiFilePin {
+  if (!isPlainRecord(v) || !hasExactKeys(v, ["path", "bytes", "sha256"]) || !integer(v.bytes) || v.bytes > maximum
+    || !digestString(v.sha256)) fail("bounded closure file pin required");
+  return { path: path(v.path), bytes: v.bytes, sha256: v.sha256 };
+}
+function closureBytes(p: string, maximum: number): Buffer {
+  if (realpathSync(p) !== p) fail("physical closure file required");
+  const fd = openSync(p, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const before = fstatSync(fd);
+    if (!before.isFile() || before.nlink !== 1 || before.size > maximum || before.uid !== process.getuid?.()
+      || (before.mode & 0o077) !== 0) fail("private owned bounded closure file required");
+    const raw = Buffer.alloc(before.size + 1); let offset = 0;
+    while (offset < raw.length) { const size = readSync(fd, raw, offset, raw.length - offset, offset); if (!size) break; offset += size; }
+    const after = fstatSync(fd), current = lstatSync(p);
+    const same = (a: typeof before, b: typeof before) => a.dev === b.dev && a.ino === b.ino && a.size === b.size
+      && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs && a.nlink === b.nlink && a.mode === b.mode;
+    if (offset !== before.size || !same(before, after) || !same(after, current) || current.isSymbolicLink()) fail("closure file changed while reading");
+    return raw.subarray(0, offset);
+  } finally { closeSync(fd); }
+}
+function closureReadPin(pin: UnknownApiFilePin): Buffer {
+  const raw = closureBytes(pin.path, pin.bytes);
+  if (raw.length !== pin.bytes || sha256Hex(raw) !== pin.sha256) fail("closure file pin changed");
+  return raw;
+}
+const closureDecode = (raw: Uint8Array) => new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw);
+function closurePathPresent(p: string): boolean {
+  // Even a dangling symlink is retained ownership state, never evidence of an
+  // idle ledger. Unexpected lookup failures also stay fail-closed.
+  try { lstatSync(p); return true; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return false; throw error; }
+}
+
+/** Pure opt-in policy parsing. Legacy requests have no policy capture. */
+export function parseApiRequestTimeoutPolicy(v: unknown): ApiRequestTimeoutPolicy {
+  if (!isPlainRecord(v) || !hasExactKeys(v, ["protocol", "attemptId", "requestSha256", "requestCaptureSha256", "timeoutMs", "admittedAtMs", "sessionDeadlineMs", "budgetSha256"])
+    || v.protocol !== "oh.memory-lab-api-request-policy.v1" || !attemptId(v.attemptId) || !digestString(v.requestSha256)
+    || !digestString(v.requestCaptureSha256) || v.timeoutMs !== EXTENDED_API_REQUEST_TIMEOUT_MS
+    || !integer(v.admittedAtMs) || !integer(v.sessionDeadlineMs) || v.admittedAtMs + v.timeoutMs > v.sessionDeadlineMs
+    || v.sessionDeadlineMs > v.admittedAtMs + 60 * 60 * 1000 || v.sessionDeadlineMs > RATES_EXPIRE
+    || !digestString(v.budgetSha256)) fail("invalid extended request timeout policy");
+  return Object.freeze({ protocol: v.protocol, attemptId: v.attemptId, requestSha256: v.requestSha256,
+    requestCaptureSha256: v.requestCaptureSha256, timeoutMs: v.timeoutMs, admittedAtMs: v.admittedAtMs,
+    sessionDeadlineMs: v.sessionDeadlineMs, budgetSha256: v.budgetSha256 });
+}
+function unknownClosureInputs(value: unknown) {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ["config", "authority"])) fail("exact unknown closure inputs required");
+  const config = parseApiConfig(value.config), authorityPin = closurePin(value.authority, UNKNOWN_API_CLOSURE_LIMITS.authorityBytes);
+  const pins: UnknownApiFilePin[] = [], read = (v: unknown, maximum: number) => {
+    const pin = closurePin(v, maximum), raw = closureReadPin(pin); pins.push(pin); return { pin, raw };
+  };
+  const a: unknown = JSON.parse(closureDecode(read(authorityPin, UNKNOWN_API_CLOSURE_LIMITS.authorityBytes).raw));
+  if (!isPlainRecord(a) || !hasExactKeys(a, ["protocol", "approved", "reviewId", "budget", "attemptId", "requestSha256", "reservationMicros", "ledgerPrefix", "requestCapture", "requestPolicy", "writerExit"])
+    || a.protocol !== "oh.memory-lab-api-unknown-closure-authority.v1" || a.approved !== true || !boundedClosureText(a.reviewId, 200)
+    || !attemptId(a.attemptId) || !digestString(a.requestSha256) || !integer(a.reservationMicros) || a.reservationMicros === 0
+    || !isPlainRecord(a.ledgerPrefix) || !hasExactKeys(a.ledgerPrefix, ["bytes", "sha256"])
+    || !integer(a.ledgerPrefix.bytes) || a.ledgerPrefix.bytes === 0 || a.ledgerPrefix.bytes > 16 * LIMIT
+    || !digestString(a.ledgerPrefix.sha256)) fail("explicit reviewed unknown closure authority required");
+  const budgetInput = read(a.budget, 8192), b = budget(JSON.parse(closureDecode(budgetInput.raw)));
+  if (budgetInput.pin.path !== config.budgetPath) fail("closure budget identity changed");
+  privateLedgerParent(b.ledgerPath);
+  const base = join(b.ledgerPath + ".attempts", a.attemptId), requestInput = read(a.requestCapture, UNKNOWN_API_CLOSURE_LIMITS.requestBytes);
+  if (requestInput.pin.path !== base + ".request.json") fail("closure request path changed");
+  const request = capturedRequest(closureDecode(requestInput.raw), config);
+  if (request.requestSha256 !== a.requestSha256 || request.reservationMicros !== a.reservationMicros) fail("closure request or reservation changed");
+  let policyPin: UnknownApiFilePin | null = null;
+  if (a.requestPolicy !== null) {
+    const selected = read(a.requestPolicy, 8192), policy = parseApiRequestTimeoutPolicy(JSON.parse(closureDecode(selected.raw)));
+    if (selected.pin.path !== base + ".request-policy.json" || policy.attemptId !== a.attemptId || policy.requestSha256 !== a.requestSha256
+      || policy.requestCaptureSha256 !== requestInput.pin.sha256 || policy.budgetSha256 !== budgetInput.pin.sha256
+      || policy.sessionDeadlineMs > Date.parse(b.expiresAt)) fail("closure timeout policy changed");
+    policyPin = selected.pin;
+  }
+  const writer = read(a.writerExit, UNKNOWN_API_CLOSURE_LIMITS.writerExitBytes), exit: unknown = JSON.parse(closureDecode(writer.raw));
+  if (!isPlainRecord(exit) || !hasExactKeys(exit, ["protocol", "evidenceBasis", "supervisor", "sessionId", "completionId", "exitCode", "osPid", "argv", "observedExitedAt", "attemptId", "requestSha256", "outcome", "runResumable", "stoppedEvidence"])
+    || exit.protocol !== "oh.memory-lab-api-writer-exit.v1" || exit.evidenceBasis !== "reviewed-supervisor-attestation"
+    || exit.supervisor !== "codex.exec" || !integer(exit.sessionId) || exit.sessionId === 0 || !boundedClosureText(exit.completionId, 128)
+    || !integer(exit.exitCode) || exit.exitCode > 255 || exit.osPid !== null || !Array.isArray(exit.argv) || exit.argv.length < 1 || exit.argv.length > 32
+    || exit.argv.some(arg => !boundedClosureText(arg, 4096)) || Buffer.byteLength(JSON.stringify(exit.argv)) > 16384
+    || typeof exit.observedExitedAt !== "string" || exit.observedExitedAt.length > 64 || !Number.isFinite(Date.parse(exit.observedExitedAt))
+    || exit.attemptId !== a.attemptId || exit.requestSha256 !== a.requestSha256 || exit.outcome !== "exited" || exit.runResumable !== false
+    || !Array.isArray(exit.stoppedEvidence) || exit.stoppedEvidence.length < 1 || exit.stoppedEvidence.length > UNKNOWN_API_CLOSURE_LIMITS.evidenceFiles) fail("reviewed supervisor exit evidence required");
+  const stoppedEvidence = exit.stoppedEvidence.map(p => read(p, UNKNOWN_API_CLOSURE_LIMITS.evidenceBytes).pin);
+  if (new Set(stoppedEvidence.map(p => p.path)).size !== stoppedEvidence.length) fail("duplicate stopped evidence");
+  const receipt: UnknownApiAccountingClosure = { protocol: "oh.memory-lab-api-unknown-accounting-closure.v1", attemptId: a.attemptId,
+    requestSha256: a.requestSha256, authority: authorityPin, budgetSha256: budgetInput.pin.sha256, requestCaptureSha256: requestInput.pin.sha256,
+    requestPolicySha256: policyPin?.sha256 ?? null, writerExitSha256: writer.pin.sha256, stoppedEvidence,
+    ledgerPrefixBefore: { bytes: a.ledgerPrefix.bytes, sha256: a.ledgerPrefix.sha256 }, retainedMicros: a.reservationMicros,
+    providerOutcome: "unknown", providerTerminalVerified: false, usage: null, invoiceVerified: false, acceptedResult: false,
+    retryAuthorized: false, chargeBasis: "full-reservation-retained-billing-unverified", writerExitEvidenceBasis: "reviewed-supervisor-attestation" };
+  const raw = JSON.stringify(receipt);
+  if (Buffer.byteLength(raw) > UNKNOWN_API_CLOSURE_LIMITS.receiptBytes) fail("unknown closure receipt bound");
+  return { config, b, base, pins, receipt, raw, receiptPath: base + ".unknown-accounting-closure.json", policyPin };
+}
+function unknownClosureEvidence(input: ReturnType<typeof unknownClosureInputs>) {
+  const { b, base, receipt, raw, receiptPath, policyPin } = input;
+  const allowed = new Set([base + ".request.json", receiptPath, ...(policyPin ? [base + ".request-policy.json"] : [])]);
+  const names = readdirSync(dirname(base)).filter(name => name.startsWith(receipt.attemptId + "."));
+  if (names.some(name => !allowed.has(join(dirname(base), name)))) fail("unknown closure conflicts with response, result or other capture");
+  const ledgerRaw = closureBytes(b.ledgerPath, API_BUDGET_LIMITS[b.protocol].ledgerBytes), events = parseLedger(closureDecode(ledgerRaw), b);
+  const retained = ledgerRaw.subarray(0, receipt.ledgerPrefixBefore.bytes);
+  if (retained.length !== receipt.ledgerPrefixBefore.bytes || sha256Hex(retained) !== receipt.ledgerPrefixBefore.sha256) fail("unknown closure ledger prefix changed");
+  const previous = parseLedger(closureDecode(retained), b), reserved = previous.at(-1), priorSettled = new Set(previous.filter(e => e.kind === "settled").map(e => e.id));
+  if (reserved?.kind !== "reserved" || reserved.id !== receipt.attemptId || reserved.micros !== receipt.retainedMicros
+    || previous.some(e => e.kind === "reserved" && e.id !== receipt.attemptId && !priorSettled.has(e.id))
+    || previous.filter(e => e.kind === "reserved").length > b.maxCalls) fail("unknown closure requires the sole final unresolved reservation");
+  const settlement: Event = { v: 1, id: receipt.attemptId, kind: "settled", micros: receipt.retainedMicros };
+  const expected = Buffer.from(JSON.stringify(settlement) + "\n"), settled = events.find(e => e.id === receipt.attemptId && e.kind === "settled");
+  if (settled) {
+    if (!ledgerRaw.subarray(retained.length, retained.length + expected.length).equals(expected)) fail("unknown closure settlement identity or position changed");
+  } else if (!ledgerRaw.equals(retained)) fail("unknown closure has unreviewed ledger growth");
+  const hasReceipt = existsSync(receiptPath);
+  if (hasReceipt && closureDecode(closureBytes(receiptPath, UNKNOWN_API_CLOSURE_LIMITS.receiptBytes)) !== raw) fail("unknown closure receipt changed");
+  if (settled && !hasReceipt) fail("unknown settlement lacks prior accounting closure evidence");
+  for (const pin of input.pins) closureReadPin(pin);
+  return { ledgerRaw, settlement, settled, hasReceipt };
+}
+/** Explicit offline accounting only. Never invokes a provider, accepts an answer,
+ * changes the stopped study, reduces exposure, or recovers a lock owner. */
+export function closeUnknownApiAttempt(value: unknown): UnknownApiAccountingClosure {
+  const input = unknownClosureInputs(value), lockPath = input.b.ledgerPath + ".lock";
+  if (closurePathPresent(input.b.ledgerPath + ".recovery.lock")) fail("unknown closure cannot compete with recovery");
+  const fd = openSync(lockPath, "wx", 0o600);
+  try {
+    writeSync(fd, JSON.stringify({ pid: process.pid, protocol: API_PROTOCOL, budgetSha256: input.receipt.budgetSha256 })); fsyncSync(fd); syncDirectory(dirname(lockPath));
+    if (closurePathPresent(input.b.ledgerPath + ".recovery.lock")) fail("unknown closure cannot compete with recovery");
+    const before = unknownClosureEvidence(input);
+    if (!before.hasReceipt) writeCapture(input.receiptPath, input.raw);
+    // A crash here retains the audit before the append. Repeating this explicit
+    // operation verifies the same authority and adds at most the missing event.
+    const checked = unknownClosureEvidence(input);
+    if (!checked.ledgerRaw.equals(before.ledgerRaw)) fail("unknown closure ledger changed while locked");
+    if (!checked.settled) appendLedger(input.b.ledgerPath, checked.settlement);
+    unknownClosureEvidence(input);
+    return input.receipt;
+  } finally { releaseOwnedLock(lockPath, fd); }
+}
+/** Truly read-only: no lock, receipt, ledger or provider writes. Stable snapshots
+ * and absence of both ownership locks are required; concurrent activity fails. */
+export function verifyUnknownApiAttempt(value: unknown): UnknownApiAccountingClosure {
+  const input = unknownClosureInputs(value), lockPaths = [input.b.ledgerPath + ".lock", input.b.ledgerPath + ".recovery.lock"];
+  if (lockPaths.some(closurePathPresent)) fail("unknown closure verification requires idle ownership");
+  const before = unknownClosureEvidence(input);
+  if (!before.settled || !before.hasReceipt) fail("unknown accounting closure incomplete");
+  const after = unknownClosureEvidence(input);
+  if (!before.ledgerRaw.equals(after.ledgerRaw) || lockPaths.some(closurePathPresent)) fail("unknown closure changed during verification");
+  return input.receipt;
+}
+
 export class ApiLabTransport {
   readonly concurrency = 1;
   readonly config: ApiConfig;
@@ -353,21 +530,24 @@ export class ApiLabTransport {
   readonly #now: () => number;
   readonly #deadline: number;
   readonly #runMaxCalls: number;
+  readonly #requestTimeoutMs: 600000 | undefined;
   #exposure: number;
   #campaignCalls: number;
   #busy = false;
   #closed = false;
   calls = 0;
   halted = false;
-  private constructor(config: ApiConfig, b: Budget, raw: string, fd: number, events: Event[], fetcher: typeof fetch, now: () => number, maxCalls: number) {
+  private constructor(config: ApiConfig, b: Budget, raw: string, fd: number, events: Event[], fetcher: typeof fetch, now: () => number, maxCalls: number, requestTimeoutMs?: 600000) {
     this.config = config; this.#budget = b; this.#runMaxCalls = maxCalls;
     this.#budgetSha = sha256Hex(raw); this.#lockPath = b.ledgerPath + ".lock"; this.#lockFd = fd;
     this.#exposure = ledgerExposure(events); this.#campaignCalls = events.filter(e => e.kind === "reserved").length;
     this.#fetch = fetcher; this.#now = now; this.#deadline = Math.min(Date.parse(b.expiresAt), now() + 60 * 60 * 1000);
+    this.#requestTimeoutMs = requestTimeoutMs;
   }
-  static async open(options: { config: unknown; maxCalls: number; fetcher?: typeof fetch; now?: () => number }) {
+  static async open(options: { config: unknown; maxCalls: number; fetcher?: typeof fetch; now?: () => number; requestTimeoutMs?: 600000 }) {
     const config = parseApiConfig(options.config), raw = file(config.budgetPath, 8192), b = budget(JSON.parse(raw));
     const now = options.now ?? Date.now;
+    if (options.requestTimeoutMs !== undefined && options.requestTimeoutMs !== EXTENDED_API_REQUEST_TIMEOUT_MS) fail("unsupported explicit request timeout");
     if (!integer(options.maxCalls) || options.maxCalls < 1 || options.maxCalls > API_BUDGET_LIMITS[b.protocol].maxCalls
       || now() >= Date.parse(b.expiresAt) || now() >= RATES_EXPIRE) fail("expired authority/rates or invalid call limit");
     privateLedgerParent(b.ledgerPath);
@@ -376,7 +556,7 @@ export class ApiLabTransport {
       writeSync(fd, JSON.stringify({ pid: process.pid, protocol: API_PROTOCOL, budgetSha256: sha256Hex(raw) })); fsyncSync(fd);
       const events = readLedger(b);
       if (events.filter(e => e.kind === "reserved").length !== events.filter(e => e.kind === "settled").length) fail("unresolved provider attempt; reconcile before continuing");
-      return new ApiLabTransport(config, b, raw, fd, events as Event[], options.fetcher ?? fetch, now, options.maxCalls);
+      return new ApiLabTransport(config, b, raw, fd, events as Event[], options.fetcher ?? fetch, now, options.maxCalls, options.requestTimeoutMs);
     } catch (error) { closeSync(fd); unlinkSync(b.ledgerPath + ".lock"); throw error; }
   }
   #append(event: Event) { appendLedger(this.#budget.ledgerPath, event); }
@@ -394,17 +574,28 @@ export class ApiLabTransport {
       const request = prepareApiRequest(b, messages);
       if (this.calls >= this.#runMaxCalls || this.#campaignCalls >= this.#budget.maxCalls
         || this.#exposure + request.reservationMicros > Math.floor(this.#budget.maxUsd * 1_000_000)) fail("campaign limit reached before dispatch");
+      const policyDeadline = Math.min(this.#deadline, RATES_EXPIRE), admittedAt = this.#requestTimeoutMs === undefined ? 0 : this.#now();
+      if (this.#requestTimeoutMs !== undefined && admittedAt + this.#requestTimeoutMs > policyDeadline) fail("full extended request timeout does not fit remaining authority");
       const id = randomUUID(), attempts = this.#budget.ledgerPath + ".attempts";
       mkdirSync(attempts, { recursive: true, mode: 0o700 });
       const capture = (suffix: string, content: string) => writeCapture(join(attempts, id + suffix), content);
       const requestRaw = JSON.stringify({ protocol: API_PROTOCOL, binding: b, requestSha256: request.requestSha256,
         endpoint: request.endpoint, body: JSON.parse(request.raw), reservationMicros: request.reservationMicros });
       capture(".request.json", requestRaw);
+      if (this.#requestTimeoutMs !== undefined) {
+        capture(".request-policy.json", JSON.stringify(parseApiRequestTimeoutPolicy({ protocol: "oh.memory-lab-api-request-policy.v1",
+          attemptId: id, requestSha256: request.requestSha256, requestCaptureSha256: sha256Hex(requestRaw),
+          timeoutMs: this.#requestTimeoutMs, admittedAtMs: admittedAt, sessionDeadlineMs: policyDeadline, budgetSha256: this.#budgetSha })));
+        if (this.#now() + this.#requestTimeoutMs > policyDeadline) fail("full extended request timeout expired before reservation");
+      }
       this.#append({ v: 1, id, kind: "reserved", micros: request.reservationMicros });
       this.#exposure += request.reservationMicros; this.#campaignCalls++; this.calls++;
+      // Durable writes can consume the remaining window. This second boundary
+      // never clips or dispatches late; its already-written reservation stays.
+      if (this.#requestTimeoutMs !== undefined && this.#now() + this.#requestTimeoutMs > policyDeadline) fail("full extended request timeout expired after reservation; reservation retained");
       const response = await this.#fetch(request.endpoint, { method: "POST", redirect: "error",
         headers: { "Content-Type": "application/json", ...(API_MODELS[b.model].provider === "gemini" ? { "x-goog-api-key": key } : { Authorization: `Bearer ${key}` }) },
-        body: request.raw, signal: AbortSignal.timeout(Math.min(120_000, Math.max(1, this.#deadline - this.#now()))) });
+        body: request.raw, signal: AbortSignal.timeout(this.#requestTimeoutMs ?? Math.min(120_000, Math.max(1, this.#deadline - this.#now()))) });
       const reader = response.body?.getReader(); if (!reader) fail("missing response body; reservation retained");
       const chunks: Uint8Array[] = []; let bytes = 0;
       try {

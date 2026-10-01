@@ -493,7 +493,16 @@
         "wallMinutesPerInvocation": 60,
         "terminalReceiptBytes": 8192,
         "deadLockProofBytes": 8192,
-        "maximumDeadLockProofsPerAttempt": 16
+        "maximumDeadLockProofsPerAttempt": 16,
+        "unknownClosureAuthorityBytes": 32768,
+        "unknownWriterExitBytes": 65536,
+        "unknownEvidenceBytesPerFile": 1048576,
+        "maximumUnknownEvidenceFiles": 8,
+        "unknownClosureReceiptBytes": 65536,
+        "unknownRequestCaptureBytes": 3145728,
+        "requestPolicyBytes": 8192,
+        "defaultRequestTimeoutMilliseconds": 120000,
+        "maximumOptInRequestTimeoutMilliseconds": 600000
       }
     },
     "benchmark:memory-lab-api-budget-v2": {
@@ -511,7 +520,16 @@
         "wallMinutesPerInvocation": 60,
         "terminalReceiptBytes": 8192,
         "deadLockProofBytes": 8192,
-        "maximumDeadLockProofsPerAttempt": 16
+        "maximumDeadLockProofsPerAttempt": 16,
+        "unknownClosureAuthorityBytes": 32768,
+        "unknownWriterExitBytes": 65536,
+        "unknownEvidenceBytesPerFile": 1048576,
+        "maximumUnknownEvidenceFiles": 8,
+        "unknownClosureReceiptBytes": 65536,
+        "unknownRequestCaptureBytes": 3145728,
+        "requestPolicyBytes": 8192,
+        "defaultRequestTimeoutMilliseconds": 120000,
+        "maximumOptInRequestTimeoutMilliseconds": 600000
       }
     },
     "benchmark:memory-lab-campaign-v2": {
