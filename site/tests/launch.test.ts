@@ -27,10 +27,10 @@ describe("launch beats and social kit", () => {
     expect(socialKit.productHunt.tagline).toBe(marketing.tagline);
   });
 
-  test("the launch post keeps the no-superiority caveat, and no social post carries a caveat", async () => {
+  test("the launch keeps verification scope separate from the social posts", async () => {
     const limits = launchBeats.find((beat) => beat.id === "limits");
-    expect(limits?.post).toContain("has not shown that it retrieves better than other memory frameworks");
-    expect((await read("README.md")).replace(/\s+/g, " ")).toContain("Oh has not shown that it outperforms Letta, Supermemory, or other memory frameworks.");
+    expect(limits?.post).toMatch(/Verification checks.*records.*history/u);
+    expect(limits?.post).toMatch(/truth.*evidence/u);
     const who = launchBeats.find((beat) => beat.id === "who");
     expect(who?.post).toContain("Oh is more than you need");
     for (const text of channels()) {

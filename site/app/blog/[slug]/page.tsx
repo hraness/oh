@@ -61,16 +61,17 @@ export default async function ArticlePage({ params }: Readonly<{ params: Params 
         <MarketingArticle
           after={
             <>
-              <ArticleSources sources={sources} />
+              <ArticleSources sources={sources} showDates={false} />
               {relatedProducts.length === 0 ? null : <ArticleRelatedProducts items={relatedProducts} />}
             </>
           }
           author={articleAuthor}
           dek={article.dek}
-          eyebrow={article.eyebrow}
           heading={article.title}
           provenance={articleProvenance(article)}
           published={article.published}
+          updated={article.updated}
+          showDates={false}
           toc={article.toc}
         >
           <Body />

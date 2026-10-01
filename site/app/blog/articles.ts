@@ -64,6 +64,7 @@ export type OhArticle = Readonly<{
    */
   card: Readonly<{ headline?: string; description: string }>;
   published: ArticleIsoDate;
+  updated: ArticleIsoDate;
   keywords: readonly string[];
   toc: readonly TocItem[];
   Body: ComponentType;
@@ -83,14 +84,15 @@ function admissionFor(slug: string): ArticleAdmission {
 export const articles: readonly OhArticle[] = [
   {
     slug: "longmemeval-s-user-log",
-    title: "Reading every user message beat retrieval alone on LongMemEval-S",
-    dek: "Giving GPT-5 mini every user message averaged 93.07% on the 500 LongMemEval-S questions it was tuned on, against 88.87% for Oh semantic retrieval.",
+    title: "When a conversation log can help memory retrieval",
+    dek: "A user log plus selected replies scored above retrieval alone in one study. Different budgets and tuned rules shape what that comparison establishes.",
     eyebrow: "Benchmark",
     card: {
-      headline: "User log beat retrieval",
-      description: "93.07% vs 88.87% for semantic retrieval with GPT-5 mini, on questions it was tuned on.",
+      headline: "A full user log plus retrieval",
+      description: "How context budgets, speaker roles, and held-out questions shape a memory evaluation.",
     },
     published: "2026-09-26",
+    updated: "2026-10-01",
     keywords: ["LongMemEval", "agent memory", "long-term memory", "retrieval", "BM25", "semantic search", "GPT-5 mini"],
     toc: longMemEvalUserLogToc,
     Body: LongMemEvalUserLogBody,
@@ -103,6 +105,7 @@ export const articles: readonly OhArticle[] = [
     eyebrow: "Announcement",
     card: { description: "Free, open-source memory for AI agents that shows where each fact came from." },
     published: "2026-09-24",
+    updated: "2026-10-01",
     keywords: ["Oh", "agent memory", "AI agent memory", "provenance", "open source", "TypeScript"],
     toc: introducingOhToc,
     Body: IntroducingOhBody,
@@ -110,14 +113,15 @@ export const articles: readonly OhArticle[] = [
   },
   {
     slug: "oh-rust-typescript-parity",
-    title: "Oh tests its Rust encoder byte for byte against TypeScript",
-    dek: "Oh tests its opt-in Rust encoder against the TypeScript reference on thousands of generated inputs, and checks that installed copies load it.",
+    title: "Keeping record fingerprints consistent across languages",
+    dek: "Canonical encoding, differential tests, and runtime fallbacks help separate a shared byte format from the evidence that a port follows it.",
     eyebrow: "Technique",
     card: {
-      headline: "Rust matches TypeScript",
-      description: "Documents, digests, and 20,000 numbers must match the TypeScript reference byte for byte.",
+      headline: "One record, one byte format",
+      description: "Test encoding rules, generator coverage, and fallback behavior across language boundaries.",
     },
     published: "2026-09-24",
+    updated: "2026-10-01",
     keywords: [
       "canonical JSON",
       "property-based testing",
@@ -134,12 +138,13 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "built-on-oh",
     title: "Built on Oh",
-    dek: "Sponge keeps its hosted agent’s working memory in Oh, and Wordcell uses Oh to answer graph questions about your Markdown notes.",
+    dek: "Sponge’s retained agent work and Wordcell’s Markdown graph show two ways to separate temporary memory, durable records, and derived views.",
     eyebrow: "Integration",
     card: {
-      description: "Sponge keeps agent memory in Oh. Wordcell uses it to answer graph questions about notes.",
+      description: "Temporary working notes and a disposable graph illustrate different ownership and retention rules.",
     },
     published: "2026-09-24",
+    updated: "2026-10-01",
     keywords: ["oh", "agent memory", "knowledge graphs", "sponge", "wordcell"],
     toc: builtOnOhToc,
     Body: BuiltOnOhBody,
@@ -216,6 +221,7 @@ export function articleDiscovery(article: OhArticle): ArticleDiscovery {
     isAccessibleForFree: true,
     keywords: article.keywords,
     publishedTime: isoTime(article.published),
+    modifiedTime: isoTime(article.updated),
     publisher: articleParty,
     section: article.eyebrow,
     title: article.title,

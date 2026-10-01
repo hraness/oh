@@ -57,6 +57,7 @@ export default function BlogIndex() {
         />
         <ArticleIndex
           heading="Blog"
+          showDates={false}
           headingId="blog-title"
           headingLevel={1}
           items={indexableArticles.map(articleIndexItem)}

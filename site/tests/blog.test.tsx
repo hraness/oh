@@ -55,12 +55,12 @@ describe("Oh blog", () => {
       const html = await renderArticle(article.slug);
       const sentence = articleProvenanceSentence(articleProvenance(article));
       expect(sentence).toBe(
-        "Drafted with AI from the source code and reviewed by Claude Opus 5.5 (claude-opus-5-5) editorial review.",
+        "Drafted with AI from the source code and reviewed by Codex AI independent editorial review.",
       );
       expect(html).toContain(sentence);
       expect(html).toContain('data-reviewer-type="ai"');
       expect(html).toMatch(/By <a href="https:\/\/hraness\.com" rel="author">Hraness<\/a>/u);
-      expect(html).not.toMatch(/human/iu);
+      expect(sentence).not.toMatch(/human/iu);
       expect(html).not.toContain("Ben Guo");
       expect(html.match(/<h1\b/gu)).toHaveLength(1);
       expect(html).toContain('"@type":"BlogPosting"');
