@@ -20,6 +20,13 @@ benchmark tables retain their measured values. Prose links use dotted underlines
 outside vendor files. Preserve saved appearance, no-JavaScript reading, keyboard
 focus, forced colors, reduced transparency, and benchmark accessibility checks.
 
+Stacked section headings stay in document flow. Sticky narrative copy requires
+an explicit split layout with its own column and a mobile reset; never apply
+sticky positioning to a section identifier independently of that layout. Check
+section geometry while scrolling and after changing mockup steps, not only at
+the top of the page. A higher z-index or opaque background does not repair
+overlapping content.
+
 Delivery requires site checks, production build and browser gate under the
 repository scheduler, CI, deployment and production verification. Source checks
 alone are not visual or production evidence.

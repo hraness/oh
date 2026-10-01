@@ -278,19 +278,6 @@ a:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-/* The trace section: the heading group stays at the top of its column and
- * follows the reader while the trace and record scroll past. */
-#trace[data-layout="split"] {
-  align-items: start;
-}
-
-@media (min-width: 48.01rem) {
-  #trace > .hraness-marketing-section__heading-group {
-    position: sticky;
-    inset-block-start: 5rem;
-  }
-}
-
 /* The specification retains its existing phone navigation behavior. */
 @media (max-width: 48rem) {
   .hraness-marketing-header__actions {
