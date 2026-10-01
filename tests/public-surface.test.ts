@@ -188,7 +188,7 @@ describe("public identity and documentation", () => {
     expect(readme.startsWith("# Oh\n")).toBe(true);
     expect(readme).toContain(tagline);
     expect(packageJson.name).toBe("@hraness/oh");
-    expect(packageJson.version).toBe("0.14.0");
+    expect(packageJson.version).toBe("0.14.1");
     expect(sitePackageJson.version).toBe(packageJson.version);
     expect(OH_PACKAGE_VERSION).toBe(packageJson.version);
     expect(publishedRelease).toEqual({

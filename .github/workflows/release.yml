@@ -290,17 +290,71 @@ jobs:
           ' "$RUNNER_TEMP/unsigned-metadata.json" > /dev/null
           gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$RUNNER_TEMP/unsigned.zip"
           python3 -I scripts/sign-macos-sidecars.py extract-artifact "$RUNNER_TEMP/unsigned.zip" "$ARTIFACT_DIGEST" "$VERIFIED_TAG" "$RUNNER_TEMP/unsigned-input"
-      - name: Sign and notarize without executing the payload
+      - name: Prepare signed helpers without submission or payload execution
         env:
           APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
           APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+        run: python3 -I scripts/sign-macos-sidecars.py prepare "$RUNNER_TEMP/unsigned-input/oh-sqlite-cli-${VERIFIED_TAG#v}-darwin-sidecars.unsigned.tar.gz" "$VERIFIED_TAG" "$GITHUB_WORKSPACE/signed-artifacts" "$RUNNER_TEMP/oh-sqlite-cli-apple-signing"
+      - name: Remove signing credentials on success, failure, or cancellation
+        id: clean
+        if: always()
+        run: python3 -I scripts/sign-macos-sidecars.py cleanup "$RUNNER_TEMP/oh-sqlite-cli-apple-signing"
+      - name: Export verified signed recovery after credential cleanup
+        id: recovery
+        if: always() && steps.clean.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3 -I scripts/sign-macos-sidecars.py export-recovery "$VERIFIED_TAG" "$RUNNER_TEMP/oh-sqlite-cli-apple-signing"
+          if [[ -d "$RUNNER_TEMP/oh-sqlite-cli-apple-recovery-export" ]]; then
+            printf 'present=true\n' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Retain signed bytes before the first Apple submission
+        id: prepared
+        if: success() && steps.recovery.outputs.present == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: oh-apple-signed-prepared-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/oh-sqlite-cli-apple-recovery-export/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Bind retained signed artifact before submission
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREPARED_ARTIFACT_ID: ${{ steps.prepared.outputs.artifact-id }}
+          PREPARED_ARTIFACT_DIGEST: ${{ steps.prepared.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          [[ "$PREPARED_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$PREPARED_ARTIFACT_DIGEST" =~ ^[0-9a-f]{64}$ ]] || exit 1
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$PREPARED_ARTIFACT_ID" > "$RUNNER_TEMP/prepared-signed-metadata.json"
+      - name: Notarize only the durably retained signed helpers
+        env:
+          PREPARED_ARTIFACT_ID: ${{ steps.prepared.outputs.artifact-id }}
+          PREPARED_ARTIFACT_DIGEST: ${{ steps.prepared.outputs.artifact-digest }}
           APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
           APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
           APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
-        run: python3 -I scripts/sign-macos-sidecars.py sign "$RUNNER_TEMP/unsigned-input/oh-sqlite-cli-${VERIFIED_TAG#v}-darwin-sidecars.unsigned.tar.gz" "$VERIFIED_TAG" "$GITHUB_WORKSPACE/signed-artifacts" "$RUNNER_TEMP/oh-sqlite-cli-apple-signing"
-      - name: Remove signing credentials on success, failure, or cancellation
+        run: python3 -I scripts/sign-macos-sidecars.py notarize "$VERIFIED_TAG" "$GITHUB_WORKSPACE/signed-artifacts" "$RUNNER_TEMP/oh-sqlite-cli-apple-signing" "$RUNNER_TEMP/prepared-signed-metadata.json"
+      - name: Remove Notary credentials on every outcome
+        id: notary_clean
         if: always()
         run: python3 -I scripts/sign-macos-sidecars.py cleanup "$RUNNER_TEMP/oh-sqlite-cli-apple-signing"
+      - name: Export retained signed bytes with the latest receipt
+        id: final_recovery
+        if: always() && steps.notary_clean.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3 -I scripts/sign-macos-sidecars.py export-recovery "$VERIFIED_TAG" "$RUNNER_TEMP/oh-sqlite-cli-apple-signing" --final
+          if [[ -d "$RUNNER_TEMP/oh-sqlite-cli-apple-recovery-export-final" ]]; then
+            printf 'present=true\n' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Preserve latest bound signed recovery on every outcome
+        if: always() && steps.final_recovery.outputs.present == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: oh-apple-signed-recovery-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/oh-sqlite-cli-apple-recovery-export-final/
+          if-no-files-found: error
+          retention-days: 30
       - name: Record final archive and individual helper hashes
         id: bytes
         run: |

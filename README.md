@@ -17,7 +17,7 @@ on [npm](https://www.npmjs.com/package/@hraness/oh), free and MIT licensed.
 
 ## CLI updates
 
-Oh 0.14.0 and newer support automatic updates for Bun and npm globals
+Oh 0.14.1 and newer support automatic updates for Bun and npm globals
 on macOS and Linux. Use `oh update disable` to keep a version. See
 [update controls and supported installations](docs/cli-updates.md).
 

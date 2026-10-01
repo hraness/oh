@@ -1,6 +1,6 @@
 # Update Oh
 
-Automatic updates require Oh 0.14.0 or newer. After that release is
+Automatic updates require Oh 0.14.1 or newer. After that release is
 published, upgrade an older installation once through its package manager.
 
 Supported Bun and npm global installations on macOS and Linux check for a

@@ -32,6 +32,8 @@ IDENTIFIER = "dev.hraness.oh.sqlite-cli"
 BINARY = "oh-sqlite-cli"
 ARCHITECTURES = {"arm64": 0x0100000C, "x64": 0x01000007}
 MAX_BYTES = 128 * 1024 * 1024
+MAX_RECOVERY_BYTES = MAX_BYTES
+MAX_RECOVERY_ARTIFACT_BYTES = MAX_RECOVERY_BYTES + 1024 * 1024
 UUID_PATTERN = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 SECRET_NAMES = (
     "APPLE_DEVELOPER_ID_P12_BASE64", "APPLE_DEVELOPER_ID_P12_PASSWORD",
@@ -64,7 +66,9 @@ def regular_file(path, maximum=MAX_BYTES):
     info = path.lstat()
     require(stat.S_ISREG(info.st_mode) and 0 < info.st_size <= maximum,
             "input must be one bounded regular file")
-    return path.read_bytes()
+    data = path.read_bytes()
+    require(0 < len(data) <= maximum, "input changed beyond byte bound")
+    return data
 
 
 def digest(data):
@@ -238,15 +242,255 @@ def diagnostic(path, receipt):
             temporary.unlink(missing_ok=True)
 
 
-def sign(archive, version, output, work):
+def release_identity(version):
+    source = os.environ.get("VERIFIED_SHA", "")
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "")
+    require(os.environ.get("GITHUB_REPOSITORY") == "hraness/oh"
+            and re.fullmatch(r"[0-9a-f]{40}", source)
+            and source == os.environ.get("GITHUB_SHA")
+            and os.environ.get("VERIFIED_TAG") == "v" + version_value(version)
+            and os.environ.get("GITHUB_REF") == "refs/tags/v" + version_value(version)
+            and re.fullmatch(r"[1-9][0-9]{0,19}", run_id)
+            and re.fullmatch(r"[1-9][0-9]{0,3}", attempt), "invalid signing release identity")
+    return {"repository": "hraness/oh", "sourceSha": source,
+            "runId": int(run_id), "runAttempt": int(attempt)}
+
+
+def recovery_directory(work):
+    checked_work(work)
+    return work.with_name("oh-sqlite-cli-apple-recovery")
+
+
+def sidecar_archive(path, binaries):
+    with tarfile.open(path, "w:gz", format=tarfile.USTAR_FORMAT) as bundle:
+        for arch, binary in binaries.items():
+            contents = regular_file(binary)
+            entry = tarfile.TarInfo(f"darwin-{arch}/{BINARY}")
+            entry.size = len(contents)
+            entry.mode = 0o755
+            bundle.addfile(entry, io.BytesIO(contents))
+    private_file(Path(str(path) + ".sha256"),
+                 (digest(regular_file(path)) + "  " + path.name + "\n").encode("ascii"))
+
+
+def retain_signed_recovery(version, binaries, submitted, receipt, work):
+    """Commit non-secret signed bytes before the first provider submission."""
+    destination = recovery_directory(work)
+    require(not destination.exists() and not destination.is_symlink(), "signed recovery already exists")
+    stage = work / "recovery-stage"
+    stage.mkdir(mode=0o700)
+    archive = stage / archive_name(version)
+    sidecar_archive(archive, binaries)
+    private_file(stage / "oh-sqlite-cli-notarization.zip", regular_file(submitted))
+    binding = {key: value for key, value in receipt.items()
+               if key not in ("submissionId", "state", "status")}
+    manifest = {"schemaVersion": 1, "role": "signed-recovery-only", "packageAdmitted": False,
+                **release_identity(version), "receiptBinding": binding,
+                "signedArchiveSha256": digest(regular_file(archive)),
+                "signedChecksumSha256": digest(regular_file(Path(str(archive) + ".sha256"), 256))}
+    private_file(stage / "oh-sqlite-cli-recovery.json",
+                 (json.dumps(manifest, sort_keys=True) + "\n").encode("utf8"))
+    os.replace(stage, destination)
+    return destination
+
+
+def recovery_json(data):
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            require(key not in result, "duplicate recovery JSON key")
+            result[key] = value
+        return result
+    value = json.loads(data, object_pairs_hook=unique)
+    require(type(value) is dict, "recovery JSON must be an object")
+    return value
+
+
+def export_recovery(version, work, final=False, verify_only=False):
+    """Export only verified signed bytes and an allowlisted receipt after cleanup."""
+    source = recovery_directory(work)
+    require(not work.exists() and not work.is_symlink(), "credentials must be cleaned before recovery export")
+    if not source.exists():
+        require(not source.is_symlink(), "unsafe recovery directory")
+        return False
+    require(source.is_dir() and not source.is_symlink(), "unsafe recovery directory")
+    name = archive_name(version)
+    names = {name, name + ".sha256", "oh-sqlite-cli-notarization.zip", "oh-sqlite-cli-recovery.json"}
+    require({path.name for path in source.iterdir()} == names, "unexpected recovery member")
+    files = {name: regular_file(source / name, 65536 if name.endswith(".json") else MAX_BYTES)
+             for name in names}
+    manifest = recovery_json(files["oh-sqlite-cli-recovery.json"])
+    require(set(manifest) == {"schemaVersion", "role", "packageAdmitted", "repository", "sourceSha", "runId", "runAttempt",
+                             "receiptBinding", "signedArchiveSha256", "signedChecksumSha256"}
+            and type(manifest["schemaVersion"]) is int and manifest["schemaVersion"] == 1
+            and manifest["role"] == "signed-recovery-only" and manifest["packageAdmitted"] is False,
+            "invalid recovery manifest")
+    for key, value in release_identity(version).items():
+        require(type(manifest[key]) is type(value) and manifest[key] == value, "recovery release identity changed")
+    require(digest(files[name]) == manifest["signedArchiveSha256"]
+            and digest(files[name + ".sha256"]) == manifest["signedChecksumSha256"],
+            "recovery archive bytes changed")
+    receipt_path = work.with_name("oh-sqlite-cli-apple-notarization.json")
+    receipt_bytes = regular_file(receipt_path, 65536)
+    require(sum(len(value) for value in files.values()) + len(receipt_bytes) <= MAX_RECOVERY_BYTES,
+            "recovery export exceeds byte bound")
+    receipt = recovery_json(receipt_bytes)
+    static_keys = {"schemaVersion", "version", "teamId", "identifier", "unsignedArchiveSha256",
+                   "signedBinarySha256", "submissionZipSha256"}
+    require(set(receipt) == static_keys | {"submissionId", "state", "status"}
+            and type(receipt["schemaVersion"]) is int and receipt["schemaVersion"] == 1
+            and receipt["version"] == version_value(version) and receipt["teamId"] == TEAM_ID
+            and receipt["identifier"] == IDENTIFIER
+            and {key: receipt[key] for key in static_keys} == manifest["receiptBinding"],
+            "recovery receipt binding changed")
+    hashes = receipt["signedBinarySha256"]
+    require(type(hashes) is dict and set(hashes) == set(ARCHITECTURES)
+            and all(type(value) is str and re.fullmatch(r"[0-9a-f]{64}", value) for value in hashes.values())
+            and type(receipt["unsignedArchiveSha256"]) is str
+            and re.fullmatch(r"[0-9a-f]{64}", receipt["unsignedArchiveSha256"])
+            and digest(files["oh-sqlite-cli-notarization.zip"]) == receipt["submissionZipSha256"],
+            "invalid recovery payload hashes")
+    require(receipt["state"] in ("prepared", "submission-started", "submitted", "wait-incomplete", "wait-complete", "verified")
+            and receipt["status"] in (None, "Accepted", "Invalid", "Rejected", "In Progress", "Unrecognized")
+            and (receipt["submissionId"] is None and receipt["state"] in ("prepared", "submission-started")
+                 or type(receipt["submissionId"]) is str and re.fullmatch(UUID_PATTERN, receipt["submissionId"]))
+            and (receipt["state"] != "verified" or receipt["status"] == "Accepted"),
+            "invalid recovery provider state")
+    destination = work.with_name("oh-sqlite-cli-apple-recovery-export" + ("-final" if final else ""))
+    with tempfile.TemporaryDirectory(prefix="oh-sqlite-cli-recovery-check-", dir=work.parent) as temporary:
+        temporary = Path(temporary)
+        binaries = unpack_native(source / name, version, temporary / "payload", unsigned=False)
+        verify_sidecars(temporary / "payload", hashes["arm64"], hashes["x64"])
+        with zipfile.ZipFile(io.BytesIO(files["oh-sqlite-cli-notarization.zip"])) as archive:
+            entries = archive.infolist()
+            expected = {f"darwin-{arch}/{BINARY}" for arch in ARCHITECTURES}
+            require(len(entries) == 2 and {entry.filename for entry in entries} == expected,
+                    "invalid recovery submission members")
+            for entry in entries:
+                require(not entry.is_dir() and not entry.flag_bits & 1
+                        and stat.S_IFMT(entry.external_attr >> 16) in (0, stat.S_IFREG)
+                        and 0 < entry.file_size <= MAX_BYTES, "unsafe recovery submission member")
+                with archive.open(entry) as payload:
+                    contents = payload.read(entry.file_size + 1)
+                arch = entry.filename.split("/")[0].removeprefix("darwin-")
+                require(len(contents) == entry.file_size and contents == regular_file(binaries[arch]),
+                        "recovery submission signed bytes changed")
+        verified = {**files, receipt_path.name: receipt_bytes}
+        if verify_only:
+            return verified
+        require(not destination.exists() and not destination.is_symlink(), "recovery export already exists")
+        exported = temporary / "export"
+        exported.mkdir(mode=0o700)
+        for filename, contents in verified.items():
+            private_file(exported / filename, contents)
+        os.replace(exported, destination)
+    return True
+
+
+def notary_checks(binaries, submitted, receipt, receipt_path, values, key):
+    authentication = ["--key", key, "--key-id", values["APPLE_NOTARY_KEY_ID"],
+                      "--issuer", values["APPLE_NOTARY_ISSUER_ID"], "--output-format", "json"]
+    submission = json.loads(run(["/usr/bin/xcrun", "notarytool", "submit", submitted,
+                                *authentication], timeout=180))
+    submission_id = str(submission.get("id", ""))
+    require(re.fullmatch(UUID_PATTERN, submission_id), "missing notarization submission ID")
+    receipt.update(submissionId=submission_id, state="submitted")
+    diagnostic(receipt_path, receipt)
+    print(f"Apple notarization submission {submission_id}; receipt oh-sqlite-cli-apple-notarization.json", flush=True)
+    try:
+        response = json.loads(run(["/usr/bin/xcrun", "notarytool", "wait", submission_id,
+                                  *authentication, "--timeout", "15m"], timeout=960))
+        require(response.get("id") == submission_id, "notarization result is for another submission")
+    except BaseException:
+        receipt["state"] = "wait-incomplete"
+        diagnostic(receipt_path, receipt)
+        raise
+    status = response.get("status")
+    receipt.update(state="wait-complete", status=status if status in (
+        "Accepted", "Invalid", "Rejected", "In Progress") else "Unrecognized")
+    diagnostic(receipt_path, receipt)
+    require(status == "Accepted", "Apple notarization was not Accepted")
+    for binary in binaries.values():
+        run(["/usr/bin/codesign", "--verify", "--strict", "--check-notarization",
+             "--test-requirement", "=" + apple_requirement(), binary], timeout=180)
+    receipt["state"] = "verified"
+    diagnostic(receipt_path, receipt)
+
+
+def promote_signed_output(version, output, recovery):
+    output.mkdir(mode=0o700)
+    final = output / archive_name(version)
+    private_file(final, regular_file(recovery / final.name))
+    private_file(Path(str(final) + ".sha256"), regular_file(recovery / (final.name + ".sha256"), 256))
+
+
+def notarize(version, output, work, metadata_path):
+    checked_work(work)
+    require(sys.platform == "darwin", "Apple notarization requires macOS")
+    require(not output.exists() and not output.is_symlink(), "final output directory already exists")
+    identity = release_identity(version)
+    require(identity["runAttempt"] == 1, "notarization cannot be rerun; reconcile the retained submission first")
+    artifact_id = os.environ.get("PREPARED_ARTIFACT_ID", "")
+    artifact_digest = os.environ.get("PREPARED_ARTIFACT_DIGEST", "")
+    require(re.fullmatch(r"[1-9][0-9]{0,19}", artifact_id)
+            and re.fullmatch(r"[0-9a-f]{64}", artifact_digest), "missing prepared artifact identity")
+    metadata = recovery_json(regular_file(metadata_path, 65536))
+    require(metadata.get("id") == int(artifact_id) and metadata.get("digest") == "sha256:" + artifact_digest
+            and metadata.get("name") == "oh-apple-signed-prepared-1" and metadata.get("expired") is False
+            and type(metadata.get("size_in_bytes")) is int and 0 < metadata["size_in_bytes"] <= MAX_RECOVERY_ARTIFACT_BYTES
+            and metadata.get("workflow_run", {}).get("id") == identity["runId"]
+            and metadata.get("workflow_run", {}).get("head_sha") == identity["sourceSha"],
+            "prepared artifact binding changed")
+    files = export_recovery(version, work, verify_only=True)
+    require(type(files) is dict, "signed recovery must be retained before submission")
+    exported = work.with_name("oh-sqlite-cli-apple-recovery-export")
+    require(exported.is_dir() and not exported.is_symlink()
+            and {path.name for path in exported.iterdir()} == set(files), "prepared export is unavailable")
+    for name, contents in files.items():
+        require(regular_file(exported / name) == contents, "prepared export bytes changed")
+    receipt_path = work.with_name("oh-sqlite-cli-apple-notarization.json")
+    receipt = recovery_json(files[receipt_path.name])
+    require(receipt["state"] == "prepared" and receipt["submissionId"] is None,
+            "submission already started; reconcile the retained receipt")
+    # Only Notary credentials enter this phase; reject a broadened environment.
+    require(not any(os.environ.get(name) for name in SECRET_NAMES[:2]), "Developer ID credentials reached notarization")
+    values = {name: os.environ.pop(name, "") for name in SECRET_NAMES[2:]}
+    require(all(values.values()) and re.fullmatch(r"[A-Z0-9]{10}", values["APPLE_NOTARY_KEY_ID"])
+            and re.fullmatch(UUID_PATTERN, values["APPLE_NOTARY_ISSUER_ID"]), "invalid Notary credentials")
+    work.mkdir(mode=0o700)
+    try:
+        binaries = unpack_native(exported / archive_name(version), version, work / "payload", unsigned=False)
+        submitted = work / "notarization.zip"
+        private_file(submitted, files["oh-sqlite-cli-notarization.zip"])
+        credentials = work / "credentials"
+        credentials.mkdir(mode=0o700)
+        key = credentials / "AuthKey.p8"
+        private_file(key, base64.b64decode(values["APPLE_NOTARY_KEY_P8_BASE64"], validate=True))
+        receipt["state"] = "submission-started"
+        diagnostic(receipt_path, receipt)
+        notary_checks(binaries, submitted, receipt, receipt_path, values, key)
+    finally:
+        values.clear()
+        cleanup(work)
+    promote_signed_output(version, output, recovery_directory(work))
+    print(f"Signed helpers notarized for {version_value(version)}")
+
+
+def sign(archive, version, output, work, prepare_only=False):
     requirement = apple_requirement()
     checked_work(work)
     require(sys.platform == "darwin", "Developer ID signing requires macOS")
     require(not output.exists(), "final output directory already exists")
+    release_identity(version)
+    require(os.environ["GITHUB_RUN_ATTEMPT"] == "1",
+            "signing cannot be rerun; reconcile the retained submission first")
     values = {name: os.environ.pop(name, "") for name in SECRET_NAMES}
-    require(all(values.values()), "Apple signing credentials are incomplete")
-    require(re.fullmatch(r"[A-Z0-9]{10}", values["APPLE_NOTARY_KEY_ID"]), "invalid notary key ID")
-    require(re.fullmatch(UUID_PATTERN, values["APPLE_NOTARY_ISSUER_ID"]), "invalid notary issuer ID")
+    require(all(values[name] for name in (SECRET_NAMES[:2] if prepare_only else SECRET_NAMES)),
+            "Apple signing credentials are incomplete")
+    if not prepare_only:
+        require(re.fullmatch(r"[A-Z0-9]{10}", values["APPLE_NOTARY_KEY_ID"]), "invalid notary key ID")
+        require(re.fullmatch(UUID_PATTERN, values["APPLE_NOTARY_ISSUER_ID"]), "invalid notary issuer ID")
     receipt_path = work.with_name("oh-sqlite-cli-apple-notarization.json")
     require(not receipt_path.exists() and not receipt_path.is_symlink(), "notarization diagnostic already exists")
     work.mkdir(mode=0o700)
@@ -258,7 +502,8 @@ def sign(archive, version, output, work):
         p12 = credentials / "identity.p12"
         key = credentials / "AuthKey.p8"
         private_file(p12, base64.b64decode(values["APPLE_DEVELOPER_ID_P12_BASE64"], validate=True))
-        private_file(key, base64.b64decode(values["APPLE_NOTARY_KEY_P8_BASE64"], validate=True))
+        if not prepare_only:
+            private_file(key, base64.b64decode(values["APPLE_NOTARY_KEY_P8_BASE64"], validate=True))
         password = secrets.token_hex(32)
         try:
             run(["/usr/bin/security", "create-keychain", "-p", password, keychain])
@@ -289,62 +534,26 @@ def sign(archive, version, output, work):
                     bundle.write(binary, f"darwin-{arch}/{BINARY}")
             receipt = {
                 "schemaVersion": 1, "version": version_value(version), "teamId": TEAM_ID,
-                "identifier": IDENTIFIER, "submissionId": None, "state": "submission-started",
+                "identifier": IDENTIFIER, "submissionId": None,
+                "state": "prepared" if prepare_only else "submission-started",
                 "status": None, "unsignedArchiveSha256": digest(archive.read_bytes()),
                 "signedBinarySha256": {arch: digest(binary.read_bytes()) for arch, binary in binaries.items()},
                 "submissionZipSha256": digest(submitted.read_bytes()),
             }
             diagnostic(receipt_path, receipt)
-            authentication = ["--key", key, "--key-id", values["APPLE_NOTARY_KEY_ID"],
-                              "--issuer", values["APPLE_NOTARY_ISSUER_ID"], "--output-format", "json"]
-            # Separate upload and wait so a first-time Apple review can time
-            # out without losing the UUID. Never automatically resubmit.
-            submission = json.loads(run(["/usr/bin/xcrun", "notarytool", "submit", submitted,
-                                        *authentication], timeout=180))
-            submission_id = str(submission.get("id", ""))
-            require(re.fullmatch(UUID_PATTERN, submission_id), "missing notarization submission ID")
-            receipt.update(submissionId=submission_id, state="submitted")
-            diagnostic(receipt_path, receipt)
-            print(f"Apple notarization submission {submission_id}; receipt oh-sqlite-cli-apple-notarization.json", flush=True)
-            try:
-                response = json.loads(run(["/usr/bin/xcrun", "notarytool", "wait", submission_id,
-                                          *authentication, "--timeout", "15m"], timeout=960))
-                require(response.get("id") == submission_id, "notarization result is for another submission")
-            except BaseException:
-                receipt["state"] = "wait-incomplete"
-                diagnostic(receipt_path, receipt)
-                raise
-            # Do not copy arbitrary service response strings or logs into the
-            # receipt. Only these public status values are retained.
-            status = response.get("status")
-            receipt.update(state="wait-complete", status=status if status in (
-                "Accepted", "Invalid", "Rejected", "In Progress") else "Unrecognized")
-            diagnostic(receipt_path, receipt)
-            require(status == "Accepted", "Apple notarization was not Accepted")
-            # Raw CLI tarballs cannot carry stapled tickets. Apple's online
-            # notarization check must recognize the signed executable itself.
-            for binary in binaries.values():
-                run(["/usr/bin/codesign", "--verify", "--strict", "--check-notarization",
-                     "--test-requirement", "=" + requirement, binary], timeout=180)
-            receipt["state"] = "verified"
-            diagnostic(receipt_path, receipt)
+            recovery = retain_signed_recovery(version, binaries, submitted, receipt, work)
+            if prepare_only:
+                print(f"Signed recovery prepared for {version_value(version)}; no submission", flush=True)
+                return
+            notary_checks(binaries, submitted, receipt, receipt_path, values, key)
         finally:
             values.clear()
             password = ""
             cleanup_credentials(work)
-        # Credential removal precedes final packaging and the later workflow
-        # smoke step. Neither packaging nor signing executes the payload.
-        output.mkdir(mode=0o700)
-        final = output / archive_name(version)
-        with tarfile.open(final, "w:gz", format=tarfile.USTAR_FORMAT) as bundle:
-            for arch, binary in binaries.items():
-                entry = tarfile.TarInfo(f"darwin-{arch}/{BINARY}")
-                entry.size = binary.stat().st_size
-                entry.mode = 0o755
-                with binary.open("rb") as payload:
-                    bundle.addfile(entry, payload)
-        Path(str(final) + ".sha256").write_text(digest(final.read_bytes()) + "  " + final.name + "\n", encoding="ascii")
-        print(f"Signed and notarized {final.name}; submission {response['id']}")
+        # Promote the exact retained archive only after credentials are gone
+        # and both helpers passed notarization checks. Never rebuild these bytes.
+        promote_signed_output(version, output, recovery)
+        print(f"Signed and notarized {archive_name(version)}; submission {receipt['submissionId']}")
     finally:
         cleanup(work)
 
@@ -372,8 +581,22 @@ def main():
     signing.add_argument("version", type=version_value)
     signing.add_argument("output", type=Path)
     signing.add_argument("work", type=Path)
+    prepare = commands.add_parser("prepare")
+    prepare.add_argument("archive", type=Path)
+    prepare.add_argument("version", type=version_value)
+    prepare.add_argument("output", type=Path)
+    prepare.add_argument("work", type=Path)
+    notarizing = commands.add_parser("notarize")
+    notarizing.add_argument("version", type=version_value)
+    notarizing.add_argument("output", type=Path)
+    notarizing.add_argument("work", type=Path)
+    notarizing.add_argument("metadata", type=Path)
     cleaning = commands.add_parser("cleanup")
     cleaning.add_argument("work", type=Path)
+    recovery = commands.add_parser("export-recovery")
+    recovery.add_argument("version", type=version_value)
+    recovery.add_argument("work", type=Path)
+    recovery.add_argument("--final", action="store_true")
     args = parser.parse_args()
     # GitHub cancellation sends TERM before KILL; unwind finally blocks while
     # possible. The workflow also has a separate always() cleanup step.
@@ -388,6 +611,12 @@ def main():
             verify_sidecars(args.directory, args.arm64, args.x64)
         elif args.command == "sign":
             sign(args.archive, args.version, args.output, args.work)
+        elif args.command == "prepare":
+            sign(args.archive, args.version, args.output, args.work, prepare_only=True)
+        elif args.command == "notarize":
+            notarize(args.version, args.output, args.work, args.metadata)
+        elif args.command == "export-recovery":
+            print("Signed recovery exported" if export_recovery(args.version, args.work, final=args.final) else "No signed recovery available")
         else:
             cleanup(args.work)
     except Exception as error:
