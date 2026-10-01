@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sha256Hex } from "../src/canonical";
 import { CAMPAIGN_V3, sha, parseConfig, planArms, readerInputUpperBound, type CampaignConfig, type Observation, type Plan, type Task } from "../scripts/benchmarks/memory-lab/campaign-contract-v3";
-import { advance, createPlan, getRun, initialize, propose, readState, reviewPlan, saveAssessment, sourcePins, transaction } from "../scripts/benchmarks/memory-lab/campaign-store-v3";
+import { advance, closeStoppedRun, createPlan, getRun, initialize, propose, readState, reviewPlan, saveAssessment, sourcePins, transaction } from "../scripts/benchmarks/memory-lab/campaign-store-v3";
 import { assessRun, executeRun, recoverAbandonedExecution } from "../scripts/benchmarks/memory-lab/campaign-execute-v3";
 import { confirmationAlpha, evaluate, signPValue } from "../scripts/benchmarks/memory-lab/campaign-evaluate-v3";
 
@@ -12,7 +12,7 @@ import { composeOhAuthorLogContextV1 } from "../scripts/benchmarks/oh-author-log
 import { projectOhEvidenceTurnsV1 } from "../scripts/benchmarks/oh-evidence-context";
 import { verifyContexts } from "../scripts/benchmarks/memory-lab/campaign-context-v3";
 import { parseTaskInput } from "../scripts/benchmarks/memory-lab/campaign-contract-v3";
-import { prepareApiRequest } from "../scripts/benchmarks/memory-lab/api-transport";
+import { prepareApiRequest, reconcileTerminalApiAttempt } from "../scripts/benchmarks/memory-lab/api-transport";
 import { evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 
 const dirs: string[] = [], oldKey = process.env.VERTEX_API_KEY, oldXai = process.env.XAI_API_KEY;
@@ -88,6 +88,68 @@ function mockProvider(calls: string[] = [], badJudge = false): typeof fetch {
       usage: { input_tokens: 20, output_tokens: 5, total_tokens: 25, output_tokens_details: { reasoning_tokens: 0 }, num_server_side_tools_used: 0, num_sources_used: 0 } });
   }, { preconnect: fetch.preconnect });
 }
+
+test("terminal closeout replays completed cells, retains full denominator and permanently blocks resume/promotion", async () => {
+  const s = setup(); qualify(s.root); proposal(s.root, "level1"); reviewed(s.root, spec("stopped", "screen", "level1"));
+  const ordinary = mockProvider(); let calls = 0;
+  const provider: typeof fetch = Object.assign(async (url: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    calls++;
+    const response = await ordinary(url, init);
+    if (calls !== 5) return response; // Three calls complete one cell, then the next cell's judge is rejected.
+    const value = await response.json() as any;
+    value.usage.output_tokens = 2050; value.usage.total_tokens = value.usage.input_tokens + 2050;
+    return Response.json(value);
+  }, { preconnect: fetch.preconnect });
+  await expect(executeRun(s.root, "stopped", { fetcher: provider, now })).rejects.toThrow("terminal output-bound");
+  expect(calls).toBe(5);
+  const before = readFileSync(s.ledger, "utf8"), champion = readState(s.root).champion;
+  // Model a process death before the final settlement with both native locks
+  // retained. The owner PID is from an actual exited and reaped child.
+  const rows = before.trim().split("\n").map(line => JSON.parse(line)), last = rows.at(-1)!;
+  writeFileSync(s.ledger, rows.slice(0, -1).map(row => JSON.stringify(row) + "\n").join(""));
+  const child = Bun.spawn([process.execPath, "-e", "process.exit(0)"], { stdout: "ignore", stderr: "ignore" }); await child.exited;
+  const run = getRun(readState(s.root), "stopped");
+  writeFileSync(join(s.root, "execution.lock"), JSON.stringify({ pid: child.pid, run: "stopped", planSha256: run.planSha256 }));
+  writeFileSync(s.ledger + ".lock", JSON.stringify({ pid: child.pid, protocol: "oh.memory-lab-api.v1", budgetSha256: s.config.budget.sha256 }));
+  expect(() => recoverAbandonedExecution(s.root)).toThrow("unknown provider outcomes");
+  const native = JSON.parse(readFileSync(join(s.ledger + ".attempts", last.id + ".request.json"), "utf8"));
+  reconcileTerminalApiAttempt({ config: s.config.api, attemptId: last.id, expectedRequestSha256: native.requestSha256, recoverDeadOwner: true });
+  expect(existsSync(join(s.root, "execution.lock"))).toBeTrue();
+  expect(recoverAbandonedExecution(s.root)).toMatchObject({ recoveredRun: "stopped", effectsReplayed: 0, ledgerModified: false });
+  expect(readFileSync(s.ledger, "utf8")).toBe(before);
+  await expect(assessRun(s.root, "stopped")).rejects.toThrow("terminal output-bound");
+  const assessment = await closeStoppedRun(s.root, "stopped");
+  expect(assessment).toMatchObject({ status: "INCOMPLETE", planned: 12, complete: 1, wouldPass: false });
+  expect(readState(s.root).champion).toEqual(champion);
+  expect(getRun(readState(s.root), "stopped").advanced).toBeFalse();
+  expect(() => advance(s.root, "stopped")).toThrow("incomplete evidence");
+  const committed = readFileSync(join(s.root, "campaign.json"), "utf8");
+  expect(await closeStoppedRun(s.root, "stopped")).toEqual(assessment);
+  expect(readFileSync(join(s.root, "campaign.json"), "utf8")).toBe(committed);
+  await expect(executeRun(s.root, "stopped", { fetcher: provider, now })).rejects.toThrow("stopped run cannot dispatch");
+  expect(calls).toBe(5); expect(readFileSync(s.ledger, "utf8")).toBe(before);
+  const later = reviewed(s.root, spec("later-controls", "controls"));
+  await executeRun(s.root, later.id, { fetcher: ordinary, now });
+  const grownLedger = readFileSync(s.ledger, "utf8"); expect(grownLedger.startsWith(before)).toBeTrue();
+  expect(await closeStoppedRun(s.root, "stopped")).toEqual(assessment);
+  expect(readFileSync(s.ledger, "utf8")).toBe(grownLedger);
+  const dir = join(s.root, "runs", "stopped"), cell = readdirSync(dir).find(name => name.endsWith(".cell.json"))!;
+  const raw = readFileSync(join(dir, cell), "utf8"), tampered = JSON.parse(raw); tampered.score = 0.99;
+  writeFileSync(join(dir, cell), JSON.stringify(tampered));
+  await expect(closeStoppedRun(s.root, "stopped")).rejects.toThrow("saved cell differs");
+  writeFileSync(join(dir, cell), raw);
+  writeFileSync(join(dir, "9999-unverified.cell.json"), raw);
+  await expect(closeStoppedRun(s.root, "stopped")).rejects.toThrow("unverified cells");
+}, 30000);
+
+test("an unknown network outcome cannot close a stopped run or receive a fabricated assessment", async () => {
+  const s = setup(); reviewed(s.root, spec("unknown", "controls"));
+  const provider: typeof fetch = Object.assign(async () => { throw new Error("synthetic uncertain network"); }, { preconnect: fetch.preconnect });
+  await expect(executeRun(s.root, "unknown", { fetcher: provider, now })).rejects.toThrow("uncertain network");
+  await expect(closeStoppedRun(s.root, "unknown")).rejects.toThrow("unknown or rejected");
+  expect(getRun(readState(s.root), "unknown").assessment).toBeNull();
+  expect(existsSync(join(s.root, "runs", "unknown", "stopped.json"))).toBeFalse();
+});
 
 test("pure evaluator retains planned failures, exact thresholds and cluster denominator", () => {
   const s = setup(); qualify(s.root); proposal(s.root, "level1"); const p = reviewed(s.root, spec("screen1", "screen", "level1"));

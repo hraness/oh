@@ -487,9 +487,12 @@
         "maximumPhysicalCallsPerCampaign": 1000,
         "exposureMicrosPerCampaign": 100000000,
         "responseBytesPerCall": 1048576,
-        "captureBytesPerCall": 3145728,
+        "captureBytesPerCall": 8388608,
         "ledgerBytes": 16777216,
-        "wallMinutesPerInvocation": 60
+        "wallMinutesPerInvocation": 60,
+        "terminalReceiptBytes": 8192,
+        "deadLockProofBytes": 8192,
+        "maximumDeadLockProofsPerAttempt": 16
       }
     },
     "benchmark:memory-lab-campaign-v2": {

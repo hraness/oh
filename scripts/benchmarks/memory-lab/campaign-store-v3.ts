@@ -168,6 +168,34 @@ export async function saveVerifiedAssessment(root: string, id: string): Promise<
   }
   return recordAssessment(root, id, readObservations(root, id));
 }
+/** Distinct offline terminal closeout. Accepted stages are replayed in order;
+ * rejected output is never scored and the complete planned denominator remains. */
+export async function closeStoppedRun(root: string, id: string): Promise<Assessment> {
+  const { executeRun } = await import("./campaign-execute-v3");
+  const replay = await executeRun(root, id, { replayOnly: true, stopOnTerminalRejection: true });
+  need(!replay.completed, "terminal rejected response required; ordinary runs use assess");
+  const state = readState(root), run = getRun(state, id);
+  need(!run.advanced && (!run.assessment || run.assessment.status === "INCOMPLETE"), "settled run cannot be closed as stopped");
+  const assessment = evaluate(run.plan, replay.observations, state.config.aaMaximumMeanAbsoluteDelta);
+  need(assessment.status === "INCOMPLETE" && !assessment.wouldPass, "stopped run must retain incomplete full denominator");
+  const stopped = { protocol: "oh.memory-lab-stopped-run.v1", planSha256: run.planSha256,
+    executionKey: run.plan.executionKey, observationsSha256: sha(replay.observations), assessmentSha256: sha(assessment),
+    terminalRejection: replay.rejection, advanced: false, providerCalls: 0 };
+  const path = join(root, "runs", id, "stopped.json");
+  if (existsSync(path)) {
+    need(sha(JSON.parse(readBounded(path))) === sha(stopped), "stopped evidence changed");
+    if (run.assessment) { need(sha(run.assessment) === sha(assessment), "stopped assessment changed"); return assessment; }
+  }
+  return transaction(root, latest => {
+    verifyConfigPins(latest.config); const current = getRun(latest, id);
+    need(current.planSha256 === run.planSha256 && !current.advanced
+      && (!current.assessment || sha(current.assessment) === sha(assessment)), "stopped run changed during closeout");
+    if (!existsSync(path)) durableCreate(path, stopped);
+    else need(sha(JSON.parse(readBounded(path))) === sha(stopped), "stopped evidence changed during closeout");
+    current.assessment = assessment;
+    return assessment;
+  });
+}
 export function advance(root: string, id: string) { return transaction(root, state => {
   const run = getRun(state, id); need(run.review?.planSha256 === run.planSha256 && run.assessment?.planSha256 === run.planSha256, "reviewed assessment required");
   if (run.advanced) return { status: "already-advanced", champion: state.champion };

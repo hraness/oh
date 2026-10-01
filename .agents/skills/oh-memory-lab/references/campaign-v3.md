@@ -79,3 +79,45 @@ withdraws the previous A/A qualification. Screening, new provider dispatches and
 promotion require the latest controls and subsequent A/A to have passed and
 advanced. Leaving a failed or incomplete requalification unadvanced cannot keep
 the old permission active. Historical captured evidence remains replayable.
+
+## Close a terminal output overrun
+
+A complete provider response can exceed the requested output-token bound while
+its verified token cost still fits the reserved amount. The transport keeps that
+response in a separate `oh.memory-lab-api-terminal-rejection.v1` receipt, charges
+the full reservation conservatively, and halts. It creates no accepted result or
+score. Model identity, token accounting, response shape and reservation checks
+remain required; uncertain outcomes remain unresolved.
+
+For a campaign frozen with this source version, run:
+
+```sh
+bun scripts/benchmarks/memory-lab/campaign-v3.ts close-stopped /private/campaign RUN_ID
+```
+
+This offline command replays every completed cell from native captures, verifies
+the terminal rejection and saves an `INCOMPLETE` assessment with the entire
+planned denominator. It retains a separate `stopped.json`, leaves the champion
+and advancement unchanged, and prevents further dispatch for that run. Repeating
+it verifies the same evidence without changing the saved assessment.
+
+If a crash occurred before settlement, use `reconcileTerminalApiAttempt` from
+`api-transport.ts` with the exact config, attempt ID and expected request digest.
+It uses the existing ledger lock, verifies captured request/response bytes and
+the reservation, writes the rejection receipt before settlement, and appends at
+most one full-reservation settlement. It needs no credential or provider access;
+matching existing settlement is preserved. Conflicting evidence and live lock
+ownership fail. Accounting is a conservative bound, not a provider billing
+attestation. This path handles verified output overruns only.
+
+When an actual crash retained the native lock, explicit `recoverDeadOwner: true`
+first verifies the exact lock authority, proves its process absent and checks all
+terminal evidence. It serializes lock transfer, preserves the old lock bytes and
+requires this target to be unresolved, with no other unresolved attempts. After settlement, the existing `recover-locks`
+command can release the dead campaign owner. An existing recovery mutex remains
+untouched and requires separate custody review; ambiguous ownership never grants
+permission to dispatch. Later ledger appends do not invalidate this run's exact
+terminal-attempt binding.
+
+Keep previous frozen execution trees and external stopped-run decisions intact.
+A newer source version does not authorize repinning or resuming an old trial.

@@ -3,7 +3,8 @@ import fc from "fast-check";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ApiLabTransport, parseApiConfig, parseApiReply, prepareApiRequest, type ApiBinding } from "../scripts/benchmarks/memory-lab/api-transport";
+import { sha256Hex } from "../src/canonical";
+import { ApiLabTransport, parseApiConfig, parseApiReply, prepareApiRequest, reconcileTerminalApiAttempt, verifyTerminalApiAttempt, TerminalApiResponseError, type ApiBinding } from "../scripts/benchmarks/memory-lab/api-transport";
 
 const reader: ApiBinding = { id: "gemini-reader", model: "gemini-3.8-flash", keyEnv: "VERTEX_API_KEY", maximumOutput: 4096 };
 const judge: ApiBinding = { id: "grok-judge", model: "grok-4.7", keyEnv: "XAI_API_KEY", maximumOutput: 2048 };
@@ -37,6 +38,130 @@ function grok() {
 }
 const goodFetch: typeof fetch = Object.assign(async (url: Parameters<typeof fetch>[0]) =>
   Response.json(String(url).includes("googleapis") ? gemini() : grok()), { preconnect: fetch.preconnect });
+
+async function rejectedOutput(selected = judge) {
+  const s = setup(), output = selected.maximumOutput + 2;
+  const value = selected.model === "grok-4.7" ? { ...grok(), usage: { ...grok().usage, output_tokens: output,
+    total_tokens: 10 + output, output_tokens_details: { reasoning_tokens: 0 } } } : gemini("STOP", output - 3);
+  let calls = 0;
+  const fetcher: typeof fetch = Object.assign(async () => { calls++; return Response.json(value); }, { preconnect: fetch.preconnect });
+  const transport = await ApiLabTransport.open({ config: s.config, maxCalls: 2, fetcher, now });
+  try {
+    await expect(transport.invoke(selected.id, messages)).rejects.toBeInstanceOf(TerminalApiResponseError);
+    await expect(transport.invoke(selected.id, messages)).rejects.toThrow("halted");
+  } finally { transport.close(); }
+  expect(calls).toBe(1);
+  const rows = readFileSync(s.ledgerPath, "utf8").trim().split("\n").map(line => JSON.parse(line));
+  const id = rows[0].id as string, prefix = join(s.ledgerPath + ".attempts", id);
+  return { ...s, rows, prefix, value, options: { config: s.config, attemptId: id, expectedRequestSha256: prepareApiRequest(selected, messages).requestSha256 } };
+}
+
+test("both providers retain an over-bound response only as a terminal rejection, never a result", async () => {
+  for (const selected of [judge, reader]) {
+    const s = await rejectedOutput(selected), receipt = verifyTerminalApiAttempt(s.options);
+    expect(s.rows).toHaveLength(2); expect(s.rows[1].micros).toBe(s.rows[0].micros);
+    expect(receipt).toMatchObject({ reason: "output-bound-exceeded", maximumOutput: selected.maximumOutput,
+      observedOutputTokens: selected.maximumOutput + 2, retainedMicros: s.rows[0].micros });
+    expect(existsSync(s.prefix + ".result.json")).toBeFalse();
+    expect(() => parseApiReply(s.value, prepareApiRequest(selected, messages))).toThrow("usage");
+    const before = readFileSync(s.ledgerPath, "utf8");
+    expect(reconcileTerminalApiAttempt(s.options)).toEqual(receipt);
+    expect(readFileSync(s.ledgerPath, "utf8")).toBe(before);
+  }
+});
+
+test("offline reconciliation recovers before and after receipt creation exactly once without credentials", async () => {
+  for (const receiptAlreadyWritten of [false, true]) {
+    const s = await rejectedOutput(), settled = readFileSync(s.ledgerPath, "utf8");
+    writeFileSync(s.ledgerPath, JSON.stringify(s.rows[0]) + "\n");
+    if (!receiptAlreadyWritten) rmSync(s.prefix + ".terminal-rejection.json");
+    delete process.env.XAI_API_KEY; delete process.env.VERTEX_API_KEY;
+    expect(() => verifyTerminalApiAttempt(s.options)).toThrow();
+    const result = reconcileTerminalApiAttempt(s.options);
+    expect(result.retainedMicros).toBe(s.rows[0].micros);
+    expect(readFileSync(s.ledgerPath, "utf8")).toBe(settled);
+    reconcileTerminalApiAttempt(s.options);
+    expect(readFileSync(s.ledgerPath, "utf8")).toBe(settled);
+    expect(existsSync(s.prefix + ".result.json")).toBeFalse();
+  }
+});
+
+test("terminal reconciliation rejects changed identity, captures, receipt, settlement and live ownership", async () => {
+  const s = await rejectedOutput(), original = readFileSync(s.ledgerPath, "utf8");
+  expect(() => reconcileTerminalApiAttempt({ ...s.options, expectedRequestSha256: "f".repeat(64) })).toThrow("mismatch");
+  for (const suffix of [".request.json", ".response.json", ".terminal-rejection.json"]) {
+    const raw = readFileSync(s.prefix + suffix, "utf8"); writeFileSync(s.prefix + suffix, raw + " ");
+    expect(() => reconcileTerminalApiAttempt(s.options)).toThrow(); writeFileSync(s.prefix + suffix, raw);
+    expect(readFileSync(s.ledgerPath, "utf8")).toBe(original);
+  }
+  writeFileSync(s.ledgerPath, [s.rows[0], { ...s.rows[1], micros: 1 }].map(e => JSON.stringify(e) + "\n").join(""));
+  expect(() => reconcileTerminalApiAttempt(s.options)).toThrow("mismatch"); writeFileSync(s.ledgerPath, original);
+  const owner = await ApiLabTransport.open({ config: s.config, maxCalls: 1, now, fetcher: goodFetch });
+  try { expect(() => reconcileTerminalApiAttempt(s.options)).toThrow(); } finally { owner.close(); }
+  expect(readFileSync(s.ledgerPath, "utf8")).toBe(original);
+});
+
+test("invalid identity, unknown outcomes and charges beyond the reservation cannot become terminal settlements", async () => {
+  for (const change of ["identity", "status", "cost", "malformed", "missing"] as const) {
+    const s = await rejectedOutput(); writeFileSync(s.ledgerPath, JSON.stringify(s.rows[0]) + "\n");
+    rmSync(s.prefix + ".terminal-rejection.json");
+    const capture = JSON.parse(readFileSync(s.prefix + ".response.json", "utf8")), value = JSON.parse(capture.body);
+    if (change === "identity") value.model = "wrong-model";
+    if (change === "status") value.status = "in_progress";
+    if (change === "cost") value.usage.cost_in_usd_ticks = 5_000_000_000;
+    capture.body = change === "malformed" ? "{" : JSON.stringify(value);
+    writeFileSync(s.prefix + ".response.json", JSON.stringify(capture));
+    if (change === "missing") rmSync(s.prefix + ".response.json");
+    const prefix = readFileSync(s.ledgerPath, "utf8");
+    expect(() => reconcileTerminalApiAttempt(s.options)).toThrow();
+    expect(readFileSync(s.ledgerPath, "utf8")).toBe(prefix);
+    expect(existsSync(s.prefix + ".terminal-rejection.json")).toBeFalse();
+    await expect(ApiLabTransport.open({ config: s.config, maxCalls: 1, now })).rejects.toThrow("unresolved");
+  }
+});
+
+test("provider-specific raw statuses, not shared parser sentinels, establish terminality", async () => {
+  for (const selected of [judge, reader]) for (const status of ["queued", "in_progress", "stop", "length", "completed", null]) {
+    const s = await rejectedOutput(selected), capture = JSON.parse(readFileSync(s.prefix + ".response.json", "utf8")), value = JSON.parse(capture.body);
+    if (selected === judge) { value.status = status; value.incomplete_details = { reason: "max_output_tokens" }; }
+    else value.candidates[0].finishReason = status;
+    capture.body = JSON.stringify(value); writeFileSync(s.prefix + ".response.json", JSON.stringify(capture));
+    rmSync(s.prefix + ".terminal-rejection.json"); writeFileSync(s.ledgerPath, JSON.stringify(s.rows[0]) + "\n");
+    expect(() => reconcileTerminalApiAttempt(s.options)).toThrow("terminal");
+    expect(readFileSync(s.ledgerPath, "utf8").trim().split("\n")).toHaveLength(1);
+  }
+});
+
+test("explicit dead-owner transfer validates evidence before lock changes and serializes reconcilers", async () => {
+  const s = await rejectedOutput(), complete = readFileSync(s.ledgerPath, "utf8");
+  writeFileSync(s.ledgerPath, JSON.stringify(s.rows[0]) + "\n");
+  const child = Bun.spawn([process.execPath, "-e", "process.exit(0)"], { stdout: "ignore", stderr: "ignore" }); await child.exited;
+  const lock = JSON.stringify({ pid: child.pid, protocol: "oh.memory-lab-api.v1", budgetSha256: sha256Hex(readFileSync(s.config.budgetPath, "utf8")) });
+  writeFileSync(s.ledgerPath + ".lock", lock);
+  expect(() => reconcileTerminalApiAttempt(s.options)).toThrow();
+  const options = { ...s.options, recoverDeadOwner: true };
+  expect(() => reconcileTerminalApiAttempt({ ...options, expectedRequestSha256: "e".repeat(64) })).toThrow("mismatch");
+  expect(readFileSync(s.ledgerPath + ".lock", "utf8")).toBe(lock);
+  writeFileSync(s.ledgerPath + ".recovery.lock", JSON.stringify({ pid: process.pid }));
+  expect(() => reconcileTerminalApiAttempt(options)).toThrow();
+  expect(readFileSync(s.ledgerPath + ".lock", "utf8")).toBe(lock);
+  rmSync(s.ledgerPath + ".recovery.lock");
+  const live = JSON.stringify({ pid: process.pid, protocol: "oh.memory-lab-api.v1", budgetSha256: sha256Hex(readFileSync(s.config.budgetPath, "utf8")) });
+  writeFileSync(s.ledgerPath + ".lock", live);
+  expect(() => reconcileTerminalApiAttempt(options)).toThrow("live, uncertain");
+  expect(readFileSync(s.ledgerPath + ".lock", "utf8")).toBe(live);
+  writeFileSync(s.ledgerPath + ".lock", lock);
+  reconcileTerminalApiAttempt(options);
+  expect(readFileSync(s.ledgerPath, "utf8")).toBe(complete);
+  expect(existsSync(s.ledgerPath + ".lock")).toBeFalse();
+  expect(existsSync(s.ledgerPath + ".recovery.lock")).toBeFalse();
+  expect(verifyTerminalApiAttempt(s.options).retainedMicros).toBe(s.rows[0].micros);
+  reconcileTerminalApiAttempt(options); expect(readFileSync(s.ledgerPath, "utf8")).toBe(complete);
+  writeFileSync(s.ledgerPath + ".lock", lock);
+  expect(() => reconcileTerminalApiAttempt(options)).toThrow("requires an unresolved target");
+  expect(readFileSync(s.ledgerPath + ".lock", "utf8")).toBe(lock);
+  expect(readFileSync(s.ledgerPath, "utf8")).toBe(complete);
+});
 
 test("direct requests preserve role separation and have finite output, thinking and tool-free settings", () => {
   const a = prepareApiRequest(reader, messages), b = prepareApiRequest(judge, messages);

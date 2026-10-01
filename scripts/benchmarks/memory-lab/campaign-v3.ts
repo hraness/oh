@@ -2,7 +2,7 @@
 /** Explicit finite CLI. Parallel agents may propose; only run owns provider effects. */
 import { resolve } from "node:path";
 import { need } from "./campaign-contract-v3";
-import { advance, createPlan, initialize, propose, readBounded, readState, reviewPlan, sourcePins } from "./campaign-store-v3";
+import { advance, closeStoppedRun, createPlan, initialize, propose, readBounded, readState, reviewPlan, sourcePins } from "./campaign-store-v3";
 import { assessRun, executeRun, recoverAbandonedExecution } from "./campaign-execute-v3";
 
 export async function main(argv: string[]) {
@@ -11,7 +11,7 @@ export async function main(argv: string[]) {
   if (!command || command === "--help") return { usage: "campaign-v3.ts COMMAND WORKSPACE [FILE|RUN_ID] [REVIEW_FILE]",
     commands: { init: "config/baseline JSON file; creates a new private v3 workspace", status: "read campaign and next required actions", propose: "candidate JSON file",
       plan: "plan-spec JSON file", review: "run ID and independent review JSON file", run: "run ID; captured stages resume without replay",
-      assess: "run ID; all planned observations required", advance: "run ID; qualification, rejection or conditional champion promotion", "source-pins": "print the current execution-source closure", "recover-locks": "explicitly release this campaign dead owner locks only when every native effect is settled" } };
+      assess: "run ID; all planned observations required", "close-stopped": "run ID; offline verified terminal rejection, full-denominator incomplete assessment, no advancement", advance: "run ID; qualification, rejection or conditional champion promotion", "source-pins": "print the current execution-source closure", "recover-locks": "explicitly release this campaign dead owner locks only when every native effect is settled" } };
   need(workspace, "workspace required"); const root = resolve(workspace);
   const json = (path: string | undefined) => { need(path, "JSON file required"); return JSON.parse(readBounded(resolve(path))); };
   if (command === "init") { const input = json(arg); return initialize(root, input.config, input.baseline); }
@@ -33,6 +33,7 @@ export async function main(argv: string[]) {
   if (command === "review") return reviewPlan(root, arg, json(extra));
   if (command === "run") return executeRun(root, arg);
   if (command === "assess") return assessRun(root, arg);
+  if (command === "close-stopped") return closeStoppedRun(root, arg);
   if (command === "advance") return advance(root, arg);
   throw new Error("Unknown command; use --help.");
 }
