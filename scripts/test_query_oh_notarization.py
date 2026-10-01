@@ -9,7 +9,9 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 import zipfile
@@ -163,27 +165,35 @@ class QueryTests(unittest.TestCase):
         with self.assertRaisesRegex(querying.QueryError, "invalid error classification"):
             querying.AppleQueryFailure(1, "arbitrary provider text")
 
-    def test_real_child_nonzero_failure_discards_raw_diagnostics(self):
+    def test_nonzero_child_failure_discards_raw_diagnostics(self):
         self.work.mkdir()
         key = self.work / "AuthKey.p8"
         querying.write_new(key, b"fake key")
-        def process(argv, **options):
-            options["stderr"].write(b"Error: HTTP status code: 401. private-key=never-retain-me")
-            return subprocess.CompletedProcess(argv, 1)
-        with patch.object(querying.subprocess, "run", side_effect=process), self.assertRaises(querying.AppleQueryFailure) as raised:
+        with patch.object(querying, "bounded_child", return_value=(1, b"", b"Error: HTTP status code: 401. private-key=never-retain-me")), self.assertRaises(querying.AppleQueryFailure) as raised:
             querying.apple_info(querying.EXPECTED_RECEIPT["submissionId"], key, "ABCDE12345", "issuer", self.work)
         self.assertEqual(raised.exception.exit_code, 1)
         self.assertEqual(raised.exception.classification, "authentication-rejected")
         self.assertNotIn("never-retain-me", str(raised.exception))
 
+    def test_capture_failures_cannot_claim_provider_status_and_clean_credentials(self):
+        for classification in ("child-output-overflow", "child-capture-failed", "child-cleanup-failed"):
+            with self.subTest(classification=classification), patch.dict(os.environ, self.environment), patch.object(querying, "apple_info", side_effect=querying.AppleQueryFailure(None, classification)), self.assertRaises(querying.AppleQueryFailure):
+                querying.query(self.receipt, self.output, self.work)
+            result = json.loads(self.output.read_text())
+            self.assertIsNone(result["status"])
+            self.assertFalse(result["packageAdmitted"])
+            self.assertEqual(result["errorClassification"], classification)
+            self.assertFalse(self.work.exists())
+            self.assertNotIn("fake Notary private key", self.output.read_text())
+            self.output.unlink()
+
     def test_timeout_or_launch_failure_has_a_fixed_classification(self):
-        for exception, expected in ((subprocess.TimeoutExpired(["notarytool"], 90), "child-timeout"),
-                                    (OSError("arbitrary launch details"), "child-launch-failed")):
+        for expected in ("child-timeout", "child-launch-failed"):
             with self.subTest(expected=expected):
                 self.work.mkdir()
                 key = self.work / "AuthKey.p8"
                 querying.write_new(key, b"fake key")
-                with patch.object(querying.subprocess, "run", side_effect=exception), self.assertRaises(querying.AppleQueryFailure) as raised:
+                with patch.object(querying, "bounded_child", side_effect=querying.AppleQueryFailure(None, expected)), self.assertRaises(querying.AppleQueryFailure) as raised:
                     querying.apple_info(querying.EXPECTED_RECEIPT["submissionId"], key, "ABCDE12345", "issuer", self.work)
                 self.assertIsNone(raised.exception.exit_code)
                 self.assertEqual(raised.exception.classification, expected)
@@ -193,10 +203,7 @@ class QueryTests(unittest.TestCase):
         self.work.mkdir()
         key = self.work / "AuthKey.p8"
         querying.write_new(key, b"fake key")
-        def process(argv, **options):
-            options["stdout"].write(b"arbitrary non-JSON service output")
-            return subprocess.CompletedProcess(argv, 0)
-        with patch.object(querying.subprocess, "run", side_effect=process), self.assertRaises(querying.AppleQueryFailure) as raised:
+        with patch.object(querying, "bounded_child", return_value=(0, b"arbitrary non-JSON service output", b"")), self.assertRaises(querying.AppleQueryFailure) as raised:
             querying.apple_info(querying.EXPECTED_RECEIPT["submissionId"], key, "ABCDE12345", "issuer", self.work)
         self.assertEqual(raised.exception.exit_code, 0)
         self.assertEqual(raised.exception.classification, "invalid-tool-response")
@@ -214,17 +221,14 @@ class QueryTests(unittest.TestCase):
         self.work.mkdir()
         key = self.work / "AuthKey.p8"
         querying.write_new(key, b"fake key")
-        def process(argv, **options):
+        def process(argv, environment):
             self.assertEqual(argv[:3], ["/usr/bin/xcrun", "notarytool", "info"])
             self.assertEqual(argv[3], querying.EXPECTED_RECEIPT["submissionId"])
             self.assertNotIn("submit", argv)
             self.assertNotIn("wait", argv)
-            self.assertEqual(set(options["env"]), {"PATH", "HOME", "LC_ALL"})
-            self.assertEqual(options["timeout"], 90)
-            self.assertTrue(callable(options["preexec_fn"]))
-            options["stdout"].write(json.dumps({"id": argv[3], "status": "In Progress"}).encode())
-            return subprocess.CompletedProcess(argv, 0)
-        with patch.object(querying.subprocess, "run", side_effect=process) as child:
+            self.assertEqual(set(environment), {"PATH", "HOME", "LC_ALL"})
+            return 0, json.dumps({"id": argv[3], "status": "In Progress"}).encode(), b""
+        with patch.object(querying, "bounded_child", side_effect=process) as child:
             result = querying.apple_info(querying.EXPECTED_RECEIPT["submissionId"], key, "ABCDE12345", "issuer", self.work)
         self.assertEqual(result["status"], "In Progress")
         self.assertEqual(child.call_count, 1)
@@ -240,6 +244,176 @@ class QueryTests(unittest.TestCase):
             self.assertNotIn(forbidden, workflow)
         self.assertIn('"!v*-notarization-status.*"', (root / ".github/workflows/release.yml").read_text())
         self.assertIn("python -I -B scripts/test_query_oh_notarization.py", (root / ".github/workflows/ci.yml").read_text())
+
+
+class RealChildCaptureTests(unittest.TestCase):
+    """Owned Python fixtures exercise the real pipes and teardown, never Apple."""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="oh-status-child-test-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name).resolve()
+        self.environment = {"PATH": os.environ.get("PATH", ""), "HOME": str(self.root), "LC_ALL": "C"}
+
+    def command(self, program):
+        return [sys.executable, "-I", "-B", "-c", program]
+
+    def assert_dead(self, pid):
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.01)
+        self.fail("owned fixture process survived group cleanup")
+
+    def test_exact_limit_both_streams_closed_stdin_and_large_cache_write(self):
+        cache = self.root / "fixture-cache"
+        program = ("import sys,pathlib; assert sys.stdin.buffer.read() == b''; "
+                   f"pathlib.Path({str(cache)!r}).write_bytes(b'c' * 262144); "
+                   "sys.stdout.buffer.write(b'o' * 65536); sys.stderr.buffer.write(b'e' * 65536)")
+        code, output, errors = querying.bounded_child(self.command(program), self.environment, timeout=5)
+        self.assertEqual(code, 0)
+        self.assertEqual(output, b"o" * 65536)
+        self.assertEqual(errors, b"e" * 65536)
+        self.assertEqual(cache.stat().st_size, 262144)
+
+    def test_either_stream_overflow_is_bounded_and_reaps_owned_leader(self):
+        for stream in ("stdout", "stderr"):
+            with self.subTest(stream=stream):
+                pidfile = self.root / (stream + ".pid")
+                program = ("import os,sys,time,pathlib; "
+                           f"pathlib.Path({str(pidfile)!r}).write_text(str(os.getpid())); "
+                           f"sys.{stream}.buffer.write(b'x' * 262144); sys.{stream}.flush(); time.sleep(30)")
+                with self.assertRaises(querying.AppleQueryFailure) as raised:
+                    querying.bounded_child(self.command(program), self.environment, timeout=5)
+                self.assertEqual(raised.exception.classification, "child-output-overflow")
+                self.assert_dead(int(pidfile.read_text()))
+
+    def descendant_program(self, pidfile, exit_normally):
+        grandchild = "import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(30)"
+        return ("import os,sys,time,json,pathlib,subprocess; "
+                f"child=subprocess.Popen([sys.executable,'-I','-B','-c',{grandchild!r}],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
+                f"pathlib.Path({str(pidfile)!r}).write_text(json.dumps([os.getpid(),child.pid])); "
+                + ("sys.stdout.write('done'); sys.stdout.flush()" if exit_normally else "time.sleep(30)"))
+
+    def test_timeout_removes_the_exact_owned_group_including_descendant(self):
+        pidfile = self.root / "timeout.pids"
+        started = time.monotonic()
+        with self.assertRaises(querying.AppleQueryFailure) as raised:
+            querying.bounded_child(self.command(self.descendant_program(pidfile, False)), self.environment, timeout=0.5)
+        self.assertEqual(raised.exception.classification, "child-timeout")
+        self.assertLess(time.monotonic() - started, 2)
+        for pid in json.loads(pidfile.read_text()):
+            self.assert_dead(pid)
+
+    def test_normal_exit_also_removes_descendant_without_reaping_anchor_early(self):
+        pidfile = self.root / "normal.pids"
+        code, output, errors = querying.bounded_child(self.command(self.descendant_program(pidfile, True)), self.environment, timeout=5)
+        self.assertEqual((code, output, errors), (0, b"done", b""))
+        for pid in json.loads(pidfile.read_text()):
+            self.assert_dead(pid)
+
+    def test_capture_error_cleans_up_real_child_without_retaining_error_text(self):
+        owned = []
+        original = querying.subprocess.Popen
+        def launch(*args, **kwargs):
+            child = original(*args, **kwargs)
+            owned.append(child.pid)
+            self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
+            self.assertTrue(kwargs["start_new_session"])
+            self.assertTrue(kwargs["close_fds"])
+            return child
+        with patch.object(querying.subprocess, "Popen", side_effect=launch), patch.object(querying.selectors, "DefaultSelector", side_effect=OSError("private service data")), self.assertRaises(querying.AppleQueryFailure) as raised:
+            querying.bounded_child(self.command("import time; time.sleep(30)"), self.environment, timeout=5)
+        self.assertEqual(raised.exception.classification, "child-capture-failed")
+        self.assertNotIn("private service data", str(raised.exception))
+        self.assertEqual(len(owned), 1)
+        self.assert_dead(owned[0])
+
+    def test_launch_failure_and_invalid_bounds_never_start_another_child(self):
+        with self.assertRaises(querying.AppleQueryFailure) as raised:
+            querying.bounded_child([str(self.root / "missing-executable")], self.environment)
+        self.assertEqual(raised.exception.classification, "child-launch-failed")
+        for options in ({"limit": 65537}, {"limit": 0}, {"timeout": 91}, {"timeout": float("nan")}):
+            with patch.object(querying.subprocess, "Popen") as child, self.assertRaises(querying.QueryError):
+                querying.bounded_child(self.command("pass"), self.environment, **options)
+            child.assert_not_called()
+
+    def test_permission_failure_cannot_claim_cleanup_with_an_unverified_live_group(self):
+        child = type("OwnedChild", (), {"pid": 123})()
+        for exited, no_live in ((False, True), (True, False)):
+            with self.subTest(exited=exited, no_live=no_live), patch.object(querying.os, "killpg", side_effect=PermissionError()), patch.object(querying, "child_exited_unreaped", return_value=exited), patch.object(querying, "darwin_group_has_no_live_members", return_value=no_live), self.assertRaises(PermissionError):
+                querying.signal_owned_group(child, querying.signal.SIGKILL)
+        with patch.object(querying.os, "killpg", side_effect=PermissionError()), patch.object(querying, "child_exited_unreaped", return_value=True), patch.object(querying, "darwin_group_has_no_live_members", return_value=True) as verified:
+            querying.signal_owned_group(child, querying.signal.SIGKILL)
+        verified.assert_called_once_with(123)
+
+    def test_interrupt_during_child_acquisition_defers_until_owned_cleanup_is_installed(self):
+        original = querying.subprocess.Popen
+        for kind, exception in ((querying.signal.SIGINT, KeyboardInterrupt), (querying.signal.SIGTERM, SystemExit)):
+            with self.subTest(signal=kind):
+                owned = []
+                previous_term = querying.signal.signal(querying.signal.SIGTERM, lambda *_: sys.exit(143))
+                previous = {value: querying.signal.getsignal(value) for value in (querying.signal.SIGINT, querying.signal.SIGTERM)}
+                def launch(*args, **kwargs):
+                    child = original(*args, **kwargs)
+                    owned.append(child.pid)
+                    os.kill(os.getpid(), kind)
+                    return child
+                try:
+                    with patch.object(querying.subprocess, "Popen", side_effect=launch), self.assertRaises(exception) as raised:
+                        querying.bounded_child(self.command("import time; time.sleep(30)"), self.environment, timeout=5)
+                    if kind == querying.signal.SIGTERM:
+                        self.assertEqual(raised.exception.code, 143)
+                    self.assertEqual(len(owned), 1)
+                    self.assert_dead(owned[0])
+                    self.assertEqual({value: querying.signal.getsignal(value) for value in previous}, previous)
+                finally:
+                    querying.signal.signal(querying.signal.SIGTERM, previous_term)
+
+    def test_actual_sigint_and_sigterm_clean_owned_leader_descendant_and_credentials(self):
+        for kind, expected_code in ((querying.signal.SIGINT, 130), (querying.signal.SIGTERM, 143)):
+            with self.subTest(signal=kind):
+                fixture = self.root / ("interrupt-" + str(kind))
+                fixture.mkdir()
+                pidfile = fixture / "child.pids"
+                work = fixture / "oh-notarization-status"
+                # A dedicated outer fixture calls the real query credential
+                # scope, replacing only the Apple invocation with owned Python
+                # leader/descendant fixtures and fake credentials.
+                program = f'''import base64,importlib.util,json,os,pathlib,signal,sys
+spec=importlib.util.spec_from_file_location("querying",{str(Path(__file__).with_name('query-oh-notarization.py').resolve())!r})
+m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+root=pathlib.Path({str(fixture)!r})
+os.environ.update(RUNNER_TEMP=str(root),HOME=str(root),APPLE_NOTARY_KEY_P8_BASE64=base64.b64encode(b"fake fixture key").decode(),APPLE_NOTARY_KEY_ID="ABCDE12345",APPLE_NOTARY_ISSUER_ID="12345678-1234-1234-1234-123456789abc")
+m.sys.platform="darwin"
+receipt=root/m.RECEIPT_NAME;receipt.write_bytes((json.dumps(m.EXPECTED_RECEIPT,sort_keys=True)+chr(10)).encode())
+def owned_info(*args):
+ return m.bounded_child([sys.executable,"-I","-B","-c",{self.descendant_program(pidfile, False)!r}],{{"PATH":os.environ["PATH"],"HOME":str(root)}},timeout=5)
+m.apple_info=owned_info
+signal.signal(signal.SIGTERM,lambda *_:sys.exit(143))
+try:m.query(receipt,root/"status.json",root/"oh-notarization-status")
+except KeyboardInterrupt:sys.exit(130)
+'''
+                outer = subprocess.Popen(self.command(program), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=self.environment)
+                try:
+                    deadline = time.monotonic() + 3
+                    while not pidfile.exists() and time.monotonic() < deadline:
+                        time.sleep(0.01)
+                    self.assertTrue(pidfile.exists(), "owned query fixture never became ready")
+                    os.kill(outer.pid, kind)
+                    self.assertEqual(outer.wait(timeout=3), expected_code)
+                    self.assertFalse(work.exists())
+                    self.assertFalse((fixture / "status.json").exists())
+                    for pid in json.loads(pidfile.read_text()):
+                        self.assert_dead(pid)
+                finally:
+                    # The outer fixture is our direct, unreaped Popen child.
+                    if outer.poll() is None:
+                        outer.kill()
+                    outer.wait(timeout=3)
 
 
 if __name__ == "__main__":
