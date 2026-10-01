@@ -1,0 +1,51 @@
+{
+  "checkedOn": "2026-10-01",
+  "reviewer": "Codex AI independent editorial review",
+  "scope": "Source inspection only; no runtime, build, browser, or publication verification performed by this reviewer.",
+  "repositories": {
+    "oh": {
+      "head": "589e39f51793349ce278d239008fc2765e91f1fd",
+      "sources": {
+        "src/canonical.ts": "130fef8c25ccf3aee399a81948204752adbf6b7818ce564f09ba633942ebeab6",
+        "src/canonical-rust.ts": "d429a8cc3955ab04688abeea5a86365425e6f883c8e4db27fe51cec237f27172",
+        "src/canonical-rust-parity.test.ts": "5e9d95a1e6b60d90b56f40e571e43b0e704a3c99f516bb46c77e3efca69283b9",
+        "rust/oh-canonical/src/lib.rs": "923af655e97ead2522f85827b16cea1a0ee70ecc9a5f337d9c1593a359448b68",
+        "rust/oh-canonical/src/js_number.rs": "73c1ec260115538d40ed0b468f75c883ea0dae2ba3d7c080305d5fe32397c176",
+        "benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md": "8ee99f271abbb40e239c6c59aab3889a13fbfe289e620ce9fb09ac716e71d3ac",
+        "benchmarks/results/memory-longmemeval-s-500-v1.json": "c954d955a0b1c06f8e2b07a0206ad9c8a0ddab046ecd48913547b6bae6e1c44f",
+        "docs/working-memory.md": "70898cb418932462f084dac50dbef6b0fa6e043d7053ef4319b5a389e7017713",
+        "spec/v1/memory.md": "f2117e431167499adccd224d998a1b8c561db11349615c55fe127a891fad51fe",
+        "README.md": "1dcd3ac91e89f41c2682030c682cb9400f022ad16a811c49ca79a8578aed3eab",
+        "site/published-release.json": "b333876273d78247a950937362766d49c1a1a796dbfecc09ad3cee084a1d1322",
+        "plans/rust-foundations.md": "ba366d68f388e1d6a10bb41d01d65cea6b73078da2a637cf6c32b409d44227ef",
+        "site/app/launch/facts.ts": "ff8d4b330b69d2464cd33987d202ad4baa7b47f2886cb975644cd54ddf19d5b3"
+      },
+      "repository": "https://github.com/hraness/oh"
+    },
+    "wordcell": {
+      "head": "05783b08f1cf4d7df0d04a1f64db2eecd063c88a",
+      "sources": {
+        "docs/graph-authority.md": "a297f30563173688cba38c98f49b355ca6da1b2c6e1e471699a3a8f211b61754",
+        "src/oh/canonical-rust.ts": "44b9ebf394c1be89647ae96252154cb26016e3e7804c09fe22edef7c341101f4",
+        "src/oh/canonical-rust.test.ts": "9556c229f143c6c839717016900b8770b20aa8e1fba856b276809e8d331c912e",
+        "src/oh-adoption.ts": "e92ba3017e2175c9c09a50d01df14c909bea8483459ed037e32eea2685ec3bf2"
+      },
+      "repository": "https://github.com/hraness/wordcell"
+    },
+    "design-kit": {
+      "head": "a1aa639bbe712595b4b17199e9b5ab15c0b123de",
+      "sources": {
+        "ARTICLE_COPY.md": "828df803a28b0e449e49d527ef9952fe1dafe2ae053806d5df762a89ca822faf",
+        "src/react/article.tsx": "ed6b373129c1dd17ed429bce9cf47c04a9af6a21d0900e32800858e2d9e10510",
+        "src/article.ts": "4918e49558abf5f03241b147662ac4fd568d644e60fe48e8607cd6f86f997a8d",
+        "src/launch.ts": "da21c416b817095ae31062d2656cfbcd500bcb23ff5c3a9e33771438bde2ce94"
+      },
+      "repository": "https://github.com/hraness/design-kit"
+    }
+  },
+  "originalReceiptSha256": "3beebe04511d5d28fe03fce14f747410679e35fdfdf16b8ad948b46a3eba8861",
+  "additionalSourceEvidence": {
+    "description": "Sponge source was independently inspected with authorized private repository access. The original local review receipt retains its exact source identities. Public article citations use the public documentation.",
+    "recordedInOriginalReceipt": true
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "reviewer": "Codex AI independent editorial review",
+  "reviewerType": "ai",
+  "reviewedOn": "2026-10-01",
+  "humanReview": null,
+  "recommendedReassessOn": "2026-11-12",
+  "role": "Independent reviewer; did not author or edit candidate repository files.",
+  "baseHead": "589e39f51793349ce278d239008fc2765e91f1fd",
+  "verdict": "approved-editorial-source-review",
+  "unresolvedFindings": [],
+  "scope": "Read all four final article bodies, titles/deks/share-card copy, launch beats, article date/provenance composition, and changed AGENTS guidance. Checked the research numbers and changed product claims against the sources listed separately. This is not a build, browser, admission-metadata, release, or deployment approval.",
+  "files": {
+    "site/app/blog/content/built-on-oh.tsx": "ed0a780690a12788f604e4c932a271c8848b1740ba479a16080bb05d6dc0a1cb",
+    "site/app/blog/content/introducing-oh.tsx": "eef2434d41fae9f7af21439011f4b9d19d49b2ada24878f1e8e727b9073b9972",
+    "site/app/blog/content/longmemeval-s-user-log.tsx": "b26fa5c3acada7f1c6719008c466a2879b3d4794119eeae378314536a6a8f725",
+    "site/app/blog/content/oh-rust-typescript-parity.tsx": "46cee05f055d607c8fa74c0c0d5c8ecf321b03c000f8b6167ea659298b1b2633",
+    "site/app/blog/articles.ts": "9e1276d3ca5ca1b4a746b9097a7a3ee36a5c2edafbcb9a5609f33b17ba12960c",
+    "site/app/blog/page.tsx": "de87424b79c6bc15c90e165951de1491702c8c27505cb72b56534a2e0b543aad",
+    "site/app/blog/[slug]/page.tsx": "4d9e2aaaa5e8ff0bec9600071d8c55109ff3a8d55113c54a760c14ab383e0abf",
+    "site/app/launch/beats.ts": "0619f76cc506a610204d26573cb7052f1b655cfcb1501c5dadc274209fc0d270",
+    "AGENTS.md": "e2dd7088b73463a51e1b137a4a6aad94c77a4cb9a571c26a9d53a3a160065a48"
+  },
+  "sourceManifest": {
+    "path": "oh-editorial-review-source-manifest.json",
+    "sha256": "7cd92a2b0d2713a7b08e5fd29c67e33360fdd9a1d5cc3a66cf680dc454489012"
+  },
+  "articles": [
+    {
+      "href": "/blog/introducing-oh",
+      "verdict": "approved-editorial-source-review",
+      "scores": {
+        "readerUtility": 2,
+        "originalEvidence": 1,
+        "factualConfidence": 2,
+        "hostFit": 2,
+        "voiceIntegrity": 2,
+        "maintenanceValue": 1
+      },
+      "total": 10,
+      "observations": [
+        "The memory-agent facade exposes four operations while acceptance belongs to the host; the launch copy correctly says application code decides and does not promise a human reviewed every accepted record.",
+        "The revised portability beat describes a shared encoding goal and its checks without treating sampled parity as a universal proof. The verification beat keeps byte/history integrity separate from the truth of a claim."
+      ],
+      "conclusion": "Benefits and concrete record examples lead; setup links carry installation details; launch facts and release status remain sourced."
+    },
+    {
+      "href": "/blog/oh-rust-typescript-parity",
+      "verdict": "approved-editorial-source-review",
+      "scores": {
+        "readerUtility": 2,
+        "originalEvidence": 2,
+        "factualConfidence": 2,
+        "hostFit": 2,
+        "voiceIntegrity": 2,
+        "maintenanceValue": 1
+      },
+      "total": 11,
+      "observations": [
+        "Asserting which engine loaded and comparing its output catch different failures. A source-tree success cannot establish packaged-loader behavior, so the installed-package explanation supplies a distinct useful check.",
+        "Wordcell compares canonical text in its wrapper before returning a result; its generated tests skip null. Therefore a skipped value is not parity evidence, while strict edge cases and artifact identity checks answer separate questions."
+      ],
+      "conclusion": "The explanation teaches differential testing through encoding examples and states generator, input-domain, and fallback limits where they matter."
+    },
+    {
+      "href": "/blog/longmemeval-s-user-log",
+      "verdict": "approved-editorial-source-review",
+      "scores": {
+        "readerUtility": 2,
+        "originalEvidence": 2,
+        "factualConfidence": 2,
+        "hostFit": 2,
+        "voiceIntegrity": 2,
+        "maintenanceValue": 1
+      },
+      "total": 11,
+      "observations": [
+        "The 378 answers re-read are distinct from 501 additional calls; the revised body uses the answer denominator correctly. It preserves the primary majority-of-runs measure and the semantic-versus-BM25 interval touching zero.",
+        "Replacing the leaked instruction example and making fresh model calls did not create held-out questions. The title, dek, table caption, and body keep the combined setup, larger budget, and in-sample tuning distinct from the published semantic-search API."
+      ],
+      "conclusion": "The 93.07, 91.20, 88.87, and 86.13 percent means, 474/458/445/431 majority counts, budgets, speaker evidence, re-read effects, and historical answering costs match the report and JSON. No new product ranking is implied."
+    },
+    {
+      "href": "/blog/built-on-oh",
+      "verdict": "approved-editorial-source-review",
+      "scores": {
+        "readerUtility": 2,
+        "originalEvidence": 1,
+        "factualConfidence": 2,
+        "hostFit": 2,
+        "voiceIntegrity": 2,
+        "maintenanceValue": 1
+      },
+      "total": 10,
+      "observations": [
+        "The same Oh mechanisms support different sources of truth: Wordcell derives a replaceable graph from Markdown, whereas Sponge retained hosted work keeps temporary notes in its Oh store.",
+        "Sponge new hosted-agent intake is retired, while retained work and its default 24-hour memory lifetime remain represented in source. The article states both instead of advertising a new hosted offer."
+      ],
+      "conclusion": "The integration comparison explains ownership and retention with a concrete Wordcell rebuild example; it does not transfer Oh memory-retrieval scores to Wordcell search."
+    }
+  ],
+  "resolvedFindings": [
+    {
+      "issue": "Three date-hiding props did not exist in the shared component API.",
+      "resolution": "ArticleIndex, MarketingArticle, and ArticleSources now use showDates={false}; MarketingArticle receives the truthful updated date and discovery metadata retains modifiedTime."
+    },
+    {
+      "issue": "The research share-card headline suggested retrieval versus a full log even though the study combined both.",
+      "resolution": "The headline now says A full user log plus retrieval; the dek names the combined setup, different budgets, and tuned rules."
+    },
+    {
+      "issue": "The earlier replacement vision beat only described shipped testing.",
+      "resolution": "The final beat leads with the enduring portable-record-format goal and supports it with the TypeScript reference and optional Rust encoder."
+    }
+  ],
+  "pendingOwnerWork": [
+    "Author refreshes all four admission records with this actual independent reviewer, revised scope, scores, observations, true source-check dates, and reassessment date.",
+    "Author/root runs focused and aggregate checks and responsive browser verification after dependency convergence.",
+    "Root owns commit, PR, merge, release/deployment, and production verification; none is asserted by this receipt."
+  ],
+  "sourceDateRule": "Only refresh a source checkedOn date when that cited source was actually read for the claim. Do not blanket-refresh old external comparator citations; prune irrelevant citations or retain their true historical check dates.",
+  "validationExecutedByReviewer": [],
+  "repository": "https://github.com/hraness/oh",
+  "originalReceiptSha256": "9d82c08d0643cdb1498d233f16bb36fef91d19b08d04ba7f87d4286d84346f41"
+}

@@ -17,7 +17,7 @@ const GO_DEEPER: readonly { href: string; label: string }[] = [
   { href: "https://github.com/hraness/oh#install-and-first-run", label: "Install Oh and run the first example" },
   { href: "https://github.com/hraness/oh/blob/main/docs/working-memory.md", label: "Give an agent working memory it cannot promote itself" },
   { href: "/blog/oh-rust-typescript-parity", label: "See how the Rust encoder is tested against TypeScript" },
-  { href: "/blog/longmemeval-s-user-log", label: "Read what a run on all 500 LongMemEval-S questions found" },
+  { href: "/blog/longmemeval-s-user-log", label: "Learn how to evaluate retrieval and full conversation logs" },
   { href: "/compare", label: "Compare Oh with other agent memory tools" },
   { href: "/blog/built-on-oh", label: "See which Hraness products build on Oh" },
 ];

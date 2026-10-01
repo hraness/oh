@@ -26,6 +26,8 @@
 - Follow `STYLE.md` for the public website, specifications, documentation, README, and Agent Skill prose, including its benchmark-results rule, and `WRITING.md` for commits, pull requests, plans, and agent notes.
 - Keep `site/` deployable as an ordinary Vercel Next.js root. Do not add OpenAI Sites, Vinext, Cloudflare Worker, Wrangler, or alternate hosting configuration.
 - Build the site on the pinned Hraness design-kit release and its `product-marketing` grammar: use the shared editorial preset for homepage marketing display headings, and Nebula Sans for body text and specification display roles. Use the Wordcell family Gruvbox default with system-resolved light/dark appearance and preserve saved palette choices, sentence-case labels, and one accent. Keep true monospace for code, commands, and data surfaces only.
+- Keep shared controls, mark rows, and showcase fitting in Design Kit; product code owns its copy and composition. Preserve complete, readable text across surface switches, phone layouts, and enlarged text settings.
+- Keep readable content at full opacity, including its ancestors. Show selection and focus through borders, surfaces, or accents rather than dimming text with opacity.
 - Share images come only from the shared `@hraness/web-discovery` social-image template, rendered from the site's single `defineSocialImageSite` declaration in `site/app/social.ts`. Pages pass copy only (headline, description, eyebrow); keep no per-site drawing code.
 - The homepage alone opts into the immutable Lantern material snapshot in `site/vendor/hraness-lantern`. Keep citation reading on an opaque pane, glazing on the hero and scrolling header, and the specification and code transcripts unchanged. The exact-byte PostCSS bridge moves only the admitted Lantern component layer after the editorial layer; its base tokens and all package layers stay intact. `check:theme` runs the canonical snapshot checker before site tests/builds.
 - Treat this repository as the complete public project. Use only its public identities, paths, commands, examples, and contributor workflow.
@@ -68,7 +70,7 @@
 <!-- hraness-launch:start -->
 - Launch posts, their social posts, product mockups, and launch films follow the launch beats and social posts addendum in `GENERATION_STYLE.md` and the beats shape under “Introducing a product” in `ARTICLE_COPY.md` in `@hraness/design-kit`. Channel limits are in the launch posts section of `MESSAGING.md`.
 - Build them with the `product-launch` agent skill, the `./mockups` and `./launch` exports of `@hraness/design-kit`, and `slopcamera html init --template launch-film`.
-- Take every number in a beat, social post, film caption, or store listing from the product's launch facts module, and the status from the release record. Label mockups as illustrations.
+- Take every number in a beat, social post, film caption, or store listing from the product's launch facts module, and the status from the release record. Keep mockups faithful to product behavior. Use readable fine print for qualifications tied to a specific claim; omit generic illustration and development labels.
 - The social kit emits posts for X, Bluesky, Threads, and LinkedIn, and a fact sheet for the Show HN post and the Product Hunt first comment. A person writes those two.
 <!-- hraness-launch:end -->
 

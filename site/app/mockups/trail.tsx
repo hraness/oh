@@ -50,7 +50,7 @@ function summary(record: TrailRecord): string {
   return value.answer ?? value.question ?? value.locator ?? value.stance ?? value.captured ?? value.text ?? value.title ?? "";
 }
 
-function TrailCard({ lit, record }: Readonly<{ record: TrailRecord; lit: boolean }>) {
+function TrailCard({ lit, record, displaySummary }: Readonly<{ record: TrailRecord; lit: boolean; displaySummary?: string }>) {
   const place = PLACES[record.key];
   if (place === undefined) throw new RangeError(`No place for ${record.key}.`);
   const edges = record.dependsOn.map((key) => {
@@ -69,7 +69,7 @@ function TrailCard({ lit, record }: Readonly<{ record: TrailRecord; lit: boolean
     >
       <span className="oh-trail-role">{record.role}</span>
       <span className="oh-trail-key"><SampleText>{record.key}</SampleText></span>
-      <span className="oh-trail-value"><SampleText>{summary(record)}</SampleText></span>
+      <span className="oh-trail-value"><SampleText>{displaySummary ?? summary(record)}</SampleText></span>
     </li>
   );
 }
@@ -81,9 +81,10 @@ function TrailCard({ lit, record }: Readonly<{ record: TrailRecord; lit: boolean
 export function TrailMap({
   describe,
   focus = "all",
+  displaySummaries,
   theme,
   title = "Review brief · research.db",
-}: Readonly<{ focus?: TrailFocus; describe?: string; theme?: MockupTheme; title?: string }>) {
+}: Readonly<{ focus?: TrailFocus; describe?: string; displaySummaries?: Readonly<Record<string, string>>; theme?: MockupTheme; title?: string }>) {
   const lit = new Set(TRAIL_FOCUS[focus]);
   return (
     <MacWindow
@@ -94,7 +95,7 @@ export function TrailMap({
       toolbar={<MockupGlyph name="search" size={14} />}
     >
       <ol className="oh-trail-grid" data-focus={focus} data-film="trail">
-        {researchTrail.map((record) => <TrailCard key={record.key} lit={lit.has(record.key)} record={record} />)}
+        {researchTrail.map((record) => <TrailCard displaySummary={displaySummaries?.[record.key]} key={record.key} lit={lit.has(record.key)} record={record} />)}
       </ol>
     </MacWindow>
   );
@@ -126,13 +127,14 @@ export function trailLines(runs: readonly TrailRunId[]): TerminalLine[] {
 
 /** The oh CLI running fixture commands against the example database. */
 export function TrailTerminal({
+  density,
   describe,
   runs,
   theme,
-}: Readonly<{ runs: readonly TrailRunId[]; describe: string; theme?: MockupTheme }>) {
+}: Readonly<{ runs: readonly TrailRunId[]; describe: string; theme?: MockupTheme; density?: "presentation" }>) {
   return (
     <div className="oh-mockup oh-mock-terminal" data-film="terminal">
-      <TerminalFrame describe={describe} lines={trailLines(runs)} theme={theme} title="research: oh" />
+      <TerminalFrame density={density} describe={describe} lines={trailLines(runs)} theme={theme} title="research: oh" />
     </div>
   );
 }

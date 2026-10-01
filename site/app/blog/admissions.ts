@@ -1,300 +1,283 @@
 import type { ArticleAdmission } from "@hraness/design-kit";
 
-// Review records for every article URL on oh.computer. The review was an
-// independent, disclosed AI editorial review; `humanReview` stays null until a
-// person reviews a post. `assertArticleAdmissions()` checks this list in tests.
-
-const oh = (commit: string, path: string) => `https://github.com/hraness/oh/blob/${commit}/${path}`;
-const wordcell = (path: string) =>
-  `https://github.com/hraness/wordcell/blob/7b6cb5e0d24a3f627e17f7d1bd699a52ab4c9d10/${path}`;
-// Sources were read at this commit unless their link names another.
-const ohChecked = "77617b5b04af02e13d27f06923529f3896de9c6d";
-// The launch beats were checked against this commit (origin/main on 2026-09-30).
-const launchChecked = "4ed1b1a7dc15e7755be88c5ee5c50f7dda1a0893";
-const loaderFix = "https://github.com/hraness/oh/pull/194";
-
-const review = {
-  reviewer: "Claude Opus 5.5 (claude-opus-5-5) editorial review",
-  reviewerType: "ai",
-  reviewedOn: "2026-09-26",
-} as const;
-
-// The launch-beat version of "Introducing Oh" had its own independent review.
-const launchReview = { ...review, reviewedOn: "2026-09-30" } as const;
-
+// Actual independent AI review and source reads are retained in docs/editorial-history.
+// Historical external-source dates are separate from the editorial review date.
 export const articleAdmissions = [
   {
-    href: "/blog/longmemeval-s-user-log",
-    lifecycle: "indexable",
-    readerJob:
-      "Decide whether giving an agent's answering model the user's complete message log alongside retrieval is worth trying, and how far the 93.07% LongMemEval-S score can be trusted.",
-    nonObviousAnswer:
-      "The user wrote about an eighth of each history, yet in 425 of the 500 questions every marked evidence turn is a user message. One pass over the complete log plus retrieved replies beat Oh semantic retrieval by 2.33 points (0.80 to 3.93), though it also carried extra instructions and twice the bytes. The re-read rules that reach 93.07% act as detectors for this benchmark's question types, so that gain is in-sample. Oh semantic retrieval's own lead over BM25 reaches zero on the pre-run primary measure.",
-    originalContribution:
-      "Explains the pipeline and its design history from Oh's own three-run study on all 500 questions: per-step fixes and breaks, the six additions that lowered the score, the reference-answer scan, and the frozen from-scratch confirmation, with matched baselines, both scoring measures and per-answer costs.",
-    hostFit: "A benchmark of Oh's own retrieval on Oh's site, which separates the lab pipeline from what the package ships.",
-    nearestUrls: [
+    "href": "/blog/longmemeval-s-user-log",
+    "lifecycle": "indexable",
+    "readerJob": "Evaluate complete conversation logs alongside retrieval without confusing a combined-pipeline score with an isolated retrieval improvement.",
+    "nonObviousAnswer": "Speaker roles and timestamps can preserve useful structure, but budget and instruction changes affect the comparison; a new model run does not make tuned questions held out.",
+    "originalContribution": "Uses the recorded LongMemEval-S comparison to teach context selection, per-step evaluation, equal-budget comparisons, and unseen-question testing, with detailed development history linked in the report.",
+    "hostFit": "A benchmark of Oh's own retrieval on Oh's site, which separates the lab pipeline from what the package ships.",
+    "nearestUrls": [
       {
-        url: "https://github.com/hraness/oh/blob/main/benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md",
-        distinction:
-          "The result file is the complete record with every table, instruction and rule; this post is a single reading of the pipeline, its dropped designs, the leak and the limits for someone who has not seen the protocol.",
+        "url": "https://github.com/hraness/oh/blob/main/benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md",
+        "distinction": "The report retains full methods, prompts and development history; this article teaches how to interpret and design the comparison."
       },
       {
-        url: "https://oh.computer/#benchmarks",
-        distinction:
-          "The homepage gives the LongMemEval-S result in three sentences; this post explains how the pipeline works, what was dropped, and why the score is in-sample.",
-      },
-      {
-        url: "https://mastra.ai/research/observational-memory",
-        distinction:
-          "Mastra reports 94.87% from model-written observations with GPT-5 mini, an average of the six question types from its latest run; this post reports a user-log pipeline's mean of three runs against matched baselines, in-sample.",
-      },
+        "url": "https://oh.computer/benchmarks",
+        "distinction": "The benchmark overview summarizes measured results; this article explains context and evaluation choices."
+      }
     ],
-    sources: [
-      { title: "LongMemEval-S 500-question result", url: oh("main", "benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md"), checkedOn: "2026-09-26" },
-      { title: "LongMemEval-S result data", url: oh("main", "benchmarks/results/memory-longmemeval-s-500-v1.json"), checkedOn: "2026-09-26" },
-      { title: "Benchmark protocol card", url: oh(ohChecked, "benchmarks/PROTOCOL_CARD.md"), checkedOn: "2026-09-26" },
-      { title: "Evolution release results", url: oh(ohChecked, "benchmarks/EVOLUTION_RELEASE_RESULTS.md"), checkedOn: "2026-09-26" },
-      { title: "LongMemEval identifier audit", url: oh(ohChecked, "benchmarks/LONGMEMEVAL_IDENTIFIER_AUDIT_V1.md"), checkedOn: "2026-09-26" },
-      { title: "Memory framework pilot result", url: oh(ohChecked, "benchmarks/FRAMEWORK_PILOT_RESULT_V1.md"), checkedOn: "2026-09-26" },
-      { title: "Memory framework pilot data", url: oh(ohChecked, "benchmarks/results/memory-framework-pilot-v1.json"), checkedOn: "2026-09-26" },
-      { title: "LongMemEval judge profile", url: oh(ohChecked, "benchmarks/profiles/longmemeval-judge-v1.json"), checkedOn: "2026-09-26" },
-      { title: "Evolution reader contracts", url: oh(ohChecked, "scripts/benchmarks/evolution-reader-contracts.ts"), checkedOn: "2026-09-26" },
-      { title: "Oh semantic model profile", url: oh(ohChecked, "src/semantic-model.ts"), checkedOn: "2026-09-26" },
-      { title: "Oh published release record", url: oh(ohChecked, "site/published-release.json"), checkedOn: "2026-09-26" },
-      { title: "LongMemEval paper (Wu et al., ICLR 2025)", url: "https://arxiv.org/abs/2410.10813", checkedOn: "2026-09-26" },
+    "sources": [
       {
-        title: "LongMemEval cleaned dataset",
-        url: "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/tree/98d7416c24c778c2fee6e6f3006e7a073259d48f",
-        checkedOn: "2026-09-26",
+        "title": "LongMemEval-S study report",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md",
+        "checkedOn": "2026-10-01"
       },
       {
-        title: "LongMemEval evaluation script",
-        url: "https://github.com/xiaowu0162/LongMemEval/blob/9e0b455f/src/evaluation/evaluate_qa.py",
-        checkedOn: "2026-09-26",
+        "title": "LongMemEval-S result data",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/benchmarks/results/memory-longmemeval-s-500-v1.json",
+        "checkedOn": "2026-10-01"
       },
-      { title: "Supermemory LongMemEval research", url: "https://supermemory.ai/research/longmembench/", checkedOn: "2026-09-26" },
-      { title: "Mastra observational memory", url: "https://mastra.ai/research/observational-memory", checkedOn: "2026-09-26" },
-      { title: "Benchmarking Honcho", url: "https://plasticlabs.ai/blog/research/Benchmarking-Honcho", checkedOn: "2026-09-26" },
-      { title: "Mem0 memory benchmarks", url: "https://github.com/mem0ai/memory-benchmarks", checkedOn: "2026-09-26" },
-      { title: "Chronos (Sen et al., 2026)", url: "https://arxiv.org/abs/2603.16862", checkedOn: "2026-09-26" },
-      { title: "MemMachine (Wang et al., 2026)", url: "https://arxiv.org/abs/2604.04853", checkedOn: "2026-09-26" },
+      {
+        "title": "Oh search capabilities",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/README.md",
+        "checkedOn": "2026-10-01"
+      },
+      {
+        "title": "LongMemEval paper (Wu et al., ICLR 2025)",
+        "url": "https://arxiv.org/abs/2410.10813",
+        "checkedOn": "2026-09-26"
+      }
     ],
-    observations: [
-      "The confirmation's first pass matched the design run within one answer (1,368 against 1,369 of 1,500), so 14 of the 15 answers lost came from the re-reads, whose net gain fell from 42 answers to 28. The advice step sent byte-identical requests in both runs (all 90 request hashes match), yet 87 of those 90 answers were judged correct in the design run and 83 in the confirmation.",
-      "A whole-word check of the composed instructions finds, besides the two listed values, two common expressions that are some questions' entire reference answer: a number word in the user-log paragraph, which the reported first pass and advice step carry, and a two-word time phrase in the dropped counting re-read's instruction. BM25, Oh semantic retrieval and the pipeline answered both number-word questions correctly in all three runs, so that overlap cannot have moved the comparisons.",
+    "observations": [
+      "The 378 answers re-read are distinct from 501 additional calls; the revised body uses the answer denominator correctly. It preserves the primary majority-of-runs measure and the semantic-versus-BM25 interval touching zero.",
+      "Replacing the leaked instruction example and making fresh model calls did not create held-out questions. The title, dek, table caption, and body keep the combined setup, larger budget, and in-sample tuning distinct from the published semantic-search API."
     ],
-    scores: {
-      readerUtility: 2,
-      originalEvidence: 2,
-      factualConfidence: 2,
-      hostFit: 2,
-      voiceIntegrity: 2,
-      maintenanceValue: 1,
+    "scores": {
+      "readerUtility": 2,
+      "originalEvidence": 2,
+      "factualConfidence": 2,
+      "hostFit": 2,
+      "voiceIntegrity": 2,
+      "maintenanceValue": 1
     },
-    owner: "hraness/oh maintainers",
-    drafting: "ai-from-source",
-    review,
-    humanReview: null,
-    reassessOn: "2026-11-07",
-    harmIfWrong:
-      "A developer could adopt a full user-log design, or rank memory products, on an in-sample score; read Oh's narrow lead over BM25 as certain; or misjudge how Oh compares with Supermemory.",
-    refreshTriggers: [
-      "A version bump in site/published-release.json",
-      "Any change to the result report or JSON",
-      "A matched full-500 Supermemory or other framework run",
-      "A pinned-snapshot or paper-judge rerun, or drift in a Gateway alias",
-      "A test of the rules on unseen questions or on LongMemEval-M",
-      "A new or revised published score outside 90.4% to 97%",
-      "The lab harness moving into the package or being published",
-      "A change to the embedding profile or the BM25 benchmark tools",
-    ],
+    "owner": "hraness/oh maintainers",
+    "drafting": "ai-from-source",
+    "review": {
+      "reviewer": "Codex AI independent editorial review",
+      "reviewerType": "ai",
+      "reviewedOn": "2026-10-01"
+    },
+    "humanReview": null,
+    "reassessOn": "2026-11-12",
+    "harmIfWrong": "A reader could treat in-sample, unequal-budget results as a general improvement in memory retrieval or confuse study code with the public search API.",
+    "refreshTriggers": [
+      "Changes to the reported study or its data",
+      "Evaluation on unseen conversations or longer histories",
+      "Changes to public Oh search capabilities or the study pipeline’s availability"
+    ]
   },
   {
-    href: "/blog/introducing-oh",
-    // Rewritten as launch beats on 2026-09-29 and reviewed again, independently
-    // of the drafting run, on 2026-09-30.
-    lifecycle: "indexable",
-    readerJob: "Decide whether to try Oh as the memory for an agent or research tool.",
-    nonObviousAnswer:
-      "The agent gets an object that can only remember, query, explain and nominate; only the host application's own code can adopt a nomination into reviewed knowledge, and adoption never replaces a record unless that code names the exact version it replaces.",
-    originalContribution:
-      "Shows the README's example review as the records and CLI output it produces, replayed against the real CLI in tests, and checks the agent and host split against the memory specification and the working-memory guide.",
-    hostFit: "The product introduction for Oh on Oh's own site.",
-    nearestUrls: [
+    "href": "/blog/introducing-oh",
+    "lifecycle": "indexable",
+    "readerJob": "Decide whether source-linked agent memory and a separate host acceptance boundary fit an application.",
+    "nonObviousAnswer": "Agent proposals and host acceptance carry different authority; record-history verification does not establish the truth of a recorded claim.",
+    "originalContribution": "Shows source-linked records, CLI inspection, controlled adoption and history verification through a concrete review example.",
+    "hostFit": "The product introduction for Oh on Oh's own site.",
+    "nearestUrls": [
       {
-        url: "https://oh.computer/",
-        distinction: "The homepage lists features and install steps; this post explains why Oh exists, who it is for, and its limits.",
+        "url": "https://oh.computer/",
+        "distinction": "The homepage lists features and install steps; this post explains why Oh exists, who it is for, and its limits."
       },
       {
-        url: "https://github.com/hraness/oh#readme",
-        distinction: "The README is the task reference; this post is a single reading for someone deciding whether to try Oh.",
-      },
+        "url": "https://github.com/hraness/oh#readme",
+        "distinction": "The README is the task reference; this post is a single reading for someone deciding whether to try Oh."
+      }
     ],
-    sources: [
-      { title: "Oh README", url: oh(launchChecked, "README.md"), checkedOn: "2026-09-30" },
-      { title: "Oh memory specification", url: oh(launchChecked, "spec/v1/memory.md"), checkedOn: "2026-09-30" },
-      { title: "Oh working-memory guide", url: oh(launchChecked, "docs/working-memory.md"), checkedOn: "2026-09-30" },
-      { title: "Oh release record", url: oh(launchChecked, "site/published-release.json"), checkedOn: "2026-09-30" },
-      { title: "Rust foundations plan", url: oh(launchChecked, "plans/rust-foundations.md"), checkedOn: "2026-09-30" },
+    "sources": [
       {
-        title: "TypeScript and Rust canonical JSON parity tests",
-        url: oh(launchChecked, "src/canonical-rust-parity.test.ts"),
-        checkedOn: "2026-09-30",
+        "title": "Oh README",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/README.md",
+        "checkedOn": "2026-10-01"
       },
+      {
+        "title": "Oh memory specification",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/spec/v1/memory.md",
+        "checkedOn": "2026-10-01"
+      },
+      {
+        "title": "Working-memory guide",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/docs/working-memory.md",
+        "checkedOn": "2026-10-01"
+      },
+      {
+        "title": "Encoder comparison checks",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/src/canonical-rust-parity.test.ts",
+        "checkedOn": "2026-10-01"
+      }
     ],
-    observations: [
-      "The memory specification never requires a person to review: nominate records no review and adoption follows whatever host code decides, so 'reviewed knowledge' names the store host code adopts into rather than a promise that a person read it.",
-      "The oh CLI prints short text for people and canonical JSON only with --json or when it guesses a script is reading, so the terminal illustrations show the text form and the beat names --json for scripts.",
+    "observations": [
+      "The memory-agent facade exposes four operations while acceptance belongs to the host; the launch copy correctly says application code decides and does not promise a human reviewed every accepted record.",
+      "The revised portability beat describes a shared encoding goal and its checks without treating sampled parity as a universal proof. The verification beat keeps byte/history integrity separate from the truth of a claim."
     ],
-    scores: {
-      readerUtility: 2,
-      originalEvidence: 1,
-      factualConfidence: 2,
-      hostFit: 2,
-      voiceIntegrity: 2,
-      maintenanceValue: 1,
+    "scores": {
+      "readerUtility": 2,
+      "originalEvidence": 1,
+      "factualConfidence": 2,
+      "hostFit": 2,
+      "voiceIntegrity": 2,
+      "maintenanceValue": 1
     },
-    owner: "hraness/oh maintainers",
-    drafting: "ai-from-source",
-    review: launchReview,
-    humanReview: null,
-    reassessOn: "2026-11-07",
-    harmIfWrong:
-      "A developer could assume a person reviewed everything in the reviewed store, or trust the Rust parity further than the tests support, and build a memory layer on a wrong assumption.",
-    refreshTriggers: [
-      "Version bump in site/published-release.json",
-      "Change to the agent and host memory interface in spec/v1/memory.md or the SDK",
-      "Change to the parity test sample counts or generator shape",
-      "Change to the README's example review, first-run commands, runtime requirements, or the framework comparison statement",
-      "Change to the replacement limit in docs/working-memory.md",
-    ],
+    "owner": "hraness/oh maintainers",
+    "drafting": "ai-from-source",
+    "review": {
+      "reviewer": "Codex AI independent editorial review",
+      "reviewerType": "ai",
+      "reviewedOn": "2026-10-01"
+    },
+    "humanReview": null,
+    "reassessOn": "2026-11-12",
+    "harmIfWrong": "A developer could assume a person reviewed everything in the reviewed store, or trust the Rust parity further than the tests support, and build a memory layer on a wrong assumption.",
+    "refreshTriggers": [
+      "Changes to agent and host authority or adoption behavior",
+      "Changes to record verification or sync conflicts",
+      "Changes to setup and the illustrated CLI workflow"
+    ]
   },
   {
-    href: "/blog/oh-rust-typescript-parity",
-    lifecycle: "indexable",
-    readerJob:
-      "Decide whether a digest from Oh's opt-in Rust encoder can be trusted to match the TypeScript reference, and learn how to test a second implementation against a reference.",
-    nonObviousAnswer:
-      "Parity rests on sampled inputs plus a check that the Rust engine loaded, and that check covers only where it runs: from the source tree it passed while installed copies fell back to the reference, which matching digests could not reveal. Every generated string is printable ASCII, so UTF-16 key order rests on one fixed edge case.",
-    originalContribution:
-      "Reads the parity suite, the Rust crate and number formatter, the published package, and Wordcell's wrapper and tests side by side, and states what each checks and what it leaves unchecked.",
-    hostFit: "A product-specific technique post about Oh's own record format on Oh's site.",
-    nearestUrls: [
+    "href": "/blog/oh-rust-typescript-parity",
+    "lifecycle": "indexable",
+    "readerJob": "Specify and test a canonical record format across language implementations.",
+    "nonObviousAnswer": "Artifact identity, engine selection, output comparison, and fallback behavior answer different questions; skipped fallback inputs do not supply parity evidence.",
+    "originalContribution": "Explains UTF-16 key ordering and number formatting using Oh’s source, then compares direct encoder tests with Wordcell’s guarded wrapper.",
+    "hostFit": "A product-specific technique post about Oh's own record format on Oh's site.",
+    "nearestUrls": [
       {
-        url: "https://oh.computer/blog/introducing-oh",
-        distinction: "The introduction mentions the two encoders in one section; this post explains the parity method and its limits.",
+        "url": "https://oh.computer/blog/introducing-oh",
+        "distinction": "The introduction mentions the two encoders in one section; this post explains the parity method and its limits."
       },
       {
-        url: "https://hraness.com/reference/local-first-software/content-addressed-documents",
-        distinction: "The hraness.com reference explains why digests need canonical bytes in browser apps; this post shows how Oh keeps two encoders producing the same bytes.",
-      },
+        "url": "https://hraness.com/reference/local-first-software/content-addressed-documents",
+        "distinction": "The hraness.com reference explains why digests need canonical bytes in browser apps; this post shows how Oh keeps two encoders producing the same bytes."
+      }
     ],
-    sources: [
+    "sources": [
       {
-        title: "TypeScript and Rust canonical JSON parity tests",
-        url: oh(ohChecked, "src/canonical-rust-parity.test.ts"),
-        checkedOn: "2026-09-26",
+        "title": "TypeScript canonical encoding reference",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/src/canonical.ts",
+        "checkedOn": "2026-10-01"
       },
-      { title: "Rust canonical JSON crate and its unit tests", url: oh(ohChecked, "rust/oh-canonical/src/lib.rs"), checkedOn: "2026-09-26" },
-      { title: "Rust ECMAScript number formatter", url: oh(ohChecked, "rust/oh-canonical/src/js_number.rs"), checkedOn: "2026-09-26" },
-      { title: "TypeScript canonical JSON reference", url: oh(ohChecked, "src/canonical.ts"), checkedOn: "2026-09-26" },
-      { title: "Opt-in Rust loader with TypeScript fallback", url: oh(ohChecked, "src/canonical-rust.ts"), checkedOn: "2026-09-26" },
-      { title: "Oh package exports", url: oh(ohChecked, "package.json"), checkedOn: "2026-09-26" },
-      { title: "Oh v0.12.0 GitHub Release", url: "https://github.com/hraness/oh/releases/tag/v0.12.0", checkedOn: "2026-09-26" },
       {
-        title: "Packaged loader fix, installed-package check, and UTF-16 key-order edge case",
-        url: loaderFix,
-        checkedOn: "2026-09-26",
+        "title": "Rust engine loader",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/src/canonical-rust.ts",
+        "checkedOn": "2026-10-01"
       },
-      { title: "Rust foundations plan", url: oh(ohChecked, "plans/rust-foundations.md"), checkedOn: "2026-09-26" },
-      { title: "Wordcell parity tests against @hraness/oh", url: wordcell("src/oh/canonical-rust.test.ts"), checkedOn: "2026-09-26" },
-      { title: "Wordcell Rust engine wrapper", url: wordcell("src/oh/canonical-rust.ts"), checkedOn: "2026-09-26" },
-      { title: "Wordcell adoption digest with TypeScript fallback", url: wordcell("src/oh-adoption.ts"), checkedOn: "2026-09-26" },
+      {
+        "title": "Encoder comparison tests",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/src/canonical-rust-parity.test.ts",
+        "checkedOn": "2026-10-01"
+      },
+      {
+        "title": "Rust canonical encoding and unit tests",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/rust/oh-canonical/src/lib.rs",
+        "checkedOn": "2026-10-01"
+      },
+      {
+        "title": "ECMAScript number formatting",
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/rust/oh-canonical/src/js_number.rs",
+        "checkedOn": "2026-10-01"
+      },
+      {
+        "title": "Wordcell guarded encoder wrapper",
+        "url": "https://github.com/hraness/wordcell/blob/05783b08f1cf4d7df0d04a1f64db2eecd063c88a/src/oh/canonical-rust.ts",
+        "checkedOn": "2026-10-01"
+      },
+      {
+        "title": "Wordcell encoder checks",
+        "url": "https://github.com/hraness/wordcell/blob/05783b08f1cf4d7df0d04a1f64db2eecd063c88a/src/oh/canonical-rust.test.ts",
+        "checkedOn": "2026-10-01"
+      },
+      {
+        "title": "Wordcell adoption digest fallback",
+        "url": "https://github.com/hraness/wordcell/blob/05783b08f1cf4d7df0d04a1f64db2eecd063c88a/src/oh-adoption.ts",
+        "checkedOn": "2026-10-01"
+      }
     ],
-    observations: [
-      "Installed from the v0.12.0 release tarball, loadCanonicalRustTextEngine() reported typescript because dist/canonical-rust.js looked in ../rust-artifacts/ while the files ship in dist/rust-artifacts/, and dist/projection-rust.js repeated the path; the repository suite passed its rust-wasm assertion only because the source tree has rust/oh-canonical-wasm/pkg. The fix loads from the packaged folder and adds a check on the packed package that fails on a fallback.",
-      "Before the fix no test in Oh's parity suite, the Rust crate, or Wordcell's suite put two keys whose UTF-16 and code-point orders differ into one object; fast-check 4's default string unit keeps every generated string printable ASCII, and Wordcell's generated checks can fail only on a SHA-256 difference because its wrapper returns null on any text mismatch.",
-      "2026-09-27 fact review (AI, Claude Opus 5.5): the 2026-09-26 editorial pass had turned \"can expect the digest the reference would produce\" into \"gets\"; restored, because sampled parity tests support an expectation, not a guarantee, as the post's own limits section says.",
+    "observations": [
+      "Asserting which engine loaded and comparing its output catch different failures. A source-tree success cannot establish packaged-loader behavior, so the installed-package explanation supplies a distinct useful check.",
+      "Wordcell compares canonical text in its wrapper before returning a result; its generated tests skip null. Therefore a skipped value is not parity evidence, while strict edge cases and artifact identity checks answer separate questions."
     ],
-    scores: {
-      readerUtility: 2,
-      originalEvidence: 2,
-      factualConfidence: 2,
-      hostFit: 2,
-      voiceIntegrity: 2,
-      maintenanceValue: 1,
+    "scores": {
+      "readerUtility": 2,
+      "originalEvidence": 2,
+      "factualConfidence": 2,
+      "hostFit": 2,
+      "voiceIntegrity": 2,
+      "maintenanceValue": 1
     },
-    owner: "hraness/oh maintainers",
-    drafting: "ai-from-source",
-    review,
-    humanReview: null,
-    reassessOn: "2026-11-07",
-    harmIfWrong:
-      "A developer could believe an installed copy runs Rust when it runs the reference, or treat sampled parity as proof and mix digests from the two encoders where a single-byte difference breaks history verification.",
-    refreshTriggers: [
-      "Version bump in site/published-release.json, especially the first release with the loader fix (then name the releases that fell back)",
-      "Change to the parity suite's run counts, generators, or edge cases",
-      "Change to canonical JSON rules in either encoder",
-      "Change to the Rust number formatter or its ryu-js dependency",
-      "Oh's store adopting the Rust encoder, or the canonical-rust export changing",
-      "Wordcell changing its pinned Oh version, parity tests, or runtime guard, or its relation to Oh being registered or changed",
-    ],
+    "owner": "hraness/oh maintainers",
+    "drafting": "ai-from-source",
+    "review": {
+      "reviewer": "Codex AI independent editorial review",
+      "reviewerType": "ai",
+      "reviewedOn": "2026-10-01"
+    },
+    "humanReview": null,
+    "reassessOn": "2026-11-12",
+    "harmIfWrong": "A developer could believe an installed copy runs Rust when it runs the reference, or treat sampled parity as proof and mix digests from the two encoders where a single-byte difference breaks history verification.",
+    "refreshTriggers": [
+      "Changes to accepted input domains or canonical bytes",
+      "Changes to generator coverage, engine selection, or fallback behavior",
+      "Changes to the Rust number formatter or Wordcell integration"
+    ]
   },
   {
-    href: "/blog/built-on-oh",
-    // Both relations are registered in the portfolio facts with detail
-    // sentences. The entries are written out in the post body, so keep them in
-    // step with those relations.
-    lifecycle: "indexable",
-    readerJob: "Find out which products use Oh, what each uses it for, and whether my own project needs Oh or Wordcell.",
-    nonObviousAnswer:
-      "The two uses sit at opposite ends: Sponge's Oh store is the record for its hosted agent's working notes and expires 24 hours after each session opens, while Wordcell keeps no record in Oh and rebuilds a disposable graph from Markdown to answer a query.",
-    originalContribution: "Contrasts the two consumers' use of Oh from their own sources and pins, including what each keeps as its record.",
-    hostFit: "The index of products that use Oh, on Oh's own site; both entries follow relations registered in the portfolio facts.",
-    nearestUrls: [
+    "href": "/blog/built-on-oh",
+    "lifecycle": "indexable",
+    "readerJob": "Choose which records an application owns and which indexes or working notes it can replace or expire.",
+    "nonObviousAnswer": "The same library can hold temporary notes or derive a disposable graph from Markdown; ownership and retention remain application decisions.",
+    "originalContribution": "Contrasts Sponge’s retained hosted-work store with Wordcell’s graph rebuild workflow to explain record ownership and expiry.",
+    "hostFit": "A comparison of two Oh integrations based on each consumer’s source.",
+    "nearestUrls": [
       {
-        url: "https://oh.computer/blog/introducing-oh",
-        distinction: "The introduction describes Oh; this page only indexes the products that use it.",
+        "url": "https://oh.computer/blog/introducing-oh",
+        "distinction": "The introduction explains Oh’s mechanisms; this article compares application ownership and retention choices."
       },
       {
-        url: "https://sponge.computer/docs/how-sponge-uses-oh",
-        distinction: "Sponge's post explains its working memory in detail; this page gives one line per product.",
+        "url": "https://sponge.computer/docs/how-sponge-uses-oh",
+        "distinction": "The integration reference covers Sponge in detail; this article compares it with Wordcell’s disposable graph."
+      }
+    ],
+    "sources": [
+      {
+        "title": "How Sponge uses Oh for retained hosted work",
+        "url": "https://sponge.computer/docs/how-sponge-uses-oh",
+        "checkedOn": "2026-10-01"
       },
+      {
+        "title": "Wordcell derived graph and rebuild",
+        "url": "https://github.com/hraness/wordcell/blob/05783b08f1cf4d7df0d04a1f64db2eecd063c88a/docs/graph-authority.md",
+        "checkedOn": "2026-10-01"
+      }
     ],
-    sources: [
-      { title: "Oh README: who builds on Oh", url: oh(ohChecked, "README.md"), checkedOn: "2026-09-26" },
-      { title: "Oh release record", url: oh(ohChecked, "site/published-release.json"), checkedOn: "2026-09-26" },
-      { title: "Wordcell dependency on a pinned Oh release", url: wordcell("package.json"), checkedOn: "2026-09-26" },
-      { title: "Wordcell graph queries over Oh", url: wordcell("docs/graph-authority.md"), checkedOn: "2026-09-26" },
-      { title: "How Sponge uses Oh for agent working memory", url: "https://sponge.computer/docs/how-sponge-uses-oh", checkedOn: "2026-09-26" },
-      { title: "Hraness portfolio registry", url: "https://hraness.com/portfolio.json", checkedOn: "2026-09-26" },
+    "observations": [
+      "The same Oh mechanisms support different sources of truth: Wordcell derives a replaceable graph from Markdown, whereas Sponge retained hosted work keeps temporary notes in its Oh store.",
+      "Sponge new hosted-agent intake is retired, while retained work and its default 24-hour memory lifetime remain represented in source. The article states both instead of advertising a new hosted offer."
     ],
-    observations: [
-      "The live portfolio registry on 2026-09-26 registers both relations to Oh. The Wordcell entry repeats its relation sentence; the Sponge entry adds the 24-hour expiry and the 2026-09-12 cutoff from Sponge's own sources, which its relation sentence does not state.",
-      "Sponge retired new hosted chat, report jobs, and hosted research on 2026-09-12, so its Oh working memory serves only runs accepted before then, each expiring 24 hours after its session opens; Sponge pins Oh v0.10.8 and Wordcell pins v0.12.0.",
-    ],
-    scores: {
-      readerUtility: 1,
-      originalEvidence: 1,
-      factualConfidence: 2,
-      hostFit: 2,
-      voiceIntegrity: 2,
-      maintenanceValue: 1,
+    "scores": {
+      "readerUtility": 2,
+      "originalEvidence": 1,
+      "factualConfidence": 2,
+      "hostFit": 2,
+      "voiceIntegrity": 2,
+      "maintenanceValue": 1
     },
-    owner: "hraness/oh maintainers",
-    drafting: "ai-from-source",
-    review,
-    humanReview: null,
-    reassessOn: "2026-11-07",
-    harmIfWrong:
-      "A reader could pick Oh or Wordcell for the wrong job, expect Sponge's hosted agent to accept new work, or expect a consumer to share Oh's release schedule.",
-    refreshTriggers: [
-      "Version bump in site/published-release.json",
-      "A relation with Oh added, removed, or given a new detail sentence in the portfolio facts",
-      "Sponge or Wordcell changing how or where it uses Oh, its pinned Oh version, or Sponge's hosted agent status",
-      "A consumer post going live, leaving quarantine, or being archived",
-      "Rename of Oh, Sponge, or Wordcell",
-    ],
-  },
+    "owner": "hraness/oh maintainers",
+    "drafting": "ai-from-source",
+    "review": {
+      "reviewer": "Codex AI independent editorial review",
+      "reviewerType": "ai",
+      "reviewedOn": "2026-10-01"
+    },
+    "humanReview": null,
+    "reassessOn": "2026-11-12",
+    "harmIfWrong": "A reader could pick Oh or Wordcell for the wrong job, expect Sponge's hosted agent to accept new work, or expect a consumer to share Oh's release schedule.",
+    "refreshTriggers": [
+      "Changes to Sponge hosted intake or working-memory lifetime",
+      "Changes to Wordcell graph authority and rebuild behavior"
+    ]
+  }
 ] as const satisfies readonly ArticleAdmission[];

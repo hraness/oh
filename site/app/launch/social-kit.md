@@ -48,16 +48,16 @@ Post 7 of 9, 119 characters
 Oh is for developers building agents and research tools where someone will later ask why the system believes something.
 ```
 
-Post 8 of 9, 210 characters
+Post 8 of 9, 224 characters
 
 ```text
-We are building Rust versions of Oh's shared code one piece at a time, with TypeScript kept as the reference. The first, the encoder, must match it byte for byte on 1,000 generated documents and 20,000 numbers.
+A shared byte format lets different implementations identify the same record. Oh keeps TypeScript as the reference and tests an optional Rust encoder against it, including encoded text, digests, and difficult number formats.
 ```
 
-Post 9 of 9, 187 characters
+Post 9 of 9, 198 characters
 
 ```text
-Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+Latest release: v0.14.1. Oh is MIT licensed with no account needed. Follow the setup guide and run the first example to save a record and verify its history.
 
 https://oh.computer/blog/introducing-oh
 ```
@@ -106,16 +106,16 @@ Post 7 of 9, 119 characters
 Oh is for developers building agents and research tools where someone will later ask why the system believes something.
 ```
 
-Post 8 of 9, 210 characters
+Post 8 of 9, 224 characters
 
 ```text
-We are building Rust versions of Oh's shared code one piece at a time, with TypeScript kept as the reference. The first, the encoder, must match it byte for byte on 1,000 generated documents and 20,000 numbers.
+A shared byte format lets different implementations identify the same record. Oh keeps TypeScript as the reference and tests an optional Rust encoder against it, including encoded text, digests, and difficult number formats.
 ```
 
-Post 9 of 9, 187 characters
+Post 9 of 9, 198 characters
 
 ```text
-Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+Latest release: v0.14.1. Oh is MIT licensed with no account needed. Follow the setup guide and run the first example to save a record and verify its history.
 
 https://oh.computer/blog/introducing-oh
 ```
@@ -164,16 +164,16 @@ Post 7 of 9, 119 characters
 Oh is for developers building agents and research tools where someone will later ask why the system believes something.
 ```
 
-Post 8 of 9, 210 characters
+Post 8 of 9, 224 characters
 
 ```text
-We are building Rust versions of Oh's shared code one piece at a time, with TypeScript kept as the reference. The first, the encoder, must match it byte for byte on 1,000 generated documents and 20,000 numbers.
+A shared byte format lets different implementations identify the same record. Oh keeps TypeScript as the reference and tests an optional Rust encoder against it, including encoded text, digests, and difficult number formats.
 ```
 
-Post 9 of 9, 187 characters
+Post 9 of 9, 198 characters
 
 ```text
-Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+Latest release: v0.14.1. Oh is MIT licensed with no account needed. Follow the setup guide and run the first example to save a record and verify its history.
 
 https://oh.computer/blog/introducing-oh
 ```
@@ -195,9 +195,9 @@ By default Oh keeps everything in one SQLite file on your computer. Each accepte
 
 Oh is for developers building agents and research tools where someone will later ask why the system believes something.
 
-We are building Rust versions of Oh's shared code one piece at a time, with TypeScript kept as the reference. The first, the encoder, must match it byte for byte on 1,000 generated documents and 20,000 numbers.
+A shared byte format lets different implementations identify the same record. Oh keeps TypeScript as the reference and tests an optional Rust encoder against it, including encoded text, digests, and difficult number formats.
 
-Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+Latest release: v0.14.1. Oh is MIT licensed with no account needed. Follow the setup guide and run the first example to save a record and verify its history.
 
 https://oh.computer/blog/introducing-oh
 ```
@@ -224,7 +224,7 @@ Topics: Developer Tools, Open Source, Artificial Intelligence
 - When your app accepts a proposal, new records go in and existing ones stay put. To replace a record, your code names the exact version it is replacing, up to 128 at a time. Anything stale fails with nothing written.
 - By default Oh keeps everything in one SQLite file on your computer. Each accepted change joins a log, and oh verify replays that log to confirm every record still matches its history.
 - Oh is for developers building agents and research tools where someone will later ask why the system believes something.
-- Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+- Latest release: v0.14.1. Oh is MIT licensed with no account needed. Follow the setup guide and run the first example to save a record and verify its history.
 - Latest release: v0.14.1. https://oh.computer/blog/introducing-oh
 
 ## Beats
@@ -236,8 +236,8 @@ Topics: Developer Tools, Open Source, Artificial Intelligence
 5. Accepting a note never overwrites one quietly
 6. One file on your computer, with a history you can replay
 7. Built for developers whose agents get asked why
-8. Next, shared Rust pieces checked byte for byte
-9. Oh is free and open source today
+8. Keep the record format portable
+9. Free and open source
 
 ## Facts and their records
 

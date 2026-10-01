@@ -5,6 +5,7 @@ import { join } from "node:path";
 export async function inspectTrailLayout(page, label, artifacts) {
   const trace = page.locator("#trace");
   const showcase = trace.locator(".hkm-steps");
+  await showcase.locator('.hkm-step-stage[data-hkm-fitted]').waitFor();
   const rows = [];
   const inspect = async (state) => {
     const geometry = await trace.evaluate((section) => {
@@ -17,6 +18,8 @@ export async function inspectTrailLayout(page, label, artifacts) {
       const figure = body.querySelector(".hkm-steps");
       const stage = figure.querySelector(".hkm-step-stage");
       const panel = stage.querySelector('[role="tabpanel"][aria-hidden="false"]');
+      const terminal = panel.querySelector('[data-hkm-density="presentation"]');
+      const map = panel.querySelector('.oh-trail .hkm-app-content');
       return {
         heading: box(heading), body: box(body), figure: box(figure), stage: box(stage),
         panel: box(panel), navigation: box(figure.querySelector(".hkm-step-nav")),
@@ -26,6 +29,21 @@ export async function inspectTrailLayout(page, label, artifacts) {
           visible: getComputedStyle(element).visibility === "visible", inert: element.inert,
         })),
         scrollWidth: document.documentElement.scrollWidth, viewportWidth: innerWidth,
+        scaled: panel.querySelector('[data-hkm-scaled]') !== null,
+        frames: [...panel.querySelectorAll('.hkm-window')].map(box),
+        terminal: terminal && { size: parseFloat(getComputedStyle(terminal).fontSize),
+          minimum: parseFloat(getComputedStyle(document.documentElement).fontSize),
+          overflow: terminal.scrollHeight > terminal.clientHeight + 1 || terminal.scrollWidth > terminal.clientWidth + 1 },
+        map: { ...box(map), overflow: map.scrollHeight > map.clientHeight + 1 || map.scrollWidth > map.clientWidth + 1,
+          cards: [...map.querySelectorAll('.oh-trail-card')].map(box),
+          labels: [...map.querySelectorAll('.oh-trail-value')].map(element => ({ text: element.textContent, clipped: element.scrollWidth > element.clientWidth + 1 })),
+          text: [...map.querySelectorAll('.oh-trail-role, .oh-trail-key, .oh-trail-value')].map(element => {
+            let effectiveOpacity = 1;
+            for (let ancestor = element; ancestor && section.contains(ancestor); ancestor = ancestor.parentElement) {
+              effectiveOpacity *= Number.parseFloat(getComputedStyle(ancestor).opacity);
+            }
+            return { text: element.textContent, effectiveOpacity };
+          }) },
       };
     });
     assert.equal(geometry.position, "static", `${label}/${state}: stacked heading stays in document flow`);
@@ -37,6 +55,16 @@ export async function inspectTrailLayout(page, label, artifacts) {
     assert.equal(geometry.panels.filter((panel) => panel.active).length, 1);
     assert.ok(geometry.panels.every((panel) => panel.active === panel.visible && panel.inert !== panel.active), `${label}/${state}: inactive panels cannot overlay the current step`);
     assert.ok(geometry.scrollWidth <= geometry.viewportWidth, `${label}/${state}: no horizontal page overflow`);
+    assert.equal(geometry.scaled, false, `${label}/${state}: text stays at readable scale`);
+    assert.ok(geometry.terminal && geometry.terminal.size >= geometry.terminal.minimum - 0.1 && !geometry.terminal.overflow, `${label}/${state}: complete terminal content fits at the reader's text size`);
+    assert.equal(geometry.frames.length, 2, `${label}/${state}: both map and terminal remain visible`);
+    assert.ok(geometry.frames.every(frame => frame.width > 1 && frame.right <= geometry.stage.right + 1 && frame.bottom <= geometry.stage.bottom + 1), `${label}/${state}: composed frames stay inside the reserved stage`);
+    assert.ok(!geometry.map.overflow && geometry.map.cards.length > 0
+        && geometry.map.cards.every(card => card.x >= geometry.map.x && card.y >= geometry.map.y
+        && card.right <= geometry.map.right + 1 && card.bottom <= geometry.map.bottom + 1), `${label}/${state}: every map card fits inside its frame`);
+    assert.ok(geometry.map.labels.every(label => !label.clipped), `${label}/${state}: map summaries remain complete`);
+    assert.ok(geometry.map.text.length > 0 && geometry.map.text.every(text => Math.abs(text.effectiveOpacity - 1) < 0.001), `${label}/${state}: map text and its ancestors retain full opacity, including unselected records`);
+    assert.ok(Math.max(...geometry.frames.map(frame => frame.bottom)) >= geometry.stage.bottom - 3, `${label}/${state}: frames fill the reserved height`);
     rows.push({ state, ...geometry });
   };
   for (const step of ["Ask", "Trace", "Check"]) {
@@ -50,16 +78,33 @@ export async function inspectTrailLayout(page, label, artifacts) {
       await inspect(`${step}-${progress}`);
     }
   }
+  assert.ok(Math.max(...rows.map(row => row.stage.height)) - Math.min(...rows.map(row => row.stage.height)) <= 1, `${label}: switching steps preserves stage height`);
   await showcase.getByRole("tab", { name: /Ask/ }).click();
   const viewport = page.viewportSize();
+  const fontSize = await page.evaluate(() => document.documentElement.style.fontSize);
   try {
     await page.setViewportSize({ ...viewport, width: Math.max(320, Math.floor(viewport.width * 0.7)) });
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await inspect("resized-narrower");
+    if (viewport.width === 1440) {
+      await page.setViewportSize({ ...viewport, width: 390 });
+      await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+      const zoomRows = [];
+      for (const step of ["Ask", "Trace", "Check"]) {
+        await showcase.getByRole("tab", { name: new RegExp(step) }).click();
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        await inspect(`large-text-${step}`);
+        zoomRows.push(rows.at(-1).stage.height);
+        if (artifacts) await showcase.screenshot({ path: join(artifacts, `${label}-large-text-${step.toLowerCase()}.png`) });
+      }
+      assert.ok(Math.max(...zoomRows) - Math.min(...zoomRows) <= 1, `${label}: enlarged text preserves a stable stage`);
+    }
   } finally {
+    await page.evaluate(value => { document.documentElement.style.fontSize = value; }, fontSize);
     await page.setViewportSize(viewport);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   }
+  await showcase.getByRole("tab", { name: /Ask/ }).click();
   await inspect("resized-back");
   if (artifacts) {
     await trace.screenshot({ path: join(artifacts, `${label}-trace.png`) });

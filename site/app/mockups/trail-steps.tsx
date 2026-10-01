@@ -2,35 +2,35 @@
 
 import { StepThrough, type ThroughStep } from "@hraness/design-kit/mockups/client";
 
-import { trailRecord } from "./fixtures";
-import { TrailMap, TrailTerminal, TERMINAL_STATES, type TrailFocus } from "./trail";
+import { trailRecord, type TrailRunId } from "./fixtures";
+import { TrailMap, TrailTerminal, type TrailFocus } from "./trail";
 
-type Step = Readonly<{ id: string; label: string; hint: string; focus: TrailFocus; runs: keyof typeof TERMINAL_STATES; describe: string }>;
+type Step = Readonly<{ id: string; label: string; hint: string; focus: TrailFocus; runs: readonly TrailRunId[]; describe: string }>;
 
 /** Ask, trace and check: the homepage walk through the example review. */
 export const TRAIL_STEPS: readonly Step[] = [
   {
     id: "ask",
     label: "Ask",
-    hint: `Keyword search finds the question, and the review brief answers it: ${trailRecord("view:review-brief").value.answer ?? ""}.`,
+    hint: `Read the saved review brief: ${trailRecord("view:review-brief").value.answer ?? ""}.`,
     focus: "answer",
-    runs: "search",
-    describe: "Illustration: the oh CLI finds the saved question and prints the review brief that answers it.",
+    runs: ["getAnswer"],
+    describe: "Illustration: the oh CLI opens the saved review brief, its answer, and the records it depends on.",
   },
   {
     id: "trace",
     label: "Trace",
-    hint: "The brief depends on the table 2 citation, which points at the copy of the report the agent read.",
+    hint: "The table 2 citation points at the copy of the report the agent read.",
     focus: "source",
-    runs: "trace",
-    describe: "Illustration: the oh CLI prints the review brief and the table 2 citation it depends on.",
+    runs: ["getEvidence"],
+    describe: "Illustration: the oh CLI opens the table 2 citation, with links to the claim and the saved copy of the report.",
   },
   {
     id: "check",
     label: "Check",
     hint: "oh verify replays every change and confirms the history still matches the records.",
     focus: "all",
-    runs: "verify",
+    runs: ["verify"],
     describe: "Illustration: the oh CLI replays the log and reports that every record and change reproduces the same state.",
   },
 ];
@@ -42,15 +42,21 @@ export function TrailSteps() {
     hint: step.hint,
     render: () => (
       <div className="oh-steps-stage">
-        <TrailMap focus={step.focus} />
-        <TrailTerminal describe={step.describe} runs={TERMINAL_STATES[step.runs]} />
+        <TrailMap
+          displaySummaries={{
+            "inquiry:primary-endpoint": "When was the endpoint measured?",
+            "statement:endpoint-12-weeks": `Measured at ${trailRecord("view:review-brief").value.answer ?? ""}`,
+          }}
+          focus={step.focus}
+        />
+        <TrailTerminal density="presentation" describe={step.describe} runs={step.runs} />
       </div>
     ),
   }));
   return (
     <StepThrough
+      fit="fill"
       label="From answer to source"
-      minWidth={620}
       steps={steps}
     />
   );

@@ -1,24 +1,18 @@
-// Converted from the reviewed draft. Keep the prose; edit facts only with a new review.
-// Sponge and Wordcell link to their product sites along their registered relations.
-import publishedRelease from "../../../published-release.json";
-import { homeDescription } from "../../metadata-copy";
-
 export const toc = [] as const;
 
 export function BuiltOnOhBody() {
-  const releaseVersion = publishedRelease.version;
   return (
     <>
-      <p>Two Hraness products build on <a href="/">Oh</a>. Sponge uses it as its hosted agent’s working memory, and Wordcell uses it to build a disposable graph from your Markdown notes.</p>
-      <p>{homeDescription} An agent’s working memory lives in a separate store that the host can purge, and only the host application’s own code can adopt a record from it into the reviewed store. {`Latest release: v${releaseVersion}.`}</p>
-      <h2 id="products-that-use-oh">Products that use Oh</h2>
-      <p><strong><a href="https://sponge.computer">Sponge</a>.</strong> Sponge keeps its hosted agent’s working notes in a separate server-side Oh store that expires 24 hours after each session opens; the hosted agent finishes only work Sponge accepted before 2026-09-12.</p>
-      <p><strong><a href="https://wordcell.io">Wordcell</a>.</strong> Wordcell rebuilds a disposable Oh graph from your Markdown to answer named graph queries with source proofs; Markdown and Git stay the record, and search does not use Oh’s memory retrieval.</p>
-      <h2 id="sponge-keeps-its-record-in-oh-wordcell-does-not">Sponge keeps its record in Oh; Wordcell does not</h2>
-      <p>Sponge runs Oh on its server as its agent’s working memory, and that store is the record for those working notes. Wordcell keeps no record in Oh. A default query builds a graph in memory from your notes and discards it, <code>{"wordcell graph rebuild"}</code> writes a disposable local cache, and your Markdown stays the only record. If you are choosing between them, Oh’s README draws the line: use Oh to build an application’s memory layer, and use Wordcell to maintain and query a Markdown knowledge base.</p>
-      <h2 id="each-product-upgrades-oh-on-its-own-schedule">Each product upgrades Oh on its own schedule</h2>
-      <p>Each product depends on a published Oh release, pins its own version, and upgrades when it chooses, so Sponge and Wordcell can run different Oh versions at the same time. When a product starts or stops using Oh, or changes what it uses Oh for, its entry here changes with it.</p>
-      <p>For what Oh itself does, read <a href="/blog/introducing-oh">Introducing Oh</a>.</p>
+      <p>A memory library can hold an application’s records or build a view over records that live elsewhere. Two Hraness integrations illustrate the difference: Sponge uses Oh for temporary agent working notes, while Wordcell derives a graph from Markdown files.</p>
+      <h2 id="sponge-working-memory">Sponge: temporary working memory</h2>
+      <p><a href="https://sponge.computer">Sponge</a> uses a separate server-side Oh store for its retained hosted-agent work. That store expires by default 24 hours after the session opens. The agent can propose a record for review; the host application controls whether it becomes reviewed knowledge.</p>
+      <p>Sponge does not accept new hosted-agent work. The integration illustrates a storage boundary: temporary notes can be removed without giving the agent authority to promote them into a lasting record.</p>
+      <h2 id="wordcell-derived-graph">Wordcell: a graph derived from Markdown</h2>
+      <p><a href="https://wordcell.io">Wordcell</a> keeps Markdown files as the record. It builds an Oh graph to answer named queries about links and relationships, with source proofs that point back to the notes. A default query builds that graph in memory and discards it afterward.</p>
+      <p><code>wordcell graph rebuild</code> writes a disposable local cache. Deleting the cache removes a way to query the notes, not the notes themselves. Wordcell’s text search is separate from Oh’s memory retrieval.</p>
+      <h2 id="choose-the-record-first">Choose the record first</h2>
+      <p>Before choosing a memory layer, decide which material must survive and who may change it. An application may need a store for records it owns. A Markdown tool may need a derived index that can always be rebuilt. Temporary agent notes may need an expiry policy and a separate route into reviewed knowledge.</p>
+      <p>Oh provides the record and query mechanisms; the application defines those ownership and retention rules. <a href="/blog/introducing-oh">Introducing Oh</a> shows how the records, source links, and review boundary fit together.</p>
     </>
   );
 }
