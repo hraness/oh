@@ -36,7 +36,7 @@ export async function inspectTrailLayout(page, label, artifacts) {
           overflow: terminal.scrollHeight > terminal.clientHeight + 1 || terminal.scrollWidth > terminal.clientWidth + 1 },
         map: { ...box(map), overflow: map.scrollHeight > map.clientHeight + 1 || map.scrollWidth > map.clientWidth + 1,
           cards: [...map.querySelectorAll('.oh-trail-card')].map(box),
-          labels: [...map.querySelectorAll('.oh-trail-value')].map(element => ({ text: element.textContent, clipped: element.scrollWidth > element.clientWidth + 1 })),
+          labels: [...map.querySelectorAll('.oh-trail-role, .oh-trail-key, .oh-trail-value')].map(element => ({ text: element.textContent, clipped: element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1 })),
           text: [...map.querySelectorAll('.oh-trail-role, .oh-trail-key, .oh-trail-value')].map(element => {
             let effectiveOpacity = 1;
             for (let ancestor = element; ancestor && section.contains(ancestor); ancestor = ancestor.parentElement) {
@@ -62,7 +62,7 @@ export async function inspectTrailLayout(page, label, artifacts) {
     assert.ok(!geometry.map.overflow && geometry.map.cards.length > 0
         && geometry.map.cards.every(card => card.x >= geometry.map.x && card.y >= geometry.map.y
         && card.right <= geometry.map.right + 1 && card.bottom <= geometry.map.bottom + 1), `${label}/${state}: every map card fits inside its frame`);
-    assert.ok(geometry.map.labels.every(label => !label.clipped), `${label}/${state}: map summaries remain complete`);
+    assert.ok(geometry.map.labels.every(label => !label.clipped), `${label}/${state}: every map label, identifier and summary remains complete`);
     assert.ok(geometry.map.text.length > 0 && geometry.map.text.every(text => Math.abs(text.effectiveOpacity - 1) < 0.001), `${label}/${state}: map text and its ancestors retain full opacity, including unselected records`);
     assert.ok(Math.max(...geometry.frames.map(frame => frame.bottom)) >= geometry.stage.bottom - 3, `${label}/${state}: frames fill the reserved height`);
     rows.push({ state, ...geometry });
@@ -110,6 +110,67 @@ export async function inspectTrailLayout(page, label, artifacts) {
     await trace.screenshot({ path: join(artifacts, `${label}-trace.png`) });
     await trace.evaluate((section) => scrollTo({ top: scrollY + section.getBoundingClientRect().y + 320, behavior: "instant" }));
     await page.screenshot({ path: join(artifacts, `${label}-trace-scroll.png`) });
+  }
+  return rows;
+}
+
+/** Article maps use their natural height, including full fixture prose. */
+export async function inspectArticleTrailCases(browser, origin, artifacts) {
+  const rows = [];
+  for (const width of [320, 390, 768, 1440]) for (const colorScheme of ["light", "dark"]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme });
+    try {
+      const page = await context.newPage();
+      const failures = [];
+      page.on("pageerror", error => failures.push(error.message));
+      page.on("response", response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
+      page.on("requestfailed", request => failures.push(`${request.failure()?.errorText} ${request.url()}`));
+      assert.equal((await page.goto(`${origin}/blog/introducing-oh`, { waitUntil: "networkidle" })).status(), 200);
+      for (const textSize of width === 390 ? [100, 200] : [100]) {
+        const label = `article-maps-${width}-${colorScheme}-${textSize}text`;
+        const metrics = await page.evaluate(async size => {
+          document.documentElement.style.fontSize = `${size}%`;
+          await document.fonts.ready;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const box = element => {
+            const { x, y, right, bottom } = element.getBoundingClientRect();
+            return { x, y, right, bottom };
+          };
+          return {
+            scrollWidth: document.documentElement.scrollWidth,
+            rootSize: Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+            maps: [...document.querySelectorAll(".oh-trail")].map(map => ({
+              frame: box(map),
+              text: [...map.querySelectorAll(".oh-trail-role, .oh-trail-key, .oh-trail-value")].map(element => {
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                let opacity = 1;
+                for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) opacity *= Number.parseFloat(getComputedStyle(ancestor).opacity);
+                return { text: element.textContent, box: box(element), ink: box(range), card: box(element.closest(".oh-trail-card")),
+                  size: Number.parseFloat(getComputedStyle(element).fontSize), opacity,
+                  clipped: element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1 };
+              }),
+            })),
+          };
+        }, textSize);
+        assert.ok(metrics.scrollWidth <= width, `${label}: no page overflow`);
+        assert.ok(metrics.maps.length > 0, `${label}: launch maps are present`);
+        for (const map of metrics.maps) {
+          assert.equal(map.text.length, 21, `${label}: seven records retain all three labels`);
+          for (const text of map.text) {
+            assert.ok(!text.clipped && text.ink.x >= text.box.x - 1 && text.ink.right <= text.box.right + 1
+              && text.ink.y >= text.box.y - 1 && text.ink.bottom <= text.box.bottom + 1, `${label}: complete text remains visible: ${text.text}`);
+            assert.ok(text.card.x >= map.frame.x - 1 && text.card.right <= map.frame.right + 1
+              && text.card.y >= map.frame.y - 1 && text.card.bottom <= map.frame.bottom + 1, `${label}: natural-height cards remain inside the map`);
+            assert.ok(text.size >= metrics.rootSize * 0.75 - 0.1, `${label}: labels respect reader text size`);
+            assert.ok(Math.abs(text.opacity - 1) < 0.001, `${label}: full text opacity`);
+          }
+        }
+        assert.deepEqual(failures, [], `${label}: no runtime or resource failures`);
+        if (artifacts) await page.locator(".oh-trail").first().screenshot({ path: join(artifacts, `${label}.png`) });
+        rows.push({ label, metrics });
+      }
+    } finally { await context.close(); }
   }
   return rows;
 }
