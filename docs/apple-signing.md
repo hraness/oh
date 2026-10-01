@@ -56,6 +56,16 @@ about the failed query. Status stays unknown and package admission stays false.
 Any further query needs reviewed source, passing CI and a new immutable
 diagnostic tag; the previous run and tag remain intact.
 
+The query captures at most 64 KiB from each of stdout and stderr in memory,
+with stdin closed and a 90-second deadline. It does not limit the SDK's own
+cache or temporary file sizes. Timeout, excess output and capture errors
+terminate only the query's owned process group and reap its child before
+credential cleanup. Normal completion also removes any remaining children.
+The group leader remains unreaped until teardown to prevent PID reuse from
+changing the target; teardown itself has a separate fixed bound.
+SIGINT and SIGTERM received while creating the child are deferred until owned
+cleanup is installed, then delivered through the caller's original handlers.
+
 Developer ID establishes a stable app identity across versions. macOS still
 controls protected-data approvals, which depend on the responsible app and the
 user's privacy settings; signing does not grant new access by itself.

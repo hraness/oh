@@ -8,18 +8,21 @@ Accepted here records provider status; it does not admit or publish a package.
 
 import argparse
 import base64
+import ctypes
 from datetime import datetime, timezone
 import hashlib
+import errno
 import json
 import os
 from pathlib import Path
 import re
-import resource
+import selectors
 import shutil
 import signal
 import stat
 import subprocess
 import sys
+import time
 import zipfile
 
 REPOSITORY = "hraness/oh"
@@ -49,6 +52,7 @@ ERROR_CLASSIFICATIONS = (
     "authentication-rejected", "authorization-rejected", "submission-not-found",
     "rate-limited", "service-or-network-failure", "tool-usage-error",
     "unrecognized-tool-failure", "invalid-tool-response",
+    "child-output-overflow", "child-capture-failed", "child-cleanup-failed",
 )
 
 
@@ -164,13 +168,170 @@ def cleanup(work):
         shutil.rmtree(work)
 
 
-def tool_output(path):
-    info = path.lstat()
-    require(stat.S_ISREG(info.st_mode) and 0 <= info.st_size <= MAX_BYTES,
-            "tool output exceeds byte bound")
-    data = path.read_bytes()
-    require(len(data) <= MAX_BYTES, "tool output changed beyond byte bound")
-    return data
+def child_exited_unreaped(child):
+    # WNOWAIT keeps the owned leader PID reserved until group cleanup. Calling
+    # Popen.poll/wait earlier could permit PID/group reuse before killpg.
+    if hasattr(os, "waitid"):
+        return os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None
+    # Apple's system Python 3.9 does not expose waitid. Call the same Darwin
+    # libc operation with SDK ABI constants P_PID=1, WEXITED|WNOHANG|WNOWAIT.
+    require(sys.platform == "darwin", "unreaped child inspection unavailable")
+    library = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+    library.waitid.argtypes = [ctypes.c_int, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_int]
+    library.waitid.restype = ctypes.c_int
+    information = ctypes.create_string_buffer(128)
+    ctypes.set_errno(0)
+    if library.waitid(1, child.pid, information, 0x04 | 0x01 | 0x20) != 0:
+        raise OSError(ctypes.get_errno(), "owned child inspection failed")
+    # Darwin siginfo starts with four 32-bit fields: signo, errno, code, pid.
+    pid = ctypes.c_int32.from_buffer(information, 12).value
+    require(pid in (0, child.pid), "owned child inspection returned another PID")
+    return pid == child.pid
+
+
+def darwin_group_has_no_live_members(group):
+    """Bounded libproc lookup of only our anchored group, never argv or files."""
+    if sys.platform != "darwin":
+        return False
+    class BsdInfo(ctypes.Structure):
+        _fields_ = [(name, ctypes.c_uint32) for name in (
+            "flags", "status", "exit_status", "pid", "ppid", "uid", "gid",
+            "ruid", "rgid", "svuid", "svgid", "reserved",
+        )] + [("comm", ctypes.c_char * 16), ("name", ctypes.c_char * 32)] + [
+            (name, ctypes.c_uint32) for name in ("nfiles", "pgid", "job_count", "tty", "tty_group")
+        ] + [("nice", ctypes.c_int32), ("start_seconds", ctypes.c_uint64), ("start_microseconds", ctypes.c_uint64)]
+    try:
+        library = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+        library.proc_listpids.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_int]
+        library.proc_listpids.restype = ctypes.c_int
+        library.proc_pidinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64, ctypes.c_void_p, ctypes.c_int]
+        library.proc_pidinfo.restype = ctypes.c_int
+        members = (ctypes.c_int * 129)()
+        ctypes.set_errno(0)
+        count = library.proc_listpids(2, group, members, ctypes.sizeof(members))
+        if count < 0 or count >= ctypes.sizeof(members) or count % ctypes.sizeof(ctypes.c_int) or ctypes.get_errno():
+            return False
+        for pid in members[:count // ctypes.sizeof(ctypes.c_int)]:
+            if pid == 0:
+                continue
+            information = BsdInfo()
+            ctypes.set_errno(0)
+            size = library.proc_pidinfo(pid, 3, 0, ctypes.byref(information), ctypes.sizeof(information))
+            if size == 0 and ctypes.get_errno() == errno.ESRCH:
+                continue
+            if size != ctypes.sizeof(information) or information.pid != pid or information.pgid != group or information.uid != os.getuid() or information.status != 5:
+                return False
+        return True
+    except (OSError, AttributeError, ValueError):
+        return False
+
+
+def signal_owned_group(child, kind):
+    try:
+        os.killpg(child.pid, kind)
+    except ProcessLookupError:
+        pass
+    except PermissionError:
+        # Darwin can return EPERM for zombie-only groups. Keep the leader
+        # unreaped and verify every exact-group member is already dead before
+        # accepting it; permission failures involving any live member fail.
+        if not child_exited_unreaped(child) or not darwin_group_has_no_live_members(child.pid):
+            raise
+
+
+def finish_owned_child_group(child):
+    previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM, signal.SIGINT})
+    try:
+        try:
+            if os.getpgid(child.pid) != child.pid:
+                raise AppleQueryFailure(None, "child-cleanup-failed")
+        except ProcessLookupError:
+            # macOS can stop exposing the group of an exited zombie. WNOWAIT
+            # still proves our unreaped leader reserves this exact PID.
+            if not child_exited_unreaped(child):
+                raise AppleQueryFailure(None, "child-cleanup-failed")
+        # start_new_session created only this owned group. The unreaped leader
+        # anchors its identity throughout both signals, including after exit.
+        signal_owned_group(child, signal.SIGTERM)
+        time.sleep(0.1)
+        signal_owned_group(child, signal.SIGKILL)
+        return child.wait(timeout=1)
+    except (OSError, subprocess.SubprocessError):
+        raise AppleQueryFailure(None, "child-cleanup-failed") from None
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+
+
+def bounded_child(argv, environment, timeout=90, limit=MAX_BYTES):
+    require(type(limit) is int and 0 < limit <= MAX_BYTES, "invalid capture byte bound")
+    require(type(timeout) in (int, float) and 0 < timeout <= 90, "invalid capture deadline")
+    deadline = time.monotonic() + timeout
+    child = None
+    pending_signals = set()
+    previous_handlers = {kind: signal.getsignal(kind) for kind in (signal.SIGINT, signal.SIGTERM)}
+    def defer_interrupt(kind, frame):
+        pending_signals.add(kind)
+    try:
+        # Defer Python interruptions until the returned child is inside this
+        # cleanup scope. Caught handlers reset on exec, so the SDK does not
+        # inherit blocked signals or ignored SIGTERM/SIGINT dispositions.
+        for kind in previous_handlers:
+            signal.signal(kind, defer_interrupt)
+        try:
+            child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, env=environment, close_fds=True,
+                                     start_new_session=True)
+        except (OSError, subprocess.SubprocessError):
+            raise AppleQueryFailure(None, "child-launch-failed") from None
+        for kind, handler in previous_handlers.items():
+            signal.signal(kind, handler)
+        for kind in sorted(pending_signals):
+            handler = previous_handlers[kind]
+            if callable(handler):
+                handler(kind, None)
+            elif handler == signal.SIG_DFL:
+                raise SystemExit(128 + kind)
+        output = {"stdout": bytearray(), "stderr": bytearray()}
+        with selectors.DefaultSelector() as selector:
+            for name in output:
+                stream = getattr(child, name)
+                os.set_blocking(stream.fileno(), False)
+                selector.register(stream, selectors.EVENT_READ, name)
+            while selector.get_map() or not child_exited_unreaped(child):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise AppleQueryFailure(None, "child-timeout")
+                if not selector.get_map():
+                    time.sleep(min(0.01, remaining))
+                    continue
+                for key, _ in selector.select(min(0.1, remaining)):
+                    buffer = output[key.data]
+                    # Retain at most limit bytes; one discarded probe byte
+                    # distinguishes exact-limit EOF from overflowing output.
+                    data = os.read(key.fd, min(8192, limit - len(buffer) + 1))
+                    if not data:
+                        selector.unregister(key.fileobj)
+                        continue
+                    if len(data) > limit - len(buffer):
+                        raise AppleQueryFailure(None, "child-output-overflow")
+                    buffer.extend(data)
+            if time.monotonic() > deadline:
+                raise AppleQueryFailure(None, "child-timeout")
+    except (OSError, ValueError):
+        raise AppleQueryFailure(None, "child-capture-failed") from None
+    finally:
+        # Also remove descendants after a normal leader exit. Do not reap the
+        # leader or close pipes before terminating this exact anchored group.
+        try:
+            if child is not None:
+                exit_code = finish_owned_child_group(child)
+        finally:
+            if child is not None:
+                child.stdout.close()
+                child.stderr.close()
+            for kind, handler in previous_handlers.items():
+                signal.signal(kind, handler)
+    return exit_code, bytes(output["stdout"]), bytes(output["stderr"])
 
 
 def failure_classification(exit_code, output, errors):
@@ -208,26 +369,13 @@ def status_record(receipt, status, state):
 
 def apple_info(submission_id, key, key_id, issuer, work):
     environment = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": os.environ["HOME"], "LC_ALL": "C"}
-    # File capture keeps arbitrary Apple output out of both memory and logs.
-    # The bounded result is read only after the process exits successfully.
-    with (work / "response.json").open("xb") as response, (work / "diagnostic.txt").open("xb") as errors:
-        try:
-            def output_limit():
-                resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_BYTES, MAX_BYTES))
-            result = subprocess.run(
-                ["/usr/bin/xcrun", "notarytool", "info", submission_id,
-                 "--key", str(key), "--key-id", key_id, "--issuer", issuer, "--output-format", "json"],
-                env=environment, stdout=response, stderr=errors, timeout=90, check=False,
-                preexec_fn=output_limit,
-            )
-        except subprocess.TimeoutExpired:
-            raise AppleQueryFailure(None, "child-timeout") from None
-        except (OSError, subprocess.SubprocessError):
-            raise AppleQueryFailure(None, "child-launch-failed") from None
-    output = tool_output(work / "response.json")
-    errors = tool_output(work / "diagnostic.txt")
-    if result.returncode != 0:
-        raise AppleQueryFailure(result.returncode, failure_classification(result.returncode, output, errors))
+    exit_code, output, errors = bounded_child(
+        ["/usr/bin/xcrun", "notarytool", "info", submission_id,
+         "--key", str(key), "--key-id", key_id, "--issuer", issuer, "--output-format", "json"],
+        environment,
+    )
+    if exit_code != 0:
+        raise AppleQueryFailure(exit_code, failure_classification(exit_code, output, errors))
     try:
         return json_value(output)
     except (QueryError, ValueError, UnicodeDecodeError):
