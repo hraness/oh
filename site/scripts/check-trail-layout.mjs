@@ -19,6 +19,7 @@ export async function inspectTrailLayout(page, label, artifacts) {
       const stage = figure.querySelector(".hkm-step-stage");
       const panel = stage.querySelector('[role="tabpanel"][aria-hidden="false"]');
       const terminal = panel.querySelector('[data-hkm-density="presentation"]');
+      const map = panel.querySelector('.oh-trail .hkm-app-content');
       return {
         heading: box(heading), body: box(body), figure: box(figure), stage: box(stage),
         panel: box(panel), navigation: box(figure.querySelector(".hkm-step-nav")),
@@ -33,6 +34,9 @@ export async function inspectTrailLayout(page, label, artifacts) {
         terminal: terminal && { size: parseFloat(getComputedStyle(terminal).fontSize),
           minimum: parseFloat(getComputedStyle(document.documentElement).fontSize),
           overflow: terminal.scrollHeight > terminal.clientHeight + 1 || terminal.scrollWidth > terminal.clientWidth + 1 },
+        map: { ...box(map), overflow: map.scrollHeight > map.clientHeight + 1 || map.scrollWidth > map.clientWidth + 1,
+          cards: [...map.querySelectorAll('.oh-trail-card')].map(box),
+          labels: [...map.querySelectorAll('.oh-trail-value')].map(element => ({ text: element.textContent, clipped: element.scrollWidth > element.clientWidth + 1 })) },
       };
     });
     assert.equal(geometry.position, "static", `${label}/${state}: stacked heading stays in document flow`);
@@ -48,6 +52,10 @@ export async function inspectTrailLayout(page, label, artifacts) {
     assert.ok(geometry.terminal && geometry.terminal.size >= geometry.terminal.minimum - 0.1 && !geometry.terminal.overflow, `${label}/${state}: complete terminal content fits at the reader's text size`);
     assert.equal(geometry.frames.length, 2, `${label}/${state}: both map and terminal remain visible`);
     assert.ok(geometry.frames.every(frame => frame.width > 1 && frame.right <= geometry.stage.right + 1 && frame.bottom <= geometry.stage.bottom + 1), `${label}/${state}: composed frames stay inside the reserved stage`);
+    assert.ok(!geometry.map.overflow && geometry.map.cards.length > 0
+        && geometry.map.cards.every(card => card.x >= geometry.map.x && card.y >= geometry.map.y
+        && card.right <= geometry.map.right + 1 && card.bottom <= geometry.map.bottom + 1), `${label}/${state}: every map card fits inside its frame`);
+    assert.ok(geometry.map.labels.every(label => !label.clipped), `${label}/${state}: map summaries remain complete`);
     assert.ok(Math.max(...geometry.frames.map(frame => frame.bottom)) >= geometry.stage.bottom - 3, `${label}/${state}: frames fill the reserved height`);
     rows.push({ state, ...geometry });
   };
@@ -79,6 +87,7 @@ export async function inspectTrailLayout(page, label, artifacts) {
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         await inspect(`large-text-${step}`);
         zoomRows.push(rows.at(-1).stage.height);
+        if (artifacts) await showcase.screenshot({ path: join(artifacts, `${label}-large-text-${step.toLowerCase()}.png`) });
       }
       assert.ok(Math.max(...zoomRows) - Math.min(...zoomRows) <= 1, `${label}: enlarged text preserves a stable stage`);
     }
