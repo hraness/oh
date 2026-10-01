@@ -237,7 +237,7 @@ try {
   browser = await launchPromise;
   assert.equal(interrupted, false, "Browser run interrupted");
   browserIdentity = await verifyOwnedChromium(browser, executablePath, definition.expectedVersion);
-  for (const width of [360, 390, 1024, 1440]) {
+  for (const width of [320, 360, 390, 768, 1024, 1440]) {
     const mobile = width < 600;
     for (const colorScheme of ["light", "dark"]) {
       const context = await browser.newContext({
