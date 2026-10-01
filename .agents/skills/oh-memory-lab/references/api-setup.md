@@ -66,6 +66,27 @@ An acknowledged pre-generation request rejection stops the run and keeps the ful
 reservation charged, with billing explicitly unverified. Repair the request in a
 fresh preregistered experiment; do not treat the rejection as successful inference.
 
+For a stopped request with no captured response, `closeUnknownApiAttempt` can close
+its accounting only after an independent review of the pinned request, reservation,
+stopped-run evidence and writer-exit attestation. It records the provider outcome
+and usage as unknown, retains the entire reservation against the cumulative budget,
+and accepts no model result. It does not retry the request or resume the failed
+experiment. The ordinary transport still refuses unresolved reservations; it never
+performs this closure automatically. `verifyUnknownApiAttempt` checks the retained
+evidence without changing it. A reviewed supervisor attestation is evidence of the
+operator's observed process exit, not an independently verified operating-system
+record.
+
+The ordinary request timeout remains two minutes. A new experiment may explicitly
+select `requestTimeoutMs: 600000` when opening the native transport. Freeze that
+ten-minute policy in the experiment and retain its separate request-policy capture;
+the provider request body, model and token limits remain unchanged. The opt-in
+request must fit its full timeout before any reservation, including the invocation,
+budget and pricing deadlines. Use smaller sessions that fit the 60-minute invocation
+ceiling and record the experiment's total maximum request time. A timeout still
+stops the experiment and leaves an unknown outcome; more waiting time does not
+authorize retries or establish grader quality.
+
 Rates checked on 2026-09-30: Gemini 3.8 Flash $0.75 input / $3.75 output per million
 tokens through 2026-12-31 ([pricing](https://ai.google.dev/gemini-api/docs/pricing));
 Grok 4.7 $2 input / $6 output per million tokens
