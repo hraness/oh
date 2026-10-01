@@ -519,6 +519,17 @@ export function verifyUnknownApiAttempt(value: unknown): UnknownApiAccountingClo
   return input.receipt;
 }
 
+/** Shared native primitives for the separately versioned wave executor. These
+ * functions preserve the serial request, capture, budget and ledger formats. */
+export const apiTransportCustody = Object.freeze({
+  parseBudget: budget, parseLedger, appendLedger, writeCapture, privateLedgerParent,
+  releaseOwnedLock, capturedRequest, terminalRejection, readBytes: closureBytes,
+  readPin: closureReadPin, parsePin: closurePin, pathPresent: closurePathPresent,
+  responseBytes: LIMIT, ratesExpireAtMs: RATES_EXPIRE,
+});
+export type ApiLedgerBudget = Budget;
+export type ApiLedgerEvent = Event;
+
 export class ApiLabTransport {
   readonly concurrency = 1;
   readonly config: ApiConfig;
