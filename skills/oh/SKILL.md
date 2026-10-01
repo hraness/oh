@@ -41,7 +41,7 @@ its version. When the user wants a fresh installation, install
 bun add --global @hraness/oh@latest
 ```
 
-Oh 0.14.0 and newer update supported global installations automatically. Use
+Oh 0.14.1 and newer update supported global installations automatically. Use
 `oh update disable` to keep a version, or read the
 [update controls](https://github.com/hraness/oh/blob/main/docs/cli-updates.md).
 

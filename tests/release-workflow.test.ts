@@ -52,6 +52,26 @@ test("the stable-tag workflow publishes only one validated exact artifact set", 
   expect(workflow.replace(signer, "")).not.toMatch(/\$\{\{\s*secrets\./u);
   expect(signer).not.toContain("cargo build");
   expect(signer).not.toContain("bun install");
+  const cleanup = signer.indexOf("      - name: Remove signing credentials on success, failure, or cancellation");
+  const recovery = signer.indexOf("      - name: Export verified signed recovery after credential cleanup");
+  const preserve = signer.indexOf("      - name: Retain signed bytes before the first Apple submission");
+  expect(cleanup).toBeGreaterThan(0);
+  expect(recovery).toBeGreaterThan(cleanup);
+  expect(preserve).toBeGreaterThan(recovery);
+  expect(signer.slice(recovery, preserve)).toContain("if: always() && steps.clean.outcome == 'success'");
+  expect(signer.slice(preserve, signer.indexOf("      - name: Record final archive"))).toContain(
+    "if: success() && steps.recovery.outputs.present == 'true'",
+  );
+  expect(signer).toContain("path: ${{ runner.temp }}/oh-sqlite-cli-apple-recovery-export/");
+  expect(signer).not.toContain("path: ${{ runner.temp }}/oh-sqlite-cli-apple-signing/");
+  const bindPrepared = signer.indexOf("      - name: Bind retained signed artifact before submission");
+  const submit = signer.indexOf("      - name: Notarize only the durably retained signed helpers");
+  expect(bindPrepared).toBeGreaterThan(preserve);
+  expect(submit).toBeGreaterThan(bindPrepared);
+  expect(signer.slice(0, submit)).not.toContain("APPLE_NOTARY_KEY_P8_BASE64");
+  expect(signer.slice(submit)).not.toContain("APPLE_DEVELOPER_ID_P12_BASE64");
+  expect(signer).toContain("PREPARED_ARTIFACT_ID: ${{ steps.prepared.outputs.artifact-id }}");
+  expect(signer).toContain("PREPARED_ARTIFACT_DIGEST: ${{ steps.prepared.outputs.artifact-digest }}");
   expect(workflow.match(/^\s+contents: write$/gmu)).toHaveLength(1);
   expect(workflow.match(/^\s+id-token: write$/gmu)).toHaveLength(1);
   expect(workflow.match(/^\s+actions: read$/gmu)).toHaveLength(3);
