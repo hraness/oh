@@ -17,7 +17,7 @@ var __export = (target, all) => {
 var __esm = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
 
 // src/cli-version.ts
-var OH_PACKAGE_VERSION = "0.14.0";
+var OH_PACKAGE_VERSION = "0.14.1";
 
 // node_modules/@hraness/cli-update/dist/src/semver.js
 function parseVersion(input) {

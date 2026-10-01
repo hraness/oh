@@ -4,6 +4,16 @@ Each section below describes one release of Oh. The release workflow copies a
 version's section onto its GitHub Release page, so write the section in the
 pull request that bumps the version.
 
+## 0.14.1 - 2026-09-30
+
+Oh updates supported global CLI installations automatically before work starts.
+This release carries the updater from the unpublished 0.14.0 release.
+
+- Add `update`, `update check`, `update status`, `update enable`, and `update disable`, with automatic updates enabled by default for supported Bun and npm globals on macOS and Linux.
+- Keep SDK imports, local/source installs, executable pins, offline research commands and active commands on their current code.
+- Sign and notarize both Mac SQLite helpers with a stable Apple Developer ID and verify their identity before execution.
+- Preserve the exact signed helpers, submitted archive and bound receipt if notarization is interrupted. Validate that recovery contains no credentials before saving it, and publish only after the existing exact-package checks pass.
+
 ## 0.14.0 - 2026-09-30
 
 Oh can update supported global CLI installations before work starts.

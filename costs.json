@@ -616,6 +616,19 @@
       "retention": "ttl:P90D",
       "owner": "site/analytics-site.ts",
       "maxBytesPerEvent": 32768
+    },
+    "artifact:apple-signed-recovery": {
+      "kind": "authoritative",
+      "retention": "ttl:P30D",
+      "owner": "scripts/sign-macos-sidecars.py",
+      "deletion": ".github/workflows/release.yml",
+      "budget": {
+        "artifactsPerRelease": 2,
+        "maximumExportBytes": 134217728,
+        "maximumBytesPerArtifact": 135266304,
+        "maximumBytesPerRelease": 270532608
+      },
+      "notes": "Immutable signed preparation and terminal recovery snapshots. Each export contains exactly five non-secret regular files; one successful preparation upload is required before the first Notary submission."
     }
   },
   "exempt": []

@@ -27,6 +27,23 @@ and rejects a file that changes during verification. The explicit development
 path `HRANESS_OH_SQLITE_CLI_PATH` remains available for locally built or
 caller-managed helpers. Release package smoke clears that override.
 
+Before the first submission, a preparation step signs both helpers, removes
+its Developer ID credentials and uploads five verified regular files as an
+immutable 30-day artifact: the signed helper archive and checksum, the exact
+submission ZIP, a manifest and a public receipt. The manifest binds their
+hashes to the release source, run and attempt and keeps `packageAdmitted` false.
+
+The later submission step receives only Notary API credentials. It checks the
+retained artifact ID, digest, source and run plus the local exact signed bytes
+before one submission. Missing or failed preservation prevents submission.
+Workflow reruns and a receipt whose submission has already started cannot
+submit again. A final recovery artifact retains the latest bound receipt after
+credential cleanup on success, failure or a catchable interruption. Hard runner
+termination can still prevent saving the latest UUID; reconcile uncertain
+provider state before another operation. The signed bytes are already retained.
+Normal release output uses the same archive only after Accepted status and
+both helpers pass notarization checks.
+
 A notarization timeout is not an automatic retry. The non-secret receipt keeps
 the submission UUID, submitted archive hash and signed helper hashes so its
 status can be reconciled before another submission. Signing tests mock Apple
@@ -46,8 +63,11 @@ It receives only the Notary API key, never the Developer ID certificate, and
 cannot sign, submit, publish or start an automatic wait. Its result records Apple
 status only. The failed run did not preserve the signed helper payloads, so even
 an Accepted response cannot establish an installable 0.14.0 package or authorize
-recreating and resubmitting its missing bytes. Recovery needs a separately
-reviewed plan after the original status is known.
+recreating and resubmitting its missing bytes. The protected `.3` diagnostic
+confirmed that original submission as Accepted.
+Its tag, failed release and diagnostic receipts stay unchanged. The missing
+signed files require a new stable patch release with a separately reviewed
+signing operation; never rerun the original signer or reuse its release tag.
 
 A failed diagnostic records a numeric child exit code and one fixed error
 classification after removing its credentials. It never retains raw Apple
