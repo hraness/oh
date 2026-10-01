@@ -87,6 +87,14 @@ ceiling and record the experiment's total maximum request time. A timeout still
 stops the experiment and leaves an unknown outcome; more waiting time does not
 authorize retries or establish grader quality.
 
+Independent requests can opt into `ApiLabWaveTransport`, which sends up to four
+requests together under one ledger lock. It requires a separate finite job plan,
+run directory and replay protocol. All requests in a group are reserved before any
+send, and a failure stops new sends while the requests already sent finish. See
+[Concurrent API requests](api-waves.md) for dependency checks, session limits and
+accounting after an interrupted group. Ordinary campaign runners use the serial
+transport unless a separately reviewed experiment selects the wave API.
+
 Rates checked on 2026-09-30: Gemini 3.8 Flash $0.75 input / $3.75 output per million
 tokens through 2026-12-31 ([pricing](https://ai.google.dev/gemini-api/docs/pricing));
 Grok 4.7 $2 input / $6 output per million tokens

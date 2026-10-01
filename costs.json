@@ -647,6 +647,34 @@
         "maximumBytesPerRelease": 270532608
       },
       "notes": "Immutable signed preparation and terminal recovery snapshots. Each export contains exactly five non-secret regular files; one successful preparation upload is required before the first Notary submission."
+    },
+    "benchmark:memory-lab-api-waves": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/memory-lab/api-wave.ts",
+      "source": "scripts/benchmarks/memory-lab/api-transport.ts",
+      "budget": {
+        "protocol": "oh.memory-lab-api-wave-plan.v1",
+        "maximumJobsPerRun": 1000,
+        "maximumConcurrentRequests": 4,
+        "maximumWavesPerSession": 5,
+        "maximumCallsPerSession": 20,
+        "wallMillisecondsPerSession": 3600000,
+        "requestTimeoutMilliseconds": 600000,
+        "maximumParentsPerJob": 16,
+        "planBytes": 1048576,
+        "journalBytes": 16777216,
+        "journalRecords": 12000,
+        "journalRecordBytes": 65536,
+        "checkpointBytes": 16384,
+        "ownerBytes": 8192,
+        "requestCaptureBytes": 3145728,
+        "responseBytes": 1048576,
+        "batchClosureAuthorityBytes": 1048576,
+        "batchClosureReceiptBytes": 1048576,
+        "writerExitBytes": 65536
+      },
+      "notes": "Opt-in single-owner waves share the existing cumulative API budget and ledger. Unknown calls retain their full reservation; accounting closure never resumes the stopped trial."
     }
   },
   "exempt": []
