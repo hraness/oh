@@ -38,7 +38,11 @@ export async function generateMetadata({ params }: Readonly<{ params: Params }>)
   const article = findArticle((await params).slug);
   if (article === undefined) return {};
   return {
-    ...createArticleMetadata(ohSearchSite, articleDiscovery(article)),
+    ...createArticleMetadata(ohSearchSite, {
+      ...articleDiscovery(article),
+      title: article.metaTitle ?? article.title,
+      description: article.metaDescription ?? article.dek,
+    }),
     // Quarantined posts stay readable but out of search results.
     robots: isArticleIndexable(article.admission) ? INDEXABLE_ROBOTS : NOINDEX_ROBOTS,
   };

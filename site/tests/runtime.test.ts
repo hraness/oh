@@ -3,6 +3,8 @@ import { buildAskAiProviderLinks } from "@hraness/ui";
 import { join } from "node:path";
 
 import publishedRelease from "../published-release.json";
+import { articles, blogTitle } from "../app/blog/articles";
+import { specificationTitle } from "../app/metadata-copy";
 
 const site = join(import.meta.dir, "..");
 
@@ -201,7 +203,7 @@ describe("built Oh site", () => {
         '<link rel="canonical" href="https://oh.computer/spec"',
       );
       expect(metadataContent(specification, "property", "og:title")).toBe(
-        "Oh: Ontology specification v1",
+        specificationTitle,
       );
       expect(metadataContent(specification, "property", "og:image")).toMatch(
         /^https:\/\/oh\.computer\/spec\/opengraph-image(?:\?[0-9a-f]+)?$/u,
@@ -210,8 +212,11 @@ describe("built Oh site", () => {
         "https://oh.computer/spec/opengraph-image",
       );
       expect(metadataContent(specification, "name", "twitter:title")).toBe(
-        "Oh: Ontology specification v1",
+        specificationTitle,
       );
+      expect(specification).toContain(`<title>${specificationTitle}</title>`);
+      expect(specificationTitle.length).toBeGreaterThanOrEqual(30);
+      expect(specificationTitle.length).toBeLessThanOrEqual(60);
       const specificationDescription = metadataContent(specification, "name", "description");
       expect(specificationDescription).not.toBe(metadataContent(home, "name", "description"));
       expect(specificationDescription?.length).toBeGreaterThanOrEqual(110);
@@ -254,12 +259,23 @@ describe("built Oh site", () => {
       expect(index).toContain('type="application/atom+xml"');
       expect(index).toContain('href="/blog/introducing-oh"');
       expect(index).toContain('href="/blog/built-on-oh"');
+      expect(index).toContain(`<title>${blogTitle}</title>`);
 
       expect(introducingResponse.status).toBe(200);
       expect(introducing).toContain('<link rel="canonical" href="https://oh.computer/blog/introducing-oh"');
       expect(introducing).toContain('<meta name="robots" content="index, follow');
       expect(metadataContent(introducing, "property", "og:type")).toBe("article");
-      expect(metadataContent(introducing, "property", "og:title")).toBe("Introducing Oh");
+      const introducingArticle = articles.find(({ slug }) => slug === "introducing-oh");
+      if (introducingArticle?.metaTitle === undefined) {
+        throw new Error("The introduction must have a descriptive search title.");
+      }
+      expect(introducing).toContain(`<title>${introducingArticle.metaTitle}</title>`);
+      expect(metadataContent(introducing, "property", "og:title")).toBe(introducingArticle.metaTitle);
+      expect(metadataContent(introducing, "name", "twitter:title")).toBe(introducingArticle.metaTitle);
+      expect(metadataContent(introducing, "name", "description")).toBe(introducingArticle.metaDescription ?? null);
+      expect(metadataContent(introducing, "property", "og:description")).toBe(introducingArticle.metaDescription ?? null);
+      expect(metadataContent(introducing, "name", "twitter:description")).toBe(introducingArticle.metaDescription ?? null);
+      expect(introducing).toContain('"headline":"Introducing Oh"');
       expect(introducing).toContain('"@type":"BlogPosting"');
       expect(introducing).toContain("reviewed by Codex AI independent editorial review.");
 
