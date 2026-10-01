@@ -4,6 +4,9 @@ Use `bun scripts/benchmarks/memory-lab/campaign-v3.ts --help` when comparing
 author-log context reserves. Keep v1 and v2 workspaces and source pins unchanged.
 The v3 runner uses the existing API transport and shared ledger; a new workspace
 does not reset spending, call counts, exposed families or the authorized deadline.
+An explicit [v2 API budget](api-setup.md) can cover multiple campaigns. This
+campaign contract allocates at most 1,000 calls, independent of the API budget
+version.
 
 ## Freeze the context comparison
 

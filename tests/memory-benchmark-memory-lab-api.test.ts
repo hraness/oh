@@ -3,6 +3,7 @@ import fc from "fast-check";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { sha256Hex } from "../src/canonical";
 import { ApiLabTransport, parseApiConfig, parseApiReply, prepareApiRequest, reconcileTerminalApiAttempt, verifyTerminalApiAttempt, TerminalApiResponseError, type ApiBinding } from "../scripts/benchmarks/memory-lab/api-transport";
 
@@ -17,11 +18,11 @@ afterEach(() => {
   if (oldGemini === undefined) delete process.env.VERTEX_API_KEY; else process.env.VERTEX_API_KEY = oldGemini;
   if (oldXai === undefined) delete process.env.XAI_API_KEY; else process.env.XAI_API_KEY = oldXai;
 });
-function setup(maxUsd = 5, maxCalls = 10) {
+function setup(maxUsd = 5, maxCalls = 10, protocol = "oh.memory-lab-api-budget.v1") {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "oh-api-test-"))); dirs.push(dir);
   const cache = join(dir, "cache"); mkdirSync(cache, { mode: 0o700 });
   const budgetPath = join(dir, "budget.json"), ledgerPath = join(cache, "ledger.jsonl");
-  const budget = { protocol: "oh.memory-lab-api-budget.v1", maxUsd, maxCalls, expiresAt: "2026-09-30T07:00:00Z", ledgerPath };
+  const budget = { protocol, maxUsd, maxCalls, expiresAt: "2026-09-30T07:00:00Z", ledgerPath };
   writeFileSync(budgetPath, JSON.stringify(budget), { mode: 0o600 });
   process.env.VERTEX_API_KEY = "test-gemini-secret"; process.env.XAI_API_KEY = "test-xai-secret";
   return { config: { budgetPath, reader, judge }, dir, ledgerPath, budget };
@@ -38,6 +39,118 @@ function grok() {
 }
 const goodFetch: typeof fetch = Object.assign(async (url: Parameters<typeof fetch>[0]) =>
   Response.json(String(url).includes("googleapis") ? gemini() : grok()), { preconnect: fetch.preconnect });
+
+function historicalCalls(path: string, count: number, micros = 1): string {
+  const raw = Array.from({ length: count }, () => {
+    const id = randomUUID();
+    return ["reserved", "settled"].map(kind => JSON.stringify({ v: 1, id, kind, micros }) + "\n").join("");
+  }).join("");
+  writeFileSync(path, raw, { mode: 0o600 }); return raw;
+}
+
+test("budget versions require explicit bounded authority and retain the legacy ceilings", async () => {
+  for (const [protocol, maxUsd, maxCalls] of [
+    ["oh.memory-lab-api-budget.v1", 100, 1000], ["oh.memory-lab-api-budget.v2", 5000, 25000],
+  ] as const) {
+    const s = setup(maxUsd, maxCalls, protocol);
+    const transport = await ApiLabTransport.open({ config: s.config, maxCalls, now, fetcher: goodFetch });
+    try { expect(transport.summary).toMatchObject({ capUsd: maxUsd, campaignCalls: 0, accountedUsd: 0 }); } finally { transport.close(); }
+    await expect(ApiLabTransport.open({ config: s.config, maxCalls: maxCalls + 1, now, fetcher: goodFetch })).rejects.toThrow("call limit");
+    for (const changed of [{ maxUsd: maxUsd + 0.000001 }, { maxCalls: maxCalls + 1 }, { maxCalls: 1.5 }, { maxCalls: 0 }, { maxUsd: 0 },
+      { maxUsd: Number.POSITIVE_INFINITY }, { protocol: "oh.memory-lab-api-budget.v3" }, { protocol: null }, { allowLargerBudget: true }]) {
+      writeFileSync(s.config.budgetPath, JSON.stringify({ ...s.budget, ...changed }));
+      await expect(ApiLabTransport.open({ config: s.config, maxCalls: 1, now, fetcher: goodFetch })).rejects.toThrow("budget required");
+      expect(existsSync(s.ledgerPath + ".lock")).toBeFalse(); expect(existsSync(s.ledgerPath)).toBeFalse();
+    }
+  }
+});
+
+test("v2-sized numeric limits never implicitly upgrade a v1 budget", async () => {
+  await fc.assert(fc.asyncProperty(fc.integer({ min: 101, max: 5000 }), fc.integer({ min: 1001, max: 25000 }), async (maxUsd, maxCalls) => {
+    const s = setup(maxUsd, maxCalls);
+    await expect(ApiLabTransport.open({ config: s.config, maxCalls: 1, now, fetcher: goodFetch })).rejects.toThrow("budget required");
+    expect(existsSync(s.ledgerPath + ".lock")).toBeFalse();
+  }), { numRuns: 30, seed: 92714 });
+});
+
+test("a new v2 authority preserves all previous v1 calls and charges on the same ledger", async () => {
+  const s = setup(100, 1000), originalBudget = readFileSync(s.config.budgetPath, "utf8");
+  const prefix = historicalCalls(s.ledgerPath, 1000, 99900);
+  let calls = 0;
+  const fetcher: typeof fetch = Object.assign(async () => { calls++; return Response.json(gemini()); }, { preconnect: fetch.preconnect });
+  const old = await ApiLabTransport.open({ config: s.config, maxCalls: 1, now, fetcher });
+  try { await expect(old.invoke(reader.id, messages)).rejects.toThrow("limit"); } finally { old.close(); }
+  expect(calls).toBe(0);
+  const budgetPath = join(s.dir, "budget-v2.json"), config = { ...s.config, budgetPath };
+  writeFileSync(budgetPath, JSON.stringify({ ...s.budget, protocol: "oh.memory-lab-api-budget.v2", maxUsd: 5000, maxCalls: 25000 }));
+  const next = await ApiLabTransport.open({ config, maxCalls: 25000, now, fetcher });
+  try {
+    expect(next.summary).toMatchObject({ campaignCalls: 1000, accountedUsd: 99.9 });
+    await next.invoke(reader.id, messages);
+    expect(next.summary).toMatchObject({ campaignCalls: 1001, accountedUsd: 99.900027, callsThisRun: 1 });
+  } finally { next.close(); }
+  expect(calls).toBe(1); expect(readFileSync(s.ledgerPath, "utf8").startsWith(prefix)).toBeTrue();
+  expect(readFileSync(s.config.budgetPath, "utf8")).toBe(originalBudget);
+});
+
+test("v2 cumulative dollar and call exhaustion blocks dispatch across reopened sessions", async () => {
+  for (const dimension of ["dollars", "calls"] as const) {
+    const s = setup(5000, 25000, "oh.memory-lab-api-budget.v2");
+    historicalCalls(s.ledgerPath, dimension === "calls" ? 25000 : 1, dimension === "dollars" ? 5_000_000_000 : 1);
+    let calls = 0;
+    const fetcher: typeof fetch = Object.assign(async () => { calls++; return Response.json(gemini()); }, { preconnect: fetch.preconnect });
+    const transport = await ApiLabTransport.open({ config: s.config, maxCalls: 25000, now, fetcher });
+    try { await expect(transport.invoke(reader.id, messages)).rejects.toThrow("limit"); } finally { transport.close(); }
+    expect(calls).toBe(0);
+  }
+});
+
+test("both budget versions retain the exact16MiB native ledger read ceiling", async () => {
+  for (const protocol of ["oh.memory-lab-api-budget.v1", "oh.memory-lab-api-budget.v2"]) {
+    const s = setup(5, 10, protocol), raw = historicalCalls(s.ledgerPath, 1), maximum = 16 * 1024 * 1024;
+    writeFileSync(s.ledgerPath, " ".repeat(maximum - Buffer.byteLength(raw)) + raw);
+    const transport = await ApiLabTransport.open({ config: s.config, maxCalls: 1, now, fetcher: goodFetch });
+    try { expect(transport.summary.campaignCalls).toBe(1); } finally { transport.close(); }
+    writeFileSync(s.ledgerPath, " ".repeat(maximum + 1 - Buffer.byteLength(raw)) + raw);
+    await expect(ApiLabTransport.open({ config: s.config, maxCalls: 1, now, fetcher: goodFetch })).rejects.toThrow("oversized");
+    expect(existsSync(s.ledgerPath + ".lock")).toBeFalse();
+  }
+});
+
+test("v2 terminal evidence replays and reconciles after the shared ledger grows beyond1MiB", async () => {
+  const s = setup(5000, 25000, "oh.memory-lab-api-budget.v2"), prefix = historicalCalls(s.ledgerPath, 12000);
+  expect(Buffer.byteLength(prefix)).toBeGreaterThan(1024 * 1024);
+  const fetcher: typeof fetch = Object.assign(async () => Response.json(gemini("STOP", reader.maximumOutput)), { preconnect: fetch.preconnect });
+  const transport = await ApiLabTransport.open({ config: s.config, maxCalls: 1, now, fetcher });
+  let rejection: InstanceType<typeof TerminalApiResponseError> | undefined;
+  try { await transport.invoke(reader.id, messages); } catch (error) { if (error instanceof TerminalApiResponseError) rejection = error; else throw error; }
+  finally { transport.close(); }
+  expect(rejection).toBeDefined();
+  const options = { config: s.config, attemptId: rejection!.rejection.attemptId,
+    expectedRequestSha256: prepareApiRequest(reader, messages).requestSha256 };
+  const settled = readFileSync(s.ledgerPath, "utf8");
+  expect(verifyTerminalApiAttempt(options)).toEqual(rejection!.rejection);
+  // Simulate a crash after the captured terminal rejection but before settlement.
+  writeFileSync(s.ledgerPath, settled.slice(0, settled.lastIndexOf("\n", settled.length - 2) + 1));
+  delete process.env.VERTEX_API_KEY; delete process.env.XAI_API_KEY;
+  expect(reconcileTerminalApiAttempt(options)).toEqual(rejection!.rejection);
+  expect(readFileSync(s.ledgerPath, "utf8")).toBe(settled);
+  expect(reconcileTerminalApiAttempt(options)).toEqual(rejection!.rejection);
+  expect(readFileSync(s.ledgerPath, "utf8")).toBe(settled);
+});
+
+test("v2 unknown effects keep the reservation and cannot retry on the same or another session", async () => {
+  const s = setup(5000, 25000, "oh.memory-lab-api-budget.v2"); let calls = 0;
+  const fetcher: typeof fetch = Object.assign(async () => { calls++; throw Error("invented unknown reply"); }, { preconnect: fetch.preconnect });
+  const transport = await ApiLabTransport.open({ config: s.config, maxCalls: 25000, now, fetcher });
+  try {
+    await expect(transport.invoke(reader.id, messages)).rejects.toThrow("unknown reply");
+    expect(transport.summary.accountedUsd).toBe(prepareApiRequest(reader, messages).reservationMicros / 1_000_000);
+    await expect(transport.invoke(reader.id, messages)).rejects.toThrow("halted");
+  } finally { transport.close(); }
+  await expect(ApiLabTransport.open({ config: s.config, maxCalls: 25000, now, fetcher })).rejects.toThrow("unresolved");
+  expect(calls).toBe(1);
+});
 
 async function rejectedOutput(selected = judge) {
   const s = setup(), output = selected.maximumOutput + 2;

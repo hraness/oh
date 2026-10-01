@@ -3,7 +3,9 @@
 Use `bun run bench:memory-campaign --help` for a finite campaign. A private workspace
 contains `campaign.json`, immutable run plans, stage intents and captured replies.
 The existing API transport owns dispatch, credentials and the shared spending
-ledger. Frozen v1 pilots keep their original files and interpretation.
+ledger. Frozen v1 pilots keep their original files and interpretation. The API
+budget version is separate: an explicit [v2 API budget](api-setup.md) can cover
+multiple campaigns, while each campaign keeps its 1,000-call allocation limit.
 
 ## Prepare and run
 

@@ -484,8 +484,27 @@
       "owner": "scripts/benchmarks/memory-lab/api-transport.ts",
       "source": "scripts/benchmarks/memory-lab/qualify-api.ts",
       "budget": {
+        "protocol": "oh.memory-lab-api-budget.v1",
         "maximumPhysicalCallsPerCampaign": 1000,
         "exposureMicrosPerCampaign": 100000000,
+        "responseBytesPerCall": 1048576,
+        "captureBytesPerCall": 8388608,
+        "ledgerBytes": 16777216,
+        "wallMinutesPerInvocation": 60,
+        "terminalReceiptBytes": 8192,
+        "deadLockProofBytes": 8192,
+        "maximumDeadLockProofsPerAttempt": 16
+      }
+    },
+    "benchmark:memory-lab-api-budget-v2": {
+      "kind": "derived",
+      "retention": "persistent",
+      "owner": "scripts/benchmarks/memory-lab/api-transport.ts",
+      "source": "scripts/benchmarks/memory-lab/qualify-api.ts",
+      "budget": {
+        "protocol": "oh.memory-lab-api-budget.v2",
+        "maximumPhysicalCallsPerCampaign": 25000,
+        "exposureMicrosPerCampaign": 5000000000,
         "responseBytesPerCall": 1048576,
         "captureBytesPerCall": 8388608,
         "ledgerBytes": 16777216,
