@@ -34,6 +34,21 @@ commands; they do not demonstrate a live certificate or service acceptance.
 A separate macOS regression signs a synthetic executable ad hoc to check literal
 requirement parsing and rejection by the real publisher verifier.
 
+The retained 0.14.0 submission can be checked by the separate
+`Retained Apple notarization status` workflow. Its new annotated diagnostic tag,
+`v0.14.0-notarization-status.N`, must point at current reviewed `main`. The existing
+immutable `v*` tag rules and tag-only Apple environment apply. This tag pattern is
+excluded from the ordinary release workflow.
+
+The diagnostic verifies the original release run, annotated release tag, receipt
+artifact digest and exact receipt bytes before querying the original UUID once.
+It receives only the Notary API key, never the Developer ID certificate, and
+cannot sign, submit, publish or start an automatic wait. Its result records Apple
+status only. The failed run did not preserve the signed helper payloads, so even
+an Accepted response cannot establish an installable 0.14.0 package or authorize
+recreating and resubmitting its missing bytes. Recovery needs a separately
+reviewed plan after the original status is known.
+
 Developer ID establishes a stable app identity across versions. macOS still
 controls protected-data approvals, which depend on the responsible app and the
 user's privacy settings; signing does not grant new access by itself.
