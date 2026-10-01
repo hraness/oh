@@ -458,6 +458,8 @@ test("a rehashed duplicate stopped record with null cannot erase a known termina
 test("478 invented jobs preserve the full native serial result and usage denominator over 120 waves and 24 sessions", async () => {
   // This is a native transport equivalence fixture. It contains no actual
   // campaign manifest, benchmark answers, grader, or model-quality assertion.
+  // All 478 serial and wave requests persist real files. Allow slower hosted
+  // disks to finish the full comparison; this fixture does not measure latency.
   const count = 478;
   const inventory = Array.from({ length: count }, (_, index) => ({ id: `invented-${String(index).padStart(3, "0")}`,
     messages: [{ role: "user" as const, content: `Invented case ${index}: toy lighthouse ${index} has a purple paper flag.` }] }));
@@ -513,7 +515,7 @@ test("478 invented jobs preserve the full native serial result and usage denomin
     expect(existsSync(f.ledgerPath + ".lock")).toBeFalse();
   }
   expect(replay(waveFixture)).toMatchObject({ status: "complete", plannedJobs: count, completedJobs: count, attemptedCalls: count, providerCalls: 0, resumable: false });
-}, 30000);
+}, 120000);
 
 const faults: readonly { point: ApiWaveBoundary; reservations: number; sends: number; settlements: number; checkpoints: number; rejects: boolean }[] = [
   { point: "wave-intent", reservations: 0, sends: 0, settlements: 0, checkpoints: 0, rejects: true },
