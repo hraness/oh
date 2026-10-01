@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/hraness/oh",
+  "reviewer": "Codex AI independent editorial review",
+  "reviewerType": "ai",
+  "reviewedOn": "2026-10-01",
+  "humanReview": null,
+  "verdict": "approved",
+  "scope": "Follow-up review of the article admission metadata, public evidence exports, and two narrow launch contract adjustments. No tests, build, browser, or publication check was duplicated.",
+  "originalReviewReceiptSha256": "9d82c08d0643cdb1498d233f16bb36fef91d19b08d04ba7f87d4286d84346f41",
+  "files": {
+    "site/app/blog/admissions.ts": "ef5a7a150aeb38c6e2de6dd0541ba6b876c9da4df10a7a86bc9ef7aaa1f62864",
+    "site/app/launch/beats.ts": "3d65001593035a73ace8343e1db33cac65de5eb8887dfe8842d1adf2dd0c5f17",
+    "docs/editorial-history/article-admissions-before-20261001.json": "51bb384cd8e4d6109c8a510bdd0cb3de6e3bd8f77c8318f1a7345e9bd240ed93",
+    "docs/editorial-history/oh-editorial-independent-review.json": "a68b73a66f632cd1647f20624ae737c7a38ff2bf115c29039405e998ee5a7869",
+    "docs/editorial-history/oh-editorial-review-source-manifest.json": "7cd92a2b0d2713a7b08e5fd29c67e33360fdd9a1d5cc3a66cf680dc454489012"
+  },
+  "scores": {
+    "/blog/longmemeval-s-user-log": 11,
+    "/blog/introducing-oh": 10,
+    "/blog/oh-rust-typescript-parity": 11,
+    "/blog/built-on-oh": 10
+  },
+  "unresolvedFindings": [],
+  "observations": [
+    "All four admission scores, observations, AI reviewer identity, null humanReview, and 42-day reassessment match the independent review.",
+    "The unchanged GitHub source citations retain exact reviewed commits; the external LongMemEval paper retains its historical September 26 check date.",
+    "The two inaccessible private Sponge source citations are replaced by the public integration article, actually read on October 1 with HTTP 200. It explicitly states the retired new intake, retained previously accepted hosted work, and session expiry 24 hours after start.",
+    "Public archive exports use public repository identities and a relative source-manifest reference whose digest matches. They retain hashes of the untouched original local evidence; private source identities are not exported.",
+    "Final launch changes add release status only to socialPost using the status fact and add Illustration to accessible encoder alt text. Article body claims and visible captions are unchanged."
+  ],
+  "publicSourceRead": {
+    "url": "https://sponge.computer/docs/how-sponge-uses-oh",
+    "checkedOn": "2026-10-01",
+    "httpStatus": 200,
+    "evidenceToolChunk": "03985d",
+    "excerpts": [
+      "Working memory serves only the hosted work Sponge accepted before that date, and the Memory panel shows what those runs remembered.",
+      "Each session expires 24 hours after it starts, and a separate scheduled worker purges expired sessions."
+    ]
+  },
+  "validationExecutedByReviewer": []
+}
