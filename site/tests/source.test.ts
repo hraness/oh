@@ -135,19 +135,21 @@ describe("Oh site source contract", () => {
   });
 
   test("derives available installs from verified publication and uses the current CLI proof", async () => {
-    const [home, publication, packageSource] = await Promise.all([
+    const [home, publication, packageSource, sitePackageSource] = await Promise.all([
       read("app/page.tsx"),
       read("published-release.json"),
       readFile(join(site, "..", "package.json"), "utf8"),
+      read("package.json"),
     ]);
     const publishedRelease = record(JSON.parse(publication) as unknown, "published release");
     const packageJson = record(JSON.parse(packageSource) as unknown, "source package");
+    const sitePackageJson = record(JSON.parse(sitePackageSource) as unknown, "site package");
 
     expect(publishedRelease).toEqual({
       version: "0.13.3",
       verificationRun: "https://github.com/hraness/oh/actions/runs/36593404095",
     });
-    expect(packageJson.version).toBe("0.14.0");
+    expect(sitePackageJson.version).toBe(packageJson.version);
     expect(home).toContain('import publishedRelease from "../published-release.json"');
     expect(home).toContain("const releaseVersion = publishedRelease.version;");
     expect(home).not.toContain("package.json");
