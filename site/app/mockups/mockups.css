@@ -240,9 +240,20 @@
   min-block-size: 0;
 }
 
+.oh-steps-stage .oh-trail-value {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 @media (max-width: 860px) {
   .oh-steps-stage {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  [data-hkm-fitted] .oh-steps-stage > .oh-trail {
+    block-size: auto;
   }
 }
 
