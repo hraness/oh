@@ -49,6 +49,13 @@ an Accepted response cannot establish an installable 0.14.0 package or authorize
 recreating and resubmitting its missing bytes. Recovery needs a separately
 reviewed plan after the original status is known.
 
+A failed diagnostic records a numeric child exit code and one fixed error
+classification after removing its credentials. It never retains raw Apple
+messages or private key material, and an error classification is only a hint
+about the failed query. Status stays unknown and package admission stays false.
+Any further query needs reviewed source, passing CI and a new immutable
+diagnostic tag; the previous run and tag remain intact.
+
 Developer ID establishes a stable app identity across versions. macOS still
 controls protected-data approvals, which depend on the responsible app and the
 user's privacy settings; signing does not grant new access by itself.
