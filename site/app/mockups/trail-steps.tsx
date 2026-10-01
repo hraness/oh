@@ -43,14 +43,14 @@ export function TrailSteps() {
     render: () => (
       <div className="oh-steps-stage">
         <TrailMap focus={step.focus} />
-        <TrailTerminal describe={step.describe} runs={TERMINAL_STATES[step.runs]} />
+        <TrailTerminal density="presentation" describe={step.describe} runs={TERMINAL_STATES[step.runs]} />
       </div>
     ),
   }));
   return (
     <StepThrough
+      fit="fill"
       label="From answer to source"
-      minWidth={620}
       steps={steps}
     />
   );

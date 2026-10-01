@@ -228,8 +228,16 @@
 .oh-steps-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-auto-rows: minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
+}
+
+/* Carry the shared reserved height through this two-frame composition. */
+[data-hkm-fitted] .oh-steps-stage,
+[data-hkm-fitted] .oh-steps-stage > .oh-mockup {
+  block-size: 100%;
+  min-block-size: 0;
 }
 
 @media (max-width: 860px) {

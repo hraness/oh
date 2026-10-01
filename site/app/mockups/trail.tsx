@@ -126,13 +126,14 @@ export function trailLines(runs: readonly TrailRunId[]): TerminalLine[] {
 
 /** The oh CLI running fixture commands against the example database. */
 export function TrailTerminal({
+  density,
   describe,
   runs,
   theme,
-}: Readonly<{ runs: readonly TrailRunId[]; describe: string; theme?: MockupTheme }>) {
+}: Readonly<{ runs: readonly TrailRunId[]; describe: string; theme?: MockupTheme; density?: "presentation" }>) {
   return (
     <div className="oh-mockup oh-mock-terminal" data-film="terminal">
-      <TerminalFrame describe={describe} lines={trailLines(runs)} theme={theme} title="research: oh" />
+      <TerminalFrame density={density} describe={describe} lines={trailLines(runs)} theme={theme} title="research: oh" />
     </div>
   );
 }
