@@ -10,7 +10,7 @@ import { chromium } from "playwright-core";
 import { localVerificationOrigin, ownedChromiumLaunchOptions, pinnedBrowserExecutable, pinnedChromiumDefinition, verifyOwnedChromium } from "./owned-browser.mjs";
 import { withReducedTransparency } from "./browser-transparency.mjs";
 import { inspectBenchmark, runBenchmarkAccessibilityCases } from "./check-benchmark-browser.mjs";
-import { inspectTrailLayout } from "./check-trail-layout.mjs";
+import { inspectArticleTrailCases, inspectTrailLayout } from "./check-trail-layout.mjs";
 
 // Use this package's provisioned pinned Chromium in an owned temporary profile.
 // An explicit override may alias that same executable. No browser is downloaded.
@@ -412,6 +412,7 @@ try {
   }
   evidence.push(...await runBenchmarkAccessibilityCases(browser, origin, artifacts));
   evidence.push(...await inspectAppearanceCases(browser, origin));
+  evidence.push(...await inspectArticleTrailCases(browser, origin, artifacts));
 } catch (error) {
   log(JSON.stringify({ completed: false, evidence }, null, 2));
   throw error;
