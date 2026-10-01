@@ -1,7 +1,7 @@
 /** Stage-by-stage execution through the existing API authority. A captured stage is never dispatched twice. */
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, unlinkSync, writeSync, fsyncSync, lstatSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ApiLabTransport, parseApiReply, prepareApiRequest, type ApiReply } from "./api-transport";
+import { ApiLabTransport, parseApiReply, prepareApiRequest, TerminalApiResponseError, verifyTerminalApiAttempt, type ApiReply } from "./api-transport";
 import { bindBeamReleasedScorerTemplatesV1, stepBeamReleasedScoreV1 } from "../beam-released-scorer-v1";
 import { evolutionAnswerMessages } from "../evolution-reader-contracts";
 import { type Message } from "../model";
@@ -14,7 +14,7 @@ import { verifyContexts } from "./campaign-context-v3";
 type Intent = { protocol: typeof CAMPAIGN_V3; planSha256: string; stage: string; profileId: string; requestSha256: string; ledgerPrefix: string[] };
 type Receipt = { intentSha256: string; reply: ApiReply; providerAttempt: string };
 type LedgerRow = { id: string; kind: "reserved" | "settled"; micros: number };
-export type ExecutionOptions = { fetcher?: typeof fetch; now?: () => number; afterStage?: (stage: string) => void; afterProviderCapture?: (stage: string) => void; replayOnly?: boolean };
+export type ExecutionOptions = { fetcher?: typeof fetch; now?: () => number; afterStage?: (stage: string) => void; afterProviderCapture?: (stage: string) => void; replayOnly?: boolean; stopOnTerminalRejection?: boolean };
 function ledgerPath(config: CampaignConfig): string { return JSON.parse(readPinned(config.budget, 8192)).ledgerPath as string; }
 function ledger(config: CampaignConfig): LedgerRow[] {
   const path = ledgerPath(config); if (!existsSync(path)) return [];
@@ -27,12 +27,15 @@ function recover(config: CampaignConfig, intent: Intent, messages: readonly Mess
   need(intent.ledgerPrefix.every((id, i) => ids[i] === id), "provider ledger history changed");
   const newer = ids.slice(intent.ledgerPrefix.length);
   if (newer.length === 0) return null; // No native reservation means no request was dispatched.
-  need(newer.length === 1, "ambiguous provider attempt; reconcile without replay");
   const id = newer[0]!, settled = events.find(e => e.id === id && e.kind === "settled"), dir = ledgerPath(config) + ".attempts";
-  need(settled && existsSync(join(dir, id + ".result.json")), "unknown or rejected provider outcome blocks replay");
   const selected = [config.api.reader, config.api.judge].find(b => b.id === intent.profileId)!;
   const request = prepareApiRequest(selected, messages), capture = JSON.parse(readBounded(join(dir, id + ".request.json")));
   need(capture.requestSha256 === intent.requestSha256 && request.requestSha256 === intent.requestSha256, "captured request belongs to a different stage");
+  if (existsSync(join(dir, id + ".terminal-rejection.json"))) {
+    throw new TerminalApiResponseError(verifyTerminalApiAttempt({ config: config.api, attemptId: id, expectedRequestSha256: request.requestSha256 }));
+  }
+  need(newer.length === 1, "ambiguous provider attempt; reconcile without replay");
+  need(settled && existsSync(join(dir, id + ".result.json")), "unknown or rejected provider outcome blocks replay");
   const response = JSON.parse(readBounded(join(dir, id + ".response.json"))), reply = parseApiReply(JSON.parse(response.body), request);
   need(response.httpStatus >= 200 && response.httpStatus < 300 && reply.usage.micros === settled.micros
     && sha(reply) === sha(JSON.parse(readBounded(join(dir, id + ".result.json")))), "capture/settlement mismatch");
@@ -54,9 +57,12 @@ export async function executeRun(root: string, id: string, options: ExecutionOpt
   if (!options.replayOnly) need((options.now ?? Date.now)() < Date.parse(config.expiresAt), "campaign expired");
   // A changed global champion cannot affect these immutable treatment snapshots; stale plans may finish but cannot promote.
   const dir = join(root, "runs", id); mkdirSync(dir, { recursive: true, mode: 0o700 });
+  need(!options.stopOnTerminalRejection || options.replayOnly, "terminal closeout is offline only");
+  need(options.replayOnly || !existsSync(join(dir, "stopped.json")), "stopped run cannot dispatch or resume");
   const lockPath = join(root, "execution.lock"), lock = openSync(lockPath, "wx", 0o600);
   writeSync(lock, JSON.stringify({ pid: process.pid, run: id, planSha256: run.planSha256 })); fsyncSync(lock); syncDirectory(root);
   let transport: ApiLabTransport | null = null, dispatched = 0;
+  const observations: Observation[] = [], verifiedCells: string[] = [];
   const assertPins = () => { verifyConfigPins(config); need(sha(getRun(readState(root), id).plan) === run.planSha256, "plan changed during execution"); };
   try {
     const templatesValue = JSON.parse(readPinned(config.templates, 131072));
@@ -150,7 +156,6 @@ export async function executeRun(root: string, id: string, options: ExecutionOpt
         replies.push(judged.result.answer);
       }
     }
-    const observations: Observation[] = [];
     for (const [index, task] of plan.tasks.entries()) {
       // Counterbalance pair order while preserving distinct A/A calls and deterministic restart positions.
       for (let repeat = 0; repeat < plan.repeats; repeat++) {
@@ -159,12 +164,19 @@ export async function executeRun(root: string, id: string, options: ExecutionOpt
         for (const arm of arms) {
           const result = await cell(task, arm, index, repeat), path = join(dir, `${String(index).padStart(4, "0")}-r${repeat}-${arm}.cell.json`);
           if (!existsSync(path)) durableCreate(path, result); else need(sha(JSON.parse(readBounded(path))) === sha(result), "saved cell differs from replayed stage evidence"); observations.push(result);
+          verifiedCells.push(path);
         }
       }
     }
     if (!existsSync(observationsPath(root, id))) durableCreate(observationsPath(root, id), observations);
     else need(sha(JSON.parse(readBounded(observationsPath(root, id)))) === sha(observations), "saved observations differ from replayed evidence");
-    return { completed: true, reused: dispatched === 0, calls: dispatched };
+    return { completed: true as const, reused: dispatched === 0, calls: dispatched };
+  } catch (error) {
+    if (!options.stopOnTerminalRejection || !options.replayOnly || !(error instanceof TerminalApiResponseError)) throw error;
+    const savedCells = readdirSync(dir).filter(name => name.endsWith(".cell.json")).map(name => join(dir, name)).sort();
+    need(sha(savedCells) === sha([...verifiedCells].sort()), "unverified cells after terminal rejection");
+    if (existsSync(observationsPath(root, id))) need(sha(JSON.parse(readBounded(observationsPath(root, id)))) === sha(observations), "unverified saved observations after terminal rejection");
+    return { completed: false as const, calls: 0, observations, rejection: error.rejection };
   } finally { if (transport !== null) (transport as ApiLabTransport).close(); closeSync(lock); unlinkSync(lockPath); syncDirectory(root); }
 }
 
