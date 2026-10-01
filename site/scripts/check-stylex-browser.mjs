@@ -10,6 +10,7 @@ import { chromium } from "playwright-core";
 import { localVerificationOrigin, ownedChromiumLaunchOptions, pinnedBrowserExecutable, pinnedChromiumDefinition, verifyOwnedChromium } from "./owned-browser.mjs";
 import { withReducedTransparency } from "./browser-transparency.mjs";
 import { inspectBenchmark, runBenchmarkAccessibilityCases } from "./check-benchmark-browser.mjs";
+import { inspectTrailLayout } from "./check-trail-layout.mjs";
 
 // Use this package's provisioned pinned Chromium in an owned temporary profile.
 // An explicit override may alias that same executable. No browser is downloaded.
@@ -236,7 +237,7 @@ try {
   browser = await launchPromise;
   assert.equal(interrupted, false, "Browser run interrupted");
   browserIdentity = await verifyOwnedChromium(browser, executablePath, definition.expectedVersion);
-  for (const width of [360, 390, 1440]) {
+  for (const width of [360, 390, 1024, 1440]) {
     const mobile = width < 600;
     for (const colorScheme of ["light", "dark"]) {
       const context = await browser.newContext({
@@ -401,6 +402,7 @@ try {
             } finally { await selectNativeMedia(page, { "forced-colors": "none" }); }
             assert.equal((await readMaterial()).wall.image, metrics.field.backgroundImage, "Material restores after native media changes");
             metrics.benchmark = await inspectBenchmark(page, label, artifacts);
+            metrics.trail = await inspectTrailLayout(page, label, artifacts);
           }
           assert.deepEqual(failures, [], `${label}: runtime/resource failures`);
           log(`PASS ${label}: compiled layers, theme, fonts, geometry, focus, targets and disclosure`);

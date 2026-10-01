@@ -49,7 +49,6 @@ export function TrailSteps() {
   }));
   return (
     <StepThrough
-      caption="Illustration of an example review of a fictional trial report. The commands and output are what the oh CLI prints for these records."
       label="From answer to source"
       minWidth={620}
       steps={steps}
