@@ -13,6 +13,31 @@ development treatment with an independent provider judge, not the released GPT-4
 evaluation. Model names may resolve to changing weights; retain reported identity
 and qualification date. Requalify after changing model or settings.
 
+For JSON candidate output, add `"outputFormat": "json"` to a Gemini 3.8 Flash
+reader or judge binding, for example:
+
+```json
+{
+  "id": "gemini-reader",
+  "model": "gemini-3.8-flash",
+  "keyEnv": "VERTEX_API_KEY",
+  "maximumOutput": 4096,
+  "outputFormat": "json"
+}
+```
+
+`GEMINI_API_KEY` is also supported. This option sets
+`generationConfig.responseMimeType` to `application/json` on the Gemini endpoint
+([GenerationConfig reference](https://ai.google.dev/api/generate-content#v1beta.GenerationConfig)).
+It adds 38 request-body bytes, which count toward the context bound and cost
+reservation. JSON requests and captures use `oh.memory-lab-api-json.v1`; omitting
+the option uses `oh.memory-lab-api.v1` and Gemini's default text output. Explicit
+values other than `json`, and this option on Grok, are rejected. Freeze the option
+before preparing request hashes or wave limits. The default example profile omits it.
+
+JSON output is a format request. Keep the experiment's schema, source and semantic
+checks: the transport returns candidate text without repairing or evaluating it.
+
 Keep keys in `VERTEX_API_KEY` (or `GEMINI_API_KEY`) and `XAI_API_KEY`; profiles and
 request captures contain no key values. The native transport calls the selected
 provider directly with no fallback, tools or automatic retries.

@@ -1,7 +1,7 @@
 /** Stage-by-stage execution through the existing API authority. A captured stage is never dispatched twice. */
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, unlinkSync, writeSync, fsyncSync, lstatSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ApiLabTransport, parseApiReply, prepareApiRequest, type ApiReply } from "./api-transport";
+import { ApiLabTransport, apiTransportCustody, parseApiReply, prepareApiRequest, type ApiReply } from "./api-transport";
 import { bindBeamReleasedScorerTemplatesV1, stepBeamReleasedScoreV1 } from "../beam-released-scorer-v1";
 import { evolutionAnswerMessages } from "../evolution-reader-contracts";
 import { type Message } from "../model";
@@ -26,11 +26,13 @@ function recover(config: CampaignConfig, intent: Intent, messages: readonly Mess
   const newer = ids.slice(intent.ledgerPrefix.length);
   if (newer.length === 0) return null; // No native reservation means no request was dispatched.
   need(newer.length === 1, "ambiguous provider attempt; reconcile without replay");
-  const id = newer[0]!, settled = events.find(e => e.id === id && e.kind === "settled"), dir = ledgerPath(config) + ".attempts";
+  const id = newer[0]!, reserved = events.find(e => e.id === id && e.kind === "reserved"),
+    settled = events.find(e => e.id === id && e.kind === "settled"), dir = ledgerPath(config) + ".attempts";
   need(settled && existsSync(join(dir, id + ".result.json")), "unknown or rejected provider outcome blocks replay");
   const selected = [config.api.reader, config.api.judge].find(b => b.id === intent.profileId)!;
-  const request = prepareApiRequest(selected, messages), capture = JSON.parse(readBounded(join(dir, id + ".request.json")));
-  need(capture.requestSha256 === intent.requestSha256 && request.requestSha256 === intent.requestSha256, "captured request belongs to a different stage");
+  const request = prepareApiRequest(selected, messages), capture = apiTransportCustody.capturedRequest(readBounded(join(dir, id + ".request.json")), config.api);
+  need(capture.requestSha256 === intent.requestSha256 && capture.requestSha256 === request.requestSha256, "captured request belongs to a different stage");
+  need(reserved?.micros === capture.reservationMicros, "capture/reservation mismatch");
   const response = JSON.parse(readBounded(join(dir, id + ".response.json"))), reply = parseApiReply(JSON.parse(response.body), request);
   need(response.httpStatus >= 200 && response.httpStatus < 300 && reply.usage.micros === settled.micros
     && sha(reply) === sha(JSON.parse(readBounded(join(dir, id + ".result.json")))), "capture/settlement mismatch");

@@ -4,7 +4,7 @@ import { closeSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readdi
 import { dirname, join } from "node:path";
 import { sha256Hex } from "../../../src/canonical";
 import type { Message } from "../model";
-import { API_MODELS, API_PROTOCOL, apiTransportCustody as custody, parseApiConfig, parseApiReply,
+import { API_MODELS, apiTransportCustody as custody, parseApiConfig, parseApiReply, requestProtocol,
   parseApiRequestTimeoutPolicy, prepareApiRequest, type ApiConfig, type ApiLedgerBudget, type ApiReply } from "./api-transport";
 import { API_WAVE_LIMITS as L, parseApiWavePlan, waveAppendJournal, waveBudget, waveCheckPrefix, waveExact,
   waveFreeze, waveInteger, waveJsonPin, waveLedger, waveNeed, wavePath, wavePin, wavePrivateDirectory,
@@ -165,7 +165,7 @@ export class ApiLabWaveTransport {
       waveNeed((job.requestSha256 === null || job.requestSha256 === request.requestSha256)
         && request.reservationMicros <= job.maximumReservationMicros && Buffer.byteLength(request.raw) <= job.maximumRequestBytes,
       "prepared request exceeds frozen job envelope");
-      const attemptId = randomUUID(), requestRaw = JSON.stringify({ protocol: API_PROTOCOL, binding: request.binding,
+      const attemptId = randomUUID(), requestRaw = JSON.stringify({ protocol: requestProtocol(request.binding), binding: request.binding,
         requestSha256: request.requestSha256, endpoint: request.endpoint, body: JSON.parse(request.raw), reservationMicros: request.reservationMicros });
       const requestCapture = plannedPin(waveRequestCapturePath(this.#budget, attemptId, ".request.json"), requestRaw);
       const policyRaw = JSON.stringify(parseApiRequestTimeoutPolicy({ protocol: "oh.memory-lab-api-request-policy.v1", attemptId,

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { canonicalSha256, sha256Hex } from "../src/canonical";
 import type { Message } from "../scripts/benchmarks/model";
-import { ApiLabTransport, prepareApiRequest, type ApiConfig, type ApiLedgerEvent, type ApiReply } from "../scripts/benchmarks/memory-lab/api-transport";
+import { API_JSON_REQUEST_PROTOCOL, ApiLabTransport, prepareApiRequest, type ApiConfig, type ApiLedgerEvent, type ApiReply } from "../scripts/benchmarks/memory-lab/api-transport";
 import { ApiLabWaveTransport, type ApiWaveBoundary, type ApiWaveCheckpoint, type ApiWaveOptions, type ApiWavePin, type ApiWavePlan, type ApiWaveResult, type ApiWaveSubmission } from "../scripts/benchmarks/memory-lab/api-wave";
 import { waveReadJournal, type ApiWaveJob } from "../scripts/benchmarks/memory-lab/api-wave-store";
 import { verifyApiWaveRun } from "../scripts/benchmarks/memory-lab/api-wave-replay";
@@ -20,7 +20,7 @@ afterEach(() => {
 const baseTime = Date.parse("2026-10-01T06:00:00Z");
 const messages: readonly Message[] = [{ role: "user", content: "Invented wave fixture: a purple kite is beside a toy lighthouse." }];
 const inventedKey = "invented-wave-fixture-not-a-credential";
-type FixtureOptions = { count?: number; concurrency?: number; maxCalls?: number; maxUsd?: number; expiresAt?: string;
+type FixtureOptions = { count?: number; concurrency?: number; maxCalls?: number; maxUsd?: number; expiresAt?: string; outputFormat?: "json";
   jobs?: (config: ApiConfig) => readonly ApiWaveJob[] };
 function pin(path: string): ApiWavePin {
   const raw = readFileSync(path); return { path, bytes: raw.length, sha256: sha256Hex(raw) };
@@ -39,7 +39,8 @@ function fixture(options: FixtureOptions = {}) {
   mkdirSync(cache, { mode: 0o700 }); mkdirSync(run, { mode: 0o700 });
   const ledgerPath = join(cache, "ledger.jsonl"), budgetPath = join(root, "budget.json"), journalPath = join(run, "waves.jsonl");
   const config: ApiConfig = { budgetPath,
-    reader: { id: "invented-reader", model: "gemini-3.8-flash", keyEnv: "VERTEX_API_KEY", maximumOutput: 64 },
+    reader: { id: "invented-reader", model: "gemini-3.8-flash", keyEnv: "VERTEX_API_KEY", maximumOutput: 64,
+      ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}) },
     judge: { id: "invented-judge", model: "grok-4.7", keyEnv: "XAI_API_KEY", maximumOutput: 64 } };
   save(budgetPath, { protocol: "oh.memory-lab-api-budget.v2", maxUsd: options.maxUsd ?? 5,
     maxCalls: options.maxCalls ?? 100, expiresAt: options.expiresAt ?? "2026-10-03T00:00:00Z", ledgerPath });
@@ -96,6 +97,47 @@ function tree(root: string): Record<string, string> {
   walk(root, ""); return hashes;
 }
 function replay(f: Fixture) { return verifyApiWaveRun({ config: f.config, plan: f.plan, journalPath: f.journalPath }); }
+
+test("JSON waves capture the selected protocol and replay offline with the same byte and cost envelopes", async () => {
+  const f = fixture({ outputFormat: "json" }), request = prepareApiRequest(f.config.reader, messages);
+  let calls = 0;
+  const transport = await open(f, fakeFetch(async (url, init) => {
+    calls++; expect(String(url)).toBe(request.endpoint); expect(init!.body).toBe(request.raw);
+    expect(JSON.parse(String(init!.body)).generationConfig.responseMimeType).toBe("application/json");
+    return reply('{"invented":"purple kite"}');
+  }));
+  try {
+    const result = await transport.invokeWave(submissions(f));
+    expect(result.status).toBe("complete"); expect(result.completedJobs).toBe(4);
+    for (const member of result.members) {
+      const checkpoint = JSON.parse(readFileSync(member.checkpoint!.path, "utf8")) as ApiWaveCheckpoint;
+      expect(JSON.parse(readFileSync(checkpoint.requestCapture.path, "utf8"))).toEqual({
+        protocol: API_JSON_REQUEST_PROTOCOL, binding: request.binding, requestSha256: request.requestSha256,
+        endpoint: request.endpoint, body: JSON.parse(request.raw), reservationMicros: request.reservationMicros,
+      });
+    }
+  } finally { transport.close(); }
+  delete process.env.VERTEX_API_KEY; delete process.env.XAI_API_KEY;
+  const before = tree(f.root);
+  expect(replay(f)).toMatchObject({ status: "complete", completedJobs: 4, attemptedCalls: 4, providerCalls: 0 });
+  expect(tree(f.root)).toEqual(before); expect(calls).toBe(4);
+});
+
+test("JSON wave byte and reservation overhead must fit each frozen job before reservations or dispatch", async () => {
+  for (const dimension of ["bytes", "reservation"] as const) {
+    const f = fixture({ outputFormat: "json", jobs: config => {
+      const { outputFormat: _format, ...plain } = config.reader;
+      const old = prepareApiRequest(plain, messages);
+      return Array.from({ length: 4 }, (_, i) => job(config, `job-${i}`, dimension === "bytes"
+        ? { maximumRequestBytes: Buffer.byteLength(old.raw) } : { maximumReservationMicros: old.reservationMicros }));
+    } });
+    let calls = 0; const transport = await open(f, fakeFetch(async () => { calls++; return reply(); }));
+    try {
+      await expect(transport.invokeWave(submissions(f))).rejects.toThrow();
+      expect(ledger(f)).toEqual([]); expect(captures(f)).toEqual([]); expect(calls).toBe(0);
+    } finally { transport.close(); }
+  }
+});
 
 test("width four reserves the complete canonical wave before fetch and preserves distinct identical-body attempts", async () => {
   const f = fixture({ count: 8 }), gates = Array.from({ length: 8 }, () => defer<Response>());

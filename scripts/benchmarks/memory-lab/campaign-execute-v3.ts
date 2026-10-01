@@ -1,7 +1,7 @@
 /** Stage-by-stage execution through the existing API authority. A captured stage is never dispatched twice. */
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, unlinkSync, writeSync, fsyncSync, lstatSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ApiLabTransport, parseApiReply, prepareApiRequest, TerminalApiResponseError, verifyTerminalApiAttempt, type ApiReply } from "./api-transport";
+import { ApiLabTransport, apiTransportCustody, parseApiReply, prepareApiRequest, TerminalApiResponseError, verifyTerminalApiAttempt, type ApiReply } from "./api-transport";
 import { bindBeamReleasedScorerTemplatesV1, stepBeamReleasedScoreV1 } from "../beam-released-scorer-v1";
 import { evolutionAnswerMessages } from "../evolution-reader-contracts";
 import { type Message } from "../model";
@@ -27,10 +27,12 @@ function recover(config: CampaignConfig, intent: Intent, messages: readonly Mess
   need(intent.ledgerPrefix.every((id, i) => ids[i] === id), "provider ledger history changed");
   const newer = ids.slice(intent.ledgerPrefix.length);
   if (newer.length === 0) return null; // No native reservation means no request was dispatched.
-  const id = newer[0]!, settled = events.find(e => e.id === id && e.kind === "settled"), dir = ledgerPath(config) + ".attempts";
+  const id = newer[0]!, reserved = events.find(e => e.id === id && e.kind === "reserved"),
+    settled = events.find(e => e.id === id && e.kind === "settled"), dir = ledgerPath(config) + ".attempts";
   const selected = [config.api.reader, config.api.judge].find(b => b.id === intent.profileId)!;
-  const request = prepareApiRequest(selected, messages), capture = JSON.parse(readBounded(join(dir, id + ".request.json")));
-  need(capture.requestSha256 === intent.requestSha256 && request.requestSha256 === intent.requestSha256, "captured request belongs to a different stage");
+  const request = prepareApiRequest(selected, messages), capture = apiTransportCustody.capturedRequest(readBounded(join(dir, id + ".request.json")), config.api);
+  need(capture.requestSha256 === intent.requestSha256 && capture.requestSha256 === request.requestSha256, "captured request belongs to a different stage");
+  need(reserved?.micros === capture.reservationMicros, "capture/reservation mismatch");
   if (existsSync(join(dir, id + ".terminal-rejection.json"))) {
     throw new TerminalApiResponseError(verifyTerminalApiAttempt({ config: config.api, attemptId: id, expectedRequestSha256: request.requestSha256 }));
   }

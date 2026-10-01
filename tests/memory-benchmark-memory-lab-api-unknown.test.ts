@@ -4,25 +4,31 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { sha256Hex } from "../src/canonical";
-import { ApiLabTransport, closeUnknownApiAttempt, prepareApiRequest, verifyUnknownApiAttempt, type UnknownApiFilePin } from "../scripts/benchmarks/memory-lab/api-transport";
+import { API_JSON_REQUEST_PROTOCOL, ApiLabTransport, closeUnknownApiAttempt, prepareApiRequest, verifyUnknownApiAttempt, type UnknownApiFilePin } from "../scripts/benchmarks/memory-lab/api-transport";
 
-const roots: string[] = [], previousKey = process.env.XAI_API_KEY;
-afterEach(() => { for (const p of roots.splice(0)) rmSync(p, { recursive: true, force: true }); if (previousKey === undefined) delete process.env.XAI_API_KEY; else process.env.XAI_API_KEY = previousKey; });
+const roots: string[] = [], previousKey = process.env.XAI_API_KEY, previousGeminiKey = process.env.VERTEX_API_KEY;
+afterEach(() => {
+  for (const p of roots.splice(0)) rmSync(p, { recursive: true, force: true });
+  if (previousKey === undefined) delete process.env.XAI_API_KEY; else process.env.XAI_API_KEY = previousKey;
+  if (previousGeminiKey === undefined) delete process.env.VERTEX_API_KEY; else process.env.VERTEX_API_KEY = previousGeminiKey;
+});
 const now = () => Date.parse("2026-10-01T06:00:00Z");
 const messages = [{ role: "user" as const, content: "Invented offline accounting fixture." }];
 function pin(path: string): UnknownApiFilePin { const raw = readFileSync(path); return { path, bytes: raw.length, sha256: sha256Hex(raw) }; }
 function save(path: string, value: unknown) { writeFileSync(path, JSON.stringify(value) + "\n", { mode: 0o600 }); return pin(path); }
-async function fixture(protocol = "oh.memory-lab-api-budget.v2", extended = false) {
+async function fixture(protocol = "oh.memory-lab-api-budget.v2", extended = false, json = false) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "oh-unknown-accounting-"))); roots.push(root);
   const cache = join(root, "cache"); mkdirSync(cache, { mode: 0o700 });
   const ledgerPath = join(cache, "ledger.jsonl"), budgetPath = join(root, "budget.json");
   const budget = save(budgetPath, { protocol, maxUsd: 5, maxCalls: 100, expiresAt: "2026-10-03T00:00:00Z", ledgerPath });
-  const config = { budgetPath, reader: { id: "unused-reader", model: "gemini-3.8-flash" as const, keyEnv: "VERTEX_API_KEY" as const, maximumOutput: 8192 }, judge: { id: "invented-judge", model: "grok-4.7" as const, keyEnv: "XAI_API_KEY" as const, maximumOutput: 8192 } };
-  let calls = 0; process.env.XAI_API_KEY = "invented-only";
+  const config = { budgetPath, reader: { id: "unused-reader", model: "gemini-3.8-flash" as const, keyEnv: "VERTEX_API_KEY" as const, maximumOutput: 8192,
+    ...(json ? { outputFormat: "json" as const } : {}) }, judge: { id: "invented-judge", model: "grok-4.7" as const, keyEnv: "XAI_API_KEY" as const, maximumOutput: 8192 } };
+  const selected = json ? config.reader : config.judge;
+  let calls = 0; process.env[selected.keyEnv] = "invented-only";
   const fetcher = Object.assign(async () => { calls++; throw Error("invented timeout with no response"); }, { preconnect() { throw Error("fixture cannot connect"); } }) as typeof fetch;
   const transport = await ApiLabTransport.open({ config, maxCalls: 1, now, fetcher, ...(extended ? { requestTimeoutMs: 600000 as const } : {}) });
-  try { await expect(transport.invoke(config.judge.id, messages)).rejects.toThrow("invented timeout"); } finally { transport.close(); }
-  const prefix = readFileSync(ledgerPath), reserved = JSON.parse(prefix.toString().trim()), base = join(ledgerPath + ".attempts", reserved.id), request = prepareApiRequest(config.judge, messages);
+  try { await expect(transport.invoke(selected.id, messages)).rejects.toThrow("invented timeout"); } finally { transport.close(); }
+  const prefix = readFileSync(ledgerPath), reserved = JSON.parse(prefix.toString().trim()), base = join(ledgerPath + ".attempts", reserved.id), request = prepareApiRequest(selected, messages);
   const stopped = save(join(root, "stopped.json"), { status: "incomplete", noResume: true, fixture: true });
   const exit = { protocol: "oh.memory-lab-api-writer-exit.v1", evidenceBasis: "reviewed-supervisor-attestation", supervisor: "codex.exec", sessionId: 1, completionId: "invented-exit", exitCode: 0, osPid: null, argv: ["invented-offline-runner"], observedExitedAt: "2026-10-01T06:01:00Z", attemptId: reserved.id, requestSha256: request.requestSha256, outcome: "exited", runResumable: false, stoppedEvidence: [stopped] };
   const writerExit = save(join(root, "writer-exit.json"), exit);
@@ -136,4 +142,14 @@ test("opt-in timeout policy is pinned without changing unknown-outcome accountin
   const f = await fixture("oh.memory-lab-api-budget.v2", true), receipt = closeUnknownApiAttempt(f.input);
   expect(receipt.requestPolicySha256).toBe(f.authority.requestPolicy!.sha256); expect(verifyUnknownApiAttempt(f.input)).toEqual(receipt); expect(f.calls()).toBe(1);
   writeFileSync(f.base + ".request-policy.json", "{}"); expect(() => verifyUnknownApiAttempt(f.input)).toThrow("pin changed");
+});
+
+test("JSON-mode unknown closure keeps the full reservation without a response, result or retry", async () => {
+  const f = await fixture("oh.memory-lab-api-budget.v2", true, true);
+  expect(JSON.parse(readFileSync(f.base + ".request.json", "utf8")).protocol).toBe(API_JSON_REQUEST_PROTOCOL);
+  delete process.env.VERTEX_API_KEY;
+  const receipt = closeUnknownApiAttempt(f.input), settled = readFileSync(f.ledgerPath);
+  expect(receipt).toMatchObject({ retainedMicros: f.reserved.micros, providerOutcome: "unknown", usage: null, acceptedResult: false, retryAuthorized: false });
+  expect(verifyUnknownApiAttempt(f.input)).toEqual(receipt); expect(readFileSync(f.ledgerPath)).toEqual(settled);
+  expect(f.calls()).toBe(1); expect(existsSync(f.base + ".result.json")).toBeFalse(); expect(existsSync(f.base + ".response.json")).toBeFalse();
 });
