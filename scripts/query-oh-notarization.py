@@ -44,6 +44,12 @@ EXPECTED_RECEIPT = {
     },
 }
 SECRET_NAMES = ("APPLE_NOTARY_KEY_P8_BASE64", "APPLE_NOTARY_KEY_ID", "APPLE_NOTARY_ISSUER_ID")
+ERROR_CLASSIFICATIONS = (
+    "child-signal", "child-launch-failed", "child-timeout", "local-file-limit",
+    "authentication-rejected", "authorization-rejected", "submission-not-found",
+    "rate-limited", "service-or-network-failure", "tool-usage-error",
+    "unrecognized-tool-failure", "invalid-tool-response",
+)
 
 
 class QueryError(Exception):
@@ -53,6 +59,17 @@ class QueryError(Exception):
 def require(condition, message):
     if not condition:
         raise QueryError(message)
+
+
+class AppleQueryFailure(QueryError):
+    """A numeric exit and one fixed classification, never service text."""
+
+    def __init__(self, exit_code, classification):
+        require(exit_code is None or type(exit_code) is int, "invalid child exit code")
+        require(classification in ERROR_CLASSIFICATIONS, "invalid error classification")
+        self.exit_code = exit_code
+        self.classification = classification
+        super().__init__(f"Apple status query failed ({classification}; exit {exit_code})")
 
 
 def bounded_bytes(path):
@@ -147,6 +164,48 @@ def cleanup(work):
         shutil.rmtree(work)
 
 
+def tool_output(path):
+    info = path.lstat()
+    require(stat.S_ISREG(info.st_mode) and 0 <= info.st_size <= MAX_BYTES,
+            "tool output exceeds byte bound")
+    data = path.read_bytes()
+    require(len(data) <= MAX_BYTES, "tool output changed beyond byte bound")
+    return data
+
+
+def failure_classification(exit_code, output, errors):
+    if exit_code < 0:
+        return "child-signal"
+    # Service text is used only for these fixed hints and is never retained.
+    text = (output + b"\n" + errors).decode("utf8", errors="replace")
+    patterns = (
+        ("local-file-limit", r"file too large|file size limit exceeded"),
+        ("authentication-rejected", r"HTTP status code:\s*401\b|invalid credentials|(?:unable|failed) to authenticate|authentication failed"),
+        ("authorization-rejected", r"HTTP status code:\s*403\b|not authorized|permission denied"),
+        ("submission-not-found", r"HTTP status code:\s*404\b|submission[^\n]{0,160}(?:not found|does not exist)|unable to find a submission"),
+        ("rate-limited", r"HTTP status code:\s*429\b|too many requests|rate limit exceeded"),
+        ("service-or-network-failure", r"HTTP status code:\s*5[0-9]{2}\b|(?:connection|network|service)[^\n]{0,80}(?:failed|unavailable)|could not connect|could not resolve|connection timed out"),
+        ("tool-usage-error", r"usage:\s*notarytool|unknown argument|unrecognized subcommand"),
+    )
+    for classification, pattern in patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            return classification
+    return "unrecognized-tool-failure"
+
+
+def status_record(receipt, status, state):
+    return {
+        "schemaVersion": 1, "state": state, "status": status,
+        "checkedAt": datetime.now(timezone.utc).isoformat(), "repository": REPOSITORY,
+        "releaseTag": RELEASE_TAG, "releaseSourceSha": SOURCE_SHA, "releaseRunId": RUN_ID,
+        "receiptArtifactId": ARTIFACT_ID, "receiptArtifactSha256": ARTIFACT_DIGEST,
+        "originalReceiptSha256": RECEIPT_DIGEST,
+        "submissionId": receipt["submissionId"], "submissionZipSha256": receipt["submissionZipSha256"],
+        "signedBinarySha256": receipt["signedBinarySha256"],
+        "packageAdmitted": False,
+    }
+
+
 def apple_info(submission_id, key, key_id, issuer, work):
     environment = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": os.environ["HOME"], "LC_ALL": "C"}
     # File capture keeps arbitrary Apple output out of both memory and logs.
@@ -161,10 +220,18 @@ def apple_info(submission_id, key, key_id, issuer, work):
                 env=environment, stdout=response, stderr=errors, timeout=90, check=False,
                 preexec_fn=output_limit,
             )
-        except (OSError, subprocess.TimeoutExpired):
-            raise QueryError("Apple status query failed or timed out") from None
-    require(result.returncode == 0, "Apple status query failed")
-    return json_value(bounded_bytes(work / "response.json"))
+        except subprocess.TimeoutExpired:
+            raise AppleQueryFailure(None, "child-timeout") from None
+        except (OSError, subprocess.SubprocessError):
+            raise AppleQueryFailure(None, "child-launch-failed") from None
+    output = tool_output(work / "response.json")
+    errors = tool_output(work / "diagnostic.txt")
+    if result.returncode != 0:
+        raise AppleQueryFailure(result.returncode, failure_classification(result.returncode, output, errors))
+    try:
+        return json_value(output)
+    except (QueryError, ValueError, UnicodeDecodeError):
+        raise AppleQueryFailure(0, "invalid-tool-response") from None
 
 
 def query(receipt_path, output, work):
@@ -182,6 +249,7 @@ def query(receipt_path, output, work):
         key_bytes = base64.b64decode(values["APPLE_NOTARY_KEY_P8_BASE64"], validate=True)
         require(0 < len(key_bytes) <= 16384, "invalid Notary key byte bound")
         work.mkdir(mode=0o700)
+        query_failure = None
         try:
             key = work / "AuthKey.p8"
             write_new(key, key_bytes)
@@ -190,20 +258,17 @@ def query(receipt_path, output, work):
             require(response.get("id") == receipt["submissionId"], "Apple returned another submission")
             status = response.get("status")
             require(status in ("Accepted", "Invalid", "Rejected", "In Progress"), "unrecognized Apple status")
-            result = {
-                "schemaVersion": 1, "state": "status-queried", "status": status,
-                "checkedAt": datetime.now(timezone.utc).isoformat(), "repository": REPOSITORY,
-                "releaseTag": RELEASE_TAG, "releaseSourceSha": SOURCE_SHA, "releaseRunId": RUN_ID,
-                "receiptArtifactId": ARTIFACT_ID, "receiptArtifactSha256": ARTIFACT_DIGEST,
-                "originalReceiptSha256": RECEIPT_DIGEST,
-                "submissionId": receipt["submissionId"], "submissionZipSha256": receipt["submissionZipSha256"],
-                "signedBinarySha256": receipt["signedBinarySha256"],
-                "packageAdmitted": False,
-            }
+            result = status_record(receipt, status, "status-queried")
+        except AppleQueryFailure as error:
+            query_failure = error
+            result = status_record(receipt, None, "query-incomplete")
+            result.update(toolExitCode=error.exit_code, errorClassification=error.classification)
         finally:
             cleanup(work)
         # Cleanup completes before any result is written or printed.
         write_new(output, (json.dumps(result, sort_keys=True) + "\n").encode("utf8"))
+        if query_failure is not None:
+            raise query_failure
         print("Original Apple submission status: " + status)
     finally:
         values.clear()

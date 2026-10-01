@@ -129,6 +129,78 @@ class QueryTests(unittest.TestCase):
         apple.assert_not_called()
         self.assertFalse(self.work.exists())
 
+    def test_failed_query_records_numeric_exit_and_fixed_classification_after_cleanup(self):
+        with patch.object(querying, "apple_info", side_effect=querying.AppleQueryFailure(-25, "child-signal")), self.assertRaises(querying.AppleQueryFailure):
+            querying.query(self.receipt, self.output, self.work)
+        self.assertFalse(self.work.exists())
+        result = json.loads(self.output.read_text())
+        self.assertEqual(result["state"], "query-incomplete")
+        self.assertIsNone(result["status"])
+        self.assertEqual(result["toolExitCode"], -25)
+        self.assertEqual(result["errorClassification"], "child-signal")
+        self.assertEqual(result["submissionId"], querying.EXPECTED_RECEIPT["submissionId"])
+        self.assertFalse(result["packageAdmitted"])
+        self.assertNotIn("fake Notary private key", self.output.read_text())
+
+    def test_error_classification_is_a_fixed_allowlist_without_service_text(self):
+        cases = (
+            (-25, b"private service text", "child-signal"),
+            (1, b"Error: File too large", "local-file-limit"),
+            (1, b"Error: HTTP status code: 401. secret=never-retain-me", "authentication-rejected"),
+            (1, b"Error: HTTP status code: 403. secret=never-retain-me", "authorization-rejected"),
+            (1, b"Error: HTTP status code: 404. secret=never-retain-me", "submission-not-found"),
+            (1, b"Error: HTTP status code: 429. secret=never-retain-me", "rate-limited"),
+            (1, b"Error: HTTP status code: 503. secret=never-retain-me", "service-or-network-failure"),
+            (64, b"Usage: notarytool info. secret=never-retain-me", "tool-usage-error"),
+            (1, b"arbitrary service text secret=never-retain-me", "unrecognized-tool-failure"),
+        )
+        for code, text, expected in cases:
+            with self.subTest(code=code, expected=expected):
+                classification = querying.failure_classification(code, b"", text)
+                self.assertEqual(classification, expected)
+                self.assertIn(classification, querying.ERROR_CLASSIFICATIONS)
+                self.assertNotIn("never-retain-me", str(querying.AppleQueryFailure(code, classification)))
+        with self.assertRaisesRegex(querying.QueryError, "invalid error classification"):
+            querying.AppleQueryFailure(1, "arbitrary provider text")
+
+    def test_real_child_nonzero_failure_discards_raw_diagnostics(self):
+        self.work.mkdir()
+        key = self.work / "AuthKey.p8"
+        querying.write_new(key, b"fake key")
+        def process(argv, **options):
+            options["stderr"].write(b"Error: HTTP status code: 401. private-key=never-retain-me")
+            return subprocess.CompletedProcess(argv, 1)
+        with patch.object(querying.subprocess, "run", side_effect=process), self.assertRaises(querying.AppleQueryFailure) as raised:
+            querying.apple_info(querying.EXPECTED_RECEIPT["submissionId"], key, "ABCDE12345", "issuer", self.work)
+        self.assertEqual(raised.exception.exit_code, 1)
+        self.assertEqual(raised.exception.classification, "authentication-rejected")
+        self.assertNotIn("never-retain-me", str(raised.exception))
+
+    def test_timeout_or_launch_failure_has_a_fixed_classification(self):
+        for exception, expected in ((subprocess.TimeoutExpired(["notarytool"], 90), "child-timeout"),
+                                    (OSError("arbitrary launch details"), "child-launch-failed")):
+            with self.subTest(expected=expected):
+                self.work.mkdir()
+                key = self.work / "AuthKey.p8"
+                querying.write_new(key, b"fake key")
+                with patch.object(querying.subprocess, "run", side_effect=exception), self.assertRaises(querying.AppleQueryFailure) as raised:
+                    querying.apple_info(querying.EXPECTED_RECEIPT["submissionId"], key, "ABCDE12345", "issuer", self.work)
+                self.assertIsNone(raised.exception.exit_code)
+                self.assertEqual(raised.exception.classification, expected)
+                querying.cleanup(self.work)
+
+    def test_success_exit_with_malformed_response_cannot_claim_status(self):
+        self.work.mkdir()
+        key = self.work / "AuthKey.p8"
+        querying.write_new(key, b"fake key")
+        def process(argv, **options):
+            options["stdout"].write(b"arbitrary non-JSON service output")
+            return subprocess.CompletedProcess(argv, 0)
+        with patch.object(querying.subprocess, "run", side_effect=process), self.assertRaises(querying.AppleQueryFailure) as raised:
+            querying.apple_info(querying.EXPECTED_RECEIPT["submissionId"], key, "ABCDE12345", "issuer", self.work)
+        self.assertEqual(raised.exception.exit_code, 0)
+        self.assertEqual(raised.exception.classification, "invalid-tool-response")
+
     def test_work_directory_cannot_select_another_path(self):
         with self.assertRaisesRegex(querying.QueryError, "dedicated runner"):
             querying.cleanup(self.root)
