@@ -44,6 +44,13 @@ the transport checks parent file identities and completion, not the meaning of t
 derived prompt. `policySha256` identifies the caller's policy; it does not attest
 that an arbitrary callback implements that policy.
 
+A Gemini binding can select `outputFormat: "json"` as described in
+[Direct API setup](api-setup.md). Freeze that option before calling
+`prepareApiRequest`: its 38 added body bytes affect each job's request-byte ceiling,
+reservation and request hash. Those request captures use
+`oh.memory-lab-api-json.v1`, and replay requires the matching configured binding.
+The wave plan, journal, lock and accounting protocols keep their own versions.
+
 Plan JSON is limited to 1 MiB, 20,000 nodes and depth 12. Duplicate keys, invalid
 Unicode, extra fields and malformed file pins fail. The ordinary model context
 and output-token limits also apply to each prepared request.

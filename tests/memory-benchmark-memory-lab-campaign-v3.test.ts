@@ -12,7 +12,7 @@ import { composeOhAuthorLogContextV1 } from "../scripts/benchmarks/oh-author-log
 import { projectOhEvidenceTurnsV1 } from "../scripts/benchmarks/oh-evidence-context";
 import { verifyContexts } from "../scripts/benchmarks/memory-lab/campaign-context-v3";
 import { parseTaskInput } from "../scripts/benchmarks/memory-lab/campaign-contract-v3";
-import { prepareApiRequest, reconcileTerminalApiAttempt } from "../scripts/benchmarks/memory-lab/api-transport";
+import { API_JSON_REQUEST_PROTOCOL, API_PROTOCOL, prepareApiRequest, reconcileTerminalApiAttempt } from "../scripts/benchmarks/memory-lab/api-transport";
 import { evolutionAnswerMessages } from "../scripts/benchmarks/evolution-reader-contracts";
 
 const dirs: string[] = [], oldKey = process.env.VERTEX_API_KEY, oldXai = process.env.XAI_API_KEY;
@@ -20,7 +20,7 @@ afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: tru
   if (oldKey === undefined) delete process.env.VERTEX_API_KEY; else process.env.VERTEX_API_KEY = oldKey;
   if (oldXai === undefined) delete process.env.XAI_API_KEY; else process.env.XAI_API_KEY = oldXai; });
 const now = () => Date.parse("2026-09-30T06:00:00Z");
-function setup({ screenCriterion = "cluster-sign" as CampaignConfig["screenCriterion"], maxCalls = 1000, campaignCalls = 1000, expiresAt = "2099-01-01T00:00:00Z", evidenceMode = "offline-synthetic" as CampaignConfig["evidenceMode"] } = {}) {
+function setup({ screenCriterion = "cluster-sign" as CampaignConfig["screenCriterion"], maxCalls = 1000, campaignCalls = 1000, expiresAt = "2099-01-01T00:00:00Z", evidenceMode = "offline-synthetic" as CampaignConfig["evidenceMode"], readerOutputFormat = undefined as "json" | undefined } = {}) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "oh-campaign-v3-"))); dirs.push(dir);
   const root = join(dir, "lab"), cache = join(dir, "cache"); mkdirSync(cache, { mode: 0o700 });
   const ref = (name: string, value: unknown) => { const path = join(dir, name), raw = JSON.stringify(value); writeFileSync(path, raw, { mode: 0o600 }); return { path, sha256: sha256Hex(raw) }; };
@@ -49,7 +49,7 @@ function setup({ screenCriterion = "cluster-sign" as CampaignConfig["screenCrite
     add(`c${batch}t${i}`, `c${batch}target${i}`, "confirmation"); add(`c${batch}g${i}`, `c${batch}guard${i}`, "confirmation", true);
   }
   const config: CampaignConfig = { protocol: CAMPAIGN_V3, id: "test", owner: "author", evidenceMode, api: { budgetPath: budget.path,
-    reader: { id: "reader", model: "gemini-3.8-flash", keyEnv: "VERTEX_API_KEY", maximumOutput: 4096 },
+    reader: { id: "reader", model: "gemini-3.8-flash", keyEnv: "VERTEX_API_KEY", maximumOutput: 4096, ...(readerOutputFormat ? { outputFormat: readerOutputFormat } : {}) },
     judge: { id: "judge", model: "grok-4.7", keyEnv: "XAI_API_KEY", maximumOutput: 2048 } }, budget, templates, tasks,
     maxPlans: 30, maxProposals: 32, maxConfirmationAttempts: 3, maxCalls, expiresAt, minimumEffect: 0.03, guardMargin: 0.03,
     screenAlpha: 0.125, aaMaximumMeanAbsoluteDelta: 0.02, sourcePins: sourcePins(), screenCriterion, contextPolicies, rankingProfileSha256, maximumAnswerJsonBytes: 4096 };
@@ -212,15 +212,46 @@ test("production executor and native ledger exercise two successive synthetic pr
   expect(advance(s.root, "confirmation2").status).toBe("already-advanced");
 }, 120_000);
 
-test("captured reader and judge stages survive interruption, including the native/local receipt gap", async () => {
-  const s = setup(); qualify(s.root); proposal(s.root, "level1"); const p = reviewed(s.root, spec("resume", "screen", "level1"));
+for (const readerOutputFormat of [undefined, "json"] as const) test(`${readerOutputFormat ?? "historical"} reader and judge captures survive interruption, including the native/local receipt gap`, async () => {
+  const s = setup({ readerOutputFormat }); qualify(s.root); proposal(s.root, "level1"); const p = reviewed(s.root, spec("resume", "screen", "level1"));
   const calls: string[] = [], fetcher = mockProvider(calls); let stopped = false;
   await expect(executeRun(s.root, p.id, { fetcher, now, afterProviderCapture: key => { if (!stopped && key.endsWith("reader")) { stopped = true; throw new Error("crash after native capture"); } } })).rejects.toThrow("crash");
   expect(calls).toEqual(["reader"]);
+  const attempts = s.ledger + ".attempts", native = JSON.parse(readFileSync(join(attempts, readdirSync(attempts).find(name => name.endsWith(".request.json"))!), "utf8"));
+  expect(native.protocol).toBe(readerOutputFormat ? API_JSON_REQUEST_PROTOCOL : API_PROTOCOL);
+  expect(native.body.generationConfig.responseMimeType).toBe(readerOutputFormat ? "application/json" : undefined);
   let judgeStop = false;
   await expect(executeRun(s.root, p.id, { fetcher, now, afterStage: key => { if (!judgeStop && key.endsWith("judge-0")) { judgeStop = true; throw new Error("crash after judge"); } } })).rejects.toThrow("crash");
   expect(calls).toEqual(["reader", "judge"]);
   await executeRun(s.root, p.id, { fetcher, now }); expect(calls).toHaveLength(30); expect((await assessRun(s.root, p.id)).status).toBe("PASS");
+});
+
+for (const [field, error] of [
+  ["body", "captured request identity changed"], ["binding", "undeclared captured binding"],
+  ["endpoint", "captured request identity changed"], ["reservation", "captured request identity changed"],
+  ["protocol", "invalid request capture protocol"], ["ledger reservation", "capture/reservation mismatch"],
+] as const) test(`native/local receipt recovery rejects changed ${field} with an unchanged claimed digest and no redispatch`, async () => {
+  const s = setup({ readerOutputFormat: "json" }); qualify(s.root); proposal(s.root, "level1"); const p = reviewed(s.root, spec("tampered", "screen", "level1"));
+  const calls: string[] = [], fetcher = mockProvider(calls);
+  await expect(executeRun(s.root, p.id, { fetcher, now, afterProviderCapture: () => { throw new Error("crash after native capture"); } })).rejects.toThrow("crash");
+  const attempts = s.ledger + ".attempts", file = join(attempts, readdirSync(attempts).find(name => name.endsWith(".request.json"))!);
+  const capture = JSON.parse(readFileSync(file, "utf8")), claimedDigest = capture.requestSha256;
+  if (field === "body") capture.body.contents[0].parts[0].text += " Altered invented context.";
+  if (field === "binding") capture.binding.maximumOutput += 1;
+  if (field === "endpoint") capture.endpoint += "?altered=true";
+  if (field === "reservation") capture.reservationMicros += 1;
+  if (field === "protocol") capture.protocol = API_PROTOCOL;
+  writeFileSync(file, JSON.stringify(capture));
+  if (field === "ledger reservation") {
+    const rows = readFileSync(s.ledger, "utf8").trim().split("\n").map(line => JSON.parse(line));
+    rows.find(row => row.kind === "reserved").micros += 1;
+    writeFileSync(s.ledger, rows.map(row => JSON.stringify(row)).join("\n") + "\n");
+  }
+  const ledgerBeforeReplay = readFileSync(s.ledger, "utf8");
+  expect(JSON.parse(readFileSync(file, "utf8")).requestSha256).toBe(claimedDigest);
+  await expect(executeRun(s.root, p.id, { fetcher, now })).rejects.toThrow(error);
+  expect(calls).toEqual(["reader"]); expect(readFileSync(s.ledger, "utf8")).toBe(ledgerBeforeReplay);
+  expect(readdirSync(join(s.root, "runs", p.id)).filter(name => name.endsWith(".receipt.json"))).toHaveLength(0);
 });
 
 test("unknown native effects block new execution and known malformed judges are incomplete", async () => {

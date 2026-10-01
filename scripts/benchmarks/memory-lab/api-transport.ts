@@ -7,6 +7,7 @@ import { hasExactKeys, isPlainRecord, sha256Hex } from "../../../src/canonical";
 import { ledgerExposure, type Message } from "../model";
 
 export const API_PROTOCOL = "oh.memory-lab-api.v1";
+export const API_JSON_REQUEST_PROTOCOL = "oh.memory-lab-api-json.v1";
 export const EXTENDED_API_REQUEST_TIMEOUT_MS = 600_000;
 export type ApiRequestTimeoutPolicy = Readonly<{
   protocol: "oh.memory-lab-api-request-policy.v1"; attemptId: string; requestSha256: string;
@@ -21,7 +22,7 @@ export const API_MODELS = Object.freeze({
   "grok-4.7": { provider: "xai", input: 2, output: 6, context: 500_000 },
 } as const);
 export type ApiModel = keyof typeof API_MODELS;
-export type ApiBinding = Readonly<{ id: string; model: ApiModel; keyEnv: "VERTEX_API_KEY" | "GEMINI_API_KEY" | "XAI_API_KEY"; maximumOutput: number }>;
+export type ApiBinding = Readonly<{ id: string; model: ApiModel; keyEnv: "VERTEX_API_KEY" | "GEMINI_API_KEY" | "XAI_API_KEY"; maximumOutput: number; outputFormat?: "json" }>;
 export type ApiConfig = Readonly<{ budgetPath: string; reader: ApiBinding; judge: ApiBinding }>;
 type Budget = Readonly<{ protocol: keyof typeof API_BUDGET_LIMITS; maxUsd: number; maxCalls: number; expiresAt: string; ledgerPath: string }>;
 type Event = { v: 1; id: string; kind: "reserved" | "settled"; micros: number };
@@ -51,13 +52,20 @@ function writeCapture(p: string, content: string): void {
   syncDirectory(dirname(p));
 }
 function binding(v: unknown): ApiBinding {
-  if (!isPlainRecord(v) || !hasExactKeys(v, ["id", "model", "keyEnv", "maximumOutput"])
+  if (!isPlainRecord(v) || !hasExactKeys(v, ["id", "model", "keyEnv", "maximumOutput", ...(Object.hasOwn(v, "outputFormat") ? ["outputFormat"] : [])])
     || typeof v.id !== "string" || !/^[a-z0-9-]{1,100}$/u.test(v.id)
     || typeof v.model !== "string" || !Object.hasOwn(API_MODELS, v.model)
     || !integer(v.maximumOutput) || v.maximumOutput < 64 || v.maximumOutput > 8192) fail("invalid model binding");
   const model = v.model as ApiModel;
   if (model === "grok-4.7" ? v.keyEnv !== "XAI_API_KEY" : !["VERTEX_API_KEY", "GEMINI_API_KEY"].includes(String(v.keyEnv))) fail("key/provider mismatch");
-  return Object.freeze({ id: v.id, model, keyEnv: v.keyEnv as ApiBinding["keyEnv"], maximumOutput: v.maximumOutput });
+  const hasOutputFormat = Object.hasOwn(v, "outputFormat");
+  if (hasOutputFormat && (v.outputFormat !== "json" || model !== "gemini-3.8-flash")) fail("invalid output format");
+  return Object.freeze({ id: v.id, model, keyEnv: v.keyEnv as ApiBinding["keyEnv"], maximumOutput: v.maximumOutput,
+    ...(hasOutputFormat ? { outputFormat: "json" as const } : {}) });
+}
+/** Select the request contract after validating and normalizing the binding. */
+export function requestProtocol(selected: ApiBinding): typeof API_PROTOCOL | typeof API_JSON_REQUEST_PROTOCOL {
+  return Object.hasOwn(selected, "outputFormat") && selected.outputFormat === "json" ? API_JSON_REQUEST_PROTOCOL : API_PROTOCOL;
 }
 export function parseApiConfig(v: unknown): ApiConfig {
   if (!isPlainRecord(v) || !hasExactKeys(v, ["budgetPath", "reader", "judge"])) fail("invalid API configuration");
@@ -85,7 +93,8 @@ export function prepareApiRequest(selected: ApiBinding, messages: readonly Messa
   const body = prices.provider === "gemini" ? {
     ...(messages.length === 2 ? { systemInstruction: { parts: [{ text: messages[0]!.content }] } } : {}),
     contents: [{ role: "user", parts: [{ text: messages.at(-1)!.content }] }],
-    generationConfig: { temperature: 0, candidateCount: 1, maxOutputTokens: b.maximumOutput, thinkingConfig: { thinkingLevel: "low" } },
+    generationConfig: { temperature: 0, candidateCount: 1, maxOutputTokens: b.maximumOutput, thinkingConfig: { thinkingLevel: "low" },
+      ...(requestProtocol(b) === API_JSON_REQUEST_PROTOCOL ? { responseMimeType: "application/json" } : {}) },
   } : { model: b.model, input: messages.map(m => ({ role: m.role, content: [{ type: "input_text", text: m.content }] })),
     temperature: 0, max_output_tokens: b.maximumOutput, reasoning: { effort: "low" }, store: false, stream: false };
   const raw = JSON.stringify(body), inputUpperBound = Buffer.byteLength(raw) + 2048;
@@ -97,7 +106,7 @@ export function prepareApiRequest(selected: ApiBinding, messages: readonly Messa
     ? `https://generativelanguage.googleapis.com/v1beta/models/${b.model}:generateContent`
     : "https://api.x.ai/v1/responses";
   return Object.freeze({ binding: b, endpoint, raw, inputUpperBound, reservationMicros,
-    requestSha256: sha256Hex(JSON.stringify({ protocol: API_PROTOCOL, binding: b, endpoint, body })) });
+    requestSha256: sha256Hex(JSON.stringify({ protocol: requestProtocol(b), binding: b, endpoint, body })) });
 }
 
 export function parseApiReply(value: unknown, request: ReturnType<typeof prepareApiRequest>): ApiReply {
@@ -244,8 +253,9 @@ function releaseOwnedLock(lockPath: string, fd: number): void {
 function capturedRequest(raw: string, config: ApiConfig): ReturnType<typeof prepareApiRequest> {
   const c: unknown = JSON.parse(raw);
   if (!isPlainRecord(c) || !hasExactKeys(c, ["protocol", "binding", "requestSha256", "endpoint", "body", "reservationMicros"])
-    || c.protocol !== API_PROTOCOL || !isPlainRecord(c.body)) fail("invalid request capture");
+    || !isPlainRecord(c.body)) fail("invalid request capture");
   const selected = binding(c.binding), body = c.body;
+  if (c.protocol !== requestProtocol(selected)) fail("invalid request capture protocol");
   if (![config.reader, config.judge].some(b => JSON.stringify(b) === JSON.stringify(selected))) fail("undeclared captured binding");
   let messages: Message[];
   if (API_MODELS[selected.model].provider === "xai") {
@@ -590,7 +600,7 @@ export class ApiLabTransport {
       const id = randomUUID(), attempts = this.#budget.ledgerPath + ".attempts";
       mkdirSync(attempts, { recursive: true, mode: 0o700 });
       const capture = (suffix: string, content: string) => writeCapture(join(attempts, id + suffix), content);
-      const requestRaw = JSON.stringify({ protocol: API_PROTOCOL, binding: b, requestSha256: request.requestSha256,
+      const requestRaw = JSON.stringify({ protocol: requestProtocol(b), binding: b, requestSha256: request.requestSha256,
         endpoint: request.endpoint, body: JSON.parse(request.raw), reservationMicros: request.reservationMicros });
       capture(".request.json", requestRaw);
       if (this.#requestTimeoutMs !== undefined) {
