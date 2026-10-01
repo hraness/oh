@@ -36,7 +36,14 @@ export async function inspectTrailLayout(page, label, artifacts) {
           overflow: terminal.scrollHeight > terminal.clientHeight + 1 || terminal.scrollWidth > terminal.clientWidth + 1 },
         map: { ...box(map), overflow: map.scrollHeight > map.clientHeight + 1 || map.scrollWidth > map.clientWidth + 1,
           cards: [...map.querySelectorAll('.oh-trail-card')].map(box),
-          labels: [...map.querySelectorAll('.oh-trail-value')].map(element => ({ text: element.textContent, clipped: element.scrollWidth > element.clientWidth + 1 })) },
+          labels: [...map.querySelectorAll('.oh-trail-value')].map(element => ({ text: element.textContent, clipped: element.scrollWidth > element.clientWidth + 1 })),
+          text: [...map.querySelectorAll('.oh-trail-role, .oh-trail-key, .oh-trail-value')].map(element => {
+            let effectiveOpacity = 1;
+            for (let ancestor = element; ancestor && section.contains(ancestor); ancestor = ancestor.parentElement) {
+              effectiveOpacity *= Number.parseFloat(getComputedStyle(ancestor).opacity);
+            }
+            return { text: element.textContent, effectiveOpacity };
+          }) },
       };
     });
     assert.equal(geometry.position, "static", `${label}/${state}: stacked heading stays in document flow`);
@@ -56,6 +63,7 @@ export async function inspectTrailLayout(page, label, artifacts) {
         && geometry.map.cards.every(card => card.x >= geometry.map.x && card.y >= geometry.map.y
         && card.right <= geometry.map.right + 1 && card.bottom <= geometry.map.bottom + 1), `${label}/${state}: every map card fits inside its frame`);
     assert.ok(geometry.map.labels.every(label => !label.clipped), `${label}/${state}: map summaries remain complete`);
+    assert.ok(geometry.map.text.length > 0 && geometry.map.text.every(text => Math.abs(text.effectiveOpacity - 1) < 0.001), `${label}/${state}: map text and its ancestors retain full opacity, including unselected records`);
     assert.ok(Math.max(...geometry.frames.map(frame => frame.bottom)) >= geometry.stage.bottom - 3, `${label}/${state}: frames fill the reserved height`);
     rows.push({ state, ...geometry });
   };

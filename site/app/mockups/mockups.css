@@ -43,18 +43,16 @@
   border: 1px solid var(--hkm-line);
   border-radius: 10px;
   background: var(--hkm-card);
-  opacity: 0.55;
 }
 
 .oh-trail-card[data-lit] {
   border-color: var(--oh-mockup-lit);
   box-shadow: 0 0 0 1px var(--oh-mockup-lit);
-  opacity: 1;
 }
 
 [data-hkm-animated] .oh-trail-card,
 .oh-trail-card {
-  transition: opacity 240ms var(--hkm-ease, ease), border-color 240ms var(--hkm-ease, ease), box-shadow 240ms var(--hkm-ease, ease);
+  transition: border-color 240ms var(--hkm-ease, ease), box-shadow 240ms var(--hkm-ease, ease);
 }
 
 @media (prefers-reduced-motion: reduce) {
