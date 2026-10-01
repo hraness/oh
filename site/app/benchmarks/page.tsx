@@ -26,6 +26,7 @@ export const metadata: Metadata = {
   description: benchmarksDescription,
   alternates: { canonical: "/benchmarks" },
   openGraph: {
+    type: "website",
     title: benchmarksTitle,
     description: benchmarksDescription,
     images: [{

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   description: compareMem0Description,
   alternates: { canonical: "/compare/mem0" },
   openGraph: {
+    type: "website",
     title: compareMem0Title,
     description: compareMem0Description,
     images: [{

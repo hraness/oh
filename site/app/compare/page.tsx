@@ -97,6 +97,7 @@ export const metadata: Metadata = {
   description: compareDescription,
   alternates: { canonical: "/compare" },
   openGraph: {
+    type: "website",
     title: compareTitle,
     description: compareDescription,
     images: [{
