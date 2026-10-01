@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description: specificationDescription,
   alternates: { canonical: "/spec" },
   openGraph: {
+    type: "website",
     title: specificationTitle,
     description: specificationDescription,
     images: [{

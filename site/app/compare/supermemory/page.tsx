@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   description: compareSupermemoryDescription,
   alternates: { canonical: "/compare/supermemory" },
   openGraph: {
+    type: "website",
     title: compareSupermemoryTitle,
     description: compareSupermemoryDescription,
     images: [{
