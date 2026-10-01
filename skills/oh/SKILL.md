@@ -45,10 +45,10 @@ Oh 0.14.1 and newer update supported global installations automatically. Use
 `oh update disable` to keep a version, or read the
 [update controls](https://github.com/hraness/oh/blob/main/docs/cli-updates.md).
 
-The verified `@hraness/oh@0.13.3` package has this recorded evidence:
-[GitHub Actions run 36593404095](https://github.com/hraness/oh/actions/runs/36593404095)
+The verified `@hraness/oh@0.14.1` package has this recorded evidence:
+[GitHub Actions run 36816606531](https://github.com/hraness/oh/actions/runs/36816606531)
 built that package, installed it on Linux x64 and arm64, macOS, and Windows,
-and published the same tarball to npm and to the immutable GitHub Release `v0.13.3`, which also
+and published the same tarball to npm and to the immutable GitHub Release `v0.14.1`, which also
 carries `SHA256SUMS`. The versioned specifications are at
 <https://oh.computer/spec>.
 
