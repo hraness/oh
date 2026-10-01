@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { appendFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -72,6 +72,23 @@ test("live, stale and recovery ownership conflicts are preserved without takeove
     const raw = JSON.stringify({ pid: process.pid, fixture: true }); writeFileSync(f.ledgerPath + suffix, raw, { mode: 0o600 });
     expect(() => closeUnknownApiAttempt(f.input)).toThrow(); expect(() => verifyUnknownApiAttempt(f.input)).toThrow();
     expect(readFileSync(f.ledgerPath + suffix, "utf8")).toBe(raw); expect(readFileSync(f.ledgerPath)).toEqual(f.prefix); rmSync(f.ledgerPath + suffix);
+  }
+});
+
+test("dangling native and recovery lock entries remain ownership conflicts", async () => {
+  const f = await fixture(), target = join(f.root, "absent-lock-target");
+  // Also exercise verification after closure, when all accounting evidence is valid.
+  for (const closed of [false, true]) {
+    if (closed) closeUnknownApiAttempt(f.input);
+    const before = readFileSync(f.ledgerPath);
+    for (const suffix of [".lock", ".recovery.lock"]) {
+      const path = f.ledgerPath + suffix; symlinkSync(target, path);
+      expect(existsSync(path)).toBeFalse(); expect(lstatSync(path).isSymbolicLink()).toBeTrue();
+      expect(() => closeUnknownApiAttempt(f.input)).toThrow();
+      expect(() => verifyUnknownApiAttempt(f.input)).toThrow("idle ownership");
+      expect(readlinkSync(path)).toBe(target); expect(readFileSync(f.ledgerPath)).toEqual(before);
+      expect(existsSync(target)).toBeFalse(); rmSync(path);
+    }
   }
 });
 

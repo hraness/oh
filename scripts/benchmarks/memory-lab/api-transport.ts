@@ -396,6 +396,12 @@ function closureReadPin(pin: UnknownApiFilePin): Buffer {
   return raw;
 }
 const closureDecode = (raw: Uint8Array) => new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw);
+function closurePathPresent(p: string): boolean {
+  // Even a dangling symlink is retained ownership state, never evidence of an
+  // idle ledger. Unexpected lookup failures also stay fail-closed.
+  try { lstatSync(p); return true; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return false; throw error; }
+}
 
 /** Pure opt-in policy parsing. Legacy requests have no policy capture. */
 export function parseApiRequestTimeoutPolicy(v: unknown): ApiRequestTimeoutPolicy {
@@ -485,11 +491,11 @@ function unknownClosureEvidence(input: ReturnType<typeof unknownClosureInputs>) 
  * changes the stopped study, reduces exposure, or recovers a lock owner. */
 export function closeUnknownApiAttempt(value: unknown): UnknownApiAccountingClosure {
   const input = unknownClosureInputs(value), lockPath = input.b.ledgerPath + ".lock";
-  if (existsSync(input.b.ledgerPath + ".recovery.lock")) fail("unknown closure cannot compete with recovery");
+  if (closurePathPresent(input.b.ledgerPath + ".recovery.lock")) fail("unknown closure cannot compete with recovery");
   const fd = openSync(lockPath, "wx", 0o600);
   try {
     writeSync(fd, JSON.stringify({ pid: process.pid, protocol: API_PROTOCOL, budgetSha256: input.receipt.budgetSha256 })); fsyncSync(fd); syncDirectory(dirname(lockPath));
-    if (existsSync(input.b.ledgerPath + ".recovery.lock")) fail("unknown closure cannot compete with recovery");
+    if (closurePathPresent(input.b.ledgerPath + ".recovery.lock")) fail("unknown closure cannot compete with recovery");
     const before = unknownClosureEvidence(input);
     if (!before.hasReceipt) writeCapture(input.receiptPath, input.raw);
     // A crash here retains the audit before the append. Repeating this explicit
@@ -505,11 +511,11 @@ export function closeUnknownApiAttempt(value: unknown): UnknownApiAccountingClos
  * and absence of both ownership locks are required; concurrent activity fails. */
 export function verifyUnknownApiAttempt(value: unknown): UnknownApiAccountingClosure {
   const input = unknownClosureInputs(value), lockPaths = [input.b.ledgerPath + ".lock", input.b.ledgerPath + ".recovery.lock"];
-  if (lockPaths.some(p => existsSync(p))) fail("unknown closure verification requires idle ownership");
+  if (lockPaths.some(closurePathPresent)) fail("unknown closure verification requires idle ownership");
   const before = unknownClosureEvidence(input);
   if (!before.settled || !before.hasReceipt) fail("unknown accounting closure incomplete");
   const after = unknownClosureEvidence(input);
-  if (!before.ledgerRaw.equals(after.ledgerRaw) || lockPaths.some(p => existsSync(p))) fail("unknown closure changed during verification");
+  if (!before.ledgerRaw.equals(after.ledgerRaw) || lockPaths.some(closurePathPresent)) fail("unknown closure changed during verification");
   return input.receipt;
 }
 
