@@ -7,6 +7,10 @@ import { hasExactKeys, isPlainRecord, sha256Hex } from "../../../src/canonical";
 import { ledgerExposure, type Message } from "../model";
 
 export const API_PROTOCOL = "oh.memory-lab-api.v1";
+export const API_BUDGET_LIMITS = Object.freeze({
+  "oh.memory-lab-api-budget.v1": Object.freeze({ maxUsd: 100, maxCalls: 1000, ledgerBytes: 16 * 1024 * 1024 }),
+  "oh.memory-lab-api-budget.v2": Object.freeze({ maxUsd: 5000, maxCalls: 25000, ledgerBytes: 16 * 1024 * 1024 }),
+} as const);
 export const API_MODELS = Object.freeze({
   "gemini-3.8-flash": { provider: "gemini", input: 0.75, output: 3.75, context: 1_048_576 },
   "grok-4.7": { provider: "xai", input: 2, output: 6, context: 500_000 },
@@ -14,7 +18,7 @@ export const API_MODELS = Object.freeze({
 export type ApiModel = keyof typeof API_MODELS;
 export type ApiBinding = Readonly<{ id: string; model: ApiModel; keyEnv: "VERTEX_API_KEY" | "GEMINI_API_KEY" | "XAI_API_KEY"; maximumOutput: number }>;
 export type ApiConfig = Readonly<{ budgetPath: string; reader: ApiBinding; judge: ApiBinding }>;
-type Budget = Readonly<{ protocol: "oh.memory-lab-api-budget.v1"; maxUsd: number; maxCalls: number; expiresAt: string; ledgerPath: string }>;
+type Budget = Readonly<{ protocol: keyof typeof API_BUDGET_LIMITS; maxUsd: number; maxCalls: number; expiresAt: string; ledgerPath: string }>;
 type Event = { v: 1; id: string; kind: "reserved" | "settled"; micros: number };
 type Usage = { inputTokens: number; outputTokens: number; micros: number; providerReportedMicros: number | null;
   costBasis: "maximum-token-rate-and-provider-reported" };
@@ -58,10 +62,12 @@ export function parseApiConfig(v: unknown): ApiConfig {
 }
 function budget(v: unknown): Budget {
   if (!isPlainRecord(v) || !hasExactKeys(v, ["protocol", "maxUsd", "maxCalls", "expiresAt", "ledgerPath"])
-    || v.protocol !== "oh.memory-lab-api-budget.v1" || typeof v.maxUsd !== "number" || !Number.isFinite(v.maxUsd)
-    || v.maxUsd <= 0 || v.maxUsd > 100 || !integer(v.maxCalls) || v.maxCalls < 1 || v.maxCalls > 1000
+    || typeof v.protocol !== "string" || !Object.hasOwn(API_BUDGET_LIMITS, v.protocol)) fail("explicit bounded campaign budget required");
+  const protocol = v.protocol as Budget["protocol"], limits = API_BUDGET_LIMITS[protocol];
+  if (typeof v.maxUsd !== "number" || !Number.isFinite(v.maxUsd)
+    || v.maxUsd <= 0 || v.maxUsd > limits.maxUsd || !integer(v.maxCalls) || v.maxCalls < 1 || v.maxCalls > limits.maxCalls
     || typeof v.expiresAt !== "string" || !Number.isFinite(Date.parse(v.expiresAt))) fail("explicit bounded campaign budget required");
-  return { protocol: v.protocol, maxUsd: v.maxUsd, maxCalls: v.maxCalls, expiresAt: v.expiresAt, ledgerPath: path(v.ledgerPath) };
+  return { protocol, maxUsd: v.maxUsd, maxCalls: v.maxCalls, expiresAt: v.expiresAt, ledgerPath: path(v.ledgerPath) };
 }
 
 export function prepareApiRequest(selected: ApiBinding, messages: readonly Message[]) {
@@ -199,7 +205,7 @@ function privateLedgerParent(ledgerPath: string): void {
   if (realpathSync(parent) !== parent || !stat.isDirectory() || (stat.mode & 0o077) !== 0 || stat.uid !== process.getuid?.()) fail("private owned ledger directory required");
 }
 function readLedger(b: Budget): Event[] {
-  const text = existsSync(b.ledgerPath) ? file(b.ledgerPath, 16 * LIMIT) : "";
+  const text = existsSync(b.ledgerPath) ? file(b.ledgerPath, API_BUDGET_LIMITS[b.protocol].ledgerBytes) : "";
   if (text && !text.endsWith("\n")) fail("partial ledger; reconcile before continuing");
   const events: unknown[] = text.split("\n").filter(Boolean).map(line => JSON.parse(line) as unknown);
   let prefix = 0; const charges = new Map<string, number>(), settled = new Set<string>();
@@ -362,7 +368,8 @@ export class ApiLabTransport {
   static async open(options: { config: unknown; maxCalls: number; fetcher?: typeof fetch; now?: () => number }) {
     const config = parseApiConfig(options.config), raw = file(config.budgetPath, 8192), b = budget(JSON.parse(raw));
     const now = options.now ?? Date.now;
-    if (!integer(options.maxCalls) || options.maxCalls < 1 || options.maxCalls > 1000 || now() >= Date.parse(b.expiresAt) || now() >= RATES_EXPIRE) fail("expired authority/rates or invalid call limit");
+    if (!integer(options.maxCalls) || options.maxCalls < 1 || options.maxCalls > API_BUDGET_LIMITS[b.protocol].maxCalls
+      || now() >= Date.parse(b.expiresAt) || now() >= RATES_EXPIRE) fail("expired authority/rates or invalid call limit");
     privateLedgerParent(b.ledgerPath);
     const fd = openSync(b.ledgerPath + ".lock", "wx", 0o600);
     try {

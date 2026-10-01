@@ -33,6 +33,27 @@ Create `budget.json` with the user's actual limits, for example:
 }
 ```
 
+The budget protocol selects the maximum cumulative limits. Set `maxUsd` and
+`maxCalls` to the user's approved amounts within those ceilings; the ceilings do
+not authorize spending.
+
+| Budget protocol | Maximum dollars | Maximum calls | Maximum shared ledger |
+| --- | ---: | ---: | ---: |
+| `oh.memory-lab-api-budget.v1` | $100 | 1,000 | 16 MiB |
+| `oh.memory-lab-api-budget.v2` | $5,000 | 25,000 | 16 MiB |
+
+Larger batches require an explicit `oh.memory-lab-api-budget.v2` file with the
+same five fields shown above. To extend a cumulative budget, create a new file
+pointing at the same ledger and include all previous reservations and charges in
+its limits. Preserve the old budget file and any trial that pins it. Changing a
+budget during an open invocation stops dispatch.
+
+The budget version is separate from the campaign version. Campaign v2 and v3 each
+allocate at most 1,000 calls; multiple campaigns can share the larger API budget.
+Direct transport invocations can request up to the selected budget version's call
+ceiling, subject to the remaining cumulative dollars and calls. Each request keeps
+its model context bound, 8,192-token output ceiling and 1 MiB response limit.
+
 Qualification, readers and judges all use this one ledger. A lock serializes
 campaign access. Each request is reserved and synced before dispatch. Usage includes
 thinking tokens and ignores cache/free-tier discounts. Charge the larger of the
