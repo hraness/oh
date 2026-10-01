@@ -1,0 +1,76 @@
+name: Retained Apple notarization status
+
+on:
+  push:
+    tags:
+      - "v0.14.0-notarization-status.*"
+
+permissions:
+  contents: read
+
+# Share the release queue so this diagnostic never competes with a signing job.
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+
+jobs:
+  query:
+    name: Query original Apple submission without signing
+    environment: hraness-apple-release
+    permissions:
+      actions: read
+      contents: read
+    runs-on: macos-14
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact diagnostic source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          fetch-tags: false
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Require one annotated diagnostic tag at current reviewed main
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_REF_NAME: ${{ github.ref_name }}
+          EVENT_REF_TYPE: ${{ github.ref_type }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "hraness/oh" && "$EVENT_NAME" == "push" && "$EVENT_REF_TYPE" == "tag" ]]
+          [[ "$EVENT_REF_NAME" =~ ^v0\.14\.0-notarization-status\.[1-9][0-9]*$ && "$EVENT_REF" == "refs/tags/$EVENT_REF_NAME" ]]
+          git fetch --no-tags origin "+refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH" "+refs/tags/$EVENT_REF_NAME:refs/tags/$EVENT_REF_NAME"
+          [[ "$(git cat-file -t "refs/tags/$EVENT_REF_NAME")" == tag ]]
+          [[ "$(git rev-parse "refs/tags/$EVENT_REF_NAME^{commit}")" == "$GITHUB_SHA" ]]
+          [[ "$(git rev-parse "origin/$DEFAULT_BRANCH^{commit}")" == "$GITHUB_SHA" ]]
+      - name: Bind retained receipt to original release and immutable artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/oh-status-input"
+          gh api repos/hraness/oh/actions/runs/36770014202 > "$RUNNER_TEMP/oh-status-input/run.json"
+          gh api repos/hraness/oh/actions/artifacts/11124746411 > "$RUNNER_TEMP/oh-status-input/artifact.json"
+          gh api repos/hraness/oh/git/ref/tags/v0.14.0 > "$RUNNER_TEMP/oh-status-input/tag-ref.json"
+          gh api repos/hraness/oh/git/tags/30ba314542e0d5355ae3c2e43c418b53df182227 > "$RUNNER_TEMP/oh-status-input/tag.json"
+          gh api repos/hraness/oh/actions/artifacts/11124746411/zip > "$RUNNER_TEMP/oh-status-input/receipt.zip"
+          python3 -I -B scripts/query-oh-notarization.py verify-evidence "$RUNNER_TEMP/oh-status-input" "$RUNNER_TEMP/oh-status-evidence"
+      - name: Query only the retained UUID without signing or uploading
+        env:
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: python3 -I -B scripts/query-oh-notarization.py query "$RUNNER_TEMP/oh-status-evidence/oh-sqlite-cli-apple-notarization.json" "$RUNNER_TEMP/oh-status-evidence/oh-original-notarization-status.json" "$RUNNER_TEMP/oh-notarization-status"
+      - name: Remove owned Notary credentials on every outcome
+        if: always()
+        run: python3 -I -B scripts/query-oh-notarization.py cleanup "$RUNNER_TEMP/oh-notarization-status"
+      - name: Preserve original receipt and credential-free status
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: oh-original-notarization-status-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/oh-status-evidence/
+          if-no-files-found: ignore
+          retention-days: 30

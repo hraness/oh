@@ -171,6 +171,7 @@ jobs:
           python -B -m unittest discover -s tests -p 'test_gateway_v5_audit_helpers.py'
           python -B -m unittest discover -s tests -p 'test_gateway_v6_*.py'
           python -I -B scripts/test_sign_macos_sidecars.py
+          python -I -B scripts/test_query_oh_notarization.py
           python -I -B scripts/test_extract_release_wasm.py
 
   rust:
