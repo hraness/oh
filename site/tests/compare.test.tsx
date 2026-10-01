@@ -85,7 +85,8 @@ describe("Oh comparison pages", () => {
     ]) {
       expect(html).toContain(`href="${href}"`);
     }
-    expect(html).toContain('aria-label="Memory tools at a glance" class="compare-table-wrap" role="region" tabindex="0"');
+    expect(html).toMatch(/aria-label="Six ways to give an agent memory[^"]*" role="region" tabindex="0"/u);
+    expect(html).toContain('src="/marks/oh-computer.svg"');
     expect(html).toContain("Oh has run no matched benchmark against these three.");
     expect(html).toMatch(/Checked [A-Z][a-z]+ \d{1,2}, \d{4}\./u);
   });

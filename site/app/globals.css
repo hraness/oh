@@ -112,7 +112,7 @@ a:focus-visible {
 .first-run-details > summary:focus-visible { outline: 2px solid var(--hraness-site-accent); outline-offset: 3px; }
 .first-run-details { margin-block-start: 1rem; min-inline-size: 0; }
 .first-run-details > summary { min-block-size: 3rem; padding-block: 0.75rem; cursor: pointer; font-weight: 500; }
-.first-run-details > summary:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.first-run-details > summary:hover { text-decoration: underline dotted; text-underline-offset: 0.2em; }
 #main:focus, #spec-main:focus { outline: none; }
 @media (max-width: 30rem) {
   .citation-preview dl > div { grid-template-columns: minmax(0, 1fr); }
@@ -135,7 +135,7 @@ a:focus-visible {
 .install-note a,
 .hraness-marketing-question__answer a {
   color: var(--foreground);
-  text-decoration: underline;
+  text-decoration: underline dotted;
   text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent);
   text-underline-offset: 0.18em;
 }
@@ -220,7 +220,7 @@ a:focus-visible {
 .benchmark-links a,
 .benchmark-transfer a {
   color: var(--foreground);
-  text-decoration: underline;
+  text-decoration: underline dotted;
   text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent);
   text-underline-offset: 0.18em;
 }
@@ -804,7 +804,7 @@ a:focus-visible {
 .compare-sources a {
   color: var(--foreground);
   font-weight: 500;
-  text-decoration: underline;
+  text-decoration: underline dotted;
   text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent);
   text-underline-offset: 0.18em;
 }

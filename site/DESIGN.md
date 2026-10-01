@@ -12,8 +12,11 @@ No organisms, floating records, hero textures, decorative topic art or fabricate
 product screens. The shared organization footer follows document flow and aligns
 with the 72rem content measure. Navigation remains visible on narrow screens.
 
-Shared packages: design-kit v0.23.0 and site-footer v0.20.0; immutable marketing,
-Paper and Lantern snapshots retain source provenance. Local composition stays
+Package versions live in `package.json`; keep design-kit and site-footer pinned.
+Immutable marketing, Paper and Lantern snapshots retain source provenance.
+The hero includes the copyable platform installer; the later install section
+shows the first task. Product comparisons use the shared compact table, while
+benchmark tables retain their measured values. Prose links use dotted underlines. Local composition stays
 outside vendor files. Preserve saved appearance, no-JavaScript reading, keyboard
 focus, forced colors, reduced transparency, and benchmark accessibility checks.
 

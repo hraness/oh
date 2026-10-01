@@ -34,4 +34,3 @@ export function SiteNotFoundAnalytics() {
 export function SiteExceptionAnalytics({ error }: { error: unknown }) {
   return <PostHogExceptionReporter site={analyticsSite} apiKey={apiKey} error={error} />;
 }
-

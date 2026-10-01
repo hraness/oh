@@ -1,3 +1,4 @@
+import { MarketingComparison, type MarketingComparisonValue } from "@hraness/design-kit/react/server";
 import { marketing } from "../../portfolio-copy";
 import { collectionPageJsonLd } from "@hraness/web-discovery";
 import { JsonLdScript } from "@hraness/web-discovery/json-ld";
@@ -21,16 +22,16 @@ const checkedOn = "September 28, 2026";
 const glanceColumns = ["Oh", "Mem0", "Supermemory", "Zep and Graphiti", "Letta", "Claude memory tool"] as const;
 
 // Each cell was read from the product's own page or repository on checkedOn; the sources list below names them.
-const glanceRows: readonly Readonly<{ label: string; cells: readonly [string, string, string, string, string, string] }>[] = [
+const glanceRows: readonly Readonly<{ label: string; cells: readonly [MarketingComparisonValue, MarketingComparisonValue, MarketingComparisonValue, MarketingComparisonValue, MarketingComparisonValue, MarketingComparisonValue] }>[] = [
   {
     label: "What it is",
     cells: [
-      "Memory library and CLI for an agent’s own records",
-      "Memory layer that remembers each user of a product",
+      "Local memory library and CLI",
+      "Memory for each app user",
       "Memory API with document connectors",
       "Temporal knowledge graph of facts",
-      "Agent harness whose agents manage their own memory",
-      "Claude API tool that reads and writes memory files",
+      "Agents that manage their own memory",
+      "Claude tool for memory files",
     ],
   },
   {
@@ -47,23 +48,23 @@ const glanceRows: readonly Readonly<{ label: string; cells: readonly [string, st
   {
     label: "How memories get in",
     cells: [
-      "Your code or agent writes each record",
+      "Explicit record writes",
       "A model extracts facts from messages",
-      "API calls, with a model extracting memories; Platform connectors sync Google Drive, Gmail, and Notion",
-      "A model extracts entities and facts from each episode",
+      "Model extraction; Platform connectors",
+      "Model extracts entities and facts",
       "The agent rewrites its own memory blocks",
       "Claude writes files through tool calls",
     ],
   },
   {
-    label: "Where data lives",
+    label: "Local storage",
     cells: [
-      "One SQLite file you choose; libSQL optional",
-      "Mem0’s cloud, or your own vector store, LLM, and embedder",
-      "Supermemory’s cloud, or its free self-hosted binary",
-      "Neo4j, FalkorDB, or Neptune for Graphiti; Zep’s cloud or your VPC",
-      "An App Server you run, or Letta Cloud",
-      "Storage your application provides",
+      { status: "yes", label: "SQLite", detail: "libSQL optional" },
+      { status: "optional", label: "Self-hosted SDK", detail: "Or hosted Platform" },
+      { status: "optional", label: "Self-hosted binary", detail: "Or hosted Platform" },
+      { status: "depends", label: "Graphiti graph store", detail: "Zep uses cloud or VPC" },
+      { status: "optional", label: "Self-hosted App Server", detail: "Or Letta Cloud" },
+      { status: "depends", label: "Your application’s storage", detail: "Claude API calls still required" },
     ],
   },
   {
@@ -139,7 +140,7 @@ export default function CompareIndex() {
           id="compare-json-ld"
         />
       }
-      lead="Oh keeps an agent’s own records in one local SQLite file, each linked to the records it rests on, with a history you can replay. Pick Mem0 or Supermemory to give each user of a product a memory. Pick Zep or Graphiti to track when each fact was true. Pick Letta to run agents that manage their own memory. Claude’s memory tool needs no extra package if you already call the Claude API. Every claim about another product below is dated and sourced."
+      lead="Compare where each memory system runs, what it stores, and how agents use it. Oh keeps linked records and their history in one local SQLite file."
       nav={[
         { href: "#at-a-glance", label: "At a glance" },
         ...comparePages.map((page) => ({ href: page.href, label: page.label })),
@@ -150,26 +151,13 @@ export default function CompareIndex() {
       title="Compare Oh"
     >
       <CompareSection id="at-a-glance" number="01" title="At a glance">
-        {/* The table is wider than a phone, so its scrolling wrapper takes keyboard focus. */}
-        <div aria-label="Memory tools at a glance" className="compare-table-wrap" role="region" tabIndex={0}>
-          <table className="compare-table compare-glance">
-            <caption>Six ways to give an agent memory, checked {checkedOn}.</caption>
-            <thead>
-              <tr>
-                <td />
-                {glanceColumns.map((column) => <th key={column} scope="col">{column}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {glanceRows.map((row) => (
-                <tr key={row.label}>
-                  <th scope="row">{row.label}</th>
-                  {row.cells.map((cell, index) => <td key={glanceColumns[index]}>{cell}</td>)}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <MarketingComparison
+          caption={`Six ways to give an agent memory, checked ${checkedOn}.`}
+          highlight={0}
+          options={glanceColumns.map((name) => ({ name, ...(name === "Oh" ? { mark: "/marks/oh-computer.svg" } : {}) }))}
+          rows={glanceRows.map((row) => ({ label: row.label, values: row.cells }))}
+          note="Supermemory Platform connectors include Google Drive, Gmail, and Notion. Graphiti supports Neo4j, FalkorDB, and Neptune. See the dated sources below for each product."
+        />
       </CompareSection>
 
       {comparePages.map((page, index) => (
