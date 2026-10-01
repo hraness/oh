@@ -90,23 +90,24 @@
 
 .oh-trail-role {
   color: var(--hkm-muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
 .oh-trail-key {
-  overflow: hidden;
-  font: 500 13px/1.35 var(--hkm-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font: 500 0.8125rem/1.35 var(--hkm-mono);
 }
 
 .oh-trail-value {
-  overflow: hidden;
   color: var(--hkm-fg);
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+/* Record identifiers and answers stay complete in every map consumer. */
+.oh-trail-key,
+.oh-trail-value {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 /* Narrow frames (phones, article columns): one column in reading order, no connectors. */
@@ -236,12 +237,6 @@
 [data-hkm-fitted] .oh-steps-stage > .oh-mockup {
   block-size: 100%;
   min-block-size: 0;
-}
-
-.oh-steps-stage .oh-trail-value {
-  overflow: visible;
-  overflow-wrap: anywhere;
-  white-space: normal;
 }
 
 @media (max-width: 860px) {
