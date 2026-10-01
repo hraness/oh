@@ -57,7 +57,7 @@ We are building Rust versions of Oh's shared code one piece at a time, with Type
 Post 9 of 9, 187 characters
 
 ```text
-Latest release: v0.13.3. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
 
 https://oh.computer/blog/introducing-oh
 ```
@@ -115,7 +115,7 @@ We are building Rust versions of Oh's shared code one piece at a time, with Type
 Post 9 of 9, 187 characters
 
 ```text
-Latest release: v0.13.3. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
 
 https://oh.computer/blog/introducing-oh
 ```
@@ -173,7 +173,7 @@ We are building Rust versions of Oh's shared code one piece at a time, with Type
 Post 9 of 9, 187 characters
 
 ```text
-Latest release: v0.13.3. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
 
 https://oh.computer/blog/introducing-oh
 ```
@@ -197,7 +197,7 @@ Oh is for developers building agents and research tools where someone will later
 
 We are building Rust versions of Oh's shared code one piece at a time, with TypeScript kept as the reference. The first, the encoder, must match it byte for byte on 1,000 generated documents and 20,000 numbers.
 
-Latest release: v0.13.3. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
 
 https://oh.computer/blog/introducing-oh
 ```
@@ -224,8 +224,8 @@ Topics: Developer Tools, Open Source, Artificial Intelligence
 - When your app accepts a proposal, new records go in and existing ones stay put. To replace a record, your code names the exact version it is replacing, up to 128 at a time. Anything stale fails with nothing written.
 - By default Oh keeps everything in one SQLite file on your computer. Each accepted change joins a log, and oh verify replays that log to confirm every record still matches its history.
 - Oh is for developers building agents and research tools where someone will later ask why the system believes something.
-- Latest release: v0.13.3. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
-- Latest release: v0.13.3. https://oh.computer/blog/introducing-oh
+- Latest release: v0.14.1. Oh is MIT licensed with no account needed. Install it with Bun 1.3.14 or newer and run the first example from the README.
+- Latest release: v0.14.1. https://oh.computer/blog/introducing-oh
 
 ## Beats
 
@@ -248,4 +248,4 @@ Topics: Developer Tools, Open Source, Artificial Intelligence
 - parityNumbers: 20,000. src/canonical-rust-parity.test.ts numRuns: 20_000 generated finite numbers formatted by both encoders
 - parityDocuments: 1,000. src/canonical-rust-parity.test.ts numRuns: 1000 generated documents, for the encoding and again for the digest
 - bunVersion: 1.3.14. package.json engines.bun >=1.3.14 and the README install section
-- status: Latest release: v0.13.3. site/published-release.json version, the verified public release the README installs
+- status: Latest release: v0.14.1. site/published-release.json version, the verified public release the README installs
