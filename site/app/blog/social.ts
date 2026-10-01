@@ -1,6 +1,6 @@
 import { socialImageAlt, type SocialImagePage } from "@hraness/web-discovery/social-image";
 import { ohSocialSite } from "../social";
-import { blogTitle } from "./articles";
+import { blogName } from "./articles";
 
 export { articleSocialPage } from "./articles";
 
@@ -10,7 +10,7 @@ export const blogCardDescription =
 export const blogSocialPage = {
   description: blogCardDescription,
   eyebrow: "Blog",
-  headline: blogTitle,
+  headline: blogName,
 } as const satisfies SocialImagePage;
 
 export const blogImageAlt = socialImageAlt(ohSocialSite, blogSocialPage);

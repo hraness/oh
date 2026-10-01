@@ -9,14 +9,19 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import RootLayout from "../app/layout";
+import RootLayout, { metadata as homeMetadata } from "../app/layout";
+import { metadata as benchmarksMetadata } from "../app/benchmarks/page";
+import { metadata as compareMetadata } from "../app/compare/page";
+import { metadata as compareMem0Metadata } from "../app/compare/mem0/page";
+import { metadata as compareSupermemoryMetadata } from "../app/compare/supermemory/page";
+import { metadata as specificationMetadata } from "../app/spec/page";
 import BlogIndex, { metadata as blogMetadata } from "../app/blog/page";
 import * as blogImage from "../app/blog/opengraph-image";
 import { blogImageAlt } from "../app/blog/social";
 import ArticlePage, { generateMetadata, generateStaticParams } from "../app/blog/[slug]/page";
 import { GET as feed } from "../app/blog/feed.xml/route";
 import { articleAdmissions } from "../app/blog/admissions";
-import { articles, articleProvenance, indexableArticles } from "../app/blog/articles";
+import { articles, articleDiscovery, articleProvenance, blogName, blogTitle, indexableArticles } from "../app/blog/articles";
 import sitemap from "../app/sitemap";
 import publishedRelease from "../published-release.json";
 
@@ -86,6 +91,67 @@ describe("Oh blog", () => {
     expect(openGraph.images?.[0]).toMatchObject({ alt: blogImageAlt, url: "/blog/opengraph-image" });
     expect(blogImage.alt).toBe(blogImageAlt);
     expect(blogImageAlt.length).toBeLessThanOrEqual(125);
+  });
+
+  test("adds search context without rewriting editorial headlines, deks, feed titles, or article schema", async () => {
+    expect(blogMetadata.title).toBe(blogTitle);
+    expect(blogTitle.length).toBeGreaterThanOrEqual(30);
+    expect(blogTitle.length).toBeLessThanOrEqual(60);
+    const atom = await feed().text();
+    expect(atom).toContain(`<title type="text">${blogName}</title>`);
+    const titles = new Set<string>();
+    for (const article of indexableArticles) {
+      const title = article.metaTitle ?? article.title;
+      const metadata = await generateMetadata({ params: Promise.resolve({ slug: article.slug }) });
+      expect(metadata.title).toBe(title);
+      expect((metadata.openGraph as { title?: string }).title).toBe(title);
+      expect((metadata.twitter as { title?: string }).title).toBe(title);
+      expect(metadata.description).toBe(article.metaDescription ?? article.dek);
+      expect(articleDiscovery(article).description).toBe(article.dek);
+      expect(title.length).toBeGreaterThanOrEqual(30);
+      expect(title.length).toBeLessThanOrEqual(60);
+      expect(titles.has(title)).toBe(false);
+      titles.add(title);
+      expect(atom).toContain(`<title type="text">${article.title}</title>`);
+      if (article.metaTitle === undefined) continue;
+      const html = await renderArticle(article.slug);
+      expect(html).toContain(`>${article.title}</h1>`);
+      expect(html).toContain(`"headline":"${article.title}"`);
+      expect(html).not.toContain(article.metaTitle);
+      expect(atom).not.toContain(article.metaTitle);
+      if (article.metaDescription !== undefined) {
+        expect(html).toContain(article.dek);
+        expect(html).not.toContain(article.metaDescription);
+        expect(atom).not.toContain(article.metaDescription);
+      }
+    }
+  });
+
+  test("gives every canonical sitemap page a distinct nonempty search description", async () => {
+    const pages = [
+      { path: "/", metadata: homeMetadata },
+      { path: "/benchmarks", metadata: benchmarksMetadata },
+      { path: "/compare", metadata: compareMetadata },
+      { path: "/compare/mem0", metadata: compareMem0Metadata },
+      { path: "/compare/supermemory", metadata: compareSupermemoryMetadata },
+      { path: "/spec", metadata: specificationMetadata },
+      { path: "/blog", metadata: blogMetadata },
+      ...await Promise.all(indexableArticles.map(async (article) => ({
+        path: `/blog/${article.slug}`,
+        metadata: await generateMetadata({ params: Promise.resolve({ slug: article.slug }) }),
+      }))),
+    ];
+    expect(pages.map(({ path }) => `${origin}${path}`).sort())
+      .toEqual(sitemap().map(({ url }) => url).sort());
+    const descriptions = new Set<string>();
+    for (const { path, metadata } of pages) {
+      const description = metadata.description;
+      if (typeof description !== "string" || description.trim() === "") {
+        throw new Error(`${path} has no search description.`);
+      }
+      if (descriptions.has(description)) throw new Error(`${path} duplicates a search description.`);
+      descriptions.add(description);
+    }
   });
 
   test("marks quarantined articles noindex and keeps indexable ones indexable", async () => {

@@ -5,7 +5,7 @@ import { marketing } from "../portfolio-copy";
 export const homeTitle = `${marketing.names.name}: ${marketing.hero.heading}`;
 export const homeDescription =
   marketing.meta;
-export const specificationTitle = `${marketing.names.name}: Ontology specification v1`;
+export const specificationTitle = `${marketing.names.name} ontology v1: records, storage, and sync specification`;
 export const specificationDescription =
   "Oh’s v1 specification defines how records are encoded, stored in SQLite, and synced between databases, down to the bytes each SHA-256 digest covers.";
 export const benchmarksTitle = `${marketing.names.name} agent memory benchmarks: LongMemEval-S, LoCoMo, CloneMem`;

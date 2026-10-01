@@ -29,7 +29,8 @@ import { ParityBody, toc as parityToc } from "./content/oh-rust-typescript-parit
 
 export const blogPath = "/blog" as const;
 export const feedPath = "/blog/feed.xml" as const;
-export const blogTitle = "Oh blog";
+export const blogName = "Oh blog";
+export const blogTitle = `${blogName}: agent memory, research, and engineering`;
 export const blogDescription =
   "Hraness on how Oh works and how it is tested, from a run on all 500 LongMemEval-S questions to the property tests behind its Rust encoder.";
 
@@ -55,6 +56,10 @@ type TocItem = Readonly<{ href: `#${string}`; label: string }>;
 export type OhArticle = Readonly<{
   slug: string;
   title: string;
+  /** Search and share metadata may add context to a short editorial headline. */
+  metaTitle?: string;
+  /** Search summaries can describe the article separately from its visible dek. */
+  metaDescription?: string;
   dek: string;
   eyebrow: string;
   /**
@@ -101,6 +106,8 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "introducing-oh",
     title: "Introducing Oh",
+    metaTitle: "Introducing Oh: open-source memory for AI agents",
+    metaDescription: "Introducing Oh, open-source memory for AI agents: explore its CLI, evidence records, source links, and replayable history with a working example.",
     dek: homeDescription,
     eyebrow: "Announcement",
     card: { description: "Free, open-source memory for AI agents that shows where each fact came from." },
@@ -138,6 +145,7 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "built-on-oh",
     title: "Built on Oh",
+    metaTitle: "How Sponge and Wordcell use Oh: memory and graphs",
     dek: "Sponge’s retained agent work and Wordcell’s Markdown graph show two ways to separate temporary memory, durable records, and derived views.",
     eyebrow: "Integration",
     card: {
@@ -231,7 +239,7 @@ export function articleDiscovery(article: OhArticle): ArticleDiscovery {
 
 export const blogDiscovery: BlogDiscovery = {
   description: blogDescription,
-  name: blogTitle,
+  name: blogName,
   path: blogPath,
   publisher: articleParty,
 };
@@ -241,5 +249,5 @@ export const feedDiscovery: FeedDiscovery = {
   description: blogDescription,
   homePath: blogPath,
   path: feedPath,
-  title: blogTitle,
+  title: blogName,
 };
