@@ -89,12 +89,12 @@ read the repository’s administration settings.
 ## Release a version
 
 1. Set the new version in `package.json`, `site/package.json`, and
-   `OH_PACKAGE_VERSION` in `src/cli.ts`. Add a `## <version> - <date>` section
+   `OH_PACKAGE_VERSION` in `src/cli-version.ts`. Add a `## <version> - <date>` section
    to `CHANGELOG.md`: a summary paragraph that says what the version changes
    for someone using it, then one bullet per change a user would notice. The
    workflow copies this section onto the Release page.
-2. Update the version pins in `tests/public-surface.test.ts` and
-   `site/tests/source.test.ts`.
+2. Update the version pins in `tests/public-surface.test.ts`. The site source
+   test compares the site version with the canonical root package version.
 3. Run `bun run check` and commit the rebuilt `dist/` files with the version
    change.
 4. Open a pull request. Merge it after a person or agent who did not write it
