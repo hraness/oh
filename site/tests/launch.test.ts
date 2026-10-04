@@ -47,3 +47,15 @@ describe("site/app/launch/social-kit.md", () => {
     expect(await read("site/app/launch/social-kit.md")).toBe(renderSocialKitMarkdown());
   });
 });
+
+describe("launch film", () => {
+  test("every file the post embeds is in public/, and the captions are WebVTT", async () => {
+    const { assertArticleVideo } = await import("@hraness/design-kit");
+    const { launchFilm } = await import("../app/launch/film");
+    expect(() => assertArticleVideo(launchFilm)).not.toThrow();
+    for (const path of [...launchFilm.sources.map((source) => source.src), launchFilm.poster, launchFilm.captions]) {
+      expect(await Bun.file(join(root, "site/public", path)).exists()).toBe(true);
+    }
+    expect(await readFile(join(root, "site/public", launchFilm.captions), "utf8")).toStartWith("WEBVTT");
+  });
+});
