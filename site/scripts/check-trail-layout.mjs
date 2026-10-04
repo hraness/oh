@@ -124,7 +124,11 @@ export async function inspectArticleTrailCases(browser, origin, artifacts) {
       const failures = [];
       page.on("pageerror", error => failures.push(error.message));
       page.on("response", response => { if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
-      page.on("requestfailed", request => failures.push(`${request.failure()?.errorText} ${request.url()}`));
+      page.on("requestfailed", request => {
+        // Chromium cancels a video's metadata range request once it has what it needs.
+        if (request.resourceType() === "media" && request.failure()?.errorText === "net::ERR_ABORTED") return;
+        failures.push(`${request.failure()?.errorText} ${request.url()}`);
+      });
       assert.equal((await page.goto(`${origin}/blog/introducing-oh`, { waitUntil: "networkidle" })).status(), 200);
       for (const textSize of width === 390 ? [100, 200] : [100]) {
         const label = `article-maps-${width}-${colorScheme}-${textSize}text`;
