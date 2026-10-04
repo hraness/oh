@@ -20,7 +20,7 @@ export const TRAIL_STEPS: readonly Step[] = [
   {
     id: "trace",
     label: "Trace",
-    hint: "The table 2 citation points at the copy of the report the agent read.",
+    hint: "The table 2 citation points at the report the agent read.",
     focus: "source",
     runs: ["getEvidence"],
     describe: "Illustration: the oh CLI opens the table 2 citation, with links to the claim and the saved copy of the report.",
@@ -28,7 +28,7 @@ export const TRAIL_STEPS: readonly Step[] = [
   {
     id: "check",
     label: "Check",
-    hint: "oh verify replays every change and confirms the history still matches the records.",
+    hint: "oh verify replays every change against the records.",
     focus: "all",
     runs: ["verify"],
     describe: "Illustration: the oh CLI replays the log and reports that every record and change reproduces the same state.",
