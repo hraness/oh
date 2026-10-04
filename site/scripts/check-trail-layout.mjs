@@ -50,7 +50,7 @@ export async function inspectTrailLayout(page, label, artifacts) {
     assert.ok(geometry.heading.bottom <= geometry.body.y + 1, `${label}/${state}: heading and body must not overlap while scrolling`);
     assert.ok(geometry.figure.bottom <= geometry.following.y + 1, `${label}/${state}: next paragraph follows the complete showcase`);
     assert.ok(geometry.panel.height > 100 && geometry.panel.bottom <= geometry.stage.bottom + 1, `${label}/${state}: active panel fits its stage`);
-    assert.ok(geometry.stage.bottom <= geometry.navigation.y + 1, `${label}/${state}: controls follow the stage`);
+    assert.ok(geometry.navigation.bottom <= geometry.stage.y + 1.5 || geometry.navigation.x <= geometry.stage.x, `${label}/${state}: step tabs sit on the stage's top or start edge`);
     assert.ok(geometry.navigation.bottom <= geometry.figure.bottom + 1, `${label}/${state}: controls stay inside the showcase`);
     assert.equal(geometry.panels.filter((panel) => panel.active).length, 1);
     assert.ok(geometry.panels.every((panel) => panel.active === panel.visible && panel.inert !== panel.active), `${label}/${state}: inactive panels cannot overlay the current step`);
