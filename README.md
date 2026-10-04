@@ -123,6 +123,33 @@ stderr. It never changes stdout or exit codes, CI turns it off, and
 [Optional development support](docs/development-support.md) explains how to
 switch it off yourself.
 
+## Choose the store and space
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `--db <path>` | `.oh/oh.sqlite` relative to your current directory | Selects the SQLite file for this command. |
+| `--space <id>` | `default` | Selects the graph and operation history within that file. |
+| `--json` | Automatic in a recognized agent environment | Prints canonical JSON instead of terminal text. |
+
+Repeat `--db` and `--space` on each command when you use a nondefault store.
+For example, `oh get entity:ada-lovelace --db /absolute/path/memory.sqlite --space default`
+reads that file regardless of your current directory. Continue with the
+[TypeScript SDK](#use-the-sdk) or [working-memory guide](docs/working-memory.md)
+when you need to use these records from an application.
+
+## Troubleshooting the first run
+
+| Symptom | What to check next |
+| --- | --- |
+| `No Oh store at ...` | Check your current directory and `--db` path. Run `oh init` only if you intend to create a store there; reads do not create one. |
+| `No record named ...` (exit 3) | Run `oh list` with the same `--db` and `--space` as the write, then check the record key. |
+| JSON appears instead of terminal text | An agent environment selects JSON automatically. Set `HRANESS_AUDIENCE=human` for terminal text, or pass `--json` when parsing results. |
+
+`oh verify` checks saved history and SQLite integrity, not the truth of a fact.
+If verification fails, preserve the database and error output rather than
+reinitializing it. See the [storage specification](spec/v1/storage.md) for the
+record and history contracts.
+
 ## How Oh behaves
 
 Commands print short text for people and canonical JSON with `--json`. When an
