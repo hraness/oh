@@ -462,6 +462,7 @@ scores do not carry over to it.
 
 ## Find the right documentation
 
+- **Project direction:** [The memory north star](docs/north-star.md) describes proposed source-preserving overviews and the later-use evidence needed for adoption.
 - **Try it:** [Install and first run](#install-and-first-run).
 - **Build on it in TypeScript:** [Use the SDK](#use-the-sdk), then
   [Call Oh from TypeScript](docs/sdk.md) and
