@@ -19,7 +19,7 @@ const GO_DEEPER: readonly { href: string; label: string }[] = [
   { href: "/blog/oh-rust-typescript-parity", label: "See how the Rust encoder is tested against TypeScript" },
   { href: "/blog/longmemeval-s-user-log", label: "Learn how to evaluate retrieval and full conversation logs" },
   { href: "/compare", label: "Compare Oh with other agent memory tools" },
-  { href: "/blog/built-on-oh", label: "See which Hraness products build on Oh" },
+  { href: "/blog/built-on-oh", label: "See which products build on Oh" },
 ];
 
 /** The beat's state object names one state of one registered surface. */
