@@ -1,9 +1,10 @@
 import { isArticleIndexable, type ArticleAdmission } from "@hraness/design-kit";
 import type { LaunchBeat } from "@hraness/design-kit/launch";
 import { SocialKitPanel } from "@hraness/design-kit/react";
-import { LaunchBeats } from "@hraness/design-kit/react/server";
+import { ArticleVideo, LaunchBeats } from "@hraness/design-kit/react/server";
 
 import { launchBeats, socialKit } from "../../launch/beats";
+import { launchFilm } from "../../launch/film";
 import { OhSurface } from "../../mockups/trail";
 import { articleAdmissions } from "../admissions";
 
@@ -36,6 +37,7 @@ const indexable = admission !== undefined && isArticleIndexable(admission);
 export function IntroducingOhBody() {
   return (
     <>
+      <ArticleVideo video={launchFilm} width="wide" caption={null} />
       <LaunchBeats beats={launchBeats} renderVisual={(beat) => <BeatVisual beat={beat} />} />
       <h2 id="go-deeper">Go deeper</h2>
       <ul>

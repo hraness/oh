@@ -1,0 +1,30 @@
+WEBVTT
+
+act-1
+00:00:00.250 --> 00:00:04.152
+Your agent remembers an answer but not where it came from.
+You: When was the primary endpoint measured?
+Agent: 12 weeks, I think. I can't point you to the source.
+
+act-2
+00:00:04.452 --> 00:00:08.152
+Oh
+Agent memory that shows its work.
+
+act-3
+00:00:08.452 --> 00:00:13.852
+Oh saves each answer with the evidence behind it.
+
+act-4
+00:00:14.152 --> 00:00:21.184
+Every change is logged, and oh verify replays the log to check it.
+
+act-5
+00:00:21.484 --> 00:00:25.724
+It all stays in one file on your machine.
+
+end
+00:00:26.074 --> 00:00:32.000
+Ask your agent: “Install Oh from oh.computer”
+Free and MIT licensed · Latest release: v0.14.1
+oh.computer

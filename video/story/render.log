@@ -1,0 +1,36 @@
+{"id":"oh","seconds":32,"posterAt":11.65,"acts":5,"formats":["wide","square","portrait"],"htmlBytes":453641}
+wide: frame 1/1920 (7.5 fps)
+wide: frame 301/1920 (11.1 fps)
+wide: frame 601/1920 (11.1 fps)
+wide: frame 901/1920 (11.3 fps)
+wide: frame 1201/1920 (11.2 fps)
+wide: frame 1501/1920 (11.2 fps)
+wide: frame 1801/1920 (11.2 fps)
+wide: frame 1920/1920 (11.2 fps)
+{"fmt":"wide","out":"/Users/benguo/Documents/oh-story-film-20261004/video/story/build/master-wide.mp4","width":1920,"height":1080,"fps":60,"frames":1920}
+square: frame 1/960 (8.2 fps)
+square: frame 301/960 (13.2 fps)
+square: frame 601/960 (13.3 fps)
+square: frame 901/960 (13.2 fps)
+square: frame 960/960 (13.2 fps)
+{"fmt":"square","out":"/Users/benguo/Documents/oh-story-film-20261004/video/story/build/master-square.mp4","width":1080,"height":1080,"fps":30,"frames":960}
+portrait: frame 1/960 (7.2 fps)
+portrait: frame 301/960 (11.2 fps)
+portrait: frame 601/960 (11.3 fps)
+portrait: frame 901/960 (11.3 fps)
+portrait: frame 960/960 (11.3 fps)
+{"fmt":"portrait","out":"/Users/benguo/Documents/oh-story-film-20261004/video/story/build/master-portrait.mp4","width":1080,"height":1920,"fps":30,"frames":960}
+total 31008
+drwxr-xr-x@ 13 benguo  staff      416 Oct  4 14:46 .
+drwxr-xr-x@ 27 benguo  staff      864 Oct  4 14:45 ..
+-rw-r--r--@  1 benguo  staff  3609697 Oct  4 14:45 oh-launch-1080p.mp4
+-rw-r--r--@  1 benguo  staff  1449976 Oct  4 14:46 oh-launch-1080p.webm
+-rw-r--r--@  1 benguo  staff  2161148 Oct  4 14:46 oh-launch-1x1.mp4
+-rw-r--r--@  1 benguo  staff   136665 Oct  4 14:46 oh-launch-9x16-poster.jpg
+-rw-r--r--@  1 benguo  staff  3365992 Oct  4 14:46 oh-launch-9x16.mp4
+-rw-r--r--@  1 benguo  staff   139595 Oct  4 14:46 oh-launch-poster.jpg
+-rw-r--r--@  1 benguo  staff  1093154 Oct  4 14:46 oh-launch-poster.png
+-rw-r--r--@  1 benguo  staff    76944 Oct  4 14:46 oh-launch-poster.webp
+-rw-r--r--@  1 benguo  staff   397127 Oct  4 14:46 oh-launch-preview.mp4
+-rw-r--r--@  1 benguo  staff    69102 Oct  4 14:46 oh-launch-social.jpg
+-rw-r--r--@  1 benguo  staff      697 Oct  4 14:46 oh-launch.en.vtt

@@ -1,0 +1,11 @@
+{
+  "copies": [
+    ["oh-launch-1080p.mp4", "../../site/public/media/oh-launch.mp4"],
+    ["oh-launch-1080p.webm", "../../site/public/media/oh-launch.webm"],
+    ["oh-launch-1x1.mp4", "../../site/public/media/oh-launch-1x1.mp4"],
+    ["oh-launch-9x16.mp4", "../../site/public/media/oh-launch-9x16.mp4"],
+    ["oh-launch-poster.jpg", "../../site/public/media/oh-launch-poster.jpg"],
+    ["oh-launch-social.jpg", "../../site/public/media/oh-launch-social.jpg"],
+    ["oh-launch.en.vtt", "../../site/public/media/oh-launch.vtt"]
+  ]
+}
