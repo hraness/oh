@@ -866,7 +866,7 @@ body > :not(.network-footer) { min-inline-size: 0; }
     background: color-mix(in oklch, var(--foreground, CanvasText) 30%, var(--background, Canvas));
     content: "";
     inset: 0;
-    mask-image: url("/landscape/landscape-9332781744c4743eee3589a7f95dcbe4d67594b0db5ec3b869d0c5edf0fc3685.jpg");
+    mask-image: image-set(url("/landscape/landscape-f592241209076f4ecc63555531bf14b5ffd52e93ec8ead91286c38a52e39635f.webp") 1x, url("/landscape/landscape-63653b25253c45940054b5ef46d8f33c3d7e4efc7eae78d621d3d38d37fdcd9c.webp") 2x);
     mask-mode: luminance;
     mask-position: top center;
     mask-repeat: no-repeat;
@@ -880,7 +880,7 @@ body > :not(.network-footer) { min-inline-size: 0; }
 
 @media (max-width: 48rem) {
   .product-landscape::before {
-    mask-image: url("/landscape/landscape-fe34ed230be2a48212ce3cb4bfb2a36ff572f5bfacdd596b07fe403897a76bdd.jpg");
+    mask-image: url("/landscape/landscape-6869752346009cb89acb5bcc6ddf5637b221416cafc5b91304423b37a4ddb512.webp");
     opacity: .36;
   }
 }
