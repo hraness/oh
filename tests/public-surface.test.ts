@@ -31,6 +31,7 @@ const markdownFiles = [
   "docs/sdk.md",
   "docs/search.md",
   "docs/working-memory.md",
+  "docs/memory-context.md",
   "docs/memory-pages.md",
   "docs/projections.md",
   "docs/research-profile.md",
@@ -48,6 +49,7 @@ const markdownFiles = [
   "spec/v1/semantic-cloud.md",
   "spec/v1/projection.md",
   "spec/v1/memory.md",
+  "spec/v1/memory-context.md",
   "spec/v1/memory-page.md",
   "spec/v1/observation.md",
   "spec/v1/recall.md",
@@ -69,6 +71,7 @@ const schemaFiles = [
   "spec/v1/projection-identity.schema.json",
   "spec/v1/projection-result.schema.json",
   "spec/v1/memory-page.schema.json",
+  "spec/v1/memory-context.schema.json",
   "spec/research-v1/packet.schema.json",
 ] as const;
 
@@ -376,6 +379,7 @@ describe("versioned public contract", () => {
       "./experimental/projection-suss",
       "./libsql",
       "./memory",
+      "./memory-context",
       "./memory-page",
       "./package.json",
       "./projection",
@@ -500,6 +504,8 @@ describe("versioned public contract", () => {
     const manifest = await json("spec/manifest.json");
     const version = (manifest.versions as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
     expect(version.memory).toEqual({
+      contextSchema: "./v1/memory-context.schema.json",
+      contextSpecification: "./v1/memory-context.md",
       pageSchema: "./v1/memory-page.schema.json",
       pageSpecification: "./v1/memory-page.md",
       specification: "./v1/memory.md",

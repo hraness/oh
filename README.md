@@ -513,6 +513,7 @@ scores do not carry over to it.
 
 ## Find the right documentation
 
+- **Project direction:** [The memory north star](docs/north-star.md) describes proposed source-preserving overviews and the later-use evidence needed for adoption.
 - **Try it:** [Install and first run](#install-and-first-run).
 - **Build on it in TypeScript:** [Use the SDK](#use-the-sdk), then
   [Call Oh from TypeScript](docs/sdk.md) and
@@ -521,7 +522,8 @@ scores do not carry over to it.
   [Direct libSQL store](docs/libsql-runtime.md) and
   [Fast-forward sync](docs/sync-runtime.md).
 - **Give an agent memory:** [Give an agent working memory](docs/working-memory.md),
-  [Memory pages and `.oh.md` files](docs/memory-pages.md), and
+  [Memory pages and `.oh.md` files](docs/memory-pages.md),
+  [Progressive memory context](docs/memory-context.md), and
   [How memory host calls run](docs/memory-runtime.md).
 - **Derive facts with rules:** [Derive facts with rules](docs/projections.md).
 - **Run semantic search:**
