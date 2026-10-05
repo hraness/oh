@@ -281,7 +281,7 @@ describe("built Oh site", () => {
 
       expect(quarantinedResponse.status).toBe(200);
       expect(quarantined).toContain('<meta name="robots" content="index, follow');
-      expect(quarantined).toContain("reviewed by Codex AI independent editorial review.");
+      expect(quarantined).toContain("reviewed by Ben Guo, a human editor.");
 
       expect(feedResponse.status).toBe(200);
       expect(feedResponse.headers.get("content-type")).toContain("application/atom+xml");
