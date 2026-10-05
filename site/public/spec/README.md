@@ -80,6 +80,10 @@ profiles, plus the optional research profile. V1 pins these components:
 - [Memory pages and `.oh.md` interchange](v1/memory-page.md) defines a
   size-limited Markdown page with its sources, stored as an `edition` record,
   and the self-contained `.oh.md` file that carries one.
+- [Progressive memory context](v1/memory-context.md) defines
+  `@hraness/oh/memory-context`: a captured-head reading view over canonical
+  and working operation logs, with recent leaves in detail, older ranges as
+  expandable nodes, exact reads and bounded search.
 - [Observations distilled from sessions](v1/observation.md) defines an
   observation: one dated sentence distilled from a session and stored as an
   `edition` record that cites its source turns.
@@ -109,6 +113,7 @@ profiles, plus the optional research profile. V1 pins these components:
 | [`v1/projection-identity.schema.json`](v1/projection-identity.schema.json) | JSON Schema for a projection identity. |
 | [`v1/projection-result.schema.json`](v1/projection-result.schema.json) | JSON Schema for a projection result. |
 | [`v1/memory-page.schema.json`](v1/memory-page.schema.json) | JSON Schema for a memory page value. |
+| [`v1/memory-context.schema.json`](v1/memory-context.schema.json) | JSON Schema for memory-context histories, grants, pages and continuations. |
 | [`v1/embedding-profile.json`](v1/embedding-profile.json) | The local QMD embedding profile: engine, model, dimensions, and input formats. |
 | [`v1/rerank-profile.json`](v1/rerank-profile.json) | The local reranker profile: QMD 2.5.3 and the Qwen3-Reranker-0.6B model, pinned by SHA-256. |
 | [`v1/recall-date-grammar.json`](v1/recall-date-grammar.json) | The `oh.recall-date-grammar.v1` rules for resolving dates in UTC, with weeks that start on Monday. |
