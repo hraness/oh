@@ -41,5 +41,8 @@
     "playwright-core": "1.62.0",
     "typescript": "6.0.3"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "fast-glob": "npm:tinyglobby@0.2.17"
+  }
 }
