@@ -445,7 +445,7 @@ describe("Oh site source contract", () => {
       $schema: "https://openapi.vercel.sh/vercel.json",
       buildCommand: "bun run build",
       framework: "nextjs",
-      ignoreCommand: "[ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ../spec ../src ../benchmarks/results ../package.json ../README.md ../.gitignore",
+      ignoreCommand: "git cat-file -e \"$VERCEL_GIT_PREVIOUS_SHA^{commit}\" 2>/dev/null && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ../spec ../src ../benchmarks/results ../package.json ../README.md ../.gitignore || exit 1",
       installCommand: "bun install --frozen-lockfile --ignore-scripts",
     });
     expect(`${repositoryIgnore}\n${providerBoundary}`).not.toMatch(
