@@ -9,7 +9,7 @@ import SdkDocs, { metadata as sdkMetadata } from "../app/docs/sdk/page";
 import { docsPages } from "../app/docs/catalog";
 import { docsHtml } from "../app/docs/docs.generated";
 import sitemap from "../app/sitemap";
-import { docsSourceDigests, generatedModule, headingFragment, markdownSection, renderDocsPages } from "../scripts/docs-html";
+import { docsSourceDigests, generatedModule, headingFragment, markdownSection, renderDocsPages, textContent } from "../scripts/docs-html";
 
 const site = join(import.meta.dir, "..");
 const repository = join(site, "..");
@@ -42,7 +42,7 @@ describe("documentation rendered from repository Markdown", () => {
     const html = docsHtml["/docs"].html;
     expect(html).toContain('<span class="docs-anchor" id="agents"></span><h2 id="give-oh-to-a-coding-agent">');
     expect(html).toContain('<span class="docs-anchor" id="troubleshooting"></span><h2 id="troubleshooting-the-first-run">');
-    expect(html.replace(/<[^>]+>/gu, "")).toContain("npx skills add hraness/oh#v0.14.1 --skill oh");
+    expect(textContent(html)).toContain("npx skills add hraness/oh#v0.14.1 --skill oh");
     expect(html).toContain("<code>~/.claude/skills/oh</code>");
     expect(html).toContain("<code>~/.agents/skills/oh</code>");
   });

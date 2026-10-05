@@ -42,8 +42,14 @@ export function headingFragment(text: string): string {
     .replace(/\s/gu, "-");
 }
 
-function textContent(html: string): string {
-  return decodeEntities(html.replace(/<[^>]*>/gu, ""));
+export function textContent(html: string): string {
+  let text = html;
+  let previous = "";
+  while (text !== previous) {
+    previous = text;
+    text = text.replace(/<[^>]*>/gu, "");
+  }
+  return decodeEntities(text);
 }
 
 /** One `##` section of a Markdown file, from its heading to the next `##` or the end. */
