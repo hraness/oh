@@ -44,11 +44,22 @@ describe("Oh blog", () => {
     expect(articles.map((article) => `/blog/${article.slug}`).sort())
       .toEqual(articleAdmissions.map((record) => record.href).sort());
     for (const record of articleAdmissions) {
-      expect(record.review.reviewerType).toBe("ai");
-      expect(record.humanReview).toBeNull();
+      // Ben Guo reviewed every post as a human editor. A post he edited carries his
+      // review; an unchanged post keeps its independent AI review, labeled as AI.
+      expect(record.humanReview).toEqual({ reviewer: "Ben Guo", reviewerType: "human-editor", reviewedOn: "2026-10-04" });
+      if (record.review.reviewerType === "ai") expect(record.review.reviewer).toMatch(/\bAI\b/u);
+      else expect(record.review).toEqual(record.humanReview);
     }
     expect(indexableArticles.map((article) => article.slug)).toEqual(["longmemeval-s-user-log", "introducing-oh", "oh-rust-typescript-parity", "built-on-oh"]);
     expect(quarantined.map((article) => article.slug)).toEqual([]);
+  });
+
+  test("rejects an AI review that claims to be human", () => {
+    const record = articleAdmissions[0];
+    const aiNamedHuman = { reviewer: "Codex AI human editorial review", reviewerType: "ai", reviewedOn: "2026-10-04" } as const;
+    expect(() => assertArticleAdmissions([{ ...record, review: aiNamedHuman }])).toThrow();
+    expect(() => assertArticleAdmissions([{ ...record, humanReview: aiNamedHuman }])).toThrow();
+    expect(() => articleProvenanceSentence({ drafting: "ai-from-source", review: aiNamedHuman })).toThrow();
   });
 
   test("prerenders one page per article", () => {
@@ -59,14 +70,17 @@ describe("Oh blog", () => {
     for (const article of articles) {
       const html = await renderArticle(article.slug);
       const sentence = articleProvenanceSentence(articleProvenance(article));
-      expect(sentence).toBe(
-        "Drafted with AI from the source code and reviewed by Codex AI independent editorial review.",
-      );
+      const reviewerType = article.admission.review?.reviewerType;
+      expect(sentence).toBe(reviewerType === "human-editor"
+        ? "Drafted with AI from the source code and reviewed by Ben Guo, a human editor."
+        : "Drafted with AI from the source code and reviewed by Codex AI independent editorial review.");
       expect(html).toContain(sentence);
-      expect(html).toContain('data-reviewer-type="ai"');
+      expect(html).toContain(`data-reviewer-type="${reviewerType}"`);
       expect(html).toMatch(/By <a href="https:\/\/hraness\.com" rel="author">Hraness<\/a>/u);
-      expect(sentence).not.toMatch(/human/iu);
-      expect(html).not.toContain("Ben Guo");
+      // Only a recorded human-editor review may call itself human.
+      if (reviewerType !== "human-editor") expect(sentence).not.toMatch(/human/iu);
+      // The human editor is credited in the review note, never in the byline.
+      expect(html).not.toMatch(/By [^.<]*Ben Guo/u);
       expect(html.match(/<h1\b/gu)).toHaveLength(1);
       expect(html).toContain('"@type":"BlogPosting"');
       expect(html).toContain(`"@id":"${origin}/blog/${article.slug}#article"`);
@@ -195,11 +209,13 @@ describe("Oh blog", () => {
     expect(atom).toContain("<name>Hraness</name>");
   });
 
-  test("links only to published routes, manifest articles, and live product homepages", async () => {
+  test("links only to published routes, manifest articles, live product homepages, and registered consumer posts", async () => {
     const internal = new Set(["/", "/blog", "/spec", "/#install", ...articles.map((article) => `/blog/${article.slug}`)]);
     const external = new Set([
       "https://sponge.computer",
+      "https://sponge.computer/docs/how-sponge-uses-oh",
       "https://wordcell.io",
+      "https://wordcell.io/blog/how-wordcell-uses-oh",
     ]);
     for (const article of articles) {
       const html = await renderArticle(article.slug);

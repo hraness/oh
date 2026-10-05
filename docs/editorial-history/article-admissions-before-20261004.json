@@ -1,10 +1,4 @@
-import type { ArticleAdmission } from "@hraness/design-kit";
-
-// Ben Guo reviewed every post as a human editor on 2026-10-04. The earlier
-// independent AI reviews and their source reads are retained in
-// docs/editorial-history. Historical external-source dates are separate from
-// the editorial review date.
-export const articleAdmissions = [
+[
   {
     "href": "/blog/longmemeval-s-user-log",
     "lifecycle": "indexable",
@@ -63,11 +57,7 @@ export const articleAdmissions = [
       "reviewerType": "ai",
       "reviewedOn": "2026-10-01"
     },
-    "humanReview": {
-      "reviewer": "Ben Guo",
-      "reviewerType": "human-editor",
-      "reviewedOn": "2026-10-04"
-    },
+    "humanReview": null,
     "reassessOn": "2026-11-12",
     "harmIfWrong": "A reader could treat in-sample, unequal-budget results as a general improvement in memory retrieval or confuse study code with the public search API.",
     "refreshTriggers": [
@@ -134,11 +124,7 @@ export const articleAdmissions = [
       "reviewerType": "ai",
       "reviewedOn": "2026-10-01"
     },
-    "humanReview": {
-      "reviewer": "Ben Guo",
-      "reviewerType": "human-editor",
-      "reviewedOn": "2026-10-04"
-    },
+    "humanReview": null,
     "reassessOn": "2026-11-12",
     "harmIfWrong": "A developer could assume a person reviewed everything in the reviewed store, or trust the Rust parity further than the tests support, and build a memory layer on a wrong assumption.",
     "refreshTriggers": [
@@ -167,43 +153,43 @@ export const articleAdmissions = [
     "sources": [
       {
         "title": "TypeScript canonical encoding reference",
-        "url": "https://github.com/hraness/oh/blob/1055576b87c772247b4a217ee288b338f0656f62/src/canonical.ts",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/src/canonical.ts",
+        "checkedOn": "2026-10-01"
       },
       {
         "title": "Rust engine loader",
-        "url": "https://github.com/hraness/oh/blob/1055576b87c772247b4a217ee288b338f0656f62/src/canonical-rust.ts",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/src/canonical-rust.ts",
+        "checkedOn": "2026-10-01"
       },
       {
         "title": "Encoder comparison tests",
-        "url": "https://github.com/hraness/oh/blob/1055576b87c772247b4a217ee288b338f0656f62/src/canonical-rust-parity.test.ts",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/src/canonical-rust-parity.test.ts",
+        "checkedOn": "2026-10-01"
       },
       {
         "title": "Rust canonical encoding and unit tests",
-        "url": "https://github.com/hraness/oh/blob/1055576b87c772247b4a217ee288b338f0656f62/rust/oh-canonical/src/lib.rs",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/rust/oh-canonical/src/lib.rs",
+        "checkedOn": "2026-10-01"
       },
       {
         "title": "ECMAScript number formatting",
-        "url": "https://github.com/hraness/oh/blob/1055576b87c772247b4a217ee288b338f0656f62/rust/oh-canonical/src/js_number.rs",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/oh/blob/589e39f51793349ce278d239008fc2765e91f1fd/rust/oh-canonical/src/js_number.rs",
+        "checkedOn": "2026-10-01"
       },
       {
         "title": "Wordcell guarded encoder wrapper",
-        "url": "https://github.com/hraness/wordcell/blob/72541e9cdec1aee29357cbb987f62723e11c85b0/src/oh/canonical-rust.ts",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/wordcell/blob/05783b08f1cf4d7df0d04a1f64db2eecd063c88a/src/oh/canonical-rust.ts",
+        "checkedOn": "2026-10-01"
       },
       {
         "title": "Wordcell encoder checks",
-        "url": "https://github.com/hraness/wordcell/blob/72541e9cdec1aee29357cbb987f62723e11c85b0/src/oh/canonical-rust.test.ts",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/wordcell/blob/05783b08f1cf4d7df0d04a1f64db2eecd063c88a/src/oh/canonical-rust.test.ts",
+        "checkedOn": "2026-10-01"
       },
       {
         "title": "Wordcell adoption digest fallback",
-        "url": "https://github.com/hraness/wordcell/blob/72541e9cdec1aee29357cbb987f62723e11c85b0/src/oh-adoption.ts",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/wordcell/blob/05783b08f1cf4d7df0d04a1f64db2eecd063c88a/src/oh-adoption.ts",
+        "checkedOn": "2026-10-01"
       }
     ],
     "observations": [
@@ -221,16 +207,12 @@ export const articleAdmissions = [
     "owner": "hraness/oh maintainers",
     "drafting": "ai-from-source",
     "review": {
-      "reviewer": "Ben Guo",
-      "reviewerType": "human-editor",
-      "reviewedOn": "2026-10-04"
+      "reviewer": "Codex AI independent editorial review",
+      "reviewerType": "ai",
+      "reviewedOn": "2026-10-01"
     },
-    "humanReview": {
-      "reviewer": "Ben Guo",
-      "reviewerType": "human-editor",
-      "reviewedOn": "2026-10-04"
-    },
-    "reassessOn": "2026-11-15",
+    "humanReview": null,
+    "reassessOn": "2026-11-12",
     "harmIfWrong": "A developer could believe an installed copy runs Rust when it runs the reference, or treat sampled parity as proof and mix digests from the two encoders where a single-byte difference breaks history verification.",
     "refreshTriggers": [
       "Changes to accepted input domains or canonical bytes",
@@ -243,42 +225,33 @@ export const articleAdmissions = [
     "lifecycle": "indexable",
     "readerJob": "Choose which records an application owns and which indexes or working notes it can replace or expire.",
     "nonObviousAnswer": "The same library can hold temporary notes or derive a disposable graph from Markdown; ownership and retention remain application decisions.",
-    "originalContribution": "Sets the registered uses of Oh by Wordcell and by Sponge’s hosted library side by side, links each consumer’s own write-up, and draws the record-ownership question they share.",
-    "hostFit": "The hub page on Oh's site for the products that build on Oh.",
+    "originalContribution": "Contrasts Sponge’s retained hosted-work store with Wordcell’s graph rebuild workflow to explain record ownership and expiry.",
+    "hostFit": "A comparison of two Oh integrations based on each consumer’s source.",
     "nearestUrls": [
       {
         "url": "https://oh.computer/blog/introducing-oh",
-        "distinction": "The introduction explains Oh’s mechanisms; this hub lists the products that use Oh and compares their ownership and retention choices."
-      },
-      {
-        "url": "https://wordcell.io/blog/how-wordcell-uses-oh",
-        "distinction": "Wordcell’s post covers its graph integration in detail; this hub summarizes it in one entry beside Sponge."
+        "distinction": "The introduction explains Oh’s mechanisms; this article compares application ownership and retention choices."
       },
       {
         "url": "https://sponge.computer/docs/how-sponge-uses-oh",
-        "distinction": "Sponge’s post covers its hosted library’s working memory in detail; this hub summarizes it in one entry beside Wordcell."
+        "distinction": "The integration reference covers Sponge in detail; this article compares it with Wordcell’s disposable graph."
       }
     ],
     "sources": [
       {
-        "title": "How Wordcell uses Oh for graph answers with proofs",
-        "url": "https://wordcell.io/blog/how-wordcell-uses-oh",
-        "checkedOn": "2026-10-04"
-      },
-      {
-        "title": "How Sponge uses Oh",
+        "title": "How Sponge uses Oh for retained hosted work",
         "url": "https://sponge.computer/docs/how-sponge-uses-oh",
-        "checkedOn": "2026-10-04"
+        "checkedOn": "2026-10-01"
       },
       {
         "title": "Wordcell derived graph and rebuild",
-        "url": "https://github.com/hraness/wordcell/blob/72541e9cdec1aee29357cbb987f62723e11c85b0/docs/graph-authority.md",
-        "checkedOn": "2026-10-04"
+        "url": "https://github.com/hraness/wordcell/blob/05783b08f1cf4d7df0d04a1f64db2eecd063c88a/docs/graph-authority.md",
+        "checkedOn": "2026-10-01"
       }
     ],
     "observations": [
-      "The same Oh mechanisms support different sources of truth: Wordcell derives a replaceable graph from Markdown, whereas Sponge’s hosted library keeps temporary notes in its own Oh store.",
-      "Sponge now names the local research harness, while the Oh integration belongs to the earlier hosted library at sponge.computer. That library stopped accepting new research on September 12, 2026, so the entry names the hosted library and does not advertise a new hosted offer."
+      "The same Oh mechanisms support different sources of truth: Wordcell derives a replaceable graph from Markdown, whereas Sponge retained hosted work keeps temporary notes in its Oh store.",
+      "Sponge new hosted-agent intake is retired, while retained work and its default 24-hour memory lifetime remain represented in source. The article states both instead of advertising a new hosted offer."
     ],
     "scores": {
       "readerUtility": 2,
@@ -291,21 +264,16 @@ export const articleAdmissions = [
     "owner": "hraness/oh maintainers",
     "drafting": "ai-from-source",
     "review": {
-      "reviewer": "Ben Guo",
-      "reviewerType": "human-editor",
-      "reviewedOn": "2026-10-04"
+      "reviewer": "Codex AI independent editorial review",
+      "reviewerType": "ai",
+      "reviewedOn": "2026-10-01"
     },
-    "humanReview": {
-      "reviewer": "Ben Guo",
-      "reviewerType": "human-editor",
-      "reviewedOn": "2026-10-04"
-    },
-    "reassessOn": "2026-11-15",
+    "humanReview": null,
+    "reassessOn": "2026-11-12",
     "harmIfWrong": "A reader could pick Oh or Wordcell for the wrong job, expect Sponge's hosted agent to accept new work, or expect a consumer to share Oh's release schedule.",
     "refreshTriggers": [
-      "Changes to the registered Sponge or Wordcell relations with Oh",
       "Changes to Sponge hosted intake or working-memory lifetime",
       "Changes to Wordcell graph authority and rebuild behavior"
     ]
   }
-] as const satisfies readonly ArticleAdmission[];
+]
