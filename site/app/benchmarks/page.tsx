@@ -152,7 +152,7 @@ export default function Benchmarks() {
         ]}
       />
 
-      <main className="spec-shell" id="benchmarks-main" tabIndex={-1}>
+      <main className="spec-shell" id="benchmarks-main" tabIndex={-1} data-hraness-landscape="page">
         <JsonLdScript
           data={collectionPageJsonLd(ohSearchSite, {
             breadcrumb: [

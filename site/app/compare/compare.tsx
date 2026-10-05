@@ -52,7 +52,7 @@ export function ComparePage({ canonical, children, eyebrow, jsonLd, lead, nav, n
     <>
       <a className="skip-link" href="#compare-main">Skip to comparison</a>
       <CompareHeader />
-      <main className="spec-shell" id="compare-main" tabIndex={-1}>
+      <main className="spec-shell" id="compare-main" tabIndex={-1} data-hraness-landscape="page">
         {jsonLd}
         <aside className="spec-nav" aria-label="On this page">
           <p>{navLabel}</p>

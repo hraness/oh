@@ -207,7 +207,7 @@ export default function Home() {
       />
 
       <main id="main" tabIndex={-1}>
-        <MarketingPage className="product-landscape">
+        <MarketingPage landscape="page">
           <ProductHero
             actions={[
               { emphasis: "secondary", href: "#install", label: "First run" },

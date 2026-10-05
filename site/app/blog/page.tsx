@@ -50,7 +50,7 @@ export default function BlogIndex() {
     <>
       <a className="skip-link" href="#blog-main">Skip to articles</a>
       <BlogHeader current="index" />
-      <main className="blog-shell" id="blog-main" tabIndex={-1}>
+      <main className="blog-shell" id="blog-main" tabIndex={-1} data-hraness-landscape="page">
         <JsonLdScript
           data={blogJsonLd(ohSearchSite, blogDiscovery, indexableArticles.map(articleDiscovery))}
           id="blog-json-ld"

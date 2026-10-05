@@ -75,7 +75,7 @@ export default function Specification() {
         ]}
       />
 
-      <main className="spec-shell" id="spec-main" tabIndex={-1}>
+      <main className="spec-shell" id="spec-main" tabIndex={-1} data-hraness-landscape="page">
         <aside className="spec-nav" aria-label="On this page">
           <p>Ontology v1</p>
           {sections.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}

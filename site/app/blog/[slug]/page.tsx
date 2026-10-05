@@ -60,7 +60,7 @@ export default async function ArticlePage({ params }: Readonly<{ params: Params 
     <>
       <a className="skip-link" href="#blog-main">Skip to article</a>
       <BlogHeader current="post" />
-      <main className="blog-shell" id="blog-main" tabIndex={-1}>
+      <main className="blog-shell" id="blog-main" tabIndex={-1} data-hraness-landscape="page">
         <JsonLdScript data={articleJsonLd(ohSearchSite, articleDiscovery(article))} id="article-json-ld" />
         <MarketingArticle
           after={
