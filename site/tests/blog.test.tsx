@@ -15,6 +15,8 @@ import { metadata as compareMetadata } from "../app/compare/page";
 import { metadata as compareMem0Metadata } from "../app/compare/mem0/page";
 import { metadata as compareSupermemoryMetadata } from "../app/compare/supermemory/page";
 import { metadata as specificationMetadata } from "../app/spec/page";
+import { metadata as docsMetadata } from "../app/docs/page";
+import { metadata as sdkDocsMetadata } from "../app/docs/sdk/page";
 import BlogIndex, { metadata as blogMetadata } from "../app/blog/page";
 import * as blogImage from "../app/blog/opengraph-image";
 import { blogImageAlt } from "../app/blog/social";
@@ -149,6 +151,8 @@ describe("Oh blog", () => {
       { path: "/compare/mem0", metadata: compareMem0Metadata },
       { path: "/compare/supermemory", metadata: compareSupermemoryMetadata },
       { path: "/spec", metadata: specificationMetadata },
+      { path: "/docs", metadata: docsMetadata },
+      { path: "/docs/sdk", metadata: sdkDocsMetadata },
       { path: "/blog", metadata: blogMetadata },
       ...await Promise.all(indexableArticles.map(async (article) => ({
         path: `/blog/${article.slug}`,

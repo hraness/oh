@@ -36,6 +36,7 @@ export default function NotFound() {
         className="spec-header"
         links={[
           { href: "/", label: "Overview" },
+          { href: "/docs", label: "Docs" },
           { href: "/blog", label: "Blog" },
           { href: "/spec", label: "Specification" },
           { href: "https://github.com/hraness/oh", label: "GitHub" },

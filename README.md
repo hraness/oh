@@ -143,6 +143,7 @@ when you need to use these records from an application.
 | `No Oh store at ...` | Check your current directory and `--db` path. Run `oh init` only if you intend to create a store there; reads do not create one. |
 | `No record named ...` (exit 3) | Run `oh list` with the same `--db` and `--space` as the write, then check the record key. |
 | JSON appears instead of terminal text | An agent environment selects JSON automatically. Set `HRANESS_AUDIENCE=human` for terminal text, or pass `--json` when parsing results. |
+| `OhConflictError`: `The expected head does not match the current space head.` | Another write moved the head after you read it. Read the new head and records, reconcile your change, and submit it again with the new head. See [Handle errors](docs/sdk.md#handle-errors). |
 
 `oh verify` checks saved history and SQLite integrity, not the truth of a fact.
 If verification fails, preserve the database and error output rather than
@@ -295,10 +296,31 @@ reranker, or the hosted cache, and what each costs.
 ## Give Oh to a coding agent
 
 The repository includes an installable Agent Skill at
-[`skills/oh`](skills/oh/SKILL.md). Copy or link that directory into the skill
-location your agent runner uses. The skill teaches an agent to read the
+[`skills/oh`](skills/oh/SKILL.md). The skill teaches an agent to read the
 contract and current head, write with the expected generation, verify the
 replay, and sync only where you tell it to.
+
+Install the skill from this release with the [skills CLI](https://skills.sh):
+
+```sh
+npx skills add hraness/oh#v0.14.1 --skill oh
+```
+
+The installer sets up the agents it finds, asking you to choose when there are
+several, and asks whether the skill is for the current project or for all your
+projects; `--global` chooses all projects. With Claude Code and Codex selected,
+it puts the skill in `.agents/skills/oh`, or `~/.agents/skills/oh` for all
+projects, where Codex reads it, and links `.claude/skills/oh` or
+`~/.claude/skills/oh` to that folder for Claude Code.
+
+To install it by hand, copy the `skills/oh` folder from the installed npm
+package (in a project that depends on Oh, it is inside `node_modules`) to
+`~/.claude/skills/oh` for Claude Code or `~/.agents/skills/oh` for Codex.
+Run `/skills` in either agent to check that `oh` is listed, then ask for it by
+name: `/oh` in Claude Code or `$oh` in Codex. These locations and commands come
+from the [Claude Code](https://code.claude.com/docs/en/skills) and
+[Codex](https://developers.openai.com/codex/skills) skills documentation,
+checked October 4, 2026.
 
 You can also give an agent this prompt:
 

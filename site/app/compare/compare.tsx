@@ -27,6 +27,7 @@ export function CompareHeader() {
       className="spec-header"
       links={[
         { href: "/", label: "Overview" },
+        { href: "/docs", label: "Docs" },
         { href: "/blog", label: "Blog" },
         { href: "/benchmarks", label: "Benchmarks" },
         { current: true, href: "/compare", label: "Compare" },

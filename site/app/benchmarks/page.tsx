@@ -143,6 +143,7 @@ export default function Benchmarks() {
         className="spec-header"
         links={[
           { href: "/", label: "Overview" },
+          { href: "/docs", label: "Docs" },
           { href: "/blog", label: "Blog" },
           { current: true, href: "/benchmarks", label: "Benchmarks" },
           { href: "/compare", label: "Compare" },

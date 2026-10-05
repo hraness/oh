@@ -12,6 +12,7 @@ import {
   homeCardDescription,
   specificationCardDescription,
 } from "./metadata-copy";
+import { docsPages, type DocsPath } from "./docs/catalog";
 
 export const ohSocialSite = defineSocialImageSite({
   // The header shows the product name beside this foil mark on a Gruvbox page.
@@ -58,6 +59,15 @@ export const compareSupermemorySocialPage = {
   eyebrow: "Comparison",
   headline: "Oh vs Supermemory",
 } as const satisfies SocialImagePage;
+
+export const docsSocialPages = Object.fromEntries(
+  docsPages.map((page) => [page.path, {
+    description: page.cardDescription,
+    eyebrow: "Documentation",
+    headline: page.cardHeadline,
+  } satisfies SocialImagePage]),
+) as Readonly<Record<DocsPath, SocialImagePage>>;
+export const docsImageAlt = (path: DocsPath): string => socialImageAlt(ohSocialSite, docsSocialPages[path]);
 
 export const homeImageAlt = socialImageAlt(ohSocialSite);
 export const specificationImageAlt = socialImageAlt(ohSocialSite, specificationSocialPage);
