@@ -14,6 +14,7 @@ export function BlogHeader({ current }: Readonly<{ current: "index" | "post" }>)
       className="spec-header"
       links={[
         { href: "/", label: "Overview" },
+        { href: "/docs", label: "Docs" },
         { current: current === "index", href: "/blog", label: "Blog" },
         { href: "/benchmarks", label: "Benchmarks" },
         { href: "/compare", label: "Compare" },

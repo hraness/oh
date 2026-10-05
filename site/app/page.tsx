@@ -149,6 +149,7 @@ function AnswerBody({ answer }: Readonly<{ answer: string }>) {
 
 const navigation = [
   { href: "#model", label: marketing.hero.secondaryAction },
+  { href: "/docs", label: "Docs" },
   { href: "/benchmarks", label: "Benchmarks" },
   { href: "/compare", label: "Compare" },
   { href: "/blog", label: "Blog" },

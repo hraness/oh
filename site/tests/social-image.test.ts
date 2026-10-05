@@ -21,6 +21,7 @@ import {
   compareMem0SocialPage,
   compareSocialPage,
   compareSupermemorySocialPage,
+  docsSocialPages,
   homeSocialPage,
   ohSocialSite,
   specificationSocialPage,
@@ -44,6 +45,8 @@ const routes: readonly (readonly [string, SocialImagePage])[] = [
   ["compare/mem0/opengraph-image.tsx", compareMem0SocialPage],
   ["compare/supermemory/opengraph-image.tsx", compareSupermemorySocialPage],
   ["blog/opengraph-image.tsx", blogSocialPage],
+  ["docs/opengraph-image.tsx", docsSocialPages["/docs"]],
+  ["docs/sdk/opengraph-image.tsx", docsSocialPages["/docs/sdk"]],
 ];
 
 async function imageFiles(directory: string): Promise<string[]> {
@@ -71,7 +74,7 @@ describe("Oh share images", () => {
     expect(ohSocialSite.icon).toBeUndefined();
     expect(ohSocialSite.theme).toBeUndefined();
     // Every page that renders the site header paints this same mark.
-    for (const file of ["page.tsx", "spec/page.tsx", "benchmarks/page.tsx", "blog/blog-header.tsx", "compare/compare.tsx"]) {
+    for (const file of ["page.tsx", "spec/page.tsx", "benchmarks/page.tsx", "blog/blog-header.tsx", "compare/compare.tsx", "docs/docs-page.tsx"]) {
       expect(await readFile(join(app, file), "utf8"), file).toContain('brandMark="/marks/oh-computer.svg"');
     }
   });

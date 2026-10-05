@@ -13,6 +13,7 @@ export function OhContentFooter() {
       brandHref="/"
       brandLabel={`${marketing.names.name} home`}
       links={[
+        { href: "/docs", label: "Docs" },
         { href: "/blog", label: "Blog" },
         { href: "/benchmarks", label: "Benchmarks" },
         { href: "/compare", label: "Compare" },

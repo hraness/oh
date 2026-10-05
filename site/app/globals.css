@@ -711,6 +711,30 @@ a:focus-visible {
   color: var(--muted);
 }
 
+/* Documentation pages render README and docs/ Markdown in the same article layout. */
+.docs-shell {
+  inline-size: min(100%, 72rem);
+  margin-inline: auto;
+  padding: clamp(2rem, 5vw, 4rem) clamp(1rem, 4vw, 3rem) clamp(3rem, 7vw, 6rem);
+}
+
+.docs-shell :is(h2, h3, .docs-anchor) {
+  scroll-margin-top: 4.5rem;
+}
+
+.docs-anchor {
+  display: block;
+}
+
+.docs-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* Comparison pages reuse the specification reading layout; tables and the
  * dated source list are local to them. */
 .compare-document .spec-section > div:last-child {

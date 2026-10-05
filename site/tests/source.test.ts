@@ -95,7 +95,7 @@ describe("Oh site source contract", () => {
   });
 
   test("renders the shared organization footer once for every page and no maker section", async () => {
-    const [packageJson, layout, home, specification, benchmarks, blogIndex, blogPost, compareShell, globals, contentFooter] = await Promise.all([
+    const [packageJson, layout, home, specification, benchmarks, blogIndex, blogPost, compareShell, globals, contentFooter, docsShell] = await Promise.all([
       read("package.json"),
       read("app/layout.tsx"),
       read("app/page.tsx"),
@@ -106,6 +106,7 @@ describe("Oh site source contract", () => {
       read("app/compare/compare.tsx"),
       read("app/globals.css"),
       read("app/site-footer.tsx"),
+      read("app/docs/docs-page.tsx"),
     ]);
 
     expect(packageJson).toContain(
@@ -121,7 +122,7 @@ describe("Oh site source contract", () => {
     );
     expect(contentFooter).toContain("export function OhContentFooter()");
     expect(layout).toContain("OhContentFooter");
-    for (const page of [home, specification, benchmarks, blogIndex, blogPost, compareShell]) {
+    for (const page of [home, specification, benchmarks, blogIndex, blogPost, compareShell, docsShell]) {
       expect(page).not.toContain("HranessSiteFooter");
       expect(page).not.toContain("MarketingMaker");
       expect(page).not.toContain("Ben Guo");
@@ -254,6 +255,8 @@ describe("Oh site source contract", () => {
     const generatedRoutes = new Set([
       "https://oh.computer/",
       "https://oh.computer/spec",
+      "https://oh.computer/docs",
+      "https://oh.computer/docs/sdk",
       "https://oh.computer/benchmarks",
       "https://oh.computer/compare",
       "https://oh.computer/compare/mem0",
@@ -330,6 +333,17 @@ describe("Oh site source contract", () => {
     );
     expect(home).toContain('heading={marketingHeading("install-title")}');
     expect(home).toContain('{ href: "/spec", label: "Specification" }');
+  });
+
+  test("keeps the generated SDK documentation page in step with docs/sdk.md", async () => {
+    // The root check runs this file without site dependencies, so it compares
+    // the recorded digest; tests/docs.test.tsx re-renders the pages in site CI.
+    const [generated, sdk] = await Promise.all([
+      read("app/docs/docs.generated.ts"),
+      readFile(join(site, "..", "docs/sdk.md")),
+    ]);
+    const recorded = /"docs\/sdk\.md": "([0-9a-f]{64})"/u.exec(generated)?.[1];
+    expect(recorded).toBe(sha256(sdk.toString("utf8")));
   });
 
   test("links the install action to an existing README heading", async () => {
@@ -422,7 +436,8 @@ describe("Oh site source contract", () => {
       prebuild: "bun run build:theme && bun run test",
       "search:notify": "bun scripts/submit-indexnow.ts",
       start: "next start",
-      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/launch.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts ./analytics.test.ts",
+      "sync:docs": "bun scripts/sync-docs.ts",
+      test: "bun run check:theme && bun test ./tests/source.test.ts ./tests/home.test.tsx ./tests/docs.test.tsx ./tests/blog.test.tsx ./tests/compare.test.tsx ./tests/editorial-layer.test.ts ./tests/indexnow.test.ts ./tests/launch.test.ts ./tests/social-image.test.ts ./scripts/owned-browser.test.ts ./analytics.test.ts",
       "test:browser": "bun scripts/check-stylex-browser.mjs",
       typecheck: "tsc --noEmit",
     });
