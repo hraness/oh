@@ -284,20 +284,17 @@ export default function Home() {
                 label: marketingHeading("home-interface-cli"),
                 summary: "Read one record from the local database and space you select.",
                 example: (
-                  <>
-                    <Terminal code={`oh get evidence:table-2 \\
+                  <Terminal code={`oh get evidence:table-2 \\
   --db research.db \\
   --space default`} />
-                    <p className="interface-link"><a href="#install">Run the first task</a></p>
-                  </>
                 ),
+                link: { href: "#install", label: "Run the first task" },
               },
               {
                 label: marketingHeading("home-interface-sdk"),
                 summary: "Open the database in your own code and read the same record.",
                 example: (
-                  <>
-                    <CodeBlock code={`import { Oh } from "@hraness/oh/sdk";
+                  <CodeBlock code={`import { Oh } from "@hraness/oh/sdk";
 
 const oh = Oh.open({ databasePath: "research.db" });
 try {
@@ -306,22 +303,19 @@ try {
 } finally {
   await oh.close();
 }`} />
-                    <p className="interface-link"><a href="https://github.com/hraness/oh#use-the-sdk">Read the SDK guide</a></p>
-                  </>
                 ),
+                link: { href: "https://github.com/hraness/oh#use-the-sdk", label: "Read the SDK guide" },
               },
               {
                 label: marketingHeading("home-interface-skill"),
                 summary: "Teach a coding agent to check the specification version and replay the log before it reads.",
                 example: (
-                  <>
-                    <Terminal code={`oh contract
+                  <Terminal code={`oh contract
 oh verify --db research.db --space default
 oh get evidence:table-2 \\
   --db research.db --space default`} />
-                    <p className="interface-link"><a href={`${repository}/blob/main/skills/oh/SKILL.md`}>Read the Agent Skill</a></p>
-                  </>
                 ),
+                link: { href: `${repository}/blob/main/skills/oh/SKILL.md`, label: "Read the Agent Skill" },
               },
             ]}
             label="Interfaces"
