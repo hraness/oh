@@ -1,6 +1,6 @@
 # Oh north star: memory that can be traced and corrected
 
-Status: proposed product direction, 2026-10-04. Drafted by Devin; independent design review and implementation are pending.
+Status: proposed product direction, 2026-10-04; first two increments implemented as the opt-in `@hraness/oh/memory-context` surface. Drafted by Devin. Summary maintenance, the consumer pilot, and the adoption comparison remain pending.
 
 Oh should let an agent recover the evidence behind an earlier answer, understand what changed, and use the corrected information in later work. A short summary should help it find the right material without replacing the original or deciding what enters reviewed memory.
 
@@ -66,8 +66,8 @@ A smaller prompt or a faster lookup does not establish lower provider usage or b
 
 | Increment | Outcome | Exit condition |
 | --- | --- | --- |
-| Source/view protocol | Captured-head identity, source ordering, node lineage, explicit limits, and failure states | Strict parsing, negative vectors, and source permission tests without a provider |
-| Deterministic reader | Overview, expansion, and bounded exact search over scripted summaries | Original bytes recovered; writes, pin changes, missing cache, and altered budgets do not corrupt a captured view |
+| Source/view protocol | Captured-head identity, source ordering, node lineage, explicit limits, and failure states — **delivered** in `src/memory-context.ts` (`@hraness/oh/memory-context`) and [the specification](../spec/v1/memory-context.md) | Strict parsing, negative vectors, and source permission tests without a provider — passing |
+| Deterministic reader | Overview, expansion, and bounded exact search over host-supplied summaries — **delivered** in the same module with a frozen digest fixture | Original bytes recovered; writes, pin changes, missing cache, and altered budgets do not corrupt a captured view — passing locally |
 | Optional maintenance | Explicit summary jobs and invalidation through the host | No model work on reads; duplicate, interruption, conflict, and purge cases preserve existing memory rules |
 | Consumer pilot | One application uses the adapter through an immutable dependency pin | Existing memory-page, store, Node/Bun, and packed-package interfaces pass their normal checks |
 | Adoption decision | A frozen policy is compared on later unseen work | Fresh quality/correction evidence, complete cost accounting, independent review, and a tested return to the prior reader |

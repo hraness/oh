@@ -1,0 +1,437 @@
+{
+  "$defs": {
+    "access": {
+      "additionalProperties": false,
+      "properties": {
+        "historySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "indices": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "maximum": 4095,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxItems": 4096,
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        },
+        "lanes": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "enum": [
+                  "canonical",
+                  "working"
+                ],
+                "type": "string"
+              },
+              "maxItems": 2,
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        },
+        "revision": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "revoked"
+          ],
+          "type": "string"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "historySha256",
+        "indices",
+        "lanes",
+        "revision",
+        "state",
+        "v"
+      ],
+      "type": "object"
+    },
+    "canonicalInstant": {
+      "pattern": "^\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d\\.\\d{3}Z$",
+      "type": "string"
+    },
+    "generation": {
+      "additionalProperties": false,
+      "properties": {
+        "generation": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "historySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "policySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "promptSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "summaries": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "nodeSha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "summarySha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            },
+            "required": [
+              "nodeSha256",
+              "summarySha256"
+            ],
+            "type": "object"
+          },
+          "maxItems": 2048,
+          "type": "array"
+        },
+        "summarizerSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "generation",
+        "historySha256",
+        "policySha256",
+        "promptSha256",
+        "summaries",
+        "summarizerSha256",
+        "v"
+      ],
+      "type": "object"
+    },
+    "history": {
+      "additionalProperties": false,
+      "properties": {
+        "bindings": {
+          "items": {
+            "$ref": "#/$defs/laneBinding"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "type": "array"
+        },
+        "leaves": {
+          "items": {
+            "$ref": "#/$defs/leaf"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "bindings",
+        "leaves",
+        "v"
+      ],
+      "type": "object"
+    },
+    "laneBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "bindingSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "head": {
+          "additionalProperties": false,
+          "properties": {
+            "generation": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "graphRevisionSha256": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/sha256"
+                }
+              ]
+            },
+            "operationSha256": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/sha256"
+                }
+              ]
+            },
+            "recordsSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "sequence": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "v": {
+              "const": 1
+            }
+          },
+          "required": [
+            "generation",
+            "graphRevisionSha256",
+            "operationSha256",
+            "recordsSha256",
+            "sequence",
+            "v"
+          ],
+          "type": "object"
+        },
+        "lane": {
+          "enum": [
+            "canonical",
+            "working"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "bindingSha256",
+        "head",
+        "lane"
+      ],
+      "type": "object"
+    },
+    "leaf": {
+      "additionalProperties": false,
+      "properties": {
+        "changeIndex": {
+          "maximum": 8191,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "instant": {
+          "$ref": "#/$defs/canonicalInstant"
+        },
+        "key": {
+          "maxLength": 512,
+          "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "put",
+            "tombstone"
+          ],
+          "type": "string"
+        },
+        "lane": {
+          "enum": [
+            "canonical",
+            "working"
+          ],
+          "type": "string"
+        },
+        "live": {
+          "type": "boolean"
+        },
+        "operationSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "parentOperationSha256": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/sha256"
+            }
+          ]
+        },
+        "recordSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sequence": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "changeIndex",
+        "instant",
+        "key",
+        "kind",
+        "lane",
+        "live",
+        "operationSha256",
+        "parentOperationSha256",
+        "recordSha256",
+        "sequence",
+        "v"
+      ],
+      "type": "object"
+    },
+    "node": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "historySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourcesSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "start": {
+          "maximum": 4095,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "end",
+        "historySha256",
+        "sourcesSha256",
+        "start",
+        "v"
+      ],
+      "type": "object"
+    },
+    "pool": {
+      "additionalProperties": false,
+      "properties": {
+        "generation": {
+          "$ref": "#/$defs/generation"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/node"
+          },
+          "maxItems": 2048,
+          "type": "array"
+        },
+        "summaries": {
+          "items": {
+            "$ref": "#/$defs/summary"
+          },
+          "maxItems": 2048,
+          "type": "array"
+        }
+      },
+      "required": [
+        "generation",
+        "nodes",
+        "summaries"
+      ],
+      "type": "object"
+    },
+    "sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "childrenSha256s": {
+          "items": {
+            "$ref": "#/$defs/sha256"
+          },
+          "maxItems": 2,
+          "type": "array"
+        },
+        "historySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "nodeSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "policySha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "promptSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sourcesSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "summarizerSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "body",
+        "childrenSha256s",
+        "historySha256",
+        "nodeSha256",
+        "policySha256",
+        "promptSha256",
+        "sourcesSha256",
+        "summarizerSha256",
+        "v"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://oh.computer/spec/v1/memory-context.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Oh memory-context V1 history, node, summary, generation, pool, and access records.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/access"
+    },
+    {
+      "$ref": "#/$defs/history"
+    },
+    {
+      "$ref": "#/$defs/node"
+    },
+    {
+      "$ref": "#/$defs/pool"
+    },
+    {
+      "$ref": "#/$defs/summary"
+    },
+    {
+      "$ref": "#/$defs/generation"
+    }
+  ],
+  "title": "Oh memory context V1"
+}

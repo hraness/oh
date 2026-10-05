@@ -1,0 +1,42 @@
+{
+  "comment": "Pinned memory-context V1 digests for the seven-put one-tombstone fixture scenario.",
+  "cover": [
+    {
+      "end": 4,
+      "start": 0
+    },
+    {
+      "end": 6,
+      "start": 4
+    },
+    {
+      "end": 7,
+      "start": 6
+    },
+    {
+      "end": 8,
+      "start": 7
+    }
+  ],
+  "generationSha256": "636aea9c07df9470f473fd547acf4a59d0ccaef5c5df7384e45c8d8aadb241d7",
+  "historySha256": "ac32a7887b05ec8814593995293fd74c87726d82e365287a3e75f10dba1d768e",
+  "leafSha256s": [
+    "cb1ab13024195b99baedcd7827b146d5fa157edd5ca310718b156daf5c8559fa",
+    "1317fc58d7500b90110ba07dfa09b95e7b7575a348fdde4a33c35ccdc85f43cf",
+    "4a715267271b4ca200cce35b7bd5f04762f7d0e0d57a3e89115155f508436942",
+    "5cc5bbf378612b17eff4e3777c54585a6ea0438409b55effe69fa0bad08a2235",
+    "a4fad7984f9d3470e7acba532178d3a391b18d415b9e42cf17477b2165ed69eb",
+    "07ece94e3070cd6ac640aac19bbf3ecc32212139dae6a2f2841d8055293c26f0",
+    "3d1c2f40410d1b10b38fdc6cd3d73ef28fd1dc40de77b7ed85c8a736ca6bf005",
+    "25a0c881fb27fe3db08e381aa0b2f37aa502c8afb796ba7e4e01f04d8ec20e7f"
+  ],
+  "nodeSha256s": [
+    "c5a5281c9a903535a7651ae0f5edc9a46f9410d5d88f7835a6c0a9cfd8262381",
+    "af55885ef654a85f0422ce5fb980cfb2be90a74b20667d3706532b6092cfba39",
+    "20528be5e5038ec7208dcd3161166f7231f2f5752113c17fb5c506b612dc7ca7",
+    "737c1f3e4a6e9236e9e166b8c8563a93971a41106f07698d41ec34f9e19d110f"
+  ],
+  "summaryNodeSha256": "c5a5281c9a903535a7651ae0f5edc9a46f9410d5d88f7835a6c0a9cfd8262381",
+  "summarySha256": "8b672f83fd77a91f4b7e199a70a2249773af0ded7f7c50ae03c18493e58639e5",
+  "v": 1
+}

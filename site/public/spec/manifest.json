@@ -12,6 +12,8 @@
       "embeddingProfile": "./v1/embedding-profile.json",
       "id": "v1",
       "memory": {
+        "contextSchema": "./v1/memory-context.schema.json",
+        "contextSpecification": "./v1/memory-context.md",
         "pageSchema": "./v1/memory-page.schema.json",
         "pageSpecification": "./v1/memory-page.md",
         "specification": "./v1/memory.md"
@@ -50,7 +52,8 @@
         "./v1/projection-query.schema.json",
         "./v1/projection-identity.schema.json",
         "./v1/projection-result.schema.json",
-        "./v1/memory-page.schema.json"
+        "./v1/memory-page.schema.json",
+        "./v1/memory-context.schema.json"
       ],
       "specification": "./v1/ontology.md",
       "status": "current",

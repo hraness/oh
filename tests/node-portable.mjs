@@ -6,6 +6,7 @@ const store = await import("@hraness/oh/store");
 const libsql = await import("@hraness/oh/libsql");
 const memory = await import("@hraness/oh/memory");
 const memoryCompatibility = await import("@hraness/oh/experimental/memory");
+const memoryContext = await import("@hraness/oh/memory-context");
 const memoryPage = await import("@hraness/oh/memory-page");
 const projection = await import("@hraness/oh/projection");
 const semanticCloud = await import("@hraness/oh/semantic-cloud");
@@ -51,6 +52,12 @@ assert.equal(
 assert.equal(memoryCompatibility.createOhMemoryAuthorityV1, memory.createOhMemoryAuthorityV1);
 assert.equal(typeof memoryPage.createOhMemoryPageRecordV1, "function");
 assert.equal(typeof memoryPage.parseOhMemoryPageMarkdownV1, "function");
+assert.equal(typeof memoryContext.captureOhMemoryContextV1, "function");
+assert.equal(typeof memoryContext.createOhMemoryContextHostV1, "function");
+assert.equal(typeof memoryContext.parseOhMemoryContextHistoryV1, "function");
+assert.equal(typeof memoryContext.parseOhMemoryContextPoolV1, "function");
+assert.equal(typeof memoryContext.OhMemoryContextError, "function");
+assert.equal(typeof memoryContext.OhMemoryContextContinuationError, "function");
 assert.equal(typeof semanticCloud.OhCloudflareEmbeddingClientV1, "function");
 assert.equal(typeof semanticCloud.bootstrapOhLibSqlSemanticCacheV1, "function");
 assert.equal(typeof semanticCloud.openOhLibSqlSemanticCacheV1, "function");
@@ -157,6 +164,51 @@ await assert.rejects(agentV2.query({
 }), (error) => error instanceof memory.OhMemoryContinuationError
   && error.code === "memory-continuation"
   && error.reason === "encoding");
+
+// The progressive reader works under Node on the same store port contract.
+function emptyFeedStore(profile, realmId, spaceId) {
+  const binding = store.createOhStoreBindingV1({ profile, realmId, spaceId, v: 1 });
+  const head = store.emptyOhHeadV1();
+  const headRef = { operationSha256: head.operationSha256, sequence: head.sequence };
+  return {
+    binding,
+    async changesSince(from) {
+      return { from, hasMore: false, operations: [], through: head, to: headRef, v: 1 };
+    },
+    async close() {},
+    async commit() { throw new Error("empty store"); },
+    async exportDependencyClosure() { throw new Error("empty store"); },
+    async head() { return head; },
+    async snapshot() { return { head, records: [], v: 1 }; },
+    async verify() {
+      return { head, integrity: "verified", operations: 0, records: 0, v: 1 };
+    },
+  };
+}
+const feedStore = emptyFeedStore(store.OH_WORKING_STORE_PROFILE_V1,
+  "realm:node-context", "node-context");
+const contextHistory = await memoryContext.captureOhMemoryContextV1({
+  working: { store: feedStore },
+});
+assert.equal(contextHistory.leaves.length, 0);
+const contextHost = memoryContext.createOhMemoryContextHostV1({
+  continuationKey: new Uint8Array(32).fill(2),
+  monotonicNow: () => 0,
+  resolveAccess: (ref) => ({ historySha256: ref.historySha256, indices: null,
+    lanes: null, revision: 1, state: "active", v: 1 }),
+  working: { expectedBindingSha256: feedStore.binding.bindingSha256, store: feedStore },
+});
+const contextRef = await contextHost.admit(contextHistory);
+assert.equal(typeof contextRef.historySha256, "string");
+const contextReader = contextHost.bind(contextRef);
+const overview = await contextReader.overview();
+assert.equal(overview.status, "complete");
+assert.equal(overview.items.length, 0);
+assert.equal(overview.continuation, null);
+await assert.rejects(contextReader.overview({ continuation: 42 }),
+  (error) => error instanceof memoryContext.OhMemoryContextContinuationError
+    && error.code === "memory-context-continuation" && error.reason === "encoding");
+await assert.rejects(contextReader.read(0), RangeError);
 
 const authority = await memory.createOhMemoryAuthorityV1({
   actorId: "node.memory-agent-v2",
