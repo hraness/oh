@@ -118,8 +118,7 @@ a:focus-visible {
   .citation-preview dl > div { grid-template-columns: minmax(0, 1fr); }
 }
 
-.record-link,
-.interface-link {
+.record-link {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 500;
@@ -131,7 +130,6 @@ a:focus-visible {
 
 /* Links inside body copy stay underlined; the grammar's buttons do not. */
 .record-link a,
-.interface-link a,
 .install-note a,
 .hraness-marketing-question__answer a {
   color: var(--foreground);
@@ -141,7 +139,6 @@ a:focus-visible {
 }
 
 .record-link a:hover,
-.interface-link a:hover,
 .install-note a:hover,
 .hraness-marketing-question__answer a:hover {
   text-decoration-color: currentColor;
@@ -297,10 +294,6 @@ a:focus-visible {
   [data-hraness-marketing-preset="editorial"] #install {
     scroll-margin-block-start: 8.75rem;
   }
-}
-
-.hraness-marketing-interface pre {
-  flex: 1 1 auto;
 }
 
 .install-command {

@@ -4,8 +4,8 @@ export function CodeBlock({ code, language = "typescript" }: { code: string; lan
   return <pre tabIndex={0}><SyntaxCode code={code} language={language} styles="classes" /></pre>;
 }
 
-export function Terminal({ code, title = "Terminal" }: { code: string; title?: string }) {
-  return <MarketingProofFrame title={title}><CodeBlock code={code} language="shell" /></MarketingProofFrame>;
+export function Terminal({ code }: { code: string }) {
+  return <MarketingProofFrame chrome="terminal"><CodeBlock code={code} language="shell" /></MarketingProofFrame>;
 }
 
 /** Only commands get shell syntax. Captured output remains literal text. */
