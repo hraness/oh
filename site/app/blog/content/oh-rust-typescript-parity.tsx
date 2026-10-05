@@ -19,7 +19,7 @@ export function ParityBody() {
       <p>A fingerprint lets a reader check the contents against an expected record. It does not establish that the record’s claim is true or identify who authored it. Keeping those questions separate makes the storage guarantee easier to use correctly.</p>
       <h2 id="the-typescript-encoder-is-the-reference">The TypeScript encoder is the reference</h2>
       <p>Choose one definition of the format and compare every implementation against it. Matching a few convenient examples is insufficient: key ordering, escaping, and number formatting can differ on inputs that ordinary application tests never exercise.</p>
-      <p>A runtime fallback and a comparison test serve different purposes. The fallback keeps a supported implementation available when an optional engine cannot load. The test must establish that the intended engine actually ran; otherwise it can pass by comparing the reference with itself.</p>
+      <p>A runtime fallback and a comparison test serve different purposes. The fallback keeps a supported implementation available when an optional engine cannot load. The test must establish that the intended engine ran; otherwise it can pass by comparing the reference with itself.</p>
       <h2 id="five-rules-fix-the-bytes">Five rules fix the bytes</h2>
       <p>Oh’s record format is canonical JSON: each accepted value has a defined sequence of bytes. A record’s digest is the SHA-256 of those bytes, written as 64 lowercase hex characters. Five rules decide the bytes.</p>
       <ol>

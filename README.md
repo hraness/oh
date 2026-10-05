@@ -53,8 +53,7 @@ on macOS and Linux. Use `oh update disable` to keep a version. See
   call the agent never sees. See [Give an agent working memory](docs/working-memory.md).
 
 [The thread through hraness](https://hraness.com/writing/the-thread-through-hraness)
-follows this design across the projects, and the
-[ALGAL vision](https://algal.computer/docs/vision/) states the bet behind it.
+follows this design across the projects.
 
 ## Install and first run
 
@@ -472,15 +471,18 @@ Use Oh to build an application’s memory layer. Use Wordcell to maintain and qu
 Each consumer pins an immutable release and upgrades on its own schedule:
 
 - [Wordcell](https://wordcell.io)
-  ([source](https://github.com/hraness/wordcell)) is a knowledge base for
-  agents: markdown, backlinks, search, ontology, and git context. Its Markdown
-  vault is the only source of truth. `wordcell graph rebuild` writes a
+  ([source](https://github.com/hraness/wordcell)) is a Markdown knowledge base
+  that gives agents the decisions behind code. It rebuilds a disposable Oh graph
+  from your Markdown to answer named graph queries with source proofs. The
+  Markdown vault is the only source of truth. `wordcell graph rebuild` writes a
   disposable, gitignored `.wordcell/oh.sqlite` copy of the graph, and no query
   or rebuild writes back into notes.
-- [Sponge](https://sponge.computer) is a private library for what you read,
-  with notes your agent can cite. Its hosted research agents kept working
-  memory in a server-side Oh store, apart from the knowledge you reviewed.
-  Sponge stopped accepting new hosted research on September 12, 2026.
+  [How Wordcell uses Oh](https://wordcell.io/blog/how-wordcell-uses-oh).
+- [Sponge](https://sponge.computer) runs deep research on your own machine.
+  Its earlier hosted library at sponge.computer keeps its research agents’
+  working memory in a server-side Oh store, separate from the reviewed
+  knowledge in its product database. The hosted library stopped accepting new
+  research on September 12, 2026.
   [How Sponge uses Oh](https://sponge.computer/docs/how-sponge-uses-oh).
 
 [Oh and Wordcell](docs/wordcell.md) explains where one ends and the other
