@@ -204,7 +204,7 @@ https://oh.computer/blog/introducing-oh
 
 ## Product Hunt
 
-Tagline: Agent memory that shows its work.
+Tagline: Evidence-backed memory for agents
 
 Description:
 
@@ -216,7 +216,7 @@ Topics: Developer Tools, Open Source, Artificial Intelligence
 
 ## Show HN and first comment fact sheet
 
-- Agent memory that shows its work.
+- Evidence-backed memory for agents
 - Oh is free, open-source memory for AI agents. Your agent saves what it learns as linked records, each tied to its source, so later you can see what it remembered and why.
 - Say your agent read a trial report on Monday and tells you on Thursday the endpoint was measured at 12 weeks. With Oh you can follow that answer to its citation, then to the exact copy of the report it read.
 - The oh command finds a saved question by keyword and prints the answer with the records it rests on. It needs no account and no AI model. People get short text; add --json and your own scripts get the same answer as JSON.
