@@ -1,5 +1,14 @@
 # Oh
 
+> 🧾 Oh is memory for agents that shows its work. Every fact is stored with the
+> sources it rests on, every change lands in a history you can replay, and every
+> answer comes back with the evidence behind it. It runs on your machine as a
+> CLI, an SDK, and an agent skill.
+>
+> Ask your agent to set it up: https://oh.computer
+>
+> — Ben Guo
+
 [![skills.sh](https://skills.sh/b/hraness/oh)](https://skills.sh/hraness/oh)
 
 Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay. It is for TypeScript developers whose agents need to trace an answer back to the passage it came from.
