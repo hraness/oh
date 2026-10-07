@@ -335,3 +335,14 @@ test("the home JSON-LD defines the website and the software the other pages refe
   const names = (faq?.mainEntity as { name: string }[]).map((entry) => entry.name);
   expect(names).toContain(question);
 });
+
+test("the home page sets the founder note directly below the hero without a signature", () => {
+  const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
+  expect(html).toContain('class="founder-note"');
+  expect(html).toContain("Oh gives agents a memory that cites its sources.");
+  expect(html).toContain("Ask your agent to set it up:");
+  expect(html).toContain("oh.computer");
+  expect(html).not.toContain("founder-note__signature");
+  expect(html.indexOf("hero-install")).toBeLessThan(html.indexOf("founder-note"));
+  expect(html.indexOf("founder-note")).toBeLessThan(html.indexOf('id="model"'));
+});
