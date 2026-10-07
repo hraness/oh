@@ -1,0 +1,5 @@
+Contact: https://github.com/hraness/oh/security/advisories/new
+Expires: 2027-10-07T00:00:00.000Z
+Policy: https://github.com/hraness/oh/blob/main/SECURITY.md
+Preferred-Languages: en
+Canonical: https://oh.computer/.well-known/security.txt
