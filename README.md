@@ -1,9 +1,9 @@
 # Oh
 
-> 🧾 Oh is memory for agents that shows its work. Every fact is stored with the
-> sources it rests on, every change lands in a history you can replay, and every
-> answer comes back with the evidence behind it. It runs on your machine as a
-> CLI, an SDK, and an agent skill.
+> 🧾 Oh gives agents a memory that cites its sources. Every fact is stored with
+> what it rests on, every change goes into a history you can replay, and every
+> answer returns with its evidence. It runs on your machine as a CLI, an SDK,
+> and an agent skill.
 >
 > Ask your agent to set it up: https://oh.computer
 >

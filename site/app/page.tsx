@@ -18,6 +18,7 @@ import { DesignPaletteMenuButton, PlatformBadges, PlatformInstall } from "@hrane
 import publishedRelease from "../published-release.json";
 import { MemoryBenchmarkComparison, longMemEvalHeading } from "./benchmark-comparison";
 import { ohSearchSite } from "./blog/articles";
+import { FounderNote } from "./founder-note";
 import { homeDescription } from "./metadata-copy";
 import { CodeBlock, Terminal, Transcript } from "./code-block";
 import { AgentHostSplit } from "./mockups/trail";
@@ -40,6 +41,10 @@ const wordcell = product("kb");
 if (!portfolio.relations.some(item => item.source === wordcell.id && item.target === portfolio.productId && item.kind === "runtime")) {
   throw new Error("The portfolio registry has no runtime relation between Oh and Wordcell.");
 }
+
+// The author's own description of Oh, from the portfolio registry.
+const founderNote =
+  "Oh gives agents a memory that cites its sources. Every fact is stored with what it rests on, every change goes into a history you can replay, and every answer returns with its evidence. It runs on your machine as a CLI, an SDK, and an agent skill.";
 
 const eyebrow = marketing.category;
 const heading = marketing.hero.heading;
@@ -231,6 +236,12 @@ export default function Home() {
             install={<PlatformInstall id="hero-install" platforms={installPlatforms} />}
             name=""
             summary={lead}
+          />
+
+          <FounderNote
+            emoji="🧾"
+            paragraphs={[founderNote]}
+            action={{ label: "Ask your agent to set it up:", href: "https://oh.computer" }}
           />
 
           <MarketingSection
