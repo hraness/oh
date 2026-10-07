@@ -19,6 +19,8 @@ that includes:
 Leave out credentials, private research records, and third-party personal
 data.
 
+If GitHub reporting is unavailable, email [hraness@pm.me](mailto:hraness@pm.me).
+
 Please do not open a public issue for an unpatched vulnerability. Maintainers
 will acknowledge a complete report, assess which releases and which versions
 of the wire contract (the format of the data Oh stores and exchanges) it

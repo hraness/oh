@@ -481,6 +481,7 @@ describe("launch security posture", () => {
     const expires = /^Expires: (.+)$/mu.exec(text)?.[1];
     expect(Date.parse(expires ?? "")).toBeGreaterThan(Date.now());
     expect(text).toContain("Contact: https://github.com/hraness/oh/security/advisories/new");
+    expect(text).toContain("Contact: mailto:hraness@pm.me");
     expect(text).toContain("Canonical: https://oh.computer/.well-known/security.txt");
   });
 });
