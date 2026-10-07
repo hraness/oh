@@ -469,7 +469,9 @@ describe("launch security posture", () => {
     expect(headers.get("Permissions-Policy")).toContain("camera=()");
     expect(headers.get("Strict-Transport-Security")).toContain("max-age=");
     const csp = headers.get("Content-Security-Policy") ?? "";
-    for (const directive of ["base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'"]) {
+    // The runtime suite requires pages to stay frameable, so no frame-ancestors.
+    expect(csp).not.toContain("frame-ancestors");
+    for (const directive of ["base-uri 'self'", "object-src 'none'"]) {
       expect(csp).toContain(directive);
     }
   });

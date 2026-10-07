@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: "base-uri 'self'; object-src 'none'; frame-ancestors 'none'",
+            value: "base-uri 'self'; object-src 'none'",
           },
         ],
         source: "/:path*",
