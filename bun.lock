@@ -7,7 +7,7 @@
       "devDependencies": {
         "@hraness/cli-update": "https://github.com/hraness/cli-update/releases/download/v0.1.0/hraness-cli-update-0.1.0.tgz",
         "@hraness/support-foundation": "github:hraness/support-foundation#b32c1c81bb2444f50509ed54388758ecfab1f1c0",
-        "@suss/datalog": "0.20.0",
+        "@suss/datalog": "0.34.0",
         "@types/bun": "1.3.14",
         "effect": "3.22.1",
         "fast-check": "4.9.0",
@@ -16,7 +16,7 @@
       },
       "peerDependencies": {
         "@libsql/client": ">=0.17.4 <1",
-        "@suss/datalog": "0.20.0",
+        "@suss/datalog": "0.34.0",
         "@tobilu/qmd": "2.5.3",
       },
       "optionalPeers": [
@@ -53,7 +53,7 @@
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
-    "@suss/datalog": ["@suss/datalog@0.20.0", "", {}, "sha512-a9NM+MwvnMqGkeV1EJlaJ8I68kcNcdVZsZJinCd05weLD2Flr6ck1Awwmi9uoznfapVwFVQq4iCTBLDPWPtIWQ=="],
+    "@suss/datalog": ["@suss/datalog@0.34.0", "", {}, "sha512-voizmsxD+qsH2fnE6+hWIY5e8WwUD7DKUYrkg6K2NdWYEB2QYszfcEsYXU4Lq0KDLBFagbJOiN7M4B2lMSe7Mg=="],
 
     "@tufjs/canonical-json": ["@tufjs/canonical-json@2.0.0", "", {}, "sha512-yVtV8zsdo8qFHe+/3kw81dSLyF7D576A5cCFCi4X7B39tWT7SekaEFUnvnWJHz+9qO7qJTah1JbrDjWKqFtdWA=="],
 
