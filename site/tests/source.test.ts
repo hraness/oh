@@ -457,3 +457,28 @@ describe("Oh site source contract", () => {
     expect(prohibitedPublicIdentifiers(publicSource)).toEqual([]);
   });
 });
+
+describe("launch security posture", () => {
+  test("serves baseline security headers on every route", async () => {
+    const { default: config } = await import("../next.config");
+    const rules = await config.headers?.();
+    const rule = rules?.find((entry) => entry.source === "/:path*");
+    const headers = new Map(rule?.headers.map(({ key, value }) => [key, value]));
+    expect(headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(headers.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
+    expect(headers.get("Permissions-Policy")).toContain("camera=()");
+    expect(headers.get("Strict-Transport-Security")).toContain("max-age=");
+    const csp = headers.get("Content-Security-Policy") ?? "";
+    for (const directive of ["base-uri 'self'", "object-src 'none'", "frame-ancestors 'none'"]) {
+      expect(csp).toContain(directive);
+    }
+  });
+
+  test("publishes an unexpired security.txt that points at the policy", async () => {
+    const text = await read("public/.well-known/security.txt");
+    const expires = /^Expires: (.+)$/mu.exec(text)?.[1];
+    expect(Date.parse(expires ?? "")).toBeGreaterThan(Date.now());
+    expect(text).toContain("Contact: https://github.com/hraness/oh/security/advisories/new");
+    expect(text).toContain("Canonical: https://oh.computer/.well-known/security.txt");
+  });
+});
