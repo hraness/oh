@@ -14,7 +14,7 @@ afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: tru
   if (oldKey === undefined) delete process.env.VERTEX_API_KEY; else process.env.VERTEX_API_KEY = oldKey;
   if (oldXai === undefined) delete process.env.XAI_API_KEY; else process.env.XAI_API_KEY = oldXai; });
 const now = () => Date.parse("2026-09-30T06:00:00Z");
-function setup({ maxCalls = 1000, campaignCalls = 1000, expiresAt = "2099-01-01T00:00:00Z", evidenceMode = "offline-synthetic" as CampaignConfig["evidenceMode"], readerOutputFormat = undefined as "json" | undefined } = {}) {
+function setup({ maxCalls = 1000, campaignCalls = 1000, expiresAt = "2099-01-01T00:00:00Z", evidenceMode = "offline-synthetic" as CampaignConfig["evidenceMode"], readerOutputFormat = undefined as "json" | undefined, eventOrdering = false } = {}) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "oh-campaign-v2-"))); dirs.push(dir);
   const root = join(dir, "lab"), cache = join(dir, "cache"); mkdirSync(cache, { mode: 0o700 });
   const ref = (name: string, value: unknown) => { const path = join(dir, name), raw = JSON.stringify(value); writeFileSync(path, raw, { mode: 0o600 }); return { path, sha256: sha256Hex(raw) }; };
@@ -28,6 +28,8 @@ function setup({ maxCalls = 1000, campaignCalls = 1000, expiresAt = "2099-01-01T
   }
   for (let i = 0; i < 4; i++) add(`control${i}`, `control${i}`, "control", true, i < 2 ? 1 : 0);
   for (let i = 0; i < 3; i++) { add(`s${i}`, `screen${i}`, "screen"); add(`g${i}`, `guard${i}`, "screen", true); }
+  // A data-dependent event_ordering scorer needs extraction and equivalence calls beyond its rubric count.
+  if (eventOrdering) { add("e0", "screen0", "screen"); Object.assign(tasks.at(-1)!, { category: "event_ordering" }); }
   for (let batch = 0; batch < 3; batch++) for (let i = 0; i < 7; i++) {
     add(`c${batch}t${i}`, `c${batch}target${i}`, "confirmation"); add(`c${batch}g${i}`, `c${batch}guard${i}`, "confirmation", true);
   }
@@ -243,4 +245,20 @@ test("a narrower v2 campaign expiry stops new native dispatch while settled evid
   await expect(executeRun(s.root, p.id, { fetcher: mockProvider(calls), now: () => virtualNow,
     afterProviderCapture: () => { virtualNow = Date.parse(expiry); } })).rejects.toThrow("expired before dispatch");
   expect(calls).toHaveLength(1); expect((await assessRun(s.root, p.id)).status).toBe("INCOMPLETE");
+});
+
+test("an event_ordering scorer at its preregistered judge-call ceiling fails only that cell and never dispatches past it", async () => {
+  const s = setup({ eventOrdering: true }), calls: string[] = [], fetcher = mockProvider(calls);
+  const control = reviewed(s.root, spec("controls", "controls")); await executeRun(s.root, control.id, { fetcher, now });
+  expect((await assessRun(s.root, control.id)).status).toBe("PASS"); advance(s.root, control.id);
+  const p = reviewed(s.root, { ...spec("aa", "aa"), targetIds: ["s0", "s1", "s2", "e0"], maxCalls: 36 });
+  expect(await executeRun(s.root, p.id, { fetcher, now })).toMatchObject({ completed: true, calls: 36 });
+  const runDir = join(s.root, "runs", p.id), index = String(p.tasks.findIndex(t => t.id === "e0")).padStart(4, "0");
+  for (const arm of ["baseline", "candidate"] as const) {
+    expect(JSON.parse(readFileSync(join(runDir, `${index}-${arm}.cell.json`), "utf8"))).toMatchObject({ status: "failed", score: null, reason: "dynamic scorer exceeds preregistered judge-call ceiling" });
+    expect(readdirSync(runDir).filter(f => f.startsWith(`${index}-${arm}-judge-`) && f.endsWith(".intent.json"))).toHaveLength(2);
+  }
+  const assessment = await assessRun(s.root, p.id);
+  expect(assessment.status).toBe("INCOMPLETE"); expect(assessment.reasons).toContain("failed:e0|baseline"); expect(calls).toHaveLength(4 + 36);
+  expect(await executeRun(s.root, p.id, { fetcher, now })).toMatchObject({ reused: true, calls: 0 }); expect(calls).toHaveLength(40);
 });
