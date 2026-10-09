@@ -127,7 +127,10 @@ export async function executeRun(root: string, id: string, options: ExecutionOpt
           if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 1) return fail("non-finite or invalid score");
           return { taskId: task.id, arm, status: "scored", score, reason: null };
         }
-        need(replies.length < task.maxJudgeCalls, "dynamic scorer exceeds preregistered judge-call ceiling");
+        // The ceiling is checked before dispatch, so no call beyond the preregistered allocation is ever made.
+        // A data-dependent scorer (event_ordering) that needs more calls fails this cell only; the run
+        // still completes and the assessment reports it INCOMPLETE instead of aborting every cell.
+        if (replies.length >= task.maxJudgeCalls) return fail("dynamic scorer exceeds preregistered judge-call ceiling");
         const judged = await stage(`${key}-judge-${replies.length}`, config.api.judge.id, next.request.messages);
         if (judged.result.status !== "completed" || !judged.result.answer) return fail(judged.result.failureReason ?? "judge failed");
         replies.push(judged.result.answer);
