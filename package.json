@@ -1,7 +1,7 @@
 {
   "name": "@hraness/oh",
   "version": "0.14.1",
-  "description": "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.",
+  "description": "Oh is an ontology-driven memory framework for agents. It keeps the records and history behind each memory, so agents recall more and you can correct them.",
   "type": "module",
   "license": "MIT",
   "author": "Hraness",

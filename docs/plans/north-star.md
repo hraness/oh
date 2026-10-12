@@ -4,7 +4,7 @@ Status: proposed product direction, 2026-10-04; first two increments implemented
 
 Oh should let an agent recover the evidence behind an earlier answer, understand what changed, and use the corrected information in later work. A short summary should help it find the right material without replacing the original or deciding what enters reviewed memory.
 
-The product's [record and operation model](../README.md#how-oh-behaves) supplies the starting point. This document sets the next direction and the evidence needed to adopt it. It does not claim that hierarchical summaries improve Oh's reader results.
+The product's [record and operation model](../../README.md#how-oh-behaves) supplies the starting point. This document sets the next direction and the evidence needed to adopt it. It does not claim that hierarchical summaries improve Oh's reader results.
 
 ## Start from the memory Oh has
 
@@ -60,13 +60,13 @@ Compare recent raw history, ordinary keyword or semantic retrieval, a chronologi
 | Is maintenance affordable? | Overview and expansion latency, storage growth, summary backlog, rebuild work, and total cost per useful later answer |
 | Is it scoped correctly? | No cross-realm, cross-store, narrower-grant, or purged-working-memory disclosure, including cached summary bodies |
 
-A smaller prompt or a faster lookup does not establish lower provider usage or billing. A verified operation history does not establish answer quality. The [benchmark guide](../benchmarks/README.md) separates state correctness, evidence retrieval, reader results, and the exposure limits of prior studies.
+A smaller prompt or a faster lookup does not establish lower provider usage or billing. A verified operation history does not establish answer quality. The [benchmark guide](../../benchmarks/README.md) separates state correctness, evidence retrieval, reader results, and the exposure limits of prior studies.
 
 ## Delivery order
 
 | Increment | Outcome | Exit condition |
 | --- | --- | --- |
-| Source/view protocol | Captured-head identity, source ordering, node lineage, explicit limits, and failure states — **delivered** in `src/memory-context.ts` (`@hraness/oh/memory-context`) and [the specification](../spec/v1/memory-context.md) | Strict parsing, negative vectors, and source permission tests without a provider — passing |
+| Source/view protocol | Captured-head identity, source ordering, node lineage, explicit limits, and failure states — **delivered** in `src/memory-context.ts` (`@hraness/oh/memory-context`) and [the specification](../../spec/v1/memory-context.md) | Strict parsing, negative vectors, and source permission tests without a provider — passing |
 | Deterministic reader | Overview, expansion, and bounded exact search over host-supplied summaries — **delivered** in the same module with a frozen digest fixture | Original bytes recovered; writes, pin changes, missing cache, and altered budgets do not corrupt a captured view — passing locally |
 | Optional maintenance | Explicit summary jobs and invalidation through the host | No model work on reads; duplicate, interruption, conflict, and purge cases preserve existing memory rules |
 | Consumer pilot | One application uses the adapter through an immutable dependency pin | Existing memory-page, store, Node/Bun, and packed-package interfaces pass their normal checks |

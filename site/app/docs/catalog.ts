@@ -29,13 +29,14 @@ export const docsPages = [
     path: "/docs",
     title: "Install Oh and store your first record: CLI, SDK, and coding agents",
     heading: "Get started with Oh",
-    dek: "Install the CLI, store and verify one record, choose a store and space, fix first-run errors, call the TypeScript SDK, and give Oh to a coding agent.",
+    dek: "Find the guide for your task, install the CLI, store and verify one record, choose a store and space, fix first-run errors, call the TypeScript SDK, and give Oh to a coding agent.",
     description:
       "Install Oh, store and verify a first record, choose a store and space, fix first-run errors, call the TypeScript SDK, and set up the Oh skill for coding agents.",
     cardHeadline: "Get started with Oh",
     cardDescription: "Install the CLI, store a first record, call the SDK, and give Oh to an agent.",
     source: "README.md",
     sections: [
+      { heading: "Find the right documentation", alias: "tasks" },
       { heading: "Install and first run" },
       { heading: "Choose the store and space" },
       { heading: "Troubleshooting the first run", alias: "troubleshooting" },

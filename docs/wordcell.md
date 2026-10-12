@@ -5,9 +5,8 @@ comes with a proof that leads back to the notes behind it, and your vault
 stays the one place that holds what you wrote.
 
 [Wordcell](https://wordcell.io) is a Markdown knowledge base that gives agents
-the decisions behind code. Oh is open-source memory for
-agents that stores each fact with its sources and every change in a history
-you can replay. Wordcell builds its graph with Oh’s record format and rule
+the decisions behind code. Oh is an ontology-driven memory
+framework for agents that keeps the records and history behind each memory. Wordcell builds its graph with Oh’s record format and rule
 engine, and each product keeps its own responsibilities:
 
 | Responsibility | Oh | Wordcell |
