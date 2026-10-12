@@ -202,7 +202,7 @@
   "devDependencies": {
     "@suss/datalog": "0.20.0",
     "@types/bun": "1.4.2",
-    "effect": "3.22.1",
+    "effect": "4.0.2",
     "fast-check": "4.9.0",
     "sigstore": "5.0.0",
     "typescript": "5.9.3",
