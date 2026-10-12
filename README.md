@@ -344,9 +344,8 @@ runtimes each one is tested under.
 
 With no `mode`, search and recall pick the strongest path you have configured:
 local reranking when a reranker is present, hybrid keyword and semantic search
-when a semantic backend is present, and keyword search otherwise. There is no
-experimental switch. Pass `mode` when you need a particular policy or a
-reproducible comparison. A backend that is missing adds a diagnostic to the
+when a semantic backend is present, and keyword search otherwise. Pass `mode`
+when you need a particular policy or a reproducible comparison. A backend that is missing adds a diagnostic to the
 response and leaves the other results in place.
 [Search and recall](docs/search.md) shows how to add local embeddings, a local
 reranker, or the hosted cache, and what each costs.
