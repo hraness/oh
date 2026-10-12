@@ -1,9 +1,11 @@
 # Oh
 
-> 🧾 Oh gives agents a memory that cites its sources. Every fact is stored with
-> what it rests on, every change goes into a history you can replay, and every
-> answer returns with its evidence. It runs on your machine as a CLI, an SDK,
-> and an agent skill.
+> 🧾 Oh is a memory framework with a unique ontology-driven approach. An agent's
+> memory becomes typed entities, relations, and facts, each carrying its history
+> and the records it came from. Recall returns the right level of detail for
+> the task, every memory traces back to its source, and anything wrong can be
+> corrected in place. Oh keeps the records and the history; your harness keeps
+> the policy.
 >
 > Ask your agent to set it up: https://oh.computer
 >
@@ -11,12 +13,13 @@
 
 [![skills.sh](https://skills.sh/b/hraness/oh)](https://skills.sh/hraness/oh)
 
-Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay. It is for TypeScript developers whose agents need to trace an answer back to the passage it came from.
+Oh is a memory framework for agents with an ontology-driven approach. Every memory keeps its history and the records behind it, so agents recall with context and you can trace and correct what they know.
 
-You get a TypeScript SDK, a CLI, and an Agent Skill. All three read and write
-the same versioned records and the same append-only log of operations. The
-default store is one SQLite file on your machine: it needs no account and no
-hosted model, and its search indexes can be deleted and rebuilt.
+It is for developers whose agents get asked why. You get a TypeScript SDK, a
+CLI, and an Agent Skill. All three read and write the same versioned records
+and the same append-only log of operations. The default store is one SQLite
+file on your machine: it needs no account and no hosted model, and its search
+indexes can be deleted and rebuilt.
 
 [Website](https://oh.computer) · [Versioned specification](spec/README.md) ·
 [Agent Skill](skills/oh/SKILL.md)
@@ -24,45 +27,86 @@ hosted model, and its search indexes can be deleted and rebuilt.
 Latest release: [v0.14.1](https://github.com/hraness/oh/releases/tag/v0.14.1)
 on [npm](https://www.npmjs.com/package/@hraness/oh), free and MIT licensed.
 
-## CLI updates
-
-Oh 0.14.1 and newer support automatic updates for Bun and npm globals
-on macOS and Linux. Use `oh update disable` to keep a version. See
-[update controls and supported installations](docs/cli-updates.md).
-
 ## Why Oh
 
-- **Every record says what it is.** A record declares a kind, a stable key, the
-  keys it depends on, and its content as canonical JSON (one fixed byte
-  encoding, so equal content always has the same SHA-256 digest). The ontology
-  and schemas that give kinds their meaning are versioned. Oh checks shape and
-  references; it cannot tell whether a statement is true.
-- **Every change is on the record.** A write names the head it expects (the
-  space’s current generation and operation digest) and fails if another writer
-  moved it first. Accepted operations are digested, chained to their parent,
-  and never rewritten, so `oh verify` can replay the history and compare. A
-  digest shows that bytes changed; it does not encrypt data or identify who
-  wrote them.
+- **An ontology, not a pile of notes.** Every record declares a kind from a
+  versioned ontology (entity, statement, assertion, evidence, context, inquiry,
+  projection), a stable key, the keys it depends on, and its content as
+  canonical JSON, so equal content always has the same SHA-256 digest. Oh
+  checks the shape and the references on every write.
+- **Every memory keeps its history.** A write names the head it expects and
+  fails if another writer moved it first. Accepted operations are digested,
+  chained to their parent, and never rewritten, so `oh verify` replays the
+  history and compares it with the records.
+- **Recall at the level of detail the task needs.** Search and recall return
+  records with the records they rest on. The progressive memory context reads
+  the same history as summaries your code publishes, and any summary opens
+  back into the originals it covers.
+- **Correct it in place.** A wrong memory gets a new record under the head you
+  reviewed; the old one stays in the history, so later work and earlier
+  answers can both be explained.
 - **The file you control is the source of truth.** Records and operations live
   in one SQLite file. Sync is a step you call, with a transport you supply, and
-  it accepts only histories that extend yours, after both sides confirm the same
-  contract (the versions of the record format, ontology, and schemas). Two
-  histories that diverge stop with a conflict for you to resolve.
-- **Search indexes are copies.** The keyword index, optional local embeddings,
-  and the optional hosted vector cache are built from current records and
-  rejoined to them by digest before a result is returned. Deleting an index
-  loses speed, never data.
-- **Rules derive facts without writing them.** Recursive rules run against one
-  graph head and return rows with proofs. The rows are output you can throw
-  away; saving one as knowledge takes your own reviewed write.
-- **Agents get scratch space apart from reviewed memory.** The memory
-  entry point pairs a working store the host can purge with a reviewed store
-  pinned at one head, and every answer says which store each premise came
-  from. Moving working records into the reviewed store goes through a host
-  call the agent never sees. See [Give an agent working memory](docs/working-memory.md).
+  it applies only a history that extends yours. Keyword and semantic indexes
+  are copies rebuilt from the records.
+- **Your code keeps the policy.** Oh stores and recalls; your application
+  decides which space an agent writes to, what moves from working memory into
+  reviewed memory, and which model answers. See
+  [Give an agent working memory](docs/working-memory.md).
 
-[The thread through hraness](https://hraness.com/writing/the-thread-through-hraness)
-follows this design across the projects.
+## How it works
+
+```mermaid
+flowchart LR
+  agent["Your agent<br/>learns, asks, acts"]
+  subgraph oh["Oh"]
+    direction TB
+    records["Records, each with the records it rests on"]
+    history["A history of every change"]
+    ontology["An ontology that types each record"]
+    recall["Recall at the level of detail the task needs"]
+  end
+  agent -- "remember, ask" --> oh
+  oh -- "recall, with its path back to the source" --> agent
+  agent -- "correct: a new record, history kept" --> oh
+```
+
+Your agent remembers and asks through the SDK, the CLI, or the Agent Skill.
+Oh writes each record with its kind and dependencies, appends the operation to
+the space's history, and answers a question with the records and the records
+behind them. When an answer is wrong, a correction is one more write under the
+head you reviewed. [Progressive memory context](docs/memory-context.md)
+explains how a host publishes summaries over that history and expands them
+back into the originals.
+
+## Find the right documentation
+
+- **Install and try it:** [Install and first run](#install-and-first-run),
+  then [Troubleshooting the first run](#troubleshooting-the-first-run).
+- **Build on it in TypeScript:** [Use the SDK](#use-the-sdk), then
+  [Call Oh from TypeScript](docs/sdk.md) and
+  [Search and recall](docs/search.md).
+- **Give an agent memory:** [Give an agent working memory](docs/working-memory.md),
+  [Progressive memory context](docs/memory-context.md),
+  [Memory pages and `.oh.md` files](docs/memory-pages.md), and
+  [How memory host calls run](docs/memory-runtime.md).
+- **Hand Oh to a coding agent:** the [Oh Agent Skill](skills/oh/SKILL.md).
+- **Store data somewhere other than a local file:**
+  [Direct libSQL store](docs/libsql-runtime.md) and
+  [Fast-forward sync](docs/sync-runtime.md).
+- **Run semantic search:**
+  [Local semantic backend lifecycle](docs/semantic-lifecycle.md) and
+  [Hosted semantic cache V2 lifecycle](docs/hosted-semantic-runtime.md).
+- **Derive facts with rules:** [Derive facts with rules](docs/projections.md).
+- **Store research sources:** [The research profile](docs/research-profile.md).
+- **Work with a Markdown vault:** [Oh and Wordcell](docs/wordcell.md).
+- **Implement or change a contract:** start at the
+  [specification map](spec/README.md), then read the version 1 text and its
+  JSON Schema together.
+- **See where Oh is headed:** [docs/plans](docs/plans/north-star.md) holds
+  plans, not shipped behavior.
+- **Contribute or report a vulnerability:** [CONTRIBUTING.md](CONTRIBUTING.md)
+  or the private process in [SECURITY.md](SECURITY.md).
 
 ## Install and first run
 
@@ -84,6 +128,11 @@ The same package bytes and their checksum are attached to the
 [`hraness-oh-0.14.1.tgz`](https://github.com/hraness/oh/releases/download/v0.14.1/hraness-oh-0.14.1.tgz)
 and
 [`SHA256SUMS`](https://github.com/hraness/oh/releases/download/v0.14.1/SHA256SUMS).
+
+Oh 0.14.1 and newer update their own Bun and npm global installs on macOS
+and Linux. `oh update disable` keeps a version;
+[update controls and supported installations](docs/cli-updates.md) has the
+details.
 
 The package runs wherever Bun runs. Its native SQLite snapshot helper
 (`@hraness/oh/sqlite-snapshot`) is prebuilt for macOS on Apple silicon and
@@ -295,9 +344,8 @@ runtimes each one is tested under.
 
 With no `mode`, search and recall pick the strongest path you have configured:
 local reranking when a reranker is present, hybrid keyword and semantic search
-when a semantic backend is present, and keyword search otherwise. There is no
-experimental switch. Pass `mode` when you need a particular policy or a
-reproducible comparison. A backend that is missing adds a diagnostic to the
+when a semantic backend is present, and keyword search otherwise. Pass `mode`
+when you need a particular policy or a reproducible comparison. A backend that is missing adds a diagnostic to the
 response and leaves the other results in place.
 [Search and recall](docs/search.md) shows how to add local embeddings, a local
 reranker, or the hosted cache, and what each costs.
@@ -362,74 +410,35 @@ Read [SECURITY.md](SECURITY.md) for the full public threat model.
 
 ## Benchmarks
 
-On all 500 [LongMemEval-S](benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md)
-questions, with GPT-5 mini answering each question three times and GPT-4o
-judging with LongMemEval’s prompts, Oh semantic retrieval scored **88.87%** and
-BM25 keyword retrieval **86.13%** (mean of three runs). On questions answered
-correctly in at least two of three runs, the measure fixed before the runs, Oh
-leads BM25 by 2.8 points with a 95% interval from 0.0 to 5.6, which does not
-rule out a tie. A lab pipeline that gives the model every message the user
-wrote, plus the assistant replies retrieval ranks highest, scored **93.07%**
-(474 of 500 on the two-of-three measure). Its instructions and rules were
-written after studying all 500 questions, so that score is in-sample, and the
-pipeline is not part of the package. The
-[benchmark report](https://oh.computer/blog/longmemeval-s-user-log) explains how
-it works and what the study cost.
+Oh measures memory by whether it changed later work: the same reader answers
+questions about long conversations with different memory in front of it. On
+all 500 [LongMemEval-S](benchmarks/LONGMEMEVAL_S_500_RESULT_V1.md) questions,
+completed September 26, 2026, GPT-5 mini answered each question three times and
+GPT-4o judged the answers with LongMemEval's prompts:
 
-The [SDK retrieval evaluation](benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md)
-scored **80.59%** answer accuracy with the configured default reranking against
-**69.86%** for matched semantic retrieval, a gain of **10.73 percentage
-points**. Both personas improved, and evidence recall@10 rose from **12.05% to
-26.10%**. All 876 reader cases completed on 146 development questions the
-project had already seen, with three repeats per arm. A separate comparison
-against ordinary hybrid retrieval, with fresh reader responses, scored **80.59%
-against 64.16%**; the two candidate samples are kept apart even though their
-scores match. The reader was the Gateway GPT-4o mini alias, scored by exact
-option ID with no judge. The route met its development thresholds only by
-counting one handled Metal startup message as allowed; a rule allowing no error
-logs at all would have failed it. No reranker run or cleanup failed. This is a
-development result, with no untouched holdout and no population-level
-confidence claim. Both comparisons used 1,752 reader calls and cost
-**$1.461086**.
+| Memory in front of the reader | Mean accuracy | Questions correct in at least two of three runs |
+| --- | --- | --- |
+| Oh semantic retrieval | 88.87% | 445 |
+| BM25 keyword retrieval | 86.13% | 431 |
+| Lab pipeline: the user's own log plus ranked replies and re-reads | 93.07% | 474 |
 
-In the earlier [CloneMem reserved-persona study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md),
-Oh’s combined lexical and vector candidates with local Qwen3 reranking scored
-**77.82%** answer accuracy against **70.54%** for vector retrieval, a paired
-gain of **7.28 percentage points** with a 95% persona-cluster bootstrap
-interval of **+4.61 to +10.27 points**. The study covers 861 questions from
-seven personas, three reader repeats per arm, and 5,166 completed cases. Mean
-evidence recall@10 rose from **14.48% to 32.80%**, with **22.1% fewer context
-bytes**. The seven personas were held out from immediate development, but the
-project had seen the data before. Two failed campaign attempts were excluded
-under a retry rule added during the run; their captures and costs are recorded.
-An [independent audit](benchmarks/CLONEMEM_RERANK_CONFIRM_AUDIT_V2.md)
-reproduced the scores and interval, and counting every missing first-attempt
-response against Oh left a gain of 6.16 points. The reader was the Gateway
-GPT-4o mini alias, with no verified fixed snapshot, and the scores describe
-that study’s renderer and candidate preparation, not every SDK deployment.
+On the two-of-three measure, fixed before the runs, Oh leads BM25 by 2.8
+points with a 95% interval from 0.0 to 5.6. The lab pipeline is not part of
+the package, and its rules were written after the same questions had been
+inspected; the [benchmark report](https://oh.computer/blog/longmemeval-s-user-log)
+explains how it works and what the study cost.
 
-In the [matched framework pilot](benchmarks/FRAMEWORK_PILOT_RESULT_V1.md),
-Supermemory scored **75.00%**, Oh **71.67%**, and a BM25 baseline **68.33%**.
-The paired Oh and Supermemory difference was **−3.33 points**, with a 95%
-within-type bootstrap interval from −13.33 to +6.67 that includes zero. All
-three shared the same 60 LongMemEval-S questions the project had already seen,
-a single query, a 20-item retrieval limit, an 8,192-token evidence renderer, a
-GPT-4o reader, and a fixed-rubric judge, with every planned case counted. The
-pilot is one configuration on development data.
-
-Oh has not shown that it outperforms Letta, Supermemory, or other memory
-frameworks. Published results from other projects use their own protocols, and
-the [website comparison](https://oh.computer/#benchmarks) keeps them apart from
-Oh’s matched runs. A comparison between frameworks needs a common dataset,
-reader, scoring procedure, context allowance, failure accounting, and
-production adapter.
-
-Results that did not pass are kept. On LoCoMo, query-aware packing raised
-evidence recall (90.08% against 88.93%) without an answer-quality gain (77.33%
-against 78.11%). Earlier CloneMem hybrid and keyword-fusion screens also missed
-their answer-quality targets. The
+Earlier studies are kept with their records: the
+[SDK retrieval evaluation](benchmarks/SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md)
+(default reranking 80.59% against 69.86% for matched semantic retrieval on 146
+development questions), the
+[CloneMem reserved-persona study](benchmarks/CLONEMEM_RERANK_CONFIRM_RESULT_V1.md)
+(local reranking 77.82% against 70.54% for vector retrieval on 861 questions),
+and the [matched framework pilot](benchmarks/FRAMEWORK_PILOT_RESULT_V1.md) on 60
+questions. Results that did not pass are kept too; the
 [experiment history and reproduction guide](benchmarks/README.md) lists every
-study.
+study, its dataset digests, and how to rerun it. Retrieval recall, answer
+quality, and how an agent writes memory are measured separately.
 
 Run the network-free state and projection checks from a checkout:
 
@@ -438,19 +447,6 @@ bun run test:benchmarks
 bun run bench:memory state
 bun run bench:memory projection
 ```
-
-The state suite checks updates, conflicts, provenance, and stale-write rejection.
-Reusing canonical tuple keys cut local median projection time by 25% to 34%
-across the recorded 16-, 32-, and 48-node cases, with identical result digests,
-proofs, and work counts. These microbenchmarks do not predict production
-latency.
-
-The [memory benchmark guide](benchmarks/README.md) covers checksum-pinned
-datasets, raw and extracted memory comparisons, spending limits for paid runs,
-recorded reader results, and how to reproduce each one. Retrieval recall,
-answer quality, and how an agent writes memory are measured separately. The
-benchmark adapters exist to reproduce past studies; the SDK defaults are
-described in [Use the SDK](#use-the-sdk).
 
 ## Verify a checkout
 
@@ -482,19 +478,13 @@ The JSON Schemas describe the exchanged formats. The runtime parsers also
 enforce canonical ordering, byte limits, references between records, and the
 exact bytes each digest covers, which JSON Schema cannot express.
 
-## Compared with Mem0, Supermemory, and Zep
+## Compare with other memory tools
 
-- Mem0 and Supermemory give each user of a product a memory, built from facts
-  a model extracts or documents you sync, with hosted plans. Oh has no
-  per-end-user scoping API, connectors, or hosted service.
-- Zep and its open-source Graphiti build a temporal knowledge graph: a model
-  extracts facts, and each fact records when it was true. Oh stores what you
-  write without a model rewriting it, in one SQLite file.
-- Oh links each record to the records it rests on, and `oh verify` replays
-  every change.
-
-The [comparison page](https://oh.computer/compare) has the full table, dated
-sources, and the matched benchmark runs.
+Most agent memory tools extract facts with a model and host them for you. Oh
+stores what you write, without a model rewriting it, in one SQLite file, and
+links each record to the records it rests on. The
+[comparison page](https://oh.computer/compare) sets Oh beside the hosted and
+open-source alternatives with dated sources and the matched benchmark runs.
 
 ## Who builds on Oh
 
@@ -519,33 +509,6 @@ Each consumer pins an immutable release and upgrades on its own schedule:
 [Oh and Wordcell](docs/wordcell.md) explains where one ends and the other
 begins. Wordcell measures its own search pipeline; Oh’s memory benchmark
 scores do not carry over to it.
-
-## Find the right documentation
-
-- **Project direction:** [The memory north star](docs/north-star.md) describes proposed source-preserving overviews and the later-use evidence needed for adoption.
-- **Try it:** [Install and first run](#install-and-first-run).
-- **Build on it in TypeScript:** [Use the SDK](#use-the-sdk), then
-  [Call Oh from TypeScript](docs/sdk.md) and
-  [Search and recall](docs/search.md).
-- **Store data somewhere other than a local file:**
-  [Direct libSQL store](docs/libsql-runtime.md) and
-  [Fast-forward sync](docs/sync-runtime.md).
-- **Give an agent memory:** [Give an agent working memory](docs/working-memory.md),
-  [Memory pages and `.oh.md` files](docs/memory-pages.md),
-  [Progressive memory context](docs/memory-context.md), and
-  [How memory host calls run](docs/memory-runtime.md).
-- **Derive facts with rules:** [Derive facts with rules](docs/projections.md).
-- **Run semantic search:**
-  [Local semantic backend lifecycle](docs/semantic-lifecycle.md) and
-  [Hosted semantic cache V2 lifecycle](docs/hosted-semantic-runtime.md).
-- **Store research sources:** [The research profile](docs/research-profile.md).
-- **Hand Oh to an agent or work with a Markdown vault:** the
-  [Oh Agent Skill](skills/oh/SKILL.md) or [Oh and Wordcell](docs/wordcell.md).
-- **Implement or change a contract:** start at the
-  [specification map](spec/README.md), then read the version 1 text and its
-  JSON Schema together.
-- **Contribute or report a vulnerability:** [CONTRIBUTING.md](CONTRIBUTING.md)
-  or the private process in [SECURITY.md](SECURITY.md).
 
 ## Contribute and license
 

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, extname, join, relative, resolve } from "node:path";
 
@@ -20,7 +21,13 @@ import {
 } from "../src/cloudflare-embedding.ts";
 
 const root = resolve(import.meta.dir, "..");
-const tagline = "Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.";
+// The package description and the README opener come from the portfolio
+// messaging snapshot, so every public surface makes the same claim.
+const messaging = JSON.parse(readFileSync(join(root, "site/portfolio-messaging.generated.json"), "utf8")).messaging as {
+  meta: string;
+  medium: string;
+};
+const tagline = messaging.meta;
 
 const markdownFiles = [
   "README.md",
@@ -189,7 +196,7 @@ describe("public identity and documentation", () => {
       readFile(join(root, "docs/research-profile.md"), "utf8"),
     ]);
     expect(readme.startsWith("# Oh\n")).toBe(true);
-    expect(readme).toContain(tagline);
+    expect(readme).toContain(messaging.medium);
     expect(packageJson.name).toBe("@hraness/oh");
     expect(packageJson.version).toBe("0.14.1");
     expect(sitePackageJson.version).toBe(packageJson.version);

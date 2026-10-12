@@ -1,3 +1,4 @@
+import { formatArticleDate } from "@hraness/design-kit";
 import { marketing } from "../../portfolio-copy";
 import { MarketingSiteHeader } from "@hraness/design-kit/react/server";
 import { DesignPaletteMenuButton } from "@hraness/design-kit/react";
@@ -7,6 +8,7 @@ import type { Metadata } from "next";
 import { docsPage, docsPages, type DocsPath } from "./catalog";
 import { docsHtml } from "./docs.generated";
 import { docsImageAlt } from "../social";
+import release from "../../published-release.json";
 
 const repository = "https://github.com/hraness/oh";
 
@@ -76,6 +78,9 @@ export function DocsPage({ path }: Readonly<{ path: DocsPath }>) {
             <p className="plain-publication__eyebrow">Documentation</p>
             <h1 id="docs-title">{page.heading}</h1>
             <p className="plain-publication__article-dek">{page.dek}</p>
+            <p className="plain-publication__article-meta">
+              Rendered from <code>{page.source}</code> for Oh {release.version} · Reviewed <time dateTime={page.reviewedOn}>{formatArticleDate(page.reviewedOn)}</time>
+            </p>
           </header>
           <div className="plain-publication__article-layout">
             <nav aria-labelledby="docs-contents" className="plain-publication__toc">

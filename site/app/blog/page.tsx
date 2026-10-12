@@ -1,11 +1,9 @@
-import { ArticleIndex } from "@hraness/design-kit/react/server";
 import { blogJsonLd } from "@hraness/web-discovery";
 import { JsonLdScript } from "@hraness/web-discovery/json-ld";
 import type { Metadata } from "next";
 
 import {
   articleDiscovery,
-  articleIndexItem,
   blogDescription,
   blogDiscovery,
   blogPath,
@@ -16,6 +14,7 @@ import {
 } from "./articles";
 import { blogImageAlt } from "./social";
 import { BlogHeader } from "./blog-header";
+import { BlogIndexList } from "./blog-index";
 
 export const metadata: Metadata = {
   title: blogTitle,
@@ -55,14 +54,7 @@ export default function BlogIndex() {
           data={blogJsonLd(ohSearchSite, blogDiscovery, indexableArticles.map(articleDiscovery))}
           id="blog-json-ld"
         />
-        <ArticleIndex
-          heading="Blog"
-          showDates={false}
-          headingId="blog-title"
-          headingLevel={1}
-          items={indexableArticles.map(articleIndexItem)}
-          summary={blogDescription}
-        />
+        <BlogIndexList articles={indexableArticles} summary={blogDescription} />
         <p className="blog-feed-link"><a className="hraness-text-link" href={feedPath}>Atom feed</a></p>
       </main>
     </>

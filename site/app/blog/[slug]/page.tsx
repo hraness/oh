@@ -65,7 +65,7 @@ export default async function ArticlePage({ params }: Readonly<{ params: Params 
         <MarketingArticle
           after={
             <>
-              <ArticleSources sources={sources} showDates={false} />
+              <ArticleSources sources={sources} />
               {relatedProducts.length === 0 ? null : <ArticleRelatedProducts items={relatedProducts} />}
             </>
           }
@@ -75,7 +75,6 @@ export default async function ArticlePage({ params }: Readonly<{ params: Params 
           provenance={articleProvenance(article)}
           published={article.published}
           updated={article.updated}
-          showDates={false}
           toc={article.toc}
         >
           <Body />

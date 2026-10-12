@@ -45,5 +45,6 @@
   "type": "module",
   "overrides": {
     "fast-glob": "npm:tinyglobby@0.2.17"
-  }
+  },
+  "description": "Oh is an ontology-driven memory framework for agents. It keeps the records and history behind each memory, so agents recall more and you can correct them."
 }

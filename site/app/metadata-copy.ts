@@ -2,7 +2,7 @@ import { marketing } from "../portfolio-copy";
 // Page metadata and the generated social images read these strings, so each
 // title and description is written once. Image alt text comes from ./social.
 
-export const homeTitle = `${marketing.names.name}: ${marketing.hero.heading}`;
+export const homeTitle = `${marketing.names.name} · ${marketing.tagline}`;
 export const homeDescription =
   marketing.meta;
 export const specificationTitle = `${marketing.names.name} ontology v1: records, storage, and sync specification`;

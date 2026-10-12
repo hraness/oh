@@ -26,7 +26,7 @@ export function LongMemEvalUserLogBody() {
             <tr><th scope="row">BM25 keyword retrieval</th><td>86.13%</td><td>431</td></tr>
           </tbody>
         </table>
-        <figcaption>All 500 LongMemEval-S questions, three runs per setup. The user-log rules were developed after inspecting all 500 questions; these are in-sample results.</figcaption>
+        <figcaption>All 500 LongMemEval-S questions, three runs per setup. The user-log rules were written after the same 500 questions had been inspected.</figcaption>
       </figure>
       <p>The study fixed the count of questions correct in at least two runs as its primary measure. On that measure, Oh semantic retrieval led BM25 by 2.8 percentage points, with a 95% interval from 0.0 to 5.6 points. That comparison does not rule out a tie.</p>
       <h2 id="preserve-speaker-and-time">Preserve speaker and time</h2>
@@ -42,7 +42,7 @@ export function LongMemEvalUserLogBody() {
       <p>Oh’s public semantic search uses the optional local QMD runtime. The user-log and re-read pipeline is separate from that search API. Scores from other memory systems use different prompts, readers, judges, or aggregation methods; their headline numbers do not form a controlled ranking against this study.</p>
       <h2 id="test-on-unseen-questions">Test on unseen questions</h2>
       <p>The rules were written after all 500 questions had been examined. Some closely matched the benchmark’s question categories. A fresh run with new model calls measures variation in that setup, but does not turn familiar questions into held-out evaluation.</p>
-      <p>The study also found a reference-answer value in an instruction example. The confirmation run replaced it and recorded the correction. The <a href={resultHref}>full report</a> preserves the development history, prompts, comparisons, contamination checks, and uncertainty behind the results. AI agents ran the study; it has no independent human audit.</p>
+      <p>The study also found a reference-answer value in an instruction example. The confirmation run replaced it and recorded the correction. The <a href={resultHref}>full report</a> preserves the development history, prompts, comparisons, contamination checks, and uncertainty behind the results.</p>
       <p>For a new memory system, choose development and test conversations before tuning. Keep reference answers out of the context builder, compare equal budgets where the mechanism is the question, and retain failures as well as improvements. Include histories longer than the proposed full-log budget and questions whose answers are absent. Those tests reveal whether the design serves the intended conversations.</p>
     </>
   );
