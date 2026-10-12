@@ -20,6 +20,8 @@ export interface DocsPageEntry {
   readonly cardHeadline: string;
   readonly cardDescription: string;
   readonly source: "README.md" | "docs/sdk.md";
+  /** The day the rendered page was last read against the current release. */
+  readonly reviewedOn: `${number}-${number}-${number}`;
   /** README sections in page order. Absent for a page rendered from a whole file. */
   readonly sections?: readonly DocsReadmeSection[];
 }
@@ -35,6 +37,7 @@ export const docsPages = [
     cardHeadline: "Get started with Oh",
     cardDescription: "Install the CLI, store a first record, call the SDK, and give Oh to an agent.",
     source: "README.md",
+    reviewedOn: "2026-10-13",
     sections: [
       { heading: "Find the right documentation", alias: "tasks" },
       { heading: "Install and first run" },
@@ -56,6 +59,7 @@ export const docsPages = [
     cardHeadline: "Call Oh from TypeScript",
     cardDescription: "SDK methods, batch writes, error classes, and every entry point.",
     source: "docs/sdk.md",
+    reviewedOn: "2026-10-13",
   },
 ] as const satisfies readonly DocsPageEntry[];
 

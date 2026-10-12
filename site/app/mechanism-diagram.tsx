@@ -41,7 +41,7 @@ export function MechanismDiagram() {
         <rect height={HOST.height} rx="10" width={HOST.width} x={HOST.x} y={HOST.y} />
         <text className="oh-mechanism__title" x={HOST.x + 18} y={HOST.y + 34}>Your agent</text>
         <text className="oh-mechanism__detail" x={HOST.x + 18} y={HOST.y + 64}>Learns, asks, and acts.</text>
-        <text className="oh-mechanism__detail" x={HOST.x + 18} y={HOST.y + 88}>Your harness keeps the policy:</text>
+        <text className="oh-mechanism__detail" x={HOST.x + 18} y={HOST.y + 88}>Your code keeps the policy:</text>
         <text className="oh-mechanism__detail" x={HOST.x + 18} y={HOST.y + 112}>spaces, permissions, retention,</text>
         <text className="oh-mechanism__detail" x={HOST.x + 18} y={HOST.y + 136}>and which model answers.</text>
       </g>
