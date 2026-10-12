@@ -41,10 +41,17 @@ const CARD_HEIGHT = 74;
 const WIDTH = 960;
 const HEIGHT = 400;
 
+/** The card is 236px wide; about 28 characters of 14px text fit beside its padding. */
+const VALUE_CHARS = 28;
+
 function valueLine(key: string): string {
   const value = trailRecord(key).value;
-  if (key === "evidence:table-2") return `${value.locator}, ${value.relationship}`;
-  return value.title ?? value.captured ?? value.text ?? value.stance ?? "";
+  const line = key === "evidence:table-2"
+    ? `${value.locator}, ${value.relationship}`
+    : value.title ?? value.captured ?? value.text ?? value.stance ?? "";
+  if (line.length <= VALUE_CHARS) return line;
+  const cut = line.slice(0, VALUE_CHARS);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 12)).trimEnd()}…`;
 }
 
 function relationLabel(from: string, to: string): string {
