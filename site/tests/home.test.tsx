@@ -19,7 +19,6 @@ import releaseNano from "../../benchmarks/results/memory-evolution-full-release-
 import releaseFullContext from "../../benchmarks/results/memory-evolution-full-context-500-v1.json";
 import { indexableArticles } from "../app/blog/articles";
 import { marketing } from "../portfolio-copy";
-import { marketing } from "../portfolio-copy";
 
 test("renders the canonical portfolio hero and install heading", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);

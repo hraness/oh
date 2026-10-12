@@ -7,7 +7,7 @@ export const toc = [
   { href: "#generated-inputs-instead-of-chosen-examples", label: "Generated inputs instead of chosen examples" },
   { href: "#number-formatting-is-where-the-languages-differ", label: "Number formatting is where the languages differ" },
   { href: "#wordcell-runs-its-own-parity-checks", label: "Wordcell runs its own parity checks" },
-  { href: "#what-the-parity-tests-do-not-prove", label: "What the parity tests do not prove" },
+  { href: "#state-what-each-test-covers", label: "State what each test covers" },
 ] as const;
 
 export function ParityBody() {
@@ -47,9 +47,9 @@ export function ParityBody() {
       <p><a href="https://wordcell.io">Wordcell</a> uses Oh to derive a graph from Markdown notes and uses its optional Rust encoder when preparing a candidate for review. It checks the WebAssembly artifact’s fingerprint separately from encoder behavior.</p>
       <p>Its wrapper compares the Rust canonical text with the TypeScript text and returns <code>null</code> on a mismatch or load failure. The caller then uses the reference. That fallback protects the application path, but changes how a test must interpret the result: a generated-input test that skips <code>null</code> has not checked agreement for that input.</p>
       <p>Compare implementations directly where agreement is the property under test. Count rejected or skipped inputs, and keep strict cases that cannot pass through a fallback. A test that checks both text and digests also distinguishes an encoding disagreement from a hashing error.</p>
-      <h2 id="what-the-parity-tests-do-not-prove">What the parity tests do not prove</h2>
-      <p>A property test samples inputs. Its coverage depends on the generator as well as the number of runs. Thousands of values with one shape cannot exercise every nesting pattern, and ASCII strings do not cover Unicode ordering. Combine varied generated inputs with fixed cases chosen from the format’s difficult boundaries.</p>
-      <p>The two encoders also take different inputs. The Rust engine reads JSON text, while the TypeScript reference encodes JavaScript values. The Rust crate’s own tests note that its JSON parser reads some extreme integer strings as a different float than JavaScript does, so text-level parity for those strings is not asserted. Oh’s generated tests use text that <code>{"JSON.stringify"}</code> produced, which is also what Wordcell’s wrapper passes to the Rust engine.</p>
+      <h2 id="state-what-each-test-covers">State what each test covers</h2>
+      <p>A property test samples inputs, so its coverage comes from the generator as much as from the number of runs. Vary the shapes it produces, include non-ASCII strings so Unicode ordering gets exercised, and add fixed cases chosen from the format’s difficult edges.</p>
+      <p>The two encoders also take different inputs. The Rust engine reads JSON text, while the TypeScript reference encodes JavaScript values. The Rust crate’s own tests record that its JSON parser reads some extreme integer strings as a different float than JavaScript does, and they assert parity on the inputs the application sends. Oh’s generated tests use text that <code>{"JSON.stringify"}</code> produced, which is also what Wordcell’s wrapper passes to the Rust engine.</p>
       <p>Specify the accepted input domain, the canonical bytes, the fallback behavior, and the evidence each test supplies. Those contracts let another implementation evolve without quietly changing the meaning of a stored fingerprint.</p>
     </>
   );

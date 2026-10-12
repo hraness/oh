@@ -6,10 +6,10 @@ Posts go out from the @hraness account. Show HN and the Product Hunt first comme
 
 ## X thread
 
-Post 1 of 9, 170 characters
+Post 1 of 9, 209 characters
 
 ```text
-Oh is free, open-source memory for AI agents. Your agent saves what it learns as linked records, each tied to its source, so later you can see what it remembered and why.
+Oh is free, open-source agent memory with an ontology-driven approach. What an agent learns becomes typed entities, relations, and facts, each with its history and the records behind it, so you can correct it.
 ```
 
 Post 2 of 9, 207 characters
@@ -64,10 +64,10 @@ https://oh.computer/blog/introducing-oh
 
 ## Bluesky thread
 
-Post 1 of 9, 170 characters
+Post 1 of 9, 209 characters
 
 ```text
-Oh is free, open-source memory for AI agents. Your agent saves what it learns as linked records, each tied to its source, so later you can see what it remembered and why.
+Oh is free, open-source agent memory with an ontology-driven approach. What an agent learns becomes typed entities, relations, and facts, each with its history and the records behind it, so you can correct it.
 ```
 
 Post 2 of 9, 207 characters
@@ -122,10 +122,10 @@ https://oh.computer/blog/introducing-oh
 
 ## Threads thread
 
-Post 1 of 9, 170 characters
+Post 1 of 9, 209 characters
 
 ```text
-Oh is free, open-source memory for AI agents. Your agent saves what it learns as linked records, each tied to its source, so later you can see what it remembered and why.
+Oh is free, open-source agent memory with an ontology-driven approach. What an agent learns becomes typed entities, relations, and facts, each with its history and the records behind it, so you can correct it.
 ```
 
 Post 2 of 9, 207 characters
@@ -181,7 +181,7 @@ https://oh.computer/blog/introducing-oh
 ## LinkedIn post
 
 ```text
-Oh is free, open-source memory for AI agents. Your agent saves what it learns as linked records, each tied to its source, so later you can see what it remembered and why.
+Oh is free, open-source agent memory with an ontology-driven approach. What an agent learns becomes typed entities, relations, and facts, each with its history and the records behind it, so you can correct it.
 
 Say your agent read a trial report on Monday and tells you on Thursday the endpoint was measured at 12 weeks. With Oh you can follow that answer to its citation, then to the exact copy of the report it read.
 
@@ -217,7 +217,7 @@ Topics: Developer Tools, Open Source, Artificial Intelligence
 ## Show HN and first comment fact sheet
 
 - Ontology-driven memory for agents
-- Oh is free, open-source memory for AI agents. Your agent saves what it learns as linked records, each tied to its source, so later you can see what it remembered and why.
+- Oh is free, open-source agent memory with an ontology-driven approach. What an agent learns becomes typed entities, relations, and facts, each with its history and the records behind it, so you can correct it.
 - Say your agent read a trial report on Monday and tells you on Thursday the endpoint was measured at 12 weeks. With Oh you can follow that answer to its citation, then to the exact copy of the report it read.
 - The oh command finds a saved question by keyword and prints the answer with the records it rests on. It needs no account and no AI model. People get short text; add --json and your own scripts get the same answer as JSON.
 - An agent using Oh can do four things: remember, look up, explain and propose. It can suggest a note for your reviewed knowledge, but only your app's own code can accept it.
@@ -229,7 +229,7 @@ Topics: Developer Tools, Open Source, Artificial Intelligence
 
 ## Beats
 
-1. Oh is memory for AI agents that shows where each fact came from
+1. Agent memory with an ontology, not a pile of notes
 2. Follow an answer back to the table it came from
 3. Look up a saved answer from the terminal
 4. Your agent can propose, and your app decides

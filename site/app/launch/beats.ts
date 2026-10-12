@@ -24,8 +24,8 @@ const authoredBeats: readonly LaunchBeat[] = [
   {
     id: "what",
     part: "what",
-    headline: "Oh is memory for AI agents that shows where each fact came from",
-    post: "Oh is free, open-source memory for AI agents. Your agent saves what it learns as linked records, each tied to its source, so later you can see what it remembered and why.",
+    headline: "Agent memory with an ontology, not a pile of notes",
+    post: "Oh is free, open-source agent memory with an ontology-driven approach. What an agent learns becomes typed entities, relations, and facts, each with its history and the records behind it, so you can correct it.",
     visual: { kind: "mockup", id: "trail-map", state: { focus: "all" } },
     alt: "In this illustration, the question, source, claim, evidence and answer of one review, saved as linked records.",
   },

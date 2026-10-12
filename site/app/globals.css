@@ -957,3 +957,78 @@ body > :not(.network-footer) { min-inline-size: 0; }
   .oh-mechanism__node circle { fill: Highlight; }
   .oh-mechanism__flow path, .oh-mechanism__loop path { stroke: CanvasText; }
 }
+
+/* Blog index entries pair a card image with the shared entry text. */
+.blog-entry {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 40rem) {
+  .blog-entry {
+    grid-template-columns: 10rem minmax(0, 1fr);
+  }
+}
+
+.blog-entry__text {
+  min-inline-size: 0;
+}
+
+.blog-card {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 16rem;
+  block-size: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.blog-card__paper {
+  fill: var(--surface, var(--card, var(--background)));
+}
+
+.blog-card__bar,
+.blog-card__node {
+  fill: var(--muted);
+}
+
+.blog-card__bar:first-of-type,
+.blog-card__node--primary {
+  fill: var(--primary);
+}
+
+.blog-card__record {
+  fill: var(--background);
+  stroke: var(--foreground);
+  stroke-width: 1.5;
+}
+
+.blog-card__edge {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.blog-card__edge--thick {
+  stroke: var(--primary);
+  stroke-width: 3;
+}
+
+.blog-card__rule {
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+@media (forced-colors: active) {
+  .blog-card { border-color: CanvasText; }
+  .blog-card__paper { fill: Canvas; }
+  .blog-card__bar, .blog-card__node { fill: GrayText; }
+  .blog-card__bar:first-of-type, .blog-card__node--primary { fill: Highlight; }
+  .blog-card__record { fill: Canvas; stroke: CanvasText; }
+  .blog-card__edge, .blog-card__rule { stroke: CanvasText; }
+  .blog-card__edge--thick { stroke: Highlight; }
+}

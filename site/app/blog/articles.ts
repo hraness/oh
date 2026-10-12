@@ -32,7 +32,7 @@ export const feedPath = "/blog/feed.xml" as const;
 export const blogName = "Oh blog";
 export const blogTitle = `${blogName}: agent memory, research, and engineering`;
 export const blogDescription =
-  "Hraness on how Oh works and how it is tested, from a run on all 500 LongMemEval-S questions to the property tests behind its Rust encoder.";
+  "Hraness on how Oh organizes agent memory and how it is tested, from a run on all 500 LongMemEval-S questions to the property tests behind its Rust encoder.";
 
 export const ohSearchSite: SearchSite = {
   description: homeDescription,
@@ -106,11 +106,14 @@ export const articles: readonly OhArticle[] = [
   {
     slug: "introducing-oh",
     title: "Introducing Oh",
-    metaTitle: "Introducing Oh: open-source memory for AI agents",
-    metaDescription: "Introducing Oh, open-source memory for AI agents: explore its CLI, evidence records, source links, and replayable history with a working example.",
+    metaTitle: "Introducing Oh: ontology-driven memory for agents",
+    metaDescription: "Introducing Oh, an open-source memory framework for agents with an ontology-driven approach: typed entities and relations, the records behind each memory, and a history you can trace and correct.",
     dek: homeDescription,
     eyebrow: "Announcement",
-    card: { description: "Free, open-source memory for AI agents that shows where each fact came from." },
+    card: {
+      headline: "Agent memory with an ontology",
+      description: "Open-source memory for agents that keeps the records and history behind what they know.",
+    },
     published: "2026-09-24",
     updated: "2026-10-01",
     keywords: ["Oh", "agent memory", "AI agent memory", "provenance", "open source", "TypeScript"],
