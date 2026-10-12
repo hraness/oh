@@ -10,9 +10,9 @@ The product's [record and operation model](../../README.md#how-oh-behaves) suppl
 
 Oh stores versioned records and an append-only history of accepted operations. The default store is local SQLite. Keyword and optional semantic indexes are derived from records and checked against their content digests before a result is returned.
 
-The [memory interface](working-memory.md) separates an agent's working store from a reviewed store pinned at a particular head, meaning one point in its operation history. The agent can remember, query, explain, and nominate. Only trusted application code can move the reviewed pin or adopt a nomination. A logical query identifies the origin of its premises; a proof shows a derivation from those premises, not that they are true outside the store.
+The [memory interface](../working-memory.md) separates an agent's working store from a reviewed store pinned at a particular head, meaning one point in its operation history. The agent can remember, query, explain, and nominate. Only trusted application code can move the reviewed pin or adopt a nomination. A logical query identifies the origin of its premises; a proof shows a derivation from those premises, not that they are true outside the store.
 
-[Memory pages](memory-pages.md) provide readable Markdown with source references and a reference to a host-written attestation. They can round-trip through `.oh.md` files. Parsing a page does not establish that the attestation exists or that its prose is correct. None of these interfaces supplies an automatic chronological summary tree.
+[Memory pages](../memory-pages.md) provide readable Markdown with source references and a reference to a host-written attestation. They can round-trip through `.oh.md` files. Parsing a page does not establish that the attestation exists or that its prose is correct. None of these interfaces supplies an automatic chronological summary tree.
 
 ## Add a small overview with a path back to the original
 

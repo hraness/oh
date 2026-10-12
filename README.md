@@ -58,7 +58,7 @@ on [npm](https://www.npmjs.com/package/@hraness/oh), free and MIT licensed.
 
 ```mermaid
 flowchart LR
-  agent["Your agent\nlearns, asks, acts"]
+  agent["Your agent<br/>learns, asks, acts"]
   subgraph oh["Oh"]
     direction TB
     records["Records, each with the records it rests on"]
