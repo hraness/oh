@@ -88,7 +88,7 @@ describe("public site surface", () => {
     const metadataCopy = await readFile(join(root, "site/app/metadata-copy.ts"), "utf8");
     expect(page).toContain("const heading = marketing.hero.heading;");
     expect(page).toContain('headingId="hero-title"');
-    expect(metadataCopy).toContain("export const homeTitle = `${marketing.names.name}: ${marketing.hero.heading}`;");
+    expect(metadataCopy).toContain("export const homeTitle = `${marketing.names.name} · ${marketing.tagline}`;");
     expect(layout).toContain("homeTitle as title");
     expect(page).toContain("$ oh put --kind evidence --key evidence:table-2");
     expect(page).toContain("$ oh verify");
