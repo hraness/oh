@@ -900,3 +900,60 @@ body > :not(.network-footer) { min-inline-size: 0; }
   .founder-note { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
   .founder-note__body p { font-size: 1.25rem; }
 }
+
+/* Ontology figure: loose notes resolve into typed records. CSS-only motion;
+ * the final frame is the static one, so reduced motion and search snippets
+ * see the finished drawing. Colors come from the palette so both appearances work. */
+.oh-ontology { margin: 0; min-inline-size: 0; color: var(--foreground); }
+.oh-ontology__scroll { overflow-x: auto; max-inline-size: 100%; }
+.oh-ontology__scroll:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.oh-ontology__canvas { display: block; inline-size: 100%; min-inline-size: 40rem; block-size: auto; font-family: var(--font-text); }
+.oh-ontology__column { fill: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.oh-ontology__note rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.oh-ontology__note text { fill: var(--muted); font-size: 15px; font-style: italic; }
+.oh-ontology__resolve { fill: none; stroke: var(--primary); stroke-width: 1.5; opacity: .8; }
+.oh-ontology__relation path { fill: none; stroke: var(--foreground); stroke-width: 1.5; }
+.oh-ontology__relation rect { fill: var(--background); stroke: var(--line); }
+.oh-ontology__relation text { fill: var(--muted); font-size: 12px; font-weight: 600; }
+.oh-ontology__record rect { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+.oh-ontology__kind { fill: var(--primary); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.oh-ontology__key { fill: var(--foreground); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; }
+.oh-ontology__value { fill: var(--muted); font-size: 14px; }
+.oh-ontology__source rect { fill: var(--background); stroke: var(--primary); }
+.oh-ontology__source text { fill: var(--primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+.oh-ontology figcaption { margin-block-start: 1rem; max-inline-size: 76ch; color: var(--muted); font-size: .875rem; line-height: 1.5; }
+.oh-ontology figcaption code { font-size: .8125rem; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .oh-ontology__note { animation: oh-ontology-fade 600ms ease-out both; animation-delay: calc(var(--oh-step, 0) * 700ms); }
+  .oh-ontology__resolve { stroke-dasharray: 700; stroke-dashoffset: 700; animation: oh-ontology-draw 900ms ease-in-out forwards; animation-delay: calc(350ms + var(--oh-step, 0) * 700ms); }
+  .oh-ontology__record { animation: oh-ontology-settle 600ms ease-out both; animation-delay: calc(900ms + var(--oh-step, 0) * 700ms); }
+  .oh-ontology__relation { animation: oh-ontology-settle 600ms ease-out both; animation-delay: 2.8s; }
+}
+@keyframes oh-ontology-fade { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@keyframes oh-ontology-draw { to { stroke-dashoffset: 0; } }
+@keyframes oh-ontology-settle { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (forced-colors: active) {
+  .oh-ontology__note rect, .oh-ontology__record rect, .oh-ontology__relation rect, .oh-ontology__source rect { fill: Canvas; stroke: CanvasText; }
+  .oh-ontology text { fill: CanvasText; }
+  .oh-ontology__resolve, .oh-ontology__relation path { stroke: CanvasText; opacity: 1; }
+  .oh-ontology__kind, .oh-ontology__source text { fill: Highlight; }
+}
+
+/* Mechanism diagram: the agent beside Oh, with the correction loop. */
+.oh-mechanism .hraness-diagram__canvas { color: var(--foreground); }
+.oh-mechanism__node rect { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+.oh-mechanism__node[data-node="oh"] rect { stroke: var(--primary); }
+.oh-mechanism__node circle { fill: var(--primary); }
+.oh-mechanism__title { fill: var(--foreground); font-size: 20px; font-weight: 600; }
+.oh-mechanism__detail { fill: var(--muted); font-size: 16px; }
+.oh-mechanism__flow path, .oh-mechanism__loop path { fill: none; stroke: var(--foreground); stroke-width: 1.5; }
+.oh-mechanism__loop rect { fill: var(--background); stroke: var(--line); }
+.oh-mechanism__label { fill: var(--muted); font-size: 14px; font-weight: 600; }
+@media (forced-colors: active) {
+  .oh-mechanism__node rect, .oh-mechanism__loop rect { fill: Canvas; stroke: CanvasText; }
+  .oh-mechanism text { fill: CanvasText; }
+  .oh-mechanism__node circle { fill: Highlight; }
+  .oh-mechanism__flow path, .oh-mechanism__loop path { stroke: CanvasText; }
+}

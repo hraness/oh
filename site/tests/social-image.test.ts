@@ -87,7 +87,7 @@ describe("Oh share images", () => {
     });
     const fit = socialImageFit(socialImageSiteDetails(ohSocialSite, homeSocialPage));
     expect(fit.layout).toBe("product");
-    expect(fit.headline.lines).toEqual(["Agent memory", "that shows its work."]);
+    expect(fit.headline.lines).toEqual(["Agent memory with", "an ontology, not a pile of notes."]);
     expect(fit.description?.lines.join(" ")).toBe(ohSocialSite.description);
     expect(fit.issues.filter((issue) => !issue.includes("repeats the site tagline"))).toEqual([]);
     // The product layout shows the tagline beneath the hero headline by design;

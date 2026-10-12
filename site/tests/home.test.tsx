@@ -19,6 +19,7 @@ import releaseNano from "../../benchmarks/results/memory-evolution-full-release-
 import releaseFullContext from "../../benchmarks/results/memory-evolution-full-context-500-v1.json";
 import { indexableArticles } from "../app/blog/articles";
 import { marketing } from "../portfolio-copy";
+import { marketing } from "../portfolio-copy";
 
 test("renders the canonical portfolio hero and install heading", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
@@ -187,7 +188,7 @@ test("every public page renders the in-flow content footer above the shared foot
     expect(networkFooter).toBeGreaterThan(contentFooter);
     expect(html).toContain("hraness-marketing-footer__brand");
     expect(html).toContain('src="/marks/oh-computer.svg"');
-    expect(html).toContain("Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.");
+    expect(html).toContain(marketing.meta);
     expect(html).toContain('id="hraness-site-footer"');
     expect(html).toContain("https://account.hraness.com/support?product=oh-computer&amp;source=web#support");
     expect(html).not.toContain('type="email"');
@@ -339,7 +340,8 @@ test("the home JSON-LD defines the website and the software the other pages refe
 test("the home page sets the founder note directly below the hero without a signature", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
   expect(html).toContain('class="founder-note"');
-  expect(html).toContain("Oh gives agents a memory that cites its sources.");
+  expect(html).toContain("Oh is a memory framework with a unique ontology-driven approach.");
+  expect(html).toContain(marketing.blurb.text.replaceAll("'", "&#x27;"));
   expect(html).toContain("Ask your agent to set it up:");
   expect(html).toContain("oh.computer");
   expect(html).not.toContain("founder-note__signature");

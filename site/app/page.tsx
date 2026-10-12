@@ -21,8 +21,10 @@ import { ohSearchSite } from "./blog/articles";
 import { FounderNote } from "./founder-note";
 import { homeDescription } from "./metadata-copy";
 import { CodeBlock, Terminal, Transcript } from "./code-block";
+import { MechanismDiagram } from "./mechanism-diagram";
 import { AgentHostSplit } from "./mockups/trail";
 import { TrailSteps } from "./mockups/trail-steps";
+import { OntologyFigure } from "./ontology-figure";
 
 const releaseVersion = publishedRelease.version;
 const installCommand = `bun add --global @hraness/oh@${releaseVersion}`;
@@ -43,8 +45,22 @@ if (!portfolio.relations.some(item => item.source === wordcell.id && item.target
 }
 
 // The author's own description of Oh, from the portfolio registry.
-const founderNote =
-  "Oh gives agents a memory that cites its sources. Every fact is stored with what it rests on, every change goes into a history you can replay, and every answer returns with its evidence. It runs on your machine as a CLI, an SDK, and an agent skill.";
+const founderNote = marketing.blurb.text;
+
+const audience = [
+  {
+    label: "Agents that get asked why",
+    summary: "Your agent answers a question on Thursday from something it read on Monday, and someone asks where that came from. Oh keeps the path from the answer to the record it rests on.",
+  },
+  {
+    label: "Memory that outlives one session",
+    summary: "What an agent learns across sessions becomes entities, relations, and facts in one file you control, with keyword search that needs no model and semantic search when you add one.",
+  },
+  {
+    label: "Teams that need to correct a memory",
+    summary: "A wrong fact is replaced by a new record that names the one it replaces. The history keeps both, so later work can tell what changed and when.",
+  },
+] as const;
 
 const eyebrow = marketing.category;
 const heading = marketing.hero.heading;
@@ -239,18 +255,36 @@ export default function Home() {
           />
 
           <FounderNote
-            emoji="🧾"
+            emoji={marketing.blurb.emoji}
             paragraphs={[founderNote]}
-            action={{ label: "Ask your agent to set it up:", href: "https://oh.computer" }}
+            action={{ label: `${marketing.blurb.cta.label}:`, href: marketing.blurb.cta.url }}
           />
+
+          <MarketingSection
+            heading="For developers whose agents get asked why."
+            headingId="audience-title"
+            id="audience"
+            label="Who it is for"
+            summary="Oh is for TypeScript developers building agents and research tools whose memory has to hold up to a follow-up question."
+          >
+            <dl className="oh-rows">
+              {audience.map((item) => (
+                <div key={item.label}>
+                  <dt>{item.label}</dt>
+                  <dd>{item.summary}</dd>
+                </div>
+              ))}
+            </dl>
+          </MarketingSection>
 
           <MarketingSection
             heading={marketingHeading("model-title")}
             headingId="model-title"
             id="model"
-            label="How it works"
-            summary="Save questions, sources, claims, and citations as separate linked records. Your agent can revise a claim while keeping the source it read and the history of how it got there."
+            label="The ontology"
+            summary="Instead of a pile of notes, an agent's memory becomes records of named kinds: entities, the editions it read, statements, the assertions that accept them, and the evidence that connects them. Each record names the records it depends on, so a later answer can be followed back to the source."
           >
+            <OntologyFigure />
             <dl className="oh-rows">
               {researchObjects.map((object) => (
                 <div key={object.kind}>
@@ -264,6 +298,17 @@ export default function Home() {
           </MarketingSection>
 
           <MarketingSection
+            heading="Your agent remembers and asks. Oh keeps the records, the history, and the answer’s path back."
+            headingId="how-title"
+            id="how"
+            label="How it works"
+            summary="Oh runs beside your agent as a library and a CLI. The agent saves what it learns and asks for recall; Oh returns a summary that can open into the original record, and a correction goes in as a new record with the old one kept in the history."
+          >
+            <MechanismDiagram />
+            <p className="record-link"><a href="https://github.com/hraness/oh/blob/main/docs/memory-context.md">Read how progressive recall works</a></p>
+          </MarketingSection>
+
+          <MarketingSection
             heading={marketingHeading("trace-title")}
             headingId="trace-title"
             id="trace"
@@ -271,7 +316,6 @@ export default function Home() {
             summary="In the example above, the citation points to table 2 in a saved edition of a trial report and records that it supports a claim. An application can follow those links to show what an answer rests on."
           >
             <TrailSteps />
-            <p>Oh checks that records and their history remain intact. It does not decide whether a claim is true.</p>
             <p className="record-link"><a href="/examples/evidence-table-2.json">Open the example citation</a></p>
           </MarketingSection>
 
@@ -353,7 +397,6 @@ oh get evidence:table-2 \\
             summary={`Use Oh to build memory into an application. Use ${wordcell.name} to work with a knowledge base made of Markdown files.`}
           >
             <p><a href={wordcell.canonicalUrl}>{wordcell.name}</a> keeps notes in Markdown and uses Oh to follow their links. Choose it when you want a knowledge base to use today; choose Oh when you are building memory into your own application.</p>
-            <p>Wordcell’s search has separate evaluations. Oh’s memory scores do not measure that search.</p>
           </MarketingSection>
 
           <MarketingInstallPanel

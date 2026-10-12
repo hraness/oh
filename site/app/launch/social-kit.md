@@ -48,10 +48,10 @@ Post 7 of 9, 119 characters
 Oh is for developers building agents and research tools where someone will later ask why the system believes something.
 ```
 
-Post 8 of 9, 224 characters
+Post 8 of 9, 243 characters
 
 ```text
-A shared byte format lets different implementations identify the same record. Oh keeps TypeScript as the reference and tests an optional Rust encoder against it, including encoded text, digests, and difficult number formats.
+Memory you can trace and correct. Recall starts from a short overview and opens into the original record when the task needs it. Oh keeps the records and the history; your app keeps the policy. The measure is whether memory changed later work.
 ```
 
 Post 9 of 9, 198 characters
@@ -106,10 +106,10 @@ Post 7 of 9, 119 characters
 Oh is for developers building agents and research tools where someone will later ask why the system believes something.
 ```
 
-Post 8 of 9, 224 characters
+Post 8 of 9, 243 characters
 
 ```text
-A shared byte format lets different implementations identify the same record. Oh keeps TypeScript as the reference and tests an optional Rust encoder against it, including encoded text, digests, and difficult number formats.
+Memory you can trace and correct. Recall starts from a short overview and opens into the original record when the task needs it. Oh keeps the records and the history; your app keeps the policy. The measure is whether memory changed later work.
 ```
 
 Post 9 of 9, 198 characters
@@ -164,10 +164,10 @@ Post 7 of 9, 119 characters
 Oh is for developers building agents and research tools where someone will later ask why the system believes something.
 ```
 
-Post 8 of 9, 224 characters
+Post 8 of 9, 243 characters
 
 ```text
-A shared byte format lets different implementations identify the same record. Oh keeps TypeScript as the reference and tests an optional Rust encoder against it, including encoded text, digests, and difficult number formats.
+Memory you can trace and correct. Recall starts from a short overview and opens into the original record when the task needs it. Oh keeps the records and the history; your app keeps the policy. The measure is whether memory changed later work.
 ```
 
 Post 9 of 9, 198 characters
@@ -195,7 +195,7 @@ By default Oh keeps everything in one SQLite file on your computer. Each accepte
 
 Oh is for developers building agents and research tools where someone will later ask why the system believes something.
 
-A shared byte format lets different implementations identify the same record. Oh keeps TypeScript as the reference and tests an optional Rust encoder against it, including encoded text, digests, and difficult number formats.
+Memory you can trace and correct. Recall starts from a short overview and opens into the original record when the task needs it. Oh keeps the records and the history; your app keeps the policy. The measure is whether memory changed later work.
 
 Latest release: v0.14.1. Oh is MIT licensed with no account needed. Follow the setup guide and run the first example to save a record and verify its history.
 
@@ -204,19 +204,19 @@ https://oh.computer/blog/introducing-oh
 
 ## Product Hunt
 
-Tagline: Evidence-backed memory for agents
+Tagline: Ontology-driven memory for agents
 
 Description:
 
 ```text
-Oh is open-source memory for agents that stores each fact with its sources and every change in a history you can replay.
+Oh is an ontology-driven memory framework for agents. It keeps the records and history behind each memory, so agents recall more and you can correct them.
 ```
 
 Topics: Developer Tools, Open Source, Artificial Intelligence
 
 ## Show HN and first comment fact sheet
 
-- Evidence-backed memory for agents
+- Ontology-driven memory for agents
 - Oh is free, open-source memory for AI agents. Your agent saves what it learns as linked records, each tied to its source, so later you can see what it remembered and why.
 - Say your agent read a trial report on Monday and tells you on Thursday the endpoint was measured at 12 weeks. With Oh you can follow that answer to its citation, then to the exact copy of the report it read.
 - The oh command finds a saved question by keyword and prints the answer with the records it rests on. It needs no account and no AI model. People get short text; add --json and your own scripts get the same answer as JSON.
@@ -236,7 +236,7 @@ Topics: Developer Tools, Open Source, Artificial Intelligence
 5. Accepting a note never overwrites one quietly
 6. One file on your computer, with a history you can replay
 7. Built for developers whose agents get asked why
-8. Keep the record format portable
+8. Memory you can trace, correct, and measure
 9. Free and open source
 
 ## Facts and their records

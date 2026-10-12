@@ -15,7 +15,7 @@ const channels = () => [...socialKit.x, ...socialKit.bluesky, ...socialKit.threa
 
 describe("launch beats and social kit", () => {
   test("every beat resolves, and the social kit passes the design kit's checks", () => {
-    expect(launchBeats.map((beat) => beat.id)).toEqual(["what", "trace", "ask", "propose", "adopt", "history", "who", "rust", "limits", "status"]);
+    expect(launchBeats.map((beat) => beat.id)).toEqual(["what", "trace", "ask", "propose", "adopt", "history", "who", "vision", "limits", "status"]);
     for (const beat of launchBeats) expect(beat.post).not.toMatch(/\{\w+\}/);
     expect(() => assertLaunchKit(launchBeats, socialKit, launchKitOptions)).not.toThrow();
     // The limits beat stays in the post and never becomes a social post.
