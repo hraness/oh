@@ -915,7 +915,9 @@ body > :not(.network-footer) { min-inline-size: 0; }
 }
 .founder-note__action a:hover { text-decoration-color: currentColor; }
 @media (max-width: 40rem) {
-  .founder-note { grid-template-columns: minmax(0, 1fr); gap: 0.85rem; padding: 1.25rem 1.25rem 1.1rem; }
+  /* The marketing page layout gives every child `inline-size: min(100%, measure)`; at phone width the card
+   * sizes to its own margins instead so its border stays inside the viewport. */
+  .founder-note { inline-size: auto; margin-inline: 1.25rem; grid-template-columns: minmax(0, 1fr); gap: 0.85rem; padding: 1.25rem 1.25rem 1.1rem; }
   .founder-note__body { grid-template-columns: minmax(0, 1fr); padding-block-start: 0; row-gap: 0.75rem; }
   .founder-note__body > p:first-child { font-size: 1.0625rem; }
   .founder-note__signature + .founder-note__action { grid-column: 1; justify-self: start; }
