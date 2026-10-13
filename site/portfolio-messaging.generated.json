@@ -5,7 +5,7 @@
   "portfolio": {
     "contract": "hraness.portfolio-public/v1",
     "url": "https://hraness.com/portfolio.json",
-    "digest": "sha256:9fee76882f7ddfe3eadffc0a1acad6a8975b7b2fa8580433efadfcffe469c757"
+    "digest": "sha256:f22d8bdf1b765586ce4e862e410156bf18ff889feeacd2b55aad668e9d9f1022"
   },
   "messaging": {
     "formatVersion": 1,
@@ -28,7 +28,7 @@
     },
     "blurb": {
       "emoji": "🧾",
-      "text": "Oh is a memory framework with a unique ontology-driven approach. An agent's memory becomes typed entities, relations, and facts, each carrying its history and the records it came from. Recall returns the right level of detail for the task, every memory traces back to its source, and anything wrong can be corrected in place. Oh keeps the records and the history; your harness keeps the policy.",
+      "text": "Oh is a memory framework with a unique ontology-driven approach. An agent's memory becomes typed entities, relations, and facts, each carrying its history and the records it came from. Recall returns the right level of detail for the task, every memory traces back to its source, and anything wrong is corrected in place.",
       "cta": {
         "label": "Ask your agent to set it up",
         "url": "https://oh.computer"
@@ -197,7 +197,7 @@
       "messaging": {
         "names": {
           "name": "Sponge",
-          "command": "spongev2"
+          "command": "sponge"
         },
         "short": "Local deep research agent that writes cited reports and improves with each run",
         "tagline": "Deep research that runs on your machine"
