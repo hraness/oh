@@ -21,10 +21,8 @@ import { ohSearchSite } from "./blog/articles";
 import { FounderNote } from "./founder-note";
 import { homeDescription } from "./metadata-copy";
 import { CodeBlock, Terminal, Transcript } from "./code-block";
-import { MechanismDiagram } from "./mechanism-diagram";
 import { AgentHostSplit } from "./mockups/trail";
-import { TrailSteps } from "./mockups/trail-steps";
-import { OntologyFigure } from "./ontology-figure";
+import { TrailHero } from "./mockups/trail-hero";
 
 const releaseVersion = publishedRelease.version;
 const installCommand = `bun add --global @hraness/oh@${releaseVersion}`;
@@ -46,21 +44,6 @@ if (!portfolio.relations.some(item => item.source === wordcell.id && item.target
 
 // The author's own description of Oh, from the portfolio registry.
 const founderNote = marketing.blurb.text;
-
-const audience = [
-  {
-    label: "Agents that get asked why",
-    summary: "Your agent answers a question on Thursday from something it read on Monday, and someone asks where that came from. Oh keeps the path from the answer to the record it rests on.",
-  },
-  {
-    label: "Memory that outlives one session",
-    summary: "What an agent learns across sessions becomes entities, relations, and facts in one file you control, with keyword search that needs no model and semantic search when you add one.",
-  },
-  {
-    label: "Teams that need to correct a memory",
-    summary: "A wrong fact is replaced by a new record that names the one it replaces. The history keeps both, so later work can tell what changed and when.",
-  },
-] as const;
 
 const eyebrow = marketing.category;
 const heading = marketing.hero.heading;
@@ -97,43 +80,43 @@ const researchObjects = [
   {
     label: marketingHeading("home-object-question"),
     kind: "inquiry",
-    summary: "Save what you are trying to find out, along with the investigation that follows.",
+    summary: "What you are trying to find out.",
   },
   {
     label: marketingHeading("home-object-source"),
     kind: "entity",
-    summary: "Identify the paper, dataset, person, or system you are researching, even if its title or URL changes.",
+    summary: "The paper, dataset, person, or system itself.",
   },
   {
     label: marketingHeading("home-object-capture"),
     kind: "edition",
-    summary: "Record the edition or extract you read, separate from the source as it looks today.",
+    summary: "The edition or extract that was read.",
   },
   {
     label: marketingHeading("home-object-claim"),
     kind: "statement",
-    summary: "Write down the claim itself, and keep who accepts it and the evidence for it in separate records.",
+    summary: "The claim, apart from who accepts it.",
   },
   {
     label: marketingHeading("home-object-citation"),
     kind: "evidence",
-    summary: "Point to a passage, table, or observation, and record how it bears on a stance toward a claim, such as support or contradiction.",
+    summary: "A passage or table and how it bears on a claim.",
   },
   {
     label: marketingHeading("home-object-artifact"),
     kind: "view",
-    summary: "Build a brief or answer that keeps links to the records it draws on.",
+    summary: "A brief or answer that links to its records.",
   },
 ] as const;
 
 const trust = [
   {
     label: marketingHeading("home-trust-local"),
-    detail: "Your records, the log of every change, and the keyword index live in a SQLite file you choose. Semantic search caches are derived from the records and can be rebuilt.",
+    detail: "Your records, the log of every change, and the keyword index live in a SQLite file you choose.",
   },
   {
     label: marketingHeading("home-trust-remote"),
-    detail: "Hosted embeddings, network sync, and a remote libSQL database are used only when you configure them. Sync sends operations, never search vectors.",
+    detail: "Hosted embeddings, sync, and remote libSQL run only when you configure them.",
   },
 ] as const;
 
@@ -141,29 +124,34 @@ const trust = [
 const questions = [
   {
     question: "What is stored, and where?",
-    answer: "One SQLite file holds your records and their digests, the append-only log of every change, a keyword index built from the records, and the specification version the file follows. Oh uses `.oh/oh.sqlite` and the `default` space unless you name another path or space. Semantic caches and remote copies exist only where you configure them.",
+    answer: "One SQLite file holds your records, the log of every change, and a keyword index. The default is `.oh/oh.sqlite`.",
   },
   {
     question: "Is semantic search required?",
-    answer: "No. The CLI uses keyword search without a model. The SDK can add local semantic search through QMD, or hosted embeddings from Cloudflare Workers AI. Hosted embeddings send record text to Cloudflare. Oh drops results whose records have changed or been removed since indexing.",
+    answer: "No. The CLI uses keyword search. The SDK can add local semantic search through QMD or hosted Cloudflare Workers AI embeddings.",
   },
   {
     question: "Does a passing verification mean a claim is true?",
-    answer: "No. A passing verification means the records and their history are intact: replaying the log reproduced every digest. Search scores measure relevance, not truth. Whether a claim holds is recorded separately, in assertions and review decisions linked to their evidence.",
+    answer: "No. It means replaying the log reproduced every record. Whether a claim holds lives in assertions linked to evidence.",
   },
-
   {
     question: "Where can I run it?",
-    answer: "The CLI, the local SDK, and the SQLite store need Bun 1.3.14 or newer. The runtime-neutral store interfaces and the direct libSQL adapter also run on Node 24, including in serverless functions.",
+    answer: "The CLI and local SDK need Bun 1.3.14 or newer. The libSQL adapter also runs on Node 24, including serverless functions.",
+  },
+  {
+    question: `How does ${wordcell.name} relate to Oh?`,
+    answer: `${wordcell.name} is a Markdown knowledge base built on Oh. Use Oh to build memory into your own application.`,
+    link: { href: wordcell.canonicalUrl, label: `Visit ${wordcell.name}` },
   },
 ] as const;
 
 const answerText = (answer: string): string => answer.replaceAll("`", "");
 
-function AnswerBody({ answer }: Readonly<{ answer: string }>) {
+function AnswerBody({ answer, link }: Readonly<{ answer: string; link?: Readonly<{ href: string; label: string }> }>) {
   return (
     <p>
       {answer.split("`").map((part, index) => (index % 2 === 1 ? <code key={index}>{part}</code> : part))}
+      {link ? <> <a href={link.href}>{link.label}</a>.</> : null}
     </p>
   );
 }
@@ -231,7 +219,7 @@ export default function Home() {
         <MarketingPage landscape="page">
           <ProductHero
             actions={[
-              { emphasis: "secondary", href: "#install", label: "First run" },
+              { emphasis: "primary", href: "#install", label: "Run the first task" },
               { emphasis: "secondary", href: "#model", label: marketing.hero.secondaryAction },
             ]}
             align="start"
@@ -239,14 +227,7 @@ export default function Home() {
             boundary={boundary}
             className="oh-hero"
             eyebrow={eyebrow}
-            frame={(
-              <MarketingProofFrame
-                className="oh-proof"
-                title="Save and read a citation"
-              >
-                <Transcript label="Saving and reading a citation with the oh CLI, using a fictional trial report" text={proofTranscript} />
-              </MarketingProofFrame>
-            )}
+            frame={<TrailHero />}
             heading={heading}
             headingId="hero-title"
             install={<PlatformInstall id="hero-install" platforms={installPlatforms} />}
@@ -261,31 +242,13 @@ export default function Home() {
           />
 
           <MarketingSection
-            heading="For developers whose agents get asked why."
-            headingId="audience-title"
-            id="audience"
-            label="Who it is for"
-            summary="Oh is for TypeScript developers building agents and research tools whose memory has to hold up to a follow-up question."
-          >
-            <dl className="oh-rows">
-              {audience.map((item) => (
-                <div key={item.label}>
-                  <dt>{item.label}</dt>
-                  <dd>{item.summary}</dd>
-                </div>
-              ))}
-            </dl>
-          </MarketingSection>
-
-          <MarketingSection
             heading={marketingHeading("model-title")}
             headingId="model-title"
             id="model"
-            label="The ontology"
-            summary="Instead of a pile of notes, an agent's memory becomes records of named kinds: entities, the editions it read, statements, the assertions that accept them, and the evidence that connects them. Each record names the records it depends on, so a later answer can be followed back to the source."
+            label="Six record kinds"
+            summary="Everything an agent remembers is one of six record kinds, and each record names the records it depends on."
           >
-            <OntologyFigure />
-            <dl className="oh-rows">
+            <dl className="oh-rows oh-records">
               {researchObjects.map((object) => (
                 <div key={object.kind}>
                   <dt>{object.label} <code>{object.kind}</code></dt>
@@ -293,29 +256,19 @@ export default function Home() {
                 </div>
               ))}
             </dl>
-            <p>Each write joins a history you can replay. Keyword search finds saved records without a model; your application can add semantic search when it needs to find related ideas.</p>
-            <p className="record-link"><a href="/spec#ontology">Explore the record types and format</a></p>
-          </MarketingSection>
-
-          <MarketingSection
-            heading="Your agent remembers and asks. Oh keeps the records, the history, and the answer’s path back."
-            headingId="how-title"
-            id="how"
-            label="How it works"
-            summary="Oh runs beside your agent as a library and a CLI. The agent saves what it learns and asks for recall; Oh returns a summary that can open into the original record, and a correction goes in as a new record with the old one kept in the history."
-          >
-            <MechanismDiagram />
-            <p className="record-link"><a href="https://github.com/hraness/oh/blob/main/docs/memory-context.md">Read how progressive recall works</a></p>
+            <p className="record-link"><a href="/spec#ontology">Read the record types and format</a></p>
           </MarketingSection>
 
           <MarketingSection
             heading={marketingHeading("trace-title")}
             headingId="trace-title"
             id="trace"
-            label="From answer to source"
-            summary="In the example above, the citation points to table 2 in a saved edition of a trial report and records that it supports a claim. An application can follow those links to show what an answer rests on."
+            label="Citation round trip"
+            summary="Each write joins a history you can replay: save a citation, read it back with its records, and check the store."
           >
-            <TrailSteps />
+            <MarketingProofFrame className="oh-proof" title="Save and read a citation">
+              <Transcript label="Saving and reading a citation with the oh CLI, using a fictional trial report" text={proofTranscript} />
+            </MarketingProofFrame>
             <p className="record-link"><a href="/examples/evidence-table-2.json">Open the example citation</a></p>
           </MarketingSection>
 
@@ -323,8 +276,8 @@ export default function Home() {
             heading="Your agent proposes. Your app decides."
             headingId="review-title"
             id="review"
-            label="Working notes and reviewed knowledge"
-            summary="An agent can remember, look up, explain and propose. Only your application's own code can add a proposal to reviewed knowledge."
+            label="Working notes, reviewed knowledge"
+            summary="An agent can remember, look up, explain, and propose; only your application’s code adds a proposal to reviewed knowledge."
           >
             <AgentHostSplit stage="nominated" />
             <p className="record-link"><a href="/blog/introducing-oh">Read the launch post</a></p>
@@ -337,7 +290,7 @@ export default function Home() {
             interfaces={[
               {
                 label: marketingHeading("home-interface-cli"),
-                summary: "Read one record from the local database and space you select.",
+                summary: "Read one record from the file you choose.",
                 example: (
                   <Terminal code={`oh get evidence:table-2 \\
   --db research.db \\
@@ -347,23 +300,21 @@ export default function Home() {
               },
               {
                 label: marketingHeading("home-interface-sdk"),
-                summary: "Open the database in your own code and read the same record.",
+                summary: "Open the same file from your code.",
                 example: (
                   <CodeBlock code={`import { Oh } from "@hraness/oh/sdk";
 
-const oh = Oh.open({ databasePath: "research.db" });
-try {
-  const citation = oh.get("evidence:table-2");
-  console.log(citation?.recordSha256);
-} finally {
-  await oh.close();
-}`} />
+const oh = Oh.open({
+  databasePath: "research.db",
+});
+oh.get("evidence:table-2");
+await oh.close();`} />
                 ),
                 link: { href: "https://github.com/hraness/oh#use-the-sdk", label: "Read the SDK guide" },
               },
               {
                 label: marketingHeading("home-interface-skill"),
-                summary: "Teach a coding agent to check the specification version and replay the log before it reads.",
+                summary: "An agent checks the contract and the log before reading.",
                 example: (
                   <Terminal code={`oh contract
 oh verify --db research.db --space default
@@ -373,30 +324,18 @@ oh get evidence:table-2 \\
                 link: { href: `${repository}/blob/main/skills/oh/SKILL.md`, label: "Read the Agent Skill" },
               },
             ]}
-            label="Interfaces"
-            summary="The CLI and the TypeScript SDK read and write the same SQLite file. The packaged Agent Skill has a coding agent run the commands you would run yourself, so its changes land in the log you verify."
+            label="CLI, SDK, skill"
+            summary="The CLI, the TypeScript SDK, and the packaged Agent Skill read and write the same SQLite file."
           />
 
           <MarketingSection
             heading={longMemEvalHeading}
             headingId="benchmarks-title"
             id="benchmarks"
-            label="Benchmarks"
-            layout="split"
-            summary="In each comparison, one model answers the same questions from each system’s memory, and every answer is scored the same way. Each result links to its protocol, costs, and limits."
+            label="LongMemEval-S"
+            summary="One model answers the same questions from each system’s memory, and every answer is graded the same way."
           >
             <MemoryBenchmarkComparison />
-          </MarketingSection>
-
-          <MarketingSection
-            heading={`${wordcell.name} uses Oh to query the graph of your Markdown notes.`}
-            headingId="wordcell-title"
-            id="wordcell"
-            label="Built on Oh"
-            layout="split"
-            summary={`Use Oh to build memory into an application. Use ${wordcell.name} to work with a knowledge base made of Markdown files.`}
-          >
-            <p><a href={wordcell.canonicalUrl}>{wordcell.name}</a> keeps notes in Markdown and uses Oh to follow their links. Choose it when you want a knowledge base to use today; choose Oh when you are building memory into your own application.</p>
           </MarketingSection>
 
           <MarketingInstallPanel
@@ -414,12 +353,9 @@ oh get entity:ada-lovelace
 oh search "mathematician"
 oh verify`} />
             <p className="install-note">
-              The CLI needs Bun 1.3.14 or newer. The first task creates one entity, reads it back, finds it
-              with keyword search, and verifies the log. Oh writes to <code>.oh/oh.sqlite</code> and
-              the <code>default</code> space unless you pass <code>--db</code> or <code>--space</code>.{" "}
+              The first task saves an entity, reads it back, searches for it, and verifies the log.{" "}
               <a href="https://github.com/hraness/oh#install-and-first-run">Read the full first run on GitHub</a>.
             </p>
-
           </MarketingInstallPanel>
 
           <MarketingTrustBoundary
@@ -428,7 +364,7 @@ oh verify`} />
             id="kernel"
             items={trust}
             label="Control"
-            summary="Start with a local SQLite file, without an account. Connect remote services only when your application needs them."
+            summary="Start with a local SQLite file and no account; connect remote services only when you need them."
           />
 
           <MarketingQuestionList
@@ -436,8 +372,8 @@ oh verify`} />
             headingId="questions-title"
             id="questions"
             label="Questions"
-            questions={questions.map(({ answer, question }) => ({
-              answer: <AnswerBody answer={answer} />,
+            questions={questions.map(({ answer, question, ...rest }) => ({
+              answer: <AnswerBody answer={answer} link={"link" in rest ? rest.link : undefined} />,
               question,
             }))}
           />

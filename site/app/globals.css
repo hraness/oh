@@ -144,18 +144,14 @@ a:focus-visible {
   text-decoration-color: currentColor;
 }
 
-/* The benchmark uses the shared section grammar and a semantic comparison table. */
-#benchmarks[data-layout="split"] {
-  align-items: start;
-}
-
-/* Shared chart geometry comes from design-kit; evidence and reading layout are local. */
-.memory-benchmark { min-inline-size: 0; }
-.memory-benchmark h3 { margin-block: 0 0.6rem; font-family: var(--hraness-type-h3-font); font-size: var(--hraness-type-h3-size); font-weight: var(--hraness-type-h3-weight); }
-.memory-benchmark .hraness-design-bar-list-chart { margin: 1.75rem 0; }
-.memory-benchmark .hraness-design-chart-row__label { white-space: normal; overflow: visible; text-overflow: clip; }
-.memory-benchmark .hraness-design-chart-row__heading { flex-wrap: wrap; gap: 0.25rem 1rem; }
-.memory-benchmark .hraness-design-chart-row__value { font-variant-numeric: tabular-nums; }
+/* The benchmark section is one metric strip: three numbers, a label each, the sample beneath. */
+.memory-benchmark { display: grid; gap: 1.25rem; min-inline-size: 0; }
+.oh-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin: 0; }
+.oh-metric { display: flex; flex-direction: column-reverse; gap: 0.35rem; padding-block-start: 0.9rem; border-block-start: 1px solid var(--line); }
+.oh-metric__value { margin: 0; font-size: clamp(2.25rem, 1.5rem + 2.6vw, 3.5rem); font-weight: 550; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.oh-metric__label { color: var(--muted); font-size: 0.95rem; line-height: 1.4; }
+.memory-benchmark .benchmark-meta { margin: 0; }
+@media (width < 40rem) { .oh-metrics { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; } }
 .benchmark-method { margin-block: 1.5rem; }
 .benchmark-method > div { display: grid; grid-template-columns: 7rem 1fr; gap: 1rem; padding-block: 0.6rem; border-block-end: 1px solid var(--line); }
 .benchmark-method dt { color: var(--muted); }
@@ -828,7 +824,11 @@ body > :not(.network-footer) { min-inline-size: 0; }
 .network-footer { margin-block-start: auto; }
 .oh-hero { grid-template-columns: minmax(0, 1fr); }
 .oh-hero .hraness-marketing-hero__heading { max-inline-size: 22ch; }
-.oh-hero .hraness-marketing-hero__frame { inline-size: 100%; max-inline-size: 54rem; }
+.oh-hero .hraness-marketing-hero__frame { inline-size: 100%; max-inline-size: none; }
+.oh-hero .hraness-marketing-hero__boundary { max-inline-size: 60ch; }
+/* The hero keeps one ingot and one text link. */
+.oh-hero .hraness-marketing-action[data-emphasis="secondary"] { padding-inline: 0; border-color: transparent; background: transparent; box-shadow: none; color: var(--foreground); text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent); text-underline-offset: 0.18em; }
+.oh-hero .hraness-marketing-action[data-emphasis="secondary"]:hover { text-decoration-color: currentColor; }
 .oh-terminal { margin: 0; padding: clamp(1rem, 3vw, 1.75rem); background: transparent; color: var(--foreground); border: 0; border-top: 1px solid var(--line); border-radius: 0; overflow-x: auto; font-size: .8125rem; line-height: 1.7; white-space: pre; }
 .oh-terminal code { font: inherit; }
 .oh-rows { margin: 0; }
@@ -836,6 +836,14 @@ body > :not(.network-footer) { min-inline-size: 0; }
 .oh-rows dt { font-weight: 550; }
 .oh-rows dd { margin: 0; color: var(--muted); }
 @media (width < 30rem) { .oh-rows > div { grid-template-columns: minmax(0, 1fr); gap: .4rem; } }
+/* Record cards: the six kinds as a shelf of cards. */
+.oh-records { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.oh-records > div { grid-template-columns: minmax(0, 1fr); gap: .35rem; padding: 1.1rem 1.2rem 1.2rem; border: 1px solid var(--line); border-radius: .75rem; background: var(--card, var(--surface)); }
+.oh-records dt { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; }
+.oh-records dt code { font-size: .8125rem; color: var(--muted); }
+.oh-records dd { font-size: .95rem; line-height: 1.5; }
+@media (width < 60rem) { .oh-records { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (width < 36rem) { .oh-records { grid-template-columns: minmax(0, 1fr); } }
 
 @media (forced-colors: active) {
   .oh-hero, .oh-terminal, .hraness-marketing-header { background: Canvas; color: CanvasText; box-shadow: none; }
@@ -848,19 +856,74 @@ body > :not(.network-footer) { min-inline-size: 0; }
   min-inline-size: max(2.75rem, var(--interactive-target-compact, 2.75rem));
 }
 
-/* Keep the install action solid instead of the shared foil border. */
-.hraness-marketing-action[data-emphasis="primary"] {
-  background: var(--primary);
-  border-color: var(--primary);
-  box-shadow: none;
-  color: var(--primary-foreground);
+/* Ingot primary action. Shared across the portfolio, 2026-10-13. */
+.hraness-marketing-action[data-emphasis="primary"],
+.ingot {
+  --ingot-ink: var(--foreground, CanvasText);
+  --ingot-paper: var(--background, Canvas);
+  --ingot-metal: color-mix(in oklch, var(--ingot-ink) 88%, var(--ingot-paper));
+  --ingot-metal-light: color-mix(in oklch, var(--ingot-ink) 72%, var(--ingot-paper));
+  --ingot-text: var(--ingot-paper);
+  position: relative;
+  isolation: isolate;
+  border: 1px solid color-mix(in oklch, var(--ingot-ink) 92%, var(--ingot-paper));
+  border-radius: 0.625rem;
+  background-color: var(--ingot-metal);
+  background-image:
+    linear-gradient(180deg, color-mix(in srgb, white 16%, transparent) 0%, transparent 46%, color-mix(in srgb, black 10%, transparent) 100%),
+    linear-gradient(115deg,
+      color-mix(in srgb, var(--hraness-foil-1, oklch(0.89 0.065 337)) 9%, transparent),
+      color-mix(in srgb, var(--hraness-foil-2, oklch(0.875 0.05 277)) 9%, transparent),
+      color-mix(in srgb, var(--hraness-foil-3, oklch(0.92 0.05 170)) 9%, transparent),
+      color-mix(in srgb, var(--hraness-foil-4, oklch(0.95 0.045 96)) 9%, transparent),
+      color-mix(in srgb, var(--hraness-foil-5, oklch(0.9 0.05 55)) 9%, transparent),
+      color-mix(in srgb, var(--hraness-foil-6, oklch(0.875 0.06 305)) 9%, transparent)),
+    linear-gradient(115deg, var(--ingot-metal-light) 0%, var(--ingot-metal) 28%, var(--ingot-metal-light) 52%, var(--ingot-metal) 74%, var(--ingot-metal-light) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 28%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 18%, transparent),
+    0 1px 2px color-mix(in srgb, var(--ingot-ink) 18%, transparent),
+    0 6px 16px -8px color-mix(in srgb, var(--ingot-ink) 35%, transparent);
+  color: var(--ingot-text);
+  font-weight: 550;
+  letter-spacing: 0.005em;
+  text-shadow: 0 1px 0 color-mix(in srgb, black 22%, transparent);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+.hraness-marketing-action[data-emphasis="primary"]:hover,
+.ingot:hover { filter: brightness(1.06); }
+.hraness-marketing-action[data-emphasis="primary"]:active,
+.ingot:active { transform: translateY(1px); box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent), inset 0 2px 6px color-mix(in srgb, black 30%, transparent), 0 1px 1px color-mix(in srgb, var(--ingot-ink) 12%, transparent); }
+.hraness-marketing-action[data-emphasis="primary"]:focus-visible,
+.ingot:focus-visible { outline: 2px solid var(--hraness-marketing-accent, var(--primary)); outline-offset: 3px; }
+:where([data-theme="dark"], .dark) .hraness-marketing-action[data-emphasis="primary"],
+:where([data-theme="dark"], .dark) .ingot {
+  --ingot-metal: color-mix(in oklch, var(--ingot-ink) 90%, var(--ingot-paper));
+  --ingot-metal-light: color-mix(in oklch, var(--ingot-ink) 76%, var(--ingot-paper));
+  text-shadow: 0 1px 0 color-mix(in srgb, white 30%, transparent);
+}
+/* This site resolves dark through the system scheme unless a palette choice is saved. */
+@media (prefers-color-scheme: dark) {
+  :where([data-hraness-theme="paper"]:not([data-theme="light"])) .hraness-marketing-action[data-emphasis="primary"],
+  :where([data-hraness-theme="paper"]:not([data-theme="light"])) .ingot {
+    --ingot-metal: color-mix(in oklch, var(--ingot-ink) 90%, var(--ingot-paper));
+    --ingot-metal-light: color-mix(in oklch, var(--ingot-ink) 76%, var(--ingot-paper));
+    text-shadow: 0 1px 0 color-mix(in srgb, white 30%, transparent);
+  }
 }
 @media (forced-colors: active) {
-  .hraness-marketing-action[data-emphasis="primary"] {
-    background: ButtonFace;
-    border-color: ButtonText;
-    color: ButtonText;
-  }
+  .hraness-marketing-action[data-emphasis="primary"], .ingot { background: ButtonFace; color: ButtonText; border-color: ButtonText; box-shadow: none; text-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hraness-marketing-action[data-emphasis="primary"], .ingot { transition: none; }
+  .hraness-marketing-action[data-emphasis="primary"]:active, .ingot:active { transform: none; }
+}
+
+/* Code never widens the phone page. */
+pre {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
 @media (forced-colors: active) {
@@ -921,63 +984,6 @@ body > :not(.network-footer) { min-inline-size: 0; }
   .founder-note__body { grid-template-columns: minmax(0, 1fr); padding-block-start: 0; row-gap: 0.75rem; }
   .founder-note__body > p:first-child { font-size: 1.0625rem; }
   .founder-note__signature + .founder-note__action { grid-column: 1; justify-self: start; }
-}
-
-/* Ontology figure: loose notes resolve into typed records. CSS-only motion;
- * the final frame is the static one, so reduced motion and search snippets
- * see the finished drawing. Colors come from the palette so both appearances work. */
-.oh-ontology { margin: 0; min-inline-size: 0; color: var(--foreground); }
-.oh-ontology__scroll { overflow-x: auto; max-inline-size: 100%; }
-.oh-ontology__scroll:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
-.oh-ontology__canvas { display: block; inline-size: 100%; min-inline-size: 40rem; block-size: auto; font-family: var(--font-text); }
-.oh-ontology__column { fill: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.oh-ontology__note rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 4 3; }
-.oh-ontology__note text { fill: var(--muted); font-size: 15px; font-style: italic; }
-.oh-ontology__resolve { fill: none; stroke: var(--primary); stroke-width: 1.5; opacity: .8; }
-.oh-ontology__relation path { fill: none; stroke: var(--foreground); stroke-width: 1.5; }
-.oh-ontology__relation rect { fill: var(--background); stroke: var(--line); }
-.oh-ontology__relation text { fill: var(--muted); font-size: 12px; font-weight: 600; }
-.oh-ontology__record rect { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
-.oh-ontology__kind { fill: var(--primary); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.oh-ontology__key { fill: var(--foreground); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; }
-.oh-ontology__value { fill: var(--muted); font-size: 14px; }
-.oh-ontology__source rect { fill: var(--background); stroke: var(--primary); }
-.oh-ontology__source text { fill: var(--primary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
-.oh-ontology figcaption { margin-block-start: 1rem; max-inline-size: 76ch; color: var(--muted); font-size: .875rem; line-height: 1.5; }
-.oh-ontology figcaption code { font-size: .8125rem; }
-
-@media (prefers-reduced-motion: no-preference) {
-  .oh-ontology__note { animation: oh-ontology-fade 600ms ease-out both; animation-delay: calc(var(--oh-step, 0) * 700ms); }
-  .oh-ontology__resolve { stroke-dasharray: 700; stroke-dashoffset: 700; animation: oh-ontology-draw 900ms ease-in-out forwards; animation-delay: calc(350ms + var(--oh-step, 0) * 700ms); }
-  .oh-ontology__record { animation: oh-ontology-settle 600ms ease-out both; animation-delay: calc(900ms + var(--oh-step, 0) * 700ms); }
-  .oh-ontology__relation { animation: oh-ontology-settle 600ms ease-out both; animation-delay: 2.8s; }
-}
-@keyframes oh-ontology-fade { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
-@keyframes oh-ontology-draw { to { stroke-dashoffset: 0; } }
-@keyframes oh-ontology-settle { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
-@media (forced-colors: active) {
-  .oh-ontology__note rect, .oh-ontology__record rect, .oh-ontology__relation rect, .oh-ontology__source rect { fill: Canvas; stroke: CanvasText; }
-  .oh-ontology text { fill: CanvasText; }
-  .oh-ontology__resolve, .oh-ontology__relation path { stroke: CanvasText; opacity: 1; }
-  .oh-ontology__kind, .oh-ontology__source text { fill: Highlight; }
-}
-
-/* Mechanism diagram: the agent beside Oh, with the correction loop. */
-.oh-mechanism .hraness-diagram__canvas { color: var(--foreground); }
-.oh-mechanism__node rect { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
-.oh-mechanism__node[data-node="oh"] rect { stroke: var(--primary); }
-.oh-mechanism__node circle { fill: var(--primary); }
-.oh-mechanism__title { fill: var(--foreground); font-size: 20px; font-weight: 600; }
-.oh-mechanism__detail { fill: var(--muted); font-size: 16px; }
-.oh-mechanism__flow path, .oh-mechanism__loop path { fill: none; stroke: var(--foreground); stroke-width: 1.5; }
-.oh-mechanism__loop rect { fill: var(--background); stroke: var(--line); }
-.oh-mechanism__label { fill: var(--muted); font-size: 14px; font-weight: 600; }
-@media (forced-colors: active) {
-  .oh-mechanism__node rect, .oh-mechanism__loop rect { fill: Canvas; stroke: CanvasText; }
-  .oh-mechanism text { fill: CanvasText; }
-  .oh-mechanism__node circle { fill: Highlight; }
-  .oh-mechanism__flow path, .oh-mechanism__loop path { stroke: CanvasText; }
 }
 
 /* Blog index entries pair a card image with the shared entry text. */

@@ -313,13 +313,11 @@ describe("Oh site source contract", () => {
       /every agent action|exact provenance|return typed conflicts|stable specification/iu,
     );
     expect(home).toContain("keyword index live in a SQLite file");
-    expect(home).toContain("Semantic search caches are derived from the records and can be rebuilt");
-    expect(home).toContain("used only when you configure them");
-    expect(home).toContain("Sync sends operations, never search vectors");
+    expect(home).toContain("run only when you configure them");
     expect(specificationText).toContain("optional Cloudflare Workers AI profile");
     expect(specificationText).toContain("canonical <code>.oh.md</code> file is a self-contained copy");
     expect(home).toContain("Each write joins a history you can replay");
-    expect(home).toContain("A passing verification means the records and their history are intact");
+    expect(home).toContain("It means replaying the log reproduced every record");
     expect(specificationText).toContain("a mismatch fails before any operation is exchanged");
     expect(specificationText).toContain("a chain that does not is a sync conflict");
     expect(specificationText).toContain("There is no last-write-wins merge");

@@ -1,85 +1,51 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 
-/** Exercise the real stacked section after scrolling and changing its content. */
+/** The hero's two-frame evidence trail: cards, labels and both frames stay complete at every width and text size. */
 export async function inspectTrailLayout(page, label, artifacts) {
-  const trace = page.locator("#trace");
-  const showcase = trace.locator(".hkm-steps");
-  await showcase.locator('.hkm-step-stage[data-hkm-fitted]').waitFor();
+  const hero = page.locator(".oh-hero");
+  const stage = hero.locator(".oh-trail-stage");
+  await stage.locator(".oh-trail .hkm-app-content").waitFor();
   const rows = [];
   const inspect = async (state) => {
-    const geometry = await trace.evaluate((section) => {
-      const box = (element) => {
-        const { x, y, width, height, bottom, right } = element.getBoundingClientRect();
+    const geometry = await stage.evaluate((element) => {
+      const box = (node) => {
+        const { x, y, width, height, bottom, right } = node.getBoundingClientRect();
         return { x, y, width, height, bottom, right };
       };
-      const heading = section.querySelector(":scope > .hraness-marketing-section__heading-group");
-      const body = section.querySelector(":scope > .hraness-marketing-section__body");
-      const figure = body.querySelector(".hkm-steps");
-      const stage = figure.querySelector(".hkm-step-stage");
-      const panel = stage.querySelector('[role="tabpanel"][aria-hidden="false"]');
-      const terminal = panel.querySelector('[data-hkm-density="presentation"]');
-      const map = panel.querySelector('.oh-trail .hkm-app-content');
+      const map = element.querySelector(".oh-trail .hkm-app-content");
+      const terminal = element.querySelector(".oh-mock-terminal");
+      const clipped = (node) => node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1;
+      const effectiveOpacity = (node) => {
+        let value = 1;
+        for (let current = node; current && current !== document.body; current = current.parentElement) {
+          value *= Number.parseFloat(getComputedStyle(current).opacity);
+        }
+        return value;
+      };
       return {
-        heading: box(heading), body: box(body), figure: box(figure), stage: box(stage),
-        panel: box(panel), navigation: box(figure.querySelector(".hkm-step-nav")),
-        following: box(figure.nextElementSibling), position: getComputedStyle(heading).position,
-        panels: [...stage.querySelectorAll('[role="tabpanel"]')].map((element) => ({
-          active: element.getAttribute("aria-hidden") === "false",
-          visible: getComputedStyle(element).visibility === "visible", inert: element.inert,
-        })),
-        scrollWidth: document.documentElement.scrollWidth, viewportWidth: innerWidth,
-        scaled: panel.querySelector('[data-hkm-scaled]') !== null,
-        frames: [...panel.querySelectorAll('.hkm-window')].map(box),
-        terminal: terminal && { size: parseFloat(getComputedStyle(terminal).fontSize),
-          minimum: parseFloat(getComputedStyle(document.documentElement).fontSize),
-          overflow: terminal.scrollHeight > terminal.clientHeight + 1 || terminal.scrollWidth > terminal.clientWidth + 1 },
-        map: { ...box(map), overflow: map.scrollHeight > map.clientHeight + 1 || map.scrollWidth > map.clientWidth + 1,
-          cards: [...map.querySelectorAll('.oh-trail-card')].map(box),
-          labels: [...map.querySelectorAll('.oh-trail-role, .oh-trail-key, .oh-trail-value')].map(element => ({ text: element.textContent, clipped: element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1 })),
-          text: [...map.querySelectorAll('.oh-trail-role, .oh-trail-key, .oh-trail-value')].map(element => {
-            let effectiveOpacity = 1;
-            for (let ancestor = element; ancestor && section.contains(ancestor); ancestor = ancestor.parentElement) {
-              effectiveOpacity *= Number.parseFloat(getComputedStyle(ancestor).opacity);
-            }
-            return { text: element.textContent, effectiveOpacity };
-          }) },
+        stage: box(element),
+        viewportWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        frames: [...element.querySelectorAll(".hkm-window")].map(box),
+        terminal: terminal ? { ...box(terminal), overflow: terminal.scrollWidth > terminal.clientWidth + 1, lines: terminal.querySelectorAll(".hkm-terminal-line, [data-hkm-line], pre > span, code > span").length } : null,
+        map: {
+          overflow: map.scrollWidth > map.clientWidth + 1,
+          cards: [...map.querySelectorAll(".oh-trail-card")].map(box),
+          labels: [...map.querySelectorAll(".oh-trail-role, .oh-trail-key, .oh-trail-value")].map((node) => ({ text: node.textContent, clipped: clipped(node), opacity: effectiveOpacity(node) })),
+        },
       };
     });
-    assert.equal(geometry.position, "static", `${label}/${state}: stacked heading stays in document flow`);
-    assert.ok(geometry.heading.bottom <= geometry.body.y + 1, `${label}/${state}: heading and body must not overlap while scrolling`);
-    assert.ok(geometry.figure.bottom <= geometry.following.y + 1, `${label}/${state}: next paragraph follows the complete showcase`);
-    assert.ok(geometry.panel.height > 100 && geometry.panel.bottom <= geometry.stage.bottom + 1, `${label}/${state}: active panel fits its stage`);
-    assert.ok(geometry.navigation.bottom <= geometry.stage.y + 1.5 || geometry.navigation.x <= geometry.stage.x, `${label}/${state}: step tabs sit on the stage's top or start edge`);
-    assert.ok(geometry.navigation.bottom <= geometry.figure.bottom + 1, `${label}/${state}: controls stay inside the showcase`);
-    assert.equal(geometry.panels.filter((panel) => panel.active).length, 1);
-    assert.ok(geometry.panels.every((panel) => panel.active === panel.visible && panel.inert !== panel.active), `${label}/${state}: inactive panels cannot overlay the current step`);
     assert.ok(geometry.scrollWidth <= geometry.viewportWidth, `${label}/${state}: no horizontal page overflow`);
-    assert.equal(geometry.scaled, false, `${label}/${state}: text stays at readable scale`);
-    assert.ok(geometry.terminal && geometry.terminal.size >= geometry.terminal.minimum - 0.1 && !geometry.terminal.overflow, `${label}/${state}: complete terminal content fits at the reader's text size`);
-    assert.equal(geometry.frames.length, 2, `${label}/${state}: both map and terminal remain visible`);
-    assert.ok(geometry.frames.every(frame => frame.width > 1 && frame.right <= geometry.stage.right + 1 && frame.bottom <= geometry.stage.bottom + 1), `${label}/${state}: composed frames stay inside the reserved stage`);
-    assert.ok(!geometry.map.overflow && geometry.map.cards.length > 0
-        && geometry.map.cards.every(card => card.x >= geometry.map.x && card.y >= geometry.map.y
-        && card.right <= geometry.map.right + 1 && card.bottom <= geometry.map.bottom + 1), `${label}/${state}: every map card fits inside its frame`);
-    assert.ok(geometry.map.labels.every(label => !label.clipped), `${label}/${state}: every map label, identifier and summary remains complete`);
-    assert.ok(geometry.map.text.length > 0 && geometry.map.text.every(text => Math.abs(text.effectiveOpacity - 1) < 0.001), `${label}/${state}: map text and its ancestors retain full opacity, including unselected records`);
-    assert.ok(Math.max(...geometry.frames.map(frame => frame.bottom)) >= geometry.stage.bottom - 3, `${label}/${state}: frames fill the reserved height`);
+    assert.equal(geometry.frames.length, 2, `${label}/${state}: the review brief and the terminal are both framed`);
+    assert.ok(geometry.frames.every((frame) => frame.width > 1 && frame.right <= geometry.stage.right + 1), `${label}/${state}: both frames stay inside the stage`);
+    assert.ok(geometry.terminal && !geometry.terminal.overflow, `${label}/${state}: the terminal shows its whole transcript`);
+    assert.ok(!geometry.map.overflow && geometry.map.cards.length === 7, `${label}/${state}: seven record cards fit the review brief`);
+    assert.ok(geometry.map.labels.length === 21 && geometry.map.labels.every((item) => !item.clipped), `${label}/${state}: every record label, identifier and summary remains complete`);
+    assert.ok(geometry.map.labels.every((item) => Math.abs(item.opacity - 1) < 0.001), `${label}/${state}: record text and its ancestors retain full opacity`);
     rows.push({ state, ...geometry });
   };
-  for (const step of ["Ask", "Trace", "Check"]) {
-    await showcase.getByRole("tab", { name: new RegExp(step) }).click();
-    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    for (const progress of [0, 0.35, 0.7]) {
-      await trace.evaluate((section, progress) => {
-        const rect = section.getBoundingClientRect();
-        scrollTo({ top: scrollY + rect.y + rect.height * progress - 80, behavior: "instant" });
-      }, progress);
-      await inspect(`${step}-${progress}`);
-    }
-  }
-  assert.ok(Math.max(...rows.map(row => row.stage.height)) - Math.min(...rows.map(row => row.stage.height)) <= 1, `${label}: switching steps preserves stage height`);
-  await showcase.getByRole("tab", { name: /Ask/ }).click();
+  await inspect("initial");
   const viewport = page.viewportSize();
   const fontSize = await page.evaluate(() => document.documentElement.style.fontSize);
   try {
@@ -88,29 +54,18 @@ export async function inspectTrailLayout(page, label, artifacts) {
     await inspect("resized-narrower");
     if (viewport.width === 1440) {
       await page.setViewportSize({ ...viewport, width: 390 });
-      await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
-      const zoomRows = [];
-      for (const step of ["Ask", "Trace", "Check"]) {
-        await showcase.getByRole("tab", { name: new RegExp(step) }).click();
-        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        await inspect(`large-text-${step}`);
-        zoomRows.push(rows.at(-1).stage.height);
-        if (artifacts) await showcase.screenshot({ path: join(artifacts, `${label}-large-text-${step.toLowerCase()}.png`) });
-      }
-      assert.ok(Math.max(...zoomRows) - Math.min(...zoomRows) <= 1, `${label}: enlarged text preserves a stable stage`);
+      await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await inspect("large-text");
+      if (artifacts) await stage.screenshot({ path: join(artifacts, `${label}-large-text.png`) });
     }
   } finally {
-    await page.evaluate(value => { document.documentElement.style.fontSize = value; }, fontSize);
+    await page.evaluate((value) => { document.documentElement.style.fontSize = value; }, fontSize);
     await page.setViewportSize(viewport);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   }
-  await showcase.getByRole("tab", { name: /Ask/ }).click();
   await inspect("resized-back");
-  if (artifacts) {
-    await trace.screenshot({ path: join(artifacts, `${label}-trace.png`) });
-    await trace.evaluate((section) => scrollTo({ top: scrollY + section.getBoundingClientRect().y + 320, behavior: "instant" }));
-    await page.screenshot({ path: join(artifacts, `${label}-trace-scroll.png`) });
-  }
+  if (artifacts) await hero.screenshot({ path: join(artifacts, `${label}-hero.png`) });
   return rows;
 }
 
