@@ -304,8 +304,10 @@ export default function Home() {
                 example: (
                   <CodeBlock code={`import { Oh } from "@hraness/oh/sdk";
 
-const oh = Oh.open({ databasePath: "research.db" });
-const citation = oh.get("evidence:table-2");
+const oh = Oh.open({
+  databasePath: "research.db",
+});
+oh.get("evidence:table-2");
 await oh.close();`} />
                 ),
                 link: { href: "https://github.com/hraness/oh#use-the-sdk", label: "Read the SDK guide" },
