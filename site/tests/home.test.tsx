@@ -11,7 +11,6 @@ import pilotResult from "../../benchmarks/results/memory-framework-pilot-v1.json
 import sdkResult from "../../benchmarks/results/memory-sdk-retrieval-qualification-v1.json";
 import rerankResult from "../../benchmarks/results/memory-clonemem-rerank-confirm-v1.json";
 import locomoAnswers from "../../benchmarks/results/memory-locomo-window-qa-v1.json";
-import locomoRecall from "../../benchmarks/results/memory-locomo-window-confirmation-v1.json";
 import locomoSealed from "../../benchmarks/results/memory-evolution-locomo-sealed-1540-v1.json";
 import memEvalResult from "../../benchmarks/results/memory-evolution-memeval-102-v1.json";
 import releaseMini from "../../benchmarks/results/memory-evolution-full-release-500-mini-v1.json";
@@ -37,16 +36,14 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
   const values: string[] = [];
   let copy = "";
   new HTMLRewriter()
-    .on("#benchmarks .hraness-design-chart-row__value", { text(chunk) { if (chunk.text) values.push(chunk.text); } })
+    .on("#benchmarks .oh-metric__value", { text(chunk) { if (chunk.text) values.push(chunk.text); } })
     .on("#benchmarks", { text(chunk) { copy += chunk.text; } })
     .transform(html);
   const text = copy.replace(/\s+/gu, " ");
   const fixed = (value: number) => value.toFixed(2);
   const system = (id: string) => `${fixed(longMemEval.systems.find((entry) => entry.id === id)?.percent ?? Number.NaN)}%`;
-  const share = (value: number) => `${fixed(value * 100)}%`;
-  const signed = (value: number) => `${value < 0 ? "\u2212" : "+"}${fixed(Math.abs(value))}`;
   expect(values).toEqual([
-    system("oh-reading-pipeline"), system("oh-semantic-96k"), system("bm25-96k"),
+    system("oh-semantic-96k"), system("bm25-96k"), system("oh-reading-pipeline"),
   ]);
 
   let heading = "";
@@ -55,30 +52,21 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
   const frozen = longMemEval.comparisons.find((entry) => entry.left === "oh-semantic-96k" && entry.right === "bm25-96k")?.correctInTwoOrThreeRuns;
   const tenth = (value: number | undefined) => (value ?? Number.NaN).toFixed(1);
 
-  const sdk = sdkResult.primary.reader.pairedQuestions;
-  const locomo = locomoAnswers.scores.reader.comparison;
   for (const fact of [
-    `Oh semantic retrieval scored ${system("oh-semantic-96k")}`,
+    `Oh semantic retrieval answered ${system("oh-semantic-96k")}`,
     `BM25 ${system("bm25-96k")}`,
-    `scored ${system("oh-reading-pipeline")}`,
+    `retrieved replies ${system("oh-reading-pipeline")}`,
     "GPT-5 mini answered every question three times",
     `lead over BM25 is ${tenth(frozen?.differencePoints)} points with a 95% interval from ${tenth(frozen?.interval95[0])} to ${tenth(frozen?.interval95[1])}`,
     "in-sample",
     "not part of the Oh package",
-    "up to 97%",
-    `${share(sdk.candidate)} correctly against ${share(sdk.baseline)}`,
-    `${(sdkResult.primary.native.warmRerankerMs.p50 / 1000).toFixed(1)} seconds of reranking per search`,
-    `${share(rerankResult.pooledReader.candidate)} correctly against ${share(rerankResult.pooledReader.baseline)}`,
-    `from ${fixed(rerankResult.bootstrap.lowerBound95 * 100)} to ${fixed(rerankResult.bootstrap.upperBound95 * 100)}`,
-    `${share(locomoRecall.summaries["anchors-query-4"].turnRecall)} of the marked evidence against ${share(locomoRecall.summaries["vector-window"].turnRecall)}`,
-    `answers scored ${share(locomo.candidate)} against ${share(locomo.baseline)}`,
-    `${signed(locomo.paired.delta * 100)} points with a 95% interval from ${signed(locomo.paired.lower * 100)} to ${signed(locomo.paired.upper * 100)}`,
+    "500 questions · three runs · Completed 2026-09-26",
   ]) expect(text).toContain(fact);
 
   for (const file of [
     "LONGMEMEVAL_S_500_RESULT_V1.md", "results/memory-longmemeval-s-500-v1.json",
-    "SDK_RETRIEVAL_QUALIFICATION_RESULT_V1.md", "CLONEMEM_RERANK_CONFIRM_RESULT_V1.md", "LOCOMO_WINDOW_QA_V1.md",
   ]) expect(html).toContain(`href="https://github.com/hraness/oh/blob/main/benchmarks/${file}"`);
+  expect(html).toContain('href="/benchmarks"');
   const postIndexable = indexableArticles.some((article) => article.slug === "longmemeval-s-user-log");
   expect(html.includes('href="/blog/longmemeval-s-user-log"')).toBe(postIndexable);
 
@@ -221,14 +209,20 @@ test("skip links transfer keyboard focus to each page's main landmark", () => {
 test("renders the current CLI citation proof and its exact inspectable record", () => {
   const html = renderToStaticMarkup(<RootLayout><Home /></RootLayout>);
   const hero = /data-hraness-marketing="hero"[\s\S]*?<\/header>/u.exec(html)?.[0] ?? "";
+  const trace = html.slice(html.indexOf('id="trace"'), html.indexOf('id="review"'));
   expect(html.match(/<h1\b/gu)).toHaveLength(1);
-  expect(hero).toContain('aria-label="Saving and reading a citation with the oh CLI, using a fictional trial report"');
-  expect(hero).toContain('tabindex="0"');
-  expect(hero).toContain(citationRecord.value.locator);
-  expect(hero).toContain(citationRecord.value.relationship);
-  for (const key of citationRecord.dependencies) expect(hero).toContain(key);
-  expect(hero).toContain("5 records and 5 changes replay to the same state");
-  expect(hero).toContain("fictional trial report");
+  // The hero shows the review brief's record cards and the CLI reading the citation under them.
+  expect(hero).toContain('class="oh-trail-stage"');
+  expect(hero).toContain("evidence:table-2");
+  expect(hero).toContain("7 records and 7 changes replay to the same state");
+  expect(hero).not.toContain("hkm-steps");
+  expect(trace).toContain('aria-label="Saving and reading a citation with the oh CLI, using a fictional trial report"');
+  expect(trace).toContain('tabindex="0"');
+  expect(trace).toContain(citationRecord.value.locator);
+  expect(trace).toContain(citationRecord.value.relationship);
+  for (const key of citationRecord.dependencies) expect(trace).toContain(key);
+  expect(trace).toContain("5 records and 5 changes replay to the same state");
+  expect(trace).toContain("fictional trial report");
   expect(html).toContain('href="/examples/evidence-table-2.json"');
   expect(html).not.toContain("historical capture");
   let commands = "";
