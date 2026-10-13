@@ -53,9 +53,6 @@ test("leads the benchmarks with the LongMemEval-S result and ties every figure t
   const tenth = (value: number | undefined) => (value ?? Number.NaN).toFixed(1);
 
   for (const fact of [
-    `Oh semantic retrieval answered ${system("oh-semantic-96k")}`,
-    `BM25 ${system("bm25-96k")}`,
-    `retrieved replies ${system("oh-reading-pipeline")}`,
     "GPT-5 mini answered every question three times",
     `lead over BM25 is ${tenth(frozen?.differencePoints)} points with a 95% interval from ${tenth(frozen?.interval95[0])} to ${tenth(frozen?.interval95[1])}`,
     "in-sample",

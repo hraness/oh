@@ -116,7 +116,7 @@ const trust = [
   },
   {
     label: marketingHeading("home-trust-remote"),
-    detail: "Hosted embeddings, sync, and a remote libSQL database are used only when you configure them. Sync sends operations, never search vectors.",
+    detail: "Hosted embeddings, sync, and remote libSQL run only when you configure them.",
   },
 ] as const;
 
@@ -124,23 +124,23 @@ const trust = [
 const questions = [
   {
     question: "What is stored, and where?",
-    answer: "One SQLite file holds your records, the append-only log of every change, a keyword index, and the specification version it follows. Oh uses `.oh/oh.sqlite` and the `default` space unless you name others.",
+    answer: "One SQLite file holds your records, the log of every change, and a keyword index. The default is `.oh/oh.sqlite`.",
   },
   {
     question: "Is semantic search required?",
-    answer: "No. The CLI uses keyword search without a model. The SDK can add local semantic search through QMD, or hosted embeddings from Cloudflare Workers AI. Semantic search caches are derived from the records and can be rebuilt.",
+    answer: "No. The CLI uses keyword search. The SDK can add local semantic search through QMD or hosted Cloudflare Workers AI embeddings.",
   },
   {
     question: "Does a passing verification mean a claim is true?",
-    answer: "No. A passing verification means the records and their history are intact: replaying the log reproduced every digest. Whether a claim holds is recorded separately, in assertions linked to their evidence.",
+    answer: "No. It means replaying the log reproduced every record. Whether a claim holds lives in assertions linked to evidence.",
   },
   {
     question: "Where can I run it?",
-    answer: "The CLI, the local SDK, and the SQLite store need Bun 1.3.14 or newer. The store interfaces and the direct libSQL adapter also run on Node 24, including serverless functions.",
+    answer: "The CLI and local SDK need Bun 1.3.14 or newer. The libSQL adapter also runs on Node 24, including serverless functions.",
   },
   {
     question: `How does ${wordcell.name} relate to Oh?`,
-    answer: `${wordcell.name} keeps notes in Markdown and uses Oh to follow their links. Choose ${wordcell.name} for a knowledge base today, and Oh to build memory into your own application.`,
+    answer: `${wordcell.name} is a Markdown knowledge base built on Oh. Use Oh to build memory into your own application.`,
     link: { href: wordcell.canonicalUrl, label: `Visit ${wordcell.name}` },
   },
 ] as const;
