@@ -124,23 +124,23 @@ const trust = [
 const questions = [
   {
     question: "What is stored, and where?",
-    answer: "One SQLite file holds your records, the append-only log of every change, a keyword index, and the specification version the file follows. Oh uses `.oh/oh.sqlite` and the `default` space unless you name another path or space.",
+    answer: "One SQLite file holds your records, the append-only log of every change, a keyword index, and the specification version it follows. Oh uses `.oh/oh.sqlite` and the `default` space unless you name others.",
   },
   {
     question: "Is semantic search required?",
-    answer: "No. The CLI uses keyword search without a model. The SDK can add local semantic search through QMD, or hosted embeddings from Cloudflare Workers AI, which send record text to Cloudflare. Semantic search caches are derived from the records and can be rebuilt.",
+    answer: "No. The CLI uses keyword search without a model. The SDK can add local semantic search through QMD, or hosted embeddings from Cloudflare Workers AI. Semantic search caches are derived from the records and can be rebuilt.",
   },
   {
     question: "Does a passing verification mean a claim is true?",
-    answer: "No. A passing verification means the records and their history are intact: replaying the log reproduced every digest. Whether a claim holds is recorded separately, in assertions and review decisions linked to their evidence.",
+    answer: "No. A passing verification means the records and their history are intact: replaying the log reproduced every digest. Whether a claim holds is recorded separately, in assertions linked to their evidence.",
   },
   {
     question: "Where can I run it?",
-    answer: "The CLI, the local SDK, and the SQLite store need Bun 1.3.14 or newer. The runtime-neutral store interfaces and the direct libSQL adapter also run on Node 24, including in serverless functions.",
+    answer: "The CLI, the local SDK, and the SQLite store need Bun 1.3.14 or newer. The store interfaces and the direct libSQL adapter also run on Node 24, including serverless functions.",
   },
   {
     question: `How does ${wordcell.name} relate to Oh?`,
-    answer: `${wordcell.name} keeps notes in Markdown and uses Oh to follow their links. Choose ${wordcell.name} for a knowledge base you can use today, and Oh to build memory into your own application.`,
+    answer: `${wordcell.name} keeps notes in Markdown and uses Oh to follow their links. Choose ${wordcell.name} for a knowledge base today, and Oh to build memory into your own application.`,
     link: { href: wordcell.canonicalUrl, label: `Visit ${wordcell.name}` },
   },
 ] as const;
@@ -277,7 +277,7 @@ export default function Home() {
             headingId="review-title"
             id="review"
             label="Working notes, reviewed knowledge"
-            summary="An agent can remember, look up, explain, and propose; only your application’s own code adds a proposal to reviewed knowledge."
+            summary="An agent can remember, look up, explain, and propose; only your application’s code adds a proposal to reviewed knowledge."
           >
             <AgentHostSplit stage="nominated" />
             <p className="record-link"><a href="/blog/introducing-oh">Read the launch post</a></p>
@@ -290,7 +290,7 @@ export default function Home() {
             interfaces={[
               {
                 label: marketingHeading("home-interface-cli"),
-                summary: "Read one record from the database and space you select.",
+                summary: "Read one record from the file you choose.",
                 example: (
                   <Terminal code={`oh get evidence:table-2 \\
   --db research.db \\
@@ -300,23 +300,19 @@ export default function Home() {
               },
               {
                 label: marketingHeading("home-interface-sdk"),
-                summary: "Open the same file from your own code.",
+                summary: "Open the same file from your code.",
                 example: (
                   <CodeBlock code={`import { Oh } from "@hraness/oh/sdk";
 
 const oh = Oh.open({ databasePath: "research.db" });
-try {
-  const citation = oh.get("evidence:table-2");
-  console.log(citation?.recordSha256);
-} finally {
-  await oh.close();
-}`} />
+const citation = oh.get("evidence:table-2");
+await oh.close();`} />
                 ),
                 link: { href: "https://github.com/hraness/oh#use-the-sdk", label: "Read the SDK guide" },
               },
               {
                 label: marketingHeading("home-interface-skill"),
-                summary: "A coding agent checks the contract and replays the log before it reads.",
+                summary: "An agent checks the contract and the log before reading.",
                 example: (
                   <Terminal code={`oh contract
 oh verify --db research.db --space default
@@ -327,7 +323,7 @@ oh get evidence:table-2 \\
               },
             ]}
             label="CLI, SDK, skill"
-            summary="The CLI, the TypeScript SDK, and the packaged Agent Skill read and write the same SQLite file and the same log."
+            summary="The CLI, the TypeScript SDK, and the packaged Agent Skill read and write the same SQLite file."
           />
 
           <MarketingSection
@@ -355,7 +351,7 @@ oh get entity:ada-lovelace
 oh search "mathematician"
 oh verify`} />
             <p className="install-note">
-              The first task saves one entity, reads it back, finds it with keyword search, and verifies the log.{" "}
+              The first task saves an entity, reads it back, searches for it, and verifies the log.{" "}
               <a href="https://github.com/hraness/oh#install-and-first-run">Read the full first run on GitHub</a>.
             </p>
           </MarketingInstallPanel>
@@ -366,7 +362,7 @@ oh verify`} />
             id="kernel"
             items={trust}
             label="Control"
-            summary="Start with a local SQLite file and no account; connect remote services only when your application needs them."
+            summary="Start with a local SQLite file and no account; connect remote services only when you need them."
           />
 
           <MarketingQuestionList

@@ -47,10 +47,10 @@ export function MemoryBenchmarkComparison() {
       <p className="benchmark-note">
         Oh semantic retrieval answered {percent(semantic)} of the questions correctly, BM25 {percent(bm25)}, and a lab
         pipeline that adds every message the user wrote to the retrieved replies {percent(pipeline)}.
-        GPT-5 mini answered every question three times with each system, and GPT-4o graded the answers with LongMemEval’s own prompts.
+        GPT-5 mini answered every question three times with each system, and GPT-4o graded the answers.
         On the measure fixed before the run, Oh’s lead over BM25 is {margin.difference} points with a 95% interval
-        from {margin.lower} to {margin.upper}, and the pipeline’s rules, which are not part of the Oh package, were written after
-        studying all 500 questions, so its score is in-sample.
+        from {margin.lower} to {margin.upper}, and the pipeline’s rules, not part of the Oh package, were written after
+        studying the questions, so its score is in-sample.
       </p>
       <ul className="benchmark-links" aria-label="LongMemEval-S results">
         <li><a href={`${evidence}/LONGMEMEVAL_S_500_RESULT_V1.md`}>Full result and limits</a></li>
