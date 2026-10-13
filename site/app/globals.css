@@ -825,6 +825,7 @@ body > :not(.network-footer) { min-inline-size: 0; }
 .oh-hero { grid-template-columns: minmax(0, 1fr); }
 .oh-hero .hraness-marketing-hero__heading { max-inline-size: 22ch; }
 .oh-hero .hraness-marketing-hero__frame { inline-size: 100%; max-inline-size: none; }
+.oh-hero .hraness-marketing-hero__boundary { max-inline-size: 60ch; }
 /* The hero keeps one ingot and one text link. */
 .oh-hero .hraness-marketing-action[data-emphasis="secondary"] { padding-inline: 0; border-color: transparent; background: transparent; box-shadow: none; color: var(--foreground); text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--foreground) 35%, transparent); text-underline-offset: 0.18em; }
 .oh-hero .hraness-marketing-action[data-emphasis="secondary"]:hover { text-decoration-color: currentColor; }
