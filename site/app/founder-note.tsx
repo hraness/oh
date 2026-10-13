@@ -1,4 +1,4 @@
-/** The founder's own description of the product, set as a signed note below the hero. */
+/** The founder's own description of the product, set as a signed note below the hero: the quote, the signature, then the action. */
 export function FounderNote({ emoji, paragraphs, action, signature }: {
   emoji: string;
   paragraphs: readonly string[];
@@ -10,10 +10,10 @@ export function FounderNote({ emoji, paragraphs, action, signature }: {
       <span aria-hidden="true" className="founder-note__emoji">{emoji}</span>
       <div className="founder-note__body">
         {paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+        {signature === undefined ? null : <p className="founder-note__signature">{signature}</p>}
         <p className="founder-note__action">
           {action.label} <a href={action.href}>{action.href.replace(/^https:\/\//, "")}</a>
         </p>
-        {signature === undefined ? null : <p className="founder-note__signature">{signature}</p>}
       </div>
     </section>
   );
