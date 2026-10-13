@@ -48,8 +48,8 @@ export async function inspectBenchmark(page, label, artifacts) {
       for (const rect of range.getClientRects()) {
         if (!rect.width || !rect.height) continue;
         if (textRects.length >= 1024) throw new Error("Benchmark text-rectangle bound exceeded");
-        const cell = parent.closest(".hraness-design-chart-row__label, .hraness-design-chart-row__value, .hraness-design-chart-row__detail");
-        const record = { element: describe(parent), cell: cell ? [...section.querySelectorAll(".hraness-design-chart-row__label, .hraness-design-chart-row__value, .hraness-design-chart-row__detail")].indexOf(cell) : null, ...rectOf(rect) };
+        const cell = parent.closest(".oh-metric__label, .oh-metric__value");
+        const record = { element: describe(parent), cell: cell ? [...section.querySelectorAll(".oh-metric__label, .oh-metric__value")].indexOf(cell) : null, ...rectOf(rect) };
         textRects.push(record);
         if (rect.left < -epsilon || rect.right > viewport + epsilon) issues.push({ kind: "viewport-text-clip", ...record });
         for (let ancestor = parent; ancestor; ancestor = ancestor.parentElement) {
@@ -78,7 +78,7 @@ export async function inspectBenchmark(page, label, artifacts) {
         }
       }
     }
-    const cells = [...section.querySelectorAll(".hraness-design-bar-list-chart, .hraness-design-chart-row__heading, .hraness-design-chart-row__detail")].filter((e) => !e.closest("thead") || e.closest("thead").getBoundingClientRect().width > 1).map((e) => {
+    const cells = [...section.querySelectorAll(".oh-metrics, .oh-metric")].filter((e) => !e.closest("thead") || e.closest("thead").getBoundingClientRect().width > 1).map((e) => {
       const result = { element: describe(e), scrollWidth: e.scrollWidth, clientWidth: e.clientWidth, ...rectOf(e.getBoundingClientRect()) };
       if (e.scrollWidth > e.clientWidth + epsilon) issues.push({ kind: "cell-scroll-overflow", ...result });
       return result;
@@ -130,7 +130,7 @@ async function textOverrides(page, scale, spacing) {
         if (element.tagName === "P") element.style.setProperty("margin-block-end", `${Math.max(margin, font * scale * 2)}px`, "important");
       }
     }
-    const probes = ["#benchmarks-title", "#benchmarks .hraness-design-chart-row__label", "#benchmarks .benchmark-note", "#benchmarks a"].map((selector) => {
+    const probes = ["#benchmarks-title", "#benchmarks .oh-metric__label", "#benchmarks .benchmark-note", "#benchmarks a"].map((selector) => {
       const element = document.querySelector(selector);
       const snapshot = snapshots.find((row) => row.element === element);
       const style = getComputedStyle(element);
