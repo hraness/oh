@@ -1060,3 +1060,8 @@ pre {
   .blog-card__edge, .blog-card__rule { stroke: CanvasText; }
   .blog-card__edge--thick { stroke: Highlight; }
 }
+
+/* Three interface cards are too narrow for their code below 1100px, so they stack. */
+@media (max-width: 1100px) {
+  #interfaces .hraness-marketing-interface-grid { grid-template-columns: minmax(0, 1fr); }
+}

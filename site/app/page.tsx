@@ -112,7 +112,7 @@ const researchObjects = [
 const trust = [
   {
     label: marketingHeading("home-trust-local"),
-    detail: "Your records, the log of every change, and the keyword index live in a SQLite file you choose.",
+    detail: "Records, the change log, and the keyword index live in a SQLite file you choose.",
   },
   {
     label: marketingHeading("home-trust-remote"),
@@ -246,7 +246,7 @@ export default function Home() {
             headingId="model-title"
             id="model"
             label="Six record kinds"
-            summary="Everything an agent remembers is one of six record kinds, and each record names the records it depends on."
+            summary="Each memory is one of six record kinds and names the records it depends on."
           >
             <dl className="oh-rows oh-records">
               {researchObjects.map((object) => (
@@ -264,7 +264,7 @@ export default function Home() {
             headingId="trace-title"
             id="trace"
             label="Citation round trip"
-            summary="Each write joins a history you can replay: save a citation, read it back with its records, and check the store."
+            summary="Each write joins a history you can replay."
           >
             <MarketingProofFrame className="oh-proof" title="Save and read a citation">
               <Transcript label="Saving and reading a citation with the oh CLI, using a fictional trial report" text={proofTranscript} />
@@ -277,10 +277,10 @@ export default function Home() {
             headingId="review-title"
             id="review"
             label="Working notes, reviewed knowledge"
-            summary="An agent can remember, look up, explain, and propose; only your application’s code adds a proposal to reviewed knowledge."
+            summary="Agents propose what to keep; only your application’s code adds it to reviewed knowledge."
           >
             <AgentHostSplit stage="nominated" />
-            <p className="record-link"><a href="/blog/introducing-oh">Read the launch post</a></p>
+            <p className="record-link"><a href="/blog/introducing-oh">The launch post</a></p>
           </MarketingSection>
 
           <MarketingInterfaceGrid
@@ -290,7 +290,7 @@ export default function Home() {
             interfaces={[
               {
                 label: marketingHeading("home-interface-cli"),
-                summary: "Read one record from the file you choose.",
+                summary: "Read a record from your file.",
                 example: (
                   <Terminal code={`oh get evidence:table-2 \\
   --db research.db \\
@@ -302,7 +302,9 @@ export default function Home() {
                 label: marketingHeading("home-interface-sdk"),
                 summary: "Open the same file from your code.",
                 example: (
-                  <CodeBlock code={`import { Oh } from "@hraness/oh/sdk";
+                  <CodeBlock code={`import {
+  Oh,
+} from "@hraness/oh/sdk";
 
 const oh = Oh.open({
   databasePath: "research.db",
@@ -314,18 +316,20 @@ await oh.close();`} />
               },
               {
                 label: marketingHeading("home-interface-skill"),
-                summary: "An agent checks the contract and the log before reading.",
+                summary: "An agent checks the log before reading.",
                 example: (
                   <Terminal code={`oh contract
-oh verify --db research.db --space default
+oh verify --db research.db \\
+  --space default
 oh get evidence:table-2 \\
-  --db research.db --space default`} />
+  --db research.db \\
+  --space default`} />
                 ),
                 link: { href: `${repository}/blob/main/skills/oh/SKILL.md`, label: "Read the Agent Skill" },
               },
             ]}
             label="CLI, SDK, skill"
-            summary="The CLI, the TypeScript SDK, and the packaged Agent Skill read and write the same SQLite file."
+            summary="All three read and write the same SQLite file."
           />
 
           <MarketingSection
@@ -333,7 +337,7 @@ oh get evidence:table-2 \\
             headingId="benchmarks-title"
             id="benchmarks"
             label="LongMemEval-S"
-            summary="One model answers the same questions from each system’s memory, and every answer is graded the same way."
+            summary="Each system answers the same questions with the same model and the same grader."
           >
             <MemoryBenchmarkComparison />
           </MarketingSection>
@@ -353,8 +357,7 @@ oh get entity:ada-lovelace
 oh search "mathematician"
 oh verify`} />
             <p className="install-note">
-              The first task saves an entity, reads it back, searches for it, and verifies the log.{" "}
-              <a href="https://github.com/hraness/oh#install-and-first-run">Read the full first run on GitHub</a>.
+              <a href="https://github.com/hraness/oh#install-and-first-run">The first run on GitHub</a>
             </p>
           </MarketingInstallPanel>
 
@@ -364,7 +367,7 @@ oh verify`} />
             id="kernel"
             items={trust}
             label="Control"
-            summary="Start with a local SQLite file and no account; connect remote services only when you need them."
+            summary="No account; nothing remote until you configure it."
           />
 
           <MarketingQuestionList
