@@ -302,9 +302,7 @@ export default function Home() {
                 label: marketingHeading("home-interface-sdk"),
                 summary: "Open the same file from your code.",
                 example: (
-                  <CodeBlock code={`import {
-  Oh,
-} from "@hraness/oh/sdk";
+                  <CodeBlock code={`import { Oh } from "@hraness/oh/sdk";
 
 const oh = Oh.open({
   databasePath: "research.db",
@@ -319,11 +317,9 @@ await oh.close();`} />
                 summary: "An agent checks the log before reading.",
                 example: (
                   <Terminal code={`oh contract
-oh verify --db research.db \\
-  --space default
+oh verify --db research.db --space default
 oh get evidence:table-2 \\
-  --db research.db \\
-  --space default`} />
+  --db research.db --space default`} />
                 ),
                 link: { href: `${repository}/blob/main/skills/oh/SKILL.md`, label: "Read the Agent Skill" },
               },

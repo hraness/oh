@@ -1061,7 +1061,10 @@ pre {
   .blog-card__edge--thick { stroke: Highlight; }
 }
 
-/* Three interface cards are too narrow for their code below 1100px, so they stack. */
+/* Three cards side by side are too narrow for their code: CLI and SDK share a row and the Agent Skill spans
+ * the next; below 1100px they stack. */
+#interfaces .hraness-marketing-interface-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#interfaces .hraness-marketing-interface:nth-child(3) { grid-column: 1 / -1; }
 @media (max-width: 1100px) {
   #interfaces .hraness-marketing-interface-grid { grid-template-columns: minmax(0, 1fr); }
 }
