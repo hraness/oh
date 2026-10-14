@@ -157,7 +157,7 @@ const agentTurns: readonly AgentTurn[] = [
   { role: "user", text: "Keep what table 2 says, and put it up for review." },
   { role: "tool", tool: "memory.agent.remember", text: `Saved ${NOMINATED_ROOT} to working memory`, status: "ok" },
   { role: "tool", tool: "memory.agent.nominate", text: `Proposed ${NOMINATED_ROOT} on the ${NOMINATION_ROUTE} route`, status: "ok" },
-  { role: "agent", text: "I proposed the summary. I can’t add it to reviewed knowledge myself; your app decides." },
+  { role: "agent", text: "Proposed. Only your app can add it to reviewed knowledge." },
 ];
 
 /**
