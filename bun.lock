@@ -10,7 +10,7 @@
         "@suss/datalog": "0.20.0",
         "@types/bun": "1.4.3",
         "effect": "3.22.1",
-        "fast-check": "4.9.0",
+        "fast-check": "4.10.2",
         "sigstore": "5.0.0",
         "typescript": "5.9.3",
       },
@@ -79,7 +79,7 @@
 
     "effect": ["effect@3.22.1", "", { "dependencies": { "@standard-schema/spec": "^1.0.0", "fast-check": "^3.23.1" } }, "sha512-TNoXushmPOBAjJlthF5d2QwnX2xBPEtcNJr5XKNKbRLbDvBcOYkXlYDfvGfSA0zriwLFuCll5MDtNMAdZL17PQ=="],
 
-    "fast-check": ["fast-check@4.9.0", "", { "dependencies": { "pure-rand": "^8.0.0" } }, "sha512-7ms6T7SybUev/PQITciI0yLM2pOSFy5zpG8Ty7tQofcVaQUvrMXp6CBwqF6fThLCLOrfBtuHAtwq6Yu4XPCllg=="],
+    "fast-check": ["fast-check@4.10.2", "", { "dependencies": { "pure-rand": "^8.0.0" } }, "sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw=="],
 
     "fs-minipass": ["fs-minipass@3.0.3", "", { "dependencies": { "minipass": "^7.0.3" } }, "sha512-XUBA9XClHbnJWSfBzjkm6RvPsyg3sryZt06BEQoXcF7EK/xpGaQYJgQKDJSUH5SGZ76Y7pFx1QBnXz09rU5Fbw=="],
 
