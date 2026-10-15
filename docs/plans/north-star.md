@@ -1,5 +1,18 @@
 # Oh north star: memory that can be traced and corrected
 
+## Current priority (set 2026-10-15)
+
+Until this is done, the only in-scope work is:
+
+1. Rerun memory-lab campaign `c001`, including the A/A arm `aa-001`, on top of the #336 fix.
+2. The registry change that removes the `event_ordering` rubric-count ceiling.
+
+Done: a merged PR that reports per-arm scores for `c001`, the `INCOMPLETE` cell count, and the run's cost, with the A/A spread shown so real gains can be told from noise; and the `event_ordering` ceiling removed.
+
+Every PR description must name the metric it moved, with before/after numbers.
+
+No marketing, home page, site, copy, or design-pass work until that is done. Dependabot and security fixes are fine.
+
 Status: proposed product direction, 2026-10-04; first two increments implemented as the opt-in `@hraness/oh/memory-context` surface. Drafted by Devin. Summary maintenance, the consumer pilot, and the adoption comparison remain pending.
 
 Oh should let an agent recover the evidence behind an earlier answer, understand what changed, and use the corrected information in later work. A short summary should help it find the right material without replacing the original or deciding what enters reviewed memory.

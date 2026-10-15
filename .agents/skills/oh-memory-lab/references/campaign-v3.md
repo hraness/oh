@@ -1,5 +1,9 @@
 # Context reserve campaigns (v3)
 
+## Current priority (set 2026-10-15)
+
+Until campaign `c001` (including A/A `aa-001`) is rerun on the #336 fix and the `event_ordering` rubric-count ceiling is removed, do not start a v3 campaign. See [the skill](../SKILL.md) and [docs/plans/north-star.md](../../../../docs/plans/north-star.md).
+
 Use `bun scripts/benchmarks/memory-lab/campaign-v3.ts --help` when comparing
 author-log context reserves. Keep v1 and v2 workspaces and source pins unchanged.
 The v3 runner uses the existing API transport and shared ledger; a new workspace

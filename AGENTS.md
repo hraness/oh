@@ -4,6 +4,21 @@
 - The sole native-runtime exception is Slopcamera’s documented signature-verified, version-bound, immutable task-owned Chrome snapshot, never a direct launch of the installed application. Its current integrity-bound launch contract must disable `MacAppCodeSignClone`; retain vendor identity verification, browser custody, graceful cleanup, and regression checks. Qualify the native fix with live clone-growth and cleanup evidence before activating this exception. It is not an executable override or fallback for ordinary automation; see [the native-runtime exception](https://github.com/hraness/.github/blob/main/BROWSER_AUTOMATION.md#slopcamera-native-runtime-exception).
 <!-- browser-automation:end -->
 
+# Current priority (set 2026-10-15)
+
+Until this is done, the only in-scope work is:
+
+1. Rerun memory-lab campaign `c001`, including the A/A arm `aa-001`, on top of the #336 fix.
+2. The registry change that removes the `event_ordering` rubric-count ceiling.
+
+Done: a merged PR that reports per-arm scores for `c001`, the `INCOMPLETE` cell count, and the run's cost, with the A/A spread shown so real gains can be told from noise; and the `event_ordering` ceiling removed.
+
+Every PR description must name the metric it moved, with before/after numbers.
+
+No marketing, home page, site, copy, or design-pass work until that is done. Dependabot and security fixes are fine.
+
+Read [docs/plans/north-star.md](docs/plans/north-star.md) and [the memory-lab skill](.agents/skills/oh-memory-lab/SKILL.md) before picking other work.
+
 # Contents
 
 - `src/` – canonical, ontology, schema, graph, operation, sync, SQLite, search, SDK, CLI, and optional semantic runtime code with colocated tests. The local semantic lifecycle and sync orchestration use bundled Effect runtimes.

@@ -5,6 +5,21 @@ description: Improve Oh's memory reader with subscription or explicitly budgeted
 
 # Oh memory lab
 
+## Current priority (set 2026-10-15)
+
+Until this is done, do not pick a new mechanism, start a new campaign, or update marketing copy.
+
+The only in-scope work is:
+
+1. Rerun campaign `c001`, including the A/A arm `aa-001`, on top of the #336 fix.
+2. The registry change that removes the `event_ordering` rubric-count ceiling.
+
+Done: a merged PR that reports per-arm scores for `c001`, the `INCOMPLETE` cell count, and the run's cost, with the A/A spread shown so real gains can be told from noise; and the `event_ordering` ceiling removed.
+
+Every PR description must name the metric it moved, with before/after numbers.
+
+No marketing, home page, site, copy, or design-pass work until that is done. Dependabot and security fixes are fine.
+
 Run one-mechanism experiments against a champion reader, screen them on the development pool and promote only after a
 fresh confirmation. Use the configured reader and judge on released BEAM scorer templates. Development scores guide
 experiments; comparisons with published numbers require a separately qualified, matched evaluation.
