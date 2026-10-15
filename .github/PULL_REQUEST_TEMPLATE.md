@@ -1,3 +1,7 @@
+## Metric
+
+Name the metric this change moved, with before and after numbers. While the 2026-10-15 priority is open, that metric is one of: `c001` per-arm scores, `INCOMPLETE` cell count, A/A spread, run cost, or the `event_ordering` ceiling. Dependabot and security fixes may write `no metric`.
+
 ## Outcome
 
 Describe what changed, why it changed, and what a user can now observe.

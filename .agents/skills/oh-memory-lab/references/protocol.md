@@ -1,5 +1,9 @@
 # Oh memory lab protocol (v1, 2026-09-30)
 
+## Current priority (set 2026-10-15)
+
+Until campaign `c001` (including A/A `aa-001`) is rerun on the #336 fix and the `event_ordering` rubric-count ceiling is removed, do not pick a new mechanism. See [the skill](../SKILL.md) and [docs/plans/north-star.md](../../../../docs/plans/north-star.md).
+
 This is the historical v1 protocol. New multi-cycle direct-API experiments use
 [campaign v2](campaign-v2.md), including whole-family data separation, native
 capture verification and explicit confirmation alpha spending. Preserve v1 pilot

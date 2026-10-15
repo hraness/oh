@@ -1,5 +1,9 @@
 # Direct-API campaigns (v2)
 
+## Current priority (set 2026-10-15)
+
+Until campaign `c001` (including A/A `aa-001`) is rerun on the #336 fix and the `event_ordering` rubric-count ceiling is removed, that rerun is the next action. Do not start a different campaign. See [the skill](../SKILL.md) and [docs/plans/north-star.md](../../../../docs/plans/north-star.md).
+
 Use `bun run bench:memory-campaign --help` for a finite campaign. A private workspace
 contains `campaign.json`, immutable run plans, stage intents and captured replies.
 The existing API transport owns dispatch, credentials and the shared spending
