@@ -1,5 +1,7 @@
 # Contributing
 
+> This project is retired. The contribution guide below is preserved for historical reference.
+
 Oh accepts focused issues and pull requests for the TypeScript library and CLI
 (`src/`), the Rust crates (`rust/`), the specification (`spec/`), the Agent
 Skill (`skills/oh/`), and the website (`site/`). Report vulnerabilities through

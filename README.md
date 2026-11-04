@@ -1,5 +1,7 @@
 # Oh
 
+> **Retired.** Oh is no longer maintained, and oh.computer is discontinued. The source, specifications, and existing releases are preserved. The documentation below describes the archived project.
+
 > 🧾 Oh is a memory framework with a unique ontology-driven approach. An agent's
 > memory becomes typed entities, relations, and facts, each carrying its history
 > and the records it came from. Recall returns the right level of detail for
